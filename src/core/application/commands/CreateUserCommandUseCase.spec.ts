@@ -1,67 +1,62 @@
-import { UserFactory } from 'core/domain/user/UserFactory';
-import { CreateUserCommandUseCase } from './CreateUserCommandUseCase';
-import { User } from 'core/domain/user/User';
-import { UserId } from 'core/domain/user/UserId';
+import { expect } from '@jest/globals';
+import { mockedApplication, mockedUserRepository } from 'core/infrastruture/app/application.mock';
 import { UserExceptions } from 'core/domain/user/UserExceptions';
+import { MockedUserRepository } from 'core/infrastruture/adapters/repositories/MockedUserRepository';
 
-describe('create user command usecase', function () {
+beforeEach(() => {
+  MockedUserRepository.clearMocks();
+});
+
+describe('how to create a user', function () {
   it('should create a user if he is not already exist', async () => {
-    const mockedUserRepository = {
-      findByEmail: (_: string) => Promise.resolve(null),
-      nextIdentity: () => Promise.resolve('mockedId'),
-      save: (user: User) => Promise.resolve(user),
-    };
+    (mockedUserRepository.nextIdentity as jest.Mock).mockImplementationOnce(() => Promise.resolve('mockedId'));
 
-    const createUser = new CreateUserCommandUseCase({
-      userFactory: new UserFactory({
-        userRepository: mockedUserRepository,
-      }),
-      userRepository: mockedUserRepository,
+    await mockedApplication.commands.createUser.execute({
+      profile: { email: 'test@test.fr', nickname: 'manual-nickname' },
     });
 
-    const newUser = (await createUser.execute({ email: 'test@test.fr' })) as User;
-    expect(newUser).toBeInstanceOf(User);
-    expect(newUser.email).toEqual('test@test.fr');
-    expect(newUser._id).toEqual('mockedId');
+    expect(mockedUserRepository.save).toHaveBeenCalledWith({
+      _id: 'mockedId',
+      profile: {
+        email: 'test@test.fr',
+        nickname: 'manual-nickname',
+      },
+    });
   });
 
-  it('should not create a user if he already exists', async () => {
-    const mockedUserRepository = {
-      findByEmail: () => Promise.resolve({} as User),
-      save: (user: User) => Promise.resolve(user),
-      nextIdentity: () => Promise.resolve('Id'),
-    };
-
-    const createUser = new CreateUserCommandUseCase({
-      userFactory: new UserFactory({
-        userRepository: mockedUserRepository,
-      }),
-      userRepository: mockedUserRepository,
-    });
+  it('should not create a user if he is not already exist', async () => {
+    (mockedUserRepository.findByEmail as jest.Mock).mockImplementationOnce(() => Promise.resolve({}));
 
     try {
-      await createUser.execute({ email: 'test@test.fr' });
+      await mockedApplication.commands.createUser.execute({
+        profile: { email: 'test@test.fr' },
+      });
     } catch (e) {
       expect(e).toEqual(UserExceptions.UserWithEmailAlreadyExists);
     }
   });
 
-  it('should not create a user if the email is malformed', async () => {
-    const mockedUserRepository = {
-      findByEmail: () => Promise.resolve(null),
-      save: (user: User) => Promise.resolve(user),
-      nextIdentity: () => Promise.resolve('Id'),
-    };
+  it('should create a user with a nickname from username email if nickname is not specify', async () => {
+    (mockedUserRepository.nextIdentity as jest.Mock).mockImplementationOnce(() => Promise.resolve('mockedId'));
 
-    const createUser = new CreateUserCommandUseCase({
-      userFactory: new UserFactory({
-        userRepository: mockedUserRepository,
-      }),
-      userRepository: mockedUserRepository,
+    await mockedApplication.commands.createUser.execute({
+      profile: { email: 'nickname@test.fr' },
     });
 
+    expect(mockedUserRepository.save).toHaveBeenCalledWith({
+      _id: 'mockedId',
+      profile: {
+        email: 'nickname@test.fr',
+        nickname: 'nickname',
+      },
+    });
+  });
+
+  it('should not create a user if the email is malformed', async () => {
     try {
-      await createUser.execute({ email: 'test' });
+      await mockedApplication.commands.createUser.execute({
+        profile: { email: 'email-malformed' },
+      });
     } catch (e) {
       expect(e).toEqual(UserExceptions.InvalidUserEmail);
     }
