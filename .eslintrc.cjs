@@ -14,6 +14,6 @@ module.exports = {
     '@typescript-eslint/no-useless-constructor': ['error'],
     '@typescript-eslint/no-inferrable-types': ['off'],
 
-    'import/extensions': ['error', 'ignorePackages', { js: 'always', jsx: 'never', ts: 'never', tsx: 'never' }],
+    // 'import/extensions': ['error', 'ignorePackages', { js: 'always', jsx: 'never', ts: 'never', tsx: 'never' }],
   },
-}
+};
