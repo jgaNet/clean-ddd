@@ -1,24 +1,25 @@
-import { UserEmail } from './UserEmail';
+import { UserDTO } from './dtos';
+import { UserProfile } from './UserProfile';
 import { UserId } from './UserId';
-
-export interface UserProps {
-  email: string;
-}
 
 export class User {
   #_id: UserId;
-  #email: UserEmail;
+  #profile: UserProfile;
 
-  constructor(_id: UserId, props: UserProps) {
+  private constructor(_id: UserId, profile: UserProfile) {
     this.#_id = _id;
-    this.#email = new UserEmail(props.email);
+    this.#profile = profile;
   }
 
-  get _id(): string | undefined {
+  static create(userDto: UserDTO) {
+    return new User(new UserId(userDto._id), new UserProfile(userDto.profile));
+  }
+
+  get _id(): string {
     return this.#_id.value;
   }
 
-  get email(): string {
-    return this.#email.value;
+  get profile(): UserProfile {
+    return this.#profile;
   }
 }

@@ -1,7 +1,7 @@
-import { User } from './User';
+import { UserDTO } from './dtos';
 
 export interface UserRepository {
   nextIdentity(): Promise<string>;
-  findByEmail(email: string): Promise<User | null>;
-  save(userData: { email: string }): Promise<User>;
+  findByEmail(email: string): Promise<UserDTO | null>;
+  save(user: UserDTO): Promise<void>;
 }

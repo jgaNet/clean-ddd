@@ -1,9 +1,7 @@
-import { User, UserProps } from './User';
+import { User } from './User';
 import { UserRepository } from './UserRepository';
 import { UserExceptions } from './UserExceptions';
-import { UserId } from './UserId';
-
-export interface NewUserProps extends UserProps { }
+import { NewUserDTO, UserDTO } from './dtos';
 
 export class UserFactory {
   #userRepository: UserRepository;
@@ -12,8 +10,8 @@ export class UserFactory {
     this.#userRepository = userRepository;
   }
 
-  async exists(newUserProps: UserProps): Promise<true | Error> {
-    const user = await this.#userRepository.findByEmail(newUserProps.email);
+  async exists(newUserProps: NewUserDTO): Promise<true | Error> {
+    const user = await this.#userRepository.findByEmail(newUserProps.profile.email);
 
     if (user) {
       return UserExceptions.UserWithEmailAlreadyExists;
@@ -22,15 +20,17 @@ export class UserFactory {
     return true;
   }
 
-  async new(newUserProps: UserProps): Promise<User> {
+  async new(newUserProps: NewUserDTO): Promise<User> {
     const existsOrError = await this.exists(newUserProps);
 
     if (existsOrError instanceof Error) {
       throw existsOrError;
     }
 
-    const userId = new UserId(await this.#userRepository.nextIdentity());
+    const userProps = newUserProps as UserDTO;
 
-    return new User(userId, newUserProps);
+    userProps._id = await this.#userRepository.nextIdentity();
+
+    return User.create(userProps);
   }
 }

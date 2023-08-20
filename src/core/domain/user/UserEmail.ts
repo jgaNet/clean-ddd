@@ -15,7 +15,15 @@ export class UserEmail {
     this.#value = email;
   }
 
-  get value() {
+  get value(): string {
     return this.#value;
+  }
+
+  get username(): string {
+    const username = this.#value.match(/^([^@]*)@/);
+    if (!username) {
+      throw UserExceptions.InvalidUserEmail;
+    }
+    return username[1];
   }
 }
