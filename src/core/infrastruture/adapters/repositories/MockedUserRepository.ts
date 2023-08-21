@@ -3,6 +3,7 @@ import { UserRepository } from 'core/domain/user/UserRepository';
 import { InMemoryUserRepository } from './InMemoryUserRepository';
 import { UserDTO } from 'core/domain/user/dtos';
 
+// TODO: Try to remove all this mockReset
 export class MockedUserRepository extends InMemoryUserRepository {
   static clearMocks() {
     (MockedUserRepository.prototype.findByEmail as jest.Mock).mockReset();
