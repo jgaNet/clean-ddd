@@ -26,4 +26,5 @@ export default {
   coverageProvider: 'v8',
   coverageReporters: isCI ? ['json'] : ['text'],
   moduleDirectories: ['node_modules', 'src'],
+  modulePathIgnorePatterns: ['<rootDir>/dist/'],
 };
