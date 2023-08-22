@@ -4,35 +4,42 @@
  * This is a sample HTTP server.
  * Replace this with your implementation.
  */
+import 'dotenv/config';
+import { Config } from './config.js';
 
-import 'dotenv/config'
-import { createServer, IncomingMessage, ServerResponse } from 'http'
-import { resolve } from 'path'
-import { fileURLToPath } from 'url'
-import { Config } from './config.js'
+import Fastify from 'fastify';
+import { userRoutes } from '@core/presentation/gateways/http/routes/user';
+import { homeRoutes } from '@core/presentation/gateways/http/routes/home';
+import { swaggerDescriptor } from '@core/presentation/gateways/http/swagger';
+import { localApplication } from '@core/infrastructure/app/application.local';
+import fastifySwagger from '@fastify/swagger';
+import fastifySwaggerUi from '@fastify/swagger-ui';
 
-const nodePath = resolve(process.argv[1])
-const modulePath = resolve(fileURLToPath(import.meta.url))
-const isCLI = nodePath === modulePath
+const swaggerUiOptions = {
+  routePrefix: '/docs',
+  exposeRoute: true,
+};
 
-export default function main(port: number = Config.port) {
-  const requestListener = (_: IncomingMessage, response: ServerResponse) => {
-    response.setHeader('content-type', 'text/plain;charset=utf8')
-    response.writeHead(200, 'OK')
-    response.end('Olá, Hola, Hello 2!')
+const fastify = Fastify({ logger: false });
+
+//HTTP Gateway With Swagger
+fastify.register(fastifySwagger, swaggerDescriptor);
+fastify.register(fastifySwaggerUi, swaggerUiOptions);
+fastify.register(homeRoutes);
+fastify.register(userRoutes, { prefix: '/users' });
+
+export default async function main(port: number = Config.port) {
+  try {
+    await localApplication.start();
+    await fastify.listen({ port });
+    await fastify.ready();
+    fastify.swagger();
+    console.log(`[sys][http] Listening on port: ${port}`);
+  } catch (err) {
+    console.log(err);
+    fastify.log.error(err);
+    process.exit(1);
   }
-
-  const server = createServer(requestListener)
-
-  if (isCLI) {
-    server.listen(port)
-    // eslint-disable-next-line no-console
-    console.log(`Listening on port: ${port}`)
-  }
-
-  return server
 }
 
-if (isCLI) {
-  main()
-}
+main();
