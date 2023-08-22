@@ -27,8 +27,11 @@
     "skipLibCheck": true,
     "noEmitHelpers": false,
     "outDir": "dist",
-    "rootDir": "./src",
-    "baseUrl": "src"
+    "rootDir": "src",
+    "baseUrl": "src",
+    "paths": {
+      "@core/*": ["core/*"]
+    }
   },
   "exclude": [
     "dist",
