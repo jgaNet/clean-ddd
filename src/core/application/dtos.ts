@@ -1,7 +1,9 @@
 import { CreateUserCommandUseCase } from './commands/CreateUserCommandUseCase';
 import { Event } from '@primitives/Event';
 import { EventHandler } from '@primitives/EventHandler';
-import { UserCreated } from 'core/domain/user/events/UserCreated';
+import { UserCreated } from '@core/domain/user/events/UserCreated';
+
+export { NewUserDTO as CreateUserCommandInput } from '@core/domain/user/dtos';
 
 export type Subscription<T> = { event: Event<T>; eventHandlers: EventHandler<Event<T>>[] };
 export type Subscriptions<T> = Subscription<T>[];

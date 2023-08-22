@@ -1,7 +1,7 @@
 import { expect } from '@jest/globals';
-import { mockedApplication, mockedUserRepository } from 'core/infrastruture/app/application.mock';
-import { UserExceptions } from 'core/domain/user/UserExceptions';
-import { MockedUserRepository } from 'core/infrastruture/adapters/repositories/MockedUserRepository';
+import { mockedApplication, mockedUserRepository } from '@core/infrastructure/app/application.mock';
+import { UserExceptions } from '@core/domain/user/UserExceptions';
+import { MockedUserRepository } from '@core/infrastructure/adapters/repositories/MockedUserRepository';
 
 beforeEach(() => {
   MockedUserRepository.clearMocks();
