@@ -22,14 +22,20 @@ export class Application {
     this.queries = queries;
     this.subscriptions = subscriptions;
     this.eventBus = eventBus;
-    this.subscribe();
   }
 
-  subscribe() {
-    this.subscriptions.domain.forEach(({ event, eventHandlers }) => {
-      eventHandlers.forEach(eventHandler => {
-        this.eventBus.subscribe(event, eventHandler);
-      });
-    });
+  async start() {
+    console.log('[sys][app][info] Application starting...');
+    await this.eventBus.connect();
+    await this.subscribe();
+    console.log('[sys][app][info] Application started');
+  }
+
+  async subscribe() {
+    for (const sub of this.subscriptions.domain) {
+      for (const eventHandler of sub.eventHandlers) {
+        await this.eventBus.subscribe(sub.event, eventHandler);
+      }
+    }
   }
 }
