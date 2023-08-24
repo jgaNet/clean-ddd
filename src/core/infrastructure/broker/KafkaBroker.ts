@@ -2,9 +2,10 @@ import { EventBus } from '@primitives/EventBus';
 import { Event } from '@primitives/Event';
 import { EventHandler } from '@primitives/EventHandler';
 import { Kafka, KafkaConfig, Producer, Consumer } from 'kafkajs';
+import { BrokerExceptions } from './BrokerExceptions';
 
 // TODO: Move it on config file
-const GROUPID = `group-${Math.ceil(Math.random() * 1000000000)}`;
+const GROUPID = 'group1' || `group-${Math.ceil(Math.random() * 1000000000)}`;
 
 export class KafkaBroker implements EventBus {
   #eventEmitter: Kafka;
@@ -41,7 +42,7 @@ export class KafkaBroker implements EventBus {
             throw e;
           }
         } else {
-          throw new Error('No message value');
+          throw BrokerExceptions.NoMessageValue;
         }
       },
     });
