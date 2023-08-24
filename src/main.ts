@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * This is a sample HTTP server.
+ *rThis is a sample HTTP server.
  * Replace this with your implementation.
  */
 import 'dotenv/config';
@@ -15,16 +15,13 @@ import { localApplication } from '@core/infrastructure/app/application.local';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 
-const swaggerUiOptions = {
-  routePrefix: '/docs',
-  exposeRoute: true,
-};
-
 const fastify = Fastify({ logger: false });
 
 //HTTP Gateway With Swagger
 fastify.register(fastifySwagger, swaggerDescriptor);
-fastify.register(fastifySwaggerUi, swaggerUiOptions);
+if (Config.swaggerUi.active) {
+  fastify.register(fastifySwaggerUi, Config.swaggerUi);
+}
 fastify.register(homeRoutes);
 fastify.register(userRoutes, { prefix: '/users' });
 

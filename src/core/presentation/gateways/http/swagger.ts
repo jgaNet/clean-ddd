@@ -1,4 +1,5 @@
 import { SwaggerOptions } from '@fastify/swagger';
+import { Config } from 'config';
 
 export const swaggerDescriptor: SwaggerOptions = {
   swagger: {
@@ -7,7 +8,7 @@ export const swaggerDescriptor: SwaggerOptions = {
       description: 'Testing the API',
       version: '0.0.1',
     },
-    host: 'localhost:8080',
+    host: `localhost:${Config.port}`,
     schemes: ['http'],
     consumes: ['application/json'],
     produces: ['application/json'],
