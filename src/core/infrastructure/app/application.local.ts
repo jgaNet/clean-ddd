@@ -8,7 +8,7 @@ import { InMemoryUserRepository } from '../adapters/repositories/InMemoryUserRep
 
 const kafkaBroker = new KafkaBroker({
   clientId: 'my-app',
-  brokers: ['localhost:9092'],
+  brokers: ['localhost:9092', 'localhost:9093', 'localhost:9094'],
 });
 
 const userRepository = new InMemoryUserRepository();
