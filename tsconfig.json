@@ -30,7 +30,7 @@
     "rootDir": "src",
     "baseUrl": "src",
     "paths": {
-      "@core/*": ["core/*"]
+      "@users-manager/*": ["users-manager/*"]
     }
   },
   "exclude": [
