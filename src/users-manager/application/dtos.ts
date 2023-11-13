@@ -8,19 +8,19 @@ export { NewUserDTO as CreateUserCommandPort } from '@users-manager/domain/user/
 
 export type Subscription<T> = { event: Event<T>; eventHandlers: EventHandler<Event<T>>[] };
 export type Subscriptions<T> = Subscription<T>[];
-export type ApplicationSubscriptions = {
+
+export type ModuleSubscriptions = {
   domain: Subscriptions<unknown>;
 };
 
-export type ApplicationCommands = [
+export type UsersManagerModuleCommands = [
   { event: typeof CreateUserCommandEvent; eventHandlers: EventHandler<CreateUserCommandEvent>[] },
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface IApplicationQueries {
-  getUsers: GetUsersQuery;
-}
+export type UsersManagerModuleQueries = [{ name: 'getUsers'; handler: GetUsersQuery }];
 
-export type ApplicationDomainEvents = [
+export type UsersManagerModuleDomainEvents = [
   { event: typeof UserCreatedEvent; eventHandlers: EventHandler<UserCreatedEvent>[] },
 ];
+
+export type UsersManagerModuleIntegrationEvents = [];

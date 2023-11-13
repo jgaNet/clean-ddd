@@ -3,7 +3,7 @@ import { Mapper } from '@primitives/Mapper';
 import { UserDTO } from './dtos';
 
 export class UserMapperImpl implements Mapper<User, UserDTO> {
-  toDTO(user: User): UserDTO {
+  toJson(user: User): UserDTO {
     return {
       _id: user._id,
       profile: {
@@ -13,7 +13,7 @@ export class UserMapperImpl implements Mapper<User, UserDTO> {
     };
   }
 
-  toDomain(user: UserDTO): User {
+  toEntity(user: UserDTO): User {
     return User.create(user);
   }
 }

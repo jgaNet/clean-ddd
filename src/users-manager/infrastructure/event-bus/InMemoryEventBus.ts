@@ -12,6 +12,7 @@ export class InMemoryEventBus implements EventBus {
   }
 
   async connect() {
+    // eslint-disable-next-line no-console
     console.log('[sys][warning] InMemoryBroker used');
   }
 

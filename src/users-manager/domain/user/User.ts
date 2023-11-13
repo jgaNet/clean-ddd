@@ -1,22 +1,18 @@
+import { Entity } from '@primitives/Entity';
 import { UserDTO } from './dtos';
 import { UserProfile } from './UserProfile';
 import { UserId } from './UserId';
 
-export class User {
-  #_id: UserId;
+export class User extends Entity {
   #profile: UserProfile;
-
-  private constructor(_id: UserId, profile: UserProfile) {
-    this.#_id = _id;
-    this.#profile = profile;
-  }
 
   static create(userDto: UserDTO) {
     return new User(new UserId(userDto._id), new UserProfile(userDto.profile));
   }
 
-  get _id(): string {
-    return this.#_id.value;
+  private constructor(_id: UserId, profile: UserProfile) {
+    super(_id.value);
+    this.#profile = profile;
   }
 
   get profile(): UserProfile {

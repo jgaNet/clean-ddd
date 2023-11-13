@@ -18,7 +18,7 @@ export const Config = {
     autoRefreshToken: true,
   },
   kafka: {
-    active: true,
+    active: false,
     brokers: ['localhost:9092', 'localhost:9093', 'localhost:9094'],
     clientId: process.env.KAFKA_CLIENT_ID || 'my-app',
   },

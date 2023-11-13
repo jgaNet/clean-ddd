@@ -1,11 +1,3 @@
-export class UserId {
-  readonly #value: string;
+import { ValueObject } from '@primitives/ValueObject';
 
-  constructor(id: string) {
-    this.#value = id;
-  }
-
-  get value() {
-    return this.#value;
-  }
-}
+export class UserId extends ValueObject<string> {}

@@ -12,6 +12,7 @@ export class AsyncExceptionHandler extends ExceptionHandler {
   }
 
   async throw(Event: typeof ExceptionEvent<Error>, error: Exception): Promise<void> {
+    // eslint-disable-next-line no-console
     console.error(error);
     this.#eventBus.dispatch(Event, error);
   }

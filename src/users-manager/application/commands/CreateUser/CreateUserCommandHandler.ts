@@ -32,9 +32,10 @@ export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEv
 
   async execute({ payload }: CreateUserCommandEvent): Promise<void> {
     try {
-      const newUser = UserMapper.toDTO(await this.#userFactory.new(payload));
-      await this.#userRepository.save(newUser);
-      this.#eventBus.dispatch(UserCreatedEvent, newUser);
+      const newUser = await this.#userFactory.new(payload);
+      const newUserDto = UserMapper.toJson(newUser);
+      await this.#userRepository.save(newUserDto);
+      this.#eventBus.dispatch(UserCreatedEvent, newUserDto);
     } catch (e) {
       if (e instanceof Exception) {
         return this.#exceptionHandler.throw(CreateUserCommandExceptionEvent, e);

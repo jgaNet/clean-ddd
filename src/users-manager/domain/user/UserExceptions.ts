@@ -1,12 +1,13 @@
 import { Exception } from '@primitives/Exception';
 
-class UserDomainException extends Exception {
+export class UserDomainException extends Exception {
   constructor({ type, message, context }: { type: string; message: string; context?: unknown }) {
-    super({ service: 'core.domain.user', type, message, context });
+    super({ service: 'core.domain.users-manager', type, message, context });
   }
 }
 
-export const UserExceptions: Record<string, (infos: any) => Error> = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const UserExceptions: Record<string, (infos: any) => UserDomainException> = {
   UserWithEmailAlreadyExists: ({ email }: { email: string }) =>
     new UserDomainException({
       type: 'UserWithEmailAlreadyExists',

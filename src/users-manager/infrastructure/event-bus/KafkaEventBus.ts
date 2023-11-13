@@ -17,8 +17,10 @@ export class KafkaEventBus implements EventBus {
   }
 
   async connect() {
+    // eslint-disable-next-line no-console
     console.log('[sys][broker][info] Kafka broker connecting...');
     await this.#producer.connect();
+    // eslint-disable-next-line no-console
     console.log('[sys][broker][info] Kafka broker connected');
   }
 
@@ -38,10 +40,12 @@ export class KafkaEventBus implements EventBus {
             await eventHandler.execute(event);
           } catch (e) {
             if (e instanceof Error) {
+              // eslint-disable-next-line no-console
               console.log(EventBusExceptions.Unknown({ trace: e }));
             }
           }
         } else {
+          // eslint-disable-next-line no-console
           console.log(EventBusExceptions.NoMessageValue({ eventName: EventClass.name }));
         }
       },

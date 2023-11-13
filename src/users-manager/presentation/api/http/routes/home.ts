@@ -12,7 +12,7 @@ export const GetHomeResSchema = {
   },
 } as const;
 
-export const homeRoutes = function (fastify: FastifyInstance, _: unknown, done: Function) {
+export const homeRoutes = function (fastify: FastifyInstance, _: unknown, done: () => void) {
   fastify.get(
     '/',
     {
@@ -21,6 +21,8 @@ export const homeRoutes = function (fastify: FastifyInstance, _: unknown, done: 
       },
     },
     req => {
+      // WARNING:: eslint disable because req was change in fastify-keycloak-adapter
+      // eslint-disable-next-line
       const username: string = (req as any).session.user.name;
       return { version: Config.version, message: `Hello ${username}` };
     },

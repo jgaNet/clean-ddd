@@ -1,20 +1,26 @@
 import { UserEmail } from './UserEmail';
-import { UserProfileDTO as UserProfileProps } from './dtos';
+import { UserProfileDTO } from './dtos';
+import { ValueObject } from '@primitives/ValueObject';
 
-export class UserProfile {
-  #email: UserEmail;
-  #nickname: string;
+interface UserProfileProps {
+  email: UserEmail;
+  nickname: string;
+}
 
-  constructor(userProfileProps: UserProfileProps) {
-    this.#email = new UserEmail(userProfileProps.email);
-    this.#nickname = userProfileProps.nickname || this.#email.username;
+export class UserProfile extends ValueObject<UserProfileProps> {
+  constructor(userProfileDTO: UserProfileDTO) {
+    const email = new UserEmail(userProfileDTO.email);
+    super({
+      email,
+      nickname: userProfileDTO.nickname || email.username,
+    });
   }
 
   get nickname(): string {
-    return this.#nickname;
+    return this.value.nickname;
   }
 
   get email(): UserEmail {
-    return this.#email;
+    return this.value.email;
   }
 }

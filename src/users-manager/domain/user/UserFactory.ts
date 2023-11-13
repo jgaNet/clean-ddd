@@ -1,6 +1,6 @@
 import { User } from './User';
 import { UserRepository } from './UserRepository';
-import { UserExceptions } from './UserExceptions';
+import { UserDomainException, UserExceptions } from './UserExceptions';
 import { NewUserDTO, UserDTO } from './dtos';
 
 export class UserFactory {
@@ -10,7 +10,7 @@ export class UserFactory {
     this.#userRepository = userRepository;
   }
 
-  async exists(newUserProps: NewUserDTO): Promise<true | Error> {
+  async exists(newUserProps: NewUserDTO): Promise<true | UserDomainException> {
     const user = await this.#userRepository.findByEmail(newUserProps.profile.email);
 
     if (user) {
@@ -23,7 +23,7 @@ export class UserFactory {
   async new(newUserProps: NewUserDTO): Promise<User> {
     const existsOrError = await this.exists(newUserProps);
 
-    if (existsOrError instanceof Error) {
+    if (existsOrError instanceof UserDomainException) {
       throw existsOrError;
     }
 

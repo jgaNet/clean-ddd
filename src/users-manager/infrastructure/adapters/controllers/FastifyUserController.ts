@@ -2,20 +2,21 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { CreateUserReqBody } from '@users-manager/presentation/api/http/routes/user';
 import { EventBus as CommandEventBus } from '@primitives/EventBus';
 import { CreateUserCommandEvent } from '@users-manager/application/commands/CreateUser/CreateUserCommandEvents';
-import { IApplicationQueries } from '@users-manager/application/dtos';
+import { ModuleQueries } from '@users-manager/application/dtos';
 
 export class FastifyUserController {
   #commandEventBus: CommandEventBus;
-  #queries: IApplicationQueries;
+  #queries: ModuleQueries;
+
   constructor({
     commandEventBus,
-    queries: IApplicationQueries,
+    queries: ModuleQueries,
   }: {
     commandEventBus: CommandEventBus;
-    queries: IApplicationQueries;
+    queries: ModuleQueries;
   }) {
     this.#commandEventBus = commandEventBus;
-    this.#queries = IApplicationQueries;
+    this.#queries = ModuleQueries;
   }
 
   async createUser(req: FastifyRequest<{ Body: CreateUserReqBody }>, reply: FastifyReply) {
@@ -36,7 +37,7 @@ export class FastifyUserController {
 
   async getUsers(_: unknown, reply: FastifyReply) {
     try {
-      return this.#queries.getUsers.execute();
+      return this.#queries.find(q => q.name == 'getUsers')?.handler.execute();
     } catch (e) {
       reply.code(400);
       return e;
