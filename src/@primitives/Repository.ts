@@ -1,4 +1,4 @@
-import { DataSource } from '@primitives/DataSource';
-export abstract class Repository {
-  abstract dataSource: DataSource;
+import { DataSource } from '@Primitives/DataSource';
+export abstract class Repository<T> {
+  abstract dataSource: DataSource<T>;
 }

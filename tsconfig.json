@@ -30,12 +30,25 @@
     "rootDir": "src",
     "baseUrl": "src",
     "paths": {
-      "@users-manager/*": ["users-manager/*"]
+      "@Contexts/*": [
+        "Contexts/*"
+      ],
+      "@Shared/*": [
+        "Shared/*"
+      ],
+      "@Primitives/*": [
+        "@Primitives/*"
+      ],
+      "@Bootstrap/*": [
+        "Bootstrap/*"
+      ]
     }
   },
   "exclude": [
     "dist",
     "node_modules"
   ],
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts"
+  ]
 }

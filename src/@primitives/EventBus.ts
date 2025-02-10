@@ -1,5 +1,5 @@
-import { Event } from './Event';
-import { EventHandler } from './EventHandler';
+import { Event } from '@Primitives/Event';
+import { EventHandler } from '@Primitives/EventHandler';
 export interface EventBus {
   connect(): Promise<void>;
   dispatch<T>(EventClass: typeof Event<T>, payload: T): void;

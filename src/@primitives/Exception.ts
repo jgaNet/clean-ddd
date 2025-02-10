@@ -30,3 +30,14 @@ export abstract class Exception {
     );
   }
 }
+
+export class UnknownException extends Exception {
+  constructor(message: string, context?: unknown) {
+    super({
+      service: 'unknown',
+      type: 'unknown',
+      message,
+      context,
+    });
+  }
+}

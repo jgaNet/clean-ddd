@@ -1,14 +1,19 @@
-import { EventHandler } from './EventHandler';
-import { Event } from './Event';
-import { EventBus } from '@primitives/EventBus';
-import { CommandEvent } from '@primitives/EventTypes';
+import { EventHandler } from '@Primitives/EventHandler';
+import { CommandHandler } from '@Primitives/CommandHandler';
+import { Event } from '@Primitives/Event';
+import { EventBus } from '@Primitives/EventBus';
+import { CommandEvent } from '@Primitives/EventTypes';
+import { QueryHandler } from '@Primitives/QueryHandler';
+import { DataSource } from '@Primitives/DataSource';
 
+type CommandModuleEvent = { event: typeof Event<unknown>; eventHandlers: CommandHandler<Event<unknown>>[] };
 type ModuleEvent = { event: typeof Event<unknown>; eventHandlers: EventHandler<Event<unknown>>[] };
-type ModuleQuery = { name: string; handler: unknown };
-export type GenericModule = Module<ModuleEvent[], ModuleQuery[], ModuleEvent[], ModuleEvent[]>;
+type ModuleQuery = { name: symbol; handler: QueryHandler<DataSource<unknown>, unknown> };
+
+export type GenericModule = Module<CommandModuleEvent[], ModuleQuery[], ModuleEvent[], ModuleEvent[]>;
 
 export class Module<
-  Commands extends ModuleEvent[],
+  Commands extends CommandModuleEvent[],
   Queries extends ModuleQuery[],
   DomainEvents extends ModuleEvent[],
   IntegrationEvents extends ModuleEvent[],
@@ -72,7 +77,7 @@ export class Module<
   }
 
   getQuery(name: string): unknown {
-    const query = this.queries.find(query => query.name === name)?.handler;
+    const query = this.queries.find(query => query.name.toString() === name)?.handler;
     if (query) {
       return query;
     } else {

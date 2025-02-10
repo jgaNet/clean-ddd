@@ -9,7 +9,7 @@ export const Config = {
     exposeRoute: true,
   },
   keycloak: {
-    active: true,
+    active: false,
     appOrigin: `http://${process.env.BASE_URL || 'localhost'}:${process.env.PORT || '10000'}`,
     clientId: process.env.KEYCLOAK_CLIENT_ID || 'web-app',
     clientSecret: process.env.KEYCLOAK_CLIENT_SECRET || '',

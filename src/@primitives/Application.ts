@@ -1,4 +1,4 @@
-import { GenericModule } from '@primitives/Module';
+import { GenericModule } from '@Primitives/Module';
 
 export abstract class Application {
   #modules: GenericModule[];
