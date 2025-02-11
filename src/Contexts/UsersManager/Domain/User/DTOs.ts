@@ -1,14 +1,14 @@
-export interface UserProfileDTO {
+export interface IUserProfile {
   email: string;
   nickname: string;
 }
 
-export interface UserDTO {
+export interface IUser {
   _id: string;
-  profile: UserProfileDTO;
+  profile: IUserProfile;
 }
 
-export interface NewUserDTO {
+export interface INewUser {
   profile: {
     email: string;
     nickname?: string;

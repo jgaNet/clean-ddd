@@ -1,5 +1,5 @@
 import { UserEmail } from '@Contexts/UsersManager/Domain/User/UserEmail';
-import { UserProfileDTO } from '@Contexts/UsersManager/Domain/User/DTOs';
+import { IUserProfile } from '@Contexts/UsersManager/Domain/User/DTOs';
 import { ValueObject } from '@Primitives/ValueObject';
 
 interface UserProfileProps {
@@ -8,7 +8,7 @@ interface UserProfileProps {
 }
 
 export class UserProfile extends ValueObject<UserProfileProps> {
-  constructor(userProfileDTO: UserProfileDTO) {
+  constructor(userProfileDTO: IUserProfile) {
     const email = new UserEmail(userProfileDTO.email);
     super({
       email,

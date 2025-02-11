@@ -11,7 +11,8 @@ import { CreateUserCommandHandler } from '@Contexts/UsersManager/Application/Com
 import { GetUsersQuery } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQuery';
 import { Config } from 'application.config';
 import { InMemoryDataSource } from '@Shared/Infrastructure/DataSources/InMemoryDataSource';
-import { UserDTO } from '@Contexts/UsersManager/Domain/User/DTOs';
+import { IUser } from '@Contexts/UsersManager/Domain/User/DTOs';
+import { InMemoryUserQueries } from './Infrastructure/Queries/InMemoryUserQueries';
 
 const eventBus = Config.kafka.active
   ? new KafkaEventBus({
@@ -20,9 +21,10 @@ const eventBus = Config.kafka.active
     })
   : new InMemoryEventBus();
 
-const inMemoryDataSource = new InMemoryDataSource<UserDTO>();
+const inMemoryDataSource = new InMemoryDataSource<IUser>();
 
 const userRepository = new InMemoryUserRepository(inMemoryDataSource);
+const userQuery = new InMemoryUserQueries(inMemoryDataSource);
 const asyncExceptionHandler = new AsyncExceptionHandler({ eventBus });
 
 export const localUsersManagerModule = new UsersManagerModule({
@@ -42,7 +44,7 @@ export const localUsersManagerModule = new UsersManagerModule({
   queries: [
     {
       name: GetUsersQuery.name,
-      handler: new GetUsersQuery(inMemoryDataSource),
+      handler: new GetUsersQuery(userQuery),
     },
   ],
   domainEvents: [

@@ -4,10 +4,11 @@ import { UserCreatedEvent } from '@Contexts/UsersManager/Domain/User/Events/User
 import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandEvents';
 import { GetUsersQuery } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQuery';
 import { CommandHandler } from '@Primitives/CommandHandler';
-import { UserDTO } from '@Contexts/UsersManager/Domain/User/DTOs';
+import { IUser } from '@Contexts/UsersManager/Domain/User/DTOs';
+import Result from '@Primitives/Result';
 
-export { NewUserDTO as CreateUserCommandPort } from '@Contexts/UsersManager/Domain/User/DTOs';
-export type GetUsersQueryResult = UserDTO[];
+export { INewUser as CreateUserCommandPort } from '@Contexts/UsersManager/Domain/User/DTOs';
+export type GetUsersQueryResult = Result<IUser[]>;
 
 export type Subscription<T> = { event: Event<T>; eventHandlers: EventHandler<Event<T>>[] };
 export type Subscriptions<T> = Subscription<T>[];

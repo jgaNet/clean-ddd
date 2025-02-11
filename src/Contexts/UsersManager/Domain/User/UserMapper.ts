@@ -1,9 +1,9 @@
 import { User } from '@Contexts/UsersManager/Domain/User/User';
 import { Mapper } from '@Primitives/Mapper';
-import { UserDTO } from '@Contexts/UsersManager/Domain/User/DTOs';
+import { IUser } from '@Contexts/UsersManager/Domain/User/DTOs';
 
-export class UserMapperImpl implements Mapper<User, UserDTO> {
-  toJson(user: User): UserDTO {
+export class UserMapperImpl implements Mapper<User, IUser> {
+  toJson(user: User): IUser {
     return {
       _id: user._id,
       profile: {
@@ -13,7 +13,7 @@ export class UserMapperImpl implements Mapper<User, UserDTO> {
     };
   }
 
-  toEntity(user: UserDTO): User {
+  toEntity(user: IUser): User {
     return User.create(user);
   }
 }

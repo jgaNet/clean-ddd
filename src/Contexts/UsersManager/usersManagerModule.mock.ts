@@ -9,11 +9,13 @@ import { ThrowExceptionHandler } from '@Shared/Infrastructure/ExceptionHandler/T
 import { CreateUserCommandHandler } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandHandler';
 import { GetUsersQuery } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQuery';
 import { InMemoryDataSource } from '@Shared/Infrastructure/DataSources/InMemoryDataSource';
-import { UserDTO } from '@Contexts/UsersManager/Domain/User/DTOs';
+import { IUser } from '@Contexts/UsersManager/Domain/User/DTOs';
+import { InMemoryUserQueries } from './Infrastructure/Queries/InMemoryUserQueries';
 
-export const inMemoryDataSource = new InMemoryDataSource<UserDTO>();
+export const inMemoryDataSource = new InMemoryDataSource<IUser>();
 export const inMemoryBroker = new InMemoryEventBus();
 export const mockedUserRepository = new MockedUserRepository(inMemoryDataSource);
+export const inMemoryUserQueries = new InMemoryUserQueries(inMemoryDataSource);
 export const exceptionHandler = new ThrowExceptionHandler();
 
 export const mockedApplication = new UsersManagerModule({
@@ -33,7 +35,7 @@ export const mockedApplication = new UsersManagerModule({
   queries: [
     {
       name: GetUsersQuery.name,
-      handler: new GetUsersQuery(inMemoryDataSource),
+      handler: new GetUsersQuery(inMemoryUserQueries),
     },
   ],
   domainEvents: [
