@@ -5,10 +5,10 @@ import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Comma
 import { GetUsersQuery } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQuery';
 import { CommandHandler } from '@Primitives/CommandHandler';
 import { IUser } from '@Contexts/UsersManager/Domain/User/DTOs';
-import Result from '@Primitives/Result';
+import { ResultValue } from '@Primitives/Result';
 
 export { INewUser as CreateUserCommandPort } from '@Contexts/UsersManager/Domain/User/DTOs';
-export type GetUsersQueryResult = Result<IUser[]>;
+export type GetUsersQueryResult = ResultValue<IUser[]>;
 
 export type Subscription<T> = { event: Event<T>; eventHandlers: EventHandler<Event<T>>[] };
 export type Subscriptions<T> = Subscription<T>[];

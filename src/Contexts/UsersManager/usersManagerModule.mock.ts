@@ -3,6 +3,7 @@ import { InMemoryEventBus } from '@Shared/Infrastructure/EventBus/InMemoryEventB
 import { UserCreatedHandler } from '@Contexts/UsersManager/Application/Events/UserCreatedHandler';
 import { UserCreatedEvent } from '@Contexts/UsersManager/Domain/User/Events/UserCreatedEvent';
 import { MockedUserRepository } from '@Contexts/UsersManager/Infrastructure/Repositories/MockedUserRepository';
+import { MockedUserQueries } from '@Contexts/UsersManager/Infrastructure/Queries/MockedUserQueries';
 import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandEvents';
 import { ThrowExceptionHandler } from '@Shared/Infrastructure/ExceptionHandler/ThrowExceptionHandler';
 
@@ -10,12 +11,13 @@ import { CreateUserCommandHandler } from '@Contexts/UsersManager/Application/Com
 import { GetUsersQuery } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQuery';
 import { InMemoryDataSource } from '@Shared/Infrastructure/DataSources/InMemoryDataSource';
 import { IUser } from '@Contexts/UsersManager/Domain/User/DTOs';
-import { InMemoryUserQueries } from './Infrastructure/Queries/InMemoryUserQueries';
 
 export const inMemoryDataSource = new InMemoryDataSource<IUser>();
 export const inMemoryBroker = new InMemoryEventBus();
 export const mockedUserRepository = new MockedUserRepository(inMemoryDataSource);
-export const inMemoryUserQueries = new InMemoryUserQueries(inMemoryDataSource);
+
+export const mockedUserQueries = new MockedUserQueries(inMemoryDataSource);
+
 export const exceptionHandler = new ThrowExceptionHandler();
 
 export const mockedApplication = new UsersManagerModule({
@@ -26,8 +28,8 @@ export const mockedApplication = new UsersManagerModule({
       eventHandlers: [
         new CreateUserCommandHandler({
           userRepository: mockedUserRepository,
+          userQueries: mockedUserQueries,
           eventBus: inMemoryBroker,
-          exceptionHandler,
         }),
       ],
     },
@@ -35,7 +37,7 @@ export const mockedApplication = new UsersManagerModule({
   queries: [
     {
       name: GetUsersQuery.name,
-      handler: new GetUsersQuery(inMemoryUserQueries),
+      handler: new GetUsersQuery(mockedUserQueries),
     },
   ],
   domainEvents: [

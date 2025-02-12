@@ -9,6 +9,6 @@ export class MockedUserQueries extends InMemoryUserQueries {
   }
 }
 
-MockedUserQueries.prototype.findByEmail = jest
-  .fn<IUserQueries['findByEmail']>()
-  .mockImplementation(async email => InMemoryUserQueries.prototype.findByEmail(email));
+MockedUserQueries.prototype.findByEmail = jest.fn<IUserQueries['findByEmail']>().mockImplementation(async email => {
+  return InMemoryUserQueries.prototype.findByEmail(email);
+});

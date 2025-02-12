@@ -1,38 +1,44 @@
 import { UserFactory } from '@Contexts/UsersManager/Domain/User/UserFactory';
 import { UserMapper } from '@Contexts/UsersManager/Domain/User/UserMapper';
-import { UserRepository } from '@Contexts/UsersManager/Domain/User/UserRepository';
+import { IUserRepository } from '@Contexts/UsersManager/Domain/User/Ports/IUserRepository';
+import { IUserQueries } from '@Contexts/UsersManager/Domain/User/Ports/IUserQueries';
 import { UserCreatedEvent } from '@Contexts/UsersManager/Domain/User/Events/UserCreatedEvent';
 import { EventBus } from '@Primitives/EventBus';
 import { CommandHandler } from '@Primitives/CommandHandler';
 import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandEvents';
-import { ExceptionHandler } from '@Primitives/ExceptionHandler';
-import Result from '@Primitives/Result';
+import { Result, ResultValue } from '@Primitives/Result';
 
 export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEvent> {
   #userFactory: UserFactory;
-  #userRepository: UserRepository;
+  #userRepository: IUserRepository;
   #eventBus: EventBus;
 
   constructor({
     userRepository,
+    userQueries,
     eventBus,
   }: {
-    userRepository: UserRepository;
+    userRepository: IUserRepository;
+    userQueries: IUserQueries;
     eventBus: EventBus;
-    exceptionHandler: ExceptionHandler;
   }) {
     super();
-    this.#userFactory = new UserFactory({ userRepository });
+    this.#userFactory = new UserFactory({ userRepository, userQueries });
     this.#userRepository = userRepository;
     this.#eventBus = eventBus;
   }
 
-  async execute({ payload }: CreateUserCommandEvent): Promise<Result> {
+  async execute({ payload }: CreateUserCommandEvent): Promise<ResultValue> {
     try {
       const newUser = await this.#userFactory.new(payload);
-      const newUserDto = UserMapper.toJson(newUser);
-      await this.#userRepository.save(newUserDto);
-      this.#eventBus.dispatch(UserCreatedEvent, newUserDto);
+
+      if (newUser.isFailure()) {
+        return newUser;
+      }
+
+      const newUserJSON = UserMapper.toJSON(newUser.data);
+      await this.#userRepository.save(newUserJSON);
+      this.#eventBus.dispatch(UserCreatedEvent, newUserJSON);
 
       return Result.ok();
     } catch (e) {

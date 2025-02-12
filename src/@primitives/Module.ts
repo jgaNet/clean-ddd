@@ -4,14 +4,14 @@ import { Event } from '@Primitives/Event';
 import { EventBus } from '@Primitives/EventBus';
 import { CommandEvent } from '@Primitives/EventTypes';
 import { QueryHandler } from '@Primitives/QueryHandler';
-import { QueriesService } from './QueriesService';
-import { DataSource } from './DataSource';
-import Result from './Result';
+import { QueriesService } from '@Primitives/QueriesService';
+import { DataSource } from '@Primitives/DataSource';
+import { Result } from '@Primitives/Result';
 
 type CommandModuleEvent = { event: typeof Event<unknown>; eventHandlers: CommandHandler<Event<unknown>>[] };
 type ModuleEvent = { event: typeof Event<unknown>; eventHandlers: EventHandler<Event<unknown>>[] };
 type ModuleQuery = {
-  name: symbol;
+  name: string;
   handler: QueryHandler<QueriesService<DataSource<unknown>>, unknown, Result<unknown>>;
 };
 

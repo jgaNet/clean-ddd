@@ -1,12 +1,18 @@
 import { expect } from '@jest/globals';
-import { mockedApplication, mockedUserRepository } from '@Contexts/UsersManager/usersManagerModule.mock';
+import {
+  mockedApplication,
+  mockedUserRepository,
+  mockedUserQueries,
+} from '@Contexts/UsersManager/usersManagerModule.mock';
 import { Exception } from '@Primitives/Exception';
-import { UserExceptions } from '@Contexts/UsersManager/Domain/User/UserExceptions';
+import { UserWithEmailAlreadyExists, InvalidUserEmail } from '@Contexts/UsersManager/Domain/User/UserExceptions';
 import { MockedUserRepository } from '@Contexts/UsersManager/Infrastructure/Repositories/MockedUserRepository';
+import { MockedUserQueries } from '@Contexts/UsersManager/Infrastructure/Queries/MockedUserQueries';
 import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandEvents';
 
 beforeEach(() => {
   MockedUserRepository.clearMocks();
+  MockedUserQueries.clearMocks();
 });
 
 describe('how to create a user', function () {
@@ -29,19 +35,17 @@ describe('how to create a user', function () {
   });
 
   it('should not create a user if he is not already existing', async () => {
-    (mockedUserRepository.findByEmail as jest.Mock).mockImplementationOnce(() => Promise.resolve({}));
+    (mockedUserQueries.findByEmail as jest.Mock).mockImplementationOnce(() => Promise.resolve({}));
 
-    try {
-      await mockedApplication.getCommand(CreateUserCommandEvent).execute(
-        new CreateUserCommandEvent({
-          profile: { email: 'test@test.fr' },
-        }),
-      );
+    const result = await mockedApplication.getCommand(CreateUserCommandEvent).execute(
+      new CreateUserCommandEvent({
+        profile: { email: 'test@test.fr' },
+      }),
+    );
 
-      throw 'Not Thrown';
-    } catch (e: unknown) {
-      expect(UserExceptions.UserWithEmailAlreadyExists({ email: 'test@test.fr' }).equals(e as Exception)).toBeTruthy();
-    }
+    expect(result.isFailure()).toBeTruthy();
+    expect(mockedUserRepository.save).not.toHaveBeenCalled();
+    expect(new UserWithEmailAlreadyExists({ email: 'test@test.fr' }).equals(result.error as Exception)).toBeTruthy();
   });
 
   it('should create a user with a nickname from username email if nickname is not specify', async () => {
@@ -63,34 +67,31 @@ describe('how to create a user', function () {
   });
 
   it('should not create a user if the email is malformed', async () => {
-    try {
-      await mockedApplication.getCommand(CreateUserCommandEvent).execute(
-        new CreateUserCommandEvent({
-          profile: { email: 'email-malformed' },
-        }),
-      );
+    const result = await mockedApplication.getCommand(CreateUserCommandEvent).execute(
+      new CreateUserCommandEvent({
+        profile: { email: 'email-malformed' },
+      }),
+    );
 
-      throw 'Not Thrown';
-    } catch (e) {
-      expect(UserExceptions.InvalidUserEmail({ email: 'email-malformed' }).equals(e as Exception)).toBeTruthy();
-    }
+    expect(result.isFailure()).toBeTruthy();
+    expect(mockedUserRepository.save).not.toHaveBeenCalled();
+    expect(new InvalidUserEmail({ email: 'email-malformed' }).equals(result.error as Exception)).toBeTruthy();
   });
 
   it('should not create a user if the email is too long', async () => {
-    try {
-      await mockedApplication.getCommand(CreateUserCommandEvent).execute(
-        new CreateUserCommandEvent({
-          profile: { email: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.fr' },
-        }),
-      );
+    const result = await mockedApplication.getCommand(CreateUserCommandEvent).execute(
+      new CreateUserCommandEvent({
+        profile: { email: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.fr' },
+      }),
+    );
 
-      throw 'Not Thrown';
-    } catch (e) {
-      expect(
-        UserExceptions.InvalidUserEmail({
-          email: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.fr',
-        }).equals(e as Exception),
-      ).toBeTruthy();
-    }
+    expect(result.isFailure()).toBeTruthy();
+    expect(mockedUserRepository.save).not.toHaveBeenCalled();
+
+    expect(
+      new InvalidUserEmail({
+        email: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.fr',
+      }).equals(result.error as Exception),
+    ).toBeTruthy();
   });
 });

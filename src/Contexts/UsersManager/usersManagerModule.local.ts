@@ -4,7 +4,6 @@ import { KafkaEventBus } from '@Shared/Infrastructure/EventBus/KafkaEventBus';
 import { UserCreatedHandler } from '@Contexts/UsersManager/Application/Events/UserCreatedHandler';
 import { UserCreatedEvent } from '@Contexts/UsersManager/Domain/User/Events/UserCreatedEvent';
 import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandEvents';
-import { AsyncExceptionHandler } from '@Shared/Infrastructure/ExceptionHandler/AsyncExceptionHandler';
 import { InMemoryUserRepository } from '@Contexts/UsersManager/Infrastructure/Repositories/InMemoryUserRepository';
 import { InMemoryEventBus } from '@Shared/Infrastructure/EventBus/InMemoryEventBus';
 import { CreateUserCommandHandler } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandHandler';
@@ -24,8 +23,7 @@ const eventBus = Config.kafka.active
 const inMemoryDataSource = new InMemoryDataSource<IUser>();
 
 const userRepository = new InMemoryUserRepository(inMemoryDataSource);
-const userQuery = new InMemoryUserQueries(inMemoryDataSource);
-const asyncExceptionHandler = new AsyncExceptionHandler({ eventBus });
+const userQueries = new InMemoryUserQueries(inMemoryDataSource);
 
 export const localUsersManagerModule = new UsersManagerModule({
   eventBus,
@@ -35,8 +33,8 @@ export const localUsersManagerModule = new UsersManagerModule({
       eventHandlers: [
         new CreateUserCommandHandler({
           userRepository: userRepository,
+          userQueries: userQueries,
           eventBus,
-          exceptionHandler: asyncExceptionHandler,
         }),
       ],
     },
@@ -44,7 +42,7 @@ export const localUsersManagerModule = new UsersManagerModule({
   queries: [
     {
       name: GetUsersQuery.name,
-      handler: new GetUsersQuery(userQuery),
+      handler: new GetUsersQuery(userQueries),
     },
   ],
   domainEvents: [

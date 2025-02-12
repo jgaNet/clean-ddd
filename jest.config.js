@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import { pathsToModuleNameMapper } from 'ts-jest';
+import tsconfig from './tsconfig.json' assert { type: 'json' };
 
 const isCI = process.env.CI === 'true';
 
@@ -27,4 +29,5 @@ export default {
   coverageReporters: isCI ? ['json'] : ['text'],
   moduleDirectories: ['node_modules', 'src'],
   modulePathIgnorePatterns: ['<rootDir>/dist/'],
+  moduleNameMapper: pathsToModuleNameMapper(tsconfig.compilerOptions.paths),
 };
