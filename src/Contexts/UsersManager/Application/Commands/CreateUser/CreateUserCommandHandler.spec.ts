@@ -79,9 +79,11 @@ describe('how to create a user', function () {
   });
 
   it('should not create a user if the email is too long', async () => {
+    const email = 'a'.repeat(100) + '@test.fr';
+
     const result = await mockedApplication.getCommand(CreateUserCommandEvent).execute(
       new CreateUserCommandEvent({
-        profile: { email: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.fr' },
+        profile: { email },
       }),
     );
 
@@ -90,7 +92,7 @@ describe('how to create a user', function () {
 
     expect(
       new InvalidUserEmail({
-        email: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.fr',
+        email,
       }).equals(result.error as Exception),
     ).toBeTruthy();
   });
