@@ -3,7 +3,7 @@ import { CreateUserReqBody } from '@Contexts/UsersManager/Presentation/API/REST/
 import { EventBus as CommandEventBus } from '@Primitives/EventBus';
 import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandEvents';
 import { UsersManagerModuleQueries } from '@Contexts/UsersManager/Application/DTOs';
-import { GetUsersQuery } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQuery';
+import { GetUsersQueryHandler } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQueryHandler';
 
 export class FastifyUserController {
   #commandEventBus: CommandEventBus;
@@ -38,7 +38,7 @@ export class FastifyUserController {
 
   async getUsers(_: unknown, reply: FastifyReply) {
     try {
-      return await this.#queries.find(q => q.name == GetUsersQuery.name)?.handler.execute();
+      return await this.#queries.find(q => q.name == GetUsersQueryHandler.name)?.handler.execute();
     } catch (e) {
       reply.code(400);
       return e;

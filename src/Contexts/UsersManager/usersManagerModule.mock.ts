@@ -8,7 +8,7 @@ import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Comma
 import { ThrowExceptionHandler } from '@Shared/Infrastructure/ExceptionHandler/ThrowExceptionHandler';
 
 import { CreateUserCommandHandler } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandHandler';
-import { GetUsersQuery } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQuery';
+import { GetUsersQueryHandler } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQueryHandler';
 import { InMemoryDataSource } from '@Shared/Infrastructure/DataSources/InMemoryDataSource';
 import { IUser } from '@Contexts/UsersManager/Domain/User/DTOs';
 
@@ -36,8 +36,8 @@ export const mockedApplication = new UsersManagerModule({
   ],
   queries: [
     {
-      name: GetUsersQuery.name,
-      handler: new GetUsersQuery(mockedUserQueries),
+      name: GetUsersQueryHandler.name,
+      handler: new GetUsersQueryHandler(mockedUserQueries),
     },
   ],
   domainEvents: [

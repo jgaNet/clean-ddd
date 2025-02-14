@@ -7,7 +7,7 @@ import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Comma
 import { InMemoryUserRepository } from '@Contexts/UsersManager/Infrastructure/Repositories/InMemoryUserRepository';
 import { InMemoryEventBus } from '@Shared/Infrastructure/EventBus/InMemoryEventBus';
 import { CreateUserCommandHandler } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandHandler';
-import { GetUsersQuery } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQuery';
+import { GetUsersQueryHandler } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQueryHandler';
 import { Config } from 'application.config';
 import { InMemoryDataSource } from '@Shared/Infrastructure/DataSources/InMemoryDataSource';
 import { IUser } from '@Contexts/UsersManager/Domain/User/DTOs';
@@ -41,8 +41,8 @@ export const localUsersManagerModule = new UsersManagerModule({
   ],
   queries: [
     {
-      name: GetUsersQuery.name,
-      handler: new GetUsersQuery(userQueries),
+      name: GetUsersQueryHandler.name,
+      handler: new GetUsersQueryHandler(userQueries),
     },
   ],
   domainEvents: [
