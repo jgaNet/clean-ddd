@@ -81,8 +81,10 @@ export class Module<
     }
   }
 
-  getQuery(name: string): unknown {
-    const query = this.queries.find(query => query.name.toString() === name)?.handler;
+  getQuery(
+    handler: typeof QueryHandler<QueriesService<DataSource<unknown>>, unknown, Result<unknown>>,
+  ): QueryHandler<QueriesService<DataSource<unknown>>, unknown, Result<unknown>> {
+    const query = this.queries.find(query => query.name.toString() === handler.name)?.handler;
     if (query) {
       return query;
     } else {
