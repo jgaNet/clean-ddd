@@ -1,3 +1,30 @@
+/**
+ * Module is a core primitive class that serves as the foundation for organizing and
+ * managing different aspects of a bounded context in the application.
+ *
+ * This class implements a modular architecture pattern that combines CQRS (Command Query
+ * Responsibility Segregation) with event-driven design.
+ *
+ * Key components:
+ * - Commands: Handles state-changing operations
+ * - Queries: Manages read operations
+ * - Domain Events: Internal events within the bounded context
+ * - Integration Events: Events shared between different modules
+ * - Event Bus: Communication infrastructure
+ *
+ * Core features:
+ * - Type-safe event handling through generics
+ * - Automated event subscription management
+ * - Command and query handler resolution
+ * - Module lifecycle management (start, subscribe)
+ *
+ * Usage in the project:
+ * - Base class for all context modules (e.g., UsersManagerModule)
+ * - Manages command/query registration and resolution
+ * - Handles event subscriptions and routing
+ * - Provides dependency injection container capabilities
+ */
+
 import { EventHandler } from '@Primitives/EventHandler';
 import { CommandHandler } from '@Primitives/CommandHandler';
 import { Event } from '@Primitives/Event';
