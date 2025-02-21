@@ -4,8 +4,7 @@ import { UserCreatedHandler } from '@Contexts/UsersManager/Application/Events/Us
 import { UserCreatedEvent } from '@Contexts/UsersManager/Domain/User/Events/UserCreatedEvent';
 import { MockedUserRepository } from '@Contexts/UsersManager/Infrastructure/Repositories/MockedUserRepository';
 import { MockedUserQueries } from '@Contexts/UsersManager/Infrastructure/Queries/MockedUserQueries';
-import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandEvents';
-import { ThrowExceptionHandler } from '@Shared/Infrastructure/ExceptionHandler/ThrowExceptionHandler';
+import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandEvent';
 
 import { CreateUserCommandHandler } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandHandler';
 import { GetUsersQueryHandler } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQueryHandler';
@@ -15,10 +14,7 @@ import { IUser } from '@Contexts/UsersManager/Domain/User/DTOs';
 export const inMemoryDataSource = new InMemoryDataSource<IUser>();
 export const inMemoryBroker = new InMemoryEventBus();
 export const mockedUserRepository = new MockedUserRepository(inMemoryDataSource);
-
 export const mockedUserQueries = new MockedUserQueries(inMemoryDataSource);
-
-export const exceptionHandler = new ThrowExceptionHandler();
 
 export const mockedApplication = new UsersManagerModule({
   eventBus: inMemoryBroker,

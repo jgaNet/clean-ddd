@@ -6,7 +6,7 @@
   "types": "dist/application.d.ts",
   "scripts": {
     "start": "node dist/application.js",
-    "start:dev": "nodemon --ext js,ts,json,env --exec 'tsx --tsconfig ./tsconfig.json' src/application.ts",
+    "start:dev": "nodemon --ext js,ts,json,env --exec 'tsx --tsconfig ./tsconfig.json' src/Bootstrap/Fastify/application.ts",
     "build": "node ./deployments/build.js",
     "build:clean": "rm -rf tsconfig.build.tsbuildinfo && rm -rf ./dist",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --detectOpenHandles",

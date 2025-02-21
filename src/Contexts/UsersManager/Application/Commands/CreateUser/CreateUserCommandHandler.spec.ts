@@ -1,15 +1,14 @@
-import { expect } from '@jest/globals';
+import { expect, jest } from '@jest/globals';
 import {
   mockedApplication,
   mockedUserRepository,
   mockedUserQueries,
 } from '@Contexts/UsersManager/usersManagerModule.mock';
 import { Exception } from '@Primitives/Exception';
-import { UserWithEmailAlreadyExists, InvalidUserEmail } from '@Contexts/UsersManager/Domain/User/UserExceptions';
+import { UserWithEmailAlreadyExists, InvalidUserEmail } from '@Contexts/UsersManager/Domain/User';
+import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser';
 import { MockedUserRepository } from '@Contexts/UsersManager/Infrastructure/Repositories/MockedUserRepository';
 import { MockedUserQueries } from '@Contexts/UsersManager/Infrastructure/Queries/MockedUserQueries';
-import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandEvents';
-import { jest } from '@jest/globals';
 
 beforeEach(() => {
   jest.resetAllMocks();

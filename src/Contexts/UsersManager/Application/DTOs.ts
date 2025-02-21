@@ -1,11 +1,8 @@
-import { Event } from '@Primitives/Event';
-import { EventHandler } from '@Primitives/EventHandler';
-import { UserCreatedEvent } from '@Contexts/UsersManager/Domain/User/Events/UserCreatedEvent';
-import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandEvents';
-import { GetUsersQueryHandler } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQueryHandler';
-import { CommandHandler } from '@Primitives/CommandHandler';
-import { IUser } from '@Contexts/UsersManager/Domain/User/DTOs';
-import { ResultValue } from '@Primitives/Result';
+import { Event, EventHandler, CommandHandler, ResultValue } from '@Primitives';
+import { UserCreatedEvent } from '@Contexts/UsersManager/Domain/User';
+import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser';
+import { GetUsersQueryHandler } from '@Contexts/UsersManager/Application/Queries/GetUsers';
+import { IUser } from '@Contexts/UsersManager/Domain/User';
 
 export { INewUser as CreateUserCommandPort } from '@Contexts/UsersManager/Domain/User/DTOs';
 export type GetUsersQueryResult = ResultValue<IUser[]>;

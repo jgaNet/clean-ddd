@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { CreateUserReqBody } from '@Contexts/UsersManager/Presentation/API/REST/Routes/user';
 import { EventBus as CommandEventBus } from '@Primitives/EventBus';
-import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandEvents';
+import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandEvent';
 import { UsersManagerModuleQueries } from '@Contexts/UsersManager/Application/DTOs';
 import { GetUsersQueryHandler } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQueryHandler';
 

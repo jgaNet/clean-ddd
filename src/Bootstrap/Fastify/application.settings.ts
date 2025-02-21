@@ -1,4 +1,4 @@
-export const Config = {
+export const SETTINGS = {
   env: 'production',
   version: '0.0.1',
   baseUrl: String(process.env.BASE_URL || 'localhost'),

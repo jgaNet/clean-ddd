@@ -2,9 +2,9 @@ import { expect } from '@jest/globals';
 import { mockedApplication, mockedUserRepository } from '@Contexts/UsersManager/usersManagerModule.mock';
 import { MockedUserQueries } from '@Contexts/UsersManager/Infrastructure/Queries/MockedUserQueries';
 import { MockedUserRepository } from '@Contexts/UsersManager/Infrastructure/Repositories/MockedUserRepository';
-import { Result } from '@Primitives/Result';
-import { GetUsersQueryHandler } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQueryHandler';
-import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandEvents';
+import { Result } from '@Primitives';
+import { GetUsersQueryHandler } from '@Contexts/UsersManager/Application/Queries/GetUsers';
+import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser';
 
 beforeEach(() => {
   MockedUserRepository.clearMocks();

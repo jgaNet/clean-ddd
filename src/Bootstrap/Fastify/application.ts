@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
 import 'dotenv/config';
-import { Config } from './application.config';
+import { SETTINGS } from './application.settings';
 import Fastify, { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import { localUsersManagerModule } from '@Contexts/UsersManager/usersManagerModule.local';
 import { userRoutes } from '@Contexts/UsersManager/Presentation/API/REST/Routes/user';
-import { homeRoutes } from '@Contexts/UsersManager/Presentation/API/REST/Routes/home';
+import { homeRoutes } from '@Shared/Presentation/API/REST/Routes/home';
 
 import { swaggerDescriptor } from './application.swagger';
 import fastifySwagger from '@fastify/swagger';
@@ -16,7 +16,7 @@ import keycloak, { KeycloakOptions } from 'fastify-keycloak-adapter';
 
 import { Application } from '@Primitives/Application';
 
-class MainApplication extends Application {
+class FastifyApplication extends Application {
   fastify: FastifyInstance;
 
   constructor() {
@@ -27,17 +27,17 @@ class MainApplication extends Application {
   setup() {
     //HTTP Gateway With Swagger
     this.fastify.register(fastifySwagger, swaggerDescriptor);
-    if (Config.swaggerUi.active) {
-      this.fastify.register(fastifySwaggerUi, Config.swaggerUi);
+    if (SETTINGS.swaggerUi.active) {
+      this.fastify.register(fastifySwaggerUi, SETTINGS.swaggerUi);
     }
 
     // Routes
-    this.fastify.register(homeRoutes);
+    this.fastify.register(homeRoutes, { settings: SETTINGS });
     this.fastify.register(userRoutes, { prefix: '/users', usersManagementModule: localUsersManagerModule });
 
-    if (Config.keycloak.active) {
+    if (SETTINGS.keycloak.active) {
       const opts: KeycloakOptions = {
-        ...Config.keycloak,
+        ...SETTINGS.keycloak,
         userPayloadMapper(userPayload: unknown): object {
           return userPayload as object;
         },
@@ -50,7 +50,7 @@ class MainApplication extends Application {
     }
   }
 
-  async start(port: number = Config.port): Promise<void> {
+  async start(port: number = SETTINGS.port): Promise<void> {
     try {
       await this.fastify.listen({ port });
       await this.fastify.ready();
@@ -64,5 +64,5 @@ class MainApplication extends Application {
   }
 }
 
-const app = new MainApplication();
+const app = new FastifyApplication();
 app.run();
