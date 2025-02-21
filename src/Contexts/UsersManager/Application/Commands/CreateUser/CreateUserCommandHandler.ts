@@ -5,7 +5,7 @@ import { IUserQueries } from '@Contexts/UsersManager/Domain/User/Ports/IUserQuer
 import { UserCreatedEvent } from '@Contexts/UsersManager/Domain/User/Events/UserCreatedEvent';
 import { EventBus } from '@Primitives/EventBus';
 import { CommandHandler } from '@Primitives/CommandHandler';
-import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandEvents';
+import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser';
 import { Result, ResultValue } from '@Primitives/Result';
 
 export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEvent> {
