@@ -1,32 +1,123 @@
 /**
- * EventBus is a core primitive interface that defines the contract for event bus implementations
- * in the application's event-driven architecture.
+ * EventBus Interface
  *
- * This interface serves as the foundation for different event bus implementations
- * (e.g., InMemoryEventBus, KafkaEventBus) enabling event-driven communication across the system.
+ * Purpose:
+ * Defines a contract for event communication infrastructure that enables
+ * decoupled, event-driven interactions between different parts of the system.
  *
- * Key characteristics:
- * - Provides type-safe event dispatch and subscription methods
- * - Supports asynchronous connection management
- * - Used by Module class for event handling orchestration
- * - Enables loose coupling between event publishers and subscribers
+ * Interface Definition:
+ * ```typescript
+ * interface EventBus {
+ *   connect(): Promise<void>;
+ *   dispatch<T>(EventClass: typeof Event<T>, payload: T): ResultValue<EventId>;
+ *   subscribe<T>(EventClass: typeof Event<T>, handler: EventHandler<Event<T>>): Promise<void>;
+ * }
+ * ```
  *
- * Core methods:
- * - connect(): Establishes connection to the event bus infrastructure
- * - dispatch(): Publishes events to subscribed handlers
- * - subscribe(): Registers event handlers for specific event types
+ * Implementations:
  *
- * Usage in the project:
- * - Used by CommandHandlers for publishing domain events
- * - Implements different transport mechanisms (in-memory, Kafka)
- * - Supports both domain and integration events
- * - Used in UsersManager and other modules for event-driven operations
+ * 1. InMemoryEventBus
+ *    - For local development and testing
+ *    ```typescript
+ *    class InMemoryEventBus implements EventBus {
+ *      private handlers = new Map<string, EventHandler[]>();
+ *
+ *      async dispatch<T>(event: Event<T>): ResultValue<EventId> {
+ *        const handlers = this.handlers.get(event.type) || [];
+ *        await Promise.all(handlers.map(h => h.handle(event)));
+ *        return Result.ok(event.id);
+ *      }
+ *    }
+ *    ```
+ *
+ * 2. KafkaEventBus
+ *    - For production distributed systems
+ *    ```typescript
+ *    class KafkaEventBus implements EventBus {
+ *      constructor(private kafka: KafkaClient) {}
+ *
+ *      async dispatch<T>(event: Event<T>): ResultValue<EventId> {
+ *        await this.kafka.produce({
+ *          topic: event.type,
+ *          message: event.serialize()
+ *        });
+ *        return Result.ok(event.id);
+ *      }
+ *    }
+ *    ```
+ *
+ * Usage Examples:
+ *
+ * 1. Command Handler Publishing Events:
+ *    ```typescript
+ *    class CreateUserHandler {
+ *      constructor(private eventBus: EventBus) {}
+ *
+ *      async execute(command: CreateUserCommand): Promise<Result<void>> {
+ *        // Create user logic...
+ *
+ *        // Publish domain event
+ *        const event = new UserCreatedEvent(newUser);
+ *        await this.eventBus.dispatch(event);
+ *
+ *        return Result.ok();
+ *      }
+ *    }
+ *    ```
+ *
+ * 2. Event Handler Subscription:
+ *    ```typescript
+ *    class UserCreatedHandler implements EventHandler<UserCreatedEvent> {
+ *      async handle(event: UserCreatedEvent): Promise<void> {
+ *        // Handle user created logic...
+ *      }
+ *    }
+ *
+ *    // In module setup
+ *    await eventBus.subscribe(UserCreatedEvent, new UserCreatedHandler());
+ *    ```
+ *
+ * 3. Cross-Module Communication:
+ *    ```typescript
+ *    // Users Module
+ *    class UserVerifiedHandler {
+ *      constructor(private eventBus: EventBus) {}
+ *
+ *      async handle(event: UserVerifiedEvent): Promise<void> {
+ *        // Handle verification
+ *        await this.eventBus.dispatch(new UserVerificationCompletedEvent({
+ *          userId: event.payload.userId
+ *        }));
+ *      }
+ *    }
+ *
+ *    // Auth Module
+ *    class UserVerificationCompletedHandler {
+ *      async handle(event: UserVerificationCompletedEvent): Promise<void> {
+ *        // Update auth status
+ *      }
+ *    }
+ *    ```
+ *
+ * Key Features:
+ * 1. Type Safety: Generic types ensure correct event/handler matching
+ * 2. Async Support: All operations are Promise-based
+ * 3. Pluggable: Different implementations for different environments
+ * 4. Reliable: Built-in error handling with Result type
+ * 5. Scalable: Supports both local and distributed scenarios
+ *
+ * Benefits:
+ * - Decoupled Communication: Publishers don't know about subscribers
+ * - Flexible Architecture: Easy to add new event types and handlers
+ * - Testable: Easy to mock and verify event flows
+ * - Production Ready: Supports different transport mechanisms
+ * - Type Safe: Compile-time checking of event handling
  */
 
-import { Event } from '@Primitives/Event';
-import { EventHandler } from '@Primitives/EventHandler';
+import { Event, EventHandler, Operation } from '@Primitives';
+
 export interface EventBus {
   connect(): Promise<void>;
-  dispatch<T>(EventClass: typeof Event<T>, payload: T): void;
+  dispatch<T>(EventClass: typeof Event<T>, payload: T): Operation<Event<T>>;
   subscribe<T>(EventClass: typeof Event<T>, eventHandler: EventHandler<Event<T>>): Promise<void>;
 }

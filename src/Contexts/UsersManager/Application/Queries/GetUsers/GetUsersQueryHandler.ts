@@ -5,6 +5,7 @@ import { IUserQueries } from '@Contexts/UsersManager/Domain/User/Ports/IUserQuer
 
 export class GetUsersQueryHandler extends QueryHandler<IUserQueries, void, GetUsersQueryResult> {
   async execute(): Promise<GetUsersQueryResult> {
-    return Result.ok(await this.queriesService.findAll());
+    const users = await this.queriesService.findAll();
+    return Result.ok(users);
   }
 }

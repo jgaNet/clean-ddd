@@ -31,7 +31,7 @@ describe('get users', function () {
 
     const result = await mockedApplication.getQuery(GetUsersQueryHandler).execute();
 
-    expect(result.success).toBeTruthy();
+    expect(result.isSuccess()).toBeTruthy();
     expect((result.data as unknown[]).length).toEqual(1);
   });
 });

@@ -14,7 +14,7 @@ import fastifySwaggerUi from '@fastify/swagger-ui';
 
 import keycloak, { KeycloakOptions } from 'fastify-keycloak-adapter';
 
-import { Application } from '@Primitives/Application';
+import { Application } from '@Primitives';
 
 class FastifyApplication extends Application {
   fastify: FastifyInstance;
@@ -65,4 +65,6 @@ class FastifyApplication extends Application {
 }
 
 const app = new FastifyApplication();
-app.run();
+await app.run();
+
+export default app;

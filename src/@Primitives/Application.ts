@@ -63,9 +63,9 @@ export abstract class Application {
     this.#modules = modules;
   }
 
-  run(): void {
+  async run(): Promise<void> {
     this.setup();
     this.startModules();
-    this.start();
+    await this.start();
   }
 }

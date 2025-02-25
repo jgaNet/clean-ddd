@@ -4,12 +4,12 @@ import { SETTINGS } from './application.settings';
 export const swaggerDescriptor: SwaggerOptions = {
   swagger: {
     info: {
-      title: 'API',
-      description: 'Testing the API',
-      version: '0.0.1',
+      title: `${SETTINGS.name} - ${SETTINGS.env}`,
+      description: `${SETTINGS.env} API`,
+      version: SETTINGS.version,
     },
-    host: `localhost:${SETTINGS.port}`,
-    schemes: ['http'],
+    host: `${SETTINGS.baseUrl}:${SETTINGS.port}`,
+    schemes: [SETTINGS.protocol],
     consumes: ['application/json'],
     produces: ['application/json'],
     tags: [],

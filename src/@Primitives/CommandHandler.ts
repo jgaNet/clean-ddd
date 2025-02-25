@@ -15,10 +15,10 @@
  * to handle specific domain commands (e.g., CreateUserCommandHandler).
  */
 
-import { Event } from './Event';
 import { EventHandler } from './EventHandler';
+import { CommandEvent } from './EventTypes';
 import { Result } from './Result';
 
-export abstract class CommandHandler<T extends Event<unknown>> extends EventHandler<T> {
+export abstract class CommandHandler<T extends CommandEvent<unknown>> extends EventHandler<T> {
   abstract execute(payload: T): Promise<Result>;
 }

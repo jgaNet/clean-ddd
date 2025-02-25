@@ -4,6 +4,8 @@ import { FromSchema } from 'json-schema-to-ts';
 import { FastifyUserController } from '@Contexts/UsersManager/Presentation/API/REST/Controllers/FastifyUserController';
 import { UsersManagerModule } from '@Contexts/UsersManager/Application';
 
+import { OperationStatus } from '@Primitives';
+
 export const CreateUserReqBodySchema = {
   type: 'object',
   properties: {
@@ -21,9 +23,13 @@ export const CreateUserResSchema = {
       message: { type: 'string' },
     },
   },
-  200: {
-    description: 'Success',
-    type: 'boolean',
+  202: {
+    description: 'Accepted',
+    type: 'object',
+    properties: {
+      operationId: { type: 'string' },
+      status: { type: 'string', enum: Object.values(OperationStatus) },
+    },
   },
 } as const;
 
@@ -32,7 +38,6 @@ export const GetUsersResSchema = {
     description: 'Success',
     type: 'object',
     properties: {
-      success: { type: 'boolean' },
       data: {
         type: 'array',
         items: {
@@ -52,7 +57,6 @@ export const GetUsersResSchema = {
       },
       error: { type: 'string' },
     },
-    required: ['success'],
   },
 } as const;
 

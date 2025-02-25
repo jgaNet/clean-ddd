@@ -1,6 +1,4 @@
-import { EventBus } from '@Primitives/EventBus';
-import { Event } from '@Primitives/Event';
-import { EventHandler } from '@Primitives/EventHandler';
+import { EventBus, Event, EventHandler, Operation } from '@Primitives';
 
 import EventEmitter from 'events';
 
@@ -16,8 +14,10 @@ export class InMemoryEventBus implements EventBus {
     console.log('[sys][warning] InMemoryBroker used');
   }
 
-  dispatch<T>(EventClass: typeof Event<T>, eventPayload: T) {
-    this.#eventEmitter.emit(EventClass.name, new EventClass(eventPayload));
+  dispatch<T>(EventClass: typeof Event<T>, eventPayload: T): Operation<Event<T>> {
+    const event = new EventClass(eventPayload);
+    this.#eventEmitter.emit(EventClass.name, event);
+    return event.operation;
   }
 
   async subscribe<T>(EventClass: typeof Event<T>, eventHandler: EventHandler<Event<T>>) {

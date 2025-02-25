@@ -3,6 +3,7 @@ import { Event } from '@Primitives/Event';
 import { EventHandler } from '@Primitives/EventHandler';
 import { Kafka, KafkaConfig, Producer } from 'kafkajs';
 import { EventBusExceptions } from './EventBusExceptions';
+import { Operation } from '@Primitives/Operation';
 
 // TODO: Move it on config file
 const GROUPID = `group-${Math.ceil(Math.random() * 1000000000)}`;
@@ -24,8 +25,10 @@ export class KafkaEventBus implements EventBus {
     console.log('[sys][broker][info] Kafka broker connected');
   }
 
-  dispatch<T>(EventClass: typeof Event<T>, eventPayload: T) {
-    this.#producer.send({ topic: EventClass.name, messages: [{ value: JSON.stringify(eventPayload) }] });
+  dispatch<T>(EventClass: typeof Event<T>, eventPayload: T): Operation<Event<T>> {
+    const event = new EventClass(eventPayload);
+    this.#producer.send({ topic: EventClass.name, messages: [{ value: JSON.stringify(event) }] });
+    return event.operation;
   }
 
   async subscribe<T>(EventClass: typeof Event<T>, eventHandler: EventHandler<Event<T>>) {

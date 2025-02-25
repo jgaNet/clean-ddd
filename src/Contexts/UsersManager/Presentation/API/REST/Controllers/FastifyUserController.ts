@@ -22,14 +22,15 @@ export class FastifyUserController {
 
   async createUser(req: FastifyRequest<{ Body: CreateUserReqBody }>, reply: FastifyReply) {
     try {
-      this.#commandEventBus.dispatch(CreateUserCommandEvent, {
+      const operation = this.#commandEventBus.dispatch(CreateUserCommandEvent, {
         profile: {
           email: req.body.email,
           nickname: req.body.nickname,
         },
       });
 
-      return true;
+      reply.code(202);
+      return operation.toJSON();
     } catch (e) {
       reply.code(400);
       return e;
@@ -38,7 +39,8 @@ export class FastifyUserController {
 
   async getUsers(_: unknown, reply: FastifyReply) {
     try {
-      return await this.#queries.find(q => q.name == GetUsersQueryHandler.name)?.handler.execute();
+      const users = await this.#queries.find(q => q.name == GetUsersQueryHandler.name)?.handler.execute();
+      return users;
     } catch (e) {
       reply.code(400);
       return e;
