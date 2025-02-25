@@ -21,15 +21,11 @@
  * - Integration events
  * - Exception events for error handling
  */
-import { Operation } from './Operation';
 
-export type EventId = string;
 export class Event<PayloadDTO> {
-  readonly operation: Operation<Event<PayloadDTO>>;
   #payload: PayloadDTO;
 
   constructor(payload: PayloadDTO) {
-    this.operation = new Operation(this);
     this.#payload = payload;
   }
 

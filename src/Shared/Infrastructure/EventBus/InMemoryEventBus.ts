@@ -17,7 +17,7 @@ export class InMemoryEventBus implements EventBus {
   dispatch<T>(EventClass: typeof Event<T>, eventPayload: T): Operation<Event<T>> {
     const event = new EventClass(eventPayload);
     this.#eventEmitter.emit(EventClass.name, event);
-    return event.operation;
+    return new Operation(event);
   }
 
   async subscribe<T>(EventClass: typeof Event<T>, eventHandler: EventHandler<Event<T>>) {

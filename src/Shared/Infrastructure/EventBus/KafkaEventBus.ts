@@ -28,7 +28,7 @@ export class KafkaEventBus implements EventBus {
   dispatch<T>(EventClass: typeof Event<T>, eventPayload: T): Operation<Event<T>> {
     const event = new EventClass(eventPayload);
     this.#producer.send({ topic: EventClass.name, messages: [{ value: JSON.stringify(event) }] });
-    return event.operation;
+    return new Operation(event);
   }
 
   async subscribe<T>(EventClass: typeof Event<T>, eventHandler: EventHandler<Event<T>>) {

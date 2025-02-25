@@ -7,24 +7,26 @@ export enum OperationStatus {
   ERROR = 'ERROR',
 }
 
+export interface OperationDTO {
+  operationId: string;
+  status: OperationStatus;
+}
+
 export class Operation<T extends Event<unknown>> {
   id: string;
   status: OperationStatus;
   #event: T;
   constructor(event: T) {
     this.id = uuidv4();
-    this.#event = event;
     this.status = OperationStatus.PENDING;
+    this.#event = event;
   }
 
   get event(): T {
     return this.#event;
   }
 
-  toJSON(): {
-    operationId: string;
-    status: OperationStatus;
-  } {
+  toJSON(): OperationDTO {
     return {
       operationId: this.id,
       status: this.status,
