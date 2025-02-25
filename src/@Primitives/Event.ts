@@ -32,4 +32,8 @@ export class Event<PayloadDTO> {
   get payload(): PayloadDTO {
     return this.#payload;
   }
+
+  get name(): string {
+    return this.constructor.name;
+  }
 }

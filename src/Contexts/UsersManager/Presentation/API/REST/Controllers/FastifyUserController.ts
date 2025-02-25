@@ -22,12 +22,14 @@ export class FastifyUserController {
 
   async createUser(req: FastifyRequest<{ Body: CreateUserReqBody }>, reply: FastifyReply) {
     try {
-      const operation = this.#commandEventBus.dispatch(CreateUserCommandEvent, {
-        profile: {
-          email: req.body.email,
-          nickname: req.body.nickname,
-        },
-      });
+      const operation = this.#commandEventBus.dispatch(
+        new CreateUserCommandEvent({
+          profile: {
+            email: req.body.email,
+            nickname: req.body.nickname,
+          },
+        }),
+      );
 
       reply.code(202);
       return operation.toJSON();

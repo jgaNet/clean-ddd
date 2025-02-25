@@ -25,22 +25,21 @@ export class KafkaEventBus implements EventBus {
     console.log('[sys][broker][info] Kafka broker connected');
   }
 
-  dispatch<T>(EventClass: typeof Event<T>, eventPayload: T): Operation<Event<T>> {
-    const event = new EventClass(eventPayload);
-    this.#producer.send({ topic: EventClass.name, messages: [{ value: JSON.stringify(event) }] });
-    return new Operation(event);
+  dispatch<T>(event: Event<T>): Operation<Event<T>> {
+    const operation = new Operation({ event });
+    this.#producer.send({ topic: operation.name, messages: [{ value: JSON.stringify(event) }] });
+    return operation;
   }
 
-  async subscribe<T>(EventClass: typeof Event<T>, eventHandler: EventHandler<Event<T>>) {
-    const consumer = this.#eventEmitter.consumer({ groupId: EventClass.name + '-' + GROUPID });
+  async subscribe<T>(channel: Event<T>['name'], eventHandler: EventHandler<Event<T>>) {
+    const consumer = this.#eventEmitter.consumer({ groupId: channel + '-' + GROUPID });
     await consumer.connect();
-    consumer.subscribe({ topic: EventClass.name, fromBeginning: false });
+    consumer.subscribe({ topic: channel, fromBeginning: false });
     consumer.run({
       eachMessage: async ({ message }) => {
         if (message.value) {
           try {
-            const event = new EventClass(JSON.parse(message.value.toString()));
-            await eventHandler.execute(event);
+            await eventHandler.execute(JSON.parse(message.value.toString()));
           } catch (e) {
             if (e instanceof Error) {
               // eslint-disable-next-line no-console
@@ -49,7 +48,7 @@ export class KafkaEventBus implements EventBus {
           }
         } else {
           // eslint-disable-next-line no-console
-          console.log(EventBusExceptions.NoMessageValue({ eventName: EventClass.name }));
+          console.log(EventBusExceptions.NoMessageValue({ eventName: channel }));
         }
       },
     });

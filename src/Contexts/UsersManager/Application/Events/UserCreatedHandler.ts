@@ -5,7 +5,7 @@ import { ResultValue, Result } from '@Primitives/Result';
 export class UserCreatedHandler extends EventHandler<UserCreatedEvent> {
   async execute(event: UserCreatedEvent): Promise<ResultValue> {
     // eslint-disable-next-line no-console
-    console.log(event, event.payload);
+    console.log(event.name, event.payload);
 
     return Result.ok();
   }

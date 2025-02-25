@@ -14,13 +14,15 @@ export class InMemoryEventBus implements EventBus {
     console.log('[sys][warning] InMemoryBroker used');
   }
 
-  dispatch<T>(EventClass: typeof Event<T>, eventPayload: T): Operation<Event<T>> {
-    const event = new EventClass(eventPayload);
-    this.#eventEmitter.emit(EventClass.name, event);
-    return new Operation(event);
+  dispatch<T>(event: Event<T>): Operation<Event<T>> {
+    const operation = new Operation({
+      event,
+    });
+    this.#eventEmitter.emit(operation.name, operation.event);
+    return operation;
   }
 
-  async subscribe<T>(EventClass: typeof Event<T>, eventHandler: EventHandler<Event<T>>) {
-    this.#eventEmitter.addListener(EventClass.name, eventHandler.execute.bind(eventHandler));
+  async subscribe<T>(channel: Event<T>['name'], eventHandler: EventHandler<Event<T>>) {
+    this.#eventEmitter.addListener(channel, eventHandler.execute.bind(eventHandler));
   }
 }

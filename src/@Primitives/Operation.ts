@@ -15,15 +15,19 @@ export interface OperationDTO {
 export class Operation<T extends Event<unknown>> {
   id: string;
   status: OperationStatus;
-  #event: T;
-  constructor(event: T) {
+  event: T;
+  constructor({ event }: { event: T }) {
     this.id = uuidv4();
     this.status = OperationStatus.PENDING;
-    this.#event = event;
+    this.event = event;
   }
 
-  get event(): T {
-    return this.#event;
+  get name(): string {
+    return this.event.constructor.name;
+  }
+
+  get payload(): unknown {
+    return this.event.payload;
   }
 
   toJSON(): OperationDTO {

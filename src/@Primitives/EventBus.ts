@@ -118,6 +118,6 @@ import { Event, EventHandler, Operation } from '@Primitives';
 
 export interface EventBus {
   connect(): Promise<void>;
-  dispatch<T>(EventClass: typeof Event<T>, payload: T): Operation<Event<T>>;
-  subscribe<T>(EventClass: typeof Event<T>, eventHandler: EventHandler<Event<T>>): Promise<void>;
+  dispatch<T>(event: Event<T>): Operation<Event<T>>;
+  subscribe<T>(event: Event<T>['name'], eventHandler: EventHandler<Event<T>>): Promise<void>;
 }

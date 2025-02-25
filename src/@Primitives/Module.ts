@@ -162,12 +162,12 @@ export class Module<
   async subscribe() {
     for (const sub of this.domainEvents) {
       for (const eventHandler of sub.eventHandlers) {
-        await this.eventBus.subscribe(sub.event, eventHandler);
+        await this.eventBus.subscribe(sub.event.name, eventHandler);
       }
     }
     for (const sub of this.commands) {
       for (const eventHandler of sub.eventHandlers) {
-        await this.eventBus.subscribe(sub.event, eventHandler);
+        await this.eventBus.subscribe(sub.event.name, eventHandler);
       }
     }
   }

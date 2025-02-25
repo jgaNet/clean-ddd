@@ -38,7 +38,7 @@ export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEv
 
       const newUserJSON = UserMapper.toJSON(newUser.data);
       await this.#userRepository.save(newUserJSON);
-      this.#eventBus.dispatch(UserCreatedEvent, newUserJSON);
+      this.#eventBus.dispatch(new UserCreatedEvent(newUserJSON));
 
       return Result.ok();
     } catch (e) {
