@@ -4,7 +4,7 @@ import { FromSchema } from 'json-schema-to-ts';
 import { FastifyUserController } from '@Contexts/UsersManager/Presentation/API/REST/Controllers/FastifyUserController';
 import { UsersManagerModule } from '@Contexts/UsersManager/Application';
 
-import { OperationStatus } from '@Primitives';
+import { OperationStatus } from '@Shared/Domain/Operation';
 
 export const CreateUserReqBodySchema = {
   type: 'object',
@@ -29,6 +29,8 @@ export const CreateUserResSchema = {
     properties: {
       operationId: { type: 'string' },
       status: { type: 'string', enum: Object.values(OperationStatus) },
+      createdAt: { type: 'string' },
+      finishedAt: { type: 'string' },
     },
   },
 } as const;

@@ -11,8 +11,8 @@ import { GetUsersQueryHandler } from '@Contexts/UsersManager/Application/Queries
 import { InMemoryDataSource } from '@Shared/Infrastructure/DataSources/InMemoryDataSource';
 import { IUser } from '@Contexts/UsersManager/Domain/User/DTOs';
 
-export const inMemoryDataSource = new InMemoryDataSource<IUser>();
 export const inMemoryBroker = new InMemoryEventBus();
+export const inMemoryDataSource = new InMemoryDataSource<IUser>();
 export const mockedUserRepository = new MockedUserRepository(inMemoryDataSource);
 export const mockedUserQueries = new MockedUserQueries(inMemoryDataSource);
 

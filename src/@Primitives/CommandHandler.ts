@@ -17,8 +17,19 @@
 
 import { EventHandler } from './EventHandler';
 import { CommandEvent } from './EventTypes';
-import { Result } from './Result';
+import { Operation } from '@Shared/Domain/Operation/Operation';
+import { ResultValue } from './Result';
+import { Event } from './Event';
 
 export abstract class CommandHandler<T extends CommandEvent<unknown>> extends EventHandler<T> {
-  abstract execute(payload: T): Promise<Result>;
+  async handle(operation: Operation<T>): Promise<Operation<T>> {
+    const result = await this.execute(operation.event);
+
+    if (result.isFailure()) {
+      return operation.failed(result.error);
+    }
+
+    return operation.success(result.data);
+  }
+  abstract execute(event: Event<unknown>): Promise<ResultValue<unknown>>;
 }

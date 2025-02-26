@@ -1,4 +1,4 @@
-import { Module } from '@Primitives/Module';
+import { Module } from '@Primitives';
 import {
   UsersManagerModuleCommands,
   UsersManagerModuleDomainEvents,

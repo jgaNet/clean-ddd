@@ -18,6 +18,7 @@ describe('POST users/', () => {
 
     expect(res.body).toEqual({
       operationId: expect.any(String),
+      createdAt: expect.any(String),
       status: 'PENDING',
     });
   });

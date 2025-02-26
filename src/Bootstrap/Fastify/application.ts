@@ -4,9 +4,11 @@ import 'dotenv/config';
 import { SETTINGS } from './application.settings';
 import Fastify, { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
+import { localSharedModule } from '@Shared/sharedModule.local';
 import { localUsersManagerModule } from '@Contexts/UsersManager/usersManagerModule.local';
 import { userRoutes } from '@Contexts/UsersManager/Presentation/API/REST/Routes/user';
 import { homeRoutes } from '@Shared/Presentation/API/REST/Routes/home';
+import { operationRoutes } from '@Shared/Presentation/API/REST/Routes/operation';
 
 import { swaggerDescriptor } from './application.swagger';
 import fastifySwagger from '@fastify/swagger';
@@ -20,7 +22,7 @@ class FastifyApplication extends Application {
   fastify: FastifyInstance;
 
   constructor() {
-    super({ modules: [localUsersManagerModule] });
+    super({ modules: [localUsersManagerModule, localSharedModule] });
     this.fastify = Fastify({ logger: false });
   }
 
@@ -33,6 +35,7 @@ class FastifyApplication extends Application {
 
     // Routes
     this.fastify.register(homeRoutes, { settings: SETTINGS });
+    this.fastify.register(operationRoutes, { prefix: '/operations', sharedModule: localSharedModule });
     this.fastify.register(userRoutes, { prefix: '/users', usersManagementModule: localUsersManagerModule });
 
     if (SETTINGS.keycloak.active) {

@@ -25,7 +25,12 @@
 
 import { Event } from './Event';
 import { ResultValue } from './Result';
+import { Operation } from '@Shared/Domain/Operation/Operation';
 
 export abstract class EventHandler<T extends Event<unknown>> {
-  abstract execute(payload: T): Promise<ResultValue>;
+  async handle(operation: Operation<T>): Promise<Operation<T>> {
+    this.execute(operation.event);
+    return operation;
+  }
+  abstract execute(payload: T): Promise<ResultValue<unknown>>;
 }

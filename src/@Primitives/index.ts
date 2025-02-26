@@ -16,4 +16,3 @@ export * from './QueryHandler';
 export * from './Repository';
 export * from './Result';
 export * from './ValueObject';
-export * from './Operation';

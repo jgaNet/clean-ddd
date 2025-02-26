@@ -114,7 +114,8 @@
  * - Type Safe: Compile-time checking of event handling
  */
 
-import { Event, EventHandler, Operation } from '@Primitives';
+import { Event, EventHandler } from '@Primitives';
+import { Operation } from '@Shared/Domain/Operation';
 
 export interface EventBus {
   connect(): Promise<void>;

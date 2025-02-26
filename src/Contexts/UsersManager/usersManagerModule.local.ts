@@ -6,20 +6,19 @@ import {
 import { GetUsersQueryHandler } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQueryHandler';
 import { IUser } from '@Contexts/UsersManager/Domain/User';
 import { InMemoryDataSource } from '@Shared/Infrastructure/DataSources/InMemoryDataSource';
-import { InMemoryEventBus } from '@Shared/Infrastructure/EventBus/InMemoryEventBus';
-import { InMemoryUserQueries } from './Infrastructure/Queries/InMemoryUserQueries';
+import { InMemoryUserQueries } from '@Contexts/UsersManager/Infrastructure/Queries/InMemoryUserQueries';
 import { InMemoryUserRepository } from '@Contexts/UsersManager/Infrastructure/Repositories/InMemoryUserRepository';
 import { UserCreatedEvent } from '@Contexts/UsersManager/Domain/User';
 import { UserCreatedHandler } from '@Contexts/UsersManager/Application/Events/UserCreatedHandler';
 import { UsersManagerModule } from '@Contexts/UsersManager/Application';
+import { localSharedModule } from '@Shared/sharedModule.local';
 
-const eventBus = new InMemoryEventBus();
 const inMemoryDataSource = new InMemoryDataSource<IUser>();
 const userRepository = new InMemoryUserRepository(inMemoryDataSource);
 const userQueries = new InMemoryUserQueries(inMemoryDataSource);
 
 export const localUsersManagerModule = new UsersManagerModule({
-  eventBus,
+  eventBus: localSharedModule.eventBus,
   commands: [
     {
       event: CreateUserCommandEvent,
@@ -27,7 +26,7 @@ export const localUsersManagerModule = new UsersManagerModule({
         new CreateUserCommandHandler({
           userRepository: userRepository,
           userQueries: userQueries,
-          eventBus,
+          eventBus: localSharedModule.eventBus,
         }),
       ],
     },
