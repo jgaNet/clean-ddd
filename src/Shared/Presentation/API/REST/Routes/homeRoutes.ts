@@ -5,16 +5,7 @@ export const GetHomeResSchema = {
     description: 'Success',
     type: 'object',
     properties: {
-      success: {
-        type: 'boolean',
-      },
-      data: {
-        description: '',
-        type: 'object',
-        properties: {
-          version: { type: 'string' },
-        },
-      },
+      version: { type: 'string' },
     },
   },
 } as const;
@@ -32,7 +23,7 @@ export const homeRoutes = function (
       },
     },
     _ => {
-      return { success: true, data: { version: settings.version } };
+      return { version: settings.version };
     },
   );
 

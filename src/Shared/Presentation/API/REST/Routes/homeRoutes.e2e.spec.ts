@@ -8,10 +8,7 @@ describe('GET /', () => {
     const res = await superagent.get(`${baseUrl}/`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      success: true,
-      data: {
-        version: SETTINGS.version,
-      },
+      version: SETTINGS.version,
     });
   });
 });
