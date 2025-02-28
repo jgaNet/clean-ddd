@@ -29,6 +29,7 @@ export abstract class Exception {
   type: string;
   message!: string;
   context?: unknown;
+  #isException = true;
 
   constructor({
     service,
@@ -55,6 +56,10 @@ export abstract class Exception {
       JSON.stringify(this.context) === JSON.stringify(other.context)
     );
   }
+
+  static isException(obj: unknown): obj is Exception {
+    return typeof (obj as Exception).#isException !== 'undefined';
+  }
 }
 
 export class UnknownException extends Exception {
@@ -71,7 +76,7 @@ export class UnknownException extends Exception {
 export class NotFoundException extends Exception {
   constructor(service: string, message: string, context?: unknown) {
     super({
-      service,
+      service: service || 'unknown',
       type: 'NotFound',
       message,
       context,

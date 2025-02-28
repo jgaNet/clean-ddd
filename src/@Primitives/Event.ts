@@ -22,6 +22,11 @@
  * - Exception events for error handling
  */
 
+export type IEvent<PayloadDTO> = {
+  payload: PayloadDTO;
+  name: string;
+};
+
 export class Event<PayloadDTO> {
   #payload: PayloadDTO;
 

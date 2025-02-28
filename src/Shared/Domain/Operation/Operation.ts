@@ -1,24 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Event, Result, ResultValue, CommandEvent } from '@Primitives';
-
-export enum OperationStatus {
-  PENDING = 'PENDING',
-  SUCCESS = 'SUCCESS',
-  SENT = 'SENT',
-  ERROR = 'ERROR',
-}
-
-export interface IOperation {
-  operationId: string;
-  status: OperationStatus;
-  event: {
-    name: string;
-    payload: unknown;
-  };
-  createdAt: Date;
-  finishedAt?: Date;
-  result?: ResultValue<unknown>;
-}
+import { OperationStatus, IOperation } from './DTOs';
 
 export class Operation<T extends Event<unknown>> {
   id: string;
@@ -27,10 +9,26 @@ export class Operation<T extends Event<unknown>> {
   createdAt: Date = new Date();
   finishedAt?: Date;
   event: T;
-  constructor({ event }: { event: T }) {
-    this.id = uuidv4();
-    this.status = event instanceof CommandEvent ? OperationStatus.PENDING : OperationStatus.SENT;
-    this.event = event;
+
+  constructor(operation: IOperation) {
+    this.id = operation.id;
+    this.status = operation.status;
+    this.result = operation.result;
+    this.createdAt = operation.createdAt;
+    this.finishedAt = operation.finishedAt;
+    this.event = operation.event as T;
+  }
+
+  static create<T = unknown>({ event }: { event: Event<T> }): Operation<Event<T>> {
+    const operation = new Operation<Event<T>>({
+      id: uuidv4(),
+      status: event instanceof CommandEvent ? OperationStatus.PENDING : OperationStatus.SENT,
+      result: undefined,
+      createdAt: new Date(),
+      finishedAt: undefined,
+      event,
+    });
+    return operation;
   }
 
   get name(): string {
@@ -58,19 +56,5 @@ export class Operation<T extends Event<unknown>> {
   sent(): Operation<T> {
     this.status = OperationStatus.SENT;
     return this;
-  }
-
-  toJSON(): IOperation {
-    return {
-      operationId: this.id,
-      status: this.status,
-      createdAt: this.createdAt,
-      finishedAt: this.finishedAt,
-      event: {
-        name: this.event.name,
-        payload: this.event.payload,
-      },
-      result: this.result,
-    };
   }
 }

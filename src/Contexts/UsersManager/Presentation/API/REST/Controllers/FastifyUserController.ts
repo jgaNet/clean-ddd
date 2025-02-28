@@ -1,9 +1,10 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { CreateUserReqBody } from '@Contexts/UsersManager/Presentation/API/REST/Routes/user';
+import { CreateUserReqBody } from '@Contexts/UsersManager/Presentation/API/REST/Routes/userRoutes';
 import { EventBus as CommandEventBus } from '@Primitives/EventBus';
 import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandEvent';
 import { UsersManagerModuleQueries } from '@Contexts/UsersManager/Application/DTOs';
 import { GetUsersQueryHandler } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQueryHandler';
+import { OperationMapper } from '@Shared/Domain/Operation/OperationMapper';
 
 export class FastifyUserController {
   #commandEventBus: CommandEventBus;
@@ -32,7 +33,7 @@ export class FastifyUserController {
       );
 
       reply.code(202);
-      return operation.toJSON();
+      return { currentOperation: OperationMapper.toJSON(operation) };
     } catch (e) {
       reply.code(400);
       return e;
@@ -41,8 +42,14 @@ export class FastifyUserController {
 
   async getUsers(_: unknown, reply: FastifyReply) {
     try {
-      const users = await this.#queries.find(q => q.name == GetUsersQueryHandler.name)?.handler.execute();
-      return users;
+      const query = this.#queries.find(q => q.name == GetUsersQueryHandler.name) as { handler: GetUsersQueryHandler };
+      const result = await query?.handler.execute();
+
+      if (result?.isFailure()) {
+        throw result.error;
+      }
+
+      return result?.data;
     } catch (e) {
       reply.code(400);
       return e;

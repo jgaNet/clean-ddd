@@ -84,7 +84,7 @@ export class Result<T = undefined> {
       return error;
     }
 
-    if (error instanceof Exception) {
+    if (Exception.isException(error)) {
       return new ResultError(error);
     }
 

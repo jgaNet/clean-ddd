@@ -27,10 +27,15 @@ export const CreateUserResSchema = {
     description: 'Accepted',
     type: 'object',
     properties: {
-      operationId: { type: 'string' },
-      status: { type: 'string', enum: Object.values(OperationStatus) },
-      createdAt: { type: 'string' },
-      finishedAt: { type: 'string' },
+      currentOperation: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          status: { type: 'string', enum: Object.values(OperationStatus) },
+          createdAt: { type: 'string' },
+          finishedAt: { type: 'string' },
+        },
+      },
     },
   },
 } as const;
@@ -38,26 +43,27 @@ export const CreateUserResSchema = {
 export const GetUsersResSchema = {
   200: {
     description: 'Success',
-    type: 'object',
-    properties: {
-      data: {
-        type: 'array',
-        items: {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        _id: { type: 'string' },
+        profile: {
           type: 'object',
           properties: {
-            _id: { type: 'string' },
-            profile: {
-              type: 'object',
-              properties: {
-                email: { type: 'string' },
-                nickname: { type: 'string' },
-              },
-              required: ['email', 'nickname'],
-            },
+            email: { type: 'string' },
+            nickname: { type: 'string' },
           },
+          required: ['email', 'nickname'],
         },
       },
-      error: { type: 'string' },
+    },
+  },
+  400: {
+    description: 'Error',
+    type: 'object',
+    properties: {
+      message: { type: 'string' },
     },
   },
 } as const;

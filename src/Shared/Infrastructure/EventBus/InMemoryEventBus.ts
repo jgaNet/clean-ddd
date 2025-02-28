@@ -19,7 +19,7 @@ export class InMemoryEventBus implements EventBus {
   }
 
   dispatch<T>(event: Event<T>): Operation<Event<T>> {
-    const operation = new Operation({ event });
+    const operation = Operation.create<T>({ event });
     if (this.#operationRepository) {
       this.#operationRepository.save(operation);
     }

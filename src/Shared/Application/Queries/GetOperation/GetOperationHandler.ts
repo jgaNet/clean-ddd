@@ -11,7 +11,7 @@ export class GetOperationHandler extends QueryHandler<
     const operation = await this.queriesService.findById(payload.id);
 
     if (!operation) {
-      return Result.fail(NotFoundException);
+      return Result.fail(new NotFoundException('Operation', 'Operation not found', { id: payload.id }));
     }
 
     return Result.ok(operation);

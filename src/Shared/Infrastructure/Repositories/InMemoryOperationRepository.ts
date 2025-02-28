@@ -1,6 +1,7 @@
 import { Event } from '@Primitives';
 import { InMemoryDataSource } from '@Shared/Infrastructure/DataSources/InMemoryDataSource';
 import { Operation, IOperation } from '@Shared/Domain/Operation';
+import { OperationMapper } from '@Shared/Domain/Operation/OperationMapper';
 
 export class InMemoryOperationRepository {
   dataSource: InMemoryDataSource<IOperation>;
@@ -9,7 +10,7 @@ export class InMemoryOperationRepository {
     this.dataSource = dataSource;
   }
 
-  async save(operation: Operation<Event<unknown>>) {
-    this.dataSource.collection.set(operation.id, operation.toJSON());
+  async save(operation: IOperation) {
+    this.dataSource.collection.set(operation.id, operation);
   }
 }

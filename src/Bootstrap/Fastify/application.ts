@@ -6,9 +6,8 @@ import Fastify, { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 
 import { localSharedModule } from '@Shared/sharedModule.local';
 import { localUsersManagerModule } from '@Contexts/UsersManager/usersManagerModule.local';
-import { userRoutes } from '@Contexts/UsersManager/Presentation/API/REST/Routes/user';
-import { homeRoutes } from '@Shared/Presentation/API/REST/Routes/home';
-import { operationRoutes } from '@Shared/Presentation/API/REST/Routes/operation';
+import { homeRoutes, operationRoutes } from '@Shared/Presentation/API/REST/Routes';
+import { userRoutes } from '@Contexts/UsersManager/Presentation/API/REST/Routes';
 
 import { swaggerDescriptor } from './application.swagger';
 import fastifySwagger from '@fastify/swagger';

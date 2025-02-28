@@ -7,7 +7,7 @@ import { OperationStatus } from '@Shared/Domain/Operation';
 const OperationSchema = {
   type: 'object',
   properties: {
-    operationId: { type: 'string' },
+    id: { type: 'string' },
     status: { type: 'string', enum: Object.values(OperationStatus) },
     createdAt: { type: 'string' },
     finishedAt: { type: 'string' },
@@ -25,25 +25,25 @@ const OperationSchema = {
 export const GetOperationsResSchema = {
   200: {
     description: 'Success',
+    type: 'array',
+    items: OperationSchema,
+  },
+  400: {
+    description: 'Bad request',
     type: 'object',
-    properties: {
-      data: {
-        type: 'array',
-        items: OperationSchema,
-      },
-    },
-    error: { type: 'string' },
+    properties: { message: { type: 'string' } },
   },
 } as const;
 
 export const GetOperationResSchema = {
   200: {
     description: 'Success',
+    ...OperationSchema,
+  },
+  404: {
+    description: 'Not found',
     type: 'object',
-    properties: {
-      data: OperationSchema,
-      error: { type: 'string' },
-    },
+    properties: { message: { type: 'string' } },
   },
 } as const;
 

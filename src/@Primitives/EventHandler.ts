@@ -23,8 +23,7 @@
  * - Exception event handlers
  */
 
-import { Event } from './Event';
-import { ResultValue } from './Result';
+import { Event, ResultValue } from '@Primitives';
 import { Operation } from '@Shared/Domain/Operation/Operation';
 
 export abstract class EventHandler<T extends Event<unknown>> {

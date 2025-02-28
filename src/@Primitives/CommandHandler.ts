@@ -16,10 +16,8 @@
  */
 
 import { EventHandler } from './EventHandler';
-import { CommandEvent } from './EventTypes';
+import { CommandEvent, ResultValue, Event } from '@Primitives';
 import { Operation } from '@Shared/Domain/Operation/Operation';
-import { ResultValue } from './Result';
-import { Event } from './Event';
 
 export abstract class CommandHandler<T extends CommandEvent<unknown>> extends EventHandler<T> {
   async handle(operation: Operation<T>): Promise<Operation<T>> {
