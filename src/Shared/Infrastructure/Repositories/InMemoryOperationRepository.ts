@@ -1,7 +1,5 @@
-import { Event } from '@Primitives';
 import { InMemoryDataSource } from '@Shared/Infrastructure/DataSources/InMemoryDataSource';
-import { Operation, IOperation } from '@Shared/Domain/Operation';
-import { OperationMapper } from '@Shared/Domain/Operation/OperationMapper';
+import { IOperation } from '@Shared/Domain/Operation';
 
 export class InMemoryOperationRepository {
   dataSource: InMemoryDataSource<IOperation>;
