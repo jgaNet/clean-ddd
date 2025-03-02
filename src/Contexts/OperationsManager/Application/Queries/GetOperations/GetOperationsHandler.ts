@@ -1,6 +1,6 @@
-import { GetOperationsQueryResult } from '@Shared/Application/DTOs';
+import { GetOperationsQueryResult } from '@Contexts/OperationsManager/Application/DTOs';
 import { QueryHandler, Result } from '@Primitives';
-import { IOperationQueries } from '@Shared/Domain/Operation/Ports/IOperationQueries';
+import { IOperationQueries } from '@Contexts/OperationsManager/Domain/Operation/Ports/IOperationQueries';
 
 export class GetOperationsHandler extends QueryHandler<IOperationQueries, void, GetOperationsQueryResult> {
   async execute(): Promise<GetOperationsQueryResult> {

@@ -1,7 +1,7 @@
-import { IOperationQueries } from '@Shared/Domain/Operation/Ports/IOperationQueries';
-import { IOperation } from '@Shared/Domain/Operation';
+import { IOperationQueries } from '@Contexts/OperationsManager/Domain/Operation/Ports/IOperationQueries';
+import { IOperation } from '@Contexts/OperationsManager/Domain/Operation';
 import { InMemoryDataSource } from '@Shared/Infrastructure/DataSources/InMemoryDataSource';
-import { Nullable } from '@Primitives/Nullable';
+import { Nullable } from '@Primitives';
 
 export class InMemoryOperationQueries implements IOperationQueries {
   dataSource: InMemoryDataSource<IOperation>;

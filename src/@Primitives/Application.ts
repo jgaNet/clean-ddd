@@ -47,25 +47,36 @@
  * - @see Result - For standardized operation results
  */
 
-import { GenericModule } from '@Primitives/Module';
+import { GenericModule, EventBus } from '@Primitives';
 
 export abstract class Application {
-  #modules: GenericModule[];
+  #modules: Map<string, GenericModule>;
+  #eventBus: EventBus;
 
   abstract setup(): void;
   abstract start(): Promise<void>;
 
-  startModules() {
-    this.#modules.forEach(module => module.start());
-  }
-
-  constructor({ modules }: { modules: GenericModule[] }) {
-    this.#modules = modules;
+  constructor({ modules, eventBus }: { modules: GenericModule[]; eventBus: EventBus }) {
+    this.#modules = new Map<string, GenericModule>(modules.map(module => [module.constructor.name, module]));
+    this.#eventBus = eventBus;
   }
 
   async run(): Promise<void> {
     this.setup();
     this.startModules();
     await this.start();
+  }
+
+  startModules() {
+    this.#modules.forEach(module => module.start(this.#eventBus));
+  }
+
+  getModule(name: string): GenericModule {
+    const moduleInstance = this.#modules.get(name);
+    if (!moduleInstance) {
+      throw new Error(`Module ${module.constructor.name} not found`);
+    }
+
+    return moduleInstance;
   }
 }

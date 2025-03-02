@@ -1,4 +1,4 @@
-import { ResultValue, IEvent } from '@Primitives';
+import { IResult, Event, EventBus } from '@Primitives';
 
 export enum OperationStatus {
   PENDING = 'PENDING',
@@ -7,11 +7,12 @@ export enum OperationStatus {
   ERROR = 'ERROR',
 }
 
-export interface IOperation {
+export interface IOperation<T extends Event<unknown> = Event<unknown>> {
   id: string;
   status: OperationStatus;
-  event: IEvent<unknown>;
+  result?: IResult<unknown>;
   createdAt: Date;
   finishedAt?: Date;
-  result?: ResultValue<unknown>;
+  eventBus: EventBus;
+  event: T;
 }

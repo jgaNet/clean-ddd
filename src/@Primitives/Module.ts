@@ -108,66 +108,77 @@ import { QueriesService } from '@Primitives/QueriesService';
 import { DataSource } from '@Primitives/DataSource';
 import { Result } from '@Primitives/Result';
 
-type CommandModuleEvent = { event: typeof Event<unknown>; eventHandlers: CommandHandler<CommandEvent<unknown>>[] };
+type CommandModuleEvent = {
+  event: typeof Event<unknown>;
+  eventHandlers: CommandHandler<CommandEvent<unknown>>[];
+};
 type ModuleEvent = { event: typeof Event<unknown>; eventHandlers: EventHandler<Event<unknown>>[] };
 type ModuleQuery = {
   name: string;
   handler: QueryHandler<QueriesService<DataSource<unknown>>, unknown, Result<unknown>>;
 };
 
-export type GenericModule = Module<CommandModuleEvent[], ModuleQuery[], ModuleEvent[], ModuleEvent[]>;
+type ModuleServices = Record<string, unknown>;
+
+export type GenericModule = Module<CommandModuleEvent[], ModuleQuery[], ModuleEvent[], ModuleEvent[], ModuleServices>;
 
 export class Module<
   Commands extends CommandModuleEvent[],
   Queries extends ModuleQuery[],
   DomainEvents extends ModuleEvent[],
   IntegrationEvents extends ModuleEvent[],
+  Services extends ModuleServices,
 > {
   commands: Commands;
   queries: Queries;
   domainEvents: DomainEvents;
   integrationEvents: IntegrationEvents;
-  eventBus: EventBus;
+  services: Services;
+  #eventBus?: EventBus;
 
   constructor({
     commands,
     queries,
     domainEvents,
     integrationEvents,
-    eventBus,
+    services,
   }: {
     commands: Commands;
     queries: Queries;
     domainEvents: DomainEvents;
     integrationEvents: IntegrationEvents;
-    eventBus: EventBus;
+    services: Services;
   }) {
     this.commands = commands;
     this.queries = queries;
     this.domainEvents = domainEvents;
-    this.eventBus = eventBus;
     this.integrationEvents = integrationEvents;
+    this.services = services;
   }
 
-  async start() {
+  async start(eventBus: EventBus) {
     // eslint-disable-next-line no-console
     console.log('[sys][app][info] Module starting...');
-    await this.eventBus.connect();
-    await this.subscribe();
+    this.#eventBus = eventBus;
+    await this.#eventBus.connect().then(this.subscribe.bind(this));
 
     // eslint-disable-next-line no-console
-    console.log('[sys][app][info] Module started');
+    console.log(`[sys][module][info] ${this.constructor.name} started`);
   }
 
   async subscribe() {
+    if (!this.#eventBus) {
+      throw 'Missing event bus';
+    }
+
     for (const sub of this.domainEvents) {
       for (const eventHandler of sub.eventHandlers) {
-        await this.eventBus.subscribe(sub.event.name, eventHandler);
+        await this.#eventBus.subscribe(sub.event.name, eventHandler);
       }
     }
     for (const sub of this.commands) {
       for (const eventHandler of sub.eventHandlers) {
-        await this.eventBus.subscribe(sub.event.name, eventHandler);
+        await this.#eventBus.subscribe(sub.event.name, eventHandler);
       }
     }
   }
@@ -179,6 +190,13 @@ export class Module<
     } else {
       throw 'Missing command';
     }
+  }
+
+  get eventBus() {
+    if (!this.#eventBus) {
+      throw 'Missing event bus';
+    }
+    return this.#eventBus;
   }
 
   getQuery(

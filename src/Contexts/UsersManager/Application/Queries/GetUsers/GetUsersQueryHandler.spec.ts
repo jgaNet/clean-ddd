@@ -1,10 +1,16 @@
-import { expect } from '@jest/globals';
+import { expect, jest } from '@jest/globals';
 import { mockedApplication, mockedUserRepository } from '@Contexts/UsersManager/usersManagerModule.mock';
 import { MockedUserQueries } from '@Contexts/UsersManager/Infrastructure/Queries/MockedUserQueries';
 import { MockedUserRepository } from '@Contexts/UsersManager/Infrastructure/Repositories/MockedUserRepository';
-import { Result } from '@Primitives';
+import { Result, EventBus } from '@Primitives';
 import { GetUsersQueryHandler } from '@Contexts/UsersManager/Application/Queries/GetUsers';
 import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser';
+
+const eventBusMock = {
+  connect: jest.fn(),
+  dispatch: jest.fn(),
+  subscribe: jest.fn(),
+} as EventBus;
 
 beforeEach(() => {
   MockedUserRepository.clearMocks();
@@ -27,6 +33,7 @@ describe('get users', function () {
           nickname: 'a',
         },
       }),
+      eventBusMock,
     );
 
     const result = await mockedApplication.getQuery(GetUsersQueryHandler).execute();

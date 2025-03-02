@@ -114,4 +114,4 @@ export class ResultSuccess<T> extends Result<T> {
   declare data: T;
 }
 
-export type ResultValue<T = undefined> = ResultSuccess<T> | ResultError;
+export type IResult<T = undefined> = ResultSuccess<T> | ResultError;

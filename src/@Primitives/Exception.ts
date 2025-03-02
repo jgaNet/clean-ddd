@@ -57,8 +57,12 @@ export abstract class Exception {
     );
   }
 
+  get isException(): boolean {
+    return this.#isException;
+  }
+
   static isException(obj: unknown): obj is Exception {
-    return typeof (obj as Exception).#isException !== 'undefined';
+    return obj !== null && typeof (obj as Exception).isException !== 'undefined';
   }
 }
 

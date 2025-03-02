@@ -11,14 +11,12 @@ import { InMemoryUserRepository } from '@Contexts/UsersManager/Infrastructure/Re
 import { UserCreatedEvent } from '@Contexts/UsersManager/Domain/User';
 import { UserCreatedHandler } from '@Contexts/UsersManager/Application/Events/UserCreatedHandler';
 import { UsersManagerModule } from '@Contexts/UsersManager/Application';
-import { localSharedModule } from '@Shared/sharedModule.local';
 
 const inMemoryDataSource = new InMemoryDataSource<IUser>();
 const userRepository = new InMemoryUserRepository(inMemoryDataSource);
 const userQueries = new InMemoryUserQueries(inMemoryDataSource);
 
 export const localUsersManagerModule = new UsersManagerModule({
-  eventBus: localSharedModule.eventBus,
   commands: [
     {
       event: CreateUserCommandEvent,
@@ -26,7 +24,6 @@ export const localUsersManagerModule = new UsersManagerModule({
         new CreateUserCommandHandler({
           userRepository: userRepository,
           userQueries: userQueries,
-          eventBus: localSharedModule.eventBus,
         }),
       ],
     },
@@ -44,4 +41,5 @@ export const localUsersManagerModule = new UsersManagerModule({
     },
   ],
   integrationEvents: [],
+  services: {},
 });

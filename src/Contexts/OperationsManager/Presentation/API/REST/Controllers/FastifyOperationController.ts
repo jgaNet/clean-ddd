@@ -1,13 +1,13 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { SharedModuleQueries } from '@Shared/Application/DTOs';
-import { GetOperationsHandler } from '@Shared/Application/Queries/GetOperations';
-import { GetOperationHandler } from '@Shared/Application/Queries/GetOperation';
+import { GetOperationsHandler } from '@Contexts/OperationsManager/Application/Queries/GetOperations';
+import { GetOperationHandler } from '@Contexts/OperationsManager/Application/Queries/GetOperation';
 import { NotFoundException } from '@Primitives/Exception';
+import { OperationsManagerModuleQueries } from '@Contexts/OperationsManager/Application/DTOs';
 
 export class FastifyOperationController {
-  #queries: SharedModuleQueries;
+  #queries: OperationsManagerModuleQueries;
 
-  constructor({ queries: ModuleQueries }: { queries: SharedModuleQueries }) {
+  constructor({ queries: ModuleQueries }: { queries: OperationsManagerModuleQueries }) {
     this.#queries = ModuleQueries;
   }
 

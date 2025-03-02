@@ -4,30 +4,20 @@ import { IUserRepository } from '@Contexts/UsersManager/Domain/User/Ports/IUserR
 import { IUserQueries } from '@Contexts/UsersManager/Domain/User/Ports/IUserQueries';
 import { UserCreatedEvent } from '@Contexts/UsersManager/Domain/User/Events/UserCreatedEvent';
 import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser';
-import { Result, ResultValue, CommandHandler, EventBus } from '@Primitives';
+import { Result, IResult, CommandHandler, EventBus } from '@Primitives';
 import { IUser } from '@Contexts/UsersManager/Domain/User';
 
 export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEvent> {
   #userFactory: UserFactory;
   #userRepository: IUserRepository;
-  #eventBus: EventBus;
 
-  constructor({
-    userRepository,
-    userQueries,
-    eventBus,
-  }: {
-    userRepository: IUserRepository;
-    userQueries: IUserQueries;
-    eventBus: EventBus;
-  }) {
+  constructor({ userRepository, userQueries }: { userRepository: IUserRepository; userQueries: IUserQueries }) {
     super();
     this.#userFactory = new UserFactory({ userRepository, userQueries });
     this.#userRepository = userRepository;
-    this.#eventBus = eventBus;
   }
 
-  async execute({ payload }: CreateUserCommandEvent): Promise<ResultValue<IUser>> {
+  async execute({ payload }: CreateUserCommandEvent, eventBus: EventBus): Promise<IResult<IUser>> {
     try {
       const newUser = await this.#userFactory.new(payload);
 
@@ -37,7 +27,7 @@ export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEv
 
       const newUserJSON = UserMapper.toJSON(newUser.data);
       await this.#userRepository.save(newUserJSON);
-      this.#eventBus.dispatch(new UserCreatedEvent(newUserJSON));
+      eventBus.dispatch(new UserCreatedEvent(newUserJSON));
 
       return Result.ok(newUserJSON);
     } catch (e) {

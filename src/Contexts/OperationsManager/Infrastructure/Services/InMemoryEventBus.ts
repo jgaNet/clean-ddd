@@ -1,5 +1,5 @@
 import { EventBus, Event, EventHandler, CommandHandler } from '@Primitives';
-import { Operation } from '@Shared/Domain/Operation';
+import { Operation } from '../../Domain/Operation';
 
 import EventEmitter from 'events';
 import { InMemoryOperationRepository } from '../Repositories/InMemoryOperationRepository';
@@ -19,7 +19,7 @@ export class InMemoryEventBus implements EventBus {
   }
 
   dispatch<T>(event: Event<T>): Operation<Event<T>> {
-    const operation = Operation.create<T>({ event });
+    const operation = Operation.create<T>({ event, eventBus: this });
     if (this.#operationRepository) {
       this.#operationRepository.save(operation);
     }

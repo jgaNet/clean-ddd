@@ -4,7 +4,7 @@ import { FromSchema } from 'json-schema-to-ts';
 import { FastifyUserController } from '@Contexts/UsersManager/Presentation/API/REST/Controllers/FastifyUserController';
 import { UsersManagerModule } from '@Contexts/UsersManager/Application';
 
-import { OperationStatus } from '@Shared/Domain/Operation';
+import { OperationStatus } from '@Primitives';
 
 export const CreateUserReqBodySchema = {
   type: 'object',

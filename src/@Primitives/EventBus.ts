@@ -114,11 +114,10 @@
  * - Type Safe: Compile-time checking of event handling
  */
 
-import { Event, EventHandler } from '@Primitives';
-import { Operation } from '@Shared/Domain/Operation';
+import { Event, EventHandler, IOperation } from '@Primitives';
 
 export interface EventBus {
   connect(): Promise<void>;
-  dispatch<T>(event: Event<T>): Operation<Event<T>>;
+  dispatch<T>(event: Event<T>): IOperation<Event<T>>;
   subscribe<T>(event: Event<T>['name'], eventHandler: EventHandler<Event<T>>): Promise<void>;
 }

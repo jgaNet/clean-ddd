@@ -16,12 +16,11 @@
  */
 
 import { EventHandler } from './EventHandler';
-import { CommandEvent, ResultValue, Event } from '@Primitives';
-import { Operation } from '@Shared/Domain/Operation/Operation';
+import { CommandEvent, IResult, IEvent, IOperation, EventBus } from '@Primitives';
 
 export abstract class CommandHandler<T extends CommandEvent<unknown>> extends EventHandler<T> {
-  async handle(operation: Operation<T>): Promise<Operation<T>> {
-    const result = await this.execute(operation.event);
+  async handle(operation: IOperation<T>): Promise<IOperation<T>> {
+    const result = await this.execute(operation.event, operation.eventBus);
 
     if (result.isFailure()) {
       return operation.failed(result.error);
@@ -29,5 +28,5 @@ export abstract class CommandHandler<T extends CommandEvent<unknown>> extends Ev
 
     return operation.success(result.data);
   }
-  abstract execute(event: Event<unknown>): Promise<ResultValue<unknown>>;
+  abstract execute(event: IEvent<unknown>, eventBus: EventBus): Promise<IResult<unknown>>;
 }

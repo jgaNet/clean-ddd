@@ -4,7 +4,6 @@ import { EventBus as CommandEventBus } from '@Primitives/EventBus';
 import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser/CreateUserCommandEvent';
 import { UsersManagerModuleQueries } from '@Contexts/UsersManager/Application/DTOs';
 import { GetUsersQueryHandler } from '@Contexts/UsersManager/Application/Queries/GetUsers/GetUsersQueryHandler';
-import { OperationMapper } from '@Shared/Domain/Operation/OperationMapper';
 
 export class FastifyUserController {
   #commandEventBus: CommandEventBus;
@@ -33,7 +32,7 @@ export class FastifyUserController {
       );
 
       reply.code(202);
-      return { currentOperation: OperationMapper.toJSON(operation) };
+      return { currentOperation: operation };
     } catch (e) {
       reply.code(400);
       return e;

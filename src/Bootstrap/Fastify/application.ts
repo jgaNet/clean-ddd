@@ -4,10 +4,11 @@ import 'dotenv/config';
 import { SETTINGS } from './application.settings';
 import Fastify, { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
-import { localSharedModule } from '@Shared/sharedModule.local';
+import { homeRoutes } from '@Shared/Presentation/API/REST/Routes';
+import { localOperationManagerModule } from '@Contexts/OperationsManager/operationManagerModule.local';
 import { localUsersManagerModule } from '@Contexts/UsersManager/usersManagerModule.local';
-import { homeRoutes, operationRoutes } from '@Shared/Presentation/API/REST/Routes';
 import { userRoutes } from '@Contexts/UsersManager/Presentation/API/REST/Routes';
+import { operationRoutes } from '@Contexts/OperationsManager/Presentation/API/REST/Routes';
 
 import { swaggerDescriptor } from './application.swagger';
 import fastifySwagger from '@fastify/swagger';
@@ -21,7 +22,10 @@ class FastifyApplication extends Application {
   fastify: FastifyInstance;
 
   constructor() {
-    super({ modules: [localUsersManagerModule, localSharedModule] });
+    super({
+      eventBus: localOperationManagerModule.services.eventBus,
+      modules: [localOperationManagerModule, localUsersManagerModule],
+    });
     this.fastify = Fastify({ logger: false });
   }
 
@@ -34,8 +38,15 @@ class FastifyApplication extends Application {
 
     // Routes
     this.fastify.register(homeRoutes, { settings: SETTINGS });
-    this.fastify.register(operationRoutes, { prefix: '/operations', sharedModule: localSharedModule });
-    this.fastify.register(userRoutes, { prefix: '/users', usersManagementModule: localUsersManagerModule });
+
+    this.fastify.register(operationRoutes, {
+      prefix: '/operations',
+      operationsManagerModule: localOperationManagerModule,
+    });
+    this.fastify.register(userRoutes, {
+      prefix: '/users',
+      usersManagementModule: localUsersManagerModule,
+    });
 
     if (SETTINGS.keycloak.active) {
       const opts: KeycloakOptions = {

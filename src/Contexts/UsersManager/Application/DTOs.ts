@@ -1,11 +1,11 @@
-import { Event, EventHandler, CommandHandler, ResultValue } from '@Primitives';
+import { Event, EventHandler, CommandHandler, IResult } from '@Primitives';
 import { UserCreatedEvent } from '@Contexts/UsersManager/Domain/User';
 import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser';
 import { GetUsersQueryHandler } from '@Contexts/UsersManager/Application/Queries/GetUsers';
 import { IUser } from '@Contexts/UsersManager/Domain/User';
 
 export { INewUser as CreateUserCommandPort } from '@Contexts/UsersManager/Domain/User/DTOs';
-export type GetUsersQueryResult = ResultValue<IUser[]>;
+export type GetUsersQueryResult = IResult<IUser[]>;
 
 export type Subscription<T> = { event: Event<T>; eventHandlers: EventHandler<Event<T>>[] };
 export type Subscriptions<T> = Subscription<T>[];
@@ -25,3 +25,5 @@ export type UsersManagerModuleDomainEvents = [
 ];
 
 export type UsersManagerModuleIntegrationEvents = [];
+
+export type UsersManagerModuleServices = Record<string, unknown>;

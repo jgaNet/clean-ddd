@@ -1,8 +1,8 @@
 import { FastifyInstance } from 'fastify';
 
-import { FastifyOperationController } from '@Shared/Presentation/API/REST/Controllers/FastifyOperationController';
-import { SharedModule } from '@Shared/Application';
-import { OperationStatus } from '@Shared/Domain/Operation';
+import { FastifyOperationController } from '@Contexts/OperationsManager/Presentation/API/REST/Controllers/FastifyOperationController';
+import { OperationsManagerModule } from '@Contexts/OperationsManager/Application';
+import { OperationStatus } from '@Contexts/OperationsManager/Domain/Operation';
 
 const OperationSchema = {
   type: 'object',
@@ -49,11 +49,11 @@ export const GetOperationResSchema = {
 
 export const operationRoutes = function (
   fastify: FastifyInstance,
-  { sharedModule }: { sharedModule: SharedModule },
+  { operationsManagerModule }: { operationsManagerModule: OperationsManagerModule },
   done: () => void,
 ) {
   const operationController = new FastifyOperationController({
-    queries: sharedModule.queries,
+    queries: operationsManagerModule.queries,
   });
 
   fastify.get(

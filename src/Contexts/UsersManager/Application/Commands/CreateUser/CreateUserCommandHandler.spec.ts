@@ -9,6 +9,13 @@ import { UserWithEmailAlreadyExists, InvalidUserEmail } from '@Contexts/UsersMan
 import { CreateUserCommandEvent } from '@Contexts/UsersManager/Application/Commands/CreateUser';
 import { MockedUserRepository } from '@Contexts/UsersManager/Infrastructure/Repositories/MockedUserRepository';
 import { MockedUserQueries } from '@Contexts/UsersManager/Infrastructure/Queries/MockedUserQueries';
+import { EventBus } from '@Primitives/EventBus';
+
+const eventBusMock = {
+  connect: jest.fn(),
+  dispatch: jest.fn(),
+  subscribe: jest.fn(),
+} as EventBus;
 
 beforeEach(() => {
   jest.resetAllMocks();
@@ -24,6 +31,7 @@ describe('how to create a user', function () {
       new CreateUserCommandEvent({
         profile: { email: 'test@test.fr', nickname: 'manual-nickname' },
       }),
+      eventBusMock,
     );
 
     expect(saveSpy).toHaveBeenCalledWith({
@@ -43,6 +51,7 @@ describe('how to create a user', function () {
       new CreateUserCommandEvent({
         profile: { email: 'test@test.fr' },
       }),
+      eventBusMock,
     );
 
     expect(result.isFailure()).toBeTruthy();
@@ -58,6 +67,7 @@ describe('how to create a user', function () {
       new CreateUserCommandEvent({
         profile: { email: 'nickname@test.fr' },
       }),
+      eventBusMock,
     );
 
     expect(saveSpy).toHaveBeenCalledWith({
@@ -75,6 +85,7 @@ describe('how to create a user', function () {
       new CreateUserCommandEvent({
         profile: { email: 'email-malformed' },
       }),
+      eventBusMock,
     );
 
     expect(result.isFailure()).toBeTruthy();
@@ -89,6 +100,7 @@ describe('how to create a user', function () {
       new CreateUserCommandEvent({
         profile: { email },
       }),
+      eventBusMock,
     );
 
     expect(result.isFailure()).toBeTruthy();

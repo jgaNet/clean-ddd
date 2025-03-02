@@ -27,9 +27,9 @@
 
 import { QueriesService } from '@Primitives/QueriesService';
 import { DataSource } from '@Primitives/DataSource';
-import { ResultValue } from './Result';
+import { IResult } from './Result';
 
-export abstract class QueryHandler<T extends QueriesService<DataSource<unknown>>, P, R extends ResultValue<unknown>> {
+export abstract class QueryHandler<T extends QueriesService<DataSource<unknown>>, P, R extends IResult<unknown>> {
   protected queriesService: T;
 
   constructor(queriesService: T) {

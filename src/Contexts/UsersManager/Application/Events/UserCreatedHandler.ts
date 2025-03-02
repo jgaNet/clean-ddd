@@ -1,9 +1,9 @@
 import { EventHandler } from '@Primitives/EventHandler';
 import { UserCreatedEvent } from '@Contexts/UsersManager/Domain/User/Events/UserCreatedEvent';
-import { ResultValue, Result } from '@Primitives/Result';
+import { IResult, Result } from '@Primitives/Result';
 
 export class UserCreatedHandler extends EventHandler<UserCreatedEvent> {
-  async execute(event: UserCreatedEvent): Promise<ResultValue> {
+  async execute(event: UserCreatedEvent): Promise<IResult> {
     // eslint-disable-next-line no-console
     console.log(event.name, event.payload);
 

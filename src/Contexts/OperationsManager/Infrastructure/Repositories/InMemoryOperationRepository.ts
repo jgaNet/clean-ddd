@@ -1,5 +1,5 @@
 import { InMemoryDataSource } from '@Shared/Infrastructure/DataSources/InMemoryDataSource';
-import { IOperation } from '@Shared/Domain/Operation';
+import { IOperation } from '@Contexts/OperationsManager/Domain/Operation';
 
 export class InMemoryOperationRepository {
   dataSource: InMemoryDataSource<IOperation>;

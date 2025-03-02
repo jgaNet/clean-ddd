@@ -3,7 +3,7 @@ import { IUserRepository } from '@Contexts/UsersManager/Domain/User/Ports/IUserR
 import { UserWithEmailAlreadyExists } from '@Contexts/UsersManager/Domain/User/UserExceptions';
 import { INewUser, IUser } from '@Contexts/UsersManager/Domain/User/DTOs';
 import { IUserQueries } from '@Contexts/UsersManager/Domain/User/Ports/IUserQueries';
-import { Result, ResultValue } from '@Primitives/Result';
+import { Result, IResult } from '@Primitives/Result';
 export class UserFactory {
   #userRepository: IUserRepository;
   #userQueries: IUserQueries;
@@ -13,7 +13,7 @@ export class UserFactory {
     this.#userQueries = userQueries;
   }
 
-  async exists(newUserProps: INewUser): Promise<ResultValue> {
+  async exists(newUserProps: INewUser): Promise<IResult> {
     const user = await this.#userQueries.findByEmail(newUserProps.profile.email);
 
     if (user) {
@@ -23,7 +23,7 @@ export class UserFactory {
     return Result.ok();
   }
 
-  async new(newUserProps: INewUser): Promise<ResultValue<User>> {
+  async new(newUserProps: INewUser): Promise<IResult<User>> {
     const result = await this.exists(newUserProps);
 
     if (result.isFailure()) {

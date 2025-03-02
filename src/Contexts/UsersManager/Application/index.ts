@@ -4,10 +4,12 @@ import {
   UsersManagerModuleDomainEvents,
   UsersManagerModuleQueries,
   UsersManagerModuleIntegrationEvents,
+  UsersManagerModuleServices,
 } from './DTOs';
 export class UsersManagerModule extends Module<
   UsersManagerModuleCommands,
   UsersManagerModuleQueries,
   UsersManagerModuleDomainEvents,
-  UsersManagerModuleIntegrationEvents
+  UsersManagerModuleIntegrationEvents,
+  UsersManagerModuleServices
 > {}
