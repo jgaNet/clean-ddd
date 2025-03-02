@@ -2,10 +2,10 @@
 
 import 'dotenv/config';
 import { SETTINGS } from './application.settings';
-import Fastify, { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import Fastify, { FastifyInstance } from 'fastify';
 
 import { homeRoutes } from '@SharedKernel/Presentation/API/REST/Routes';
-import { localOperationManagerModule } from '@Contexts/Operations/module.local';
+import { localOperationsModule } from '@Contexts/Operations/module.local';
 import { localUsersModule } from '@Contexts/Users/module.local';
 import { userRoutes } from '@Contexts/Users/Presentation/API/REST/Routes';
 import { operationRoutes } from '@Contexts/Operations/Presentation/API/REST/Routes';
@@ -14,8 +14,6 @@ import { swaggerDescriptor } from './application.swagger';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 
-import keycloak, { KeycloakOptions } from 'fastify-keycloak-adapter';
-
 import { Application } from '@Primitives';
 
 class FastifyApplication extends Application {
@@ -23,8 +21,8 @@ class FastifyApplication extends Application {
 
   constructor() {
     super({
-      eventBus: localOperationManagerModule.services.eventBus,
-      modules: [localOperationManagerModule, localUsersModule],
+      eventBus: localOperationsModule.services.eventBus,
+      modules: [localOperationsModule, localUsersModule],
     });
     this.fastify = Fastify({ logger: false });
   }
@@ -41,26 +39,12 @@ class FastifyApplication extends Application {
 
     this.fastify.register(operationRoutes, {
       prefix: '/operations',
-      operationsManagerModule: localOperationManagerModule,
+      operationsManagerModule: localOperationsModule,
     });
     this.fastify.register(userRoutes, {
       prefix: '/users',
       usersManagementModule: localUsersModule,
     });
-
-    if (SETTINGS.keycloak.active) {
-      const opts: KeycloakOptions = {
-        ...SETTINGS.keycloak,
-        userPayloadMapper(userPayload: unknown): object {
-          return userPayload as object;
-        },
-        unauthorizedHandler(_: FastifyRequest, reply: FastifyReply) {
-          reply.status(401).send(`Invalid request`);
-        },
-      };
-
-      this.fastify.register(keycloak, opts);
-    }
   }
 
   async start(port: number = SETTINGS.port): Promise<void> {

@@ -158,7 +158,7 @@ export class Module<
 
   async start(eventBus: EventBus) {
     // eslint-disable-next-line no-console
-    console.log('[sys][app][info] Module starting...');
+    console.log(`[sys][app][info] ${this.constructor.name} starting...`);
     this.#eventBus = eventBus;
     await this.#eventBus.connect().then(this.subscribe.bind(this));
 

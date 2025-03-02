@@ -1,8 +1,8 @@
 import { EventBus, Event, EventHandler, CommandHandler } from '@Primitives';
-import { Operation } from '../../Domain/Operation';
+import { Operation } from '@Contexts/Operations/Domain/Operation';
 
 import EventEmitter from 'events';
-import { InMemoryOperationRepository } from '../Repositories/InMemoryOperationRepository';
+import { InMemoryOperationRepository } from '@Contexts/Operations/Infrastructure/Repositories/InMemoryOperationRepository';
 
 export class InMemoryEventBus implements EventBus {
   #eventEmitter: EventEmitter;

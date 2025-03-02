@@ -15,7 +15,7 @@ const inMemoryOperationQueries = new InMemoryOperationQueries(inMemoryOperationD
 import { InMemoryOperationRepository } from '@Contexts/Operations/Infrastructure/Repositories/InMemoryOperationRepository';
 const inMemoryOperationRepository = new InMemoryOperationRepository(inMemoryOperationDataSource);
 
-export const localOperationManagerModule = new OperationsModule({
+export const localOperationsModule = new OperationsModule({
   commands: [],
   queries: [
     {
