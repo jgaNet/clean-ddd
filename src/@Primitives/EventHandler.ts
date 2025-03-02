@@ -28,7 +28,7 @@ import { Event, IResult, EventBus, IOperation } from '@Primitives';
 export abstract class EventHandler<T extends Event<unknown>> {
   async handle(operation: IOperation<T>): Promise<IOperation<T>> {
     this.execute(operation.event, operation.eventBus);
-    return operation;
+    return operation.sent();
   }
   abstract execute(payload: T, eventBus: EventBus): Promise<IResult<unknown>>;
 }

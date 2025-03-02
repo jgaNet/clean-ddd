@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Event, Result, IResult, CommandEvent, EventBus } from '@Primitives';
+import { Event, Result, IResult, EventBus } from '@Primitives';
 import { OperationStatus, IOperation } from './DTOs';
 
 export class Operation<T extends Event<unknown>> implements IOperation<T> {
@@ -24,7 +24,7 @@ export class Operation<T extends Event<unknown>> implements IOperation<T> {
   static create<T = unknown>({ event, eventBus }: { event: Event<T>; eventBus: EventBus }): Operation<Event<T>> {
     const operation = new Operation<Event<T>>({
       id: uuidv4(),
-      status: event instanceof CommandEvent ? OperationStatus.PENDING : OperationStatus.SENT,
+      status: OperationStatus.PENDING,
       result: undefined,
       createdAt: new Date(),
       eventBus,
