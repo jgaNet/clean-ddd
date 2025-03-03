@@ -6,6 +6,7 @@ export * from './Event';
 export * from './EventBus';
 export * from './EventHandler';
 export * from './EventTypes';
+export * from './EventEmitter';
 export * from './Exception';
 export * from './ExceptionHandler';
 export * from './Mapper';

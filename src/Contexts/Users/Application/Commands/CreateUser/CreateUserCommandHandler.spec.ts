@@ -1,5 +1,5 @@
 import { expect, jest } from '@jest/globals';
-import { mockedApplication, mockedUserRepository, mockedUserQueries } from '@Contexts/Users/module.mock';
+import { mockUsersModule, mockedUserRepository, mockedUserQueries } from '@Contexts/Users/module.mock';
 import { Exception } from '@Primitives/Exception';
 import { UserWithEmailAlreadyExists, InvalidUserEmail } from '@Contexts/Users/Domain/User';
 import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser';
@@ -23,7 +23,7 @@ describe('how to create a user', function () {
   it('should create a user if he is not already existing', async () => {
     (mockedUserRepository.nextIdentity as jest.Mock).mockImplementationOnce(() => Promise.resolve('mockedId'));
     const saveSpy = jest.spyOn(mockedUserRepository, 'save');
-    await mockedApplication.getCommand(CreateUserCommandEvent).execute(
+    await mockUsersModule.getCommand(CreateUserCommandEvent).execute(
       new CreateUserCommandEvent({
         profile: { email: 'test@test.fr', nickname: 'manual-nickname' },
       }),
@@ -43,7 +43,7 @@ describe('how to create a user', function () {
     (mockedUserQueries.findByEmail as jest.Mock).mockImplementationOnce(() => Promise.resolve({}));
 
     const saveSpy = jest.spyOn(mockedUserRepository, 'save');
-    const result = await mockedApplication.getCommand(CreateUserCommandEvent).execute(
+    const result = await mockUsersModule.getCommand(CreateUserCommandEvent).execute(
       new CreateUserCommandEvent({
         profile: { email: 'test@test.fr' },
       }),
@@ -59,7 +59,7 @@ describe('how to create a user', function () {
     (mockedUserRepository.nextIdentity as jest.Mock).mockImplementationOnce(() => Promise.resolve('mockedId'));
 
     const saveSpy = jest.spyOn(mockedUserRepository, 'save');
-    await mockedApplication.getCommand(CreateUserCommandEvent).execute(
+    await mockUsersModule.getCommand(CreateUserCommandEvent).execute(
       new CreateUserCommandEvent({
         profile: { email: 'nickname@test.fr' },
       }),
@@ -77,7 +77,7 @@ describe('how to create a user', function () {
 
   it('should not create a user if the email is malformed', async () => {
     const saveSpy = jest.spyOn(mockedUserRepository, 'save');
-    const result = await mockedApplication.getCommand(CreateUserCommandEvent).execute(
+    const result = await mockUsersModule.getCommand(CreateUserCommandEvent).execute(
       new CreateUserCommandEvent({
         profile: { email: 'email-malformed' },
       }),
@@ -92,7 +92,7 @@ describe('how to create a user', function () {
   it('should not create a user if the email is too long', async () => {
     const saveSpy = jest.spyOn(mockedUserRepository, 'save');
     const email = 'a'.repeat(100) + '@test.fr';
-    const result = await mockedApplication.getCommand(CreateUserCommandEvent).execute(
+    const result = await mockUsersModule.getCommand(CreateUserCommandEvent).execute(
       new CreateUserCommandEvent({
         profile: { email },
       }),

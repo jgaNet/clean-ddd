@@ -8,35 +8,19 @@ import { InMemoryUserRepository } from '@Contexts/Users/Infrastructure/Repositor
 import { UserCreatedEvent } from '@Contexts/Users/Domain/User';
 import { UserCreatedHandler } from '@Contexts/Users/Application/Events/UserCreatedHandler';
 import { UsersModule } from '@Contexts/Users/Application';
+import { ModuleBuilder } from '@Primitives/Module';
 
 const inMemoryDataSource = new InMemoryDataSource<IUser>();
 const userRepository = new InMemoryUserRepository(inMemoryDataSource);
 const userQueries = new InMemoryUserQueries(inMemoryDataSource);
+const getUsersQueryHandler = new GetUsersQueryHandler(userQueries);
+const createUserCommandHandler = new CreateUserCommandHandler({ userRepository, userQueries });
 
-export const localUsersModule = new UsersModule({
-  commands: [
-    {
-      event: CreateUserCommandEvent,
-      eventHandlers: [
-        new CreateUserCommandHandler({
-          userRepository: userRepository,
-          userQueries: userQueries,
-        }),
-      ],
-    },
-  ],
-  queries: [
-    {
-      name: GetUsersQueryHandler.name,
-      handler: new GetUsersQueryHandler(userQueries),
-    },
-  ],
-  domainEvents: [
-    {
-      event: UserCreatedEvent,
-      eventHandlers: [new UserCreatedHandler()],
-    },
-  ],
-  integrationEvents: [],
-  services: {},
-});
+export const localUsersModule = new ModuleBuilder<UsersModule>(Symbol('users'))
+  .setCommand({
+    event: CreateUserCommandEvent,
+    handlers: [createUserCommandHandler],
+  })
+  .setQuery(getUsersQueryHandler)
+  .setDomainEvent({ event: UserCreatedEvent, handlers: [new UserCreatedHandler()] })
+  .build();

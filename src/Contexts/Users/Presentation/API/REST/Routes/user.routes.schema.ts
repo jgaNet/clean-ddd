@@ -1,10 +1,5 @@
-import { FastifyInstance } from 'fastify';
-import { FromSchema } from 'json-schema-to-ts';
-
-import { FastifyUserController } from '@Contexts/Users/Presentation/API/REST/Controllers/FastifyUserController';
-import { UsersModule } from '@Contexts/Users/Application';
-
 import { OperationStatus } from '@Primitives';
+import { FromSchema } from 'json-schema-to-ts';
 
 export const CreateUserReqBodySchema = {
   type: 'object',
@@ -68,41 +63,4 @@ export const GetUsersResSchema = {
   },
 } as const;
 
-// eslint-disable-next-line
-// @ts-ignore  NOTE:: Why I need of this to remove default in CreateUserResSchema?
-export type CreateUserRes = FromSchema<typeof CreateUserResSchema>;
 export type CreateUserReqBody = FromSchema<typeof CreateUserReqBodySchema>;
-
-export const userRoutes = function (
-  fastify: FastifyInstance,
-  { usersManagementModule }: { usersManagementModule: UsersModule },
-  done: () => void,
-) {
-  const userController = new FastifyUserController({
-    commandEventBus: usersManagementModule.eventBus,
-    queries: usersManagementModule.queries,
-  });
-
-  fastify.post<{ Body: CreateUserReqBody }>(
-    '/',
-    {
-      schema: {
-        body: CreateUserReqBodySchema,
-        response: CreateUserResSchema,
-      },
-    },
-    userController.createUser.bind(userController),
-  );
-
-  fastify.get(
-    '/',
-    {
-      schema: {
-        response: GetUsersResSchema,
-      },
-    },
-    userController.getUsers.bind(userController),
-  );
-
-  done();
-};

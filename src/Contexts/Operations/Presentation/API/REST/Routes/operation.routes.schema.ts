@@ -1,9 +1,4 @@
-import { FastifyInstance } from 'fastify';
-
-import { FastifyOperationController } from '@Contexts/Operations/Presentation/API/REST/Controllers/FastifyOperationController';
-import { OperationsModule } from '@Contexts/Operations/Application';
 import { OperationStatus } from '@Contexts/Operations/Domain/Operation';
-
 const OperationSchema = {
   type: 'object',
   properties: {
@@ -46,41 +41,3 @@ export const GetOperationResSchema = {
     properties: { message: { type: 'string' } },
   },
 } as const;
-
-export const operationRoutes = function (
-  fastify: FastifyInstance,
-  { operationsManagerModule }: { operationsManagerModule: OperationsModule },
-  done: () => void,
-) {
-  const operationController = new FastifyOperationController({
-    queries: operationsManagerModule.queries,
-  });
-
-  fastify.get(
-    '/',
-    {
-      schema: {
-        response: GetOperationsResSchema,
-      },
-    },
-    operationController.getOperations.bind(operationController),
-  );
-
-  fastify.get(
-    '/:id',
-    {
-      schema: {
-        params: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-          },
-        },
-        response: GetOperationResSchema,
-      },
-    },
-    operationController.getOperation.bind(operationController),
-  );
-
-  done();
-};

@@ -4,6 +4,7 @@
   "type": "module",
   "main": "dist/application.js",
   "types": "dist/application.d.ts",
+  "license": "MIT",
   "scripts": {
     "start": "node dist/application.js",
     "start:dev": "nodemon --ext js,ts,json,env --exec 'tsx --tsconfig ./tsconfig.json' src/Bootstrap/Fastify/application.ts",

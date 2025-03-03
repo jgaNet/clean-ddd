@@ -20,31 +20,26 @@ class FastifyApplication extends Application {
   fastify: FastifyInstance;
 
   constructor() {
-    super({
-      eventBus: localOperationsModule.services.eventBus,
-      modules: [localOperationsModule, localUsersModule],
-    });
+    super();
     this.fastify = Fastify({ logger: false });
   }
 
-  setup() {
-    //HTTP Gateway With Swagger
+  setupSwagger() {
     this.fastify.register(fastifySwagger, swaggerDescriptor);
     if (SETTINGS.swaggerUi.active) {
       this.fastify.register(fastifySwaggerUi, SETTINGS.swaggerUi);
     }
+    return this;
+  }
 
-    // Routes
-    this.fastify.register(homeRoutes, { settings: SETTINGS });
-
-    this.fastify.register(operationRoutes, {
-      prefix: '/operations',
-      operationsManagerModule: localOperationsModule,
-    });
-    this.fastify.register(userRoutes, {
-      prefix: '/users',
-      usersManagementModule: localUsersModule,
-    });
+  registerRoutes(
+    prefix: string,
+    // eslint-disable-next-line
+    routes: (app: FastifyInstance, opts: any, done: () => void) => void,
+    options: Record<string, unknown> = {},
+  ) {
+    this.fastify.register(routes, { prefix: prefix === '/' ? '' : prefix, ...options });
+    return this;
   }
 
   async start(port: number = SETTINGS.port): Promise<void> {
@@ -61,7 +56,18 @@ class FastifyApplication extends Application {
   }
 }
 
-const app = new FastifyApplication();
-await app.run();
-
-export default app;
+export default await new FastifyApplication()
+  .setEventBus(localOperationsModule.eventBus)
+  .registerModule(localOperationsModule)
+  .registerModule(localUsersModule)
+  .setupSwagger()
+  .registerRoutes('/', homeRoutes, {
+    settings: SETTINGS,
+  })
+  .registerRoutes('/operations', operationRoutes, {
+    operationsModule: localOperationsModule,
+  })
+  .registerRoutes('/users', userRoutes, {
+    usersModule: localUsersModule,
+  })
+  .run();

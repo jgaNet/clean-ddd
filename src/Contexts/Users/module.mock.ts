@@ -10,35 +10,25 @@ import { GetUsersQueryHandler } from '@Contexts/Users/Application/Queries/GetUse
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 import { IUser } from '@Contexts/Users/Domain/User/DTOs';
 
-// export const inMemoryBroker = new InMemoryEventBus();
+import { ModuleBuilder } from '@Primitives/Module';
+
 export const inMemoryDataSource = new InMemoryDataSource<IUser>();
 export const mockedUserRepository = new MockedUserRepository(inMemoryDataSource);
 export const mockedUserQueries = new MockedUserQueries(inMemoryDataSource);
 
-export const mockedApplication = new UsersModule({
-  commands: [
-    {
-      event: CreateUserCommandEvent,
-      eventHandlers: [
-        new CreateUserCommandHandler({
-          userRepository: mockedUserRepository,
-          userQueries: mockedUserQueries,
-        }),
-      ],
-    },
-  ],
-  queries: [
-    {
-      name: GetUsersQueryHandler.name,
-      handler: new GetUsersQueryHandler(mockedUserQueries),
-    },
-  ],
-  domainEvents: [
-    {
-      event: UserCreatedEvent,
-      eventHandlers: [new UserCreatedHandler()],
-    },
-  ],
-  integrationEvents: [],
-  services: {},
+const createUserCommandHandler = new CreateUserCommandHandler({
+  userRepository: mockedUserRepository,
+  userQueries: mockedUserQueries,
 });
+
+const getUsersQueryHandler = new GetUsersQueryHandler(mockedUserQueries);
+
+const userModuleName = Symbol('users');
+export const mockUsersModule = new ModuleBuilder<UsersModule>(userModuleName)
+  .setCommand({
+    event: CreateUserCommandEvent,
+    handlers: [createUserCommandHandler],
+  })
+  .setQuery(getUsersQueryHandler)
+  .setDomainEvent({ event: UserCreatedEvent, handlers: [new UserCreatedHandler()] })
+  .build();

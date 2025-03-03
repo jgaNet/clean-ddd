@@ -1,1 +1,2 @@
-export * from './userRoutes';
+export * from './user.routes';
+export * from './user.routes.schema';

@@ -1,4 +1,4 @@
-import { IOperation } from '@Shared/Domain/Operation';
+import { IOperation } from '@Contexts/Operations/Domain/Operation';
 import { Repository } from '@Primitives';
 
 export interface IOperationQueries extends Repository<IOperation> {

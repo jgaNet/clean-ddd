@@ -50,33 +50,43 @@
 import { GenericModule, EventBus } from '@Primitives';
 
 export abstract class Application {
-  #modules: Map<string, GenericModule>;
-  #eventBus: EventBus;
+  #modules: Map<symbol, GenericModule> = new Map();
+  #eventBus: EventBus | undefined;
 
-  abstract setup(): void;
   abstract start(): Promise<void>;
 
-  constructor({ modules, eventBus }: { modules: GenericModule[]; eventBus: EventBus }) {
-    this.#modules = new Map<string, GenericModule>(modules.map(module => [module.constructor.name, module]));
-    this.#eventBus = eventBus;
-  }
-
   async run(): Promise<void> {
-    this.setup();
+    // this.setup();
     this.startModules();
     await this.start();
   }
 
-  startModules() {
-    this.#modules.forEach(module => module.start(this.#eventBus));
+  setEventBus(eventBus: EventBus) {
+    this.#eventBus = eventBus;
+    return this;
   }
 
-  getModule(name: string): GenericModule {
-    const moduleInstance = this.#modules.get(name);
-    if (!moduleInstance) {
-      throw new Error(`Module ${module.constructor.name} not found`);
+  registerModule(module: GenericModule) {
+    if (!this.#eventBus) {
+      throw new Error('You have to call setEventBus before registering modules');
     }
 
-    return moduleInstance;
+    module.setEventBus(this.#eventBus);
+    this.#modules.set(module.getName(), module);
+
+    return this;
+  }
+
+  startModules() {
+    this.#modules.forEach(module => module.start());
+  }
+
+  getModule<T extends GenericModule>(name: symbol): T {
+    const moduleInstance = this.#modules.get(name);
+    if (!moduleInstance) {
+      throw new Error(`Module ${name.toString()} not found`);
+    }
+
+    return moduleInstance as T;
   }
 }
