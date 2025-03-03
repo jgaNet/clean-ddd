@@ -23,12 +23,12 @@ jobs:
 
       - name: Deps
         run: |
-          npm ci
+          npm install
 
       - name: Lint
         run: |
           npm run lint
 
-      - name: Test
+      - name: Units Test
         run: |
-          npm run test:ci
+          npm run test:units

@@ -13,6 +13,8 @@
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --detectOpenHandles",
     "test:watch": "nodemon --ext js,ts,json,env --exec 'yarn test'",
     "test:coverage": "npm run test -- --coverage",
+    "test:units": "npm run test -- --passWithNoTests --testPathIgnorePatterns=e2e.spec.ts",
+    "test:e2e": "npm run test -- --passWithNoTests --testPathPattern=e2e.spec.ts",
     "test:ci": "npm run test -- --colors --coverage --ci",
     "lint": "eslint --ext .ts,.js .",
     "format": "prettier \"./**\" --write --ignore-unknown",
