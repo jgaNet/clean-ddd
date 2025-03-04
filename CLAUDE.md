@@ -68,7 +68,17 @@ Domain Layer → Application Layer → Infrastructure Layer → Presentation Lay
   - Result<T> pattern for error handling
   - Commands/Queries as simple DTOs
   - Single responsibility per class
-- **Imports**: Group by layer (Domain → Application → Infrastructure → Presentation)
+- **Imports**:
+  - Group by layer (Domain → Application → Infrastructure → Presentation)
+  - Use path aliases to simplify imports:
+    - `@Primitives` - Core abstractions and base classes
+    - `@Contexts` - Bounded contexts
+    - `@SharedKernel` - Shared infrastructure and cross-cutting concerns
+    - `@Bootstrap` - Application startup code
+  - Example: `import { Entity, Result } from '@Primitives';`
+  - NEVER use relative paths (../../) - always use path aliases
+  - Bad: `import { User } from '../../Domain/User/User';`
+  - Good: `import { User } from '@Contexts/Users/Domain/User/User';`
 - **Commits**: Follow conventional commit format (feat:, fix:, refactor:)
 
 ## Testing Approach
