@@ -11,7 +11,7 @@ import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InM
 import { InMemoryOperationRepository } from '@Contexts/Operations/Infrastructure/Repositories/InMemoryOperationRepository';
 import { ModuleBuilder } from '@Primitives/Module';
 
-import { inMemoryEventEmitter } from '@SharedKernel/Infrastructure/EventEmitter/InMemoryEventEmitter';
+import { inMemoryEventEmitter } from '@SharedKernel/Infrastructure/EventEmitter/inMemoryEventEmitter';
 
 const inMemoryOperationDataSource = new InMemoryDataSource<IOperation>();
 const inMemoryOperationQueries = new InMemoryOperationQueries(inMemoryOperationDataSource);

@@ -1,1 +1,1 @@
-export * from './homeRoutes';
+export * from './home.routes';
