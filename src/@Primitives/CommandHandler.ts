@@ -10,15 +10,80 @@
  * - Requires implementation of an execute method that processes the command and returns a Result
  * - Follows the Single Responsibility Principle by handling one specific command type
  *
- * Usage:
- * Concrete command handlers should extend this class and implement the execute method
- * to handle specific domain commands (e.g., CreateUserCommandHandler).
+ * Usage example:
+ * ```typescript
+ * // 1. Define a command event
+ * export class CreateUserCommand extends CommandEvent<{
+ *   email: string;
+ *   name: string;
+ * }> {
+ *   static readonly TYPE = 'User.CreateUser';
+ *   constructor(payload: {email: string; name: string}) {
+ *     super(CreateUserCommand.TYPE, payload);
+ *   }
+ * }
+ * 
+ * // 2. Implement a command handler
+ * export class CreateUserCommandHandler extends CommandHandler<CreateUserCommand> {
+ *   constructor(private userRepository: IUserRepository) {
+ *     super();
+ *   }
+ *
+ *   async execute(command: CreateUserCommand, eventBus: EventBus): Promise<Result<string>> {
+ *     const user = User.create({
+ *       email: command.payload.email,
+ *       name: command.payload.name
+ *     });
+ *     
+ *     await this.userRepository.save(user);
+ *     
+ *     // Emit domain event
+ *     await eventBus.publish(new UserCreatedEvent({
+ *       userId: user.id,
+ *       email: user.email.value
+ *     }));
+ *     
+ *     return Result.ok(user.id);
+ *   }
+ * }
+ * 
+ * // 3. Register with module
+ * const module = new ModuleBuilder('Users')
+ *   .setCommand({
+ *     event: CreateUserCommand,
+ *     handlers: [new CreateUserCommandHandler(userRepository)]
+ *   })
+ *   .build();
+ * ```
+ * 
+ * Related components:
+ * - {@link CommandEvent} - Event types for commands
+ * - {@link Result} - Encapsulates success/failure outcomes
+ * - {@link Module} - Registers and resolves command handlers
+ * - {@link Operation} - Tracks command execution state
+ * - {@link EventBus} - Publishes domain events after command execution
  */
 
 import { EventHandler } from './EventHandler';
 import { CommandEvent, IResult, IEvent, IOperation, EventBus } from '@Primitives';
 
+/**
+ * Abstract base class for all command handlers in the application.
+ * 
+ * @template T The specific CommandEvent type this handler processes
+ */
 export abstract class CommandHandler<T extends CommandEvent<unknown>> extends EventHandler<T> {
+  /**
+   * Handles the command operation by executing the command and updating the operation state.
+   * 
+   * This method:
+   * 1. Executes the command using the abstract execute method
+   * 2. Updates the operation's status based on the result
+   * 3. Returns the updated operation
+   * 
+   * @param operation The operation containing the command event to handle
+   * @returns A promise resolving to the updated operation
+   */
   async handle(operation: IOperation<T>): Promise<IOperation<T>> {
     const result = await this.execute(operation.event, operation.eventBus);
 
@@ -28,5 +93,14 @@ export abstract class CommandHandler<T extends CommandEvent<unknown>> extends Ev
 
     return operation.success(result.data);
   }
+
+  /**
+   * Abstract method that must be implemented by concrete command handlers.
+   * Contains the actual business logic for processing the command.
+   * 
+   * @param event The command event to execute
+   * @param eventBus The event bus for publishing domain events
+   * @returns A promise resolving to the result of the command execution
+   */
   abstract execute(event: IEvent<unknown>, eventBus: EventBus): Promise<IResult<unknown>>;
 }
