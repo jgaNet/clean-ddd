@@ -1,4 +1,5 @@
-import { IResult, Event, EventBus } from '@Primitives';
+import { IResult, Event } from '@Primitives';
+import { ExecutionContext } from '@Primitives/ExecutionContext';
 
 export enum OperationStatus {
   PENDING = 'PENDING',
@@ -13,6 +14,6 @@ export interface IOperation<T extends Event<unknown> = Event<unknown>> {
   result?: IResult<unknown>;
   createdAt: Date;
   finishedAt?: Date;
-  eventBus: EventBus;
   event: T;
+  context: ExecutionContext; // Optional execution context
 }

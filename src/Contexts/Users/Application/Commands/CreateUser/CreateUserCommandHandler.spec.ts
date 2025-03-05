@@ -6,6 +6,7 @@ import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/Cre
 import { MockedUserRepository } from '@Contexts/Users/Infrastructure/Repositories/MockedUserRepository';
 import { MockedUserQueries } from '@Contexts/Users/Infrastructure/Queries/MockedUserQueries';
 import { EventBus } from '@Primitives/EventBus';
+import { ExecutionContext } from '@Primitives/ExecutionContext';
 
 const eventBusMock = {
   connect: jest.fn(),
@@ -27,7 +28,10 @@ describe('how to create a user', function () {
       new CreateUserCommandEvent({
         profile: { email: 'test@test.fr', nickname: 'manual-nickname' },
       }),
-      eventBusMock,
+      new ExecutionContext({
+        traceId: 'mockedTraceId',
+        eventBus: eventBusMock,
+      }),
     );
 
     expect(saveSpy).toHaveBeenCalledWith({
@@ -47,7 +51,10 @@ describe('how to create a user', function () {
       new CreateUserCommandEvent({
         profile: { email: 'test@test.fr' },
       }),
-      eventBusMock,
+      new ExecutionContext({
+        traceId: 'mockedTraceId',
+        eventBus: eventBusMock,
+      }),
     );
 
     expect(result.isFailure()).toBeTruthy();
@@ -63,7 +70,10 @@ describe('how to create a user', function () {
       new CreateUserCommandEvent({
         profile: { email: 'nickname@test.fr' },
       }),
-      eventBusMock,
+      new ExecutionContext({
+        traceId: 'mockedTraceId',
+        eventBus: eventBusMock,
+      }),
     );
 
     expect(saveSpy).toHaveBeenCalledWith({
@@ -81,7 +91,10 @@ describe('how to create a user', function () {
       new CreateUserCommandEvent({
         profile: { email: 'email-malformed' },
       }),
-      eventBusMock,
+      new ExecutionContext({
+        traceId: 'mockedTraceId',
+        eventBus: eventBusMock,
+      }),
     );
 
     expect(result.isFailure()).toBeTruthy();
@@ -96,7 +109,10 @@ describe('how to create a user', function () {
       new CreateUserCommandEvent({
         profile: { email },
       }),
-      eventBusMock,
+      new ExecutionContext({
+        traceId: 'mockedTraceId',
+        eventBus: eventBusMock,
+      }),
     );
 
     expect(result.isFailure()).toBeTruthy();

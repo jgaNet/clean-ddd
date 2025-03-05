@@ -16,7 +16,6 @@ export const userRoutes = function (
   done: () => void,
 ) {
   const userController = new FastifyUserController({
-    commandEventBus: usersModule.eventBus,
     queries: usersModule.queries,
   });
 

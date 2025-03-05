@@ -2,7 +2,7 @@ import { expect, jest } from '@jest/globals';
 import { mockUsersModule, mockedUserRepository } from '@Contexts/Users/module.mock';
 import { MockedUserQueries } from '@Contexts/Users/Infrastructure/Queries/MockedUserQueries';
 import { MockedUserRepository } from '@Contexts/Users/Infrastructure/Repositories/MockedUserRepository';
-import { Result, EventBus } from '@Primitives';
+import { Result, EventBus, ExecutionContext } from '@Primitives';
 import { GetUsersQueryHandler } from '@Contexts/Users/Application/Queries/GetUsers';
 import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser';
 
@@ -33,7 +33,10 @@ describe('get users', function () {
           nickname: 'a',
         },
       }),
-      eventBusMock,
+      new ExecutionContext({
+        traceId: 'mockedTraceId',
+        eventBus: eventBusMock,
+      }),
     );
 
     const result = await mockUsersModule.getQuery(GetUsersQueryHandler).execute();

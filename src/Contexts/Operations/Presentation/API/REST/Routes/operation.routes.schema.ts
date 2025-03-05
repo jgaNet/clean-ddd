@@ -14,6 +14,14 @@ const OperationSchema = {
       },
     },
     result: { type: 'object', additionalProperties: true },
+    context: {
+      type: 'object',
+      properties: {
+        traceId: { type: 'string' },
+        userId: { type: 'string' },
+        metadata: { type: 'object', additionalProperties: true },
+      },
+    },
   },
 } as const;
 

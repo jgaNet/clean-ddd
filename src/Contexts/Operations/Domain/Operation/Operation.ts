@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Event, Result, IResult, EventBus } from '@Primitives';
+import { Event, Result, IResult } from '@Primitives';
+import { ExecutionContext } from '@Primitives/ExecutionContext';
 import { OperationStatus, IOperation } from './DTOs';
 
 export class Operation<T extends Event<unknown>> implements IOperation<T> {
@@ -8,8 +9,8 @@ export class Operation<T extends Event<unknown>> implements IOperation<T> {
   result?: IResult<unknown>;
   createdAt: Date = new Date();
   finishedAt?: Date;
-  eventBus: EventBus;
   event: T;
+  context: ExecutionContext;
 
   constructor(operation: IOperation<T>) {
     this.id = operation.id;
@@ -17,20 +18,29 @@ export class Operation<T extends Event<unknown>> implements IOperation<T> {
     this.result = operation.result;
     this.createdAt = operation.createdAt;
     this.finishedAt = operation.finishedAt;
-    this.eventBus = operation.eventBus;
     this.event = operation.event;
+    this.context = operation.context;
   }
 
-  static create<T = unknown>({ event, eventBus }: { event: Event<T>; eventBus: EventBus }): Operation<Event<T>> {
+  static create<T = unknown>({ event, context }: { event: Event<T>; context: ExecutionContext }): Operation<Event<T>> {
     const operation = new Operation<Event<T>>({
-      id: uuidv4(),
+      id: uuidv4(), // Use trace ID from context if available
       status: OperationStatus.PENDING,
       result: undefined,
       createdAt: new Date(),
-      eventBus,
       finishedAt: undefined,
       event,
+      context, // Include the execution context
     });
+
+    // Log operation creation if context has a logger
+    if (context?.logger) {
+      context.logger.debug(`Operation created: ${operation.id}`, {
+        traceId: context.traceId,
+        eventType: event.constructor.name,
+      });
+    }
+
     return operation;
   }
 

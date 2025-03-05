@@ -115,9 +115,26 @@
  */
 
 import { Event, EventHandler, IOperation } from '@Primitives';
+import { ExecutionContext } from './ExecutionContext';
 
 export interface EventBus {
+  /**
+   * Connects to the event infrastructure (if needed)
+   */
   connect(): Promise<void>;
-  dispatch<T>(event: Event<T>): IOperation<Event<T>>;
+
+  /**
+   * Dispatches an event to the event bus
+   * @param event The event to dispatch
+   * @param context Optional execution context for cross-cutting concerns
+   * @returns The operation tracking the event
+   */
+  dispatch<T>(event: Event<T>, context: ExecutionContext): IOperation<Event<T>>;
+
+  /**
+   * Subscribes to an event
+   * @param event The event name to subscribe to
+   * @param eventHandler The handler for the event
+   */
   subscribe<T>(event: Event<T>['name'], eventHandler: EventHandler<Event<T>>): Promise<void>;
 }

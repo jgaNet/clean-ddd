@@ -2,7 +2,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { GetOperationsHandler } from '@Contexts/Operations/Application/Queries/GetOperations';
 import { GetOperationHandler } from '@Contexts/Operations/Application/Queries/GetOperation';
 import { NotFoundException } from '@Primitives/Exception';
-import { OperationsModuleQueries } from '@Contexts/OperationsManager/Application/DTOs';
+import { OperationsModuleQueries } from '@Contexts/Operations/Application/DTOs';
 
 export class FastifyOperationController {
   #queries: OperationsModuleQueries;

@@ -9,6 +9,7 @@ export * from './EventTypes';
 export * from './EventEmitter';
 export * from './Exception';
 export * from './ExceptionHandler';
+export * from './ExecutionContext';
 export * from './Mapper';
 export * from './Module';
 export * from './Nullable';

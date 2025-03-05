@@ -1,4 +1,5 @@
 import { EventBus, Event, EventHandler, CommandHandler, IEventEmitter } from '@Primitives';
+import { ExecutionContext } from '@Primitives/ExecutionContext';
 import { Operation, IOperationRepository } from '@Contexts/Operations/Domain/Operation';
 import EventEmitter from 'events';
 
@@ -24,12 +25,19 @@ export class OperatedEventBus implements EventBus {
     }
   }
 
-  dispatch<T>(event: Event<T>): Operation<Event<T>> {
-    const operation = Operation.create<T>({ event, eventBus: this });
+  dispatch<T>(event: Event<T>, context: ExecutionContext): Operation<Event<T>> {
+    // Create operation with execution context if available
+    const operation = Operation.create<T>({
+      event,
+      context,
+    });
+
     if (this.#operationRepository) {
       this.#operationRepository.save(operation);
     }
+
     this.#eventEmitter.emit(operation.name, operation);
+
     return operation;
   }
 
