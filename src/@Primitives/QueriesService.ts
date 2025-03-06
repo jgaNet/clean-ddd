@@ -19,6 +19,6 @@
  */
 
 import { DataSource } from '@Primitives/DataSource';
-export abstract class QueriesService<T extends DataSource<unknown>> {
+export abstract class QueriesService<T extends DataSource<unknown> = DataSource<unknown>> {
   abstract dataSource: T;
 }
