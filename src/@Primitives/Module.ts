@@ -229,7 +229,7 @@ export class Module<
 
   async start() {
     // eslint-disable-next-line no-console
-    console.log(`[sys][app][info] ${this.getName().description} module starting...`);
+    console.log(`[************************************] [INFO]  ${this.getName().description} module starting...`);
     if (!this.#eventBus) {
       throw 'Missing event bus';
     }
@@ -237,7 +237,7 @@ export class Module<
     await this.#eventBus.connect().then(this.subscribe.bind(this));
 
     // eslint-disable-next-line no-console
-    console.log(`[sys][module][info] ${this.getName().description} module started`);
+    console.log(`[************************************] [INFO]  ${this.getName().description} module started`);
   }
 
   async subscribe() {

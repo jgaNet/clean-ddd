@@ -83,7 +83,7 @@ class FastifyApplication extends Application {
       await this.fastify.ready();
       this.fastify.swagger();
       // eslint-disable-next-line
-      console.log(`[sys][http] Listening on port: ${port}`);
+      this.logger.info(`Listening on port: ${port}`);
     } catch (err) {
       this.fastify.log.error(err);
       process.exit(1);

@@ -21,7 +21,9 @@ export class OperatedEventBus implements EventBus {
   async connect() {
     if (this.#eventEmitter instanceof EventEmitter) {
       // eslint-disable-next-line no-console
-      console.log('[sys][warning] In memory event emitter used. No need to connect. Skipping...');
+      console.log(
+        '[************************************] [WARN]  In memory event emitter used. No need to connect. Skipping...',
+      );
     }
   }
 
