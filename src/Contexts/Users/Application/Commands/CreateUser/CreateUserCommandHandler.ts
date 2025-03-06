@@ -58,7 +58,7 @@ export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEv
       await this.#userRepository.save(newUserJSON);
 
       // Use the context's event bus to dispatch the event
-      context.eventBus.dispatch(new UserCreatedEvent(newUserJSON), context);
+      context.eventBus.publish(UserCreatedEvent.set(newUserJSON), context);
 
       // Log success
       if (context.logger) {

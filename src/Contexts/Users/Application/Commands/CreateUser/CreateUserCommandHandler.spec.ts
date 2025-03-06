@@ -10,7 +10,7 @@ import { ExecutionContext } from '@Primitives/ExecutionContext';
 
 const eventBusMock = {
   connect: jest.fn(),
-  dispatch: jest.fn(),
+  publish: jest.fn(),
   subscribe: jest.fn(),
 } as EventBus;
 
@@ -25,7 +25,7 @@ describe('how to create a user', function () {
     (mockedUserRepository.nextIdentity as jest.Mock).mockImplementationOnce(() => Promise.resolve('mockedId'));
     const saveSpy = jest.spyOn(mockedUserRepository, 'save');
     await mockUsersModule.getCommand(CreateUserCommandEvent).execute(
-      new CreateUserCommandEvent({
+      CreateUserCommandEvent.set({
         profile: { email: 'test@test.fr', nickname: 'manual-nickname' },
       }),
       new ExecutionContext({
@@ -48,7 +48,7 @@ describe('how to create a user', function () {
 
     const saveSpy = jest.spyOn(mockedUserRepository, 'save');
     const result = await mockUsersModule.getCommand(CreateUserCommandEvent).execute(
-      new CreateUserCommandEvent({
+      CreateUserCommandEvent.set({
         profile: { email: 'test@test.fr' },
       }),
       new ExecutionContext({
@@ -67,7 +67,7 @@ describe('how to create a user', function () {
 
     const saveSpy = jest.spyOn(mockedUserRepository, 'save');
     await mockUsersModule.getCommand(CreateUserCommandEvent).execute(
-      new CreateUserCommandEvent({
+      CreateUserCommandEvent.set({
         profile: { email: 'nickname@test.fr' },
       }),
       new ExecutionContext({
@@ -88,7 +88,7 @@ describe('how to create a user', function () {
   it('should not create a user if the email is malformed', async () => {
     const saveSpy = jest.spyOn(mockedUserRepository, 'save');
     const result = await mockUsersModule.getCommand(CreateUserCommandEvent).execute(
-      new CreateUserCommandEvent({
+      CreateUserCommandEvent.set({
         profile: { email: 'email-malformed' },
       }),
       new ExecutionContext({
@@ -106,7 +106,7 @@ describe('how to create a user', function () {
     const saveSpy = jest.spyOn(mockedUserRepository, 'save');
     const email = 'a'.repeat(100) + '@test.fr';
     const result = await mockUsersModule.getCommand(CreateUserCommandEvent).execute(
-      new CreateUserCommandEvent({
+      CreateUserCommandEvent.set({
         profile: { email },
       }),
       new ExecutionContext({

@@ -8,7 +8,7 @@ import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/Cre
 
 const eventBusMock = {
   connect: jest.fn(),
-  dispatch: jest.fn(),
+  publish: jest.fn(),
   subscribe: jest.fn(),
 } as EventBus;
 
@@ -27,7 +27,7 @@ describe('get users', function () {
     (mockedUserRepository.nextIdentity as jest.Mock).mockImplementationOnce(() => Promise.resolve('mockedId'));
 
     await mockUsersModule.getCommand(CreateUserCommandEvent).execute(
-      new CreateUserCommandEvent({
+      CreateUserCommandEvent.set({
         profile: {
           email: 'a@a.com',
           nickname: 'a',

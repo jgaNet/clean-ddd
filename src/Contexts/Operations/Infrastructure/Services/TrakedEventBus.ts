@@ -1,18 +1,18 @@
 import { EventBus, Event, EventHandler, CommandHandler, IEventEmitter } from '@Primitives';
 import { ExecutionContext } from '@Primitives/ExecutionContext';
-import { Operation, IOperationRepository } from '@Contexts/Operations/Domain/Operation';
+import { ITrackedOperationRepository, TrackedOperation } from '@Contexts/Operations/Domain/TrackedOperation';
 import EventEmitter from 'events';
 
-export class OperatedEventBus implements EventBus {
+export class TrakedEventBus implements EventBus {
   #eventEmitter: IEventEmitter;
-  #operationRepository: IOperationRepository | undefined;
+  #operationRepository: ITrackedOperationRepository;
 
   constructor({
     eventEmitter,
     operationRepository,
   }: {
     eventEmitter: IEventEmitter;
-    operationRepository?: IOperationRepository;
+    operationRepository: ITrackedOperationRepository;
   }) {
     this.#eventEmitter = eventEmitter;
     this.#operationRepository = operationRepository;
@@ -27,9 +27,9 @@ export class OperatedEventBus implements EventBus {
     }
   }
 
-  dispatch<T>(event: Event<T>, context: ExecutionContext): Operation<Event<T>> {
+  publish<T>(event: Event<T>, context: ExecutionContext): TrackedOperation<Event<T>> {
     // Create operation with execution context if available
-    const operation = Operation.create<T>({
+    const operation = TrackedOperation.create<T>({
       event,
       context,
     });
@@ -38,14 +38,15 @@ export class OperatedEventBus implements EventBus {
       this.#operationRepository.save(operation);
     }
 
-    this.#eventEmitter.emit(operation.name, operation);
+    this.#eventEmitter.emit(operation.event.name, operation);
 
     return operation;
   }
 
   async subscribe<T>(channel: Event<T>['name'], eventHandler: EventHandler<Event<T>> | CommandHandler<Event<T>>) {
-    this.#eventEmitter.addListener(channel, async (operation: Operation<Event<T>>) => {
-      this.#operationRepository?.save(await eventHandler.handle.bind(eventHandler)(operation));
+    this.#eventEmitter.addListener(channel, async (operation: TrackedOperation<Event<T>>) => {
+      const op = await eventHandler.handle.bind(eventHandler)(operation);
+      this.#operationRepository?.save(op as TrackedOperation<Event<T>>);
     });
   }
 }

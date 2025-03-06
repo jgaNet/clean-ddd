@@ -24,14 +24,20 @@
 
 export type IEvent<PayloadDTO> = {
   payload: PayloadDTO;
-  name: string;
+  name?: string;
 };
 
 export class Event<PayloadDTO> {
   #payload: PayloadDTO;
+  #name: string;
 
-  constructor(payload: PayloadDTO) {
+  constructor({ payload, name }: IEvent<PayloadDTO>) {
     this.#payload = payload;
+    this.#name = name || this.constructor.name;
+  }
+
+  static set<PayloadDTO>(payload: PayloadDTO): Event<PayloadDTO> {
+    return new Event({ payload, name: this.name });
   }
 
   get payload(): PayloadDTO {
@@ -39,6 +45,6 @@ export class Event<PayloadDTO> {
   }
 
   get name(): string {
-    return this.constructor.name;
+    return this.#name;
   }
 }

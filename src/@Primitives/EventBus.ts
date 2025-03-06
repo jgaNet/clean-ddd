@@ -124,12 +124,12 @@ export interface EventBus {
   connect(): Promise<void>;
 
   /**
-   * Dispatches an event to the event bus
+   * Publishes an event to the event bus
    * @param event The event to dispatch
    * @param context Optional execution context for cross-cutting concerns
    * @returns The operation tracking the event
    */
-  dispatch<T>(event: Event<T>, context: ExecutionContext): IOperation<Event<T>>;
+  publish<T>(event: Event<T>, context: ExecutionContext): IOperation<Event<T>>;
 
   /**
    * Subscribes to an event

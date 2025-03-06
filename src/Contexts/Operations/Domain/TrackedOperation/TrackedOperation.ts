@@ -1,9 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Event, Result, IResult } from '@Primitives';
 import { ExecutionContext } from '@Primitives/ExecutionContext';
-import { OperationStatus, IOperation } from './DTOs';
+import { ITrackedOperation } from './DTOs';
+import { OperationStatus } from '@Primitives';
 
-export class Operation<T extends Event<unknown>> implements IOperation<T> {
+export class TrackedOperation<T extends Event<unknown>> implements ITrackedOperation<T> {
   id: string;
   status: OperationStatus;
   result?: IResult<unknown>;
@@ -12,7 +13,7 @@ export class Operation<T extends Event<unknown>> implements IOperation<T> {
   event: T;
   context: ExecutionContext;
 
-  constructor(operation: IOperation<T>) {
+  constructor(operation: Omit<ITrackedOperation<T>, 'success' | 'failed' | 'sent'>) {
     this.id = operation.id;
     this.status = operation.status;
     this.result = operation.result;
@@ -22,8 +23,14 @@ export class Operation<T extends Event<unknown>> implements IOperation<T> {
     this.context = operation.context;
   }
 
-  static create<T = unknown>({ event, context }: { event: Event<T>; context: ExecutionContext }): Operation<Event<T>> {
-    const operation = new Operation<Event<T>>({
+  static create<T = unknown>({
+    event,
+    context,
+  }: {
+    event: Event<T>;
+    context: ExecutionContext;
+  }): TrackedOperation<Event<T>> {
+    const operation = new TrackedOperation<Event<T>>({
       id: uuidv4(), // Use trace ID from context if available
       status: OperationStatus.PENDING,
       result: undefined,
@@ -52,21 +59,21 @@ export class Operation<T extends Event<unknown>> implements IOperation<T> {
     return this.event.payload;
   }
 
-  failed(error: unknown): Operation<T> {
+  failed(error: unknown): TrackedOperation<T> {
     this.status = OperationStatus.ERROR;
     this.result = Result.fail(error);
     this.finishedAt = new Date();
     return this;
   }
 
-  success(value?: unknown): Operation<T> {
+  success(value?: unknown): TrackedOperation<T> {
     this.status = OperationStatus.SUCCESS;
     this.result = Result.ok(value);
     this.finishedAt = new Date();
     return this;
   }
 
-  sent(): Operation<T> {
+  sent(): TrackedOperation<T> {
     this.status = OperationStatus.SENT;
     return this;
   }

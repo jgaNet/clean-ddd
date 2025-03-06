@@ -1,4 +1,4 @@
-import { OperationStatus } from '@Contexts/Operations/Domain/Operation';
+import { OperationStatus } from '@Primitives';
 const OperationSchema = {
   type: 'object',
   properties: {

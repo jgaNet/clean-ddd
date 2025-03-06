@@ -138,11 +138,6 @@ export class ModuleBuilder<T extends GenericModule> {
     });
   }
 
-  setEventBus(eventBus: EventBus) {
-    this.#module.setEventBus(eventBus);
-    return this;
-  }
-
   setCommand({ event, handlers }: CommandModuleEvent) {
     this.#module.commands.push({ event, handlers });
     return this;
@@ -186,7 +181,6 @@ export class Module<
   domainEvents: DomainEvents;
   integrationEvents: IntegrationEvents;
   services: Services;
-  #eventBus?: EventBus;
 
   constructor({
     name,
@@ -211,48 +205,31 @@ export class Module<
     this.services = services;
   }
 
-  get eventBus() {
-    if (!this.#eventBus) {
-      throw 'Missing event bus';
-    }
-    return this.#eventBus;
-  }
-
   getName() {
     return this.#name;
   }
 
-  setEventBus(eventBus: EventBus) {
-    this.#eventBus = eventBus;
-    return this;
-  }
-
-  async start() {
+  async start(eventBus?: EventBus) {
     // eslint-disable-next-line no-console
     console.log(`[************************************] [INFO]  ${this.getName().description} module starting...`);
-    if (!this.#eventBus) {
-      throw 'Missing event bus';
-    }
 
-    await this.#eventBus.connect().then(this.subscribe.bind(this));
+    if (eventBus) {
+      await eventBus.connect().then(this.subscribe.bind(this, eventBus));
+    }
 
     // eslint-disable-next-line no-console
     console.log(`[************************************] [INFO]  ${this.getName().description} module started`);
   }
 
-  async subscribe() {
-    if (!this.#eventBus) {
-      throw 'Missing event bus';
-    }
-
+  async subscribe(eventBus: EventBus) {
     for (const sub of this.domainEvents) {
       for (const handler of sub.handlers) {
-        await this.#eventBus.subscribe(sub.event.name, handler);
+        await eventBus.subscribe(sub.event.name, handler);
       }
     }
     for (const sub of this.commands) {
       for (const handler of sub.handlers) {
-        await this.#eventBus.subscribe(sub.event.name, handler);
+        await eventBus.subscribe(sub.event.name, handler);
       }
     }
   }

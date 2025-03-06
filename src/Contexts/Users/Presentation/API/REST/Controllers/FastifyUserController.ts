@@ -23,8 +23,8 @@ export class FastifyUserController {
       });
 
       // Create and dispatch the command using the context's event bus
-      const operation = context.eventBus.dispatch(
-        new CreateUserCommandEvent({
+      const operation = context.eventBus.publish(
+        CreateUserCommandEvent.set({
           profile: {
             email: req.body.email,
             nickname: req.body.nickname,

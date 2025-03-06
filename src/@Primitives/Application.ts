@@ -55,6 +55,14 @@ export abstract class Application {
 
   abstract start(): Promise<void>;
 
+  getEventBus() {
+    if (!this.#eventBus) {
+      throw new Error('You have to call setEventBus before starting the application');
+    }
+
+    return this.#eventBus;
+  }
+
   async run(): Promise<void> {
     // this.setup();
     this.startModules();
@@ -71,14 +79,13 @@ export abstract class Application {
       throw new Error('You have to call setEventBus before registering modules');
     }
 
-    module.setEventBus(this.#eventBus);
     this.#modules.set(module.getName(), module);
 
     return this;
   }
 
   startModules() {
-    this.#modules.forEach(module => module.start());
+    this.#modules.forEach(module => module.start(this.#eventBus));
   }
 
   getModule<T extends GenericModule>(name: symbol): T {

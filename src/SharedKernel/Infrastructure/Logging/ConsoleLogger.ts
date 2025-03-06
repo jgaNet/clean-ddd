@@ -24,7 +24,10 @@ export class ConsoleLogger implements Logger {
    */
   warn(message: string, meta?: Record<string, unknown>): void {
     // eslint-disable-next-line no-console
-    console.warn(`${meta?.traceId ? `[${meta?.traceId}] ` : ''}[WARN] ${message}`, meta && !meta.traceId ? meta : '');
+    console.warn(
+      `${meta?.traceId ? `[${meta?.traceId}]` : '[************************************]'} [WARN] ${message}`,
+      meta && !meta.traceId ? meta : '',
+    );
   }
 
   /**
@@ -36,7 +39,7 @@ export class ConsoleLogger implements Logger {
   error(message: string, error?: unknown, meta?: Record<string, unknown>): void {
     // eslint-disable-next-line no-console
     console.error(
-      `${meta?.traceId ? `[${meta?.traceId}] ` : ''}[ERROR] ${message}`,
+      `${meta?.traceId ? `[${meta?.traceId}]` : '[************************************]'} [ERROR] ${message}`,
       error || '',
       meta && !meta.traceId ? meta : '',
     );
@@ -49,6 +52,9 @@ export class ConsoleLogger implements Logger {
    */
   debug(message: string, meta?: Record<string, unknown>): void {
     // eslint-disable-next-line no-console
-    console.debug(`${meta?.traceId ? `[${meta?.traceId}] ` : ''}[DEBUG] ${message}`, meta && !meta.traceId ? meta : '');
+    console.debug(
+      `${meta?.traceId ? `[${meta?.traceId}]` : '[************************************]'} [DEBUG] ${message}`,
+      meta && !meta.traceId ? meta : '',
+    );
   }
 }

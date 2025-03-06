@@ -44,7 +44,7 @@ class FastifyApplication extends Application {
       const context = new ExecutionContext({
         traceId,
         userId: request.headers['x-user-id'] as string,
-        eventBus: localOperationsModule.eventBus, // Using operations module event bus
+        eventBus: this.getEventBus(), // Using operations module event bus
         unitOfWork: this.unitOfWork,
         logger: this.logger,
       });
@@ -92,7 +92,7 @@ class FastifyApplication extends Application {
 }
 
 export default await new FastifyApplication()
-  .setEventBus(localOperationsModule.eventBus)
+  .setEventBus(localOperationsModule.services.trakedEventBus)
   .registerModule(localOperationsModule)
   .registerModule(localUsersModule)
   .setupSwagger()
