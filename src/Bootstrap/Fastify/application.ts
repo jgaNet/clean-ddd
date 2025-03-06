@@ -5,10 +5,10 @@ import { SETTINGS } from './application.settings';
 import Fastify, { FastifyInstance } from 'fastify';
 
 import { homeRoutes } from '@SharedKernel/Presentation/API/REST/Routes';
-import { localOperationsModule } from '@Contexts/Operations/module.local';
+import { localTrackerModule } from '@Contexts/Tracker/module.local';
 import { localUsersModule } from '@Contexts/Users/module.local';
 import { userRoutes } from '@Contexts/Users/Presentation/API/REST/Routes';
-import { operationRoutes } from '@Contexts/Operations/Presentation/API/REST/Routes';
+import { operationRoutes } from '@Contexts/Tracker/Presentation/API/REST/Routes';
 
 import { swaggerDescriptor } from './application.swagger';
 import fastifySwagger from '@fastify/swagger';
@@ -44,7 +44,7 @@ class FastifyApplication extends Application {
       const context = new ExecutionContext({
         traceId,
         userId: request.headers['x-user-id'] as string,
-        eventBus: this.getEventBus(), // Using operations module event bus
+        eventBus: this.getEventBus(),
         unitOfWork: this.unitOfWork,
         logger: this.logger,
       });
@@ -92,15 +92,15 @@ class FastifyApplication extends Application {
 }
 
 export default await new FastifyApplication()
-  .setEventBus(localOperationsModule.services.trakedEventBus)
-  .registerModule(localOperationsModule)
+  .setEventBus(localTrackerModule.services.eventBus)
+  .registerModule(localTrackerModule)
   .registerModule(localUsersModule)
   .setupSwagger()
   .registerRoutes('/', homeRoutes, {
     settings: SETTINGS,
   })
-  .registerRoutes('/operations', operationRoutes, {
-    operationsModule: localOperationsModule,
+  .registerRoutes('/tracker/operations', operationRoutes, {
+    operationsModule: localTrackerModule,
   })
   .registerRoutes('/users', userRoutes, {
     usersModule: localUsersModule,

@@ -1,13 +1,13 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { GetOperationsHandler } from '@Contexts/Operations/Application/Queries/GetOperations';
-import { GetOperationHandler } from '@Contexts/Operations/Application/Queries/GetOperation';
+import { GetOperationsHandler } from '@Contexts/Tracker/Application/Queries/GetOperations';
+import { GetOperationHandler } from '@Contexts/Tracker/Application/Queries/GetOperation';
 import { NotFoundException } from '@Primitives/Exception';
-import { OperationsModuleQueries } from '@Contexts/Operations/Application/DTOs';
+import { TrackerModuleQueries } from '@Contexts/Tracker/Application/DTOs';
 
 export class FastifyOperationController {
-  #queries: OperationsModuleQueries;
+  #queries: TrackerModuleQueries;
 
-  constructor({ queries: ModuleQueries }: { queries: OperationsModuleQueries }) {
+  constructor({ queries: ModuleQueries }: { queries: TrackerModuleQueries }) {
     this.#queries = ModuleQueries;
   }
 

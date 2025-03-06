@@ -1,14 +1,14 @@
-import { GetOperationsHandler } from '@Contexts/Operations/Application/Queries/GetOperations';
-import { GetOperationHandler } from '@Contexts/Operations/Application/Queries/GetOperation';
+import { GetOperationsHandler } from '@Contexts/Tracker/Application/Queries/GetOperations';
+import { GetOperationHandler } from '@Contexts/Tracker/Application/Queries/GetOperation';
 
-import { InMemoryOperationQueries } from '@Contexts/Operations/Infrastructure/Queries/InMemoryTrakedOperationQueries';
-import { ITrackedOperation } from '@Contexts/Operations/Domain/TrackedOperation';
-import { OperationsModule } from '@Contexts/Operations/Application';
+import { InMemoryOperationQueries } from '@Contexts/Tracker/Infrastructure/Queries/InMemoryTrakedOperationQueries';
+import { ITrackedOperation } from '@Contexts/Tracker/Domain/TrackedOperation';
+import { TrackerModule } from '@Contexts/Tracker/Application';
 
-import { TrakedEventBus } from '@Contexts/Operations/Infrastructure/Services/TrakedEventBus';
+import { TrakedEventBus } from '@Contexts/Tracker/Infrastructure/Services/TrakedEventBus';
 
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
-import { InMemoryOperationRepository } from '@Contexts/Operations/Infrastructure/Repositories/InMemoryTrakedOperationRepository';
+import { InMemoryOperationRepository } from '@Contexts/Tracker/Infrastructure/Repositories/InMemoryTrakedOperationRepository';
 import { ModuleBuilder } from '@Primitives/Module';
 
 import { inMemoryEventEmitter } from '@SharedKernel/Infrastructure/EventEmitter/inMemoryEventEmitter';
@@ -23,8 +23,8 @@ const trakedEventBus = new TrakedEventBus({
 const getOperationsHandler = new GetOperationsHandler(inMemoryOperationQueries);
 const getOperationHandler = new GetOperationHandler(inMemoryOperationQueries);
 
-export const localOperationsModule = new ModuleBuilder<OperationsModule>(Symbol('operations'))
+export const localTrackerModule = new ModuleBuilder<TrackerModule>(Symbol('tracker'))
   .setQuery(getOperationsHandler)
   .setQuery(getOperationHandler)
-  .setService('trakedEventBus', trakedEventBus)
+  .setService('eventBus', trakedEventBus)
   .build();

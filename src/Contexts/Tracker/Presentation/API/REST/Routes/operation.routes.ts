@@ -1,15 +1,15 @@
 import { FastifyInstance } from 'fastify';
 
-import { FastifyOperationController } from '@Contexts/Operations/Presentation/API/REST/Controllers/FastifyOperationController';
-import { OperationsModule } from '@Contexts/Operations/Application';
+import { FastifyOperationController } from '@Contexts/Tracker/Presentation/API/REST/Controllers/FastifyOperationController';
+import { TrackerModule } from '@Contexts/Tracker/Application';
 import {
   GetOperationsResSchema,
   GetOperationResSchema,
-} from '@Contexts/Operations/Presentation/API/REST/Routes/operation.routes.schema';
+} from '@Contexts/Tracker/Presentation/API/REST/Routes/operation.routes.schema';
 
 export const operationRoutes = function (
   fastify: FastifyInstance,
-  { operationsModule }: { operationsModule: OperationsModule },
+  { operationsModule }: { operationsModule: TrackerModule },
   done: () => void,
 ) {
   const operationController = new FastifyOperationController({
