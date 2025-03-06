@@ -16,7 +16,7 @@ const userQueries = new InMemoryUserQueries(inMemoryDataSource);
 const getUsersQueryHandler = new GetUsersQueryHandler(userQueries);
 const createUserCommandHandler = new CreateUserCommandHandler({ userRepository, userQueries });
 
-export const localUsersModule = new ModuleBuilder<UsersModule>(Symbol('users'))
+export const localUsersModule = new ModuleBuilder<UsersModule>(Symbol('Users'))
   .setCommand({
     event: CreateUserCommandEvent,
     handlers: [createUserCommandHandler],

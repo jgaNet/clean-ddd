@@ -23,7 +23,7 @@ const trakedEventBus = new TrakedEventBus({
 const getOperationsHandler = new GetOperationsHandler(inMemoryOperationQueries);
 const getOperationHandler = new GetOperationHandler(inMemoryOperationQueries);
 
-export const localTrackerModule = new ModuleBuilder<TrackerModule>(Symbol('tracker'))
+export const localTrackerModule = new ModuleBuilder<TrackerModule>(Symbol('Tracker'))
   .setQuery(getOperationsHandler)
   .setQuery(getOperationHandler)
   .setService('eventBus', trakedEventBus)
