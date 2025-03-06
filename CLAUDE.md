@@ -18,7 +18,7 @@ This is a Clean Architecture & Domain-Driven Design implementation with CQRS pat
 
 ### Core Structure
 - `src/@Primitives`: Base abstractions (Entity, ValueObject, Application, Module)
-- `src/Contexts`: Bounded contexts (Users, Tracker)
+- `src/Contexts`: Bounded contexts (Users, Tracker, Security)
 - `src/Bootstrap`: Application startup with Fastify configuration
 - `src/SharedKernel`: Cross-cutting concerns
 
@@ -34,7 +34,8 @@ Domain Layer → Application Layer → Infrastructure Layer → Presentation Lay
    - Entity (with business rules and behavior)
    - Value Objects (with validation)
    - Domain Events (for state changes)
-   - Repository Interface (for persistence abstraction)
+   - Repository Interface (for write operations)
+   - Queries Interface (for read operations)
 
 2. **Create Application Layer** in `Context/Application` directory:
    - Command Handlers (write operations)
@@ -43,7 +44,8 @@ Domain Layer → Application Layer → Infrastructure Layer → Presentation Lay
    - DTOs (for input/output)
 
 3. **Implement Infrastructure** in `Context/Infrastructure` directory:
-   - Repository Implementation
+   - Repository Implementation (for write operations)
+   - Queries Implementation (for read operations)
    - External Service Adapters
    - Persistence Logic
 
@@ -172,3 +174,7 @@ const usersModule = new ModuleBuilder(Symbol('Users'))
 - Use factories for complex entity creation
 - Event handlers for cross-context communication
 - No circular dependencies between layers
+- **IMPORTANT**: Strictly separate query and repository responsibilities:
+  - Repositories handle write operations and retrieval by ID (persistence)
+  - Queries handle read operations (data retrieval/filtering)
+  - This enforces the CQRS pattern and separation of concerns
