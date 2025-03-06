@@ -16,7 +16,7 @@ src/
 ├── @Primitives/        # Core abstractions (Entity, ValueObject, Module, etc.)
 ├── Bootstrap/          # Application startup and configuration
 ├── Contexts/           # Bounded contexts (business domains)
-│   ├── Operations/     # Operation tracking context
+│   ├── Tracker/        # Operation tracking context
 │   └── Users/          # User management context
 └── SharedKernel/       # Shared infrastructure components
 ```
@@ -32,7 +32,7 @@ class MyCleanApp extends Application {
     super();
     this.setEventBus(new InMemoryEventEmitter())
       .registerModule(usersModule)
-      .registerModule(operationsModule);
+      .registerModule(trackerModule);
   }
 
   async start() {

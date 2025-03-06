@@ -18,7 +18,7 @@ This is a Clean Architecture & Domain-Driven Design implementation with CQRS pat
 
 ### Core Structure
 - `src/@Primitives`: Base abstractions (Entity, ValueObject, Application, Module)
-- `src/Contexts`: Bounded contexts (Users, Operations)
+- `src/Contexts`: Bounded contexts (Users, Tracker)
 - `src/Bootstrap`: Application startup with Fastify configuration
 - `src/SharedKernel`: Cross-cutting concerns
 
