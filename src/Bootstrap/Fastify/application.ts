@@ -19,6 +19,7 @@ import { ExecutionContext } from '@Primitives/ExecutionContext';
 import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
 import { InMemoryUnitOfWork } from '@SharedKernel/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
 import { v4 as uuidv4 } from 'uuid';
+import { localSecurityModule } from '@Contexts/Security/module.local';
 
 // Create shared services
 const logger = new ConsoleLogger();
@@ -95,6 +96,7 @@ export default await new FastifyApplication()
   .setEventBus(localTrackerModule.services.eventBus)
   .registerModule(localTrackerModule)
   .registerModule(localUsersModule)
+  .registerModule(localSecurityModule)
   .setupSwagger()
   .registerRoutes('/', homeRoutes, {
     settings: SETTINGS,
