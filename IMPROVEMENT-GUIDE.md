@@ -176,18 +176,18 @@ export class UserProfile extends ValueObject<UserProfileProps> {
 
   // Getters
   get email(): UserEmail {
-    return this.props.email;
+    return this.value.email;
   }
 
   get nickname(): string {
-    return this.props.nickname;
+    return this.value.nickname;
   }
 
   // DTO conversion
   toDTO(): IUserProfile {
     return {
-      email: this.props.email.value,
-      nickname: this.props.nickname
+      email: this.value.email.value,
+      nickname: this.value.nickname
     };
   }
 }
