@@ -87,3 +87,14 @@ export class NotFoundException extends Exception {
     });
   }
 }
+
+export class NotAllowedException extends Exception {
+  constructor(service: string, message: string, context?: unknown) {
+    super({
+      service: service || 'unknown',
+      type: 'NotAllowed',
+      message,
+      context,
+    });
+  }
+}

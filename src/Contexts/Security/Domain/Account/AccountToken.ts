@@ -1,8 +1,7 @@
 import { ValueObject, Result, IResult } from '@Primitives';
-import { IAuthToken } from './DTOs';
+import { IAccountToken } from './DTOs';
 
-interface AuthTokenProps {
-  token: string;
+interface AccountTokenvalue {
   subjectId: string;
   subjectType: string;
   issuedAt: Date;
@@ -10,17 +9,13 @@ interface AuthTokenProps {
   metadata?: Record<string, unknown>;
 }
 
-export class AuthToken extends ValueObject<AuthTokenProps> {
-  private constructor(props: AuthTokenProps) {
-    super(props);
+export class AccountToken extends ValueObject<AccountTokenvalue> {
+  private constructor(value: AccountTokenvalue) {
+    super(value);
   }
 
-  static create(props: AuthTokenProps): IResult<AuthToken> {
-    const { token, subjectId, subjectType, issuedAt, expiresAt } = props;
-
-    if (!token) {
-      return Result.fail(new Error('Token is required'));
-    }
+  static create(value: AccountTokenvalue): IResult<AccountToken> {
+    const { subjectId, subjectType, issuedAt, expiresAt } = value;
 
     if (!subjectId) {
       return Result.fail(new Error('Subject ID is required'));
@@ -42,11 +37,7 @@ export class AuthToken extends ValueObject<AuthTokenProps> {
       return Result.fail(new Error('Expiration date must be after issue date'));
     }
 
-    return Result.ok(new AuthToken(props));
-  }
-
-  get token(): string {
-    return this.value.token;
+    return Result.ok(new AccountToken(value));
   }
 
   get subjectId(): string {
@@ -77,9 +68,8 @@ export class AuthToken extends ValueObject<AuthTokenProps> {
     return !this.isExpired(now);
   }
 
-  toDTO(): IAuthToken {
+  toDTO(): IAccountToken {
     return {
-      token: this.value.token,
       subjectId: this.value.subjectId,
       subjectType: this.value.subjectType,
       issuedAt: this.value.issuedAt,

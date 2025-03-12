@@ -29,25 +29,25 @@
  *     // Start transaction
  *     return context.withTransaction(async () => {
  *       // Log with contextual information
- *       context.logger.info(`Creating user with email ${command.payload.email}`, { 
- *         traceId: context.traceId 
+ *       context.logger.info(`Creating user with email ${command.payload.email}`, {
+ *         traceId: context.traceId
  *       });
- *       
+ *
  *       // Business logic
  *       const user = User.create(command.payload);
  *       await this.userRepository.save(user);
- *       
+ *
  *       // Publish domain events
  *       await context.eventBus.publish(new UserCreatedEvent({
  *         userId: user.id
  *       }));
- *       
+ *
  *       return Result.ok(user.id);
  *     });
  *   }
  * }
  * ```
- * 
+ *
  * Related components:
  * - {@link CommandHandler} - Uses the execution context for command processing
  * - {@link QueryHandler} - Uses the execution context for query processing
@@ -58,6 +58,7 @@
 
 import { EventBus } from './EventBus';
 import { IResult, Result } from './Result';
+import { Role } from './Role';
 
 /**
  * Interface for a Unit of Work, which manages transactional boundaries
@@ -67,17 +68,17 @@ export interface UnitOfWork {
    * Starts a new transaction
    */
   beginTransaction(): Promise<void>;
-  
+
   /**
    * Commits the current transaction
    */
   commitTransaction(): Promise<void>;
-  
+
   /**
    * Rolls back the current transaction
    */
   rollbackTransaction(): Promise<void>;
-  
+
   /**
    * Checks if there is an active transaction
    */
@@ -102,27 +103,33 @@ export interface ExecutionContextOptions {
    * The traceId for the current execution - used for distributed tracing
    */
   traceId: string;
-  
+
   /**
    * Optional authenticated user ID
    */
-  userId?: string;
-  
+  auth: {
+    // The authenticated user ID
+    subjectId?: string;
+
+    // The authenticated user role
+    role?: Role;
+  };
+
   /**
    * The event bus for publishing domain events
    */
   eventBus: EventBus;
-  
+
   /**
    * The unit of work for transaction management
    */
   unitOfWork?: UnitOfWork;
-  
+
   /**
    * Logger instance
    */
   logger?: Logger;
-  
+
   /**
    * Additional contextual data
    */
@@ -134,21 +141,27 @@ export interface ExecutionContextOptions {
  */
 export class ExecutionContext {
   readonly #traceId: string;
-  readonly #userId?: string;
+  readonly #auth: {
+    subjectId?: string | undefined;
+    role?: Role | undefined;
+  };
   readonly #eventBus: EventBus;
   readonly #unitOfWork?: UnitOfWork;
   readonly #logger?: Logger;
   readonly #metadata: Record<string, unknown>;
-  
+
   constructor(options: ExecutionContextOptions) {
     this.#traceId = options.traceId;
-    this.#userId = options.userId;
+    this.#auth = {
+      subjectId: options.auth?.subjectId,
+      role: options.auth?.role,
+    };
     this.#eventBus = options.eventBus;
     this.#unitOfWork = options.unitOfWork;
     this.#logger = options.logger;
     this.#metadata = options.metadata || {};
   }
-  
+
   /**
    * Execute a function within a transaction
    * @param fn The function to execute
@@ -160,77 +173,84 @@ export class ExecutionContext {
     }
 
     const hasExistingTransaction = this.#unitOfWork.hasActiveTransaction();
-    
+
     if (!hasExistingTransaction) {
       await this.#unitOfWork.beginTransaction();
     }
-    
+
     try {
       const result = await fn();
-      
+
       if (result.isFailure()) {
         if (!hasExistingTransaction) {
           await this.#unitOfWork.rollbackTransaction();
         }
         return result;
       }
-      
+
       if (!hasExistingTransaction) {
         await this.#unitOfWork.commitTransaction();
       }
-      
+
       return result;
     } catch (error) {
       if (!hasExistingTransaction) {
         await this.#unitOfWork.rollbackTransaction();
       }
-      
+
       if (this.#logger) {
         this.#logger.error('Transaction failed', error, {
           traceId: this.#traceId,
-          userId: this.#userId
+          userId: this.#auth.subjectId,
         });
       }
-      
+
       return Result.fail(error);
     }
   }
-  
+
   /**
    * The trace ID for the current execution
    */
   get traceId(): string {
     return this.#traceId;
   }
-  
+
   /**
    * The authenticated user ID, if available
    */
-  get userId(): string | undefined {
-    return this.#userId;
+  get subjectId(): string | undefined {
+    return this.#auth.subjectId;
   }
-  
+
+  /**
+   * The authenticated user role, if available
+   */
+  get auth(): { subjectId?: string; role?: Role } {
+    return this.#auth;
+  }
+
   /**
    * The event bus for publishing domain events
    */
   get eventBus(): EventBus {
     return this.#eventBus;
   }
-  
+
   /**
    * The unit of work for transaction management
    */
   get unitOfWork(): UnitOfWork | undefined {
     return this.#unitOfWork;
   }
-  
+
   /**
    * The logger for logging information
    */
   get logger(): Logger | undefined {
     return this.#logger;
   }
-  
+
   /**
    * Get metadata from the context
    * @param key The metadata key
@@ -239,7 +259,7 @@ export class ExecutionContext {
   getMetadata<T>(key: string): T | undefined {
     return this.#metadata[key] as T | undefined;
   }
-  
+
   /**
    * Create a new context with additional metadata
    * @param metadata Additional metadata to add
@@ -248,14 +268,17 @@ export class ExecutionContext {
   withMetadata(metadata: Record<string, unknown>): ExecutionContext {
     return new ExecutionContext({
       traceId: this.#traceId,
-      userId: this.#userId,
+      auth: {
+        subjectId: this.#auth.subjectId,
+        role: this.#auth.role,
+      },
       eventBus: this.#eventBus,
       unitOfWork: this.#unitOfWork,
       logger: this.#logger,
       metadata: {
         ...this.#metadata,
-        ...metadata
-      }
+        ...metadata,
+      },
     });
   }
 }

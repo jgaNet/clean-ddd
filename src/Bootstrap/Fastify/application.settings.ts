@@ -10,4 +10,14 @@ export const SETTINGS = {
     routePrefix: '/docs',
     exposeRoute: true,
   },
+  security: {
+    jwt: {
+      secret: process.env.JWT_SECRET || 'default-development-secret-do-not-use-in-production',
+      expiresIn: process.env.JWT_EXPIRES_IN || '24h',
+    },
+    adminAccount: {
+      identifier: process.env.ADMIN_IDENTIFIER || 'admin',
+      password: process.env.ADMIN_PASSWORD || 'admin',
+    },
+  },
 };

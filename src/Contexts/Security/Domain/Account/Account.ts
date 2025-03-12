@@ -1,13 +1,13 @@
-import { Entity, IResult, Result } from '@Primitives';
+import { Entity, Result, IResult } from '@Primitives';
 import { v4 as uuidv4 } from 'uuid';
-import { IAuth } from './DTOs';
 
-export class Auth extends Entity {
+export class Account extends Entity {
   #subjectId: string;
   #subjectType: string;
   #credentials: {
     type: string;
     value: string;
+    metadata?: Record<string, unknown>;
   };
   #lastAuthenticated?: Date;
   #isActive: boolean;
@@ -16,7 +16,7 @@ export class Auth extends Entity {
     id: string,
     subjectId: string,
     subjectType: string,
-    credentials: { type: string; value: string },
+    credentials: { type: string; value: string; metadata?: Record<string, unknown> },
     isActive: boolean,
     lastAuthenticated?: Date,
   ) {
@@ -31,9 +31,9 @@ export class Auth extends Entity {
   static create(params: {
     subjectId: string;
     subjectType: string;
-    credentials: { type: string; value: string };
+    credentials: { type: string; value: string; metadata?: Record<string, unknown> };
     isActive?: boolean;
-  }): IResult<Auth> {
+  }): IResult<Account> {
     const { subjectId, subjectType, credentials, isActive = true } = params;
 
     if (!subjectId) {
@@ -49,7 +49,7 @@ export class Auth extends Entity {
     }
 
     const id = uuidv4();
-    return Result.ok(new Auth(id, subjectId, subjectType, credentials, isActive));
+    return Result.ok(new Account(id, subjectId, subjectType, credentials, isActive));
   }
 
   get subjectId(): string {
@@ -60,7 +60,7 @@ export class Auth extends Entity {
     return this.#subjectType;
   }
 
-  get credentials(): { type: string; value: string } {
+  get credentials(): { type: string; value: string; metadata?: Record<string, unknown> } {
     return { ...this.#credentials };
   }
 
@@ -99,23 +99,12 @@ export class Auth extends Entity {
     return Result.ok();
   }
 
-  updateCredentials(credentials: { type: string; value: string }): Result<void> {
+  updateCredentials(credentials: { type: string; value: string; metadata?: Record<string, unknown> }): IResult<void> {
     if (!credentials || !credentials.type || !credentials.value) {
       return Result.fail(new Error('Valid credentials are required'));
     }
 
     this.#credentials = { ...credentials };
     return Result.ok();
-  }
-
-  toDTO(): IAuth {
-    return {
-      _id: this._id,
-      subjectId: this.#subjectId,
-      subjectType: this.#subjectType,
-      credentials: { ...this.#credentials },
-      lastAuthenticated: this.#lastAuthenticated,
-      isActive: this.#isActive,
-    };
   }
 }

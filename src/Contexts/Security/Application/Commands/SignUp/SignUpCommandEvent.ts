@@ -1,6 +1,6 @@
 import { Event } from '@Primitives';
 
-interface CreateAuthPayload {
+interface SignUpPayload {
   subjectId: string;
   subjectType: string;
   credentials: {
@@ -10,4 +10,4 @@ interface CreateAuthPayload {
   isActive?: boolean;
 }
 
-export class CreateAuthCommandEvent extends Event<CreateAuthPayload> {}
+export class SignUpCommandEvent extends Event<SignUpPayload> {}

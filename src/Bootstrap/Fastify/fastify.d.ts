@@ -1,5 +1,11 @@
-import { ExecutionContext } from '@Primitives/ExecutionContext';
+import { ExecutionContext, Role } from '@Primitives';
 import { FastifyRequest } from 'fastify';
+
+export interface AuthInfo {
+  subjectId: string;
+  role: Role;
+}
+
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -8,5 +14,6 @@ declare module 'fastify' {
      * Contains event bus, unit of work, logger, and other cross-cutting concerns
      */
     executionContext: ExecutionContext;
+    auth: AuthInfo;
   }
 }

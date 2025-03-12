@@ -1,12 +1,10 @@
 import { expect, jest } from '@jest/globals';
 import { mockUsersModule, mockedUserRepository, mockedUserQueries } from '@Contexts/Users/module.mock';
-import { Exception } from '@Primitives/Exception';
 import { UserWithEmailAlreadyExists, InvalidUserEmail } from '@Contexts/Users/Domain/User';
 import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser';
 import { MockedUserRepository } from '@Contexts/Users/Infrastructure/Repositories/MockedUserRepository';
 import { MockedUserQueries } from '@Contexts/Users/Infrastructure/Queries/MockedUserQueries';
-import { EventBus } from '@Primitives/EventBus';
-import { ExecutionContext } from '@Primitives/ExecutionContext';
+import { Role, EventBus, ExecutionContext, Exception } from '@Primitives';
 
 const eventBusMock = {
   connect: jest.fn(),
@@ -31,6 +29,10 @@ describe('how to create a user', function () {
       new ExecutionContext({
         traceId: 'mockedTraceId',
         eventBus: eventBusMock,
+        auth: {
+          subjectId: 'mockedUserId',
+          role: Role.ADMIN,
+        },
       }),
     );
 
@@ -54,6 +56,10 @@ describe('how to create a user', function () {
       new ExecutionContext({
         traceId: 'mockedTraceId',
         eventBus: eventBusMock,
+        auth: {
+          subjectId: 'mockedUserId',
+          role: Role.ADMIN,
+        },
       }),
     );
 
@@ -73,6 +79,10 @@ describe('how to create a user', function () {
       new ExecutionContext({
         traceId: 'mockedTraceId',
         eventBus: eventBusMock,
+        auth: {
+          subjectId: 'mockedUserId',
+          role: Role.ADMIN,
+        },
       }),
     );
 
@@ -94,6 +104,10 @@ describe('how to create a user', function () {
       new ExecutionContext({
         traceId: 'mockedTraceId',
         eventBus: eventBusMock,
+        auth: {
+          subjectId: 'mockedUserId',
+          role: Role.ADMIN,
+        },
       }),
     );
 
@@ -112,6 +126,10 @@ describe('how to create a user', function () {
       new ExecutionContext({
         traceId: 'mockedTraceId',
         eventBus: eventBusMock,
+        auth: {
+          subjectId: 'mockedUserId',
+          role: Role.ADMIN,
+        },
       }),
     );
 
