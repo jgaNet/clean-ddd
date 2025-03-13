@@ -17,6 +17,7 @@ export * from './QueriesService';
 export * from './QueryHandler';
 export * from './Repository';
 export * from './Result';
+export * from './Role';
 export * from './Saga';
 export * from './ValueObject';
 export * from './Operation';

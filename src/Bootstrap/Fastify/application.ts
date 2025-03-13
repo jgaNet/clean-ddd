@@ -7,6 +7,7 @@ import Fastify, { FastifyInstance } from 'fastify';
 import { homeRoutes } from '@SharedKernel/Presentation/API/REST/Routes';
 import { localTrackerModule } from '@Contexts/Tracker/module.local';
 import { localUsersModule } from '@Contexts/Users/module.local';
+import { localSecurityModule } from '@Contexts/Security/module.local';
 import { userRoutes } from '@Contexts/Users/Presentation/API/REST/Routes';
 import { operationRoutes } from '@Contexts/Tracker/Presentation/API/REST/Routes';
 
@@ -19,6 +20,8 @@ import { ExecutionContext } from '@Primitives/ExecutionContext';
 import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
 import { InMemoryUnitOfWork } from '@SharedKernel/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
 import { v4 as uuidv4 } from 'uuid';
+import { authRoutes } from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes';
+import bcrypt from 'bcrypt';
 
 // Create shared services
 const logger = new ConsoleLogger();
@@ -35,15 +38,19 @@ class FastifyApplication extends Application {
     this.logger = logger;
     this.unitOfWork = unitOfWork;
 
+    this.fastify.addHook('onRequest', localSecurityModule.services.authMiddleware.authenticate());
     // Add hook to create execution context for each request
-    this.fastify.addHook('onRequest', (request, reply, done) => {
+    this.fastify.addHook('preHandler', (request, reply, done) => {
       // Generate a trace ID for this request
       const traceId = (request.headers['x-trace-id'] as string) || uuidv4();
 
       // Create execution context
       const context = new ExecutionContext({
         traceId,
-        userId: request.headers['x-user-id'] as string,
+        auth: {
+          subjectId: request.auth?.subjectId,
+          role: request.auth?.role,
+        },
         eventBus: this.getEventBus(),
         unitOfWork: this.unitOfWork,
         logger: this.logger,
@@ -57,6 +64,16 @@ class FastifyApplication extends Application {
 
       done();
     });
+  }
+
+  seed() {
+    if (SETTINGS.security.adminAccount) {
+      localSecurityModule.services.admin.register({
+        identifier: SETTINGS.security.adminAccount.identifier,
+        password: bcrypt.hashSync(SETTINGS.security.adminAccount.password, 10),
+      });
+    }
+    return this;
   }
 
   setupSwagger() {
@@ -95,6 +112,7 @@ export default await new FastifyApplication()
   .setEventBus(localTrackerModule.services.eventBus)
   .registerModule(localTrackerModule)
   .registerModule(localUsersModule)
+  .registerModule(localSecurityModule)
   .setupSwagger()
   .registerRoutes('/', homeRoutes, {
     settings: SETTINGS,
@@ -105,4 +123,8 @@ export default await new FastifyApplication()
   .registerRoutes('/users', userRoutes, {
     usersModule: localUsersModule,
   })
+  .registerRoutes('/', authRoutes, {
+    securityModule: localSecurityModule,
+  })
+  .seed()
   .run();

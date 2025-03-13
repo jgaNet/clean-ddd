@@ -15,11 +15,16 @@ export const swaggerDescriptor: SwaggerOptions = {
     tags: [],
     definitions: {},
     securityDefinitions: {
-      apiKey: {
+      authorization: {
         type: 'apiKey',
-        name: 'apiKey',
+        name: 'authorization',
         in: 'header',
       },
     },
+    security: [
+      {
+        authorization: [],
+      },
+    ],
   },
 };

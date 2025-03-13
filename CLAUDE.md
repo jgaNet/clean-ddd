@@ -65,9 +65,16 @@ Domain Layer → Application Layer → Infrastructure Layer → Presentation Lay
   - camelCase: variables, methods, properties
   - Interface prefix: "I" (IUserRepository)
   - Specific suffixes: Handler, Event, Repository, etc.
+- **Clean Code**:
+  - Remove all unused variables and arguments
+  - No commented-out code should be committed
+  - Every declared variable or parameter should be used
+  - Use TypeScript's `--noUnusedLocals` and `--noUnusedParameters` compiler options
+  - Don't create useless constructors that just call super (TypeScript does this implicitly)
+  - Only write constructors when adding functionality beyond what the parent class provides
 - **Patterns**:
   - Factories for creating entities
-  - Result<T> pattern for error handling
+  - IResult<T> interface for return types (not the concrete Result<T> implementation)
   - Commands/Queries as simple DTOs
   - Single responsibility per class
 - **Imports**:

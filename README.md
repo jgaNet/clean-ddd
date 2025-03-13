@@ -90,7 +90,7 @@ export class User extends Entity {
     this.#profile = profile;
   }
 
-  static create(userDto: IUser): ResultValue<User> {
+  static create(userDto: IUser): IResult<User> {
     // Domain validation rules
     return Result.ok(new User(
       new UserId(userDto._id),
@@ -109,7 +109,7 @@ export class UserEmail extends ValueObject<string> {
     super(email);
   }
 
-  static create(email: string): ResultValue<UserEmail> {
+  static create(email: string): IResult<UserEmail> {
     if (!email.includes('@')) {
       return Result.fail(new InvalidEmailError(email));
     }
@@ -135,7 +135,7 @@ export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEv
     this.#userRepository = userRepository;
   }
 
-  async execute({ payload }: CreateUserCommandEvent): Promise<ResultValue<IUser>> {
+  async execute({ payload }: CreateUserCommandEvent): Promise<IResult<IUser>> {
     // Create the user through factory
     const newUser = await this.#userFactory.new(payload);
     if (newUser.isFailure()) return newUser;
@@ -152,7 +152,7 @@ export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEv
 ### Query Handlers
 
 ```typescript
-export class GetUsersQueryHandler extends QueryHandler<IUserQueries, void, ResultValue<IUser[]>> {
+export class GetUsersQueryHandler extends QueryHandler<IUserQueries, void, IResult<IUser[]>> {
   #userQueries: IUserQueries;
 
   constructor({ userQueries }: { userQueries: IUserQueries }) {
@@ -194,12 +194,9 @@ yarn build
 yarn lint
 yarn format
 
-# Type checking
-yarn typecheck
 
 # Testing
-yarn test:watch
-yarn test:cov
+yarn test
 ```
 
 ## License

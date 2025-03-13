@@ -2,7 +2,7 @@ import { expect, jest } from '@jest/globals';
 import { mockUsersModule, mockedUserRepository } from '@Contexts/Users/module.mock';
 import { MockedUserQueries } from '@Contexts/Users/Infrastructure/Queries/MockedUserQueries';
 import { MockedUserRepository } from '@Contexts/Users/Infrastructure/Repositories/MockedUserRepository';
-import { Result, EventBus, ExecutionContext } from '@Primitives';
+import { Result, EventBus, ExecutionContext, Role } from '@Primitives';
 import { GetUsersQueryHandler } from '@Contexts/Users/Application/Queries/GetUsers';
 import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser';
 
@@ -19,12 +19,29 @@ beforeEach(() => {
 
 describe('get users', function () {
   it('should not find users', async () => {
-    const result = await mockUsersModule.getQuery(GetUsersQueryHandler).execute();
+    const context = new ExecutionContext({
+      traceId: 'mockedTraceId',
+      eventBus: eventBusMock,
+      auth: {
+        subjectId: 'mockedUserId',
+        role: Role.ADMIN,
+      },
+    });
+    const result = await mockUsersModule.getQuery(GetUsersQueryHandler).execute(null, context);
     expect(result).toEqual(Result.ok([]));
   });
 
   it('should find users', async () => {
     (mockedUserRepository.nextIdentity as jest.Mock).mockImplementationOnce(() => Promise.resolve('mockedId'));
+
+    const context = new ExecutionContext({
+      traceId: 'mockedTraceId',
+      eventBus: eventBusMock,
+      auth: {
+        subjectId: 'mockedUserId',
+        role: Role.ADMIN,
+      },
+    });
 
     await mockUsersModule.getCommand(CreateUserCommandEvent).execute(
       CreateUserCommandEvent.set({
@@ -33,13 +50,10 @@ describe('get users', function () {
           nickname: 'a',
         },
       }),
-      new ExecutionContext({
-        traceId: 'mockedTraceId',
-        eventBus: eventBusMock,
-      }),
+      context,
     );
 
-    const result = await mockUsersModule.getQuery(GetUsersQueryHandler).execute();
+    const result = await mockUsersModule.getQuery(GetUsersQueryHandler).execute(null, context);
 
     expect(result.isSuccess()).toBeTruthy();
     expect((result.data as unknown[]).length).toEqual(1);
