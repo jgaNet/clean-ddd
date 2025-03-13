@@ -2,15 +2,15 @@
 
 This guide provides practical improvements to enhance your Clean DDD implementation. Apply these patterns incrementally as you develop new features.
 
-> **Note**: All examples follow the project's import conventions using `@Primitives` and other module aliases. No relative imports should be used.
+> **Note**: All examples follow the project's import conventions using `@SharedKernel/Domain` and other module aliases. No relative imports should be used.
 
 ## Domain Model Enhancement
 
 **CURRENT:** Basic entities with minimal behavior
 
 ```typescript
-import { Entity } from '@Primitives/Entity';
-import { Result, IResult } from '@Primitives/Result';
+import { Entity } from '@SharedKernel/Domain/DDD/Entity';
+import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
 
 export class User extends Entity {
   #profile: UserProfile;
@@ -33,9 +33,9 @@ export class User extends Entity {
 **IMPROVED:** Rich model with business behavior and invariants
 
 ```typescript
-import { Entity } from '@Primitives/Entity';
-import { Result, IResult } from '@Primitives/Result';
-import { DomainEvent } from '@Primitives/DomainEvent';
+import { Entity } from '@SharedKernel/Domain/DDD/Entity';
+import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
+import { Event as DomainEvent } from '@SharedKernel/Domain/DDD/Event';
 import { UserCreatedEvent } from '@Contexts/Users/Domain/User/Events/UserCreatedEvent';
 import { UserActivatedEvent } from '@Contexts/Users/Domain/User/Events/UserActivatedEvent';
 import { UserLoggedInEvent } from '@Contexts/Users/Domain/User/Events/UserLoggedInEvent';
@@ -125,7 +125,7 @@ export class User extends Entity {
 **CURRENT:** Basic value objects with minimal validation
 
 ```typescript
-import { ValueObject } from '@Primitives/ValueObject';
+import { ValueObject } from '@SharedKernel/Domain/DDD/ValueObject';
 
 export class UserProfile extends ValueObject<UserProfileProps> {
   constructor(userProfileDTO: IUserProfile) {
@@ -141,8 +141,8 @@ export class UserProfile extends ValueObject<UserProfileProps> {
 **IMPROVED:** Self-validating value objects with factory methods
 
 ```typescript
-import { ValueObject } from '@Primitives/ValueObject';
-import { Result, IResult } from '@Primitives/Result';
+import { ValueObject } from '@SharedKernel/Domain/DDD/ValueObject';
+import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
 import { InvalidNicknameError } from '@Contexts/Users/Domain/User/UserExceptions';
 
 interface UserProfileProps {
@@ -198,8 +198,8 @@ export class UserProfile extends ValueObject<UserProfileProps> {
 **CURRENT:** Mixing persistence and domain logic
 
 ```typescript
-import { CommandHandler } from '@Primitives/CommandHandler';
-import { Result, IResult } from '@Primitives/Result';
+import { CommandHandler } from '@SharedKernel/Domain/Application/CommandHandler';
+import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
 import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser/CreateUserCommandEvent';
 import { UserCreatedEvent } from '@Contexts/Users/Domain/User/Events/UserCreatedEvent';
 
@@ -233,9 +233,9 @@ export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEv
 **IMPROVED:** Clean separation with transaction boundaries
 
 ```typescript
-import { CommandHandler } from '@Primitives/CommandHandler';
-import { Result, IResult } from '@Primitives/Result';
-import { EventBus } from '@Primitives/EventBus';
+import { CommandHandler } from '@SharedKernel/Domain/Application/CommandHandler';
+import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
+import { EventBus } from '@SharedKernel/Domain/Services/EventBus';
 import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser/CreateUserCommandEvent';
 import { IUserRepository } from '@Contexts/Users/Domain/User/Ports/IUserRepository';
 import { UserMapper } from '@Contexts/Users/Domain/User/UserMapper';
@@ -314,9 +314,9 @@ export class InMemoryUserRepository implements IUserRepository {
 **IMPROVED:** Domain-focused with event publishing
 
 ```typescript
-import { Repository } from '@Primitives/Repository';
-import { Nullable } from '@Primitives/Nullable';
-import { EventBus } from '@Primitives/EventBus';
+import { Repository } from '@SharedKernel/Domain/DDD/Repository';
+import { Nullable } from '@SharedKernel/Domain/Utils/Nullable';
+import { EventBus } from '@SharedKernel/Domain/Services/EventBus';
 import { IUserRepository } from '@Contexts/Users/Domain/User/Ports/IUserRepository';
 import { User } from '@Contexts/Users/Domain/User/User';
 import { IUser } from '@Contexts/Users/Domain/User/DTOs';
@@ -389,7 +389,7 @@ export class InMemoryUserQueries implements IUserQueries {
 **IMPROVED:** Advanced queries with pagination and filtering
 
 ```typescript
-import { QueriesService } from '@Primitives/QueriesService';
+import { QueriesService } from '@SharedKernel/Domain/DDD/QueriesService';
 import { IUserQueries } from '@Contexts/Users/Domain/User/Ports/IUserQueries';
 import { IUser } from '@Contexts/Users/Domain/User/DTOs';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
@@ -476,8 +476,8 @@ export class InMemoryUserQueries implements IUserQueries {
 **CURRENT:** Simple event handler
 
 ```typescript
-import { EventHandler } from '@Primitives/EventHandler';
-import { Result, IResult } from '@Primitives/Result';
+import { EventHandler } from '@SharedKernel/Domain/Application/EventHandler';
+import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
 import { UserCreatedEvent } from '@Contexts/Users/Domain/User/Events/UserCreatedEvent';
 
 export class UserCreatedHandler extends EventHandler<UserCreatedEvent> {
@@ -491,8 +491,8 @@ export class UserCreatedHandler extends EventHandler<UserCreatedEvent> {
 **IMPROVED:** Domain-specific handling with services
 
 ```typescript
-import { EventHandler } from '@Primitives/EventHandler';
-import { Result, IResult } from '@Primitives/Result';
+import { EventHandler } from '@SharedKernel/Domain/Application/EventHandler';
+import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
 import { UserCreatedEvent } from '@Contexts/Users/Domain/User/Events/UserCreatedEvent';
 import { INotificationService } from '@SharedKernel/Domain/Ports/INotificationService';
 import { ILogger } from '@SharedKernel/Domain/Ports/ILogger';
@@ -541,7 +541,7 @@ export class UserCreatedHandler extends EventHandler<UserCreatedEvent> {
 **CURRENT:** Simple module setup
 
 ```typescript
-import { ModuleBuilder } from '@Primitives';
+import { ModuleBuilder } from '@SharedKernel/Domain/Application/Module';
 import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser/CreateUserCommandEvent';
 import { GetUsersQueryHandler } from '@Contexts/Users/Application/Queries/GetUsers/GetUsersQueryHandler';
 
@@ -557,7 +557,7 @@ export const usersModule = new ModuleBuilder(Symbol('Users'))
 **IMPROVED:** Comprehensive module with dependencies
 
 ```typescript
-import { ModuleBuilder } from '@Primitives';
+import { ModuleBuilder } from '@SharedKernel/Domain/Application/Module';
 import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser/CreateUserCommandEvent';
 import { CreateUserCommandHandler } from '@Contexts/Users/Application/Commands/CreateUser/CreateUserCommandHandler';
 import { GetUsersQueryHandler } from '@Contexts/Users/Application/Queries/GetUsers/GetUsersQueryHandler';
@@ -631,7 +631,7 @@ export const usersModule = new ModuleBuilder<UsersModule>(Symbol('users'))
 **EXAMPLE:** Protecting domain from external systems
 
 ```typescript
-import { Result, IResult } from '@Primitives/Result';
+import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
 import { IAuthProvider } from '@SharedKernel/Domain/Ports/IAuthProvider';
 import { UserIdentity, UserRole } from '@Contexts/Users/Domain/User/UserIdentity';
 import { AuthenticationFailedError } from '@SharedKernel/Domain/Errors/AuthenticationErrors';

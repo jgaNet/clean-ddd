@@ -17,10 +17,9 @@ yarn dev                # Start development server
 This is a Clean Architecture & Domain-Driven Design implementation with CQRS pattern.
 
 ### Core Structure
-- `src/@Primitives`: Base abstractions (Entity, ValueObject, Application, Module)
-- `src/Contexts`: Bounded contexts (Users, Tracker, Security)
 - `src/Bootstrap`: Application startup with Fastify configuration
-- `src/SharedKernel`: Cross-cutting concerns
+- `src/Contexts`: Bounded contexts (Users, Tracker, Security)
+- `src/Contexts/@SharedKernel/Domain`: Base abstractions (Entity, ValueObject, Application, Module)
 
 ### Implementation Pattern
 
@@ -80,11 +79,11 @@ Domain Layer → Application Layer → Infrastructure Layer → Presentation Lay
 - **Imports**:
   - Group by layer (Domain → Application → Infrastructure → Presentation)
   - Use path aliases to simplify imports:
-    - `@Primitives` - Core abstractions and base classes
+    - `@SharedKernel/Domain` - Core abstractions and base classes
     - `@Contexts` - Bounded contexts
-    - `@SharedKernel` - Shared infrastructure and cross-cutting concerns
     - `@Bootstrap` - Application startup code
-  - Example: `import { Entity, Result } from '@Primitives';`
+  - Example: `import { Entity } from '@SharedKernel/Domain/DDD/Entity';`
+  - Example: `import { Result } from '@SharedKernel/Domain/Application/Result';`
   - NEVER use relative paths (../../) - always use path aliases
   - Bad: `import { User } from '../../Domain/User/User';`
   - Good: `import { User } from '@Contexts/Users/Domain/User/User';`

@@ -13,12 +13,12 @@ A TypeScript implementation of Clean Architecture with Domain-Driven Design foll
 
 ```
 src/
-├── @Primitives/        # Core abstractions (Entity, ValueObject, Module, etc.)
 ├── Bootstrap/          # Application startup and configuration
 ├── Contexts/           # Bounded contexts (business domains)
+│   ├── @SharedKernel/  # Core abstractions (Entity, ValueObject, Module, etc.)
 │   ├── Tracker/        # Operation tracking context
+│   ├── Security/       # Authentication and authorization context
 │   └── Users/          # User management context
-└── SharedKernel/       # Shared infrastructure components
 ```
 
 ## Building Blocks
