@@ -1,4 +1,4 @@
-import { EventHandler, IResult, Result, ExecutionContext } from '@Primitives/Application';
+import { EventHandler, IResult, Result, ExecutionContext } from '@SharedKernel/Domain/Application';
 import { AccountCreatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountCreatedEvent';
 import { IJwtService } from '@Contexts/Security/Domain/Auth/Ports/IJwtService';
 

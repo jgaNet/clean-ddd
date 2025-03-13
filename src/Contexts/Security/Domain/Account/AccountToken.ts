@@ -1,5 +1,4 @@
-import { Result, IResult } from '@Primitives/Application';
-import { ValueObject } from '@Primitives/DDD';
+import { Result, IResult, ValueObject } from '@SharedKernel/Domain';
 import { IAccountToken } from './DTOs';
 
 interface AccountTokenvalue {

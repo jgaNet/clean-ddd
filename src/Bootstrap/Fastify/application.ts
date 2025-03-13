@@ -17,7 +17,7 @@ import { swaggerDescriptor } from './application.swagger';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 
-import { Application, ExecutionContext } from '@Primitives/Application';
+import { Application, ExecutionContext } from '@SharedKernel/Domain/Application';
 import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
 import { InMemoryUnitOfWork } from '@SharedKernel/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
 import { v4 as uuidv4 } from 'uuid';

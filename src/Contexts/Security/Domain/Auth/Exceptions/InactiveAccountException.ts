@@ -1,4 +1,4 @@
-import { Exception } from '@Primitives/DDD';
+import { Exception } from '@SharedKernel/Domain/DDD';
 export class InactiveAccountException extends Exception {
   constructor(message: string, context?: unknown) {
     super({

@@ -1,4 +1,4 @@
-import { UnitOfWork } from '@Primitives/ExecutionContext';
+import { UnitOfWork } from '@SharedKernel/Domain';
 
 /**
  * In-memory implementation of the UnitOfWork interface.

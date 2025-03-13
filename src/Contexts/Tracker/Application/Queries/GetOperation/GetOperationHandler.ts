@@ -1,5 +1,5 @@
+import { NotFoundException, QueryHandler, Result } from '@SharedKernel/Domain/Application';
 import { GetOperationQueryResult, GetOperationQueryPayload } from '@Contexts/Tracker/Application/DTOs';
-import { NotFoundException, QueryHandler, Result } from '@Primitives/Application';
 import { ITrackedOperationQueries } from '@Contexts/Tracker/Domain/TrackedOperation/Ports/ITrackedOperationQueries';
 
 export class GetOperationHandler extends QueryHandler<

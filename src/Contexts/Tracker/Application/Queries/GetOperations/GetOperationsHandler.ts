@@ -1,4 +1,4 @@
-import { QueryHandler, Result } from '@Primitives/Application';
+import { QueryHandler, Result } from '@SharedKernel/Domain/Application';
 
 import { GetOperationsQueryResult } from '@Contexts/Tracker/Application/DTOs';
 import { ITrackedOperationQueries } from '@Contexts/Tracker/Domain/TrackedOperation/Ports/ITrackedOperationQueries';

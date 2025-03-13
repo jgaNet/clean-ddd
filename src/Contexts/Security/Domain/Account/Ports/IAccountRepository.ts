@@ -1,4 +1,4 @@
-import { Repository } from '@Primitives/DDD';
+import { Repository } from '@SharedKernel/Domain/DDD';
 import { IAccount } from '../DTOs';
 import { Account } from '../Account';
 

@@ -1,4 +1,4 @@
-import { Logger } from '@Primitives/ExecutionContext';
+import { Logger } from '@SharedKernel/Domain';
 
 /**
  * Simple console logger implementation

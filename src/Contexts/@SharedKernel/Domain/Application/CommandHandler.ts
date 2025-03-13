@@ -65,7 +65,7 @@
  */
 
 import { EventHandler } from './EventHandler';
-import { CommandEvent, IResult, IEvent, IOperation } from '@Primitives';
+import { CommandEvent, IResult, IEvent, IOperation } from '@SharedKernel/Domain';
 import { ExecutionContext } from './ExecutionContext';
 
 /**

@@ -47,7 +47,7 @@
  * - @see Result - For standardized operation results
  */
 
-import { GenericModule, EventBus } from '@Primitives';
+import { GenericModule, EventBus } from '@SharedKernel/Domain';
 
 export abstract class Application {
   #modules: Map<symbol, GenericModule> = new Map();

@@ -1,6 +1,6 @@
 import { UserEmail } from '@Contexts/Users/Domain/User/UserEmail';
 import { IUserProfile } from '@Contexts/Users/Domain/User/DTOs';
-import { ValueObject } from '@Primitives/DDD';
+import { ValueObject } from '@SharedKernel/Domain/DDD';
 
 interface UserProfileProps {
   email: UserEmail;

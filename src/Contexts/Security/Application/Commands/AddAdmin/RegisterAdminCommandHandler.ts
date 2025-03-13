@@ -1,5 +1,5 @@
-import { CommandHandler, Result, IResult, ExecutionContext } from '@Primitives/Application';
-import { Role } from '@Primitives/AccessControl';
+import { CommandHandler, Result, IResult, ExecutionContext } from '@SharedKernel/Domain/Application';
+import { Role } from '@SharedKernel/Domain/AccessControl';
 
 import { Account } from '@Contexts/Security/Domain/Account/Account';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';

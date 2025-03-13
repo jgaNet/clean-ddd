@@ -1,7 +1,7 @@
 import { IUserQueries } from '@Contexts/Users/Domain/User/Ports/IUserQueries';
 import { IUser } from '@Contexts/Users/Domain/User/DTOs';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
-import { Nullable } from '@Primitives/Utils';
+import { Nullable } from '@SharedKernel/Domain/Utils';
 
 export class InMemoryUserQueries implements IUserQueries {
   dataSource: InMemoryDataSource<IUser>;

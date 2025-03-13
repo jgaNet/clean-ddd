@@ -1,4 +1,4 @@
-import { ExecutionContext, Result, IResult, CommandHandler } from '@Primitives/Application';
+import { ExecutionContext, Result, IResult, CommandHandler } from '@SharedKernel/Domain/Application';
 
 import { UserFactory } from '@Contexts/Users/Domain/User/UserFactory';
 import { UserMapper } from '@Contexts/Users/Domain/User/UserMapper';

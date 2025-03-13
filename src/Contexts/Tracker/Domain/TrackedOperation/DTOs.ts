@@ -1,5 +1,5 @@
-import { IEvent, ExecutionContext, IResult } from '@Primitives';
-import { OperationStatus, IOperation } from '@Primitives';
+import { IEvent, ExecutionContext, IResult } from '@SharedKernel/Domain';
+import { OperationStatus, IOperation } from '@SharedKernel/Domain';
 
 export type ITrackedOperationDTO = Omit<ITrackedOperation<IEvent<unknown>>, 'success' | 'failed' | 'sent'>;
 

@@ -1,6 +1,6 @@
-import { ExecutionContext, EventHandler, CommandHandler } from '@Primitives/Application';
-import { Event } from '@Primitives/DDD';
-import { EventBus, IEventEmitter, IOperation, OperationStatus } from '@Primitives/Services';
+import { ExecutionContext, EventHandler, CommandHandler } from '@SharedKernel/Domain/Application';
+import { Event } from '@SharedKernel/Domain/DDD';
+import { EventBus, IEventEmitter, IOperation, OperationStatus } from '@SharedKernel/Domain/Services';
 
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';

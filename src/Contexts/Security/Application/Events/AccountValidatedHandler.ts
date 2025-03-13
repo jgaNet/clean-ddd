@@ -1,4 +1,4 @@
-import { EventHandler, IResult, Result, ExecutionContext } from '@Primitives/Application';
+import { EventHandler, IResult, Result, ExecutionContext } from '@SharedKernel/Domain/Application';
 import { AccountValidatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountValidatedEvent';
 
 export class AccountValidatedHandler extends EventHandler<AccountValidatedEvent> {

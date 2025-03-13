@@ -1,4 +1,4 @@
-import { CommandEvent } from '@Primitives/Application';
+import { CommandEvent } from '@SharedKernel/Domain/Application';
 
 interface ValidateAccountPayload {
   accountId: string;

@@ -1,7 +1,7 @@
-import { Role } from '@Primitives/AccessControl';
+import { Role } from '@SharedKernel/Domain/AccessControl';
 
 import { GetUsersQueryResult } from '@Contexts/Users/Application/DTOs';
-import { QueryHandler, Result, ExecutionContext, NotAllowedException } from '@Primitives/Application';
+import { QueryHandler, Result, ExecutionContext, NotAllowedException } from '@SharedKernel/Domain/Application';
 import { IUserQueries } from '@Contexts/Users/Domain/User/Ports/IUserQueries';
 
 export class GetUsersQueryHandler extends QueryHandler<IUserQueries, void, GetUsersQueryResult> {

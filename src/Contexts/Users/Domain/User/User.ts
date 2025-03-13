@@ -1,5 +1,5 @@
-import { Entity } from '@Primitives/DDD';
-import { Result, IResult } from '@Primitives/Application';
+import { Entity } from '@SharedKernel/Domain/DDD';
+import { Result, IResult } from '@SharedKernel/Domain/Application';
 
 import { IUser } from '@Contexts/Users/Domain/User/DTOs';
 import { UserId, UserProfile } from '@Contexts/Users/Domain/User';

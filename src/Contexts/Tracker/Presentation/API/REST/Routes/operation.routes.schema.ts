@@ -1,4 +1,4 @@
-import { OperationStatus } from '@Primitives';
+import { OperationStatus } from '@SharedKernel/Domain';
 const OperationSchema = {
   type: 'object',
   properties: {

@@ -108,7 +108,7 @@ import {
   Event,
   CommandHandler,
   EventHandler,
-} from '@Primitives';
+} from '@SharedKernel/Domain';
 
 type CommandModuleEvent = {
   event: typeof Event<unknown>;

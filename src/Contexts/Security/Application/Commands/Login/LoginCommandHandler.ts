@@ -1,4 +1,4 @@
-import { CommandHandler, Result, IResult } from '@Primitives/Application';
+import { CommandHandler, Result, IResult } from '@SharedKernel/Domain/Application';
 
 import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';

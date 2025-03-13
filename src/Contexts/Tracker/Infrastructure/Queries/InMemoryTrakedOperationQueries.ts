@@ -1,7 +1,7 @@
 import { ITrackedOperationQueries } from '@Contexts/Tracker/Domain/TrackedOperation/Ports/ITrackedOperationQueries';
 import { ITrackedOperation } from '@Contexts/Tracker/Domain/TrackedOperation';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
-import { Nullable } from '@Primitives';
+import { Nullable } from '@SharedKernel/Domain';
 
 export class InMemoryOperationQueries implements ITrackedOperationQueries {
   dataSource: InMemoryDataSource<ITrackedOperation>;

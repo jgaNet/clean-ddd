@@ -1,5 +1,5 @@
-import { Result, IResult } from '@Primitives/Application';
-import { Entity } from '@Primitives/DDD';
+import { Result, IResult } from '@SharedKernel/Domain/Application';
+import { Entity } from '@SharedKernel/Domain/DDD';
 import { v4 as uuidv4 } from 'uuid';
 
 export class Account extends Entity {

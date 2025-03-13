@@ -73,7 +73,7 @@
  * - {@link CommandHandler} - Specialized event handler for commands
  */
 
-import { Event, IResult, ExecutionContext, IOperation } from '@Primitives';
+import { Event, IResult, ExecutionContext, IOperation } from '@SharedKernel/Domain';
 
 /**
  * Abstract base class for all event handlers in the application.

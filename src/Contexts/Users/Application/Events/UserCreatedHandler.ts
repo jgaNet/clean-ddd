@@ -1,4 +1,4 @@
-import { EventHandler, IResult, Result, ExecutionContext } from '@Primitives/Application';
+import { EventHandler, IResult, Result, ExecutionContext } from '@SharedKernel/Domain/Application';
 import { UserCreatedEvent } from '@Contexts/Users/Domain/User/Events/UserCreatedEvent';
 
 export class UserCreatedHandler extends EventHandler<UserCreatedEvent> {

@@ -1,5 +1,5 @@
 import { ITrackedOperation } from '@Contexts/Tracker/Domain/TrackedOperation';
-import { Repository } from '@Primitives';
+import { Repository } from '@SharedKernel/Domain';
 
 export interface ITrackedOperationQueries extends Repository<ITrackedOperation> {
   findAll(): Promise<ITrackedOperation[]>;

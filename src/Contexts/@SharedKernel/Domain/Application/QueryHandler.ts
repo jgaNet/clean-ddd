@@ -64,8 +64,8 @@
  * - {@link Module} - Registers and resolves query handlers
  */
 
-import { QueriesService } from '@Primitives/DDD';
-import { DataSource } from '@Primitives/Services';
+import { QueriesService } from '@SharedKernel/Domain/DDD';
+import { DataSource } from '@SharedKernel/Domain/Services';
 import { IResult } from './Result';
 import { ExecutionContext } from './ExecutionContext';
 

@@ -1,5 +1,4 @@
-import { ExecutionContext, ModuleBuilder } from '@Primitives/Application';
-import { Role } from '@Primitives/AccessControl';
+import { ExecutionContext, ModuleBuilder, Role } from '@SharedKernel/Domain';
 
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 import { SETTINGS } from '@Bootstrap/Fastify/application.settings';

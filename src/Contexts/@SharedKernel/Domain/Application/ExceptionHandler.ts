@@ -25,8 +25,8 @@
  * - Used in infrastructure layers for system-level exceptions
  */
 
-import { Exception } from '@Primitives/Exception';
-import { ExceptionEvent } from '@Primitives/EventTypes';
+import { Exception } from '@SharedKernel/Domain/Exception';
+import { ExceptionEvent } from '@SharedKernel/Domain/EventTypes';
 
 export abstract class ExceptionHandler {
   abstract throw(event: typeof ExceptionEvent<Exception>, error: Exception): Promise<void>;

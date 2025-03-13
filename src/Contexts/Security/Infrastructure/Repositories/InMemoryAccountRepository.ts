@@ -1,7 +1,8 @@
-import { DataSource } from '@Primitives/Services';
+import { DataSource } from '@SharedKernel/Domain/Services';
+import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+
 import { Account } from '@Contexts/Security/Domain/Account/Account';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 
 export class InMemoryAccountRepository implements IAccountRepository {
   dataSource: DataSource<Account>;

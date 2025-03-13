@@ -9,7 +9,7 @@ import { TrakedEventBus } from '@Contexts/Tracker/Infrastructure/Services/Traked
 
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 import { InMemoryOperationRepository } from '@Contexts/Tracker/Infrastructure/Repositories/InMemoryTrakedOperationRepository';
-import { ModuleBuilder } from '@Primitives/Application';
+import { ModuleBuilder } from '@SharedKernel/Domain/Application';
 
 import { inMemoryEventEmitter } from '@SharedKernel/Infrastructure/EventEmitter/inMemoryEventEmitter';
 
