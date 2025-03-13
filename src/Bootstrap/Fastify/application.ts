@@ -10,17 +10,17 @@ import { localUsersModule } from '@Contexts/Users/module.local';
 import { localSecurityModule } from '@Contexts/Security/module.local';
 import { userRoutes } from '@Contexts/Users/Presentation/API/REST/Routes';
 import { operationRoutes } from '@Contexts/Tracker/Presentation/API/REST/Routes';
+import { authRoutes } from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes';
 
 import { swaggerDescriptor } from './application.swagger';
+
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 
-import { Application } from '@Primitives';
-import { ExecutionContext } from '@Primitives/ExecutionContext';
+import { Application, ExecutionContext } from '@SharedKernel/Domain/Application';
 import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
 import { InMemoryUnitOfWork } from '@SharedKernel/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
 import { v4 as uuidv4 } from 'uuid';
-import { authRoutes } from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes';
 import bcrypt from 'bcrypt';
 
 // Create shared services

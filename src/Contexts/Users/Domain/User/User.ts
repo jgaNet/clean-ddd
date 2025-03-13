@@ -1,8 +1,8 @@
-import { Entity } from '@Primitives/Entity';
+import { Entity } from '@SharedKernel/Domain/DDD';
+import { Result, IResult } from '@SharedKernel/Domain/Application';
+
 import { IUser } from '@Contexts/Users/Domain/User/DTOs';
-import { UserProfile } from '@Contexts/Users/Domain/User/UserProfile';
-import { UserId } from '@Contexts/Users/Domain/User/UserId';
-import { Result, IResult } from '@Primitives/Result';
+import { UserId, UserProfile } from '@Contexts/Users/Domain/User';
 
 export class User extends Entity {
   #profile: UserProfile;

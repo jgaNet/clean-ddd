@@ -1,4 +1,4 @@
-import { Event, EventHandler, CommandHandler, IResult } from '@Primitives';
+import { Event, EventHandler, CommandHandler, IResult } from '@SharedKernel/Domain';
 import { UserCreatedEvent } from '@Contexts/Users/Domain/User';
 import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser';
 import { GetUsersQueryHandler } from '@Contexts/Users/Application/Queries/GetUsers';

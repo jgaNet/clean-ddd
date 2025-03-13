@@ -4,7 +4,7 @@ import { UserWithEmailAlreadyExists, InvalidUserEmail } from '@Contexts/Users/Do
 import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser';
 import { MockedUserRepository } from '@Contexts/Users/Infrastructure/Repositories/MockedUserRepository';
 import { MockedUserQueries } from '@Contexts/Users/Infrastructure/Queries/MockedUserQueries';
-import { Role, EventBus, ExecutionContext, Exception } from '@Primitives';
+import { Role, EventBus, ExecutionContext, Exception } from '@SharedKernel/Domain';
 
 const eventBusMock = {
   connect: jest.fn(),

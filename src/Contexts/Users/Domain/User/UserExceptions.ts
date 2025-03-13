@@ -1,4 +1,4 @@
-import { Exception } from '@Primitives/Exception';
+import { Exception } from '@SharedKernel/Domain/DDD';
 
 export class UserDomainException extends Exception {
   constructor({ type, message, context }: { type: string; message: string; context?: unknown }) {

@@ -1,10 +1,8 @@
+import { Role } from '@SharedKernel/Domain/AccessControl';
+
 import { GetUsersQueryResult } from '@Contexts/Users/Application/DTOs';
-import { QueryHandler } from '@Primitives/QueryHandler';
-import { Result } from '@Primitives/Result';
+import { QueryHandler, Result, ExecutionContext, NotAllowedException } from '@SharedKernel/Domain/Application';
 import { IUserQueries } from '@Contexts/Users/Domain/User/Ports/IUserQueries';
-import { ExecutionContext } from '@Primitives/ExecutionContext';
-import { NotAllowedException } from '@Primitives/Exception';
-import { Role } from '@Primitives';
 
 export class GetUsersQueryHandler extends QueryHandler<IUserQueries, void, GetUsersQueryResult> {
   async execute(_: void, { auth }: ExecutionContext): Promise<GetUsersQueryResult> {

@@ -1,8 +1,8 @@
-import { Event } from '@Primitives';
+import { CommandEvent } from '@SharedKernel/Domain/Application';
 
 interface LoginPayload {
   identifier: string; // Could be email, username, etc.
   password: string;
 }
 
-export class LoginCommandEvent extends Event<LoginPayload> {}
+export class LoginCommandEvent extends CommandEvent<LoginPayload> {}

@@ -34,10 +34,7 @@
         "Contexts/*"
       ],
       "@SharedKernel/*": [
-        "SharedKernel/*"
-      ],
-      "@Primitives/*": [
-        "@Primitives/*"
+        "Contexts/@SharedKernel/*"
       ],
       "@Bootstrap/*": [
         "Bootstrap/*"

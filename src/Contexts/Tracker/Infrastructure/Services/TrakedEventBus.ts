@@ -1,5 +1,4 @@
-import { EventBus, Event, EventHandler, CommandHandler, IEventEmitter } from '@Primitives';
-import { ExecutionContext } from '@Primitives/ExecutionContext';
+import { EventBus, Event, EventHandler, CommandHandler, IEventEmitter, ExecutionContext } from '@SharedKernel/Domain';
 import { ITrackedOperationRepository, TrackedOperation } from '@Contexts/Tracker/Domain/TrackedOperation';
 import EventEmitter from 'events';
 

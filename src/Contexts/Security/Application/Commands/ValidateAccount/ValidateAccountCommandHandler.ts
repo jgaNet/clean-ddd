@@ -1,4 +1,4 @@
-import { CommandHandler, Result, IResult, ExecutionContext } from '@Primitives';
+import { CommandHandler, Result, IResult, ExecutionContext } from '@SharedKernel/Domain';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
 import { ValidateAccountCommandEvent } from './ValidateAccountCommandEvent';
 import { AccountValidatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountValidatedEvent';

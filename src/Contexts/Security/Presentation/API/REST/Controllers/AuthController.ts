@@ -10,7 +10,7 @@ import { SignUpCommandEvent } from '@Contexts/Security/Application/Commands';
 import * as bcrypt from 'bcrypt';
 import { ValidateAccountCommandEvent } from '@Contexts/Security/Application/Commands/ValidateAccount/ValidateAccountCommandEvent';
 import { InvalidTokenException } from '@Contexts/Security/Domain/Auth/Exceptions/InvalidTokenException';
-import { Role } from '@Primitives/Role';
+import { Role } from '@SharedKernel/Domain/AccessControl';
 
 export class FastifyAuthController {
   #securityModule: SecurityModule;

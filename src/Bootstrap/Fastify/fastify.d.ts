@@ -1,4 +1,4 @@
-import { ExecutionContext, Role } from '@Primitives';
+import { ExecutionContext, Role } from '@SharedKernel/Domain';
 import { FastifyRequest } from 'fastify';
 
 export interface AuthInfo {

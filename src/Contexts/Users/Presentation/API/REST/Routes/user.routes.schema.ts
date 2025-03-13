@@ -1,4 +1,4 @@
-import { OperationStatus } from '@Primitives';
+import { OperationStatus } from '@SharedKernel/Domain';
 import { FromSchema } from 'json-schema-to-ts';
 
 export const CreateUserReqBodySchema = {

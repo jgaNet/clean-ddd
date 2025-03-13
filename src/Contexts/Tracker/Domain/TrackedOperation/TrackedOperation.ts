@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Event, Result, IResult } from '@Primitives';
-import { ExecutionContext } from '@Primitives/ExecutionContext';
+import { Event, Result, IResult } from '@SharedKernel/Domain';
+import { ExecutionContext } from '@SharedKernel/Domain/Application';
 import { ITrackedOperation } from './DTOs';
-import { OperationStatus } from '@Primitives';
+import { OperationStatus } from '@SharedKernel/Domain';
 
 export class TrackedOperation<T extends Event<unknown>> implements ITrackedOperation<T> {
   id: string;

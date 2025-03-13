@@ -2,7 +2,7 @@ import { expect, jest } from '@jest/globals';
 import { mockUsersModule, mockedUserRepository } from '@Contexts/Users/module.mock';
 import { MockedUserQueries } from '@Contexts/Users/Infrastructure/Queries/MockedUserQueries';
 import { MockedUserRepository } from '@Contexts/Users/Infrastructure/Repositories/MockedUserRepository';
-import { Result, EventBus, ExecutionContext, Role } from '@Primitives';
+import { Result, EventBus, ExecutionContext, Role } from '@SharedKernel/Domain';
 import { GetUsersQueryHandler } from '@Contexts/Users/Application/Queries/GetUsers';
 import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser';
 

@@ -1,11 +1,11 @@
+import { ExecutionContext, Result, IResult, CommandHandler } from '@SharedKernel/Domain/Application';
+
 import { UserFactory } from '@Contexts/Users/Domain/User/UserFactory';
 import { UserMapper } from '@Contexts/Users/Domain/User/UserMapper';
 import { IUserRepository } from '@Contexts/Users/Domain/User/Ports/IUserRepository';
 import { IUserQueries } from '@Contexts/Users/Domain/User/Ports/IUserQueries';
 import { UserCreatedEvent } from '@Contexts/Users/Domain/User/Events/UserCreatedEvent';
 import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser';
-import { Result, IResult, CommandHandler } from '@Primitives';
-import { ExecutionContext } from '@Primitives/ExecutionContext';
 import { IUser } from '@Contexts/Users/Domain/User';
 
 export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEvent> {

@@ -8,7 +8,7 @@ import { InMemoryUserRepository } from '@Contexts/Users/Infrastructure/Repositor
 import { UserCreatedEvent } from '@Contexts/Users/Domain/User';
 import { UserCreatedHandler } from '@Contexts/Users/Application/Events/UserCreatedHandler';
 import { UsersModule } from '@Contexts/Users/Application';
-import { ModuleBuilder } from '@Primitives/Module';
+import { ModuleBuilder } from '@SharedKernel/Domain/Application';
 
 const inMemoryDataSource = new InMemoryDataSource<IUser>();
 const userRepository = new InMemoryUserRepository(inMemoryDataSource);
