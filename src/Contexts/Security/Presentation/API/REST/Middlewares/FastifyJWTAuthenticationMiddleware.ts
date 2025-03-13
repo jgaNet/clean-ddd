@@ -2,7 +2,7 @@ import { FastifyRequest } from 'fastify';
 import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
 import jwt from 'jsonwebtoken';
 
-import { Role } from '@Primitives';
+import { Role } from '@Primitives/AccessControl';
 import { AccountToken } from '@Contexts/Security/Domain/Account/AccountToken';
 
 export class AuthenticationMiddleware {

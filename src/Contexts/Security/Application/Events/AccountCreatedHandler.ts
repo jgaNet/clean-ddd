@@ -1,7 +1,5 @@
-import { EventHandler } from '@Primitives/EventHandler';
+import { EventHandler, IResult, Result, ExecutionContext } from '@Primitives/Application';
 import { AccountCreatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountCreatedEvent';
-import { IResult, Result } from '@Primitives/Result';
-import { ExecutionContext } from '@Primitives/ExecutionContext';
 import { IJwtService } from '@Contexts/Security/Domain/Auth/Ports/IJwtService';
 
 export class AccountCreatedHandler extends EventHandler<AccountCreatedEvent> {

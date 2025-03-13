@@ -1,4 +1,5 @@
-import { Entity, Result, IResult } from '@Primitives';
+import { Result, IResult } from '@Primitives/Application';
+import { Entity } from '@Primitives/DDD';
 import { v4 as uuidv4 } from 'uuid';
 
 export class Account extends Entity {

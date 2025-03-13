@@ -20,7 +20,7 @@
  * - Maintains persistence ignorance in domain layer
  */
 
-import { DataSource } from '@Primitives/DataSource';
+import { DataSource } from '../Services';
 export abstract class Repository<T> {
   abstract dataSource: DataSource<T>;
 }

@@ -1,4 +1,4 @@
-import { DataSource } from '@Primitives';
+import { DataSource } from '@Primitives/Services';
 import { Account } from '@Contexts/Security/Domain/Account/Account';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';

@@ -1,4 +1,4 @@
-import { Mapper } from '@Primitives';
+import { Mapper } from '@Primitives/DDD';
 import { Account } from './Account';
 import { IAccount } from './DTOs';
 

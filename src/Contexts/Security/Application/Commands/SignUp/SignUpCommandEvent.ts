@@ -1,4 +1,4 @@
-import { Event } from '@Primitives';
+import { CommandEvent } from '@Primitives/Application';
 
 interface SignUpPayload {
   subjectId: string;
@@ -10,4 +10,4 @@ interface SignUpPayload {
   isActive?: boolean;
 }
 
-export class SignUpCommandEvent extends Event<SignUpPayload> {}
+export class SignUpCommandEvent extends CommandEvent<SignUpPayload> {}

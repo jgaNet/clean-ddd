@@ -1,4 +1,5 @@
-import { ValueObject, Result, IResult } from '@Primitives';
+import { Result, IResult } from '@Primitives/Application';
+import { ValueObject } from '@Primitives/DDD';
 import { IAccountToken } from './DTOs';
 
 interface AccountTokenvalue {

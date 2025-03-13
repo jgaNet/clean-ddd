@@ -1,4 +1,5 @@
-import { CommandHandler, Result, IResult } from '@Primitives';
+import { CommandHandler, Result, IResult } from '@Primitives/Application';
+
 import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
 import { LoginCommandEvent } from './LoginCommandEvent';

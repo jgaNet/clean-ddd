@@ -1,4 +1,4 @@
-import { QueryHandler, Result, IResult } from '@Primitives';
+import { QueryHandler, Result, IResult } from '@Primitives/Application';
 import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
 import { IAccount } from '@Contexts/Security/Domain/Account/DTOs';
 

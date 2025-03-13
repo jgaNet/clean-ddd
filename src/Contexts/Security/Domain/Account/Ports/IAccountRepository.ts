@@ -1,4 +1,4 @@
-import { Repository } from '@Primitives';
+import { Repository } from '@Primitives/DDD';
 import { IAccount } from '../DTOs';
 import { Account } from '../Account';
 

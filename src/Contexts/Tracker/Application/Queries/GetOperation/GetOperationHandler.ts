@@ -1,9 +1,9 @@
-import { GetOperationQueryResult, GetOperationQueryPayload } from '@Contexts/Operations/Application/DTOs';
-import { NotFoundException, QueryHandler, Result } from '@Primitives';
-import { IOperationQueries } from '@Contexts/Operations/Domain/Operation/Ports/IOperationQueries';
+import { GetOperationQueryResult, GetOperationQueryPayload } from '@Contexts/Tracker/Application/DTOs';
+import { NotFoundException, QueryHandler, Result } from '@Primitives/Application';
+import { ITrackedOperationQueries } from '@Contexts/Tracker/Domain/TrackedOperation/Ports/ITrackedOperationQueries';
 
 export class GetOperationHandler extends QueryHandler<
-  IOperationQueries,
+  ITrackedOperationQueries,
   GetOperationQueryPayload,
   GetOperationQueryResult
 > {

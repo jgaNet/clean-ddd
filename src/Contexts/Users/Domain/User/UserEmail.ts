@@ -1,4 +1,4 @@
-import { ValueObject } from '@Primitives/ValueObject';
+import { ValueObject } from '@Primitives/DDD';
 import { InvalidUserEmail } from '@Contexts/Users/Domain/User/UserExceptions';
 
 export class UserEmail extends ValueObject<string> {

@@ -56,9 +56,9 @@
  * - {@link EventBus} - Provides event publishing capabilities
  */
 
-import { EventBus } from './EventBus';
+import { EventBus } from '../Services/EventBus';
 import { IResult, Result } from './Result';
-import { Role } from './Role';
+import { Role } from '../AccessControl/Role';
 
 /**
  * Interface for a Unit of Work, which manages transactional boundaries

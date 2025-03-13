@@ -1,4 +1,4 @@
-import { Module } from '@Primitives';
+import { Module } from '@Primitives/Application';
 import {
   SecurityModuleCommands,
   SecurityModuleDomainEvents,

@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Event, Result, IResult } from '@Primitives';
-import { ExecutionContext } from '@Primitives/ExecutionContext';
+import { ExecutionContext } from '@Primitives/Application';
 import { ITrackedOperation } from './DTOs';
 import { OperationStatus } from '@Primitives';
 

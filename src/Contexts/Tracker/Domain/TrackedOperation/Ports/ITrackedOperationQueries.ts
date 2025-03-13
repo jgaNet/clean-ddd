@@ -1,4 +1,4 @@
-import { ITrackedOperation } from '@Contexts/Operations/Domain/TrackedOperation';
+import { ITrackedOperation } from '@Contexts/Tracker/Domain/TrackedOperation';
 import { Repository } from '@Primitives';
 
 export interface ITrackedOperationQueries extends Repository<ITrackedOperation> {

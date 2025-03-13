@@ -3,7 +3,7 @@ import { IUserRepository } from '@Contexts/Users/Domain/User/Ports/IUserReposito
 import { UserWithEmailAlreadyExists } from '@Contexts/Users/Domain/User/UserExceptions';
 import { INewUser, IUser } from '@Contexts/Users/Domain/User/DTOs';
 import { IUserQueries } from '@Contexts/Users/Domain/User/Ports/IUserQueries';
-import { Result, IResult } from '@Primitives/Result';
+import { Result, IResult } from '@Primitives/Application';
 export class UserFactory {
   #userRepository: IUserRepository;
   #userQueries: IUserQueries;

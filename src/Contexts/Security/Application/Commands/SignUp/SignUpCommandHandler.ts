@@ -1,4 +1,4 @@
-import { CommandHandler, Result, IResult, ExecutionContext } from '@Primitives';
+import { CommandHandler, Result, IResult, ExecutionContext } from '@Primitives/Application';
 import { Account } from '@Contexts/Security/Domain/Account/Account';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
 import { SignUpCommandEvent } from './SignUpCommandEvent';

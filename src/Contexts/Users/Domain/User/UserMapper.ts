@@ -1,5 +1,5 @@
 import { User } from '@Contexts/Users/Domain/User/User';
-import { Mapper } from '@Primitives/Mapper';
+import { Mapper } from '@Primitives/DDD';
 import { IUser } from '@Contexts/Users/Domain/User/DTOs';
 
 export class UserMapperImpl implements Mapper<User, IUser> {

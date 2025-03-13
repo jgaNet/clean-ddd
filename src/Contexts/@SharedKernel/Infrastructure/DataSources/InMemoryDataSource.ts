@@ -1,4 +1,4 @@
-import { DataSource } from '@Primitives/DataSource';
+import { DataSource } from '@Primitives/Services';
 
 export class InMemoryDataSource<Model> extends DataSource<Model> {
   collection = new Map<string, Model>();

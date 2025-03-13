@@ -1,3 +1,3 @@
-import { ValueObject } from '@Primitives/ValueObject';
+import { ValueObject } from '@Primitives/DDD';
 
 export class UserId extends ValueObject<string> {}

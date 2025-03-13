@@ -1,4 +1,4 @@
-import { Result } from './Result';
+import { Result } from '../Application/Result';
 
 /**
  * Represents a step in a saga with an execution action and compensation action.

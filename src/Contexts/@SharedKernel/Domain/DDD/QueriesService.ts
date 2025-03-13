@@ -18,7 +18,7 @@
  * - Enables clean separation between read and write operations
  */
 
-import { DataSource } from '@Primitives/DataSource';
+import { DataSource } from '@Primitives/Services';
 export abstract class QueriesService<T extends DataSource<unknown> = DataSource<unknown>> {
   abstract dataSource: T;
 }

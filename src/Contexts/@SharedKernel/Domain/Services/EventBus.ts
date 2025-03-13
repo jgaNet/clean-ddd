@@ -114,8 +114,7 @@
  * - Type Safe: Compile-time checking of event handling
  */
 
-import { Event, EventHandler, IOperation } from '@Primitives';
-import { ExecutionContext } from './ExecutionContext';
+import { Event, EventHandler, IOperation, ExecutionContext } from '@Primitives';
 
 export interface EventBus {
   /**

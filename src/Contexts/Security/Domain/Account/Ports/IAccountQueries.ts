@@ -1,4 +1,4 @@
-import { QueriesService } from '@Primitives';
+import { QueriesService } from '@Primitives/DDD';
 import { IAccount } from '../DTOs';
 
 export interface IAccountQueries extends QueriesService {

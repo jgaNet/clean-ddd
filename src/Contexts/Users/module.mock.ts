@@ -10,7 +10,7 @@ import { GetUsersQueryHandler } from '@Contexts/Users/Application/Queries/GetUse
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 import { IUser } from '@Contexts/Users/Domain/User/DTOs';
 
-import { ModuleBuilder } from '@Primitives/Module';
+import { ModuleBuilder } from '@Primitives/Application';
 
 export const inMemoryDataSource = new InMemoryDataSource<IUser>();
 export const mockedUserRepository = new MockedUserRepository(inMemoryDataSource);

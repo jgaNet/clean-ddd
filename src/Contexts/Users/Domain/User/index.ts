@@ -9,3 +9,4 @@ export * from './UserExceptions';
 export * from './UserFactory';
 export * from './UserMapper';
 export * from './UserProfile';
+export * from './UserId';
