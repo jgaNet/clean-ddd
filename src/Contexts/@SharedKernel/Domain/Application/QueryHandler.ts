@@ -66,7 +66,7 @@
 
 import { QueriesService } from '@SharedKernel/Domain/DDD';
 import { DataSource } from '@SharedKernel/Domain/Services';
-import { IResult } from './Result';
+import { IResult, Result } from './Result';
 import { ExecutionContext } from './ExecutionContext';
 
 /**
@@ -111,6 +111,14 @@ export abstract class QueryHandler<T extends QueriesService<DataSource<unknown>>
         });
       }
 
+      // Execute the guard
+      if (context?.auth) {
+        const guardResult = await this.guard(payload, context);
+        if (guardResult.isFailure()) {
+          throw guardResult.error;
+        }
+      }
+
       // Execute the query
       const result = await this.execute(payload, context);
 
@@ -150,4 +158,14 @@ export abstract class QueryHandler<T extends QueriesService<DataSource<unknown>>
    * @returns A promise resolving to the query result
    */
   abstract execute(payload?: P, context?: ExecutionContext): Promise<R>;
+
+  /**
+   * Abstract method to be implemented by concrete query handlers
+   *
+   * @param auth Optional execution context
+   * @returns A promise resolving to the query result
+   */
+  protected async guard(_?: P, __?: ExecutionContext): Promise<IResult> {
+    return Result.ok();
+  }
 }

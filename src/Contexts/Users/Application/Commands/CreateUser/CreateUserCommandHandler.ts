@@ -7,6 +7,8 @@ import { IUserQueries } from '@Contexts/Users/Domain/User/Ports/IUserQueries';
 import { UserCreatedEvent } from '@Contexts/Users/Domain/User/Events/UserCreatedEvent';
 import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser';
 import { IUser } from '@Contexts/Users/Domain/User';
+import { Role } from '@SharedKernel/Domain/AccessControl';
+import { NotAllowedException } from '@SharedKernel/Domain';
 
 export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEvent> {
   #userFactory: UserFactory;
@@ -26,6 +28,13 @@ export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEv
 
     // Otherwise, fall back to the non-transactional approach
     return this.createUser(payload, context);
+  }
+
+  protected async guard(_: never, { auth }: ExecutionContext): Promise<IResult> {
+    if (!auth.role || ![Role.ADMIN].includes(auth.role)) {
+      return Result.fail(new NotAllowedException('Users', 'Forbidden'));
+    }
+    return Result.ok();
   }
 
   private async createUser(

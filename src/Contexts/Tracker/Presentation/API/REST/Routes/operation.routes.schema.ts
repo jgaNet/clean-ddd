@@ -18,7 +18,7 @@ const OperationSchema = {
       type: 'object',
       properties: {
         traceId: { type: 'string' },
-        userId: { type: 'string' },
+        auth: { type: 'object', additionalProperties: true },
         metadata: { type: 'object', additionalProperties: true },
       },
     },

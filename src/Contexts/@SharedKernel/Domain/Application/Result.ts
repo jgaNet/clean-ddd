@@ -97,11 +97,11 @@ export class Result<T = undefined> {
   }
 
   isSuccess(): this is ResultSuccess<T> {
-    return this.data !== undefined;
+    return this instanceof ResultSuccess || this.data !== undefined;
   }
 
   isFailure(): this is ResultError {
-    return this.error !== undefined;
+    return this instanceof ResultError || this.error !== undefined;
   }
 }
 

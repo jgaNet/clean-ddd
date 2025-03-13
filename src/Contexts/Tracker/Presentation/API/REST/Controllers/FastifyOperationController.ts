@@ -11,10 +11,10 @@ export class FastifyOperationController {
     this.#queries = ModuleQueries;
   }
 
-  async getOperations(_: unknown, reply: FastifyReply) {
+  async getOperations(req: FastifyRequest, reply: FastifyReply) {
     try {
       const query = this.#queries.find(q => q.name == GetOperationsHandler.name) as { handler: GetOperationsHandler };
-      const result = await query?.handler.execute();
+      const result = await query?.handler.executeWithContext(undefined, req.executionContext);
 
       if (result.isFailure()) {
         throw result.error;
@@ -30,7 +30,7 @@ export class FastifyOperationController {
   async getOperation(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
     try {
       const query = this.#queries.find(q => q.name == GetOperationHandler.name) as { handler: GetOperationHandler };
-      const result = await query?.handler.execute({ id: req.params.id });
+      const result = await query?.handler.executeWithContext(req.params, req.executionContext);
 
       if (result.isFailure()) {
         throw result.error;

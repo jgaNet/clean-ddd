@@ -65,8 +65,7 @@
  */
 
 import { EventHandler } from './EventHandler';
-import { CommandEvent, IResult, IEvent, IOperation } from '@SharedKernel/Domain';
-import { ExecutionContext } from './ExecutionContext';
+import { CommandEvent, IResult, IEvent, IOperation, Result, ExecutionContext } from '@SharedKernel/Domain';
 
 /**
  * Abstract base class for all command handlers in the application.
@@ -93,7 +92,13 @@ export abstract class CommandHandler<T extends CommandEvent<unknown>> extends Ev
     //   eventBus: operation.context.eventBus,
     //   // Add any other context properties available in operation
     // });
-
+    // Execute the guard
+    if (operation.context.auth) {
+      const guardResult = await this.guard(operation.event, operation.context);
+      if (guardResult.isFailure()) {
+        return operation.failed(guardResult.error);
+      }
+    }
     // Execute with context
     const result = await this.execute(operation.event, operation.context);
 
@@ -102,6 +107,10 @@ export abstract class CommandHandler<T extends CommandEvent<unknown>> extends Ev
     }
 
     return operation.success(result.data);
+  }
+
+  protected async guard(_: IEvent<unknown>, __: ExecutionContext): Promise<IResult<unknown>> {
+    return Result.ok();
   }
 
   /**

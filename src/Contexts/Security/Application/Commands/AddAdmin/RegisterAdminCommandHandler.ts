@@ -1,4 +1,10 @@
-import { CommandHandler, Result, IResult, ExecutionContext } from '@SharedKernel/Domain/Application';
+import {
+  CommandHandler,
+  Result,
+  IResult,
+  ExecutionContext,
+  NotAllowedException,
+} from '@SharedKernel/Domain/Application';
 import { Role } from '@SharedKernel/Domain/AccessControl';
 
 import { Account } from '@Contexts/Security/Domain/Account/Account';
@@ -11,11 +17,14 @@ export class RegisterAdminCommandHandler extends CommandHandler<RegisterAdminCom
     super();
   }
 
-  async execute(command: RegisterAdminCommandEvent, context: ExecutionContext): Promise<IResult<string>> {
+  protected async guard(_: never, context: ExecutionContext): Promise<IResult> {
     if (!context.auth.role || ![Role.ADMIN].includes(context.auth.role)) {
-      return Result.fail(new Error('Forbidden'));
+      return Result.fail(new NotAllowedException('Admin', 'Forbidden'));
     }
+    return Result.ok();
+  }
 
+  async execute(command: RegisterAdminCommandEvent, context: ExecutionContext): Promise<IResult<string>> {
     const { identifier, password } = command.payload;
 
     // Create the Account entity
