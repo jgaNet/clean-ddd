@@ -83,19 +83,14 @@ export class FastifyAuthController {
   async validate(req: FastifyRequest<{ Querystring: { validation_token: string } }>, reply: FastifyReply) {
     const context = req.executionContext;
 
-    const token = this.#securityModule.services.jwtService.verify(req.query.validation_token);
-    if (!token || token.subjectType !== 'validation_token') {
+    const decodedToken = this.#securityModule.services.jwtService.verify(req.query.validation_token);
+    if (!decodedToken) {
       return reply.code(401).send({
         error: new InvalidTokenException('Not allowed', context).message,
       });
     }
 
-    const operation = context.eventBus.publish(
-      ValidateAccountCommandEvent.set({
-        accountId: token?.subjectType,
-      }),
-      context,
-    );
+    const operation = context.eventBus.publish(ValidateAccountCommandEvent.set(decodedToken), context);
 
     return reply.code(200).send({
       operationId: operation.id,

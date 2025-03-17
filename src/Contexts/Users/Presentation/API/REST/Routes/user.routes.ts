@@ -23,6 +23,7 @@ export const userRoutes = function (
     '/',
     {
       schema: {
+        tags: ['users'],
         body: CreateUserReqBodySchema,
         response: CreateUserResSchema,
       },
@@ -34,6 +35,7 @@ export const userRoutes = function (
     '/',
     {
       schema: {
+        tags: ['users'],
         response: GetUsersResSchema,
       },
     },

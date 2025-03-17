@@ -15,7 +15,21 @@ export class JwtService implements IJwtService {
 
   verify(token: string): TokenPayload | null {
     try {
-      return jwt.verify(token, this.config.secret) as TokenPayload;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const decodedToken = jwt.verify(token, this.config.secret) as any;
+
+      if (!decodedToken.subjectType) {
+        throw new Error('Invalid token');
+      }
+
+      if (!decodedToken.subjectId) {
+        throw new Error('Invalid token');
+      }
+
+      return {
+        subjectId: decodedToken.subjectId,
+        subjectType: decodedToken.subjectType,
+      };
     } catch (error) {
       return null;
     }

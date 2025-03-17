@@ -1,6 +1,7 @@
 import { EventHandler, IResult, Result, ExecutionContext } from '@SharedKernel/Domain/Application';
 import { AccountCreatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountCreatedEvent';
 import { IJwtService } from '@Contexts/Security/Domain/Auth/Ports/IJwtService';
+import { TokenTypes } from '@Contexts/Security/Domain/Auth/TokenTypes';
 
 export class AccountCreatedHandler extends EventHandler<AccountCreatedEvent> {
   constructor(private jwtService: IJwtService) {
@@ -12,7 +13,7 @@ export class AccountCreatedHandler extends EventHandler<AccountCreatedEvent> {
 
     const idToken = this.jwtService.sign({
       subjectId: event.payload._id,
-      subjectType: 'validation_token',
+      subjectType: TokenTypes.USER,
     });
 
     context.logger?.debug(`Token ${idToken} created`);

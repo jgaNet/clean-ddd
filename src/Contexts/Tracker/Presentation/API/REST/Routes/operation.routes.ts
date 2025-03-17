@@ -20,6 +20,7 @@ export const operationRoutes = function (
     '/',
     {
       schema: {
+        tags: ['tracker'],
         response: GetOperationsResSchema,
       },
     },
@@ -30,6 +31,7 @@ export const operationRoutes = function (
     '/:id',
     {
       schema: {
+        tags: ['tracker'],
         params: {
           type: 'object',
           properties: {

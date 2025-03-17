@@ -17,7 +17,7 @@ const BasicLoginReqBodySchema = {
 
 export const loginSchema = {
   description: 'Login with credentials to receive an authentication token',
-  tags: ['authentication'],
+  tags: ['security'],
   body: BasicLoginReqBodySchema,
   response: {
     200: {
@@ -58,7 +58,7 @@ const BasicSignupReqBodySchema = {
 
 export const signUpSchema = {
   description: 'SignUp',
-  tags: ['authentication'],
+  tags: ['security'],
   body: BasicSignupReqBodySchema,
   response: {
     200: {
@@ -95,7 +95,7 @@ const ValidateAccountReqBodySchema = {
 
 export const validateAccountSchema = {
   description: 'SignUp',
-  tags: ['authentication'],
+  tags: ['security'],
   query: ValidateAccountReqBodySchema,
   response: {
     200: {

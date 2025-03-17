@@ -2,6 +2,7 @@ import { CommandHandler, Result, IResult, ExecutionContext } from '@SharedKernel
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
 import { ValidateAccountCommandEvent } from './ValidateAccountCommandEvent';
 import { AccountValidatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountValidatedEvent';
+import { TokenTypes } from '@Contexts/Security/Domain/Auth/TokenTypes';
 
 export class ValidateAccountCommandHandler extends CommandHandler<ValidateAccountCommandEvent> {
   constructor(private accountRepository: IAccountRepository) {
@@ -10,10 +11,14 @@ export class ValidateAccountCommandHandler extends CommandHandler<ValidateAccoun
 
   async execute(command: ValidateAccountCommandEvent, context: ExecutionContext): Promise<IResult<string>> {
     try {
-      const { accountId } = command.payload;
+      const { subjectId, subjectType } = command.payload;
+
+      if (subjectType !== TokenTypes.VALIDATION) {
+        return Result.fail('Not a valid token');
+      }
 
       // Save the Account entity
-      const account = await this.accountRepository.findById(accountId);
+      const account = await this.accountRepository.findById(subjectId);
 
       if (!account) {
         return Result.fail('Activation failed');
