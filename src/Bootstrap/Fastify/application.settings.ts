@@ -1,6 +1,6 @@
 export const SETTINGS = {
   name: 'Clean DDD',
-  env: 'production',
+  env: String(process.env.ENV || 'dev'),
   version: '0.0.1',
   protocol: 'http',
   baseUrl: String(process.env.BASE_URL || 'localhost'),
