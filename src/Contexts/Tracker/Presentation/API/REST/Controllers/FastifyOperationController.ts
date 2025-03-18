@@ -11,7 +11,7 @@ export class FastifyOperationController {
     this.#queries = ModuleQueries;
   }
 
-  async getOperations(req: FastifyRequest, reply: FastifyReply) {
+  async getOperations(req: FastifyRequest<{ Querystring: { traceId?: string } }>, reply: FastifyReply) {
     try {
       const query = this.#queries.find(q => q.name == GetOperationsHandler.name) as { handler: GetOperationsHandler };
       const result = await query?.handler.executeWithContext(req.query, req.executionContext);
