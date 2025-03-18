@@ -62,7 +62,7 @@ export class AuthenticationMiddleware {
           return;
         }
 
-        const account = await this.accountQueries.findBySubject(subjectId, subjectType);
+        const account = await this.accountQueries.findById(subjectId);
 
         if (!account || !account.isActive) {
           request.auth = {
@@ -72,10 +72,17 @@ export class AuthenticationMiddleware {
           return;
         }
 
+        if (account?.subjectType !== subjectType) {
+          request.auth = {
+            subjectId: '',
+            role: Role.GUEST,
+          };
+          return;
+        }
         // In a real implementation, you would get the role from a user service or from token claims
         // For now, we'll use a hardcoded role of USER
 
-        if (decodedToken.subjectType && decodedToken.subjectType === 'admin') {
+        if (decodedToken.subjectType && decodedToken.subjectType === Role.ADMIN) {
           request.auth = {
             subjectId: subjectId,
             role: Role.ADMIN,

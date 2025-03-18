@@ -1,6 +1,5 @@
 import { CommandHandler, Result, IResult } from '@SharedKernel/Domain/Application';
 
-import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
 import { LoginCommandEvent } from './LoginCommandEvent';
 import { IJwtService } from '@Contexts/Security/Domain/Auth/Ports/IJwtService';
@@ -8,17 +7,14 @@ import * as bcrypt from 'bcrypt';
 import { InvalidCredentialsException } from '@Contexts/Security/Domain/Auth/Exceptions/InvalidCredentialsException';
 import { InactiveAccountException } from '@Contexts/Security/Domain/Auth/Exceptions/InactiveAccountException';
 import { AccountToken } from '@Contexts/Security/Domain/Account/AccountToken';
+import { isTokenType } from '@Contexts/Security/Domain/Auth/TokenTypes';
 
 interface LoginResult {
   token: string;
 }
 
 export class LoginCommandHandler extends CommandHandler<LoginCommandEvent> {
-  constructor(
-    private accountQueries: IAccountQueries,
-    private accountRepository: IAccountRepository,
-    private jwtService: IJwtService,
-  ) {
+  constructor(private accountRepository: IAccountRepository, private jwtService: IJwtService) {
     super();
   }
 
@@ -27,7 +23,7 @@ export class LoginCommandHandler extends CommandHandler<LoginCommandEvent> {
 
     try {
       // Find the account by identifier (could be email, username, etc.)
-      const account = await this.accountQueries.findByIdentifier(identifier);
+      const account = await this.accountRepository.findByIdentifier(identifier);
 
       if (!account) {
         return Result.fail(new InvalidCredentialsException('Invalid credentials'));
@@ -45,14 +41,14 @@ export class LoginCommandHandler extends CommandHandler<LoginCommandEvent> {
         return Result.fail(new InvalidCredentialsException('Invalid credentials'));
       }
 
-      account.lastAuthenticated = new Date();
+      account.authenticate();
 
       // Save the Account entity
       await this.accountRepository.save(account);
 
       // Generate JWT token using the injected service
       const accountToken = AccountToken.create({
-        subjectId: account.subjectId,
+        subjectId: account._id.value,
         subjectType: account.subjectType,
         issuedAt: new Date(),
         expiresAt: new Date(Date.now() + 60 * 60 * 1000),
@@ -60,6 +56,10 @@ export class LoginCommandHandler extends CommandHandler<LoginCommandEvent> {
 
       if (accountToken.isFailure()) {
         return Result.fail('An error occurred during login');
+      }
+
+      if (!isTokenType(accountToken.data.subjectType)) {
+        return Result.fail('Invalid subject type: ' + accountToken.data.subjectType);
       }
 
       const token = this.jwtService.sign({

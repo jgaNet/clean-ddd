@@ -12,14 +12,24 @@ export class InMemoryAccountRepository implements IAccountRepository {
   }
 
   async save(account: Account): Promise<void> {
-    (this.dataSource as InMemoryDataSource<Account>).collection.set(account._id, account);
+    (this.dataSource as InMemoryDataSource<Account>).collection.set(account._id.value, account);
+  }
+
+  async findByIdentifier(identifier: string): Promise<Account | null> {
+    const accounts = Array.from(this.dataSource.collection.values());
+    const account = accounts.find(
+      account =>
+        account.subjectId === identifier ||
+        (account.credentials.metadata && account.credentials.metadata.email === identifier),
+    );
+    return account || null;
   }
 
   async findById(id: string): Promise<Account | null> {
-    return (this.dataSource as InMemoryDataSource<Account>).collection.get(id) || null;
+    return this.dataSource.collection.get(id) || null;
   }
 
-  async delete(id: string): Promise<void> {
-    (this.dataSource as InMemoryDataSource<Account>).collection.delete(id);
+  async delete(subjectId: string): Promise<void> {
+    (this.dataSource as InMemoryDataSource<Account>).collection.delete(subjectId);
   }
 }

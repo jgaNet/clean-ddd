@@ -51,7 +51,7 @@ export const localSecurityModule = new ModuleBuilder<SecurityModule>(Symbol('Sec
   })
   .setCommand({
     event: LoginCommandEvent,
-    handlers: [new LoginCommandHandler(accountQueries, accountRepository, jwtService)],
+    handlers: [new LoginCommandHandler(accountRepository, jwtService)],
   })
   .setCommand({
     event: ValidateAccountCommandEvent,

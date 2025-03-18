@@ -2,7 +2,7 @@ import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccoun
 import { IAccount } from '@Contexts/Security/Domain/Account/DTOs';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 import { Account } from '@Contexts/Security/Domain/Account/Account';
-import { AccountMapper } from '@Contexts/Security/Domain/Account/AccountMapper';
+import { AccountMapper, accountMapper } from '@Contexts/Security/Domain/Account/AccountMapper';
 
 export class InMemoryAccountQueries implements IAccountQueries {
   dataSource: InMemoryDataSource<Account>;
@@ -10,19 +10,14 @@ export class InMemoryAccountQueries implements IAccountQueries {
 
   constructor(dataSource: InMemoryDataSource<Account>) {
     this.dataSource = dataSource;
-    this.mapper = new AccountMapper();
-  }
-
-  async findBySubject(subjectId: string, subjectType: string): Promise<IAccount | null> {
-    const accounts = Array.from(this.dataSource.collection.values());
-    const account = accounts.find(account => account.subjectId === subjectId && account.subjectType === subjectType);
-    return account ? this.mapper.toJSON(account) : null;
+    this.mapper = accountMapper;
   }
 
   async findByIdentifier(identifier: string): Promise<IAccount | null> {
     // In a real implementation, this would search by email, username or any other identifier
     // In this in-memory implementation, we'll assume the identifier is the subjectId
     const accounts = Array.from(this.dataSource.collection.values());
+
     const account = accounts.find(
       account =>
         account.subjectId === identifier ||

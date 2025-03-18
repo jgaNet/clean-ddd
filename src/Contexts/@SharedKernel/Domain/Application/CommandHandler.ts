@@ -93,6 +93,7 @@ export abstract class CommandHandler<T extends CommandEvent<unknown>> extends Ev
     //   // Add any other context properties available in operation
     // });
     // Execute the guard
+    //
     if (operation.context.auth) {
       const guardResult = await this.guard(operation.event, operation.context);
       if (guardResult.isFailure()) {

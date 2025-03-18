@@ -3,3 +3,7 @@ export enum TokenTypes {
   ADMIN = 'admin',
   VALIDATION = 'validation',
 }
+
+export function isTokenType(value: unknown): value is TokenTypes {
+  return Object.values(TokenTypes).includes(value as TokenTypes);
+}

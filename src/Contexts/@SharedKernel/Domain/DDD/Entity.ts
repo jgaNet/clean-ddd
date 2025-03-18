@@ -21,17 +21,19 @@
  * (e.g., User extends Entity, Product extends Entity).
  */
 
+import { Id } from '../Utils';
+
 export class Entity {
-  readonly #_id: string;
-  constructor(id: string) {
+  readonly #_id: Id;
+  constructor(id: Id) {
     this.#_id = id;
   }
 
-  get _id(): string {
+  get _id(): Id {
     return this.#_id;
   }
 
   equals(entity: Entity): boolean {
-    return this._id === entity._id;
+    return this._id.value === entity._id.value;
   }
 }

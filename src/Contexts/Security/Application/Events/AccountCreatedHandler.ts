@@ -13,10 +13,10 @@ export class AccountCreatedHandler extends EventHandler<AccountCreatedEvent> {
 
     const idToken = this.jwtService.sign({
       subjectId: event.payload._id,
-      subjectType: TokenTypes.USER,
+      subjectType: TokenTypes.VALIDATION,
     });
 
-    context.logger?.debug(`Token ${idToken} created`);
+    context.logger?.debug(`Token ${idToken} created`, { email: event.payload.subjectId });
 
     return Result.ok();
   }

@@ -20,7 +20,7 @@ export class AccountMapper implements Mapper<Account, IAccount> {
 
   toJSON(domain: Account): IAccount {
     return {
-      _id: domain._id,
+      _id: domain._id.value,
       subjectId: domain.subjectId,
       subjectType: domain.subjectType,
       credentials: { ...domain.credentials },
@@ -29,3 +29,5 @@ export class AccountMapper implements Mapper<Account, IAccount> {
     };
   }
 }
+
+export const accountMapper = new AccountMapper();

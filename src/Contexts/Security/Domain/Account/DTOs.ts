@@ -1,7 +1,9 @@
+import { Role } from '@Contexts/@SharedKernel/Domain';
+
 export interface IAccount {
   _id: string;
   subjectId: string; // Can be a user ID or service ID
-  subjectType: string; // Type of subject (user, service, etc.)
+  subjectType: Role; // Type of subject (user, service, etc.)
   credentials: {
     type: string; // Password, key, certificate, etc.
     value: string; // Hashed value
@@ -13,7 +15,7 @@ export interface IAccount {
 
 export interface IAccountToken {
   subjectId: string;
-  subjectType: string;
+  subjectType: Role;
   issuedAt: Date;
   expiresAt: Date;
   metadata?: Record<string, unknown>;

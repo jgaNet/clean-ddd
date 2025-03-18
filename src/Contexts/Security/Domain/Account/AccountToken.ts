@@ -1,20 +1,21 @@
 import { Result, IResult, ValueObject } from '@SharedKernel/Domain';
 import { IAccountToken } from './DTOs';
+import { Role } from '@Contexts/@SharedKernel/Domain';
 
-interface AccountTokenvalue {
+interface AccountTokenValue {
   subjectId: string;
-  subjectType: string;
+  subjectType: Role;
   issuedAt: Date;
   expiresAt: Date;
   metadata?: Record<string, unknown>;
 }
 
-export class AccountToken extends ValueObject<AccountTokenvalue> {
-  private constructor(value: AccountTokenvalue) {
+export class AccountToken extends ValueObject<AccountTokenValue> {
+  private constructor(value: AccountTokenValue) {
     super(value);
   }
 
-  static create(value: AccountTokenvalue): IResult<AccountToken> {
+  static create(value: AccountTokenValue): IResult<AccountToken> {
     const { subjectId, subjectType, issuedAt, expiresAt } = value;
 
     if (!subjectId) {
@@ -44,7 +45,7 @@ export class AccountToken extends ValueObject<AccountTokenvalue> {
     return this.value.subjectId;
   }
 
-  get subjectType(): string {
+  get subjectType(): Role {
     return this.value.subjectType;
   }
 

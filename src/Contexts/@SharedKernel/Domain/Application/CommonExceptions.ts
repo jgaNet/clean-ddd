@@ -32,3 +32,14 @@ export class NotAllowedException extends Exception {
     });
   }
 }
+
+export class InvalidEmailFormat extends Exception {
+  constructor({ service, email }: { service?: string; email: string }) {
+    super({
+      service: service || 'unknown',
+      type: 'InvalidEmailFormat',
+      message: 'Invalid email format',
+      context: { email },
+    });
+  }
+}

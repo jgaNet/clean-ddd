@@ -1,10 +1,15 @@
+import { Email } from '@Contexts/@SharedKernel/Domain/Utils/Email';
 import { Result, IResult } from '@SharedKernel/Domain/Application';
 import { Entity } from '@SharedKernel/Domain/DDD';
 import { v4 as uuidv4 } from 'uuid';
+import { Role, Id } from '@Contexts/@SharedKernel/Domain';
+import { InvalidAccountException } from './AccountExceptions';
+import { InvalidCredentialsException } from '../Auth/Exceptions/InvalidCredentialsException';
+import { InactiveAccountException } from '../Auth/Exceptions/InactiveAccountException';
 
 export class Account extends Entity {
-  #subjectId: string;
-  #subjectType: string;
+  #subjectId: Email;
+  #subjectType: Role;
   #credentials: {
     type: string;
     value: string;
@@ -14,15 +19,15 @@ export class Account extends Entity {
   #isActive: boolean;
 
   private constructor(
-    id: string,
+    id: Id,
     subjectId: string,
-    subjectType: string,
+    subjectType: Role,
     credentials: { type: string; value: string; metadata?: Record<string, unknown> },
     isActive: boolean,
     lastAuthenticated?: Date,
   ) {
     super(id);
-    this.#subjectId = subjectId;
+    this.#subjectId = new Email(subjectId);
     this.#subjectType = subjectType;
     this.#credentials = credentials;
     this.#isActive = isActive;
@@ -31,33 +36,38 @@ export class Account extends Entity {
 
   static create(params: {
     subjectId: string;
-    subjectType: string;
+    subjectType: Role;
     credentials: { type: string; value: string; metadata?: Record<string, unknown> };
     isActive?: boolean;
   }): IResult<Account> {
     const { subjectId, subjectType, credentials, isActive = true } = params;
 
     if (!subjectId) {
-      return Result.fail(new Error('Subject ID is required'));
+      return Result.fail(new InvalidAccountException('Subject ID is required'));
     }
 
     if (!subjectType) {
-      return Result.fail(new Error('Subject type is required'));
+      return Result.fail(new InvalidAccountException('Subject type is required'));
     }
 
     if (!credentials || !credentials.type || !credentials.value) {
-      return Result.fail(new Error('Valid credentials are required'));
+      return Result.fail(new InvalidCredentialsException('Valid credentials are required'));
     }
 
     const id = uuidv4();
-    return Result.ok(new Account(id, subjectId, subjectType, credentials, isActive));
+
+    try {
+      return Result.ok(new Account(new Id(id), subjectId, subjectType, credentials, isActive));
+    } catch (error) {
+      return Result.fail(error);
+    }
   }
 
   get subjectId(): string {
-    return this.#subjectId;
+    return this.#subjectId.value;
   }
 
-  get subjectType(): string {
+  get subjectType(): Role {
     return this.#subjectType;
   }
 
@@ -75,7 +85,7 @@ export class Account extends Entity {
 
   authenticate(): Result<void> {
     if (!this.#isActive) {
-      return Result.fail(new Error('Authentication failed: account is inactive'));
+      return Result.fail(new InactiveAccountException('Authentication failed: account is inactive'));
     }
 
     this.#lastAuthenticated = new Date();
@@ -84,7 +94,7 @@ export class Account extends Entity {
 
   activate(): Result<void> {
     if (this.#isActive) {
-      return Result.fail(new Error('Account is already active'));
+      return Result.fail(new InvalidAccountException('Account is already active'));
     }
 
     this.#isActive = true;
@@ -93,7 +103,7 @@ export class Account extends Entity {
 
   deactivate(): Result<void> {
     if (!this.#isActive) {
-      return Result.fail(new Error('Account is already inactive'));
+      return Result.fail(new InactiveAccountException('Account is already inactive'));
     }
 
     this.#isActive = false;
@@ -102,7 +112,7 @@ export class Account extends Entity {
 
   updateCredentials(credentials: { type: string; value: string; metadata?: Record<string, unknown> }): IResult<void> {
     if (!credentials || !credentials.type || !credentials.value) {
-      return Result.fail(new Error('Valid credentials are required'));
+      return Result.fail(new InvalidCredentialsException('Valid credentials are required'));
     }
 
     this.#credentials = { ...credentials };

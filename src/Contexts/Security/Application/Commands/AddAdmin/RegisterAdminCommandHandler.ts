@@ -49,6 +49,6 @@ export class RegisterAdminCommandHandler extends CommandHandler<RegisterAdminCom
 
     context.eventBus.publish(AccountCreatedEvent.set(account), context);
     // Return the Account ID
-    return Result.ok(account._id);
+    return Result.ok(account._id.value);
   }
 }

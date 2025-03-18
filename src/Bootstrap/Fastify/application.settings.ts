@@ -16,7 +16,7 @@ export const SETTINGS = {
       expiresIn: process.env.JWT_EXPIRES_IN || '24h',
     },
     adminAccount: {
-      identifier: process.env.ADMIN_IDENTIFIER || 'admin',
+      identifier: process.env.ADMIN_IDENTIFIER || 'admin@admin.fr',
       password: process.env.ADMIN_PASSWORD || 'admin',
     },
   },

@@ -3,6 +3,7 @@ import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAcc
 import { ValidateAccountCommandEvent } from './ValidateAccountCommandEvent';
 import { AccountValidatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountValidatedEvent';
 import { TokenTypes } from '@Contexts/Security/Domain/Auth/TokenTypes';
+import { accountMapper } from '@Contexts/Security/Domain/Account/AccountMapper';
 
 export class ValidateAccountCommandHandler extends CommandHandler<ValidateAccountCommandEvent> {
   constructor(private accountRepository: IAccountRepository) {
@@ -26,14 +27,14 @@ export class ValidateAccountCommandHandler extends CommandHandler<ValidateAccoun
 
       account.activate();
 
-      context.logger?.debug(`Account ${account._id} activated`, { account });
+      context.logger?.debug(`Account ${account._id.value} activated`, { account });
       await this.accountRepository.save(account);
 
       // Publish the AccountValidatedEvent
-      context.eventBus.publish(AccountValidatedEvent.set(account), context);
+      context.eventBus.publish(AccountValidatedEvent.set(accountMapper.toJSON(account)), context);
 
       // Return the Account ID
-      return Result.ok(account._id);
+      return Result.ok(account._id.value);
     } catch (error) {
       return Result.fail(error);
     }

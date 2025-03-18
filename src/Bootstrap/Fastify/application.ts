@@ -6,9 +6,9 @@ import Fastify, { FastifyInstance } from 'fastify';
 
 import { homeRoutes } from '@SharedKernel/Presentation/API/REST/Routes';
 import { localTrackerModule } from '@Contexts/Tracker/module.local';
-import { localUsersModule } from '@Contexts/Users/module.local';
+import { localNotesModule } from '@Contexts/Notes/module.local';
 import { localSecurityModule } from '@Contexts/Security/module.local';
-import { userRoutes } from '@Contexts/Users/Presentation/API/REST/Routes';
+import { noteRoutes } from '@Contexts/Notes/Presentation/API/REST/Routes';
 import { operationRoutes } from '@Contexts/Tracker/Presentation/API/REST/Routes';
 import { authRoutes } from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes';
 
@@ -111,7 +111,7 @@ class FastifyApplication extends Application {
 export default await new FastifyApplication()
   .setEventBus(localTrackerModule.services.eventBus)
   .registerModule(localTrackerModule)
-  .registerModule(localUsersModule)
+  .registerModule(localNotesModule)
   .registerModule(localSecurityModule)
   .setupSwagger()
   .registerRoutes('/', homeRoutes, {
@@ -120,8 +120,8 @@ export default await new FastifyApplication()
   .registerRoutes('/tracker/operations', operationRoutes, {
     operationsModule: localTrackerModule,
   })
-  .registerRoutes('/users', userRoutes, {
-    usersModule: localUsersModule,
+  .registerRoutes('/notes', noteRoutes, {
+    notesModule: localNotesModule,
   })
   .registerRoutes('/', authRoutes, {
     securityModule: localSecurityModule,
