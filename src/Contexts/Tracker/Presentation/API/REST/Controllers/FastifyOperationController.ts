@@ -14,7 +14,7 @@ export class FastifyOperationController {
   async getOperations(req: FastifyRequest, reply: FastifyReply) {
     try {
       const query = this.#queries.find(q => q.name == GetOperationsHandler.name) as { handler: GetOperationsHandler };
-      const result = await query?.handler.executeWithContext(undefined, req.executionContext);
+      const result = await query?.handler.executeWithContext(req.query, req.executionContext);
 
       if (result.isFailure()) {
         throw result.error;

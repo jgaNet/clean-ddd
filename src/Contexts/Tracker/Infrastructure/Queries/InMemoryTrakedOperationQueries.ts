@@ -17,4 +17,8 @@ export class InMemoryOperationQueries implements ITrackedOperationQueries {
   async findAll(): Promise<ITrackedOperation[]> {
     return [...this.dataSource.collection.values()];
   }
+
+  async findByTraceId(traceId: string): Promise<ITrackedOperation[]> {
+    return [...this.dataSource.collection.values()].filter(operation => operation.context.traceId === traceId);
+  }
 }

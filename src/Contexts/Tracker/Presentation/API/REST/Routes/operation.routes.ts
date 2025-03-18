@@ -21,6 +21,12 @@ export const operationRoutes = function (
     {
       schema: {
         tags: ['tracker'],
+        querystring: {
+          type: 'object',
+          properties: {
+            traceId: { type: 'string' },
+          },
+        },
         response: GetOperationsResSchema,
       },
     },
