@@ -18,7 +18,7 @@ src/
 │   ├── @SharedKernel/  # Core abstractions (Entity, ValueObject, Module, etc.)
 │   ├── Tracker/        # Operation tracking context
 │   ├── Security/       # Authentication and authorization context
-│   └── Users/          # User management context
+│   └── Notes/          # Note management context
 ```
 
 ## Building Blocks
@@ -31,7 +31,7 @@ class MyCleanApp extends Application {
   constructor() {
     super();
     this.setEventBus(new InMemoryEventEmitter())
-      .registerModule(usersModule)
+      .registerModule(notesModule)
       .registerModule(trackerModule);
   }
 
@@ -51,69 +51,80 @@ app.run();
 
 ```typescript
 // Defining a module with ModuleBuilder
-const usersModule = new ModuleBuilder(Symbol('Users'))
+const notesModule = new ModuleBuilder(Symbol('Notes'))
   .setCommand({
-    event: CreateUserCommand,
-    handlers: [new CreateUserCommandHandler({
-      userRepository,
+    event: CreateNoteCommand,
+    handlers: [new CreateNoteCommandHandler({
+      noteRepository,
       eventBus
     })]
   })
-  .setQuery(new GetUsersQueryHandler({
-    userQueries
+  .setQuery(new GetNotesQueryHandler({
+    noteQueries
   }))
   .setDomainEvent({
-    event: UserCreatedEvent,
-    handlers: [new UserCreatedHandler()]
+    event: NoteCreatedEvent,
+    handlers: [new NoteCreatedHandler()]
   })
   .build();
 
 // Using the module
-const createUserCmd = new CreateUserCommand({
-  email: "user@example.com",
-  profile: { nickname: "johndoe" }
+const createNoteCmd = new CreateNoteCommand({
+  title: "My first note",
+  content: "This is the content of my note"
 });
 
 // Execute command
-const result = await usersModule.getCommand(CreateUserCommand).execute(createUserCmd);
+const result = await notesModule.getCommand(CreateNoteCommand).execute(createNoteCmd);
 ```
 
 ### Domain Model
 
 ```typescript
 // Entity example
-export class User extends Entity {
-  #profile: UserProfile;
+export class Note extends Entity {
+  #title: string;
+  #content: string;
 
-  private constructor(id: UserId, profile: UserProfile) {
-    super(id.value);
-    this.#profile = profile;
+  private constructor(id: string, title: string, content: string) {
+    super(id);
+    this.#title = title;
+    this.#content = content;
   }
 
-  static create(userDto: IUser): IResult<User> {
+  static create(noteDto: INote): IResult<Note> {
     // Domain validation rules
-    return Result.ok(new User(
-      new UserId(userDto._id),
-      new UserProfile(userDto.profile)
+    if (!noteDto.title) {
+      return Result.fail(new InvalidNoteTitleError());
+    }
+    
+    return Result.ok(new Note(
+      noteDto._id,
+      noteDto.title,
+      noteDto.content || ''
     ));
   }
 
-  get profile(): UserProfile {
-    return this.#profile;
+  get title(): string {
+    return this.#title;
+  }
+  
+  get content(): string {
+    return this.#content;
   }
 }
 
 // Value Object example
-export class UserEmail extends ValueObject<string> {
+export class Email extends ValueObject<string> {
   private constructor(email: string) {
     super(email);
   }
 
-  static create(email: string): IResult<UserEmail> {
+  static create(email: string): IResult<Email> {
     if (!email.includes('@')) {
       return Result.fail(new InvalidEmailError(email));
     }
-    return Result.ok(new UserEmail(email));
+    return Result.ok(new Email(email));
   }
 
   get username(): string {
@@ -125,26 +136,30 @@ export class UserEmail extends ValueObject<string> {
 ### Command Handlers
 
 ```typescript
-export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEvent> {
-  #userFactory: UserFactory;
-  #userRepository: IUserRepository;
+export class CreateNoteCommandHandler extends CommandHandler<CreateNoteCommandEvent> {
+  #noteRepository: INoteRepository;
 
-  constructor({ userRepository, userQueries }) {
+  constructor({ noteRepository }) {
     super();
-    this.#userFactory = new UserFactory({ userRepository, userQueries });
-    this.#userRepository = userRepository;
+    this.#noteRepository = noteRepository;
   }
 
-  async execute({ payload }: CreateUserCommandEvent): Promise<IResult<IUser>> {
-    // Create the user through factory
-    const newUser = await this.#userFactory.new(payload);
-    if (newUser.isFailure()) return newUser;
+  async execute({ payload }: CreateNoteCommandEvent): Promise<IResult<INote>> {
+    // Create the note
+    const noteResult = Note.create({
+      _id: await this.#noteRepository.nextIdentity(),
+      title: payload.title,
+      content: payload.content
+    });
+    
+    if (noteResult.isFailure()) return noteResult;
 
-    // Save the user
-    const newUserJSON = UserMapper.toJSON(newUser.data);
-    await this.#userRepository.save(newUserJSON);
+    // Save the note
+    const note = noteResult.data;
+    await this.#noteRepository.save(note);
 
-    return Result.ok(newUserJSON);
+    // Return DTO
+    return Result.ok(NoteMapper.toDTO(note));
   }
 }
 ```
@@ -152,18 +167,18 @@ export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEv
 ### Query Handlers
 
 ```typescript
-export class GetUsersQueryHandler extends QueryHandler<IUserQueries, void, IResult<IUser[]>> {
-  #userQueries: IUserQueries;
+export class GetNotesQueryHandler extends QueryHandler<INoteQueries, void, IResult<INote[]>> {
+  #noteQueries: INoteQueries;
 
-  constructor({ userQueries }: { userQueries: IUserQueries }) {
+  constructor({ noteQueries }: { noteQueries: INoteQueries }) {
     super();
-    this.#userQueries = userQueries;
+    this.#noteQueries = noteQueries;
   }
 
-  async execute(): Promise<ResultValue<IUser[]>> {
+  async execute(): Promise<ResultValue<INote[]>> {
     try {
-      const users = await this.#userQueries.getAll();
-      return Result.ok(users);
+      const notes = await this.#noteQueries.getAll();
+      return Result.ok(notes);
     } catch (e) {
       return Result.fail(e);
     }

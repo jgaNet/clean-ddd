@@ -12,20 +12,26 @@ This guide provides practical improvements to enhance your Clean DDD implementat
 import { Entity } from '@SharedKernel/Domain/DDD/Entity';
 import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
 
-export class User extends Entity {
-  #profile: UserProfile;
+export class Note extends Entity {
+  #title: string;
+  #content: string;
 
-  static create(userDto: IUser): IResult<User> {
-    return Result.ok(new User(new UserId(userDto._id), new UserProfile(userDto.profile)));
+  static create(noteDto: INote): IResult<Note> {
+    return Result.ok(new Note(noteDto._id, noteDto.title, noteDto.content));
   }
 
-  private constructor(_id: UserId, profile: UserProfile) {
-    super(_id.value);
-    this.#profile = profile;
+  private constructor(_id: string, title: string, content: string) {
+    super(_id);
+    this.#title = title;
+    this.#content = content;
   }
 
-  get profile(): UserProfile {
-    return this.#profile;
+  get title(): string {
+    return this.#title;
+  }
+  
+  get content(): string {
+    return this.#content;
   }
 }
 ```
@@ -36,62 +42,61 @@ export class User extends Entity {
 import { Entity } from '@SharedKernel/Domain/DDD/Entity';
 import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
 import { Event as DomainEvent } from '@SharedKernel/Domain/DDD/Event';
-import { UserCreatedEvent } from '@Contexts/Users/Domain/User/Events/UserCreatedEvent';
-import { UserActivatedEvent } from '@Contexts/Users/Domain/User/Events/UserActivatedEvent';
-import { UserLoggedInEvent } from '@Contexts/Users/Domain/User/Events/UserLoggedInEvent';
-import { InvalidUserIdError, UserAlreadyActiveError } from '@Contexts/Users/Domain/User/UserExceptions';
+import { NoteCreatedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteCreatedEvent';
+import { NoteUpdatedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteUpdatedEvent';
+import { InvalidNoteTitleError, EmptyNoteContentError } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 
-export class User extends Entity {
-  #profile: UserProfile;
-  #active: boolean = false;
-  #lastLogin: Date | null = null;
+export class Note extends Entity {
+  #title: string;
+  #content: string;
+  #createdAt: Date;
+  #updatedAt: Date | null = null;
   #domainEvents: DomainEvent[] = [];
 
-  static create(userDto: IUserDTO): IResult<User> {
+  static create(noteDto: INoteDTO): IResult<Note> {
     // Validate inputs
-    if (!userDto._id) {
-      return Result.fail(new InvalidUserIdError('User ID is required'));
+    if (!noteDto.title || noteDto.title.trim().length === 0) {
+      return Result.fail(new InvalidNoteTitleError('Note title is required'));
     }
     
-    // Validate profile
-    const profileResult = UserProfile.create(userDto.profile);
-    if (profileResult.isFailure()) {
-      return Result.fail(profileResult.error);
-    }
-
-    const user = new User(
-      new UserId(userDto._id), 
-      profileResult.data
+    const note = new Note(
+      noteDto._id, 
+      noteDto.title,
+      noteDto.content || '',
+      noteDto.createdAt || new Date()
     );
     
     // Register domain event
-    user.addDomainEvent(new UserCreatedEvent({
-      userId: user.id,
-      email: user.profile.email.value
+    note.addDomainEvent(new NoteCreatedEvent({
+      noteId: note.id,
+      title: note.title
     }));
     
-    return Result.ok(user);
+    return Result.ok(note);
   }
 
-  private constructor(_id: UserId, profile: UserProfile) {
-    super(_id.value);
-    this.#profile = profile;
+  private constructor(_id: string, title: string, content: string, createdAt: Date) {
+    super(_id);
+    this.#title = title;
+    this.#content = content;
+    this.#createdAt = createdAt;
   }
 
   // Business logic methods
-  activate(): IResult<void> {
-    if (this.#active) {
-      return Result.fail(new UserAlreadyActiveError(this.id));
+  updateContent(newContent: string): IResult<void> {
+    if (!newContent || newContent.trim().length === 0) {
+      return Result.fail(new EmptyNoteContentError(this.id));
     }
     
-    this.#active = true;
-    this.addDomainEvent(new UserActivatedEvent({ userId: this.id }));
+    this.#content = newContent;
+    this.#updatedAt = new Date();
+    this.addDomainEvent(new NoteUpdatedEvent({ 
+      noteId: this.id,
+      title: this.#title,
+      content: this.#content
+    }));
+    
     return Result.ok();
-  }
-
-  recordLogin(): void {
-    this.#lastLogin = new Date();
-    this.addDomainEvent(new UserLoggedInEvent({ userId: this.id }));
   }
 
   // Domain event handling
@@ -106,16 +111,20 @@ export class User extends Entity {
   }
 
   // Getters
-  get profile(): UserProfile {
-    return this.#profile;
+  get title(): string {
+    return this.#title;
   }
   
-  get isActive(): boolean {
-    return this.#active;
+  get content(): string {
+    return this.#content;
   }
   
-  get lastLoginDate(): Date | null {
-    return this.#lastLogin;
+  get createdAt(): Date {
+    return this.#createdAt;
+  }
+  
+  get updatedAt(): Date | null {
+    return this.#updatedAt;
   }
 }
 ```
@@ -127,13 +136,9 @@ export class User extends Entity {
 ```typescript
 import { ValueObject } from '@SharedKernel/Domain/DDD/ValueObject';
 
-export class UserProfile extends ValueObject<UserProfileProps> {
-  constructor(userProfileDTO: IUserProfile) {
-    const email = new UserEmail(userProfileDTO.email);
-    super({
-      email,
-      nickname: userProfileDTO.nickname || email.username,
-    });
+export class NoteTitle extends ValueObject<string> {
+  constructor(title: string) {
+    super(title);
   }
 }
 ```
@@ -143,52 +148,30 @@ export class UserProfile extends ValueObject<UserProfileProps> {
 ```typescript
 import { ValueObject } from '@SharedKernel/Domain/DDD/ValueObject';
 import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
-import { InvalidNicknameError } from '@Contexts/Users/Domain/User/UserExceptions';
+import { InvalidNoteTitleError } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 
-interface UserProfileProps {
-  email: UserEmail;
-  nickname: string;
-}
-
-export class UserProfile extends ValueObject<UserProfileProps> {
-  private constructor(props: UserProfileProps) {
-    super(props);
+export class NoteTitle extends ValueObject<string> {
+  private constructor(title: string) {
+    super(title);
   }
   
-  static create(userProfileDTO: IUserProfile): IResult<UserProfile> {
-    // Validate email
-    const emailResult = UserEmail.create(userProfileDTO.email);
-    if (emailResult.isFailure()) {
-      return Result.fail(emailResult.error);
+  static create(title: string): IResult<NoteTitle> {
+    if (!title || title.trim().length === 0) {
+      return Result.fail(new InvalidNoteTitleError('Title cannot be empty'));
     }
     
-    // Validate nickname
-    const nickname = userProfileDTO.nickname || emailResult.data.username;
-    if (nickname.length < 2) {
-      return Result.fail(new InvalidNicknameError('Nickname must be at least 2 characters'));
+    if (title.length > 100) {
+      return Result.fail(new InvalidNoteTitleError('Title must be 100 characters or less'));
     }
     
-    return Result.ok(new UserProfile({
-      email: emailResult.data,
-      nickname
-    }));
+    return Result.ok(new NoteTitle(title.trim()));
   }
-
-  // Getters
-  get email(): UserEmail {
-    return this.value.email;
-  }
-
-  get nickname(): string {
-    return this.value.nickname;
-  }
-
-  // DTO conversion
-  toDTO(): IUserProfile {
-    return {
-      email: this.value.email.value,
-      nickname: this.value.nickname
-    };
+  
+  // Add domain-specific methods
+  get abbreviated(): string {
+    return this.value.length > 25 
+      ? `${this.value.substring(0, 22)}...` 
+      : this.value;
   }
 }
 ```
@@ -200,29 +183,32 @@ export class UserProfile extends ValueObject<UserProfileProps> {
 ```typescript
 import { CommandHandler } from '@SharedKernel/Domain/Application/CommandHandler';
 import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
-import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser/CreateUserCommandEvent';
-import { UserCreatedEvent } from '@Contexts/Users/Domain/User/Events/UserCreatedEvent';
+import { CreateNoteCommandEvent } from '@Contexts/Notes/Application/Commands/CreateNote/CreateNoteCommandEvent';
+import { NoteCreatedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteCreatedEvent';
 
-export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEvent> {
-  #userFactory: UserFactory;
-  #userRepository: IUserRepository;
+export class CreateNoteCommandHandler extends CommandHandler<CreateNoteCommandEvent> {
+  #noteRepository: INoteRepository;
   
-  constructor({ userRepository }: { userRepository: IUserRepository }) {
+  constructor({ noteRepository }: { noteRepository: INoteRepository }) {
     super();
-    this.#userRepository = userRepository;
-    this.#userFactory = new UserFactory();
+    this.#noteRepository = noteRepository;
   }
   
-  async execute({ payload }: CreateUserCommandEvent, eventBus: EventBus): Promise<IResult<IUser>> {
+  async execute({ payload }: CreateNoteCommandEvent, eventBus: EventBus): Promise<IResult<INote>> {
     try {
-      const newUser = await this.#userFactory.new(payload);
-      if (newUser.isFailure()) throw newUser;
+      const note = Note.create({
+        _id: await this.#noteRepository.nextIdentity(),
+        title: payload.title,
+        content: payload.content
+      });
+      
+      if (note.isFailure()) throw note;
 
-      const newUserJSON = UserMapper.toJSON(newUser.data);
-      await this.#userRepository.save(newUserJSON);
-      eventBus.dispatch(new UserCreatedEvent(newUserJSON));
+      const noteDTO = NoteMapper.toDTO(note.data);
+      await this.#noteRepository.save(noteDTO);
+      eventBus.dispatch(new NoteCreatedEvent(noteDTO));
 
-      return Result.ok(newUserJSON);
+      return Result.ok(noteDTO);
     } catch (e) {
       return Result.fail(e);
     }
@@ -236,50 +222,48 @@ export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEv
 import { CommandHandler } from '@SharedKernel/Domain/Application/CommandHandler';
 import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
 import { EventBus } from '@SharedKernel/Domain/Services/EventBus';
-import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser/CreateUserCommandEvent';
-import { IUserRepository } from '@Contexts/Users/Domain/User/Ports/IUserRepository';
-import { UserMapper } from '@Contexts/Users/Domain/User/UserMapper';
+import { CreateNoteCommandEvent } from '@Contexts/Notes/Application/Commands/CreateNote/CreateNoteCommandEvent';
+import { INoteRepository } from '@Contexts/Notes/Domain/Note/Ports/INoteRepository';
+import { NoteMapper } from '@Contexts/Notes/Domain/Note/NoteMapper';
 import { UnitOfWork } from '@SharedKernel/Infrastructure/UnitOfWork';
 
-export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEvent> {
-  #userRepository: IUserRepository;
+export class CreateNoteCommandHandler extends CommandHandler<CreateNoteCommandEvent> {
+  #noteRepository: INoteRepository;
   #unitOfWork: UnitOfWork;
   
   constructor({
-    userRepository,
+    noteRepository,
     unitOfWork
   }: {
-    userRepository: IUserRepository;
+    noteRepository: INoteRepository;
     unitOfWork: UnitOfWork;
   }) {
     super();
-    this.#userRepository = userRepository;
+    this.#noteRepository = noteRepository;
     this.#unitOfWork = unitOfWork;
   }
 
-  async execute({ payload }: CreateUserCommandEvent, eventBus: EventBus): Promise<IResult<IUser>> {
+  async execute({ payload }: CreateNoteCommandEvent, eventBus: EventBus): Promise<IResult<INote>> {
     // Run in transaction
     return this.#unitOfWork.runInTransaction(async () => {
       // 1. Create domain entity with validation
-      const userResult = User.create({
-        _id: await this.#userRepository.nextIdentity(),
-        profile: {
-          email: payload.email,
-          nickname: payload.nickname
-        }
+      const noteResult = Note.create({
+        _id: await this.#noteRepository.nextIdentity(),
+        title: payload.title,
+        content: payload.content
       });
       
-      if (userResult.isFailure()) {
-        return Result.fail(userResult.error);
+      if (noteResult.isFailure()) {
+        return Result.fail(noteResult.error);
       }
       
-      const user = userResult.data;
+      const note = noteResult.data;
       
       // 2. Save entity (domain events will be dispatched by repository)
-      await this.#userRepository.save(user);
+      await this.#noteRepository.save(note);
       
       // 3. Return DTO for client
-      return Result.ok(UserMapper.toDTO(user));
+      return Result.ok(NoteMapper.toDTO(note));
     });
   }
 }
@@ -290,14 +274,14 @@ export class CreateUserCommandHandler extends CommandHandler<CreateUserCommandEv
 **CURRENT:** Simple data access with DTO passing
 
 ```typescript
-import { IUserRepository } from '@Contexts/Users/Domain/User/Ports/IUserRepository';
-import { IUser } from '@Contexts/Users/Domain/User/DTOs';
+import { INoteRepository } from '@Contexts/Notes/Domain/Note/Ports/INoteRepository';
+import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 
-export class InMemoryUserRepository implements IUserRepository {
-  dataSource: InMemoryDataSource<IUser>;
+export class InMemoryNoteRepository implements INoteRepository {
+  dataSource: InMemoryDataSource<INote>;
 
-  constructor(dataSource: InMemoryDataSource<IUser>) {
+  constructor(dataSource: InMemoryDataSource<INote>) {
     this.dataSource = dataSource;
   }
 
@@ -305,8 +289,8 @@ export class InMemoryUserRepository implements IUserRepository {
     return uuidv4();
   }
 
-  async save(user: IUser) {
-    this.dataSource.collection.set(user._id, user);
+  async save(note: INote) {
+    this.dataSource.collection.set(note._id, note);
   }
 }
 ```
@@ -317,19 +301,19 @@ export class InMemoryUserRepository implements IUserRepository {
 import { Repository } from '@SharedKernel/Domain/DDD/Repository';
 import { Nullable } from '@SharedKernel/Domain/Utils/Nullable';
 import { EventBus } from '@SharedKernel/Domain/Services/EventBus';
-import { IUserRepository } from '@Contexts/Users/Domain/User/Ports/IUserRepository';
-import { User } from '@Contexts/Users/Domain/User/User';
-import { IUser } from '@Contexts/Users/Domain/User/DTOs';
-import { UserMapper } from '@Contexts/Users/Domain/User/UserMapper';
+import { INoteRepository } from '@Contexts/Notes/Domain/Note/Ports/INoteRepository';
+import { Note } from '@Contexts/Notes/Domain/Note/Note';
+import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
+import { NoteMapper } from '@Contexts/Notes/Domain/Note/NoteMapper';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 import { v4 as uuidv4 } from 'uuid';
 
-export class InMemoryUserRepository implements IUserRepository {
-  dataSource: InMemoryDataSource<IUser>;
+export class InMemoryNoteRepository implements INoteRepository {
+  dataSource: InMemoryDataSource<INote>;
   #eventBus: EventBus;
 
   constructor(
-    dataSource: InMemoryDataSource<IUser>,
+    dataSource: InMemoryDataSource<INote>,
     eventBus: EventBus
   ) {
     this.dataSource = dataSource;
@@ -340,26 +324,26 @@ export class InMemoryUserRepository implements IUserRepository {
     return uuidv4();
   }
 
-  async save(user: User): Promise<void> {
+  async save(note: Note): Promise<void> {
     // Convert domain entity to DTO
-    const userDto = UserMapper.toDTO(user);
+    const noteDto = NoteMapper.toDTO(note);
     
     // Store DTO in data source
-    this.dataSource.collection.set(userDto._id, userDto);
+    this.dataSource.collection.set(noteDto._id, noteDto);
     
     // Dispatch domain events
-    const domainEvents = user.pullDomainEvents();
+    const domainEvents = note.pullDomainEvents();
     for (const event of domainEvents) {
       await this.#eventBus.dispatch(event);
     }
   }
 
-  async findById(id: string): Promise<Nullable<User>> {
-    const userDto = this.dataSource.collection.get(id);
-    if (!userDto) return null;
+  async findById(id: string): Promise<Nullable<Note>> {
+    const noteDto = this.dataSource.collection.get(id);
+    if (!noteDto) return null;
     
-    const userResult = User.create(userDto);
-    return userResult.isSuccess() ? userResult.data : null;
+    const noteResult = Note.create(noteDto);
+    return noteResult.isSuccess() ? noteResult.data : null;
   }
 }
 ```
@@ -369,18 +353,18 @@ export class InMemoryUserRepository implements IUserRepository {
 **CURRENT:** Basic queries service implementation
 
 ```typescript
-import { IUserQueries } from '@Contexts/Users/Domain/User/Ports/IUserQueries';
-import { IUser } from '@Contexts/Users/Domain/User/DTOs';
+import { INoteQueries } from '@Contexts/Notes/Domain/Note/Ports/INoteQueries';
+import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 
-export class InMemoryUserQueries implements IUserQueries {
-  dataSource: InMemoryDataSource<IUser>;
+export class InMemoryNoteQueries implements INoteQueries {
+  dataSource: InMemoryDataSource<INote>;
 
-  constructor(dataSource: InMemoryDataSource<IUser>) {
+  constructor(dataSource: InMemoryDataSource<INote>) {
     this.dataSource = dataSource;
   }
 
-  async findAll(): Promise<IUser[]> {
+  async findAll(): Promise<INote[]> {
     return Array.from(this.dataSource.collection.values());
   }
 }
@@ -390,31 +374,32 @@ export class InMemoryUserQueries implements IUserQueries {
 
 ```typescript
 import { QueriesService } from '@SharedKernel/Domain/DDD/QueriesService';
-import { IUserQueries } from '@Contexts/Users/Domain/User/Ports/IUserQueries';
-import { IUser } from '@Contexts/Users/Domain/User/DTOs';
+import { INoteQueries } from '@Contexts/Notes/Domain/Note/Ports/INoteQueries';
+import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 
 interface FindAllOptions {
   limit?: number;
   offset?: number;
   filters?: {
-    isActive?: boolean;
-    email?: string;
+    titleContains?: string;
+    contentContains?: string;
+    createdAfter?: Date;
   };
   sort?: {
-    field: keyof IUser['profile'];
+    field: 'title' | 'createdAt' | 'updatedAt';
     direction: 'asc' | 'desc';
   };
 }
 
-export class InMemoryUserQueries implements IUserQueries {
-  dataSource: InMemoryDataSource<IUser>;
+export class InMemoryNoteQueries implements INoteQueries {
+  dataSource: InMemoryDataSource<INote>;
 
-  constructor(dataSource: InMemoryDataSource<IUser>) {
+  constructor(dataSource: InMemoryDataSource<INote>) {
     this.dataSource = dataSource;
   }
 
-  async findAll(options: FindAllOptions = {}): Promise<IUser[]> {
+  async findAll(options: FindAllOptions = {}): Promise<INote[]> {
     const {
       limit = 100,
       offset = 0,
@@ -422,24 +407,38 @@ export class InMemoryUserQueries implements IUserQueries {
       sort
     } = options;
 
-    let users = Array.from(this.dataSource.collection.values());
+    let notes = Array.from(this.dataSource.collection.values());
     
     // Apply filters
-    if (filters.isActive !== undefined) {
-      users = users.filter(user => user.isActive === filters.isActive);
+    if (filters.titleContains) {
+      notes = notes.filter(note => 
+        note.title.toLowerCase().includes(filters.titleContains!.toLowerCase())
+      );
     }
     
-    if (filters.email) {
-      users = users.filter(user => 
-        user.profile.email.toLowerCase().includes(filters.email!.toLowerCase())
+    if (filters.contentContains) {
+      notes = notes.filter(note => 
+        note.content.toLowerCase().includes(filters.contentContains!.toLowerCase())
+      );
+    }
+    
+    if (filters.createdAfter) {
+      notes = notes.filter(note => 
+        new Date(note.createdAt) > filters.createdAfter!
       );
     }
     
     // Apply sorting
     if (sort) {
-      users.sort((a, b) => {
-        const aValue = a.profile[sort.field];
-        const bValue = b.profile[sort.field];
+      notes.sort((a, b) => {
+        let aValue = a[sort.field];
+        let bValue = b[sort.field];
+        
+        // Handle dates
+        if (sort.field === 'createdAt' || sort.field === 'updatedAt') {
+          aValue = new Date(aValue).getTime();
+          bValue = new Date(bValue).getTime();
+        }
         
         if (sort.direction === 'asc') {
           return aValue > bValue ? 1 : -1;
@@ -450,10 +449,10 @@ export class InMemoryUserQueries implements IUserQueries {
     }
     
     // Apply pagination
-    return users.slice(offset, offset + limit);
+    return notes.slice(offset, offset + limit);
   }
   
-  async findById(id: string): Promise<IUser | null> {
+  async findById(id: string): Promise<INote | null> {
     return this.dataSource.collection.get(id) || null;
   }
   
@@ -462,8 +461,8 @@ export class InMemoryUserQueries implements IUserQueries {
     
     // Apply filters to count
     if (Object.keys(filters).length > 0) {
-      const filteredUsers = await this.findAll({ filters });
-      count = filteredUsers.length;
+      const filteredNotes = await this.findAll({ filters });
+      count = filteredNotes.length;
     }
     
     return count;
@@ -478,10 +477,10 @@ export class InMemoryUserQueries implements IUserQueries {
 ```typescript
 import { EventHandler } from '@SharedKernel/Domain/Application/EventHandler';
 import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
-import { UserCreatedEvent } from '@Contexts/Users/Domain/User/Events/UserCreatedEvent';
+import { NoteCreatedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteCreatedEvent';
 
-export class UserCreatedHandler extends EventHandler<UserCreatedEvent> {
-  async execute(event: UserCreatedEvent): Promise<IResult<void>> {
+export class NoteCreatedHandler extends EventHandler<NoteCreatedEvent> {
+  async execute(event: NoteCreatedEvent): Promise<IResult<void>> {
     console.log(event.payload);
     return Result.ok();
   }
@@ -493,11 +492,11 @@ export class UserCreatedHandler extends EventHandler<UserCreatedEvent> {
 ```typescript
 import { EventHandler } from '@SharedKernel/Domain/Application/EventHandler';
 import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
-import { UserCreatedEvent } from '@Contexts/Users/Domain/User/Events/UserCreatedEvent';
+import { NoteCreatedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteCreatedEvent';
 import { INotificationService } from '@SharedKernel/Domain/Ports/INotificationService';
 import { ILogger } from '@SharedKernel/Domain/Ports/ILogger';
 
-export class UserCreatedHandler extends EventHandler<UserCreatedEvent> {
+export class NoteCreatedHandler extends EventHandler<NoteCreatedEvent> {
   #notificationService: INotificationService;
   #logger: ILogger;
 
@@ -513,23 +512,23 @@ export class UserCreatedHandler extends EventHandler<UserCreatedEvent> {
     this.#logger = logger;
   }
 
-  async execute(event: UserCreatedEvent): Promise<IResult<void>> {
+  async execute(event: NoteCreatedEvent): Promise<IResult<void>> {
     try {
       // Log the event
-      this.#logger.info('User created', { 
-        userId: event.payload.userId,
-        email: event.payload.email
+      this.#logger.info('Note created', { 
+        noteId: event.payload.noteId,
+        title: event.payload.title
       });
       
-      // Send welcome email
-      await this.#notificationService.sendWelcomeEmail({
-        to: event.payload.email,
-        userId: event.payload.userId
+      // Send notification
+      await this.#notificationService.sendNotification({
+        subject: 'New Note Created',
+        message: `A new note titled "${event.payload.title}" was created`
       });
       
       return Result.ok();
     } catch (error) {
-      this.#logger.error('Failed to process UserCreatedEvent', error);
+      this.#logger.error('Failed to process NoteCreatedEvent', error);
       return Result.fail(error);
     }
   }
@@ -542,15 +541,15 @@ export class UserCreatedHandler extends EventHandler<UserCreatedEvent> {
 
 ```typescript
 import { ModuleBuilder } from '@SharedKernel/Domain/Application/Module';
-import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser/CreateUserCommandEvent';
-import { GetUsersQueryHandler } from '@Contexts/Users/Application/Queries/GetUsers/GetUsersQueryHandler';
+import { CreateNoteCommandEvent } from '@Contexts/Notes/Application/Commands/CreateNote/CreateNoteCommandEvent';
+import { GetNotesQueryHandler } from '@Contexts/Notes/Application/Queries/GetNotes/GetNotesQueryHandler';
 
-export const usersModule = new ModuleBuilder(Symbol('Users'))
+export const notesModule = new ModuleBuilder(Symbol('Notes'))
   .setCommand({
-    event: CreateUserCommandEvent,
-    handlers: [createUserCommandHandler]
+    event: CreateNoteCommandEvent,
+    handlers: [createNoteCommandHandler]
   })
-  .setQuery(getUsersQueryHandler)
+  .setQuery(getNotesQueryHandler)
   .build();
 ```
 
@@ -558,67 +557,54 @@ export const usersModule = new ModuleBuilder(Symbol('Users'))
 
 ```typescript
 import { ModuleBuilder } from '@SharedKernel/Domain/Application/Module';
-import { CreateUserCommandEvent } from '@Contexts/Users/Application/Commands/CreateUser/CreateUserCommandEvent';
-import { CreateUserCommandHandler } from '@Contexts/Users/Application/Commands/CreateUser/CreateUserCommandHandler';
-import { GetUsersQueryHandler } from '@Contexts/Users/Application/Queries/GetUsers/GetUsersQueryHandler';
-import { UserCreatedEvent } from '@Contexts/Users/Domain/User/Events/UserCreatedEvent';
-import { UserCreatedHandler } from '@Contexts/Users/Application/Events/UserCreatedHandler';
-import { UserActivatedEvent } from '@Contexts/Users/Domain/User/Events/UserActivatedEvent';
-import { UpdateUserStatusHandler } from '@Contexts/Users/Application/Events/UpdateUserStatusHandler';
-import { InMemoryUserRepository } from '@Contexts/Users/Infrastructure/Repositories/InMemoryUserRepository';
-import { InMemoryUserQueries } from '@Contexts/Users/Infrastructure/Queries/InMemoryUserQueries';
+import { CreateNoteCommandEvent } from '@Contexts/Notes/Application/Commands/CreateNote/CreateNoteCommandEvent';
+import { CreateNoteCommandHandler } from '@Contexts/Notes/Application/Commands/CreateNote/CreateNoteCommandHandler';
+import { GetNotesQueryHandler } from '@Contexts/Notes/Application/Queries/GetNotes/GetNotesQueryHandler';
+import { NoteCreatedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteCreatedEvent';
+import { NoteCreatedHandler } from '@Contexts/Notes/Application/Events/NoteCreatedHandler';
+import { InMemoryNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository';
+import { InMemoryNoteQueries } from '@Contexts/Notes/Infrastructure/Queries/InMemoryNoteQueries';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
-import { EmailNotificationService } from '@SharedKernel/Infrastructure/Notifications/EmailNotificationService';
-import { InMemoryUnitOfWork } from '@SharedKernel/Infrastructure/Persistence/InMemoryUnitOfWork';
-import { UserMapper } from '@Contexts/Users/Domain/User/UserMapper';
+import { NotificationService } from '@SharedKernel/Infrastructure/Notifications/NotificationService';
+import { InMemoryUnitOfWork } from '@SharedKernel/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
 
 // Create shared infrastructure
-const userDataSource = new InMemoryDataSource<IUser>();
+const noteDataSource = new InMemoryDataSource<INote>();
 const logger = new ConsoleLogger();
 const eventBus = new InMemoryEventBus();
 const unitOfWork = new InMemoryUnitOfWork();
-const notificationService = new EmailNotificationService();
+const notificationService = new NotificationService();
 
 // Create repositories and queries
-const userRepository = new InMemoryUserRepository(userDataSource, eventBus);
-const userQueries = new InMemoryUserQueries(userDataSource);
+const noteRepository = new InMemoryNoteRepository(noteDataSource, eventBus);
+const noteQueries = new InMemoryNoteQueries(noteDataSource);
 
 // Build module with proper dependency injection
-export const usersModule = new ModuleBuilder<UsersModule>(Symbol('users'))
+export const notesModule = new ModuleBuilder<NotesModule>(Symbol('notes'))
   // Commands
   .setCommand({
-    event: CreateUserCommandEvent,
+    event: CreateNoteCommandEvent,
     handlers: [
-      new CreateUserCommandHandler({
-        userRepository,
+      new CreateNoteCommandHandler({
+        noteRepository,
         unitOfWork
       })
     ]
   })
   // Queries
   .setQuery({
-    name: 'getUsers',
-    handler: new GetUsersQueryHandler({
-      userQueries
+    name: 'getNotes',
+    handler: new GetNotesQueryHandler({
+      noteQueries
     })
   })
   // Domain Events
   .setDomainEvent({
-    event: UserCreatedEvent,
+    event: NoteCreatedEvent,
     handlers: [
-      new UserCreatedHandler({
+      new NoteCreatedHandler({
         notificationService,
-        logger
-      })
-    ]
-  })
-  // Integration Events
-  .setIntegrationEvent({
-    event: UserActivatedEvent,
-    handlers: [
-      new UpdateUserStatusHandler({
-        userRepository,
         logger
       })
     ]
@@ -632,54 +618,51 @@ export const usersModule = new ModuleBuilder<UsersModule>(Symbol('users'))
 
 ```typescript
 import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
-import { IAuthProvider } from '@SharedKernel/Domain/Ports/IAuthProvider';
-import { UserIdentity, UserRole } from '@Contexts/Users/Domain/User/UserIdentity';
-import { AuthenticationFailedError } from '@SharedKernel/Domain/Errors/AuthenticationErrors';
+import { IStorageProvider } from '@SharedKernel/Domain/Ports/IStorageProvider';
+import { NoteAttachment } from '@Contexts/Notes/Domain/Note/NoteAttachment';
+import { StorageError } from '@SharedKernel/Domain/Errors/StorageErrors';
 
 // External system client (from a third-party library)
-interface KeycloakClient {
-  verifyToken(token: string): Promise<{
-    sub: string;
-    email: string;
-    realm_access: {
-      roles: string[];
-    };
+interface S3Client {
+  uploadFile(params: {
+    Bucket: string;
+    Key: string;
+    Body: Buffer;
+    ContentType: string;
+  }): Promise<{
+    Location: string;
+    ETag: string;
+    VersionId?: string;
   }>;
 }
 
 // Adapter to protect our domain from external system details
-export class KeycloakAuthAdapter implements IAuthProvider {
-  #keycloakClient: KeycloakClient;
+export class S3StorageAdapter implements IStorageProvider {
+  #s3Client: S3Client;
+  #bucketName: string;
   
-  constructor(keycloakClient: KeycloakClient) {
-    this.#keycloakClient = keycloakClient;
+  constructor(s3Client: S3Client, bucketName: string) {
+    this.#s3Client = s3Client;
+    this.#bucketName = bucketName;
   }
 
-  async verifyToken(token: string): Promise<IResult<UserIdentity>> {
+  async saveAttachment(attachment: NoteAttachment): Promise<IResult<string>> {
     try {
-      // Translate between external system and our domain
-      const keycloakUser = await this.#keycloakClient.verifyToken(token);
-      
-      // Map external concepts to domain concepts
-      return Result.ok({
-        id: keycloakUser.sub,
-        email: keycloakUser.email,
-        roles: keycloakUser.realm_access.roles.map(this.mapExternalRoleToDomainRole)
+      // Translate between domain concepts and external system
+      const uploadResult = await this.#s3Client.uploadFile({
+        Bucket: this.#bucketName,
+        Key: `notes/${attachment.noteId}/${attachment.filename}`,
+        Body: attachment.content,
+        ContentType: attachment.mimeType
       });
+      
+      // Return only what the domain needs
+      return Result.ok(uploadResult.Location);
     } catch (error) {
-      return Result.fail(new AuthenticationFailedError(
-        error instanceof Error ? error.message : 'Unknown authentication error'
+      return Result.fail(new StorageError(
+        error instanceof Error ? error.message : 'Unknown storage error'
       ));
     }
-  }
-  
-  private mapExternalRoleToDomainRole(externalRole: string): UserRole {
-    const roleMap: Record<string, UserRole> = {
-      'realm-admin': UserRole.ADMIN,
-      'user': UserRole.USER
-    };
-    
-    return roleMap[externalRole] || UserRole.GUEST;
   }
 }
 ```
@@ -692,6 +675,6 @@ The improvements shown in this guide follow SOLID principles:
 2. **Open/Closed Principle**: Code is open for extension but closed for modification (using abstract base classes and interfaces)
 3. **Liskov Substitution Principle**: Different implementations of interfaces can be substituted (InMemoryRepository can be replaced with MongoRepository)
 4. **Interface Segregation Principle**: Clients only depend on interfaces they use (Repository vs. QueriesService)
-5. **Dependency Inversion Principle**: High-level modules depend on abstractions (CommandHandlers depend on IUserRepository, not concrete implementations)
+5. **Dependency Inversion Principle**: High-level modules depend on abstractions (CommandHandlers depend on INoteRepository, not concrete implementations)
 
 Implement these patterns incrementally as your application grows to achieve a cleaner, more maintainable codebase.

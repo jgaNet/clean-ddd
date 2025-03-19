@@ -18,7 +18,7 @@ This is a Clean Architecture & Domain-Driven Design implementation with CQRS pat
 
 ### Core Structure
 - `src/Bootstrap`: Application startup with Fastify configuration
-- `src/Contexts`: Bounded contexts (Users, Tracker, Security)
+- `src/Contexts`: Bounded contexts (Notes, Tracker, Security)
 - `src/Contexts/@SharedKernel/Domain`: Base abstractions (Entity, ValueObject, Application, Module)
 
 ### Implementation Pattern
@@ -62,7 +62,7 @@ Domain Layer → Application Layer → Infrastructure Layer → Presentation Lay
 - **Naming**:
   - PascalCase: classes, interfaces, types
   - camelCase: variables, methods, properties
-  - Interface prefix: "I" (IUserRepository)
+  - Interface prefix: "I" (INoteRepository)
   - Specific suffixes: Handler, Event, Repository, etc.
 - **Clean Code**:
   - Remove all unused variables and arguments
@@ -85,8 +85,8 @@ Domain Layer → Application Layer → Infrastructure Layer → Presentation Lay
   - Example: `import { Entity } from '@SharedKernel/Domain/DDD/Entity';`
   - Example: `import { Result } from '@SharedKernel/Domain/Application/Result';`
   - NEVER use relative paths (../../) - always use path aliases
-  - Bad: `import { User } from '../../Domain/User/User';`
-  - Good: `import { User } from '@Contexts/Users/Domain/User/User';`
+  - Bad: `import { Note } from '../../Domain/Note/Note';`
+  - Good: `import { Note } from '@Contexts/Notes/Domain/Note/Note';`
 - **Commits**: Follow conventional commit format (feat:, fix:, refactor:)
 
 ## Testing Approach
@@ -102,31 +102,35 @@ Domain Layer → Application Layer → Infrastructure Layer → Presentation Lay
 
 ```typescript
 // Domain entity with business logic
-export class User extends Entity {
-  #email: UserEmail;
+export class Note extends Entity {
+  #title: string;
+  #content: string;
   #active: boolean;
 
-  private constructor(id: string, email: UserEmail, active: boolean) {
+  private constructor(id: string, title: string, content: string, active: boolean) {
     super(id);
-    this.#email = email;
+    this.#title = title;
+    this.#content = content;
     this.#active = active;
   }
 
-  static create(email: string): ResultValue<User> {
-    const emailResult = UserEmail.create(email);
-    if (emailResult.isFailure()) return Result.fail(emailResult.error);
+  static create(noteDto: INoteDTO): ResultValue<Note> {
+    if (!noteDto.title) {
+      return Result.fail(new InvalidNoteTitleError());
+    }
     
     const id = uuidv4();
-    return Result.ok(new User(id, emailResult.data, false));
+    return Result.ok(new Note(id, noteDto.title, noteDto.content || '', false));
   }
 
   activate(): ResultValue<void> {
-    if (this.#active) return Result.fail(new UserAlreadyActiveError());
+    if (this.#active) return Result.fail(new NoteAlreadyActiveError());
     this.#active = true;
     return Result.ok();
   }
 
-  get email(): UserEmail { return this.#email; }
+  get title(): string { return this.#title; }
+  get content(): string { return this.#content; }
   get isActive(): boolean { return this.#active; }
 }
 ```
@@ -134,23 +138,26 @@ export class User extends Entity {
 ### Command Handler
 
 ```typescript
-export class CreateUserCommandHandler extends CommandHandler<CreateUserCommand> {
-  constructor(private userRepository: IUserRepository) {
+export class CreateNoteCommandHandler extends CommandHandler<CreateNoteCommand> {
+  constructor(private noteRepository: INoteRepository) {
     super();
   }
 
-  async execute(command: CreateUserCommand): Promise<ResultValue<string>> {
+  async execute(command: CreateNoteCommand): Promise<ResultValue<string>> {
     // Create domain entity
-    const userResult = User.create(command.payload.email);
-    if (userResult.isFailure()) return Result.fail(userResult.error);
+    const noteResult = Note.create({
+      title: command.payload.title,
+      content: command.payload.content
+    });
+    if (noteResult.isFailure()) return Result.fail(noteResult.error);
     
-    const user = userResult.data;
+    const note = noteResult.data;
     
     // Save entity
-    await this.userRepository.save(user);
+    await this.noteRepository.save(note);
     
     // Return ID
-    return Result.ok(user.id);
+    return Result.ok(note.id);
   }
 }
 ```
@@ -159,15 +166,15 @@ export class CreateUserCommandHandler extends CommandHandler<CreateUserCommand> 
 
 ```typescript
 // Building and registering modules
-const usersModule = new ModuleBuilder(Symbol('Users'))
+const notesModule = new ModuleBuilder(Symbol('Notes'))
   .setCommand({
-    event: CreateUserCommand,
-    handlers: [new CreateUserCommandHandler(userRepository)]
+    event: CreateNoteCommand,
+    handlers: [new CreateNoteCommandHandler(noteRepository)]
   })
-  .setQuery(new GetUsersQueryHandler(userQueries))
+  .setQuery(new GetNotesQueryHandler(noteQueries))
   .setDomainEvent({
-    event: UserCreatedEvent,
-    handlers: [new UserCreatedHandler()]
+    event: NoteCreatedEvent,
+    handlers: [new NoteCreatedHandler()]
   })
   .build();
 ```
