@@ -1,8 +1,9 @@
 import { TokenTypes } from '@Contexts/Security/Domain/Auth/TokenTypes';
+import { Role } from '@Contexts/@SharedKernel/Domain';
 
 export interface TokenPayload {
   subjectId: string;
-  subjectType: TokenTypes;
+  subjectType: TokenTypes | Role;
 }
 
 export interface IJwtService {

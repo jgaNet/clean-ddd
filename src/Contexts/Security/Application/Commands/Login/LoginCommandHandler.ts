@@ -8,6 +8,7 @@ import { InvalidCredentialsException } from '@Contexts/Security/Domain/Auth/Exce
 import { InactiveAccountException } from '@Contexts/Security/Domain/Auth/Exceptions/InactiveAccountException';
 import { AccountToken } from '@Contexts/Security/Domain/Account/AccountToken';
 import { isTokenType } from '@Contexts/Security/Domain/Auth/TokenTypes';
+import { isRole } from '@Contexts/@SharedKernel/Domain';
 
 interface LoginResult {
   token: string;
@@ -58,7 +59,7 @@ export class LoginCommandHandler extends CommandHandler<LoginCommandEvent> {
         return Result.fail('An error occurred during login');
       }
 
-      if (!isTokenType(accountToken.data.subjectType)) {
+      if (!isTokenType(accountToken.data.subjectType) && !isRole(accountToken.data.subjectType)) {
         return Result.fail('Invalid subject type: ' + accountToken.data.subjectType);
       }
 

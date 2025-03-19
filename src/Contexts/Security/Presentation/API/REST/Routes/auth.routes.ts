@@ -2,7 +2,14 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { FastifyAuthController } from '../Controllers/AuthController';
 import { SecurityModule } from '@Contexts/Security/Application';
 
-import { loginSchema, signUpSchema, validateAccountSchema } from './auth.routes.schema';
+import {
+  getAccountByIdSchema,
+  loginSchema,
+  meSchema,
+  signUpSchema,
+  validateAccountSchema,
+  validateAccountByIdSchema,
+} from './auth.routes.schema';
 
 export const authRoutes = function (
   fastify: FastifyInstance,
@@ -14,12 +21,21 @@ export const authRoutes = function (
   });
 
   fastify.post('/auth/login', { schema: loginSchema }, authController.login.bind(authController));
-  fastify.post('/auth/account/signup', { schema: signUpSchema }, authController.signUp.bind(authController));
-  fastify.post(
-    '/auth/account/validate',
-    { schema: validateAccountSchema },
-    authController.validate.bind(authController),
+  fastify.post('/auth/signup', { schema: signUpSchema }, authController.signUp.bind(authController));
+  fastify.post('/auth/validate', { schema: validateAccountSchema }, authController.validate.bind(authController));
+
+  fastify.get(
+    '/auth/accounts/:id',
+    { schema: getAccountByIdSchema },
+    authController.getAccountById.bind(authController),
   );
+
+  fastify.post(
+    '/auth/accounts/:id/validate',
+    { schema: validateAccountByIdSchema },
+    authController.validateAccountById.bind(authController),
+  );
+  fastify.get('/auth/accounts/me', { schema: meSchema }, authController.me.bind(authController));
 
   done();
 };

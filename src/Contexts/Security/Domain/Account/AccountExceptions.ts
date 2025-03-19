@@ -9,3 +9,14 @@ export class InvalidAccountException extends Exception {
     });
   }
 }
+
+export class ActivationFailedException extends Exception {
+  constructor(message: string, context?: unknown) {
+    super({
+      service: 'Security',
+      type: 'Account Activation Failed',
+      message,
+      context,
+    });
+  }
+}

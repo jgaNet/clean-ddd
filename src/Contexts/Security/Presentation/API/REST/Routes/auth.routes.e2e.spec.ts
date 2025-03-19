@@ -30,9 +30,9 @@ describe('SignUp', () => {
     adminAgent = superagent.agent().set('authorization', `Bearer ${res.body.token}`);
   });
 
-  it('should return 200 with a failed operation', async () => {
+  it('should fail if account already exists', async () => {
     const res = await superagent
-      .post(`${baseUrl}/auth/account/signup`)
+      .post(`${baseUrl}/auth/signup`)
       .send({ identifier: 'admin@admin.fr', password: 'admin' });
     expect(res.status).toBe(200);
     expect(res.body.operationId).toEqual(expect.any(String));
@@ -41,14 +41,42 @@ describe('SignUp', () => {
     expect(adminCheckRes.body.status).toBe('ERROR');
   });
 
-  it('should return 200 with a successful operation', async () => {
-    const res = await superagent
-      .post(`${baseUrl}/auth/account/signup`)
-      .send({ identifier: 'user@user.fr', password: 'user' });
+  it('should success with account validation', async () => {
+    const res = await superagent.post(`${baseUrl}/auth/signup`).send({ identifier: 'user@user.fr', password: 'user' });
     expect(res.status).toBe(200);
     expect(res.body.operationId).toEqual(expect.any(String));
 
-    const adminCheckRes = await adminAgent.get(`${baseUrl}/tracker/operations/${res.body.operationId}`);
-    expect(adminCheckRes.body.status).toBe('SUCCESS');
+    const adminCheckOpsRes = await adminAgent.get(`${baseUrl}/tracker/operations/${res.body.operationId}`);
+    expect(adminCheckOpsRes.body.status).toBe('SUCCESS');
+
+    const adminCheckAccountRes = await adminAgent.get(`${baseUrl}/auth/accounts/${adminCheckOpsRes.body.result.data}`);
+
+    expect(adminCheckAccountRes.body).toEqual({
+      _id: expect.any(String),
+      subjectId: 'user@user.fr',
+      subjectType: 'user',
+      isActive: false,
+      credentials: {
+        type: 'password',
+        value: expect.any(String),
+      },
+    });
+
+    await adminAgent.post(`${baseUrl}/auth/accounts/${adminCheckOpsRes.body.result.data}/validate`);
+
+    const adminCheckValidatedAccountRes = await adminAgent.get(
+      `${baseUrl}/auth/accounts/${adminCheckOpsRes.body.result.data}`,
+    );
+
+    expect(adminCheckValidatedAccountRes.body).toEqual({
+      _id: expect.any(String),
+      subjectId: 'user@user.fr',
+      subjectType: 'user',
+      isActive: true,
+      credentials: {
+        type: 'password',
+        value: expect.any(String),
+      },
+    });
   });
 });
