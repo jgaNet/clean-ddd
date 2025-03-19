@@ -31,7 +31,7 @@ export class CreateNoteCommandHandler extends CommandHandler<CreateNoteCommandEv
   }
 
   protected async guard(_: never, { auth }: ExecutionContext): Promise<IResult> {
-    if (!auth.role || ![Role.ADMIN].includes(auth.role)) {
+    if (!auth.role || ![Role.ADMIN, Role.USER].includes(auth.role)) {
       return Result.fail(new NotAllowedException('Notes', 'Forbidden'));
     }
     return Result.ok();

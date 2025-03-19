@@ -22,12 +22,7 @@ export const CreateNoteResSchema = {
     description: 'Accepted',
     type: 'object',
     properties: {
-      currentOperation: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' },
-        },
-      },
+      operationId: { type: 'string' },
     },
   },
 } as const;

@@ -33,7 +33,7 @@ export class FastifyNoteController {
 
       reply.code(202);
       return {
-        currentOperation: operation,
+        operationId: operation.id,
       };
     } catch (e) {
       // Log the error using the context
