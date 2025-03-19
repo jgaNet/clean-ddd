@@ -8,9 +8,11 @@ import { homeRoutes } from '@SharedKernel/Presentation/API/REST/Routes';
 import { localTrackerModule } from '@Contexts/Tracker/module.local';
 import { localNotesModule } from '@Contexts/Notes/module.local';
 import { localSecurityModule } from '@Contexts/Security/module.local';
+import { localNotificationsModule } from '@Contexts/Notifications/module.local';
 import { noteRoutes } from '@Contexts/Notes/Presentation/API/REST/Routes';
 import { operationRoutes } from '@Contexts/Tracker/Presentation/API/REST/Routes';
 import { authRoutes } from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes';
+import { notificationRoutes } from '@Contexts/Notifications/Presentation/API/REST/Routes';
 
 import { swaggerDescriptor } from './application.swagger';
 
@@ -113,6 +115,7 @@ export default await new FastifyApplication()
   .registerModule(localTrackerModule)
   .registerModule(localNotesModule)
   .registerModule(localSecurityModule)
+  .registerModule(localNotificationsModule)
   .setupSwagger()
   .registerRoutes('/', homeRoutes, {
     settings: SETTINGS,
@@ -125,6 +128,9 @@ export default await new FastifyApplication()
   })
   .registerRoutes('/', authRoutes, {
     securityModule: localSecurityModule,
+  })
+  .registerRoutes('/notifications', notificationRoutes, {
+    notificationsModule: localNotificationsModule,
   })
   .seed()
   .run();

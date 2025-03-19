@@ -62,7 +62,7 @@ describe('SignUp', () => {
       },
     });
 
-    await adminAgent.post(`${baseUrl}/auth/accounts/${adminCheckOpsRes.body.result.data}/validate`);
+    await adminAgent.get(`${baseUrl}/auth/accounts/${adminCheckOpsRes.body.result.data}/validate`);
 
     const adminCheckValidatedAccountRes = await adminAgent.get(
       `${baseUrl}/auth/accounts/${adminCheckOpsRes.body.result.data}`,

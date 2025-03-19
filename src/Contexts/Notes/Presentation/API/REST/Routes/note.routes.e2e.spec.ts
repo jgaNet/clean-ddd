@@ -24,8 +24,6 @@ describe('POST notes/', () => {
 
     expect(res.body.currentOperation).toEqual({
       id: expect.any(String),
-      createdAt: expect.any(String),
-      status: 'PENDING',
     });
   });
 

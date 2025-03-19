@@ -21,7 +21,7 @@ export class ValidateAccountCommandHandler extends CommandHandler<ValidateAccoun
   async execute(command: ValidateAccountCommandEvent, context: ExecutionContext): Promise<IResult<string>> {
     try {
       const { subjectId } = command.payload;
-      context.logger?.info(`Validating account ${subjectId}`);
+      context.logger?.info(`Validating account ${subjectId}`, { traceId: context.traceId });
 
       // Save the Account entity
       const account = await this.accountRepository.findById(subjectId);
@@ -32,7 +32,7 @@ export class ValidateAccountCommandHandler extends CommandHandler<ValidateAccoun
 
       account.activate();
 
-      context.logger?.debug(`Account ${account._id.value} activated`);
+      context.logger?.debug(`Account ${account._id.value} activated`, { traceId: context.traceId });
       await this.accountRepository.save(account);
 
       // Publish the AccountValidatedEvent

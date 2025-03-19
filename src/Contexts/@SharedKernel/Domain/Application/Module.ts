@@ -232,6 +232,11 @@ export class Module<
         await eventBus.subscribe(sub.event.name, handler);
       }
     }
+    for (const sub of this.integrationEvents) {
+      for (const handler of sub.handlers) {
+        await eventBus.subscribe(sub.event.name, handler);
+      }
+    }
   }
 
   getCommand(event: typeof CommandEvent<unknown>): EventHandler<CommandEvent<unknown>> {

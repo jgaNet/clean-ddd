@@ -33,7 +33,7 @@ const accountDataSource = new InMemoryDataSource<Account>();
 
 // Create repositories and queries
 const accountRepository = new InMemoryAccountRepository(accountDataSource);
-const accountQueries = new InMemoryAccountQueries(accountDataSource);
+export const accountQueries = new InMemoryAccountQueries(accountDataSource);
 
 // Create services with injected configuration
 const jwtService = new JwtService({

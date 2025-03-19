@@ -1,0 +1,128 @@
+import { Entity } from '@SharedKernel/Domain/DDD/Entity';
+import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
+import { Id } from '@Contexts/@SharedKernel/Domain';
+
+export enum NotificationType {
+  EMAIL = 'EMAIL',
+  PUSH = 'PUSH',
+  SMS = 'SMS',
+  IN_APP = 'IN_APP',
+}
+
+export enum NotificationStatus {
+  PENDING = 'PENDING',
+  SENT = 'SENT',
+  FAILED = 'FAILED',
+  READ = 'READ',
+}
+
+export class Notification extends Entity {
+  #recipientId: string;
+  #type: NotificationType;
+  #title: string;
+  #content: string;
+  #status: NotificationStatus;
+  #createdAt: Date;
+  #sentAt: Date | null = null;
+  #readAt: Date | null = null;
+  #metadata: Record<string, unknown> = {};
+
+  private constructor(
+    id: Id,
+    recipientId: string,
+    type: NotificationType,
+    title: string,
+    content: string,
+    status: NotificationStatus,
+    createdAt: Date,
+    metadata: Record<string, unknown> = {},
+  ) {
+    super(id);
+    this.#recipientId = recipientId;
+    this.#type = type;
+    this.#title = title;
+    this.#content = content;
+    this.#status = status;
+    this.#createdAt = createdAt;
+    this.#metadata = metadata;
+  }
+
+  static create(props: {
+    id: string;
+    recipientId: string;
+    type: NotificationType;
+    title: string;
+    content: string;
+    metadata?: Record<string, unknown>;
+  }): IResult<Notification> {
+    if (!props.title?.trim()) {
+      return Result.fail(new Error('Notification title is required'));
+    }
+
+    if (!props.content?.trim()) {
+      return Result.fail(new Error('Notification content is required'));
+    }
+
+    if (!props.recipientId) {
+      return Result.fail(new Error('Recipient ID is required'));
+    }
+
+    const notification = new Notification(
+      new Id(props.id),
+      props.recipientId,
+      props.type,
+      props.title,
+      props.content,
+      NotificationStatus.PENDING,
+      new Date(),
+      props.metadata || {},
+    );
+
+    return Result.ok(notification);
+  }
+
+  markAsSent(): void {
+    this.#status = NotificationStatus.SENT;
+    this.#sentAt = new Date();
+  }
+
+  markAsFailed(): void {
+    this.#status = NotificationStatus.FAILED;
+  }
+
+  markAsRead(): void {
+    if (this.#status === NotificationStatus.SENT) {
+      this.#status = NotificationStatus.READ;
+      this.#readAt = new Date();
+    }
+  }
+
+  // Getters
+  get recipientId(): string {
+    return this.#recipientId;
+  }
+  get type(): NotificationType {
+    return this.#type;
+  }
+  get title(): string {
+    return this.#title;
+  }
+  get content(): string {
+    return this.#content;
+  }
+  get status(): NotificationStatus {
+    return this.#status;
+  }
+  get createdAt(): Date {
+    return this.#createdAt;
+  }
+  get sentAt(): Date | null {
+    return this.#sentAt;
+  }
+  get readAt(): Date | null {
+    return this.#readAt;
+  }
+  get metadata(): Record<string, unknown> {
+    return { ...this.#metadata };
+  }
+}

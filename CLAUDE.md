@@ -18,13 +18,20 @@ This is a Clean Architecture & Domain-Driven Design implementation with CQRS pat
 
 ### Core Structure
 - `src/Bootstrap`: Application startup with Fastify configuration
-- `src/Contexts`: Bounded contexts (Notes, Tracker, Security)
+- `src/Contexts`: Bounded contexts (Notes, Tracker, Security, Notifications)
 - `src/Contexts/@SharedKernel/Domain`: Base abstractions (Entity, ValueObject, Application, Module)
+- `src/Contexts/@SharedKernel/Application/IntegrationEvents`: Cross-context communication events
 
 ### Implementation Pattern
 
 ```
 Domain Layer → Application Layer → Infrastructure Layer → Presentation Layer
+```
+
+### Context Communication Pattern
+
+```
+Context A Domain Event → Integration Event → Context B Event Handler
 ```
 
 ## Creating New Features
@@ -40,6 +47,7 @@ Domain Layer → Application Layer → Infrastructure Layer → Presentation Lay
    - Command Handlers (write operations)
    - Query Handlers (read operations)
    - Event Handlers (reactions to events)
+   - Integration Event Handlers (for cross-context communication)
    - DTOs (for input/output)
 
 3. **Implement Infrastructure** in `Context/Infrastructure` directory:
@@ -55,6 +63,10 @@ Domain Layer → Application Layer → Infrastructure Layer → Presentation Lay
 
 5. **Register in Module** for wiring everything together:
    - Use ModuleBuilder to register handlers and services
+   - Register commands with `.setCommand()`
+   - Register queries with `.setQuery()`
+   - Register domain events with `.setDomainEvent()`
+   - Register integration events with `.setIntegrationEvent()`
 
 ## Code Style
 
@@ -191,3 +203,135 @@ const notesModule = new ModuleBuilder(Symbol('Notes'))
   - Repositories handle write operations and retrieval by ID (persistence)
   - Queries handle read operations (data retrieval/filtering)
   - This enforces the CQRS pattern and separation of concerns
+
+## Cross-Context Communication
+
+- **Integration Events**: Use integration events in the SharedKernel for communication between bounded contexts
+- **EventBus Publishing**:
+  ```typescript
+  // In a domain event handler, publish integration event using eventBus from context
+  const integrationEvent = new AccountCreatedIntegrationEvent({ 
+    payload: {
+      accountId: event.payload._id,
+      email: event.payload.subjectId,
+      validationToken: idToken
+    }
+  });
+  await context.eventBus.publish(integrationEvent, context);
+  ```
+- **Integration Event Handling**:
+  ```typescript
+  // In a module builder, register integration event handler
+  .setIntegrationEvent({
+    event: AccountCreatedIntegrationEvent,
+    handlers: [new AccountCreatedIntegrationEventHandler(eventBus)]
+  })
+  ```
+
+## ExecutionContext Pattern
+
+- **Purpose**: Carries request context through all layers of the application
+- **Contains**:
+  - `auth`: Authentication information (user ID, role)
+  - `logger`: For consistent logging across handlers
+  - `eventBus`: For publishing events
+  - `unitOfWork`: For transaction management
+
+- **Command Handler Implementation**:
+  ```typescript
+  async execute(commandEvent: CommandEvent, context: ExecutionContext): Promise<IResult<string>> {
+    try {
+      // Log the operation
+      context.logger?.info(`Processing command ${commandEvent.name}`);
+      
+      // Business logic
+      const entity = await this.repository.findById(commandEvent.payload.id);
+      entity.changeState();
+      
+      // Save changes
+      await this.repository.save(entity);
+      
+      // Publish domain event using context.eventBus
+      await context.eventBus.publish(new EntityChangedEvent({
+        payload: { 
+          id: entity.id,
+          // other data
+        }
+      }), context);
+      
+      return Result.ok(entity.id);
+    } catch (error) {
+      // Log errors
+      context.logger?.error(`Error processing command: ${error.message}`);
+      return Result.fail(error);
+    }
+  }
+  ```
+
+- **Event Creation Pattern**:
+  - Always create events with payload wrapped in an object:
+  ```typescript
+  // Correct way to create events
+  const event = new DomainEvent({ 
+    payload: { 
+      id: "123", 
+      someData: "value" 
+    } 
+  });
+  
+  // Incorrect way (will cause type errors)
+  const event = new DomainEvent({ 
+    id: "123", 
+    someData: "value" 
+  });
+  ```
+
+- **Controller to CommandHandler Flow**:
+  ```typescript
+  // In controller
+  const command = new CommandEvent({
+    payload: {
+      // command data
+    }
+  });
+  
+  const result = await this.module
+    .getCommand(CommandEvent)
+    .execute(command, request.executionContext);
+  ```
+
+## Authentication & Authorization
+
+- **Authorization in Command Handlers**: Use guard pattern for authorization
+  ```typescript
+  protected async guard({ payload }: CommandEvent, { auth }: ExecutionContext): Promise<IResult> {
+    // Check if user has appropriate role
+    if (!auth.role || ![Role.ADMIN].includes(auth.role)) {
+      return Result.fail(new NotAllowedException('Resource', 'Error message'));
+    }
+    return Result.ok();
+  }
+  ```
+- **Controllers**: Use getCommand and getQuery methods to retrieve handlers
+  ```typescript
+  // In controller actions
+  const result = await this.module
+    .getCommand(CommandEvent)
+    .execute(command, request.executionContext);
+    
+  // For queries
+  const result = await this.module
+    .getQuery(QueryHandler)
+    .execute(params);
+  ```
+
+## Resource Sharing Between Contexts
+
+- **Export and Import Services**: Share services by exporting from one module and importing into another
+  ```typescript
+  // In context A module
+  export const serviceA = new ServiceA();
+  
+  // In context B module
+  import { serviceA } from '@Contexts/ContextA/module.local';
+  ```

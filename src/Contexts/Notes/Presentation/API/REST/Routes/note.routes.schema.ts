@@ -1,4 +1,3 @@
-import { OperationStatus } from '@SharedKernel/Domain';
 import { FromSchema } from 'json-schema-to-ts';
 
 export const CreateNoteReqBodySchema = {
@@ -27,9 +26,6 @@ export const CreateNoteResSchema = {
         type: 'object',
         properties: {
           id: { type: 'string' },
-          status: { type: 'string', enum: Object.values(OperationStatus) },
-          createdAt: { type: 'string' },
-          finishedAt: { type: 'string' },
         },
       },
     },

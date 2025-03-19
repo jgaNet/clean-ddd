@@ -3,9 +3,9 @@ import { NoteCreatedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteCreated
 
 export class NoteCreatedHandler extends EventHandler<NoteCreatedEvent> {
   async execute(event: NoteCreatedEvent, context: ExecutionContext): Promise<IResult> {
-    if (context.logger) {
-      context.logger.debug(`Note ${event.payload._id} created`);
-    }
+    context.logger?.debug(`Note ${event.payload._id} created`, {
+      traceId: context.traceId,
+    });
 
     return Result.ok();
   }

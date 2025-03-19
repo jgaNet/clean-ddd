@@ -31,11 +31,6 @@ export class FastifyNoteController {
         context,
       );
 
-      // Log the operation ID
-      context.logger?.info('Operation created', {
-        operationId: operation.id,
-      });
-
       reply.code(202);
       return {
         currentOperation: operation,
