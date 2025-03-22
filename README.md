@@ -18,8 +18,65 @@ src/
 │   ├── @SharedKernel/  # Core abstractions (Entity, ValueObject, Module, etc.)
 │   ├── Tracker/        # Operation tracking context
 │   ├── Security/       # Authentication and authorization context
+│   ├── Notifications/  # Notification management context
 │   └── Notes/          # Note management context
 ```
+
+## Bounded Context Relationships
+
+The following diagram illustrates how the various bounded contexts interact:
+
+```mermaid
+graph TD
+    %% Class definitions
+    classDef contextClass fill:#f9f9f9,stroke:#333,stroke-width:2px
+    classDef kernelClass fill:#e9e9e9,stroke:#333,stroke-dasharray:5
+    classDef conformistClass stroke:#773,stroke-width:3px
+    classDef upstreamClass stroke:#377,stroke-width:3px
+    
+    %% Bounded Contexts
+    Security["Security Context<br>(Account, Authentication)"]
+    Notes["Notes Context<br>(Note Creation/Management)"]
+    Notifications["Notifications Context<br>(User Notifications)"]
+    Tracker["Tracker Context<br>(Operation Tracking)"]
+    SharedKernel["Shared Kernel<br>(Common Abstractions, Integration Events)"]
+    
+    %% Apply styles
+    class Security contextClass,upstreamClass
+    class Notes contextClass
+    class Notifications contextClass,conformistClass
+    class Tracker contextClass
+    class SharedKernel kernelClass
+    
+    %% Relationships with payload information
+    Security -->|"AccountCreatedIntegrationEvent<br>{accountId, email, validationToken}"| Notifications
+    Security -->|"AccountValidatedIntegrationEvent<br>{accountId, email}"| Notifications
+    
+    %% Shared Kernel Relationships
+    SharedKernel -.->|"provides base classes"| Security
+    SharedKernel -.->|"provides base classes"| Notes
+    SharedKernel -.->|"provides base classes"| Notifications
+    SharedKernel -.->|"provides base classes"| Tracker
+    
+    %% Tracker tracking events
+    Security -.->|"tracks operations"| Tracker
+    Notes -.->|"tracks operations"| Tracker
+    Notifications -.->|"tracks operations"| Tracker
+    
+    %% Legend
+    subgraph Legend
+        L1["→ Integration Event Flow"]
+        L2["-.-> Base Class Usage"]
+        L3["Blue Border: Upstream Context"]
+        L4["Orange Border: Conformist Context"]
+    end
+```
+
+### Key Relationships
+
+- **Security → Notifications**: Security context publishes integration events with complete payloads that Notifications context consumes
+- **Shared Kernel → All Contexts**: Provides base abstractions and shared utilities
+- **All Contexts → Tracker**: Operations from any context can be tracked
 
 ## Building Blocks
 
