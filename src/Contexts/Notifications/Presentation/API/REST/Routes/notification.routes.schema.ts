@@ -5,7 +5,7 @@ export const notificationSchema = {
       type: 'object',
       required: ['recipientId'],
       properties: {
-        recipientId: { type: 'string' },
+        recipientId: { type: 'string', format: 'uuid' },
       },
     },
     querystring: {
@@ -25,8 +25,8 @@ export const notificationSchema = {
             items: {
               type: 'object',
               properties: {
-                id: { type: 'string' },
-                recipientId: { type: 'string' },
+                id: { type: 'string', format: 'uuid' },
+                recipientId: { type: 'string', format: 'uuid' },
                 type: { type: 'string' },
                 title: { type: 'string' },
                 content: { type: 'string' },
@@ -63,7 +63,7 @@ export const notificationSchema = {
       type: 'object',
       required: ['id'],
       properties: {
-        id: { type: 'string' },
+        id: { type: 'string', format: 'uuid' },
       },
     },
     response: {
@@ -88,7 +88,7 @@ export const notificationSchema = {
       type: 'object',
       required: ['recipientId', 'type', 'title', 'content'],
       properties: {
-        recipientId: { type: 'string' },
+        recipientId: { type: 'string', format: 'uuid' },
         type: {
           type: 'string',
           enum: ['EMAIL', 'PUSH', 'SMS', 'IN_APP'],

@@ -24,7 +24,7 @@ export const operationRoutes = function (
         querystring: {
           type: 'object',
           properties: {
-            traceId: { type: 'string' },
+            traceId: { type: 'string', format: 'uuid' },
           },
         },
         response: GetOperationsResSchema,
@@ -41,7 +41,7 @@ export const operationRoutes = function (
         params: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
+            id: { type: 'string', format: 'uuid' },
           },
         },
         response: GetOperationResSchema,

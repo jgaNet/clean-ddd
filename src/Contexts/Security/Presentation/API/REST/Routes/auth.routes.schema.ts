@@ -1,3 +1,4 @@
+import { Role } from '@Contexts/@SharedKernel/Domain';
 import { FromSchema } from 'json-schema-to-ts';
 
 const BasicLoginReqBodySchema = {
@@ -6,7 +7,8 @@ const BasicLoginReqBodySchema = {
   properties: {
     identifier: {
       type: 'string',
-      description: 'User identifier (email, username, etc.)',
+      format: 'email',
+      description: 'User identifier (email)',
     },
     password: {
       type: 'string',
@@ -47,7 +49,8 @@ const BasicSignupReqBodySchema = {
   properties: {
     identifier: {
       type: 'string',
-      description: 'User identifier (email, username, etc.)',
+      format: 'email',
+      description: 'User identifier (email)',
     },
     password: {
       type: 'string',
@@ -64,7 +67,7 @@ export const signUpSchema = {
     200: {
       type: 'object',
       properties: {
-        operationId: { type: 'string' },
+        operationId: { type: 'string', format: 'uuid' },
       },
     },
     401: {
@@ -94,14 +97,14 @@ const ValidateAccountReqBodySchema = {
 } as const;
 
 export const validateAccountSchema = {
-  description: 'SignUp',
+  description: 'Validate an account with token',
   tags: ['security'],
   query: ValidateAccountReqBodySchema,
   response: {
     200: {
       type: 'object',
       properties: {
-        operationId: { type: 'string' },
+        operationId: { type: 'string', format: 'uuid' },
       },
     },
     401: {
@@ -120,7 +123,7 @@ export const validateAccountSchema = {
 };
 
 export const validateAccountByIdSchema = {
-  description: 'Validate account',
+  description: 'Validate account with ID (available only for admins)',
   tags: ['security'],
   params: {
     type: 'object',
@@ -132,7 +135,7 @@ export const validateAccountByIdSchema = {
     200: {
       type: 'object',
       properties: {
-        operationId: { type: 'string' },
+        operationId: { type: 'string', format: 'uuid' },
       },
     },
     401: {
@@ -153,9 +156,9 @@ export const validateAccountByIdSchema = {
 export const AccountSchema = {
   type: 'object',
   properties: {
-    _id: { type: 'string' },
-    subjectId: { type: 'string' },
-    subjectType: { type: 'string' },
+    _id: { type: 'string', format: 'uuid' },
+    subjectId: { type: 'string', format: 'email' },
+    subjectType: { type: 'string', enum: Object.values(Role) },
     credentials: { type: 'object', properties: { type: { type: 'string' }, value: { type: 'string' } } },
     lastAuthenticated: { type: 'string' },
     isActive: { type: 'boolean' },
@@ -188,7 +191,7 @@ export const getAccountByIdSchema = {
   params: {
     type: 'object',
     properties: {
-      id: { type: 'string' },
+      id: { type: 'string', format: 'uuid' },
     },
   },
   response: {

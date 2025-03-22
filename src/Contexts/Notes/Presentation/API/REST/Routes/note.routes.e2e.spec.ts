@@ -22,9 +22,7 @@ describe('POST notes/', () => {
     const res = await agent.post(`${baseUrl}/notes`).send({ title: 'title', content: 'content' });
     expect(res.status).toBe(202);
 
-    expect(res.body.currentOperation).toEqual({
-      id: expect.any(String),
-    });
+    expect(res.body.operationId).toEqual(expect.any(String));
   });
 
   it('should return the created note', async () => {

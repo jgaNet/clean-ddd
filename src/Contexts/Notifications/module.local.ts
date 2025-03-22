@@ -19,23 +19,19 @@ import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InM
 import { INotification } from './Domain/Notification/DTOs';
 
 // Import the account queries from Security module
-import { accountQueries } from '@Contexts/Security/module.local';
 import { SETTINGS } from '@Bootstrap/Fastify/application.settings';
 
 // Create shared infrastructure
 const notificationDataSource = new InMemoryDataSource<INotification>();
 
 // Create services
-const emailService = new EmailNotificationService(
-  {
-    smtpHost: process.env.SMTP_HOST || 'localhost',
-    smtpPort: Number(process.env.SMTP_PORT) || 25,
-    smtpUser: process.env.SMTP_USER || '',
-    smtpPass: process.env.SMTP_PASS || '',
-    fromEmail: process.env.FROM_EMAIL || 'noreply@example.com',
-  },
-  accountQueries,
-);
+const emailService = new EmailNotificationService({
+  smtpHost: process.env.SMTP_HOST || 'localhost',
+  smtpPort: Number(process.env.SMTP_PORT) || 25,
+  smtpUser: process.env.SMTP_USER || '',
+  smtpPass: process.env.SMTP_PASS || '',
+  fromEmail: process.env.FROM_EMAIL || 'noreply@example.com',
+});
 
 // Create repositories and queries
 const notificationRepository = new InMemoryNotificationRepository(notificationDataSource);

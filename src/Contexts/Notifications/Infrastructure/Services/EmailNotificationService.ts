@@ -3,7 +3,6 @@ import {
   NotificationRequest,
 } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationService';
 import { NotificationType } from '@Contexts/Notifications/Domain/Notification/Notification';
-import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
 import { ExecutionContext } from '@SharedKernel/Domain/Application/ExecutionContext';
 
 export class EmailNotificationService implements INotificationService {
@@ -15,7 +14,6 @@ export class EmailNotificationService implements INotificationService {
       smtpPass: string;
       fromEmail: string;
     },
-    private accountQueries: IAccountQueries,
   ) {}
 
   async send(notification: NotificationRequest, context: ExecutionContext): Promise<boolean> {
@@ -25,16 +23,7 @@ export class EmailNotificationService implements INotificationService {
 
     try {
       // Get the recipient's email from metadata or from account repository
-      let recipientEmail = notification.metadata?.email;
-
-      if (!recipientEmail) {
-        // If email is not directly provided, look it up from account
-        const account = await this.accountQueries.findById(notification.recipientId);
-        if (!account) {
-          throw new Error(`Account not found with ID: ${notification.recipientId}`);
-        }
-        recipientEmail = account.subjectId;
-      }
+      const recipientEmail = notification.metadata?.email;
 
       if (!recipientEmail) {
         throw new Error('Could not determine recipient email address');
