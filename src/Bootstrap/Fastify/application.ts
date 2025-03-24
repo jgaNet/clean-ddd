@@ -110,7 +110,9 @@ class FastifyApplication extends Application {
   }
 }
 
-export default await new FastifyApplication()
+const app = new FastifyApplication();
+
+export default await app
   .setEventBus(localTrackerModule.services.eventBus)
   .registerModule(localTrackerModule)
   .registerModule(localNotesModule)

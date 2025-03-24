@@ -27,5 +27,9 @@ export const homeRoutes = function (
     },
   );
 
+  fastify.get('/health', _ => {
+    return { status: 'ok', timestamp: new Date().toISOString() };
+  });
+
   done();
 };
