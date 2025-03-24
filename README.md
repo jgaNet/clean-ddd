@@ -22,61 +22,79 @@ src/
 │   └── Notes/          # Note management context
 ```
 
-## Bounded Context Relationships
+## Bounded Context Relationships and Event Flow
 
-The following diagram illustrates how the various bounded contexts interact:
+The following diagram illustrates how the various bounded contexts interact and how events flow through the system:
 
 ```mermaid
 graph TD
-    %% Class definitions
-    classDef contextClass fill:#f9f9f9,stroke:#333,stroke-width:2px
-    classDef kernelClass fill:#e9e9e9,stroke:#333,stroke-dasharray:5
-    classDef conformistClass stroke:#773,stroke-width:3px
-    classDef upstreamClass stroke:#377,stroke-width:3px
-    
-    %% Bounded Contexts
-    Security["Security Context<br>(Account, Authentication)"]
-    Notes["Notes Context<br>(Note Creation/Management)"]
-    Notifications["Notifications Context<br>(User Notifications)"]
-    Tracker["Tracker Context<br>(Operation Tracking)"]
-    SharedKernel["Shared Kernel<br>(Common Abstractions, Integration Events)"]
-    
-    %% Apply styles
-    class Security contextClass,upstreamClass
-    class Notes contextClass
-    class Notifications contextClass,conformistClass
-    class Tracker contextClass
-    class SharedKernel kernelClass
-    
-    %% Relationships with payload information
-    Security -->|"AccountCreatedIntegrationEvent<br>{accountId, email, validationToken}"| Notifications
-    Security -->|"AccountValidatedIntegrationEvent<br>{accountId, email}"| Notifications
-    
-    %% Shared Kernel Relationships
-    SharedKernel -.->|"provides base classes"| Security
-    SharedKernel -.->|"provides base classes"| Notes
-    SharedKernel -.->|"provides base classes"| Notifications
-    SharedKernel -.->|"provides base classes"| Tracker
-    
-    %% Tracker tracking events
-    Security -.->|"tracks operations"| Tracker
-    Notes -.->|"tracks operations"| Tracker
-    Notifications -.->|"tracks operations"| Tracker
-    
-    %% Legend
-    subgraph Legend
-        L1["→ Integration Event Flow"]
-        L2["-.-> Base Class Usage"]
-        L3["Blue Border: Upstream Context"]
-        L4["Orange Border: Conformist Context"]
+    %% Bounded Contexts with internal event flows
+    subgraph SecurityCtx["<b style='font-size:18px;color:#0066cc'>🔵 Security Context</b>"]
+        SC[/"Commands:<br>- SignUpCommand<br>- LoginCommand<br>- ValidateAccountCommand"/] --> SE[/"Domain Events:<br>- AccountCreatedEvent<br>- AccountValidatedEvent"/]
+        SE --> SIE[/"Integration Events:<br>- AccountCreatedIntegrationEvent<br>- AccountValidatedIntegrationEvent"/]
+        
+        style SC fill:#e6f7ff,stroke:#0066cc,stroke-width:1px
+        style SE fill:#e6f7ff,stroke:#0066cc,stroke-width:1px
+        style SIE fill:#e6f7ff,stroke:#0066cc,stroke-width:1px
     end
+    
+    subgraph NotesCtx["<b style='font-size:18px;color:#006600'>Notes Context</b>"]
+        NOTC[/"Commands:<br>- CreateNoteCommand"/] --> NOTE[/"Domain Events:<br>- NoteCreatedEvent"/]
+        
+        style NOTC fill:#e6ffe6,stroke:#006600,stroke-width:1px
+        style NOTE fill:#e6ffe6,stroke:#006600,stroke-width:1px
+    end
+    
+    subgraph NotificationsCtx["<b style='font-size:18px;color:#cc6600'>🟠 Notifications Context</b>"]
+        NIE[/"Integration Events Handled:<br>- AccountCreatedIntegrationEvent<br>- AccountValidatedIntegrationEvent"/] --> NC[/"Commands:<br>- SendNotificationCommand<br>- MarkAsReadNotificationCommand"/] --> NE[/"Domain Events:<br>- NotificationSentEvent"/]
+        
+        style NIE fill:#fff2e6,stroke:#cc6600,stroke-width:1px
+        style NC fill:#fff2e6,stroke:#cc6600,stroke-width:1px
+        style NE fill:#fff2e6,stroke:#cc6600,stroke-width:1px
+    end
+    
+    subgraph TrackerCtx["<b style='font-size:18px;color:#333333'>Tracker Context</b>"]
+        TC[/"Queries:<br>- GetOperationQuery<br>- GetOperationsQuery"/]
+        
+        style TC fill:#f9f9f9,stroke:#333333,stroke-width:1px
+    end
+    
+    %% Shared Kernel
+    SharedKernel["<b style='font-size:18px;color:#555555'>Shared Kernel</b><br>(Base Abstractions, Integration Events)"]
+    style SharedKernel fill:#f0f0f0,stroke:#555,stroke-width:1px,stroke-dasharray:5
+    
+    %% Context styling
+    style SecurityCtx fill:#f0f8ff,stroke:#0066cc,stroke-width:2px
+    style NotesCtx fill:#f9f9f9,stroke:#006600,stroke-width:2px
+    style NotificationsCtx fill:#fff8f0,stroke:#cc6600,stroke-width:2px
+    style TrackerCtx fill:#f9f9f9,stroke:#333333,stroke-width:2px
+    
+    %% Cross-context event flow
+    SIE -->|"complete payload"| NIE
+    
+    %% Shared kernel relationships
+    SharedKernel -.->|"provides base abstractions"| SecurityCtx
+    SharedKernel -.->|"provides base abstractions"| NotesCtx
+    SharedKernel -.->|"provides base abstractions"| NotificationsCtx
+    SharedKernel -.->|"provides base abstractions"| TrackerCtx
+    
+    %% Tracker relationships
+    SecurityCtx -.->|"tracks operations"| TrackerCtx
+    NotesCtx -.->|"tracks operations"| TrackerCtx
+    NotificationsCtx -.->|"tracks operations"| TrackerCtx
+    
+    %% Compact Legend
+    LegendTitle["Legend:"]
+    LegendTitle --- LegendFlow["→ Event Flow | -.-> Context Relationship | 🔵 Upstream | 🟠 Conformist"]
+    style LegendFlow font-size:10px
 ```
 
-### Key Relationships
+### Key Event Flows
 
+- **Command → Domain Event → Integration Event**: Events flow from user commands through domain events to integration events
 - **Security → Notifications**: Security context publishes integration events with complete payloads that Notifications context consumes
 - **Shared Kernel → All Contexts**: Provides base abstractions and shared utilities
-- **All Contexts → Tracker**: Operations from any context can be tracked
+- **All Contexts → Tracker**: Operations from any context can be tracked and monitored
 
 ## Building Blocks
 

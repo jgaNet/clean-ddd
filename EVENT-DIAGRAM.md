@@ -2,25 +2,19 @@
 
 ```mermaid
 graph TD
-    %% Class definitions
-    classDef contextClass fill:#f9f9f9,stroke:#333,stroke-width:2px
-    classDef kernelClass fill:#e9e9e9,stroke:#333,stroke-dasharray:5
-    classDef conformistClass stroke:#773,stroke-width:3px
-    classDef upstreamClass stroke:#377,stroke-width:3px
-    
-    %% Bounded Contexts
-    Security["Security Context<br>(Account, Authentication)"]
+    %% Bounded Contexts with role indicators
+    Security["🔵 Security Context<br>(Account, Authentication)"]
     Notes["Notes Context<br>(Note Creation/Management)"]
-    Notifications["Notifications Context<br>(User Notifications)"]
+    Notifications["🟠 Notifications Context<br>(User Notifications)"]
     Tracker["Tracker Context<br>(Operation Tracking)"]
     SharedKernel["Shared Kernel<br>(Common Abstractions, Integration Events)"]
     
-    %% Apply styles
-    class Security contextClass,upstreamClass
-    class Notes contextClass
-    class Notifications contextClass,conformistClass
-    class Tracker contextClass
-    class SharedKernel kernelClass
+    %% Basic styling
+    style Security fill:#f0f8ff,stroke:#333,stroke-width:2px
+    style Notes fill:#f9f9f9,stroke:#333,stroke-width:2px
+    style Notifications fill:#fff8f0,stroke:#333,stroke-width:2px
+    style Tracker fill:#f9f9f9,stroke:#333,stroke-width:2px
+    style SharedKernel fill:#f0f0f0,stroke:#333,stroke-width:2px,stroke-dasharray:5
     
     %% Relationships with payload information
     Security -->|"AccountCreatedIntegrationEvent<br>{accountId, email, validationToken}"| Notifications
@@ -51,13 +45,10 @@ graph TD
     Tracker --- Tracker_Desc
     SharedKernel --- SharedKernel_Desc
 
-    %% Legend
-    subgraph Legend
-        L1["→ Integration Event Flow"]
-        L2["-.-> Base Class Usage"]
-        L3["Blue Border: Upstream Context"]
-        L4["Orange Border: Conformist Context"]
-    end
+    %% Compact Legend
+    LegendTitle["Legend:"]
+    LegendTitle --- LegendFlow["→ Events | -.-> Base Classes | 🔵 Upstream | 🟠 Conformist"]
+    style LegendFlow font-size:10px
 ```
 
 ## Bounded Context Relationships
