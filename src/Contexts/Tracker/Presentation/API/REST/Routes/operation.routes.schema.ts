@@ -2,7 +2,7 @@ import { OperationStatus } from '@SharedKernel/Domain';
 const OperationSchema = {
   type: 'object',
   properties: {
-    id: { type: 'string' },
+    id: { type: 'string', format: 'uuid' },
     status: { type: 'string', enum: Object.values(OperationStatus) },
     createdAt: { type: 'string' },
     finishedAt: { type: 'string' },
@@ -17,7 +17,7 @@ const OperationSchema = {
     context: {
       type: 'object',
       properties: {
-        traceId: { type: 'string' },
+        traceId: { type: 'string', format: 'uuid' },
         auth: { type: 'object', additionalProperties: true },
         metadata: { type: 'object', additionalProperties: true },
       },
