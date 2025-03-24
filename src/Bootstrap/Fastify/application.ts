@@ -23,7 +23,7 @@ import { Application, ExecutionContext } from '@SharedKernel/Domain/Application'
 import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
 import { InMemoryUnitOfWork } from '@SharedKernel/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
 import { v4 as uuidv4 } from 'uuid';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 // Create shared services
 const logger = new ConsoleLogger();

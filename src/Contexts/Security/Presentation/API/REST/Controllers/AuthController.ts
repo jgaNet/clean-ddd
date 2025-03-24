@@ -7,7 +7,7 @@ import { LoginCommandEvent } from '@Contexts/Security/Application/Commands/Login
 import { SecurityModule } from '@Contexts/Security/Application';
 import { LoginCommandHandler } from '@Contexts/Security/Application/Commands';
 import { SignUpCommandEvent } from '@Contexts/Security/Application/Commands';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { ValidateAccountCommandEvent } from '@Contexts/Security/Application/Commands/ValidateAccount/ValidateAccountCommandEvent';
 import { InvalidTokenException } from '@Contexts/Security/Domain/Auth/Exceptions/InvalidTokenException';
 import { Role } from '@SharedKernel/Domain/AccessControl';

@@ -3,7 +3,7 @@ import { CommandHandler, Result, IResult } from '@SharedKernel/Domain/Applicatio
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
 import { LoginCommandEvent } from './LoginCommandEvent';
 import { IJwtService } from '@Contexts/Security/Domain/Auth/Ports/IJwtService';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { InvalidCredentialsException } from '@Contexts/Security/Domain/Auth/Exceptions/InvalidCredentialsException';
 import { InactiveAccountException } from '@Contexts/Security/Domain/Auth/Exceptions/InactiveAccountException';
 import { AccountToken } from '@Contexts/Security/Domain/Account/AccountToken';
