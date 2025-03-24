@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clean-ddd-config
+data:
+  base_url: "api.example.com"

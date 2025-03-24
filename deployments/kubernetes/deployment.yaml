@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clean-ddd-api
+  labels:
+    app: clean-ddd-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: clean-ddd-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: clean-ddd-api
+    spec:
+      containers:
+      - name: clean-ddd-api
+        image: ${DOCKER_IMAGE_NAME}:${IMAGE_TAG}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 10000
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "10000"
+        - name: PROTOCOL
+          value: "https"
+        - name: BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: clean-ddd-config
+              key: base_url
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: clean-ddd-secrets
+              key: jwt_secret
+        - name: JWT_EXPIRES_IN
+          value: "24h"
+        - name: ADMIN_IDENTIFIER
+          valueFrom:
+            secretKeyRef:
+              name: clean-ddd-secrets
+              key: admin_identifier
+        - name: ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: clean-ddd-secrets
+              key: admin_password
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 10000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 10000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      terminationGracePeriodSeconds: 60

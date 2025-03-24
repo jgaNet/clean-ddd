@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - configmap.yaml
+  - secret.yaml
+  - hpa.yaml
+
+# Use this section to customize environment specific settings
+# images:
+# - name: ${DOCKER_IMAGE_NAME}
+#   newName: myregistry.example.com/clean-ddd-api
+#   newTag: v1.0.0

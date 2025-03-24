@@ -1,7 +1,7 @@
 import * as esbuild from 'esbuild';
 
 await esbuild.build({
-  entryPoints: ['src/application.ts'],
+  entryPoints: ['src/Bootstrap/Fastify/application.ts'],
   bundle: true,
   outfile: 'dist/application.js',
   format: 'esm',
@@ -17,5 +17,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
         `,
   },
-  external: ['@fastify/swagger', '@fastify/swagger-ui'],
+  external: [
+    '@fastify/swagger', 
+    '@fastify/swagger-ui', 
+    'bcrypt'
+  ],
 });
