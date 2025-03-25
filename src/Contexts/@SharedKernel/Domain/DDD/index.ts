@@ -2,6 +2,7 @@ export * from '../Application/Result';
 export * from './Entity';
 export * from './Event';
 export * from './Exception';
+export * from './Presenter';
 export * from './Mapper';
 export * from './QueriesService';
 export * from './Repository';
