@@ -1,5 +1,5 @@
 import { FastifyRequest } from 'fastify';
-import { HomeViewModel } from '@Contexts/@SharedKernel/Presentation/Presenters/Home/DTOs';
+import { HomeViewModel } from '@Contexts/@SharedKernel/Presentation/Presenters/Home/ViewModels';
 import { HomeJsonPresenter, HomeHtmxPresenter } from '@SharedKernel/Presentation/Presenters/Home';
 import { PresenterFactory } from '@SharedKernel/Domain/Services';
 

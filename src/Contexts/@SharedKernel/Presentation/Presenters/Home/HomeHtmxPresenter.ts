@@ -1,5 +1,5 @@
 import { Presenter } from '@SharedKernel/Domain/DDD';
-import { HomeViewModel } from './DTOs';
+import { HomeViewModel } from './ViewModels';
 
 export class HomeHtmxPresenter implements Presenter<HomeViewModel, string> {
   present(data: HomeViewModel): string {
