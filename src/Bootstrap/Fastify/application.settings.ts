@@ -1,12 +1,14 @@
+import packageJson from '../../../package.json';
+
 const protocol = String(process.env.PROTOCOL || 'http');
 const baseUrl = String(process.env.BASE_URL || 'localhost');
 const port = parseInt(process.env.PORT || '10000');
 const apiPrefix = String(process.env.API_PREFIX || 'v1');
 
 export const SETTINGS = {
-  name: 'Clean DDD',
+  name: packageJson.name,
   env: String(process.env.ENV || 'dev'),
-  version: '0.0.1',
+  version: packageJson.version,
   protocol,
   baseUrl,
   apiPrefix,

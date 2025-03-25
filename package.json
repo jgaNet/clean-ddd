@@ -1,5 +1,5 @@
 {
-  "name": "my-app",
+  "name": "clean-ddd",
   "version": "1.0.0",
   "type": "module",
   "main": "dist/application.js",
