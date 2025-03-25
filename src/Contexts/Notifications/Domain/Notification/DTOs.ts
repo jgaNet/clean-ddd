@@ -10,5 +10,5 @@ export interface INotification {
   createdAt: Date;
   sentAt?: Date | null;
   readAt?: Date | null;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
