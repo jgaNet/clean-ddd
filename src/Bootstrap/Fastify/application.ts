@@ -1,32 +1,39 @@
 #!/usr/bin/env node
 
 import 'dotenv/config';
-import { SETTINGS } from './application.settings';
-import Fastify, { FastifyInstance } from 'fastify';
+import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
-import { homeRoutes } from '@SharedKernel/Presentation/API/REST/Routes';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import Fastify, { FastifyInstance } from 'fastify';
+import fastifySwagger from '@fastify/swagger';
+import fastifySwaggerUi from '@fastify/swagger-ui';
+import fastifyStatic from '@fastify/static';
+
+import { SETTINGS } from './application.settings';
+import { swaggerDescriptor } from './application.swagger';
+
 import { localTrackerModule } from '@Contexts/Tracker/module.local';
 import { localNotesModule } from '@Contexts/Notes/module.local';
 import { localSecurityModule } from '@Contexts/Security/module.local';
 import { localNotificationsModule } from '@Contexts/Notifications/module.local';
+
+import { homeRoutes } from '@SharedKernel/Presentation/API/REST/Routes';
 import { noteRoutes } from '@Contexts/Notes/Presentation/API/REST/Routes';
 import { operationRoutes } from '@Contexts/Tracker/Presentation/API/REST/Routes';
 import { authRoutes } from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes';
 import { notificationRoutes } from '@Contexts/Notifications/Presentation/API/REST/Routes';
 
-import { swaggerDescriptor } from './application.swagger';
-
-import fastifySwagger from '@fastify/swagger';
-import fastifySwaggerUi from '@fastify/swagger-ui';
-
 import { Application, ExecutionContext } from '@SharedKernel/Domain/Application';
 import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
 import { InMemoryUnitOfWork } from '@SharedKernel/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
-import { v4 as uuidv4 } from 'uuid';
-import bcrypt from 'bcryptjs';
 
 // Create shared services
-const logger = new ConsoleLogger();
+const logger = new ConsoleLogger({ debug: SETTINGS.logger.debug });
 const unitOfWork = new InMemoryUnitOfWork();
 
 class FastifyApplication extends Application {
@@ -66,6 +73,11 @@ class FastifyApplication extends Application {
 
       done();
     });
+
+    this.fastify.register(fastifyStatic, {
+      root: join(__dirname, 'public'),
+      index: 'index.html',
+    });
   }
 
   seed() {
@@ -92,7 +104,10 @@ class FastifyApplication extends Application {
     routes: (app: FastifyInstance, opts: any, done: () => void) => void,
     options: Record<string, unknown> = {},
   ) {
-    this.fastify.register(routes, { prefix: prefix === '/' ? '' : prefix, ...options });
+    this.fastify.register(routes, {
+      prefix: prefix === '/' ? `${SETTINGS.apiPrefix}` : SETTINGS.apiPrefix + prefix,
+      ...options,
+    });
     return this;
   }
 
@@ -101,7 +116,6 @@ class FastifyApplication extends Application {
       await this.fastify.listen({ port });
       await this.fastify.ready();
       this.fastify.swagger();
-      // eslint-disable-next-line
       this.logger.info(`Listening on port: ${port}`);
     } catch (err) {
       this.fastify.log.error(err);
