@@ -12,3 +12,4 @@ temp
 *.md
 *.json
 *.d.ts
+*.min.js
