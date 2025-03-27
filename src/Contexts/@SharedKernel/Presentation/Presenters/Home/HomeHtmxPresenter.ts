@@ -4,25 +4,24 @@ import { HomeViewModel } from './ViewModels';
 export class HomeHtmxPresenter implements Presenter<HomeViewModel, string> {
   present(data: HomeViewModel): string {
     return `
-      <div class="container">
+      <main
+        hx-trigger="load"
+        hx-get="/v1/auth/me"
+        hx-swap="innerHTML"
+        hx-ext="response-targets"
+        hx-target="#app"
+      >
         <h1>${data.name}</h1>
         <p><b>Version:</b> ${data.version}</p>
-        <p>
-          <form hx-post="/v1/notes" hx-ext="json-enc">
-            <p>
-              <label for="title">Title</label>
-              <br />
-              <input type="text" name="title" id="title" />
-            </p>
-            <p>
-              <label for="body">Body</label>
-              <br />
-              <textarea rows="5" cols="50" name="content" id="content"></textarea>
-            </p>
-            <input type="submit" value="Submit" />
-          </form>
-        <p>
-      </div>
+        <div id="app"></div>
+      </main>
+  <script src="/js/htmx.min.js"></script>
+  <script src="/js/ws.js"></script>
+  <script src="/js/json-enc.js"></script>
+  <script src="/js/response-targets.js"></script>
+  <script src="/js/client-side-templates.js"></script>
+  <script src="/js/nunjucks.min.js"></script>
+  <script src="/js/init.js"></script>
     `;
   }
 }

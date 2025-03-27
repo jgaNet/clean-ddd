@@ -4,8 +4,13 @@
   <meta charset="UTF-8" />
   <title>htmx + Fastify</title>
 </head>
-<body hx-boost="true" hx-trigger="load" hx-get="/v1/auth/me" hx-swap="innerHTML" hx-target="#app" hx-ext="response-targets">
-  <div id="app"></div>
+<body
+    hx-boost="true"
+    hx-trigger="load"
+    hx-get="/v1/"
+    hx-swap="afterbegin"
+  >
+
 
   <script src="/js/htmx.min.js"></script>
   <script src="/js/ws.js"></script>
