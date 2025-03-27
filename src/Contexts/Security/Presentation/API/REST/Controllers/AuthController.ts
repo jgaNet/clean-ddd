@@ -1,53 +1,80 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
+import * as bcrypt from 'bcryptjs';
 import {
   BasicLoginReqBody,
   BasicSignUpReqBody,
 } from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes.schema';
-import { LoginCommandEvent } from '@Contexts/Security/Application/Commands/Login/LoginCommandEvent';
+
 import { SecurityModule } from '@Contexts/Security/Application';
-import { LoginCommandHandler } from '@Contexts/Security/Application/Commands';
-import { SignUpCommandEvent } from '@Contexts/Security/Application/Commands';
-import * as bcrypt from 'bcryptjs';
-import { ValidateAccountCommandEvent } from '@Contexts/Security/Application/Commands/ValidateAccount/ValidateAccountCommandEvent';
+import {
+  LoginCommandEvent,
+  LoginCommandHandler,
+  SignUpCommandEvent,
+  ValidateAccountCommandEvent,
+} from '@Contexts/Security/Application/Commands';
+
+import { GetAccountQueryHandler } from '@Contexts/Security/Application/Queries';
 import { InvalidTokenException } from '@Contexts/Security/Domain/Auth/Exceptions/InvalidTokenException';
-import { Role } from '@SharedKernel/Domain/AccessControl';
-import { GetAccountQueryHandler } from '@Contexts/Security/Application/Queries/GetAccount/GetAccountQueryHandler';
 import { NotAllowedException } from '@Contexts/@SharedKernel/Domain';
+
+import { Role } from '@SharedKernel/Domain/AccessControl';
+import { PresenterFactory } from '@Contexts/@SharedKernel/Domain';
+import {
+  LoginHtmxPresenter,
+  LoginJsonPresenter,
+  NotAllowedHtmxPresenter,
+  LogoutJsonPresenter,
+  MeHtmxPresenter,
+  MeJsonPresenter,
+  ErrorJsonPresenter,
+  ErrorHtmxPresenter,
+} from '@Contexts/Security/Presentation/API/Presenters/Auth';
 
 export class FastifyAuthController {
   #securityModule: SecurityModule;
+  #presenterFactory: PresenterFactory = new PresenterFactory();
 
   constructor({ module: SecurityModule }: { module: SecurityModule }) {
     this.#securityModule = SecurityModule;
-  }
+    this.#presenterFactory.register({
+      name: 'getApiMe',
+      presenters: [
+        { format: 'json', presenter: new MeJsonPresenter() },
+        { format: 'htmx', presenter: new MeHtmxPresenter() },
+      ],
+    });
 
-  async login(req: FastifyRequest<{ Body: BasicLoginReqBody }>, reply: FastifyReply) {
-    try {
-      const { identifier, password } = req.body as { identifier: string; password: string };
+    this.#presenterFactory.register({
+      name: 'getApiLogout',
+      presenters: [
+        { format: 'json', presenter: new LogoutJsonPresenter() },
+        { format: 'htmx', presenter: new NotAllowedHtmxPresenter() },
+      ],
+    });
 
-      // Create login command
-      const loginCommand = LoginCommandEvent.set({ identifier, password });
+    this.#presenterFactory.register({
+      name: 'getApiLogin',
+      presenters: [
+        { format: 'json', presenter: new LoginJsonPresenter() },
+        { format: 'htmx', presenter: new LoginHtmxPresenter() },
+      ],
+    });
 
-      // Execute login command through the security module
-      const loginResult = await (this.#securityModule.getCommand(LoginCommandEvent) as LoginCommandHandler).execute(
-        loginCommand,
-      );
+    this.#presenterFactory.register({
+      name: 'getApiNotAllowedException',
+      presenters: [
+        { format: 'json', presenter: new ErrorJsonPresenter() },
+        { format: 'htmx', presenter: new NotAllowedHtmxPresenter() },
+      ],
+    });
 
-      if (loginResult.isFailure()) {
-        return reply.code(401).send({
-          error: loginResult.error?.message,
-        });
-      }
-
-      // Return token and user ID on successful login
-      return {
-        token: loginResult.data.token,
-      };
-    } catch (error) {
-      return reply.code(500).send({
-        error: error instanceof Error ? error.message : 'An error occurred during login',
-      });
-    }
+    this.#presenterFactory.register({
+      name: 'getApiError',
+      presenters: [
+        { format: 'json', presenter: new ErrorJsonPresenter() },
+        { format: 'htmx', presenter: new ErrorHtmxPresenter() },
+      ],
+    });
   }
 
   async signUp(req: FastifyRequest<{ Body: BasicSignUpReqBody }>, reply: FastifyReply) {
@@ -85,6 +112,7 @@ export class FastifyAuthController {
   async validate(req: FastifyRequest<{ Querystring: { validation_token: string } }>, reply: FastifyReply) {
     const context = req.executionContext;
 
+    // WARNING : This is not the best way to do it. Maybe should i move it the command handler.
     const decodedToken = this.#securityModule.services.jwtService.verify(req.query.validation_token);
     if (!decodedToken) {
       return reply.code(401).send({
@@ -99,20 +127,46 @@ export class FastifyAuthController {
     });
   }
 
-  async validateAccountById(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
-    const context = req.executionContext;
+  async login(req: FastifyRequest<{ Body: BasicLoginReqBody }>, reply: FastifyReply) {
+    const format = req.headers['hx-request'] ? 'htmx' : 'json';
+    const errorPresenter = this.#presenterFactory.get({ name: 'getApiError', format });
+    const notAllowedPresenter = this.#presenterFactory.get({ name: 'getApiNotAllowedException', format });
+    const resulPresenter = this.#presenterFactory.get({ name: 'getApiLogin', format });
+    try {
+      const { identifier, password } = req.body as { identifier: string; password: string };
 
-    const operation = context.eventBus.publish(
-      ValidateAccountCommandEvent.set({ subjectId: req.params.id, subjectType: Role.ADMIN }),
-      context,
-    );
+      // Create login command
+      const loginCommand = LoginCommandEvent.set({ identifier, password });
 
-    return reply.code(200).send({
-      operationId: operation.id,
-    });
+      // Execute login command through the security module
+      const loginResult = await (this.#securityModule.getCommand(LoginCommandEvent) as LoginCommandHandler).execute(
+        loginCommand,
+      );
+
+      if (loginResult.isFailure()) {
+        return reply.code(200).send(notAllowedPresenter?.present(loginResult.error?.message));
+      }
+
+      reply.setCookie('token', loginResult.data.token, {
+        path: '/',
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+      });
+
+      return resulPresenter?.present(loginResult.data);
+    } catch (error) {
+      return reply.code(500).send(errorPresenter?.present('Unexpected error'));
+    }
   }
 
   async me(req: FastifyRequest, reply: FastifyReply) {
+    const format = req.headers['hx-request'] ? 'htmx' : 'json';
+
+    const presenter = this.#presenterFactory.get({ name: 'getApiMe', format });
+    const notAllowedPresenter = this.#presenterFactory.get({ name: 'getApiNotAllowedException', format });
+    const errorPresenter = this.#presenterFactory.get({ name: 'getApiError', format });
+
     try {
       const meResult = await this.#securityModule
         .getQuery(GetAccountQueryHandler)
@@ -122,41 +176,24 @@ export class FastifyAuthController {
         throw meResult.error;
       }
 
-      return meResult.data;
+      return presenter?.present(meResult.data);
     } catch (error) {
       if (error instanceof NotAllowedException) {
-        return reply.code(401).send({
-          error: error.message,
-        });
+        if (format === 'htmx') {
+          return notAllowedPresenter?.present(error.message);
+        }
+
+        return reply.code(401).send(notAllowedPresenter?.present(error.message));
       }
-      return reply.code(500).send({
-        error: error instanceof Error ? error.message : 'An error occurred during login',
-      });
+
+      return reply.code(500).send(errorPresenter?.present('An error occurred'));
     }
   }
 
-  async getAccountById(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
-    try {
-      const meResult = await this.#securityModule
-        .getQuery(GetAccountQueryHandler)
-        .executeWithContext(req.params.id, req.executionContext);
+  async logout(req: FastifyRequest, reply: FastifyReply) {
+    const format = req.headers['hx-request'] ? 'htmx' : 'json';
+    reply.clearCookie('token');
 
-      if (meResult.isFailure()) {
-        return reply.code(401).send({
-          error: meResult.error?.message,
-        });
-      }
-
-      return meResult.data;
-    } catch (error) {
-      if (error instanceof NotAllowedException) {
-        return reply.code(401).send({
-          error: error.message,
-        });
-      }
-      return reply.code(500).send({
-        error: error instanceof Error ? error.message : 'An error occurred during login',
-      });
-    }
+    return this.#presenterFactory.get({ name: 'getApiLogout', format })?.present('Logout successful');
   }
 }

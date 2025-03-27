@@ -13,6 +13,7 @@ import Fastify, { FastifyInstance } from 'fastify';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 import fastifyStatic from '@fastify/static';
+import fastifyCookie from '@fastify/cookie';
 
 import { SETTINGS } from './application.settings';
 import { swaggerDescriptor } from './application.swagger';
@@ -74,9 +75,24 @@ class FastifyApplication extends Application {
       done();
     });
 
+    this.fastify.register(fastifyCookie);
+
     this.fastify.register(fastifyStatic, {
       root: join(__dirname, 'public'),
       index: 'index.html',
+    });
+
+    this.fastify.setNotFoundHandler((_, reply) => {
+      reply.sendFile('index.html');
+    });
+
+    this.fastify.setErrorHandler((error, req, reply) => {
+      const format = req.headers['hx-request'] ? 'htmx' : 'json';
+      if (format === 'htmx') {
+        return reply.code(error.statusCode || 500).send(`<div>${error.message}</div>`);
+      }
+
+      return reply.code(error.statusCode || 500).send(error);
     });
   }
 
@@ -113,8 +129,12 @@ class FastifyApplication extends Application {
 
   async start(port: number = SETTINGS.port): Promise<void> {
     try {
+      // Initialize WebSocket service before server starts listening
+      await localNotificationsModule.services.webSocketService.initialize(this.fastify);
+
       await this.fastify.listen({ port });
       await this.fastify.ready();
+
       this.fastify.swagger();
       this.logger.info(`Listening on port: ${port}`);
     } catch (err) {

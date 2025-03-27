@@ -5,11 +5,10 @@ import { PresenterFactory } from '@SharedKernel/Domain/Services';
 
 export class HomeController {
   #settings: { version: string; name: string };
-  #presenterFactory: PresenterFactory;
+  #presenterFactory: PresenterFactory = new PresenterFactory();
 
   constructor({ settings }: { settings: { version: string; name: string } }) {
     this.#settings = settings;
-    this.#presenterFactory = new PresenterFactory();
     this.#presenterFactory.register({
       name: 'getApiHome',
       presenters: [
@@ -28,10 +27,6 @@ export class HomeController {
     const format = req.headers['hx-request'] ? 'htmx' : 'json';
     const presenter = this.#presenterFactory.get({ name: 'getApiHome', format });
 
-    if (!presenter) {
-      throw new Error(`No presenter found for ${format} format`);
-    }
-
-    return presenter.present(viewModel);
+    return presenter?.present(viewModel);
   }
 }

@@ -11,20 +11,28 @@ import {
 } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
 import { AccountCreatedIntegrationEventHandler } from './Application/Events/AccountCreatedIntegrationEventHandler';
 import { AccountValidatedIntegrationEventHandler } from './Application/Events/AccountValidatedIntegrationEventHandler';
+import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
+import { OperationCompleteIntegrationEventHandler } from './Application/Events/OperationCompleteIntegrationEventHandler';
 
 import { InMemoryNotificationRepository } from './Infrastructure/Repositories/InMemoryNotificationRepository';
 import { InMemoryNotificationQueries } from './Infrastructure/Queries/InMemoryNotificationQueries';
 import { EmailNotificationService } from './Infrastructure/Services/EmailNotificationService';
+import { FastifyWebSocketService } from './Infrastructure/Services/FastifyWebSocketService';
+import { NotificationDeliveryService } from './Infrastructure/Services/NotificationDeliveryService';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 import { INotification } from './Domain/Notification/DTOs';
 
 // Import the account queries from Security module
 import { SETTINGS } from '@Bootstrap/Fastify/application.settings';
+import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
+import { NotificationsModule } from './Application';
 
 // Create shared infrastructure
 const notificationDataSource = new InMemoryDataSource<INotification>();
+const logger = new ConsoleLogger({ debug: SETTINGS.logger.debug });
 
 // Create services
+const webSocketService = new FastifyWebSocketService(logger);
 const emailService = new EmailNotificationService({
   smtpHost: process.env.SMTP_HOST || 'localhost',
   smtpPort: Number(process.env.SMTP_PORT) || 25,
@@ -33,12 +41,17 @@ const emailService = new EmailNotificationService({
   fromEmail: process.env.FROM_EMAIL || 'noreply@example.com',
 });
 
-// Create repositories and queries
+// Create delivery service
 const notificationRepository = new InMemoryNotificationRepository(notificationDataSource);
 const notificationQueries = new InMemoryNotificationQueries(notificationDataSource);
 
-// Build module
-export const localNotificationsModule = new ModuleBuilder(Symbol('Notifications'))
+const notificationService = new NotificationDeliveryService(webSocketService, emailService, notificationRepository);
+
+// Create event handlers
+const operationCompleteEventHandler = new OperationCompleteIntegrationEventHandler(notificationService);
+
+// Build module with exported services
+export const localNotificationsModule = new ModuleBuilder<NotificationsModule>(Symbol('Notifications'))
   // Commands
   .setCommand({
     event: SendNotificationCommandEvent,
@@ -58,10 +71,16 @@ export const localNotificationsModule = new ModuleBuilder(Symbol('Notifications'
   // Integration Events
   .setIntegrationEvent({
     event: AccountCreatedIntegrationEvent,
-    handlers: [new AccountCreatedIntegrationEventHandler(SETTINGS.url)],
+    handlers: [new AccountCreatedIntegrationEventHandler(SETTINGS.url, notificationService)],
   })
   .setIntegrationEvent({
     event: AccountValidatedIntegrationEvent,
-    handlers: [new AccountValidatedIntegrationEventHandler()],
+    handlers: [new AccountValidatedIntegrationEventHandler(notificationService)],
   })
+  .setIntegrationEvent({
+    event: OperationCompleteIntegrationEvent,
+    handlers: [operationCompleteEventHandler],
+  })
+  // Services
+  .setService('webSocketService', webSocketService)
   .build();

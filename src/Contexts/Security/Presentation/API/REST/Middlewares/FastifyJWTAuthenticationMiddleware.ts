@@ -1,9 +1,10 @@
 import { FastifyRequest } from 'fastify';
-import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
-import jwt from 'jsonwebtoken';
 
+import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
 import { Role } from '@SharedKernel/Domain/AccessControl';
 import { AccountToken } from '@Contexts/Security/Domain/Account/AccountToken';
+
+import jwt from 'jsonwebtoken';
 
 export class AuthenticationMiddleware {
   private accountQueries: IAccountQueries;
@@ -15,10 +16,36 @@ export class AuthenticationMiddleware {
   /**
    * Extracts token from request headers
    */
-  private extractToken(request: FastifyRequest): string | null {
+  private extractTokenFromHeader(request: FastifyRequest): string | null {
     const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
     return authHeader.substring(7); // Remove "Bearer " prefix
+  }
+
+  private extractTokenFromQueryParams(request: FastifyRequest<{ Querystring: { token?: string } }>): string | null {
+    const token = request.query?.token;
+    if (!token) return null;
+    return token;
+  }
+
+  private parseCookie(cookie: string | null): Record<string, string> | null {
+    if (!cookie) return null;
+    const output: Record<string, string> = {};
+    cookie.split(/\s*;\s*/).forEach(function (pair: string | string[]) {
+      if (typeof pair === 'string') {
+        pair = pair.split(/\s*=\s*/);
+        output[pair[0]] = pair.splice(1).join('=');
+      }
+    });
+
+    return output;
+  }
+
+  private extractTokenFromCookie(request: FastifyRequest): string | null {
+    if (!request.headers.cookie) return null;
+    const token = this.parseCookie(request.headers.cookie)?.token;
+    if (!token) return null;
+    return token;
   }
 
   /**
@@ -28,8 +55,11 @@ export class AuthenticationMiddleware {
    * - Does not block requests but marks them as authenticated or not
    */
   authenticate() {
-    return async (request: FastifyRequest): Promise<void> => {
-      const token = this.extractToken(request);
+    return async (request: FastifyRequest<{ Querystring: { token?: string } }>): Promise<void> => {
+      const token =
+        this.extractTokenFromCookie(request) ||
+        this.extractTokenFromHeader(request) ||
+        this.extractTokenFromQueryParams(request);
 
       if (!token) {
         // No token, continue as guest
