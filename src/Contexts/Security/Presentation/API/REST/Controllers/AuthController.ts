@@ -20,15 +20,15 @@ import { NotAllowedException } from '@Contexts/@SharedKernel/Domain';
 import { Role } from '@SharedKernel/Domain/AccessControl';
 import { PresenterFactory } from '@Contexts/@SharedKernel/Domain';
 import {
-  LoginHtmxPresenter,
-  LoginJsonPresenter,
-  NotAllowedHtmxPresenter,
-  LogoutJsonPresenter,
-  MeHtmxPresenter,
-  MeJsonPresenter,
-  ErrorJsonPresenter,
-  ErrorHtmxPresenter,
-} from '@Contexts/Security/Presentation/API/Presenters/Auth';
+  LoginHTMXPresenter,
+  LoggedInHTMXPresenter,
+  LoggedInJSONPresenter,
+  LogoutJSONPresenter,
+  MeHTMXPresenter,
+  MeJSONPresenter,
+  ErrorJSONPresenter,
+  ErrorHTMXPresenter,
+} from '@Contexts/Security/Presentation/Presenters/Auth';
 
 export class FastifyAuthController {
   #securityModule: SecurityModule;
@@ -39,40 +39,40 @@ export class FastifyAuthController {
     this.#presenterFactory.register({
       name: 'getApiMe',
       presenters: [
-        { format: 'json', presenter: new MeJsonPresenter() },
-        { format: 'htmx', presenter: new MeHtmxPresenter() },
+        { format: 'json', presenter: new MeJSONPresenter() },
+        { format: 'htmx', presenter: new MeHTMXPresenter() },
       ],
     });
 
     this.#presenterFactory.register({
       name: 'getApiLogout',
       presenters: [
-        { format: 'json', presenter: new LogoutJsonPresenter() },
-        { format: 'htmx', presenter: new NotAllowedHtmxPresenter() },
+        { format: 'json', presenter: new LogoutJSONPresenter() },
+        { format: 'htmx', presenter: new LoginHTMXPresenter() },
       ],
     });
 
     this.#presenterFactory.register({
       name: 'getApiLogin',
       presenters: [
-        { format: 'json', presenter: new LoginJsonPresenter() },
-        { format: 'htmx', presenter: new LoginHtmxPresenter() },
+        { format: 'json', presenter: new LoggedInJSONPresenter() },
+        { format: 'htmx', presenter: new LoggedInHTMXPresenter() },
       ],
     });
 
     this.#presenterFactory.register({
       name: 'getApiNotAllowedException',
       presenters: [
-        { format: 'json', presenter: new ErrorJsonPresenter() },
-        { format: 'htmx', presenter: new NotAllowedHtmxPresenter() },
+        { format: 'json', presenter: new ErrorJSONPresenter() },
+        { format: 'htmx', presenter: new LoginHTMXPresenter() },
       ],
     });
 
     this.#presenterFactory.register({
       name: 'getApiError',
       presenters: [
-        { format: 'json', presenter: new ErrorJsonPresenter() },
-        { format: 'htmx', presenter: new ErrorHtmxPresenter() },
+        { format: 'json', presenter: new ErrorJSONPresenter() },
+        { format: 'htmx', presenter: new ErrorHTMXPresenter() },
       ],
     });
   }
@@ -131,7 +131,7 @@ export class FastifyAuthController {
     const format = req.headers['hx-request'] ? 'htmx' : 'json';
     const errorPresenter = this.#presenterFactory.get({ name: 'getApiError', format });
     const notAllowedPresenter = this.#presenterFactory.get({ name: 'getApiNotAllowedException', format });
-    const resulPresenter = this.#presenterFactory.get({ name: 'getApiLogin', format });
+    const presenter = this.#presenterFactory.get({ name: 'getApiLogin', format });
     try {
       const { identifier, password } = req.body as { identifier: string; password: string };
 
@@ -154,7 +154,7 @@ export class FastifyAuthController {
         sameSite: 'strict',
       });
 
-      return resulPresenter?.present(loginResult.data);
+      return presenter?.present(loginResult.data);
     } catch (error) {
       return reply.code(500).send(errorPresenter?.present('Unexpected error'));
     }

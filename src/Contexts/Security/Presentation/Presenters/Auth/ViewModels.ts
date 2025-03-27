@@ -12,10 +12,10 @@ export interface ErrorViewModel {
   message: string;
 }
 
-export interface LoginViewModel {
-  token: string;
-}
-
 export interface LogoutViewModel {
   message: string;
+}
+
+export interface LoginViewModel {
+  token: string;
 }

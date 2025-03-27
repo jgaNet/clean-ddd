@@ -1,7 +1,7 @@
 import { Presenter } from '@SharedKernel/Domain/DDD';
-import { ErrorViewModel } from './ViewModels';
+import { ErrorViewModel } from '../ViewModels';
 
-export class NotAllowedHtmxPresenter implements Presenter<ErrorViewModel, string> {
+export class LoginHTMXPresenter implements Presenter<ErrorViewModel, string> {
   present(message: ErrorViewModel): string {
     return `
       <div>
