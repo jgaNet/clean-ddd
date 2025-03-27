@@ -3,8 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <title>htmx + Fastify</title>
-  <script src="/js/htmx.min.js"></script>
 </head>
-<body hx-boost="true" hx-trigger="load" hx-get="/v1" hx-target="body">
+<body hx-boost="true" hx-trigger="load" hx-get="/v1/auth/me" hx-swap="innerHTML" hx-target="#app" hx-ext="response-targets">
+  <div id="app"></div>
+
+  <script src="/js/htmx.min.js"></script>
+  <script src="/js/ws.js"></script>
+  <script src="/js/json-enc.js"></script>
+  <script src="/js/response-targets.js"></script>
+  <script src="/js/client-side-templates.js"></script>
+  <script src="/js/nunjucks.min.js"></script>
+  <script src="/js/init.js"></script>
 </body>
 </html>

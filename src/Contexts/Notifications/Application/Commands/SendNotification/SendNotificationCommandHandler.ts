@@ -5,9 +5,10 @@ import { Role } from '@SharedKernel/Domain/AccessControl/Role';
 import { SendNotificationCommandEvent } from './SendNotificationCommandEvent';
 import { INotificationRepository } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationRepository';
 import { INotificationService } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationService';
-import { Notification } from '@Contexts/Notifications/Domain/Notification/Notification';
+import { Notification, NotificationType } from '@Contexts/Notifications/Domain/Notification/Notification';
 import { NotificationSentEvent } from '@Contexts/Notifications/Domain/Notification/Events/NotificationSentEvent';
 import { NotAllowedException } from '@SharedKernel/Domain/Application/CommonExceptions';
+import { DeliveryStrategy } from '@Contexts/Notifications/Domain/Notification/DeliveryStrategy';
 
 export class SendNotificationCommandHandler extends CommandHandler<SendNotificationCommandEvent> {
   constructor(
@@ -39,6 +40,7 @@ export class SendNotificationCommandHandler extends CommandHandler<SendNotificat
       const notificationResult = Notification.create({
         id: await this.notificationRepository.nextIdentity(),
         recipientId: payload.recipientId,
+        deliveryStrategy: DeliveryStrategy.custom([]), // WARNING: The channel is always available for the moment
         type: payload.type,
         title: payload.title,
         content: payload.content,
@@ -66,6 +68,7 @@ export class SendNotificationCommandHandler extends CommandHandler<SendNotificat
       const success = await service.send(
         {
           recipientId: notification.recipientId,
+          deliveryStrategy: notification.deliveryStrategy,
           type: notification.type,
           title: notification.title,
           content: notification.content,
@@ -75,7 +78,7 @@ export class SendNotificationCommandHandler extends CommandHandler<SendNotificat
       );
 
       if (success) {
-        notification.markAsSent();
+        notification.markAsSent(NotificationType.WEBSOCKET);
 
         // Publish domain event using context.eventBus
         context.eventBus.publish(

@@ -1,12 +1,14 @@
 import { Entity } from '@SharedKernel/Domain/DDD/Entity';
 import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
 import { Id } from '@Contexts/@SharedKernel/Domain';
+import { DeliveryStrategy } from './DeliveryStrategy';
 
 export enum NotificationType {
   EMAIL = 'EMAIL',
   PUSH = 'PUSH',
   SMS = 'SMS',
   IN_APP = 'IN_APP',
+  WEBSOCKET = 'WEBSOCKET',
 }
 
 export enum NotificationStatus {
@@ -26,6 +28,9 @@ export class Notification extends Entity {
   #sentAt: Date | null = null;
   #readAt: Date | null = null;
   #metadata: Record<string, unknown> = {};
+  #deliveryStrategy: DeliveryStrategy;
+  #deliveryAttempts: Array<{ type: NotificationType; timestamp: Date; success: boolean }> = [];
+  #successfulChannel?: NotificationType;
 
   private constructor(
     id: Id,
@@ -35,6 +40,7 @@ export class Notification extends Entity {
     content: string,
     status: NotificationStatus,
     createdAt: Date,
+    deliveryStrategy: DeliveryStrategy,
     metadata: Record<string, unknown> = {},
   ) {
     super(id);
@@ -45,6 +51,7 @@ export class Notification extends Entity {
     this.#status = status;
     this.#createdAt = createdAt;
     this.#metadata = metadata;
+    this.#deliveryStrategy = deliveryStrategy;
   }
 
   static create(props: {
@@ -53,6 +60,7 @@ export class Notification extends Entity {
     type: NotificationType;
     title: string;
     content: string;
+    deliveryStrategy: DeliveryStrategy;
     metadata?: Record<string, unknown>;
   }): IResult<Notification> {
     if (!props.title?.trim()) {
@@ -75,15 +83,17 @@ export class Notification extends Entity {
       props.content,
       NotificationStatus.PENDING,
       new Date(),
+      props.deliveryStrategy,
       props.metadata || {},
     );
 
     return Result.ok(notification);
   }
 
-  markAsSent(): void {
+  markAsSent(channel: NotificationType): void {
     this.#status = NotificationStatus.SENT;
     this.#sentAt = new Date();
+    this.#successfulChannel = channel;
   }
 
   markAsFailed(): void {
@@ -95,6 +105,14 @@ export class Notification extends Entity {
       this.#status = NotificationStatus.READ;
       this.#readAt = new Date();
     }
+  }
+
+  recordDeliveryAttempt(type: NotificationType, success: boolean): void {
+    this.#deliveryAttempts.push({
+      type,
+      timestamp: new Date(),
+      success,
+    });
   }
 
   // Getters
@@ -124,5 +142,14 @@ export class Notification extends Entity {
   }
   get metadata(): Record<string, unknown> {
     return { ...this.#metadata };
+  }
+  get deliveryStrategy(): DeliveryStrategy {
+    return this.#deliveryStrategy;
+  }
+  get deliveryAttempts(): Array<{ type: NotificationType; timestamp: Date; success: boolean }> {
+    return [...this.#deliveryAttempts];
+  }
+  get successfulChannel(): NotificationType | undefined {
+    return this.#successfulChannel;
   }
 }

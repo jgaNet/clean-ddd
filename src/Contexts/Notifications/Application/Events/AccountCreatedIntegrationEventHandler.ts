@@ -2,21 +2,22 @@ import { EventHandler } from '@SharedKernel/Domain/Application/EventHandler';
 import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
 import { AccountCreatedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
 import { ExecutionContext } from '@SharedKernel/Domain/Application/ExecutionContext';
-import { SendNotificationCommandEvent } from '../Commands/SendNotification/SendNotificationCommandEvent';
 import { NotificationType } from '@Contexts/Notifications/Domain/Notification/Notification';
+import { DeliveryStrategy } from '@Contexts/Notifications/Domain/Notification/DeliveryStrategy';
+import { INotificationService } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationService';
 
 export class AccountCreatedIntegrationEventHandler extends EventHandler<AccountCreatedIntegrationEvent> {
-  constructor(private readonly url: string) {
+  constructor(private readonly url: string, private readonly notificationService: INotificationService) {
     super();
   }
   async execute(event: AccountCreatedIntegrationEvent, context: ExecutionContext): Promise<IResult<void>> {
     try {
       const { accountId, email, validationToken } = event.payload;
 
-      // Create a verification email notification with execution context
-      const commandEvent = SendNotificationCommandEvent.set({
+      const notification = {
         recipientId: accountId,
         type: NotificationType.EMAIL,
+        deliveryStrategy: DeliveryStrategy.emailOnly(),
         title: 'Welcome to Our Platform - Verify Your Account',
         content: `
             <p>Thank you for creating an account!</p>
@@ -30,9 +31,9 @@ export class AccountCreatedIntegrationEventHandler extends EventHandler<AccountC
           source: 'Security.AccountCreated',
         },
         isManual: false,
-      });
+      };
 
-      context.eventBus.publish(commandEvent, context);
+      this.notificationService.send(notification, context);
 
       return Result.ok();
     } catch (error) {

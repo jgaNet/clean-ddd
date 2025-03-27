@@ -2,8 +2,9 @@ import {
   INotificationService,
   NotificationRequest,
 } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationService';
-import { NotificationType } from '@Contexts/Notifications/Domain/Notification/Notification';
+import { Notification, NotificationType } from '@Contexts/Notifications/Domain/Notification/Notification';
 import { ExecutionContext } from '@SharedKernel/Domain/Application/ExecutionContext';
+import { IResult, Result } from '@Contexts/@SharedKernel/Domain';
 
 export class EmailNotificationService implements INotificationService {
   constructor(
@@ -45,5 +46,24 @@ export class EmailNotificationService implements INotificationService {
       context.logger?.error('[EMAIL SERVICE] Failed to send email notification:', error);
       return false;
     }
+  }
+
+  // WARNING: The channel is always available for the moment
+  async sendViaChannel(
+    notification: Notification,
+    type: NotificationType = NotificationType.EMAIL,
+    context: ExecutionContext,
+  ): Promise<IResult<void>> {
+    if (type !== NotificationType.EMAIL) {
+      return Result.fail('Invalid notification type');
+    }
+
+    this.send(notification, context);
+    return Result.ok();
+  }
+
+  // WARNING: The channel is always available for the moment
+  async isChannelAvailable(_: string, __: NotificationType): Promise<boolean> {
+    return true;
   }
 }

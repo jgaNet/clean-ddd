@@ -19,7 +19,7 @@ const BasicLoginReqBodySchema = {
 
 export const loginSchema = {
   description: 'Login with credentials to receive an authentication token',
-  tags: ['security'],
+  tags: ['auth'],
   body: BasicLoginReqBodySchema,
   response: {
     200: {
@@ -61,7 +61,7 @@ const BasicSignupReqBodySchema = {
 
 export const signUpSchema = {
   description: 'SignUp',
-  tags: ['security'],
+  tags: ['auth'],
   body: BasicSignupReqBodySchema,
   response: {
     200: {
@@ -98,7 +98,7 @@ const ValidateAccountReqBodySchema = {
 
 export const validateAccountSchema = {
   description: 'Validate an account with token',
-  tags: ['security'],
+  tags: ['auth'],
   query: ValidateAccountReqBodySchema,
   response: {
     200: {
@@ -124,7 +124,7 @@ export const validateAccountSchema = {
 
 export const validateAccountByIdSchema = {
   description: 'Validate account with ID (available only for admins)',
-  tags: ['security'],
+  tags: ['accounts'],
   params: {
     type: 'object',
     properties: {
@@ -167,7 +167,7 @@ export const AccountSchema = {
 
 export const meSchema = {
   description: 'Get autenticated account informations',
-  tags: ['accounts'],
+  tags: ['auth'],
   response: {
     200: AccountSchema,
     401: {
@@ -196,6 +196,28 @@ export const getAccountByIdSchema = {
   },
   response: {
     200: AccountSchema,
+    401: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
+    500: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
+  },
+};
+
+export const logoutSchema = {
+  description: 'Logout',
+  tags: ['auth'],
+  response: {
+    200: {
+      type: 'string',
+    },
     401: {
       type: 'object',
       properties: {
