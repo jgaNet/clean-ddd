@@ -17,7 +17,7 @@ import { OperationCompleteIntegrationEventHandler } from './Application/Events/O
 import { InMemoryNotificationRepository } from './Infrastructure/Repositories/InMemoryNotificationRepository';
 import { InMemoryNotificationQueries } from './Infrastructure/Queries/InMemoryNotificationQueries';
 import { EmailNotificationService } from './Infrastructure/Services/EmailNotificationService';
-import { FastifyWebSocketService } from './Infrastructure/Services/FastifyWebSocketService';
+import { FastifyHTMXWebSocketService } from './Infrastructure/Services/FastifyHTMXWebSocketService';
 import { NotificationDeliveryService } from './Infrastructure/Services/NotificationDeliveryService';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 import { INotification } from './Domain/Notification/DTOs';
@@ -32,7 +32,7 @@ const notificationDataSource = new InMemoryDataSource<INotification>();
 const logger = new ConsoleLogger({ debug: SETTINGS.logger.debug });
 
 // Create services
-const webSocketService = new FastifyWebSocketService(logger);
+const webSocketService = new FastifyHTMXWebSocketService(logger);
 const emailService = new EmailNotificationService({
   smtpHost: process.env.SMTP_HOST || 'localhost',
   smtpPort: Number(process.env.SMTP_PORT) || 25,

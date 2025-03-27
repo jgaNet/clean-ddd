@@ -42,5 +42,15 @@ export const noteRoutes = function (
     noteController.getNotes.bind(noteController),
   );
 
+  fastify.get(
+    '/new',
+    {
+      schema: {
+        tags: ['notes'],
+      },
+    },
+    noteController.newNotes.bind(noteController),
+  );
+
   done();
 };

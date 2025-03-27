@@ -1,9 +1,9 @@
 import { Presenter } from '@SharedKernel/Domain/DDD';
 
-export class HomeHtmxPresenter implements Presenter<void, string> {
+export class NewNoteHTMXPresenter implements Presenter<void, string> {
   present(): string {
     return `
-      <form hx-post="/v1/notes" hx-ext="json-enc">
+      <form hx-post="/v1/notes" hx-ext="json-enc"  hx-swap="none">
         <p>
           <label for="title">Title</label>
           <br />

@@ -6,6 +6,7 @@ import {
   IEventEmitter,
   ExecutionContext,
   IOperation,
+  OperationStatus,
 } from '@SharedKernel/Domain';
 import { ITrackedOperationRepository, TrackedOperation } from '@Contexts/Tracker/Domain/TrackedOperation';
 import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
@@ -91,20 +92,18 @@ export class TrakedEventBus implements EventBus {
 
   private publishOperationCompleteEvent<T>(operation: IOperation<Event<T>>, context: ExecutionContext): void {
     try {
-      const operationCompleteEvent = new OperationCompleteIntegrationEvent({
-        payload: {
-          operationId: operation.id,
-          userId: context.auth?.subjectId || 'anonymous',
-          success: operation.result?.isSuccess() ?? false,
-          type: operation.event.name,
-          result: operation.result?.data,
-          error: operation.result?.isFailure() ? operation.result.error?.message || 'Unknown error' : undefined,
-        },
+      const operationCompleteEvent = OperationCompleteIntegrationEvent.set({
+        operationId: operation.id,
+        userId: context.auth?.subjectId || 'anonymous',
+        status: operation.status,
+        type: operation.event.name,
+        result: operation.result?.data,
+        error: operation.result?.isFailure() ? operation.result.error?.message || 'Unknown error' : undefined,
       });
 
       // Emit the operation complete event
       this.#eventEmitter.emit(
-        operationCompleteEvent.constructor.name,
+        OperationCompleteIntegrationEvent.name,
         TrackedOperation.create({
           event: operationCompleteEvent,
           context,

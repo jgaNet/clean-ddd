@@ -3,12 +3,19 @@ import { CreateNoteReqBody } from '@Contexts/Notes/Presentation/API/REST/Routes/
 import { CreateNoteCommandEvent } from '@Contexts/Notes/Application/Commands/CreateNote/CreateNoteCommandEvent';
 import { NotesModuleQueries } from '@Contexts/Notes/Application/DTOs';
 import { GetNotesQueryHandler } from '@Contexts/Notes/Application/Queries/GetNotes/GetNotesQueryHandler';
+import { PresenterFactory } from '@SharedKernel/Domain/Services';
+import { NewNoteHTMXPresenter } from '@Contexts/Notes/Presentation/Presenters';
 
 export class FastifyNoteController {
   #queries: NotesModuleQueries;
+  #presenterFactory: PresenterFactory = new PresenterFactory();
 
   constructor({ queries: ModuleQueries }: { queries: NotesModuleQueries }) {
     this.#queries = ModuleQueries;
+    this.#presenterFactory.register({
+      name: 'newNote',
+      presenters: [{ format: 'htmx', presenter: new NewNoteHTMXPresenter() }],
+    });
   }
 
   async createNote(req: FastifyRequest<{ Body: CreateNoteReqBody }>, reply: FastifyReply) {
@@ -77,5 +84,9 @@ export class FastifyNoteController {
       reply.code(400);
       return e;
     }
+  }
+
+  async newNotes() {
+    return this.#presenterFactory.get({ name: 'newNote', format: 'htmx' })?.present();
   }
 }

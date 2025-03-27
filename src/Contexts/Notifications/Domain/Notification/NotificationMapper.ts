@@ -1,6 +1,7 @@
 import { Mapper } from '@SharedKernel/Domain/DDD/Mapper';
 import { Notification } from './Notification';
 import { INotification } from './DTOs';
+import { DeliveryStrategy } from './DeliveryStrategy';
 
 export class NotificationMapper implements Mapper<Notification, INotification> {
   toJSON(notification: Notification): INotification {
@@ -24,6 +25,7 @@ export class NotificationMapper implements Mapper<Notification, INotification> {
       recipientId: dto.recipientId,
       type: dto.type,
       title: dto.title,
+      deliveryStrategy: DeliveryStrategy.custom([]),
       content: dto.content,
       metadata: dto.metadata,
     });
@@ -36,11 +38,11 @@ export class NotificationMapper implements Mapper<Notification, INotification> {
 
     // Set appropriate status
     if (dto.status === 'SENT') {
-      notification.markAsSent();
+      notification.markAsSent(dto.type);
     } else if (dto.status === 'FAILED') {
       notification.markAsFailed();
     } else if (dto.status === 'READ') {
-      notification.markAsSent();
+      notification.markAsSent(dto.type);
       notification.markAsRead();
     }
 

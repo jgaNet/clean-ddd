@@ -7,7 +7,7 @@ import { GetNotificationsQueryHandler } from './Queries/GetNotifications/GetNoti
 import { AccountCreatedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
 import { AccountValidatedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
 import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
-import { FastifyWebSocketService } from '../Infrastructure/Services/FastifyWebSocketService';
+import { IWebSocketService } from '../Infrastructure/Services/IServices';
 
 export interface NotificationDTO {
   id: string;
@@ -72,5 +72,5 @@ export type NotificationsModuleIntegrationEvents = [
 ];
 
 export type NotificationsModuleServices = {
-  webSocketService: FastifyWebSocketService;
+  webSocketService: IWebSocketService;
 };

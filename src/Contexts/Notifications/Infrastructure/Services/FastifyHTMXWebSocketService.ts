@@ -15,7 +15,7 @@ export interface IWebSocketService extends IEventEmitter {
   isUserConnected(userId: string): boolean;
 }
 
-export class FastifyWebSocketService implements IWebSocketService {
+export class FastifyHTMXWebSocketService implements IWebSocketService {
   private clients: WebSocketClientMap = {};
 
   constructor(private logger: Logger) {}
@@ -115,23 +115,11 @@ export class FastifyWebSocketService implements IWebSocketService {
     }
 
     try {
-      const message = JSON.stringify({
-        type: 'notification',
-        payload: {
-          id: notification._id,
-          type: notification.type,
-          title: notification.title,
-          content: notification.content,
-          createdAt: notification.createdAt,
-          metadata: notification.metadata,
-        },
-      });
-
       // Send to all user's connections
       let sent = false;
       for (const socket of connections) {
         if (socket.readyState === WebSocket.OPEN) {
-          socket.send(message);
+          socket.send(`<div id="notifications" hx-swap-oob="innerHTML">${notification.content}</div>`);
           sent = true;
         }
       }
