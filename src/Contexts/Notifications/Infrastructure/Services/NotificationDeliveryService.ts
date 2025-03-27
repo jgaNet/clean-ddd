@@ -7,7 +7,7 @@ import {
 } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationService';
 import { INotificationRepository } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationRepository';
 import { EmailNotificationService } from './EmailNotificationService';
-import { IWebSocketService } from './WebSocketService';
+import { IWebSocketService } from './IServices';
 
 export class NotificationDeliveryService implements INotificationService {
   private readonly channelServices: Map<NotificationType, unknown> = new Map();
