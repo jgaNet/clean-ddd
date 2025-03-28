@@ -18,6 +18,7 @@ export class LoginHTMXPresenter implements Presenter<ErrorViewModel, string> {
           <input name="password" placeholder="Password" />
           <input type="submit" value="Login" />
         </form>
+        <br />
         <div id="errors">${message}</div>
         <script>
           history.pushState({}, '', '/');
