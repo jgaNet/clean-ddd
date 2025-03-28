@@ -144,7 +144,7 @@ export class FastifyAuthController {
       );
 
       if (loginResult.isFailure()) {
-        return reply.code(200).send(notAllowedPresenter?.present(loginResult.error?.message));
+        return reply.code(200).send(notAllowedPresenter?.present(loginResult.error));
       }
 
       reply.setCookie('token', loginResult.data.token, {
@@ -156,7 +156,7 @@ export class FastifyAuthController {
 
       return presenter?.present(loginResult.data);
     } catch (error) {
-      return reply.code(500).send(errorPresenter?.present('Unexpected error'));
+      return reply.code(500).send(errorPresenter?.present({ message: 'Unexpected error' }));
     }
   }
 
@@ -180,10 +180,10 @@ export class FastifyAuthController {
     } catch (error) {
       if (error instanceof NotAllowedException) {
         if (format === 'htmx') {
-          return notAllowedPresenter?.present(error.message);
+          return notAllowedPresenter?.present(error);
         }
 
-        return reply.code(401).send(notAllowedPresenter?.present(error.message));
+        return reply.code(401).send(notAllowedPresenter?.present(error));
       }
 
       return reply.code(500).send(errorPresenter?.present('An error occurred'));
@@ -194,6 +194,6 @@ export class FastifyAuthController {
     const format = req.headers['hx-request'] ? 'htmx' : 'json';
     reply.clearCookie('token');
 
-    return this.#presenterFactory.get({ name: 'getApiLogout', format })?.present('Logout successful');
+    return this.#presenterFactory.get({ name: 'getApiLogout', format })?.present({ message: 'Logout successful' });
   }
 }

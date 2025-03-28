@@ -5,6 +5,7 @@ import { IEventEmitter } from '@SharedKernel/Domain/Services/EventEmitter';
 import { Notification } from '@Contexts/Notifications/Domain/Notification/Notification';
 import { Logger, Role } from '@SharedKernel/Domain';
 import { WebSocket } from 'ws';
+import { html } from '@Contexts/@SharedKernel/Presentation/Templates';
 
 export interface WebSocketClientMap {
   [userId: string]: Set<WebSocket>; // userId -> WebSocket connections
@@ -119,7 +120,7 @@ export class FastifyHTMXWebSocketService implements IWebSocketService {
       let sent = false;
       for (const socket of connections) {
         if (socket.readyState === WebSocket.OPEN) {
-          socket.send(`<div id="notifications" hx-swap-oob="innerHTML">${notification.content}</div>`);
+          socket.send(html`<div id="notifications" hx-swap-oob="innerHTML">${notification.content}</div>`);
           sent = true;
         }
       }
