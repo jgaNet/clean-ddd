@@ -1,5 +1,5 @@
-import { DataSource } from '@SharedKernel/Domain/Services';
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { DataSource } from '@Core/Domain/Services';
+import { InMemoryDataSource } from '@Core/Infrastructure/DataSources/InMemoryDataSource';
 
 import { Account } from '@Contexts/Security/Domain/Account/Account';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';

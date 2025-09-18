@@ -1,5 +1,5 @@
 import { Notification } from '../Notification';
-import { Nullable } from '@SharedKernel/Domain/Utils/Nullable';
+import { Nullable } from '@SystemOrchestrator/Helpers';
 
 export interface INotificationRepository {
   nextIdentity(): Promise<string>;

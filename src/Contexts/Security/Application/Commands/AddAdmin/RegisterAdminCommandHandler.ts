@@ -1,11 +1,5 @@
-import {
-  CommandHandler,
-  Result,
-  IResult,
-  ExecutionContext,
-  NotAllowedException,
-} from '@SharedKernel/Domain/Application';
-import { Role } from '@SharedKernel/Domain/AccessControl';
+import { CommandHandler, Result, IResult, ExecutionContext, NotAllowedException } from '@Core/Application';
+import { Role } from '@SystemOrchestrator/Helpers';
 
 import { Account } from '@Contexts/Security/Domain/Account/Account';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';

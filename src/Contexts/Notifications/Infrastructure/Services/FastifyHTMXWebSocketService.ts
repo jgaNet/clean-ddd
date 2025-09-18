@@ -1,17 +1,19 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import fastifyWebsocket from '@fastify/websocket';
-import { IResult, Result } from '@SharedKernel/Domain/Application';
-import { IEventEmitter } from '@SharedKernel/Domain/Services/EventEmitter';
+import { IResult, Result } from '@Core/Application';
+import { IEventEmitter } from '@Core/Domain/Services';
 import { Notification } from '@Contexts/Notifications/Domain/Notification/Notification';
-import { Logger, Role } from '@SharedKernel/Domain';
+import { Logger } from '@Core/Application';
+import { Role } from '@SystemOrchestrator/Helpers';
 import { WebSocket } from 'ws';
-import { html } from '@Contexts/@SharedKernel/Presentation/Templates';
+import { html } from '@Core/Infrastructure/Templates';
 
 export interface WebSocketClientMap {
   [userId: string]: Set<WebSocket>; // userId -> WebSocket connections
 }
 
 export interface IWebSocketService extends IEventEmitter {
+  initialize(fastify: FastifyInstance): Promise<void>;
   sendToUser(userId: string, notification: Notification): Promise<IResult<void>>;
   isUserConnected(userId: string): boolean;
 }

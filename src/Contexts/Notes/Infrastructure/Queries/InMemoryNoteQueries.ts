@@ -1,7 +1,7 @@
 import { INoteQueries } from '@Contexts/Notes/Domain/Note/Ports/INoteQueries';
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
-import { Nullable } from '@SharedKernel/Domain/Utils';
+import { InMemoryDataSource } from '@Core/Infrastructure/DataSources/InMemoryDataSource';
+import { Nullable } from '@SystemOrchestrator/Helpers';
 
 export class InMemoryNoteQueries implements INoteQueries {
   dataSource: InMemoryDataSource<INote>;

@@ -1,4 +1,4 @@
-import { ExecutionContext, IResult } from '@SharedKernel/Domain/Application';
+import { ExecutionContext, IResult } from '@Core/Application';
 import { Notification, NotificationType } from '../Notification';
 import { DeliveryStrategy } from '../DeliveryStrategy';
 

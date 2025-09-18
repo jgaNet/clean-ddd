@@ -3,7 +3,7 @@ import { CreateNoteReqBody } from '@Contexts/Notes/Presentation/API/REST/Routes/
 import { CreateNoteCommandEvent } from '@Contexts/Notes/Application/Commands/CreateNote/CreateNoteCommandEvent';
 import { NotesModuleQueries } from '@Contexts/Notes/Application/DTOs';
 import { GetNotesQueryHandler } from '@Contexts/Notes/Application/Queries/GetNotes/GetNotesQueryHandler';
-import { PresenterFactory } from '@SharedKernel/Domain/Services';
+import { PresenterFactory } from '@Core/Domain/Services';
 import { NewNoteHTMXPresenter } from '@Contexts/Notes/Presentation/Presenters';
 
 export class FastifyNoteController {

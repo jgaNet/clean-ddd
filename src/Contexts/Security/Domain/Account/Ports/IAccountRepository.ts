@@ -1,4 +1,4 @@
-import { Repository } from '@SharedKernel/Domain/DDD';
+import { Repository } from '@Core/Domain';
 import { Account } from '../Account';
 
 export interface IAccountRepository extends Repository<Account> {

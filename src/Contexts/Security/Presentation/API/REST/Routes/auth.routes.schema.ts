@@ -1,4 +1,4 @@
-import { Role } from '@Contexts/@SharedKernel/Domain';
+import { Role } from '@SystemOrchestrator/Helpers';
 import { FromSchema } from 'json-schema-to-ts';
 
 const BasicLoginReqBodySchema = {

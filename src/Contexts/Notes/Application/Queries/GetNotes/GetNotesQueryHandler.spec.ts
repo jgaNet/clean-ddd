@@ -2,7 +2,10 @@ import { expect, jest } from '@jest/globals';
 import { mockNotesModule, mockedNoteRepository } from '@Contexts/Notes/module.mock';
 import { MockedNoteQueries } from '@Contexts/Notes/Infrastructure/Queries/MockedNoteQueries';
 import { MockedNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/MockedNoteRepository';
-import { Result, EventBus, ExecutionContext, Role } from '@SharedKernel/Domain';
+import { Result } from '@Core/Domain';
+import { EventBus } from '@Core/Domain/Services';
+import { ExecutionContext } from '@Core/Application';
+import { Role } from '@SystemOrchestrator/Helpers';
 import { GetNotesQueryHandler } from '@Contexts/Notes/Application/Queries/GetNotes';
 import { CreateNoteCommandEvent } from '@Contexts/Notes/Application/Commands/CreateNote';
 

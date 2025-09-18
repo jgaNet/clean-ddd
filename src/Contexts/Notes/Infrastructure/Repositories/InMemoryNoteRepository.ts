@@ -1,6 +1,6 @@
 import { INoteRepository } from '@Contexts/Notes/Domain/Note/Ports/INoteRepository';
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { InMemoryDataSource } from '@Core/Infrastructure/DataSources/InMemoryDataSource';
 import { v4 as uuidv4 } from 'uuid';
 
 export class InMemoryNoteRepository implements INoteRepository {

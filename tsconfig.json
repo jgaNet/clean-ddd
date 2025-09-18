@@ -30,11 +30,14 @@
     "rootDir": "src",
     "baseUrl": "src",
     "paths": {
+      "@Core/*": [
+        "Core/*"
+      ],
+      "@SystemOrchestrator/*": [
+        "SystemOrchestrator/*"
+      ],
       "@Contexts/*": [
         "Contexts/*"
-      ],
-      "@SharedKernel/*": [
-        "Contexts/@SharedKernel/*"
       ],
       "@Bootstrap/*": [
         "Bootstrap/*"

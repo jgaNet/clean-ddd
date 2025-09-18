@@ -1,9 +1,9 @@
-import { CommandHandler, Result, IResult, ExecutionContext } from '@SharedKernel/Domain/Application';
+import { CommandHandler, Result, IResult, ExecutionContext } from '@Core/Application';
 import { Account } from '@Contexts/Security/Domain/Account/Account';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
 import { SignUpCommandEvent } from './SignUpCommandEvent';
 import { AccountCreatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountCreatedEvent';
-import { isRole } from '@Contexts/@SharedKernel/Domain';
+import { isRole } from '@SystemOrchestrator/Helpers';
 import { accountMapper } from '@Contexts/Security/Domain/Account/AccountMapper';
 
 export class SignUpCommandHandler extends CommandHandler<SignUpCommandEvent> {

@@ -1,7 +1,7 @@
-import { Role } from '@SharedKernel/Domain/AccessControl';
+import { Role } from '@SystemOrchestrator/Helpers';
 
 import { GetNotesQueryResult } from '@Contexts/Notes/Application/DTOs';
-import { QueryHandler, Result, IResult, ExecutionContext, NotAllowedException } from '@SharedKernel/Domain/Application';
+import { QueryHandler, Result, IResult, ExecutionContext, NotAllowedException } from '@Core/Application';
 import { INoteQueries } from '@Contexts/Notes/Domain/Note/Ports/INoteQueries';
 
 export class GetNotesQueryHandler extends QueryHandler<INoteQueries, void, GetNotesQueryResult> {

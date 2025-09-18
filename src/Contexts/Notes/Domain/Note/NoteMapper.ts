@@ -1,5 +1,5 @@
 import { Note } from '@Contexts/Notes/Domain/Note/Note';
-import { Mapper } from '@SharedKernel/Domain/DDD';
+import { Mapper } from '@Core/Domain';
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 
 export class NoteMapperImpl implements Mapper<Note, INote> {

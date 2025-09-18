@@ -1,4 +1,4 @@
-import { Mapper } from '@SharedKernel/Domain/DDD';
+import { Mapper } from '@Core/Domain';
 import { Account } from './Account';
 import { IAccount } from './DTOs';
 

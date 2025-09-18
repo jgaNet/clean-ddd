@@ -1,9 +1,9 @@
-import { QueryHandler } from '@SharedKernel/Domain/Application/QueryHandler';
-import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
+import { QueryHandler } from '@Core/Application/QueryHandler';
+import { Result, IResult } from '@Core/Application/Result';
 import { INotificationQueries } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationQueries';
 import { GetNotificationsDTO, NotificationListResponseDTO } from '../../DTOs';
-import { ExecutionContext } from '@SharedKernel/Domain/Application/ExecutionContext';
-import { Role } from '@SharedKernel/Domain';
+import { ExecutionContext } from '@Core/Application/ExecutionContext';
+import { Role } from '@SystemOrchestrator/Helpers';
 
 export class GetNotificationsQueryHandler extends QueryHandler<
   INotificationQueries,

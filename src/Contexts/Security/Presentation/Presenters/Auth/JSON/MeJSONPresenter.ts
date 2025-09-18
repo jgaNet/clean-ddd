@@ -1,4 +1,4 @@
-import { Presenter } from '@SharedKernel/Domain/DDD';
+import { Presenter } from '@Core/Domain';
 import { AccountViewModel } from '../ViewModels';
 
 export class MeJSONPresenter implements Presenter<AccountViewModel, object> {

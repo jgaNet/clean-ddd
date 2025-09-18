@@ -7,11 +7,11 @@ import { TrackerModule } from '@Contexts/Tracker/Application';
 
 import { TrakedEventBus } from '@Contexts/Tracker/Infrastructure/Services/TrakedEventBus';
 
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { InMemoryDataSource } from '@Core/Infrastructure/DataSources/InMemoryDataSource';
 import { InMemoryOperationRepository } from '@Contexts/Tracker/Infrastructure/Repositories/InMemoryTrakedOperationRepository';
-import { ModuleBuilder } from '@SharedKernel/Domain/Application';
+import { ModuleBuilder } from '@Core/Application';
 
-import { inMemoryEventEmitter } from '@SharedKernel/Infrastructure/EventEmitter/inMemoryEventEmitter';
+import { inMemoryEventEmitter } from '@Core/Infrastructure/EventEmitter/inMemoryEventEmitter';
 
 const inMemoryOperationDataSource = new InMemoryDataSource<ITrackedOperation>();
 const inMemoryOperationQueries = new InMemoryOperationQueries(inMemoryOperationDataSource);

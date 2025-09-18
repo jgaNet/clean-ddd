@@ -1,4 +1,4 @@
-import { CommandEvent } from '@SharedKernel/Domain/Application';
+import { CommandEvent } from '@Core/Application';
 
 interface SignUpPayload {
   subjectId: string;

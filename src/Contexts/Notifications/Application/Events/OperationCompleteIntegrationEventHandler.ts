@@ -1,9 +1,10 @@
-import { ExecutionContext, EventHandler } from '@SharedKernel/Domain/Application';
-import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
+import { ExecutionContext, EventHandler } from '@Core/Application';
+import { OperationCompleteIntegrationEvent } from '@SystemOrchestrator/Events/IntegrationEvents/TrackerIntegrationEvents';
 import { NotificationType } from '@Contexts/Notifications/Domain/Notification/Notification';
 import { DeliveryStrategy } from '@Contexts/Notifications/Domain/Notification/DeliveryStrategy';
 import { INotificationService } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationService';
-import { IResult, OperationStatus, Result } from '@SharedKernel/Domain';
+import { IResult, Result } from '@Core/Application';
+import { OperationStatus } from '@Core/Domain/Services';
 
 export class OperationCompleteIntegrationEventHandler extends EventHandler<OperationCompleteIntegrationEvent> {
   constructor(private notificationService: INotificationService) {

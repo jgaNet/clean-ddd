@@ -1,4 +1,4 @@
-import { Exception } from '@SharedKernel/Domain/DDD';
+import { Exception } from '@Core/Domain';
 
 export class NoteDomainException extends Exception {
   constructor({ type, message, context }: { type: string; message: string; context?: unknown }) {

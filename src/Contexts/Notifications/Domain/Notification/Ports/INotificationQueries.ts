@@ -1,5 +1,5 @@
 import { INotification } from '../DTOs';
-import { QueriesService } from '@SharedKernel/Domain/DDD/QueriesService';
+import { QueriesService } from '@Core/Domain/QueriesService';
 
 export interface INotificationQueries extends QueriesService {
   findAll(options?: {

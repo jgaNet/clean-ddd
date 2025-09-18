@@ -1,4 +1,4 @@
-import { ExecutionContext, Result, IResult, CommandHandler } from '@SharedKernel/Domain/Application';
+import { ExecutionContext, Result, IResult, CommandHandler } from '@Core/Application';
 
 import { NoteFactory } from '@Contexts/Notes/Domain/Note/NoteFactory';
 import { NoteMapper } from '@Contexts/Notes/Domain/Note/NoteMapper';
@@ -7,8 +7,8 @@ import { INoteQueries } from '@Contexts/Notes/Domain/Note/Ports/INoteQueries';
 import { NoteCreatedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteCreatedEvent';
 import { CreateNoteCommandEvent } from '@Contexts/Notes/Application/Commands/CreateNote';
 import { INote } from '@Contexts/Notes/Domain/Note';
-import { Role } from '@SharedKernel/Domain/AccessControl';
-import { NotAllowedException } from '@SharedKernel/Domain';
+import { Role } from '@SystemOrchestrator/Helpers';
+import { NotAllowedException } from '@Core/Application';
 
 export class CreateNoteCommandHandler extends CommandHandler<CreateNoteCommandEvent> {
   #noteFactory: NoteFactory;

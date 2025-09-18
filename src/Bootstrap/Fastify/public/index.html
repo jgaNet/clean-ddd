@@ -1,17 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <title>htmx + Fastify</title>
 </head>
-<body
-    hx-boost="true"
-    hx-trigger="load"
-    hx-get="/v1/"
-    hx-swap="afterbegin"
-  >
 
-
+<body hx-boost="true" hx-trigger="load" hx-get="/v1/" hx-swap="afterbegin">
   <script src="/js/htmx.min.js"></script>
   <script src="/js/ws.js"></script>
   <script src="/js/json-enc.js"></script>
@@ -20,4 +15,5 @@
   <script src="/js/nunjucks.min.js"></script>
   <script src="/js/init.js"></script>
 </body>
+
 </html>

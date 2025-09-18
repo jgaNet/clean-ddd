@@ -7,10 +7,10 @@ import { CreateNoteCommandEvent } from '@Contexts/Notes/Application/Commands/Cre
 
 import { CreateNoteCommandHandler } from '@Contexts/Notes/Application/Commands/CreateNote/CreateNoteCommandHandler';
 import { GetNotesQueryHandler } from '@Contexts/Notes/Application/Queries/GetNotes/GetNotesQueryHandler';
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { InMemoryDataSource } from '@Core/Infrastructure/DataSources/InMemoryDataSource';
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 
-import { ModuleBuilder } from '@SharedKernel/Domain/Application';
+import { ModuleBuilder } from '@Core/Application';
 
 export const inMemoryDataSource = new InMemoryDataSource<INote>();
 export const mockedNoteRepository = new MockedNoteRepository(inMemoryDataSource);

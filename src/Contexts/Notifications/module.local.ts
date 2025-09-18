@@ -1,4 +1,4 @@
-import { ModuleBuilder } from '@SharedKernel/Domain/Application/Module';
+import { ModuleBuilder } from '@Core/Application/Module';
 import { SendNotificationCommandEvent } from './Application/Commands/SendNotification/SendNotificationCommandEvent';
 import { SendNotificationCommandHandler } from './Application/Commands/SendNotification/SendNotificationCommandHandler';
 import { MarkAsReadNotificationCommandEvent } from './Application/Commands/MarkAsRead/MarkAsReadNotificationCommandEvent';
@@ -8,10 +8,10 @@ import { NotificationSentEvent } from './Domain/Notification/Events/Notification
 import {
   AccountCreatedIntegrationEvent,
   AccountValidatedIntegrationEvent,
-} from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
+} from '@SystemOrchestrator/Events/IntegrationEvents/AccountIntegrationEvents';
 import { AccountCreatedIntegrationEventHandler } from './Application/Events/AccountCreatedIntegrationEventHandler';
 import { AccountValidatedIntegrationEventHandler } from './Application/Events/AccountValidatedIntegrationEventHandler';
-import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
+import { OperationCompleteIntegrationEvent } from '@SystemOrchestrator/Events/IntegrationEvents/TrackerIntegrationEvents';
 import { OperationCompleteIntegrationEventHandler } from './Application/Events/OperationCompleteIntegrationEventHandler';
 
 import { InMemoryNotificationRepository } from './Infrastructure/Repositories/InMemoryNotificationRepository';
@@ -19,12 +19,12 @@ import { InMemoryNotificationQueries } from './Infrastructure/Queries/InMemoryNo
 import { EmailNotificationService } from './Infrastructure/Services/EmailNotificationService';
 import { FastifyHTMXWebSocketService } from './Infrastructure/Services/FastifyHTMXWebSocketService';
 import { NotificationDeliveryService } from './Infrastructure/Services/NotificationDeliveryService';
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { InMemoryDataSource } from '@Core/Infrastructure/DataSources/InMemoryDataSource';
 import { INotification } from './Domain/Notification/DTOs';
 
 // Import the account queries from Security module
 import { SETTINGS } from '@Bootstrap/Fastify/application.settings';
-import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
+import { ConsoleLogger } from '@Core/Infrastructure/Logging/ConsoleLogger';
 import { NotificationsModule } from './Application';
 
 // Create shared infrastructure

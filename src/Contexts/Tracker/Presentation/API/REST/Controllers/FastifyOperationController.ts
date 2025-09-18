@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { GetOperationsHandler } from '@Contexts/Tracker/Application/Queries/GetOperations';
 import { GetOperationHandler } from '@Contexts/Tracker/Application/Queries/GetOperation';
-import { NotFoundException } from '@SharedKernel/Domain/Application';
+import { NotFoundException } from '@Core/Application';
 import { TrackerModuleQueries } from '@Contexts/Tracker/Application/DTOs';
 
 export class FastifyOperationController {

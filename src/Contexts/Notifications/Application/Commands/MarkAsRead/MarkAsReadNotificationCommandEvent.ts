@@ -1,3 +1,3 @@
-import { CommandEvent } from '@SharedKernel/Domain/Application/EventTypes';
+import { CommandEvent } from '@Core/Application/EventTypes';
 
 export class MarkAsReadNotificationCommandEvent extends CommandEvent<string> {}

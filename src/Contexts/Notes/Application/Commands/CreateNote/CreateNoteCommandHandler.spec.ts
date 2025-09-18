@@ -3,7 +3,9 @@ import { mockNotesModule, mockedNoteRepository } from '@Contexts/Notes/module.mo
 import { CreateNoteCommandEvent } from '@Contexts/Notes/Application/Commands/CreateNote';
 import { MockedNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/MockedNoteRepository';
 import { MockedNoteQueries } from '@Contexts/Notes/Infrastructure/Queries/MockedNoteQueries';
-import { Role, EventBus, ExecutionContext } from '@SharedKernel/Domain';
+import { ExecutionContext } from '@Core/Application';
+import { EventBus } from '@Core/Domain/Services';
+import { Role } from '@SystemOrchestrator/Helpers';
 import { BlankNoteException } from '@Contexts/Notes/Domain/Note';
 
 const eventBusMock = {

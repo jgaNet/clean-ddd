@@ -1,6 +1,6 @@
-import { EventHandler, IResult, Result, ExecutionContext } from '@SharedKernel/Domain/Application';
+import { EventHandler, IResult, Result, ExecutionContext } from '@Core/Application';
 import { AccountValidatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountValidatedEvent';
-import { AccountValidatedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
+import { AccountValidatedIntegrationEvent } from '@SystemOrchestrator/Events/IntegrationEvents/AccountIntegrationEvents';
 
 export class AccountValidatedHandler extends EventHandler<AccountValidatedEvent> {
   async execute(event: AccountValidatedEvent, context: ExecutionContext): Promise<IResult> {

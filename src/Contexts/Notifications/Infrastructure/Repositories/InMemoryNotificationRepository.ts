@@ -1,8 +1,8 @@
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { InMemoryDataSource } from '@Core/Infrastructure/DataSources/InMemoryDataSource';
 import { v4 as uuidv4 } from 'uuid';
 import { INotificationRepository } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationRepository';
 import { Notification } from '@Contexts/Notifications/Domain/Notification/Notification';
-import { Nullable } from '@SharedKernel/Domain/Utils/Nullable';
+import { Nullable } from '@SystemOrchestrator/Helpers';
 import { NotificationMapper } from '@Contexts/Notifications/Domain/Notification/NotificationMapper';
 import { INotification } from '@Contexts/Notifications/Domain/Notification/DTOs';
 

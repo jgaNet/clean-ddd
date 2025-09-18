@@ -7,9 +7,9 @@ import {
   ExecutionContext,
   IOperation,
   OperationStatus,
-} from '@SharedKernel/Domain';
+} from '@Core/Domain';
 import { ITrackedOperationRepository, TrackedOperation } from '@Contexts/Tracker/Domain/TrackedOperation';
-import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
+import { OperationCompleteIntegrationEvent } from '@SystemOrchestrator/Events/IntegrationEvents/TrackerIntegrationEvents';
 import EventEmitter from 'events';
 
 export class TrakedEventBus implements EventBus {

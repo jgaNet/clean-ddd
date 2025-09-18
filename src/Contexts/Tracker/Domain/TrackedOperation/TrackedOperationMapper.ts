@@ -1,4 +1,4 @@
-import { Mapper, Event, IEvent } from '@SharedKernel/Domain';
+import { Mapper, Event, IEvent } from '@Core/Domain';
 import { TrackedOperation } from './TrackedOperation';
 import { ITrackedOperation, ITrackedOperationDTO } from './DTOs';
 

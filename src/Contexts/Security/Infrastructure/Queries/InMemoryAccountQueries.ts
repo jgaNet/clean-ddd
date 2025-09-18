@@ -1,6 +1,6 @@
 import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
 import { IAccount } from '@Contexts/Security/Domain/Account/DTOs';
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { InMemoryDataSource } from '@Core/Infrastructure/DataSources/InMemoryDataSource';
 import { Account } from '@Contexts/Security/Domain/Account/Account';
 import { AccountMapper, accountMapper } from '@Contexts/Security/Domain/Account/AccountMapper';
 

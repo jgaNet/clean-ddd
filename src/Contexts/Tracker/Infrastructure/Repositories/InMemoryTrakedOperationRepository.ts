@@ -1,4 +1,4 @@
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { InMemoryDataSource } from '@Core/Infrastructure/DataSources/InMemoryDataSource';
 import { ITrackedOperation } from '@Contexts/Tracker/Domain/TrackedOperation';
 
 export class InMemoryOperationRepository {

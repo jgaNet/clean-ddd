@@ -1,4 +1,4 @@
-import { EventHandler, IResult, Result, ExecutionContext } from '@SharedKernel/Domain/Application';
+import { EventHandler, IResult, Result, ExecutionContext } from '@Core/Application';
 import { NoteCreatedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteCreatedEvent';
 
 export class NoteCreatedHandler extends EventHandler<NoteCreatedEvent> {

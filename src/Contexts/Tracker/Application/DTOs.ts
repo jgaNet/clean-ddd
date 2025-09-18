@@ -1,4 +1,4 @@
-import { IResult } from '@SharedKernel/Domain/Application';
+import { IResult } from '@Core/Application';
 
 import { ITrackedOperation } from '@Contexts/Tracker/Domain/TrackedOperation';
 import { GetOperationsHandler } from '@Contexts/Tracker/Application/Queries/GetOperations';

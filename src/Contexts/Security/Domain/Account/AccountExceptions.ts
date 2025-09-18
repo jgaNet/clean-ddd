@@ -1,4 +1,4 @@
-import { Exception } from '@SharedKernel/Domain/DDD';
+import { Exception } from '@Core/Domain';
 export class InvalidAccountException extends Exception {
   constructor(message: string, context?: unknown) {
     super({

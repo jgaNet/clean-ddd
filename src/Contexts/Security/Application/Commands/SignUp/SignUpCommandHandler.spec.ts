@@ -2,7 +2,10 @@ import { expect, jest } from '@jest/globals';
 import { mockSecurityModule, mockAccountRepository } from '@Contexts/Security/module.mock';
 import { MockedNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/MockedNoteRepository';
 import { MockedNoteQueries } from '@Contexts/Notes/Infrastructure/Queries/MockedNoteQueries';
-import { Role, EventBus, ExecutionContext, InvalidEmailFormat } from '@SharedKernel/Domain';
+import { ExecutionContext } from '@Core/Application';
+import { EventBus } from '@Core/Domain/Services';
+import { Role } from '@SystemOrchestrator/Helpers';
+import { InvalidEmailFormat } from '@Core/Application/CommonExceptions';
 import { SignUpCommandEvent } from '@Contexts/Security/Application/Commands';
 
 const eventBusMock = {

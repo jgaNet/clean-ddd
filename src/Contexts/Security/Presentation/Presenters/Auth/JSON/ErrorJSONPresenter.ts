@@ -1,4 +1,4 @@
-import { Presenter } from '@SharedKernel/Domain/DDD';
+import { Presenter } from '@Core/Domain';
 import { ErrorViewModel } from '../ViewModels';
 
 export class ErrorJSONPresenter implements Presenter<ErrorViewModel, object> {

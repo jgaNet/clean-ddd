@@ -5,8 +5,8 @@ import {
   ExecutionContext,
   IResult,
   NotAllowedException,
-} from '@SharedKernel/Domain/Application';
-import { Role } from '@SharedKernel/Domain/AccessControl';
+} from '@Core/Application';
+import { Role } from '@SystemOrchestrator/Helpers';
 import { GetOperationQueryResult, GetOperationQueryPayload } from '@Contexts/Tracker/Application/DTOs';
 import { ITrackedOperationQueries } from '@Contexts/Tracker/Domain/TrackedOperation/Ports/ITrackedOperationQueries';
 

@@ -1,7 +1,7 @@
 import { FastifyRequest } from 'fastify';
 
 import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
-import { Role } from '@SharedKernel/Domain/AccessControl';
+import { Role } from '@SystemOrchestrator/Helpers';
 import { AccountToken } from '@Contexts/Security/Domain/Account/AccountToken';
 
 import jwt from 'jsonwebtoken';

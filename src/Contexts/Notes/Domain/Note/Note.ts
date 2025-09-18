@@ -1,6 +1,6 @@
-import { Entity } from '@SharedKernel/Domain/DDD';
-import { Result, IResult } from '@SharedKernel/Domain/Application';
-import { Id } from '@Contexts/@SharedKernel/Domain';
+import { Entity } from '@Core/Domain';
+import { Result, IResult } from '@Core/Application';
+import { Id } from '@SystemOrchestrator/Helpers';
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 
 export class Note extends Entity {

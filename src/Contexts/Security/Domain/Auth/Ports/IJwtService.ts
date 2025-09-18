@@ -1,5 +1,5 @@
 import { TokenTypes } from '@Contexts/Security/Domain/Auth/TokenTypes';
-import { Role } from '@Contexts/@SharedKernel/Domain';
+import { Role } from '@SystemOrchestrator/Helpers';
 
 export interface TokenPayload {
   subjectId: string;

@@ -1,0 +1,32 @@
+import { FastifyRequest } from 'fastify';
+import { HomeViewModel } from '@Contexts/Home/Presentation/Presenters/Home/ViewModels';
+import { HomeJsonPresenter, HomeHtmxPresenter } from '@Contexts/Home/Presentation/Presenters/Home';
+import { PresenterFactory } from '@Core/Domain/Services';
+
+export class HomeController {
+  #settings: { version: string; name: string };
+  #presenterFactory: PresenterFactory = new PresenterFactory();
+
+  constructor({ settings }: { settings: { version: string; name: string } }) {
+    this.#settings = settings;
+    this.#presenterFactory.register({
+      name: 'getApiHome',
+      presenters: [
+        { format: 'json', presenter: new HomeJsonPresenter() },
+        { format: 'htmx', presenter: new HomeHtmxPresenter() },
+      ],
+    });
+  }
+
+  async getApiHome(req: FastifyRequest) {
+    const viewModel: HomeViewModel = {
+      version: this.#settings.version,
+      name: this.#settings.name,
+    };
+
+    const format = req.headers['hx-request'] ? 'htmx' : 'json';
+    const presenter = this.#presenterFactory.get({ name: 'getApiHome', format });
+
+    return presenter?.present(viewModel);
+  }
+}

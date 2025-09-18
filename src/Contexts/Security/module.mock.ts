@@ -1,6 +1,7 @@
-import { ExecutionContext, ModuleBuilder, Role } from '@SharedKernel/Domain';
+import { ExecutionContext, ModuleBuilder } from '@Core/Application';
+import { Role } from '@SystemOrchestrator/Helpers';
 
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { InMemoryDataSource } from '@Core/Infrastructure/DataSources/InMemoryDataSource';
 import { SETTINGS } from '@Bootstrap/Fastify/application.settings';
 
 // Account
@@ -9,7 +10,7 @@ import { SignUpCommandEvent } from './Application/Commands/SignUp/SignUpCommandE
 import { SignUpCommandHandler } from './Application/Commands/SignUp/SignUpCommandHandler';
 import { GetAccountQueryHandler } from './Application/Queries/GetAccount/GetAccountQueryHandler';
 import { AuthenticationMiddleware } from './Presentation/API/REST/Middlewares/FastifyJWTAuthenticationMiddleware';
-import { inMemoryEventBus } from '@SharedKernel/Infrastructure/EventBus/InMemoryEventBus';
+import { inMemoryEventBus } from '@Core/Infrastructure/EventBus/InMemoryEventBus';
 
 // Login
 import { LoginCommandEvent } from './Application/Commands/Login/LoginCommandEvent';

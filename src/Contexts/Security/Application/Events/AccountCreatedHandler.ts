@@ -1,8 +1,8 @@
-import { EventHandler, IResult, Result, ExecutionContext } from '@SharedKernel/Domain/Application';
+import { EventHandler, IResult, Result, ExecutionContext } from '@Core/Application';
 import { AccountCreatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountCreatedEvent';
 import { IJwtService } from '@Contexts/Security/Domain/Auth/Ports/IJwtService';
 import { TokenTypes } from '@Contexts/Security/Domain/Auth/TokenTypes';
-import { AccountCreatedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
+import { AccountCreatedIntegrationEvent } from '@SystemOrchestrator/Events/IntegrationEvents/AccountIntegrationEvents';
 
 export class AccountCreatedHandler extends EventHandler<AccountCreatedEvent> {
   constructor(private jwtService: IJwtService) {

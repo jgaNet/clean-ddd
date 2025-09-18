@@ -1,11 +1,11 @@
-import { CommandHandler } from '@SharedKernel/Domain/Application/CommandHandler';
-import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
-import { ExecutionContext } from '@SharedKernel/Domain/Application/ExecutionContext';
-import { Role } from '@SharedKernel/Domain/AccessControl/Role';
+import { CommandHandler } from '@Core/Application/CommandHandler';
+import { Result, IResult } from '@Core/Application/Result';
+import { ExecutionContext } from '@Core/Application/ExecutionContext';
+import { Role } from '@SystemOrchestrator/Helpers';
 import { MarkAsReadNotificationCommandEvent } from './MarkAsReadNotificationCommandEvent';
 import { INotificationRepository } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationRepository';
 import { INotificationQueries } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationQueries';
-import { NotAllowedException } from '@SharedKernel/Domain/Application/CommonExceptions';
+import { NotAllowedException } from '@Core/Application/CommonExceptions';
 
 export class MarkAsReadNotificationCommandHandler extends CommandHandler<MarkAsReadNotificationCommandEvent> {
   constructor(

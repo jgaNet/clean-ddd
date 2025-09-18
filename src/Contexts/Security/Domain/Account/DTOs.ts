@@ -1,4 +1,4 @@
-import { Role } from '@Contexts/@SharedKernel/Domain';
+import { Role } from '@SystemOrchestrator/Helpers';
 
 export interface IAccount {
   _id: string;

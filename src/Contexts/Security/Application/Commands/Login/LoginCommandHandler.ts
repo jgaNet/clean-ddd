@@ -1,4 +1,4 @@
-import { CommandHandler, Result, IResult } from '@SharedKernel/Domain/Application';
+import { CommandHandler, Result, IResult } from '@Core/Application';
 
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
 import { LoginCommandEvent } from './LoginCommandEvent';
@@ -8,7 +8,7 @@ import { InvalidCredentialsException } from '@Contexts/Security/Domain/Auth/Exce
 import { InactiveAccountException } from '@Contexts/Security/Domain/Auth/Exceptions/InactiveAccountException';
 import { AccountToken } from '@Contexts/Security/Domain/Account/AccountToken';
 import { isTokenType } from '@Contexts/Security/Domain/Auth/TokenTypes';
-import { isRole } from '@Contexts/@SharedKernel/Domain';
+import { isRole } from '@SystemOrchestrator/Helpers';
 
 interface LoginResult {
   token: string;

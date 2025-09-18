@@ -1,9 +1,9 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { SecurityModule } from '@Contexts/Security/Application';
 import { ValidateAccountCommandEvent } from '@Contexts/Security/Application/Commands/ValidateAccount/ValidateAccountCommandEvent';
-import { Role } from '@SharedKernel/Domain/AccessControl';
+import { Role } from '@SystemOrchestrator/Helpers';
 import { GetAccountQueryHandler } from '@Contexts/Security/Application/Queries/GetAccount/GetAccountQueryHandler';
-import { NotAllowedException } from '@Contexts/@SharedKernel/Domain';
+import { NotAllowedException } from '@Core/Application';
 
 export class FastifyAccountController {
   #securityModule: SecurityModule;

@@ -3,8 +3,8 @@ import {
   NotificationRequest,
 } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationService';
 import { Notification, NotificationType } from '@Contexts/Notifications/Domain/Notification/Notification';
-import { ExecutionContext } from '@SharedKernel/Domain/Application/ExecutionContext';
-import { IResult, Result } from '@Contexts/@SharedKernel/Domain';
+import { ExecutionContext } from '@Core/Application/ExecutionContext';
+import { IResult, Result } from '@Core/Application';
 
 export class EmailNotificationService implements INotificationService {
   constructor(

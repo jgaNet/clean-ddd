@@ -1,4 +1,4 @@
-import { Event, EventHandler, CommandHandler, IResult } from '@SharedKernel/Domain';
+import { Event, EventHandler, CommandHandler, IResult } from '@Core/Application';
 import { NoteCreatedEvent } from '@Contexts/Notes/Domain/Note';
 import { CreateNoteCommandEvent } from '@Contexts/Notes/Application/Commands/CreateNote';
 import { GetNotesQueryHandler } from '@Contexts/Notes/Application/Queries/GetNotes';

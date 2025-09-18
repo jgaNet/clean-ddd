@@ -1,4 +1,4 @@
-import { Mapper } from '@SharedKernel/Domain/DDD/Mapper';
+import { Mapper } from '@Core/Domain/Mapper';
 import { Notification } from './Notification';
 import { INotification } from './DTOs';
 import { DeliveryStrategy } from './DeliveryStrategy';

@@ -1,12 +1,12 @@
-import { Event, EventHandler, CommandHandler } from '@SharedKernel/Domain';
+import { Event, EventHandler, CommandHandler } from '@Core/Domain';
 import { NotificationStatus, NotificationType } from '../Domain/Notification/Notification';
 import { NotificationSentEvent } from '../Domain/Notification/Events/NotificationSentEvent';
 import { SendNotificationCommandEvent } from './Commands/SendNotification/SendNotificationCommandEvent';
 import { MarkAsReadNotificationCommandEvent } from './Commands/MarkAsRead/MarkAsReadNotificationCommandEvent';
 import { GetNotificationsQueryHandler } from './Queries/GetNotifications/GetNotificationsQueryHandler';
-import { AccountCreatedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
-import { AccountValidatedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
-import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
+import { AccountCreatedIntegrationEvent } from '@SystemOrchestrator/Events/IntegrationEvents/AccountIntegrationEvents';
+import { AccountValidatedIntegrationEvent } from '@SystemOrchestrator/Events/IntegrationEvents/AccountIntegrationEvents';
+import { OperationCompleteIntegrationEvent } from '@SystemOrchestrator/Events/IntegrationEvents/TrackerIntegrationEvents';
 import { IWebSocketService } from '../Infrastructure/Services/IServices';
 
 export interface NotificationDTO {

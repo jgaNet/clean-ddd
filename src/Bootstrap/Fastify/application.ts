@@ -23,15 +23,15 @@ import { localNotesModule } from '@Contexts/Notes/module.local';
 import { localSecurityModule } from '@Contexts/Security/module.local';
 import { localNotificationsModule } from '@Contexts/Notifications/module.local';
 
-import { homeRoutes } from '@SharedKernel/Presentation/API/REST/Routes';
+import { homeRoutes } from '@Contexts/Home/Presentation/API/REST/Routes';
 import { noteRoutes } from '@Contexts/Notes/Presentation/API/REST/Routes';
 import { operationRoutes } from '@Contexts/Tracker/Presentation/API/REST/Routes';
 import { authRoutes } from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes';
 import { notificationRoutes } from '@Contexts/Notifications/Presentation/API/REST/Routes';
 
-import { Application, ExecutionContext } from '@SharedKernel/Domain/Application';
-import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
-import { InMemoryUnitOfWork } from '@SharedKernel/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
+import { Application, ExecutionContext } from '@Core/Application';
+import { ConsoleLogger } from '@Core/Infrastructure/Logging/ConsoleLogger';
+import { InMemoryUnitOfWork } from '@Core/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
 
 // Create shared services
 const logger = new ConsoleLogger({ debug: SETTINGS.logger.debug });

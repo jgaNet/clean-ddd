@@ -1,6 +1,6 @@
-import { Entity } from '@SharedKernel/Domain/DDD/Entity';
-import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
-import { Id } from '@Contexts/@SharedKernel/Domain';
+import { Entity } from '@Core/Domain/Entity';
+import { Result, IResult } from '@Core/Application/Result';
+import { Id } from '@SystemOrchestrator/Helpers';
 import { DeliveryStrategy } from './DeliveryStrategy';
 
 export enum NotificationType {

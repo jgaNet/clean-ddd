@@ -1,6 +1,6 @@
-import { Result, IResult, ValueObject } from '@SharedKernel/Domain';
+import { Result, IResult, ValueObject } from '@Core/Domain';
 import { IAccountToken } from './DTOs';
-import { Role } from '@Contexts/@SharedKernel/Domain';
+import { Role } from '@SystemOrchestrator/Helpers';
 
 interface AccountTokenValue {
   subjectId: string;
