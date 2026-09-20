@@ -1,4 +1,5 @@
-import { CommandHandler, Result, IResult, ExecutionContext, NotAllowedException } from '@Core/Application';
+import { CommandHandler, Result, IResult, ExecutionContext } from '@Core/Application';
+import { NotAllowedException } from '@SystemOrchestrator/CommonExceptions';
 import { Role, isRole } from '@SystemOrchestrator/Helpers';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
 import { ValidateAccountCommandEvent } from './ValidateAccountCommandEvent';

@@ -2,7 +2,6 @@ export * from './Application';
 export * from './CommandHandler';
 export * from './EventHandler';
 export * from './ExecutionContext';
-export * from './CommonExceptions';
 export * from './EventTypes';
 export * from './Module';
 export * from './QueryHandler';

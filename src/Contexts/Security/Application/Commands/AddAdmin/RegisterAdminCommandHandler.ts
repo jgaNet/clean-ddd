@@ -1,4 +1,5 @@
-import { CommandHandler, Result, IResult, ExecutionContext, NotAllowedException } from '@Core/Application';
+import { CommandHandler, Result, IResult, ExecutionContext } from '@Core/Application';
+import { NotAllowedException } from '@SystemOrchestrator/CommonExceptions';
 import { Role } from '@SystemOrchestrator/Helpers';
 
 import { Account } from '@Contexts/Security/Domain/Account/Account';

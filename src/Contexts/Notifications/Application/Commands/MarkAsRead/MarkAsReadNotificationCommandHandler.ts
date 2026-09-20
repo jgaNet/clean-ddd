@@ -5,7 +5,7 @@ import { Role } from '@SystemOrchestrator/Helpers';
 import { MarkAsReadNotificationCommandEvent } from './MarkAsReadNotificationCommandEvent';
 import { INotificationRepository } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationRepository';
 import { INotificationQueries } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationQueries';
-import { NotAllowedException } from '@Core/Application/CommonExceptions';
+import { NotAllowedException } from '@SystemOrchestrator/CommonExceptions';
 
 export class MarkAsReadNotificationCommandHandler extends CommandHandler<MarkAsReadNotificationCommandEvent> {
   constructor(

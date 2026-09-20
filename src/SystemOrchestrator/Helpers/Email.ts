@@ -1,5 +1,5 @@
 import { ValueObject } from '@Core/Domain';
-import { InvalidEmailFormat } from '@Core/Application/CommonExceptions';
+import { InvalidEmailFormat } from '@SystemOrchestrator/CommonExceptions';
 
 export class Email extends ValueObject<string> {
   constructor(email: string) {

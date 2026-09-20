@@ -71,7 +71,7 @@
  */
 
 import { Exception } from '@Core/Domain/Exception';
-import { UnknownException } from './CommonExceptions';
+import { UnknownException } from '@SystemOrchestrator/CommonExceptions';
 
 export class Result<T = undefined> {
   constructor(public readonly data?: T, public readonly error?: Exception) {}

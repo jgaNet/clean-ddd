@@ -8,7 +8,7 @@ import { NoteCreatedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteCreated
 import { CreateNoteCommandEvent } from '@Contexts/Notes/Application/Commands/CreateNote';
 import { INote } from '@Contexts/Notes/Domain/Note';
 import { Role } from '@SystemOrchestrator/Helpers';
-import { NotAllowedException } from '@Core/Application';
+import { NotAllowedException } from '@SystemOrchestrator/CommonExceptions';
 
 export class CreateNoteCommandHandler extends CommandHandler<CreateNoteCommandEvent> {
   #noteFactory: NoteFactory;

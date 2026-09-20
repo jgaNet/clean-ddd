@@ -15,7 +15,7 @@ import {
 
 import { GetAccountQueryHandler } from '@Contexts/Security/Application/Queries';
 import { InvalidTokenException } from '@Contexts/Security/Domain/Auth/Exceptions/InvalidTokenException';
-import { NotAllowedException } from '@Core/Application';
+import { NotAllowedException } from '@SystemOrchestrator/CommonExceptions';
 
 import { Role } from '@SystemOrchestrator/Helpers';
 import { PresenterFactory } from '@Core/Domain/Services';

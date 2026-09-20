@@ -2,7 +2,8 @@ import { QueryHandler, Result } from '@Core/Application';
 
 import { Role } from '@SystemOrchestrator/Helpers';
 import { GetOperationsQueryResult } from '@Contexts/Tracker/Application/DTOs';
-import { ExecutionContext, IResult, NotAllowedException } from '@Core/Application';
+import { ExecutionContext, IResult } from '@Core/Application';
+import { NotAllowedException } from '@SystemOrchestrator/CommonExceptions';
 import { ITrackedOperationQueries } from '@Contexts/Tracker/Domain/TrackedOperation/Ports/ITrackedOperationQueries';
 
 type GetOperationsPort = {

@@ -3,7 +3,7 @@ import { SecurityModule } from '@Contexts/Security/Application';
 import { ValidateAccountCommandEvent } from '@Contexts/Security/Application/Commands/ValidateAccount/ValidateAccountCommandEvent';
 import { Role } from '@SystemOrchestrator/Helpers';
 import { GetAccountQueryHandler } from '@Contexts/Security/Application/Queries/GetAccount/GetAccountQueryHandler';
-import { NotAllowedException } from '@Core/Application';
+import { NotAllowedException } from '@SystemOrchestrator/CommonExceptions';
 
 export class FastifyAccountController {
   #securityModule: SecurityModule;

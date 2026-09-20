@@ -1,7 +1,7 @@
-import { QueryHandler, Result, IResult, ExecutionContext, NotAllowedException } from '@Core/Application';
+import { QueryHandler, Result, IResult, ExecutionContext } from '@Core/Application';
+import { NotAllowedException, NotFoundException } from '@SystemOrchestrator/CommonExceptions';
 import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
 import { IAccount } from '@Contexts/Security/Domain/Account/DTOs';
-import { NotFoundException } from '@Core/Application';
 import { Role } from '@SystemOrchestrator/Helpers';
 
 export class GetAccountQueryHandler extends QueryHandler<IAccountQueries, string, IResult<IAccount>> {

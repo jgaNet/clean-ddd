@@ -7,7 +7,7 @@ import { INotificationRepository } from '@Contexts/Notifications/Domain/Notifica
 import { INotificationService } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationService';
 import { Notification, NotificationType } from '@Contexts/Notifications/Domain/Notification/Notification';
 import { NotificationSentEvent } from '@Contexts/Notifications/Domain/Notification/Events/NotificationSentEvent';
-import { NotAllowedException } from '@Core/Application/CommonExceptions';
+import { NotAllowedException } from '@SystemOrchestrator/CommonExceptions';
 import { DeliveryStrategy } from '@Contexts/Notifications/Domain/Notification/DeliveryStrategy';
 
 export class SendNotificationCommandHandler extends CommandHandler<SendNotificationCommandEvent> {

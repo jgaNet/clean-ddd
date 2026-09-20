@@ -26,7 +26,7 @@
  */
 
 import { Exception } from '@Core/Domain/Exception';
-import { ExceptionEvent } from '@Core/Domain/EventTypes';
+import { ExceptionEvent } from '@Core/Application/EventTypes';
 
 export abstract class ExceptionHandler {
   abstract throw(event: typeof ExceptionEvent<Exception>, error: Exception): Promise<void>;

@@ -5,7 +5,7 @@ import { MockedNoteQueries } from '@Contexts/Notes/Infrastructure/Queries/Mocked
 import { ExecutionContext } from '@Core/Application';
 import { EventBus } from '@Core/Domain/Services';
 import { Role } from '@SystemOrchestrator/Helpers';
-import { InvalidEmailFormat } from '@Core/Application/CommonExceptions';
+import { InvalidEmailFormat } from '@SystemOrchestrator/CommonExceptions';
 import { SignUpCommandEvent } from '@Contexts/Security/Application/Commands';
 
 const eventBusMock = {
