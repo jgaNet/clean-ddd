@@ -65,3 +65,14 @@ export abstract class Exception {
     return obj !== null && typeof (obj as Exception).isException !== 'undefined';
   }
 }
+
+export class UnknownException extends Exception {
+  constructor(message: string, context?: unknown) {
+    super({
+      service: 'unknown',
+      type: 'Unknown',
+      message,
+      context,
+    });
+  }
+}

@@ -1,4 +1,4 @@
-import { Logger } from '@Core/Domain';
+import { Logger } from '@Core/Application';
 
 /**
  * Simple console logger implementation

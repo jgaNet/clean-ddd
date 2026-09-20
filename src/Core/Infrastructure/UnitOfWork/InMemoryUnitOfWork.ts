@@ -1,4 +1,4 @@
-import { UnitOfWork } from '@Core/Domain';
+import { UnitOfWork } from '@Core/Application';
 
 /**
  * In-memory implementation of the UnitOfWork interface.

@@ -70,8 +70,7 @@
  * 5. Chainable: Results can be easily composed and transformed
  */
 
-import { Exception } from '@Core/Domain/Exception';
-import { UnknownException } from '@SystemOrchestrator/CommonExceptions';
+import { Exception, UnknownException } from '@Core/Domain/Exception';
 
 export class Result<T = undefined> {
   constructor(public readonly data?: T, public readonly error?: Exception) {}

@@ -1,4 +1,5 @@
-import { Event, EventHandler, CommandHandler } from '@Core/Domain';
+import { Event } from '@Core/Domain';
+import { EventHandler, CommandHandler } from '@Core/Application';
 import { NotificationStatus, NotificationType } from '../Domain/Notification/Notification';
 import { NotificationSentEvent } from '../Domain/Notification/Events/NotificationSentEvent';
 import { SendNotificationCommandEvent } from './Commands/SendNotification/SendNotificationCommandEvent';
