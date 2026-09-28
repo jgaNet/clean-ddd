@@ -6,10 +6,6 @@ import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteException
 import { requireSignedIn } from '@SharedKernel/Application/Guards';
 
 export class GetNoteQueryHandler extends QueryHandler<INoteQueries, string, IResult<NoteDetail>> {
-  protected async guard(_: string, context: ExecutionContext): Promise<IResult<unknown>> {
-    return requireSignedIn(context);
-  }
-
   async execute(noteId: string, context: ExecutionContext): Promise<IResult<NoteDetail>> {
     const reader = requireSignedIn(context);
     if (reader.isFailure()) return reader;

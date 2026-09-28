@@ -5,10 +5,6 @@ import { INoteQueries, SharedNoteListItem } from '@Contexts/Notes/Domain/Note/Po
 import { requireSignedIn } from '@SharedKernel/Application/Guards';
 
 export class GetNotesSharedWithMeQueryHandler extends QueryHandler<INoteQueries, void, IResult<SharedNoteListItem[]>> {
-  protected async guard(_: void, context: ExecutionContext): Promise<IResult<unknown>> {
-    return requireSignedIn(context);
-  }
-
   async execute(_: void, context: ExecutionContext): Promise<IResult<SharedNoteListItem[]>> {
     const reader = requireSignedIn(context);
     if (reader.isFailure()) return reader;

@@ -11,10 +11,6 @@ export class CreateNoteCommandHandler extends CommandHandler<CreateNoteCommandEv
     super();
   }
 
-  protected async guard(_: CreateNoteCommandEvent, context: ExecutionContext): Promise<IResult<unknown>> {
-    return requireSignedIn(context);
-  }
-
   async execute({ payload }: CreateNoteCommandEvent, context: ExecutionContext): Promise<IResult<string>> {
     const owner = requireSignedIn(context);
     if (owner.isFailure()) return owner;

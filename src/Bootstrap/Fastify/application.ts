@@ -32,28 +32,24 @@ import { Application, ExecutionContext } from '@SharedKernel/Application';
 import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
 import { InMemoryUnitOfWork } from '@SharedKernel/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
 
-// Create shared services
 const logger = new ConsoleLogger({ debug: SETTINGS.logger.debug });
-const unitOfWork = new InMemoryUnitOfWork();
 
 class FastifyApplication extends Application {
   fastify: FastifyInstance;
   logger: ConsoleLogger;
-  unitOfWork: InMemoryUnitOfWork;
 
   constructor() {
     super();
     this.fastify = Fastify({ logger: false });
     this.logger = logger;
-    this.unitOfWork = unitOfWork;
 
     this.fastify.addHook('onRequest', authMiddleware.authenticate());
-    // Add hook to create execution context for each request
+    // One execution context per request: its trace, its caller, and its own unit of work.
+    // A unit of work is a request-scoped thing; sharing one instance across requests would
+    // make concurrent commands join each other's transaction.
     this.fastify.addHook('preHandler', (request, reply, done) => {
-      // Generate a trace ID for this request
       const traceId = (request.headers['x-trace-id'] as string) || uuidv4();
 
-      // Create execution context
       const context = new ExecutionContext({
         traceId,
         auth: {
@@ -61,7 +57,7 @@ class FastifyApplication extends Application {
           role: request.auth?.role,
         },
         eventBus: this.getEventBus(),
-        unitOfWork: this.unitOfWork,
+        unitOfWork: new InMemoryUnitOfWork(),
         logger: this.logger,
       });
 

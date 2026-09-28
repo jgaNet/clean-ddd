@@ -11,10 +11,6 @@ export class ArchiveNoteCommandHandler extends CommandHandler<ArchiveNoteCommand
     super();
   }
 
-  protected async guard(_: ArchiveNoteCommandEvent, context: ExecutionContext): Promise<IResult<unknown>> {
-    return requireSignedIn(context);
-  }
-
   async execute({ payload }: ArchiveNoteCommandEvent, context: ExecutionContext): Promise<IResult> {
     const actor = requireSignedIn(context);
     if (actor.isFailure()) return actor;
