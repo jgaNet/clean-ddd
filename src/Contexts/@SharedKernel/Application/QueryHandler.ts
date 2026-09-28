@@ -5,116 +5,58 @@
  * Because it does not go through aggregates, the read side can be shaped for the screen,
  * denormalized, cached or served from a different store than the write side.
  *
- * Like CommandHandler, the base class takes care of the guard (authorization) and logging,
- * so a concrete handler only writes `execute()`.
+ * It mirrors CommandHandler: `handle()` is what a controller calls, and does the guard, the
+ * logging and the safety net once; a concrete handler only writes `execute()`. There is no
+ * transaction and no operation: a query answers synchronously and is never put on the bus.
  *
- * Example: Contexts/Notes/Application/Queries/GetMyNotes/GetMyNotesQueryHandler.ts
+ * Example: Contexts/Notes/Application/Queries/GetNote/GetNoteQueryHandler.ts
  */
 
 import { IResult, Result } from '@SharedKernel/Domain';
 import { ExecutionContext } from './ExecutionContext';
 
 /**
- * Abstract QueryHandler class for handling read operations in the CQRS pattern.
- *
  * @template T The queries port the handler reads from (e.g. INoteQueries)
- * @template P The query payload type (parameters for the query)
- * @template R The result type, which must extend IResult
+ * @template P The query parameters (`void` when there are none)
+ * @template R The result, an IResult of the read model
  */
 export abstract class QueryHandler<T, P, R extends IResult<unknown>> {
-  /**
-   * The queries service instance used to access data
-   */
-  protected queriesService: T;
+  constructor(protected queries: T) {}
 
-  /**
-   * Creates a new QueryHandler with the provided queries service
-   *
-   * @param queriesService The queries service to use for data access
-   */
-  constructor(queriesService: T) {
-    this.queriesService = queriesService;
-  }
+  async handle(payload: P, context: ExecutionContext): Promise<R> {
+    const name = this.constructor.name;
+    context.logger?.debug(`Executing ${name}`, { traceId: context.traceId, payload });
 
-  /**
-   * Executes the query operation with the provided payload and execution context
-   *
-   * This is the main method that clients will call, which wraps the abstract execute method
-   * with additional context-based behavior.
-   *
-   * @param payload Optional query parameters
-   * @param context The execution context containing cross-cutting concerns
-   * @returns A promise resolving to the query result
-   */
-  async executeWithContext(payload?: P, context?: ExecutionContext): Promise<R> {
-    try {
-      // Log the query execution if a logger is available
-      if (context?.logger) {
-        context.logger.debug(`Executing query: ${this.constructor.name}`, {
-          traceId: context.traceId,
-          payload,
-        });
-      }
-
-      // A refused query is a normal outcome, reported like any other failure (not thrown).
-      if (context?.auth) {
-        const guardResult = await this.guard(payload, context);
-        if (guardResult.isFailure()) {
-          context.logger?.warn(`Query refused: ${this.constructor.name}`, {
-            traceId: context.traceId,
-            error: guardResult.error,
-          });
-          return guardResult as R;
-        }
-      }
-
-      // Execute the query
-      const result = await this.execute(payload, context);
-
-      // Log the result if a logger is available
-      if (context?.logger) {
-        if (result.isSuccess()) {
-          context.logger.debug(`Query executed successfully: ${this.constructor.name}`, {
-            traceId: context.traceId,
-          });
-        } else {
-          context.logger.warn(`Query execution failed: ${this.constructor.name}`, {
-            traceId: context.traceId,
-            error: (result as R).error,
-          });
-        }
-      }
-
-      return result;
-    } catch (error) {
-      // Log any unexpected errors
-      if (context?.logger) {
-        context.logger.error(`Unhandled error in query: ${this.constructor.name}`, error, {
-          traceId: context.traceId,
-          payload,
-        });
-      }
-
-      throw error;
+    const guardResult = await this.guard(payload, context);
+    if (guardResult.isFailure()) {
+      context.logger?.warn(`${name} refused: ${guardResult.error.message}`, { traceId: context.traceId });
+      return guardResult as R;
     }
+
+    const result = await this.safeExecute(payload, context);
+    if (result.isFailure()) {
+      context.logger?.warn(`${name} failed: ${result.error.message}`, { traceId: context.traceId });
+    }
+    return result;
   }
 
   /**
-   * Abstract method to be implemented by concrete query handlers
-   *
-   * @param payload Optional query parameters
-   * @param context Optional execution context
-   * @returns A promise resolving to the query result
+   * Authorization hook. Override it to refuse callers who may not run this query.
+   * Which rows they may see is the query's own business, in `execute()`.
    */
-  abstract execute(payload?: P, context?: ExecutionContext): Promise<R>;
-
-  /**
-   * Abstract method to be implemented by concrete query handlers
-   *
-   * @param auth Optional execution context
-   * @returns A promise resolving to the query result
-   */
-  protected async guard(_?: P, __?: ExecutionContext): Promise<IResult<unknown>> {
+  protected async guard(_: P, __: ExecutionContext): Promise<IResult<unknown>> {
     return Result.ok();
+  }
+
+  /** The read. Implement it in each concrete handler. */
+  abstract execute(payload: P, context: ExecutionContext): Promise<R>;
+
+  private async safeExecute(payload: P, context: ExecutionContext): Promise<R> {
+    try {
+      return await this.execute(payload, context);
+    } catch (error) {
+      context.logger?.error(`Unexpected error in ${this.constructor.name}`, error, { traceId: context.traceId });
+      return Result.fail(error) as R;
+    }
   }
 }

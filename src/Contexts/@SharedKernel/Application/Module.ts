@@ -21,7 +21,7 @@
  * From a controller:
  * ```typescript
  * context.eventBus.publish(CreateNoteCommandEvent.set(payload), context);                    // command, async
- * await notesModule.getQuery(GetMyNotesQueryHandler).executeWithContext(undefined, context); // query
+ * await notesModule.getQuery(GetMyNotesQueryHandler).handle(undefined, context); // query, sync
  * ```
  */
 

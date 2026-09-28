@@ -15,7 +15,7 @@ class WaveHandler extends CommandHandler<Wave> {
 }
 class CountGreetings extends QueryHandler<{ count(): number }, void, IResult<number>> {
   async execute(): Promise<IResult<number>> {
-    return Result.ok(this.queriesService.count());
+    return Result.ok(this.queries.count());
   }
 }
 

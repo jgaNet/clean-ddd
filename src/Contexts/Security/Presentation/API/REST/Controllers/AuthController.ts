@@ -158,7 +158,7 @@ export class FastifyAuthController {
     try {
       const meResult = await this.#securityModule
         .getQuery(GetAccountQueryHandler)
-        .executeWithContext(req.executionContext.auth.subjectId, req.executionContext);
+        .handle(req.executionContext.auth.subjectId ?? '', req.executionContext);
 
       if (meResult.isFailure()) {
         throw meResult.error;

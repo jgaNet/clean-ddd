@@ -70,17 +70,13 @@ export class FastifyNoteController {
   }
 
   async getMyNotes(req: FastifyRequest, reply: FastifyReply) {
-    const result = await this.#notesModule
-      .getQuery(GetMyNotesQueryHandler)
-      .executeWithContext(undefined, req.executionContext);
+    const result = await this.#notesModule.getQuery(GetMyNotesQueryHandler).handle(undefined, req.executionContext);
 
     return result.isFailure() ? this.refuse(reply, result.error) : result.data;
   }
 
   async getNote(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
-    const result = await this.#notesModule
-      .getQuery(GetNoteQueryHandler)
-      .executeWithContext(req.params.id, req.executionContext);
+    const result = await this.#notesModule.getQuery(GetNoteQueryHandler).handle(req.params.id, req.executionContext);
 
     return result.isFailure() ? this.refuse(reply, result.error) : result.data;
   }
@@ -88,7 +84,7 @@ export class FastifyNoteController {
   async getNotesSharedWithMe(req: FastifyRequest, reply: FastifyReply) {
     const result = await this.#notesModule
       .getQuery(GetNotesSharedWithMeQueryHandler)
-      .executeWithContext(undefined, req.executionContext);
+      .handle(undefined, req.executionContext);
 
     return result.isFailure() ? this.refuse(reply, result.error) : result.data;
   }

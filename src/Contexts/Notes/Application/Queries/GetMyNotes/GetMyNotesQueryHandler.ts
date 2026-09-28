@@ -9,6 +9,6 @@ export class GetMyNotesQueryHandler extends QueryHandler<INoteQueries, void, IRe
     const owner = requireSignedIn(context);
     if (owner.isFailure()) return owner;
 
-    return Result.ok(await this.queriesService.findByOwner(owner.data.value));
+    return Result.ok(await this.queries.findByOwner(owner.data.value));
   }
 }

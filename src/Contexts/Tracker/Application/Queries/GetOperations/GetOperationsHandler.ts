@@ -16,9 +16,7 @@ export class GetOperationsHandler extends QueryHandler<IOperationRecords, Filter
   }
 
   async execute(filters: Filters): Promise<IResult<OperationRecord[]>> {
-    const records = filters?.traceId
-      ? await this.queriesService.findByTraceId(filters.traceId)
-      : await this.queriesService.findAll();
+    const records = filters?.traceId ? await this.queries.findByTraceId(filters.traceId) : await this.queries.findAll();
 
     return Result.ok(records);
   }

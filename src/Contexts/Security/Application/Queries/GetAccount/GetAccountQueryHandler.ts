@@ -16,7 +16,7 @@ export class GetAccountQueryHandler extends QueryHandler<IAccountQueries, string
   }
 
   async execute(id: string): Promise<IResult<AccountDetail>> {
-    const account = await this.queriesService.findById(id);
+    const account = await this.queries.findById(id);
     if (!account) return Result.fail(new NotFoundException('Security', 'Account not found'));
 
     return Result.ok(account);

@@ -21,7 +21,7 @@ export class FastifyNotificationController {
   ) {
     const result = await this.module
       .getQuery(GetNotificationsQueryHandler)
-      .executeWithContext({ recipientId: req.params.recipientId, ...req.query }, req.executionContext);
+      .handle({ recipientId: req.params.recipientId, ...req.query }, req.executionContext);
 
     return result.isFailure() ? this.refuse(reply, result.error) : result.data;
   }
