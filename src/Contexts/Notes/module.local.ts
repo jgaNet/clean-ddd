@@ -1,9 +1,8 @@
-import { ModuleBuilder } from '@SharedKernel/Application';
+import { Module } from '@SharedKernel/Application';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import { NoteCreatedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
-import { NotesModule } from '@Contexts/Notes/Application';
 import {
   CreateNoteCommandEvent,
   CreateNoteCommandHandler,
@@ -30,14 +29,19 @@ const noteDataSource = new InMemoryDataSource<INote>();
 const noteRepository = new InMemoryNoteRepository(noteDataSource);
 const noteQueries = new InMemoryNoteQueries(noteDataSource);
 
-export const localNotesModule = new ModuleBuilder<NotesModule>(Symbol('Notes'))
-  .setCommand({ event: CreateNoteCommandEvent, handlers: [new CreateNoteCommandHandler(noteRepository)] })
-  .setCommand({ event: EditNoteCommandEvent, handlers: [new EditNoteCommandHandler(noteRepository)] })
-  .setCommand({ event: ArchiveNoteCommandEvent, handlers: [new ArchiveNoteCommandHandler(noteRepository)] })
-  .setCommand({ event: RestoreNoteCommandEvent, handlers: [new RestoreNoteCommandHandler(noteRepository)] })
-  .setCommand({ event: ShareNoteCommandEvent, handlers: [new ShareNoteCommandHandler(noteRepository)] })
-  .setQuery(new GetMyNotesQueryHandler(noteQueries))
-  .setQuery(new GetNoteQueryHandler(noteQueries))
-  .setQuery(new GetNotesSharedWithMeQueryHandler(noteQueries))
-  .setDomainEvent({ event: NoteCreatedEvent, handlers: [new NoteCreatedHandler()] })
-  .build();
+export const localNotesModule = new Module({
+  name: 'Notes',
+  commands: [
+    { event: CreateNoteCommandEvent, handlers: [new CreateNoteCommandHandler(noteRepository)] },
+    { event: EditNoteCommandEvent, handlers: [new EditNoteCommandHandler(noteRepository)] },
+    { event: ArchiveNoteCommandEvent, handlers: [new ArchiveNoteCommandHandler(noteRepository)] },
+    { event: RestoreNoteCommandEvent, handlers: [new RestoreNoteCommandHandler(noteRepository)] },
+    { event: ShareNoteCommandEvent, handlers: [new ShareNoteCommandHandler(noteRepository)] },
+  ],
+  queries: [
+    new GetMyNotesQueryHandler(noteQueries),
+    new GetNoteQueryHandler(noteQueries),
+    new GetNotesSharedWithMeQueryHandler(noteQueries),
+  ],
+  domainEvents: [{ event: NoteCreatedEvent, handlers: [new NoteCreatedHandler()] }],
+});

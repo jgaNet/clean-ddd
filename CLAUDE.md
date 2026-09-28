@@ -64,12 +64,9 @@ Context A Domain Event → Integration Event → Context B Event Handler
    - Route Definitions
    - Request/Response Schemas
 
-5. **Register in Module** for wiring everything together:
-   - Use ModuleBuilder to register handlers and services
-   - Register commands with `.setCommand()`
-   - Register queries with `.setQuery()`
-   - Register domain events with `.setDomainEvent()`
-   - Register integration events with `.setIntegrationEvent()`
+5. **Wire it in the context's `module.local.ts`**:
+   - `new Module({ name, commands, queries, domainEvents, integrationEvents })` — plain data, no builder
+   - Anything else the context exposes (a middleware, a service) is a named export of the same file
 
 ## Code Style
 
@@ -179,21 +176,16 @@ export class CreateNoteCommandHandler extends CommandHandler<CreateNoteCommand> 
 }
 ```
 
-### Module Builder
+### Module
 
 ```typescript
-// Building and registering modules
-const notesModule = new ModuleBuilder(Symbol('Notes'))
-  .setCommand({
-    event: CreateNoteCommand,
-    handlers: [new CreateNoteCommandHandler(noteRepository)]
-  })
-  .setQuery(new GetNotesQueryHandler(noteQueries))
-  .setDomainEvent({
-    event: NoteCreatedEvent,
-    handlers: [new NoteCreatedHandler()]
-  })
-  .build();
+// module.local.ts: bind handlers to infrastructure, plain data
+export const localNotesModule = new Module({
+  name: 'Notes',
+  commands: [{ event: CreateNoteCommandEvent, handlers: [new CreateNoteCommandHandler(noteRepository)] }],
+  queries: [new GetMyNotesQueryHandler(noteQueries)],
+  domainEvents: [{ event: NoteCreatedEvent, handlers: [new NoteCreatedHandler()] }],
+});
 ```
 
 ### Architecture Notes
@@ -226,11 +218,10 @@ const notesModule = new ModuleBuilder(Symbol('Notes'))
   ```
 - **Integration Event Handling**:
   ```typescript
-  // In a module builder, register integration event handler
-  .setIntegrationEvent({
-    event: AccountCreatedIntegrationEvent,
-    handlers: [new AccountCreatedIntegrationEventHandler(eventBus)]
-  })
+  // In the receiving context's module.local.ts
+  integrationEvents: [
+    { event: AccountCreatedIntegrationEvent, handlers: [new AccountCreatedIntegrationEventHandler(notificationService)] },
+  ],
   ```
 
 ## ExecutionContext Pattern

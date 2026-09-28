@@ -2,11 +2,11 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { FastifyNotificationController } from '../Controllers/FastifyNotificationController';
 import { notificationSchema } from './notification.routes.schema';
 
-import { localNotificationsModule } from '@Contexts/Notifications/module.local';
+import { Module } from '@SharedKernel/Application';
 
 export default function notificationRoutes(
   fastify: FastifyInstance,
-  options: FastifyPluginOptions & { notificationsModule: typeof localNotificationsModule },
+  options: FastifyPluginOptions & { notificationsModule: Module },
   done: (err?: Error) => void,
 ): void {
   const controller = new FastifyNotificationController(options.notificationsModule);

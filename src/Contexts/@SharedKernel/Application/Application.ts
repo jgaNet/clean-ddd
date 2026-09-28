@@ -1,71 +1,32 @@
 /**
- * Application Base Class (Abstract)
+ * Application: registers modules and starts them against one event bus.
  *
- * This is a foundational class for building modular applications following
- * Domain-Driven Design (DDD) and Clean Architecture principles.
+ * The concrete class adds the transport. See Bootstrap/Fastify/application.ts, which sets
+ * the bus, registers the modules and routes, then listens:
  *
- * Architecture Overview:
- * - Modular: Each functionality is encapsulated in independent modules
- * - Event-Driven: Uses event-based communication between modules
- * - CQRS Ready: Supports Command Query Responsibility Segregation
- *
- * Module System:
- * - Each module (GenericModule) contains:
- *   - Commands: Write operations (state modifications)
- *   - Queries: Read operations
- *   - Domain Events: Internal business events
- *   - Integration Events: Cross-module communication
- *
- * Lifecycle Methods:
- * 1. constructor(modules) - Initialize with required modules
- * 2. setup() - Configure application (abstract)
- * 3. startModules() - Initialize all modules
- * 4. start() - Begin application execution (abstract)
- * 5. run() - Orchestrates the complete lifecycle
- *
- * Example Implementation:
  * ```typescript
- * class MyApplication extends Application {
- *   constructor() {
- *     super({ modules: [userModule, orderModule] });
- *   }
- *
- *   async setup() {
- *     // Configure databases, middleware, etc.
- *   }
- *
- *   async start() {
- *     // Start HTTP server, message consumers, etc.
- *   }
- * }
+ * await app.setEventBus(trackedEventBus).registerModule(localNotesModule).run();
  * ```
- *
- * Related Components:
- * - @see GenericModule - Base module class
- * - @see CommandHandler - For processing commands
- * - @see EventHandler - For handling events
- * - @see Result - For standardized operation results
  */
 
 import { EventBus } from '@SharedKernel/Application/EventBus';
-import { GenericModule } from '@SharedKernel/Application/Module';
+import { Module } from '@SharedKernel/Application/Module';
 
 export abstract class Application {
-  #modules: Map<symbol, GenericModule> = new Map();
-  #eventBus: EventBus | undefined;
+  #modules = new Map<string, Module>();
+  #eventBus?: EventBus;
 
+  /** Begin serving: start the HTTP server, message consumers, etc. */
   abstract start(): Promise<void>;
 
-  getEventBus() {
+  getEventBus(): EventBus {
     if (!this.#eventBus) {
       throw new Error('You have to call setEventBus before starting the application');
     }
-
     return this.#eventBus;
   }
 
   async run(): Promise<void> {
-    // this.setup();
     this.startModules();
     await this.start();
   }
@@ -75,13 +36,11 @@ export abstract class Application {
     return this;
   }
 
-  registerModule(module: GenericModule) {
+  registerModule(module: Module) {
     if (!this.#eventBus) {
       throw new Error('You have to call setEventBus before registering modules');
     }
-
-    this.#modules.set(module.getName(), module);
-
+    this.#modules.set(module.name, module);
     return this;
   }
 
@@ -89,12 +48,11 @@ export abstract class Application {
     this.#modules.forEach(module => module.start(this.#eventBus));
   }
 
-  getModule<T extends GenericModule>(name: symbol): T {
-    const moduleInstance = this.#modules.get(name);
-    if (!moduleInstance) {
-      throw new Error(`Module ${name.toString()} not found`);
+  getModule(name: string): Module {
+    const module = this.#modules.get(name);
+    if (!module) {
+      throw new Error(`Module ${name} not found`);
     }
-
-    return moduleInstance as T;
+    return module;
   }
 }

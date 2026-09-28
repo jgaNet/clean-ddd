@@ -1,7 +1,8 @@
 import { FastifyInstance } from 'fastify';
 
+import { Module } from '@SharedKernel/Application';
+
 import { FastifyNoteController } from '@Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController';
-import { NotesModule } from '@Contexts/Notes/Application';
 
 import {
   CommandOnNoteSchema,
@@ -20,7 +21,7 @@ import {
 
 export const noteRoutes = function (
   fastify: FastifyInstance,
-  { notesModule }: { notesModule: NotesModule },
+  { notesModule }: { notesModule: Module },
   done: () => void,
 ) {
   const controller = new FastifyNoteController({ module: notesModule });
