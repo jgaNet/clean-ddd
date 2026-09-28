@@ -91,7 +91,7 @@ One canonical example per concept. When two files could teach the same thing, th
 | Controller (commands → `202`, queries → sync) | [`FastifyNoteController.ts`](src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts) |
 | Routes and JSON schemas | [`note.routes.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts), [`note.routes.schema.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.schema.ts) |
 | Authentication middleware | [`FastifyJWTAuthenticationMiddleware.ts`](src/Contexts/Security/Presentation/API/REST/Middlewares/FastifyJWTAuthenticationMiddleware.ts) — never blocks, makes the caller `GUEST` unless the token verifies |
-| Presenters (one use case, several formats) | [`Security/Presentation/Presenters/Auth`](src/Contexts/Security/Presentation/Presenters/Auth) |
+| Presenters (one use case, several formats) | [`Security/Presentation/Presenters/Auth`](src/Contexts/Security/Presentation/Presenters/Auth), picked per request by [`Format.ts`](src/Contexts/@SharedKernel/Presentation/Format.ts) — a plain object per controller, no registry |
 | Composition root | [`application.ts`](src/Bootstrap/Fastify/application.ts) on [`Application.ts`](src/Contexts/@SharedKernel/Application/Application.ts) |
 
 ### Tests, one style per layer
@@ -206,7 +206,6 @@ Each of these is real vocabulary, and each would turn the building blocks back i
 Kept visible rather than hidden:
 
 - `Note.shareWith()` does not check that the recipient account exists; that needs a port towards Security (an account directory) and would make a good small exercise.
-- A failed login answers `200` with an error body, for the HTMX front end.
 - The e2e suites run against one live server, in file order, and leave data behind.
 
 ## License

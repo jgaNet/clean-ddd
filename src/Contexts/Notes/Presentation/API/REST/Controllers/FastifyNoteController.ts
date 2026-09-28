@@ -2,7 +2,6 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 
 import { Event, Exception, NotAllowedException } from '@SharedKernel/Domain';
 import { Module } from '@SharedKernel/Application';
-import { PresenterFactory } from '@SharedKernel/Presentation/PresenterFactory';
 
 import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 import {
@@ -31,14 +30,10 @@ import { NewNoteHTMXPresenter } from '@Contexts/Notes/Presentation/Presenters';
  */
 export class FastifyNoteController {
   #notesModule: Module;
-  #presenterFactory: PresenterFactory = new PresenterFactory();
+  #newNoteForm = new NewNoteHTMXPresenter();
 
   constructor({ module }: { module: Module }) {
     this.#notesModule = module;
-    this.#presenterFactory.register({
-      name: 'newNote',
-      presenters: [{ format: 'htmx', presenter: new NewNoteHTMXPresenter() }],
-    });
   }
 
   async createNote(req: FastifyRequest<{ Body: CreateNoteReqBody }>, reply: FastifyReply) {
@@ -90,7 +85,7 @@ export class FastifyNoteController {
   }
 
   async newNotes() {
-    return this.#presenterFactory.get({ name: 'newNote', format: 'htmx' })?.present();
+    return this.#newNoteForm.present();
   }
 
   private accept(req: FastifyRequest, reply: FastifyReply, command: Event<unknown>) {

@@ -11,9 +11,10 @@ describe('Login', () => {
     expect(res.body.token).toEqual(expect.any(String));
   });
 
-  it('should not return a token for an unknown account', async () => {
-    const res = await login('error@admin.fr', 'admin');
-    expect(res.body.token).toBeUndefined();
+  it('should answer 401 for an unknown account', async () => {
+    let status: number | undefined;
+    await login('error@admin.fr', 'admin').catch(err => (status = err.status));
+    expect(status).toBe(401);
   });
 
   it('should ignore a forged token', async () => {
@@ -59,8 +60,9 @@ describe('SignUp', () => {
     expect(pending.body).toEqual({ id: accountId, email: 'user@user.fr', role: 'user', status: 'pending' });
 
     // A pending account cannot sign in yet
-    const refused = await login('user@user.fr', 'user');
-    expect(refused.body.token).toBeUndefined();
+    let refused: number | undefined;
+    await login('user@user.fr', 'user').catch(err => (refused = err.status));
+    expect(refused).toBe(401);
 
     await adminAgent.get(`${SETTINGS.apiUrl}/auth/accounts/${accountId}/validate`);
 
