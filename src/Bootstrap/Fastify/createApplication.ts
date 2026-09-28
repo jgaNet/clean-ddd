@@ -14,7 +14,7 @@ import { swaggerDescriptor } from './application.swagger';
 
 import { localTrackerModule, trackedEventBus } from '@Contexts/Tracker/module.local';
 import { localNotesModule } from '@Contexts/Notes/module.local';
-import { localSecurityModule, authMiddleware, jwtService, registerAdmin } from '@Contexts/Security/module.local';
+import { localSecurityModule, authMiddleware, registerAdmin } from '@Contexts/Security/module.local';
 import { localNotificationsModule, webSocketChannel } from '@Contexts/Notifications/module.local';
 
 import { homeRoutes } from '@SharedKernel/Presentation/API/REST/Routes';
@@ -142,7 +142,7 @@ export async function createApplication(): Promise<FastifyApplication> {
     .registerRoutes('/', homeRoutes, { settings: SETTINGS })
     .registerRoutes('/tracker/operations', operationRoutes, { operationsModule: localTrackerModule })
     .registerRoutes('/notes', noteRoutes, { notesModule: localNotesModule })
-    .registerRoutes('/', authRoutes, { securityModule: localSecurityModule, jwtService })
+    .registerRoutes('/', authRoutes, { securityModule: localSecurityModule })
     .registerRoutes('/notifications', notificationRoutes, { notificationsModule: localNotificationsModule });
 
   return app.seed();

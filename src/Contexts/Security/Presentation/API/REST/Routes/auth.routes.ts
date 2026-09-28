@@ -2,7 +2,6 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { FastifyAuthController } from '../Controllers/AuthController';
 import { FastifyAccountController } from '../Controllers/AccountController';
 import { Module } from '@SharedKernel/Application';
-import { IJwtService } from '@Contexts/Security/Domain/Auth/Ports/IJwtService';
 
 import {
   getAccountByIdSchema,
@@ -16,12 +15,11 @@ import {
 
 export const authRoutes = function (
   fastify: FastifyInstance,
-  opts: FastifyPluginOptions & { securityModule: Module; jwtService: IJwtService },
+  opts: FastifyPluginOptions & { securityModule: Module },
   done: (err?: Error) => void,
 ): void {
   const authController = new FastifyAuthController({
     module: opts.securityModule,
-    jwtService: opts.jwtService,
   });
 
   const accountController = new FastifyAccountController({

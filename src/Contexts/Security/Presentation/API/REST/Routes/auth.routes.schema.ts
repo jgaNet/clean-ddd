@@ -123,7 +123,7 @@ export const validateAccountSchema = {
 };
 
 export const validateAccountByIdSchema = {
-  description: 'Validate account with ID (available only for admins)',
+  description: 'Validate an account by id (administrators only; the outcome is on the operation)',
   tags: ['accounts'],
   params: {
     type: 'object',
@@ -132,7 +132,7 @@ export const validateAccountByIdSchema = {
     },
   },
   response: {
-    200: {
+    202: {
       type: 'object',
       properties: {
         operationId: { type: 'string', format: 'uuid' },

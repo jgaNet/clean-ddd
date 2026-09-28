@@ -25,7 +25,7 @@ export abstract class QueryHandler<T, P, R extends IResult<unknown>> {
 
   async handle(payload: P, context: ExecutionContext): Promise<R> {
     const name = this.constructor.name;
-    context.logger?.debug(`Executing ${name}`, { traceId: context.traceId, payload });
+    context.logger?.debug(`Executing ${name}`, { traceId: context.traceId });
 
     const guardResult = await this.guard(payload, context);
     if (guardResult.isFailure()) {

@@ -33,7 +33,6 @@ describe('toOperationRecord', () => {
       status: OperationStatus.PENDING,
       traceId: 'trace-1',
       subjectId: 'alice',
-      payload: { what: 'this' },
       result: undefined,
       error: undefined,
       createdAt: new Date('2026-01-01T10:00:00Z'),

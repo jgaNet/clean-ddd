@@ -47,7 +47,10 @@ export const localSecurityModule = new Module({
       handlers: [new SignUpCommandHandler(accountRepository, accountRegistration, passwordHasher)],
     },
     { event: LoginCommandEvent, handlers: [new LoginCommandHandler(accountRepository, passwordHasher, jwtService)] },
-    { event: ValidateAccountCommandEvent, handlers: [new ValidateAccountCommandHandler(accountRepository)] },
+    {
+      event: ValidateAccountCommandEvent,
+      handlers: [new ValidateAccountCommandHandler(accountRepository, jwtService)],
+    },
   ],
   queries: [new GetAccountQueryHandler(accountQueries)],
   domainEvents: [

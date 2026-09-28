@@ -8,7 +8,6 @@ const OperationRecordSchema = {
     status: { type: 'string', enum: Object.values(OperationStatus) },
     traceId: { type: 'string', format: 'uuid' },
     subjectId: { type: 'string' },
-    payload: { description: 'The command or event payload, as published' },
     result: { description: 'What the handler returned, on success' },
     error: {
       type: 'object',

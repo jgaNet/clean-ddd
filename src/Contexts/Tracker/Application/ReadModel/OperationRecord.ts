@@ -13,7 +13,9 @@ export interface OperationRecord {
   traceId: string;
   /** The account that asked, when the request was authenticated. */
   subjectId?: string;
-  payload: unknown;
+  // No payload: a command may carry a secret (the password at sign-up), and a client who
+  // holds the operation id already knows what it asked for. Status, result and error are
+  // what the record is for.
   /** What the handler returned on success. */
   result?: unknown;
   error?: { type: string; message: string };

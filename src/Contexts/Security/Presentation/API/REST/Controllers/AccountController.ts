@@ -1,7 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { Module } from '@SharedKernel/Application';
 import { ValidateAccountCommandEvent } from '@Contexts/Security/Application/Commands/ValidateAccount/ValidateAccountCommandEvent';
-import { Role } from '@SharedKernel/Domain/AccessControl';
 import { GetAccountQueryHandler } from '@Contexts/Security/Application/Queries/GetAccount/GetAccountQueryHandler';
 import { NotAllowedException } from '@SharedKernel/Domain';
 
@@ -40,13 +39,9 @@ export class FastifyAccountController {
   async validateAccountById(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
     const context = req.executionContext;
 
-    const operation = context.eventBus.publish(
-      ValidateAccountCommandEvent.set({ subjectId: req.params.id, subjectType: Role.ADMIN }),
-      context,
-    );
+    // Whether this caller may validate by id is the handler's decision, from the context.
+    const operation = context.eventBus.publish(ValidateAccountCommandEvent.set({ accountId: req.params.id }), context);
 
-    return reply.code(200).send({
-      operationId: operation.id,
-    });
+    return reply.code(202).send({ operationId: operation.id });
   }
 }

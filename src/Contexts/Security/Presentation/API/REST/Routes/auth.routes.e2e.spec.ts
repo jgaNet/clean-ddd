@@ -78,3 +78,32 @@ describe('SignUp', () => {
     expect(accepted.body.token).toEqual(expect.any(String));
   });
 });
+
+describe('What a bible must not do', () => {
+  let adminAgent: ReturnType<typeof superagent.agent>;
+  beforeEach(async () => {
+    adminAgent = await app.admin();
+  });
+
+  it('never stores or serves the password of a sign-up', async () => {
+    const res = await superagent
+      .post(`${api}/auth/signup`)
+      .send({ identifier: 'frank@user.fr', password: 'S3cret-Plaintext' });
+
+    const operation = await adminAgent.get(`${api}/tracker/operations/${res.body.operationId}`);
+    expect(operation.body).not.toHaveProperty('payload');
+    expect(JSON.stringify(operation.body)).not.toContain('S3cret-Plaintext');
+  });
+
+  it('does not let an anonymous caller validate an account', async () => {
+    const signUp = await superagent.post(`${api}/auth/signup`).send({ identifier: 'grace@user.fr', password: 'grace' });
+    const accountId = (await adminAgent.get(`${api}/tracker/operations/${signUp.body.operationId}`)).body.result;
+
+    const attempt = await superagent.get(`${api}/auth/accounts/${accountId}/validate`);
+    expect(attempt.status).toBe(202);
+
+    const operation = await adminAgent.get(`${api}/tracker/operations/${attempt.body.operationId}`);
+    expect(operation.body).toMatchObject({ status: 'ERROR', error: { type: 'NotAllowed' } });
+    expect((await adminAgent.get(`${api}/auth/accounts/${accountId}`)).body.status).toBe('pending');
+  });
+});
