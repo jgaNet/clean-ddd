@@ -125,7 +125,7 @@ export class AuthenticationMiddleware {
           subjectId: subjectId,
           role: Role.USER,
         };
-      } catch (error) {
+      } catch {
         // Token validation failed, continue as guest
         request.auth = {
           subjectId: '',

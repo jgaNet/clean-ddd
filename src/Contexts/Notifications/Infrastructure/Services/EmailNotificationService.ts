@@ -31,7 +31,9 @@ export class EmailNotificationService implements INotificationService {
       }
 
       // Here you would integrate with your email service provider
-      context.logger?.info(`[EMAIL SERVICE] Sending email to ${recipientEmail}`, { traceId: context.traceId });
+      context.logger?.info(`[EMAIL SERVICE] Sending email from ${this.emailConfig.fromEmail} to ${recipientEmail}`, {
+        traceId: context.traceId,
+      });
       context.logger?.info(`[EMAIL SERVICE] Subject: ${notification.title}`, { traceId: context.traceId });
       context.logger?.info(`[EMAIL SERVICE] Content: ${notification.content}`, { traceId: context.traceId });
 

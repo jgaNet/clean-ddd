@@ -4,31 +4,29 @@ on:
   push:
     branches:
       - main
-      - '[0-9]+.x'
-    tags:
-      - '*'
+  pull_request:
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Use Node
-        id: setup-node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
-          node-version: 16.x
+          node-version-file: .nvmrc
+          cache: yarn
 
-      - name: Deps
-        run: |
-          npm install
+      - name: Install
+        run: yarn install --frozen-lockfile
 
       - name: Lint
-        run: |
-          npm run lint
+        run: yarn lint
 
-      - name: Units Test
-        run: |
-          npm run test:units
+      - name: Typecheck
+        run: yarn typecheck
+
+      - name: Unit tests
+        run: yarn test:units

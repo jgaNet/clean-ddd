@@ -4,7 +4,8 @@
 
 ```bash
 yarn build              # Build project
-yarn lint               # Run eslint
+yarn lint               # Run eslint (includes the layer-boundary rules)
+yarn typecheck          # Run tsc --noEmit
 yarn format             # Run prettier
 yarn test               # Run tests
 yarn test:watch         # Run tests in watch mode

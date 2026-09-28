@@ -30,7 +30,7 @@ export class JwtService implements IJwtService {
         subjectId: decodedToken.subjectId,
         subjectType: decodedToken.subjectType,
       };
-    } catch (error) {
+    } catch {
       return null;
     }
   }
