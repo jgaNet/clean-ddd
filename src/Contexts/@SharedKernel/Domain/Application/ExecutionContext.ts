@@ -112,11 +112,6 @@ export interface ExecutionContextOptions {
    * Logger instance
    */
   logger?: Logger;
-
-  /**
-   * Additional contextual data
-   */
-  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -131,7 +126,6 @@ export class ExecutionContext {
   readonly #eventBus: EventBus;
   readonly #unitOfWork?: UnitOfWork;
   readonly #logger?: Logger;
-  readonly #metadata: Record<string, unknown>;
   #inTransaction = false;
   #afterCommit: Array<() => void> = [];
 
@@ -144,7 +138,6 @@ export class ExecutionContext {
     this.#eventBus = options.eventBus;
     this.#unitOfWork = options.unitOfWork;
     this.#logger = options.logger;
-    this.#metadata = options.metadata || {};
   }
 
   /**
@@ -266,36 +259,5 @@ export class ExecutionContext {
    */
   get logger(): Logger | undefined {
     return this.#logger;
-  }
-
-  /**
-   * Get metadata from the context
-   * @param key The metadata key
-   * @returns The metadata value or undefined
-   */
-  getMetadata<T>(key: string): T | undefined {
-    return this.#metadata[key] as T | undefined;
-  }
-
-  /**
-   * Create a new context with additional metadata
-   * @param metadata Additional metadata to add
-   * @returns A new execution context with combined metadata
-   */
-  withMetadata(metadata: Record<string, unknown>): ExecutionContext {
-    return new ExecutionContext({
-      traceId: this.#traceId,
-      auth: {
-        subjectId: this.#auth.subjectId,
-        role: this.#auth.role,
-      },
-      eventBus: this.#eventBus,
-      unitOfWork: this.#unitOfWork,
-      logger: this.#logger,
-      metadata: {
-        ...this.#metadata,
-        ...metadata,
-      },
-    });
   }
 }

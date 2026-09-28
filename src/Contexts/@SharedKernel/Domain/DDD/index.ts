@@ -4,8 +4,4 @@ export * from './AggregateRoot';
 export * from './Event';
 export * from './Exception';
 export * from './Presenter';
-export * from './Mapper';
-export * from './QueriesService';
-export * from './Repository';
-export * from './Saga';
 export * from './ValueObject';

@@ -1,8 +1,8 @@
-import { Mapper, Event, IEvent } from '@SharedKernel/Domain';
+import { Event, IEvent } from '@SharedKernel/Domain';
 import { TrackedOperation } from './TrackedOperation';
 import { ITrackedOperation, ITrackedOperationDTO } from './DTOs';
 
-export class TrackedOperationMapperImpl implements Mapper<ITrackedOperation<Event<unknown>>, ITrackedOperationDTO> {
+export class TrackedOperationMapperImpl {
   toJSON(operation: TrackedOperation<Event<unknown>>): ITrackedOperationDTO {
     return {
       id: operation.id,
