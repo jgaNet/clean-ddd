@@ -1,293 +1,212 @@
-# Clean DDD Framework
+# Clean Architecture & DDD, a reference implementation in TypeScript
 
-A TypeScript implementation of Clean Architecture with Domain-Driven Design following CQRS pattern.
+A small application (notes you can share, accounts, notifications, operation tracking) written to be **read**: every Domain-Driven Design and Clean Architecture concept appears exactly once, in the simplest form that still does its job, and the architectural rules are checked by tooling rather than by convention.
 
-## Core Principles
+There is no database and no framework of our own: an in-memory `Map` stands in for persistence, Fastify serves HTTP, and the "framework" is a handful of base classes under `src/Contexts/@SharedKernel` that you can read in one sitting.
 
-- **Domain-Driven Design**: Rich domain model focused on business rules
-- **Clean Architecture**: Layered architecture with explicit dependency rules
-- **CQRS**: Command/query separation for better scalability
-- **Event-Driven**: Contexts communicate through domain events
+- [Start here: one request, end to end](#start-here-one-request-end-to-end)
+- [The map: concept → file](#the-map-concept--file)
+- [The four contexts and what each one teaches](#the-four-contexts-and-what-each-one-teaches)
+- [The rules, and how they are enforced](#the-rules-and-how-they-are-enforced)
+- [Layout of a context](#layout-of-a-context)
+- [Running it](#running-it)
+- [Decisions](#decisions) · [What is deliberately not here](#what-is-deliberately-not-here) · [Known gaps](#known-gaps)
 
-## Project Structure
+## Start here: one request, end to end
 
-```
-src/
-├── Bootstrap/          # Application startup and configuration
-├── Contexts/           # Bounded contexts (business domains)
-│   ├── @SharedKernel/  # Core abstractions (Entity, ValueObject, Module, etc.)
-│   ├── Tracker/        # Operation tracking context
-│   ├── Security/       # Authentication and authorization context
-│   ├── Notifications/  # Notification management context
-│   └── Notes/          # Note management context
-```
+`POST /v1/notes/:id/share` — the owner of a note shares it with another account. Follow the files in this order; each hop is one file with a doc comment that says why it exists.
 
-## Bounded Context Relationships and Event Flow
+| # | What happens | Where |
+|---|---|---|
+| 1 | The controller turns the HTTP request into a command and publishes it on the bus. It answers `202 { operationId }` at once. | [`FastifyNoteController.ts`](src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts) |
+| 2 | The base command handler runs the **guard** (who may do this?), opens a **transaction**, and turns any throw into a failed `Result`. | [`CommandHandler.ts`](src/Contexts/@SharedKernel/Application/CommandHandler.ts) |
+| 3 | The use case: load the aggregate, ask it to change, save it, publish what it recorded. Nothing else. | [`ShareNoteCommandHandler.ts`](src/Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandHandler.ts) |
+| 4 | The **aggregate** enforces the rules (only the owner, not archived, not twice, not with yourself) and **records** `NoteSharedEvent`. | [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts) |
+| 5 | The **repository** persists a snapshot of the aggregate. | [`InMemoryNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository.ts) |
+| 6 | Domain events are published **after the transaction commits**, never before. | [`ExecutionContext.ts`](src/Contexts/@SharedKernel/Application/ExecutionContext.ts) (`afterCommit`) |
+| 7 | A handler inside Notes translates the domain event into the **published contract**, `NoteSharedIntegrationEvent`. | [`NoteSharedHandler.ts`](src/Contexts/Notes/Application/Events/NoteSharedHandler.ts) → [`NoteIntegrationEvents.ts`](src/Contexts/@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts) |
+| 8 | The Notifications context reacts through an **anti-corruption layer**: it knows the contract and nothing else about Notes. | [`NoteSharedIntegrationEventHandler.ts`](src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts) |
+| 9 | Meanwhile the bus decorator has **projected** the operation into a read model; the client polls `GET /v1/tracker/operations/:id` to learn how it went. | [`TrackedEventBus.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.ts) → [`OperationProjection.ts`](src/Contexts/Tracker/Application/Projections/OperationProjection.ts) |
 
-The following diagram illustrates how the various bounded contexts interact and how events flow through the system:
+The same path is exercised end to end by [`note.routes.e2e.spec.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.e2e.spec.ts) ("Sharing a note").
+
+## The map: concept → file
+
+One canonical example per concept. When two files could teach the same thing, the table names the one to read; the other exists because the application needs it, not to make a point.
+
+### Domain layer
+
+| Concept | Canonical example | Notes |
+|---|---|---|
+| Entity | [`Entity.ts`](src/Contexts/@SharedKernel/Domain/DDD/Entity.ts) | identity, `equals()` |
+| Aggregate root | [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts) on [`AggregateRoot.ts`](src/Contexts/@SharedKernel/Domain/DDD/AggregateRoot.ts) | behaviours enforce invariants and `record()` events; a second one in [`Account.ts`](src/Contexts/Security/Domain/Account/Account.ts) |
+| Value object | [`NoteTitle.ts`](src/Contexts/Notes/Domain/Note/NoteTitle.ts), [`Email.ts`](src/Contexts/@SharedKernel/Domain/Utils/Email.ts), [`Credentials.ts`](src/Contexts/Security/Domain/Account/Credentials.ts) | built through `create()` → `Result`; never invalid once you hold one |
+| Identity | [`Id.ts`](src/Contexts/@SharedKernel/Domain/Utils/Id.ts) | generated by the domain (`Id.generate()`), not by the database — [ADR 2](docs/adr/0002-identity-is-generated-by-the-domain.md) |
+| Creation vs reconstitution | `Note.create()` vs `Note.fromSnapshot()` in [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts) | creation records an event; rebuilding from persistence records nothing — [ADR 4](docs/adr/0004-reconstitution-throws-on-corrupted-data.md) |
+| Domain event | [`NoteEvents.ts`](src/Contexts/Notes/Domain/Note/Events/NoteEvents.ts) | past tense, minimal payload, internal to the context |
+| Domain exception | [`NoteExceptions.ts`](src/Contexts/Notes/Domain/Note/NoteExceptions.ts) | a broken rule in business words, carried by `Result.fail()`, never thrown — [ADR 1](docs/adr/0001-result-instead-of-exceptions.md) |
+| `Result` | [`Result.ts`](src/Contexts/@SharedKernel/Domain/DDD/Result.ts) | `IResult<T>` is the type you write in signatures |
+| Repository port | [`INoteRepository.ts`](src/Contexts/Notes/Domain/Note/Ports/INoteRepository.ts) | load / save an aggregate; nothing else |
+| Queries port & read models | [`INoteQueries.ts`](src/Contexts/Notes/Domain/Note/Ports/INoteQueries.ts) | returns view shapes, never aggregates — [ADR 5](docs/adr/0005-queries-return-read-models-not-aggregates.md) |
+| Snapshot DTO | [`DTOs.ts`](src/Contexts/Notes/Domain/Note/DTOs.ts) | the plain shape that crosses to the infrastructure |
+| **Domain service** | [`AccountRegistration.ts`](src/Contexts/Security/Domain/Account/AccountRegistration.ts) | a rule about the whole collection ("one account per email") — needs the port, still pure domain |
+| Ports for technical concerns | [`IPasswordHasher.ts`](src/Contexts/Security/Domain/Auth/Ports/IPasswordHasher.ts), [`IJwtService.ts`](src/Contexts/Security/Domain/Auth/Ports/IJwtService.ts) | hashing has a business meaning; the algorithm does not belong here |
+| Lifecycle as an enum | [`NoteStatus.ts`](src/Contexts/Notes/Domain/Note/NoteStatus.ts), [`AccountStatus.ts`](src/Contexts/Security/Domain/Account/AccountStatus.ts) | the transitions live in the aggregate, not in the enum |
+
+### Application layer
+
+| Concept | Canonical example | Notes |
+|---|---|---|
+| Command | [`ShareNoteCommandEvent.ts`](src/Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandEvent.ts) | a named payload, nothing more |
+| Command handler | [`EditNoteCommandHandler.ts`](src/Contexts/Notes/Application/Commands/EditNote/EditNoteCommandHandler.ts) | the shape every "change an existing thing" use case follows |
+| Guard (authorization) | [`Guards.ts`](src/Contexts/Notes/Application/Guards.ts) + `guard()` in any handler | *who may call* is answered here; *what they may do to which object* is the aggregate's business |
+| Base handler (guard, transaction, safety net) | [`CommandHandler.ts`](src/Contexts/@SharedKernel/Application/CommandHandler.ts) | a concrete handler only writes `execute()` |
+| Query handler | [`GetNoteQueryHandler.ts`](src/Contexts/Notes/Application/Queries/GetNote/GetNoteQueryHandler.ts) | reads through the queries port; a refused query is a failed `Result`, not a throw |
+| Execution context | [`ExecutionContext.ts`](src/Contexts/@SharedKernel/Application/ExecutionContext.ts) | who is calling, with which logger, bus and unit of work; `withTransaction`, `afterCommit` |
+| Publish after commit | `publishDomainEvents()` in [`CommandHandler.ts`](src/Contexts/@SharedKernel/Application/CommandHandler.ts) | [ADR 3](docs/adr/0003-publish-domain-events-after-commit.md) |
+| Domain event handler | [`NoteSharedHandler.ts`](src/Contexts/Notes/Application/Events/NoteSharedHandler.ts) | where a fact leaves its context |
+| Integration event (published contract) | [`NoteIntegrationEvents.ts`](src/Contexts/@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts) | the only thing one context may know about another — [ADR 6](docs/adr/0006-integration-events-are-the-only-contract-between-contexts.md) |
+| **Anti-corruption layer** | [`NoteSharedIntegrationEventHandler.ts`](src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts) | restates a foreign fact in local terms |
+| **Projection / read model** | [`OperationProjection.ts`](src/Contexts/Tracker/Application/Projections/OperationProjection.ts), [`OperationRecord.ts`](src/Contexts/Tracker/Application/ReadModel/OperationRecord.ts) | a context with no aggregate at all |
+| Module (wiring) | [`Module.ts`](src/Contexts/@SharedKernel/Application/Module.ts), used in [`Notes/module.local.ts`](src/Contexts/Notes/module.local.ts) | plain data: which handler answers which command, query, event |
+
+### Infrastructure layer
+
+| Concept | Canonical example | Notes |
+|---|---|---|
+| Repository implementation | [`InMemoryNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository.ts) | snapshot in, snapshot out |
+| Queries implementation | [`InMemoryNoteQueries.ts`](src/Contexts/Notes/Infrastructure/Queries/InMemoryNoteQueries.ts) | builds read models from the same store, here |
+| Port implementations | [`JwtService.ts`](src/Contexts/Security/Infrastructure/Services/JwtService.ts) (`jose`), [`BcryptPasswordHasher.ts`](src/Contexts/Security/Infrastructure/Services/BcryptPasswordHasher.ts) | |
+| Event bus | [`InMemoryEventBus.ts`](src/Contexts/@SharedKernel/Infrastructure/EventBus/InMemoryEventBus.ts) | the only bus implementation |
+| Decorator (cross-cutting concern) | [`TrackedEventBus.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.ts) | tracking layered on any bus; neither the bus nor the handlers know |
+| Unit of work | [`InMemoryUnitOfWork.ts`](src/Contexts/@SharedKernel/Infrastructure/UnitOfWork/InMemoryUnitOfWork.ts) | |
+| The "database" | [`InMemoryDataSource.ts`](src/Contexts/@SharedKernel/Infrastructure/DataSources/InMemoryDataSource.ts) | a `Map`; the ports are what a real adapter would implement |
+
+### Presentation and bootstrap
+
+| Concept | Canonical example |
+|---|---|
+| Controller (commands → `202`, queries → sync) | [`FastifyNoteController.ts`](src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts) |
+| Routes and JSON schemas | [`note.routes.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts), [`note.routes.schema.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.schema.ts) |
+| Authentication middleware | [`FastifyJWTAuthenticationMiddleware.ts`](src/Contexts/Security/Presentation/API/REST/Middlewares/FastifyJWTAuthenticationMiddleware.ts) — never blocks, makes the caller `GUEST` unless the token verifies |
+| Presenters (one use case, several formats) | [`Security/Presentation/Presenters/Auth`](src/Contexts/Security/Presentation/Presenters/Auth) |
+| Composition root | [`application.ts`](src/Bootstrap/Fastify/application.ts) on [`Application.ts`](src/Contexts/@SharedKernel/Application/Application.ts) |
+
+### Tests, one style per layer
+
+| Layer | Example | Doubles |
+|---|---|---|
+| Domain | [`Note.spec.ts`](src/Contexts/Notes/Domain/Note/Note.spec.ts) | none |
+| Domain service | [`AccountRegistration.spec.ts`](src/Contexts/Security/Domain/Account/AccountRegistration.spec.ts) | a 10-line fake of the port |
+| Application | [`NoteCommandHandlers.spec.ts`](src/Contexts/Notes/Application/Commands/NoteCommandHandlers.spec.ts) | the in-memory repository *is* the double |
+| Infrastructure | [`TrackedEventBus.spec.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.spec.ts), [`JwtService.spec.ts`](src/Contexts/Security/Infrastructure/Services/JwtService.spec.ts) | real in-memory pieces |
+| End to end | [`note.routes.e2e.spec.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.e2e.spec.ts) | a running server |
+
+## The four contexts and what each one teaches
 
 ```mermaid
-graph TD
-    %% Bounded Contexts with internal event flows
-    subgraph SecurityCtx["<b style='font-size:18px;color:#0066cc'>🔵 Security Context</b>"]
-        SC[/"Commands:<br>- SignUpCommand<br>- LoginCommand<br>- ValidateAccountCommand"/] --> SE[/"Domain Events:<br>- AccountCreatedEvent<br>- AccountValidatedEvent"/]
-        SE --> SIE[/"Integration Events:<br>- AccountCreatedIntegrationEvent<br>- AccountValidatedIntegrationEvent"/]
-        
-        style SC fill:#e6f7ff,stroke:#0066cc,stroke-width:1px
-        style SE fill:#e6f7ff,stroke:#0066cc,stroke-width:1px
-        style SIE fill:#e6f7ff,stroke:#0066cc,stroke-width:1px
-    end
-    
-    subgraph NotesCtx["<b style='font-size:18px;color:#006600'>Notes Context</b>"]
-        NOTC[/"Commands:<br>- CreateNoteCommand"/] --> NOTE[/"Domain Events:<br>- NoteCreatedEvent"/]
-        
-        style NOTC fill:#e6ffe6,stroke:#006600,stroke-width:1px
-        style NOTE fill:#e6ffe6,stroke:#006600,stroke-width:1px
-    end
-    
-    subgraph NotificationsCtx["<b style='font-size:18px;color:#cc6600'>🟠 Notifications Context</b>"]
-        NIE[/"Integration Events Handled:<br>- AccountCreatedIntegrationEvent<br>- AccountValidatedIntegrationEvent"/] --> NC[/"Commands:<br>- SendNotificationCommand<br>- MarkAsReadNotificationCommand"/] --> NE[/"Domain Events:<br>- NotificationSentEvent"/]
-        
-        style NIE fill:#fff2e6,stroke:#cc6600,stroke-width:1px
-        style NC fill:#fff2e6,stroke:#cc6600,stroke-width:1px
-        style NE fill:#fff2e6,stroke:#cc6600,stroke-width:1px
-    end
-    
-    subgraph TrackerCtx["<b style='font-size:18px;color:#333333'>Tracker Context</b>"]
-        TC[/"Queries:<br>- GetOperationQuery<br>- GetOperationsQuery"/]
-        
-        style TC fill:#f9f9f9,stroke:#333333,stroke-width:1px
-    end
-    
-    %% Shared Kernel
-    SharedKernel["<b style='font-size:18px;color:#555555'>Shared Kernel</b><br>(Base Abstractions, Integration Events)"]
-    style SharedKernel fill:#f0f0f0,stroke:#555,stroke-width:1px,stroke-dasharray:5
-    
-    %% Context styling
-    style SecurityCtx fill:#f0f8ff,stroke:#0066cc,stroke-width:2px
-    style NotesCtx fill:#f9f9f9,stroke:#006600,stroke-width:2px
-    style NotificationsCtx fill:#fff8f0,stroke:#cc6600,stroke-width:2px
-    style TrackerCtx fill:#f9f9f9,stroke:#333333,stroke-width:2px
-    
-    %% Cross-context event flow
-    SIE -->|"complete payload"| NIE
-    
-    %% Shared kernel relationships
-    SharedKernel -.->|"provides base abstractions"| SecurityCtx
-    SharedKernel -.->|"provides base abstractions"| NotesCtx
-    SharedKernel -.->|"provides base abstractions"| NotificationsCtx
-    SharedKernel -.->|"provides base abstractions"| TrackerCtx
-    
-    %% Tracker relationships
-    SecurityCtx -.->|"tracks operations"| TrackerCtx
-    NotesCtx -.->|"tracks operations"| TrackerCtx
-    NotificationsCtx -.->|"tracks operations"| TrackerCtx
-    
-    %% Compact Legend
-    LegendTitle["Legend:"]
-    LegendTitle --- LegendFlow["→ Event Flow | -.-> Context Relationship | 🔵 Upstream | 🟠 Conformist"]
-    style LegendFlow font-size:10px
+graph LR
+    Notes -- NoteSharedIntegrationEvent --> Notifications
+    Security -- AccountCreated / AccountValidated --> Notifications
+    Tracker -- OperationCompleteIntegrationEvent --> Notifications
+    Notes -. every operation .-> Tracker
+    Security -. every operation .-> Tracker
+    Notifications -. every operation .-> Tracker
 ```
 
-### Key Event Flows
+| Context | Teaches | Read |
+|---|---|---|
+| **Notes** | the canonical aggregate and everything around it: value object, events, commands, queries, read models, the full path from HTTP to a domain event | [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts) first, then any handler |
+| **Security** | a **domain service** (email uniqueness), **ports for technical concerns** (hashing, tokens), authentication as a middleware that only identifies and lets guards decide | [`AccountRegistration.ts`](src/Contexts/Security/Domain/Account/AccountRegistration.ts), [`LoginCommandHandler.ts`](src/Contexts/Security/Application/Commands/Login/LoginCommandHandler.ts) |
+| **Notifications** | the **downstream** side: anti-corruption layers for three upstream contexts, several delivery channels behind one port | [`NoteSharedIntegrationEventHandler.ts`](src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts), [`DeliveryStrategy.ts`](src/Contexts/Notifications/Domain/Notification/DeliveryStrategy.ts) |
+| **Tracker** | a **projection**: a read model fed by the event stream, with no aggregate of its own, and the decorator that feeds it | [`OperationProjection.ts`](src/Contexts/Tracker/Application/Projections/OperationProjection.ts), [`TrackedEventBus.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.ts) |
 
-- **Command → Domain Event → Integration Event**: Events flow from user commands through domain events to integration events
-- **Security → Notifications**: Security context publishes integration events with complete payloads that Notifications context consumes
-- **Shared Kernel → All Contexts**: Provides base abstractions and shared utilities
-- **All Contexts → Tracker**: Operations from any context can be tracked and monitored
+The `@SharedKernel` is not a context: it holds the building blocks ([`Domain`](src/Contexts/@SharedKernel/Domain), [`Application`](src/Contexts/@SharedKernel/Application), [`Presentation`](src/Contexts/@SharedKernel/Presentation), [`Infrastructure`](src/Contexts/@SharedKernel/Infrastructure)) and the integration events, which are the contracts the contexts share.
 
-## Building Blocks
+## The rules, and how they are enforced
 
-### Application Class
+| Rule | Enforced by |
+|---|---|
+| **Dependencies point inward.** Domain depends on nothing. Application depends on Domain. Infrastructure and Presentation depend on both. Nothing depends on Bootstrap. | ESLint `no-restricted-imports`, per layer, in [`.eslintrc.cjs`](.eslintrc.cjs). Application tests may use in-memory infrastructure as doubles. Every remaining exception carries an `eslint-disable` comment naming the reason. |
+| A refused command or query is a **failed `Result`**, never a thrown exception. | Base handlers ([`CommandHandler`](src/Contexts/@SharedKernel/Application/CommandHandler.ts), [`QueryHandler`](src/Contexts/@SharedKernel/Application/QueryHandler.ts)) and [ADR 1](docs/adr/0001-result-instead-of-exceptions.md) |
+| Only an **aggregate root** records domain events; a handler never builds one. | Types: `record()` is `protected` on `AggregateRoot` |
+| Domain events are published **after the transaction commits**. | `publishDomainEvents()` → `ExecutionContext.afterCommit()`; [`ExecutionContext.spec.ts`](src/Contexts/@SharedKernel/Application/ExecutionContext.spec.ts) |
+| A context's Domain never imports another context. Contexts talk through **integration events** only. | ESLint (`@Contexts/*/...` patterns) and [ADR 6](docs/adr/0006-integration-events-are-the-only-contract-between-contexts.md) |
+| Queries return read models; repositories return aggregates. Never the other way. | Port types; [ADR 5](docs/adr/0005-queries-return-read-models-not-aggregates.md) |
+| One wiring file per context, plain data, no container. | [`module.local.ts`](src/Contexts/Notes/module.local.ts) files |
+| It compiles, lints and tests, in CI, on every pull request. | [`ci.yml`](.github/workflows/ci.yml): `yarn lint`, `yarn typecheck`, `yarn test:units` |
 
-```typescript
-// Example usage of Application primitive
-class MyCleanApp extends Application {
-  constructor() {
-    super();
-    this.setEventBus(new InMemoryEventEmitter())
-      .registerModule(notesModule)
-      .registerModule(trackerModule);
-  }
+## Layout of a context
 
-  async start() {
-    // Start HTTP server, message consumers, etc.
-    const server = new FastifyServer();
-    await server.listen(3000);
-  }
-}
-
-// Start the application
-const app = new MyCleanApp();
-app.run();
+```
+Contexts/Notes/
+├── Domain/Note/                 the model: no logging, no HTTP, no persistence
+│   ├── Note.ts                  aggregate root
+│   ├── NoteTitle.ts             value object
+│   ├── NoteStatus.ts            lifecycle
+│   ├── Events/NoteEvents.ts     domain events
+│   ├── NoteExceptions.ts        broken rules, in business words
+│   ├── DTOs.ts                  the snapshot shape
+│   └── Ports/                   INoteRepository (write), INoteQueries (read models)
+├── Application/
+│   ├── Commands/<UseCase>/      command + handler
+│   ├── Queries/<UseCase>/       query handler
+│   ├── Events/                  reactions to domain events (incl. translation to integration events)
+│   └── Guards.ts                who may call
+├── Infrastructure/              implementations of the ports
+├── Presentation/                controllers, routes + schemas, presenters
+└── module.local.ts              wiring: handlers ↔ infrastructure, for the "local" environment
 ```
 
-### Module System
+## Running it
 
-```typescript
-// Defining a module with ModuleBuilder
-const notesModule = new ModuleBuilder(Symbol('Notes'))
-  .setCommand({
-    event: CreateNoteCommand,
-    handlers: [new CreateNoteCommandHandler({
-      noteRepository,
-      eventBus
-    })]
-  })
-  .setQuery(new GetNotesQueryHandler({
-    noteQueries
-  }))
-  .setDomainEvent({
-    event: NoteCreatedEvent,
-    handlers: [new NoteCreatedHandler()]
-  })
-  .build();
-
-// Using the module
-const createNoteCmd = new CreateNoteCommand({
-  title: "My first note",
-  content: "This is the content of my note"
-});
-
-// Execute command
-const result = await notesModule.getCommand(CreateNoteCommand).execute(createNoteCmd);
-```
-
-### Domain Model
-
-```typescript
-// Entity example
-export class Note extends Entity {
-  #title: string;
-  #content: string;
-
-  private constructor(id: string, title: string, content: string) {
-    super(id);
-    this.#title = title;
-    this.#content = content;
-  }
-
-  static create(noteDto: INote): IResult<Note> {
-    // Domain validation rules
-    if (!noteDto.title) {
-      return Result.fail(new InvalidNoteTitleError());
-    }
-    
-    return Result.ok(new Note(
-      noteDto._id,
-      noteDto.title,
-      noteDto.content || ''
-    ));
-  }
-
-  get title(): string {
-    return this.#title;
-  }
-  
-  get content(): string {
-    return this.#content;
-  }
-}
-
-// Value Object example
-export class Email extends ValueObject<string> {
-  private constructor(email: string) {
-    super(email);
-  }
-
-  static create(email: string): IResult<Email> {
-    if (!email.includes('@')) {
-      return Result.fail(new InvalidEmailError(email));
-    }
-    return Result.ok(new Email(email));
-  }
-
-  get username(): string {
-    return this.value.split('@')[0];
-  }
-}
-```
-
-### Command Handlers
-
-```typescript
-export class CreateNoteCommandHandler extends CommandHandler<CreateNoteCommandEvent> {
-  #noteRepository: INoteRepository;
-
-  constructor({ noteRepository }) {
-    super();
-    this.#noteRepository = noteRepository;
-  }
-
-  async execute({ payload }: CreateNoteCommandEvent): Promise<IResult<INote>> {
-    // Create the note
-    const noteResult = Note.create({
-      _id: await this.#noteRepository.nextIdentity(),
-      title: payload.title,
-      content: payload.content
-    });
-    
-    if (noteResult.isFailure()) return noteResult;
-
-    // Save the note
-    const note = noteResult.data;
-    await this.#noteRepository.save(note);
-
-    // Return DTO
-    return Result.ok(NoteMapper.toDTO(note));
-  }
-}
-```
-
-### Query Handlers
-
-```typescript
-export class GetNotesQueryHandler extends QueryHandler<INoteQueries, void, IResult<INote[]>> {
-  #noteQueries: INoteQueries;
-
-  constructor({ noteQueries }: { noteQueries: INoteQueries }) {
-    super();
-    this.#noteQueries = noteQueries;
-  }
-
-  async execute(): Promise<ResultValue<INote[]>> {
-    try {
-      const notes = await this.#noteQueries.getAll();
-      return Result.ok(notes);
-    } catch (e) {
-      return Result.fail(e);
-    }
-  }
-}
-```
-
-## Quick Start
+Requires Node ≥ 20 (`.nvmrc` says 22).
 
 ```bash
-# Install dependencies
+nvm use
 yarn install
-
-# Start development server
-yarn dev
-
-# Run tests
-yarn test
-
-# Build for production
-yarn build
+yarn start:dev          # http://localhost:10000, Swagger UI at /v1/docs
 ```
 
-## Development Commands
+A default administrator is seeded from the settings: `admin@admin.fr` / `admin` (override with `ADMIN_IDENTIFIER` / `ADMIN_PASSWORD`).
 
+```bash
+yarn typecheck          # tsc --noEmit
+yarn lint               # eslint, including the layer-boundary rules
+yarn test:units         # every *.spec.ts except the e2e ones
+yarn test:e2e           # against a running server (start it first); the suites share one process and run in order
+yarn test               # both
 ```
-# Linting and formatting
-yarn lint
-yarn format
 
+## Decisions
 
-# Testing
-yarn test
-```
+Non-obvious choices are recorded as short ADRs in [`docs/adr`](docs/adr):
+
+1. [Result instead of exceptions for expected failures](docs/adr/0001-result-instead-of-exceptions.md)
+2. [Identity is generated by the domain](docs/adr/0002-identity-is-generated-by-the-domain.md)
+3. [Domain events are published after the transaction commits](docs/adr/0003-publish-domain-events-after-commit.md)
+4. [Reconstitution throws on corrupted data](docs/adr/0004-reconstitution-throws-on-corrupted-data.md)
+5. [Queries return read models, not aggregates](docs/adr/0005-queries-return-read-models-not-aggregates.md)
+6. [Integration events are the only contract between contexts](docs/adr/0006-integration-events-are-the-only-contract-between-contexts.md)
+
+## What is deliberately not here
+
+Each of these is real vocabulary, and each would turn the building blocks back into a framework. The ADRs say when you would add them.
+
+- **A DI container.** `module.local.ts` is the container: `new` and constructor arguments.
+- **An ORM or a real database.** The ports are the seam; the in-memory implementations show what an adapter must do.
+- **A transactional outbox / message broker.** `afterCommit` is the honest single-process version; [ADR 3](docs/adr/0003-publish-domain-events-after-commit.md) names the gap.
+- **A generic Saga / process manager.** The Security → Notifications validation flow is a process; it is expressed as two handlers, not a library.
+- **Specification pattern, optimistic concurrency, versioned events.** Add them when a real case asks for them, next to the aggregate that needs them.
+
+## Known gaps
+
+Kept visible rather than hidden, each with an `eslint-disable` or a comment in place:
+
+- Notifications' `INotificationService` port takes an `ExecutionContext` (it should take a `Logger`), and its websocket service renders HTML (a presenter's job). Two layer-boundary exceptions remain for these.
+- `Note.shareWith()` does not check that the recipient account exists; that needs a port towards Security (an account directory) and would make a good small exercise.
+- A failed login answers `200` with an error body, for the HTMX front end.
+- The e2e suites run against one live server, in file order, and leave data behind.
 
 ## License
 
