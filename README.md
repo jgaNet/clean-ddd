@@ -92,7 +92,7 @@ One canonical example per concept. When two files could teach the same thing, th
 | Routes and JSON schemas | [`note.routes.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts), [`note.routes.schema.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.schema.ts) |
 | Authentication middleware | [`FastifyJWTAuthenticationMiddleware.ts`](src/Contexts/Security/Presentation/API/REST/Middlewares/FastifyJWTAuthenticationMiddleware.ts) — never blocks, makes the caller `GUEST` unless the token verifies |
 | Presenters (one use case, several formats) | [`Security/Presentation/Presenters/Auth`](src/Contexts/Security/Presentation/Presenters/Auth) |
-| Composition root | [`application.ts`](src/Bootstrap/Fastify/application.ts) on [`Application.ts`](src/Contexts/@SharedKernel/Application/Application.ts) |
+| Composition root | [`createApplication.ts`](src/Bootstrap/Fastify/createApplication.ts) on [`Application.ts`](src/Contexts/@SharedKernel/Application/Application.ts); [`application.ts`](src/Bootstrap/Fastify/application.ts) is the process entry point |
 
 ### Tests, one style per layer
 
@@ -102,7 +102,7 @@ One canonical example per concept. When two files could teach the same thing, th
 | Domain service | [`AccountRegistration.spec.ts`](src/Contexts/Security/Domain/Account/AccountRegistration.spec.ts) | a 10-line fake of the port |
 | Application | [`NoteCommandHandlers.spec.ts`](src/Contexts/Notes/Application/Commands/NoteCommandHandlers.spec.ts) | the in-memory repository *is* the double |
 | Infrastructure | [`TrackedEventBus.spec.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.spec.ts), [`JwtService.spec.ts`](src/Contexts/Security/Infrastructure/Services/JwtService.spec.ts) | real in-memory pieces |
-| End to end | [`note.routes.e2e.spec.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.e2e.spec.ts) | a running server |
+| End to end | [`note.routes.e2e.spec.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.e2e.spec.ts) | the whole application, booted in-process by [`application.spec-helper.ts`](src/Bootstrap/Fastify/application.spec-helper.ts), spoken to over HTTP |
 
 ## The four contexts and what each one teaches
 
@@ -136,7 +136,7 @@ The `@SharedKernel` is not a context: it holds the building blocks ([`Domain`](s
 | A context's Domain never imports another context. Contexts talk through **integration events** only. | ESLint (`@Contexts/*/...` patterns) and [ADR 6](docs/adr/0006-integration-events-are-the-only-contract-between-contexts.md) |
 | Queries return read models; repositories return aggregates. Never the other way. | Port types; [ADR 5](docs/adr/0005-queries-return-read-models-not-aggregates.md) |
 | One wiring file per context, plain data, no container. | [`module.local.ts`](src/Contexts/Notes/module.local.ts) files |
-| It compiles, lints and tests, in CI, on every pull request. | [`ci.yml`](.github/workflows/ci.yml): `yarn lint`, `yarn typecheck`, `yarn test:units` |
+| It compiles, lints and tests, in CI, on every pull request. | [`ci.yml`](.github/workflows/ci.yml): `yarn lint`, `yarn typecheck`, `yarn test:units`, `yarn test:e2e` |
 
 ## Layout of a context
 
@@ -176,7 +176,7 @@ A default administrator is seeded from the settings: `admin@admin.fr` / `admin` 
 yarn typecheck          # tsc --noEmit
 yarn lint               # eslint, including the layer-boundary rules
 yarn test:units         # every *.spec.ts except the e2e ones
-yarn test:e2e           # against a running server (start it first); the suites share one process and run in order
+yarn test:e2e           # each suite boots its own application on a free port, with fresh stores; no server to start
 yarn test               # both
 ```
 
@@ -207,7 +207,6 @@ Kept visible rather than hidden:
 
 - `Note.shareWith()` does not check that the recipient account exists; that needs a port towards Security (an account directory) and would make a good small exercise.
 - A failed login answers `200` with an error body, for the HTMX front end.
-- The e2e suites run against one live server, in file order, and leave data behind.
 
 ## License
 

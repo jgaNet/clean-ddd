@@ -1,8 +1,17 @@
-import { SETTINGS } from '@Bootstrap/Fastify/application.settings';
 import superagent from 'superagent';
 
+import { startTestApplication, TestApplication } from '@Bootstrap/Fastify/application.spec-helper';
+
+let app: TestApplication;
+let api: string;
+beforeAll(async () => {
+  app = await startTestApplication();
+  api = app.api;
+});
+afterAll(() => app.stop());
+
 const login = (identifier: string, password: string) =>
-  superagent.post(`${SETTINGS.apiUrl}/auth/login`).send({ identifier, password });
+  superagent.post(`${api}/auth/login`).send({ identifier, password });
 
 describe('Login', () => {
   it('should return a token for valid credentials', async () => {
@@ -20,7 +29,7 @@ describe('Login', () => {
     const forged = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWJqZWN0SWQiOiJ4Iiwic3ViamVjdFR5cGUiOiJhZG1pbiJ9.bad';
     let status: number | undefined;
     await superagent
-      .get(`${SETTINGS.apiUrl}/auth/me`)
+      .get(`${api}/auth/me`)
       .set('authorization', `Bearer ${forged}`)
       .catch(err => (status = err.status));
     expect(status).toBe(401);
@@ -35,36 +44,32 @@ describe('SignUp', () => {
   });
 
   it('should fail if account already exists', async () => {
-    const res = await superagent
-      .post(`${SETTINGS.apiUrl}/auth/signup`)
-      .send({ identifier: 'admin@admin.fr', password: 'admin' });
+    const res = await superagent.post(`${api}/auth/signup`).send({ identifier: 'admin@admin.fr', password: 'admin' });
     expect(res.status).toBe(200);
     expect(res.body.operationId).toEqual(expect.any(String));
 
-    const operation = await adminAgent.get(`${SETTINGS.apiUrl}/tracker/operations/${res.body.operationId}`);
+    const operation = await adminAgent.get(`${api}/tracker/operations/${res.body.operationId}`);
     expect(operation.body.status).toBe('ERROR');
   });
 
   it('should create a pending account, validated by an admin', async () => {
-    const res = await superagent
-      .post(`${SETTINGS.apiUrl}/auth/signup`)
-      .send({ identifier: 'user@user.fr', password: 'user' });
+    const res = await superagent.post(`${api}/auth/signup`).send({ identifier: 'user@user.fr', password: 'user' });
     expect(res.status).toBe(200);
 
-    const operation = await adminAgent.get(`${SETTINGS.apiUrl}/tracker/operations/${res.body.operationId}`);
+    const operation = await adminAgent.get(`${api}/tracker/operations/${res.body.operationId}`);
     expect(operation.body.status).toBe('SUCCESS');
     const accountId = operation.body.result;
 
-    const pending = await adminAgent.get(`${SETTINGS.apiUrl}/auth/accounts/${accountId}`);
+    const pending = await adminAgent.get(`${api}/auth/accounts/${accountId}`);
     expect(pending.body).toEqual({ id: accountId, email: 'user@user.fr', role: 'user', status: 'pending' });
 
     // A pending account cannot sign in yet
     const refused = await login('user@user.fr', 'user');
     expect(refused.body.token).toBeUndefined();
 
-    await adminAgent.get(`${SETTINGS.apiUrl}/auth/accounts/${accountId}/validate`);
+    await adminAgent.get(`${api}/auth/accounts/${accountId}/validate`);
 
-    const active = await adminAgent.get(`${SETTINGS.apiUrl}/auth/accounts/${accountId}`);
+    const active = await adminAgent.get(`${api}/auth/accounts/${accountId}`);
     expect(active.body).toEqual({ id: accountId, email: 'user@user.fr', role: 'user', status: 'active' });
 
     const accepted = await login('user@user.fr', 'user');

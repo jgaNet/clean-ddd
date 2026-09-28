@@ -17,6 +17,8 @@ export default {
     '^.+\\.ts$': ['ts-jest', { useESM: true, tsconfig: './tsconfig.test.json' }],
   },
   testMatch: ['**/?(*.)+(spec|test).[jt]s?(x)'],
+  // The end-to-end suites boot the whole application (bcrypt seed included) in beforeAll.
+  testTimeout: 20000,
   moduleNameMapper: pathsToModuleNameMapper(tsconfig.compilerOptions.paths),
   moduleDirectories: ['node_modules', 'src'],
   modulePathIgnorePatterns: ['<rootDir>/dist/'],

@@ -1,8 +1,8 @@
 /**
  * Application: registers modules and starts them against one event bus.
  *
- * The concrete class adds the transport. See Bootstrap/Fastify/application.ts, which sets
- * the bus, registers the modules and routes, then listens:
+ * The concrete class adds the transport. See Bootstrap/Fastify/createApplication.ts, which
+ * sets the bus, registers the modules and routes, then listens:
  *
  * ```typescript
  * await app.setEventBus(trackedEventBus).registerModule(localNotesModule).run();
@@ -27,7 +27,7 @@ export abstract class Application {
   }
 
   async run(): Promise<void> {
-    this.startModules();
+    await this.startModules();
     await this.start();
   }
 
@@ -44,8 +44,9 @@ export abstract class Application {
     return this;
   }
 
-  startModules() {
-    this.#modules.forEach(module => module.start(this.#eventBus));
+  /** Subscribes every module's handlers to the bus. Awaited, so nothing is served before they listen. */
+  async startModules(): Promise<void> {
+    await Promise.all([...this.#modules.values()].map(module => module.start(this.#eventBus)));
   }
 
   getModule(name: string): Module {

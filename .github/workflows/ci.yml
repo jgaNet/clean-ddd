@@ -30,3 +30,6 @@ jobs:
 
       - name: Unit tests
         run: yarn test:units
+
+      - name: End-to-end tests
+        run: yarn test:e2e
