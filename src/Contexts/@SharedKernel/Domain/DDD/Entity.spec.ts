@@ -1,4 +1,4 @@
-import { Id } from '../Utils';
+import { Id } from '@SharedKernel/Domain/ValueObjects';
 import { Entity } from './Entity';
 
 describe('Entity', function () {

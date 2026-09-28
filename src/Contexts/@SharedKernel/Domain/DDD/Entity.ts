@@ -11,7 +11,7 @@
  * Example: Contexts/Notes/Domain/Note/Note.ts
  */
 
-import { Id } from '../Utils';
+import { Id } from '../ValueObjects';
 
 export class Entity {
   readonly #_id: Id;

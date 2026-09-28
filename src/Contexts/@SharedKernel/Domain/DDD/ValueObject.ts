@@ -5,7 +5,7 @@
  * one you create another. Their job is to make an invalid value impossible to represent,
  * so validation lives in the value object instead of being sprinkled across the code.
  *
- * Examples: Utils/Id.ts, Utils/Email.ts, Contexts/Notes/Domain/Note/NoteTitle.ts
+ * Examples: ValueObjects/Id.ts, ValueObjects/Email.ts, Contexts/Notes/Domain/Note/NoteTitle.ts
  */
 
 export class ValueObject<T> {

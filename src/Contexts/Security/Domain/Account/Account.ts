@@ -1,5 +1,5 @@
 import { AggregateRoot, IResult, Result, Role } from '@SharedKernel/Domain';
-import { Email, Id } from '@SharedKernel/Domain/Utils';
+import { Email, Id } from '@SharedKernel/Domain/ValueObjects';
 
 import { IAccount, INewAccount } from '@Contexts/Security/Domain/Account/DTOs';
 import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';

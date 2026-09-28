@@ -1,5 +1,5 @@
 import { IResult, NotAllowedException, Result, Role } from '@SharedKernel/Domain';
-import { Id } from '@SharedKernel/Domain/Utils';
+import { Id } from '@SharedKernel/Domain/ValueObjects';
 
 import { ExecutionContext } from '@SharedKernel/Application/ExecutionContext';
 

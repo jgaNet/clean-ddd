@@ -10,7 +10,7 @@ import {
   Result,
   Role,
 } from '@SharedKernel/Domain';
-import { Id } from '@SharedKernel/Domain/Utils';
+import { Id } from '@SharedKernel/Domain/ValueObjects';
 import { CommandHandler, EventBus, ExecutionContext, OperationStatus, UnitOfWork } from '@SharedKernel/Application';
 import { InMemoryEventBus } from '@SharedKernel/Infrastructure/EventBus/InMemoryEventBus';
 
