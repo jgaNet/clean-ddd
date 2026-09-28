@@ -1,34 +1,24 @@
-import { NotFoundException, Result, IResult, NotAllowedException } from '@SharedKernel/Domain';
-import { QueryHandler, ExecutionContext } from '@SharedKernel/Application';
-import { Role } from '@SharedKernel/Domain/AccessControl';
-import { GetOperationQueryResult, GetOperationQueryPayload } from '@Contexts/Tracker/Application/DTOs';
-import { ITrackedOperationQueries } from '@Contexts/Tracker/Domain/TrackedOperation/Ports/ITrackedOperationQueries';
+import { IResult, NotAllowedException, NotFoundException, Result, Role } from '@SharedKernel/Domain';
+import { ExecutionContext, QueryHandler } from '@SharedKernel/Application';
 
-export class GetOperationHandler extends QueryHandler<
-  ITrackedOperationQueries,
-  GetOperationQueryPayload,
-  GetOperationQueryResult
-> {
-  async execute(payload: GetOperationQueryPayload): Promise<GetOperationQueryResult> {
-    const operation = await this.queriesService.findById(payload.id);
+import { IOperationRecords } from '@Contexts/Tracker/Application/Ports/IOperationRecords';
+import { OperationRecord } from '@Contexts/Tracker/Application/ReadModel/OperationRecord';
 
-    if (!operation) {
-      return Result.fail(new NotFoundException('Tracker', 'Operation not found', { id: payload.id }));
-    }
+/** A user may follow their own operations; an administrator may follow any. */
+export class GetOperationHandler extends QueryHandler<IOperationRecords, { id: string }, IResult<OperationRecord>> {
+  protected async guard({ id }: { id: string }, { auth }: ExecutionContext): Promise<IResult<unknown>> {
+    if (auth.role === Role.ADMIN) return Result.ok();
 
-    return Result.ok(operation);
-  }
-
-  protected async guard(payload: GetOperationQueryPayload, { auth }: ExecutionContext): Promise<IResult> {
-    if (auth.role === Role.ADMIN) {
-      return Result.ok();
-    }
-
-    const operation = await this.queriesService.findById(payload.id);
-    if (Role.USER === auth.role && operation?.context.auth.subjectId === auth.subjectId) {
-      return Result.ok();
-    }
+    const record = await this.queriesService.findById(id);
+    if (auth.role === Role.USER && record?.subjectId === auth.subjectId) return Result.ok();
 
     return Result.fail(new NotAllowedException('Tracker', 'Forbidden'));
+  }
+
+  async execute({ id }: { id: string }): Promise<IResult<OperationRecord>> {
+    const record = await this.queriesService.findById(id);
+    if (!record) return Result.fail(new NotFoundException('Tracker', 'Operation not found', { id }));
+
+    return Result.ok(record);
   }
 }

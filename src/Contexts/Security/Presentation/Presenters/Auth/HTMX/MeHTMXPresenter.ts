@@ -9,7 +9,7 @@ export class MeHTMXPresenter implements Presenter<AccountViewModel, string> {
         <div id="notifications"></div>
         <div>
           <h3>
-            Welcome ${data.subjectId}
+            Welcome ${data.email}
             <button id="logout" hx-push-url="/" hx-post="/v1/auth/logout" hx-trigger="click" hx-ext="json-enc">
               Logout
             </button>

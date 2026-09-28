@@ -1,25 +1,23 @@
 import { Module } from '@SharedKernel/Application';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { InMemoryEventBus } from '@SharedKernel/Infrastructure/EventBus/InMemoryEventBus';
 import { inMemoryEventEmitter } from '@SharedKernel/Infrastructure/EventEmitter/inMemoryEventEmitter';
 
-import { ITrackedOperation } from '@Contexts/Tracker/Domain/TrackedOperation';
+import { OperationRecord } from '@Contexts/Tracker/Application/ReadModel/OperationRecord';
 import { GetOperationsHandler } from '@Contexts/Tracker/Application/Queries/GetOperations';
 import { GetOperationHandler } from '@Contexts/Tracker/Application/Queries/GetOperation';
-import { InMemoryOperationQueries } from '@Contexts/Tracker/Infrastructure/Queries/InMemoryTrakedOperationQueries';
-import { InMemoryOperationRepository } from '@Contexts/Tracker/Infrastructure/Repositories/InMemoryTrakedOperationRepository';
-import { TrakedEventBus } from '@Contexts/Tracker/Infrastructure/Services/TrakedEventBus';
+import { InMemoryOperationRecords } from '@Contexts/Tracker/Infrastructure/InMemoryOperationRecords';
+import { TrackedEventBus } from '@Contexts/Tracker/Infrastructure/TrackedEventBus';
 
-const operationDataSource = new InMemoryDataSource<ITrackedOperation>();
-const operationQueries = new InMemoryOperationQueries(operationDataSource);
-const operationRepository = new InMemoryOperationRepository(operationDataSource);
+const operationRecords = new InMemoryOperationRecords(new InMemoryDataSource<OperationRecord>());
 
-// The application's event bus: an in-memory bus that records every operation it carries.
-export const trackedEventBus = new TrakedEventBus({
-  operationRepository,
-  eventEmitter: inMemoryEventEmitter,
-});
+// The application's event bus: the in-memory bus, decorated so that every operation is recorded.
+export const trackedEventBus = new TrackedEventBus(
+  new InMemoryEventBus({ eventEmitter: inMemoryEventEmitter }),
+  operationRecords,
+);
 
 export const localTrackerModule = new Module({
   name: 'Tracker',
-  queries: [new GetOperationsHandler(operationQueries), new GetOperationHandler(operationQueries)],
+  queries: [new GetOperationsHandler(operationRecords), new GetOperationHandler(operationRecords)],
 });

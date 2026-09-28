@@ -1,137 +1,50 @@
 import { FastifyRequest } from 'fastify';
 
+import { Role, isRole } from '@SharedKernel/Domain';
+
 import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
-import { Role } from '@SharedKernel/Domain/AccessControl';
-import { AccountToken } from '@Contexts/Security/Domain/Account/AccountToken';
+import { IJwtService } from '@Contexts/Security/Domain/Auth/Ports/IJwtService';
+import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';
 
-import jwt from 'jsonwebtoken';
+const GUEST = { subjectId: '', role: Role.GUEST };
 
+/**
+ * Identifies the caller of every request. It never blocks: a missing or bad token simply
+ * makes the request anonymous (GUEST), and each handler's guard decides what a guest may do.
+ *
+ * A token is accepted only if its signature and expiry check out (IJwtService.verify), the
+ * account still exists and is active, and the role it claims is the account's current role.
+ */
 export class AuthenticationMiddleware {
-  private accountQueries: IAccountQueries;
+  constructor(private accountQueries: IAccountQueries, private jwtService: IJwtService) {}
 
-  constructor(accountQueries: IAccountQueries) {
-    this.accountQueries = accountQueries;
-  }
-
-  /**
-   * Extracts token from request headers
-   */
-  private extractTokenFromHeader(request: FastifyRequest): string | null {
-    const authHeader = request.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
-    return authHeader.substring(7); // Remove "Bearer " prefix
-  }
-
-  private extractTokenFromQueryParams(request: FastifyRequest<{ Querystring: { token?: string } }>): string | null {
-    const token = request.query?.token;
-    if (!token) return null;
-    return token;
-  }
-
-  private parseCookie(cookie: string | null): Record<string, string> | null {
-    if (!cookie) return null;
-    const output: Record<string, string> = {};
-    cookie.split(/\s*;\s*/).forEach(function (pair: string | string[]) {
-      if (typeof pair === 'string') {
-        pair = pair.split(/\s*=\s*/);
-        output[pair[0]] = pair.splice(1).join('=');
-      }
-    });
-
-    return output;
-  }
-
-  private extractTokenFromCookie(request: FastifyRequest): string | null {
-    if (!request.headers.cookie) return null;
-    const token = this.parseCookie(request.headers.cookie)?.token;
-    if (!token) return null;
-    return token;
-  }
-
-  /**
-   * Middleware to authenticate requests
-   * - Extracts token from request
-   * - Validates token and attaches user info to request
-   * - Does not block requests but marks them as authenticated or not
-   */
   authenticate() {
     return async (request: FastifyRequest<{ Querystring: { token?: string } }>): Promise<void> => {
-      const token =
-        this.extractTokenFromCookie(request) ||
-        this.extractTokenFromHeader(request) ||
-        this.extractTokenFromQueryParams(request);
+      request.auth = GUEST;
 
-      if (!token) {
-        // No token, continue as guest
-        request.auth = {
-          subjectId: '',
-          role: Role.GUEST,
-        };
-        return;
-      }
+      const token = this.tokenFromCookie(request) || this.tokenFromHeader(request) || request.query?.token;
+      if (!token) return;
 
-      const decodedToken = jwt.decode(token) as AccountToken;
-      if (!decodedToken) {
-        request.auth = {
-          subjectId: '',
-          role: Role.GUEST,
-        };
+      const claims = await this.jwtService.verify(token);
+      if (!claims || !isRole(claims.subjectType)) return; // validation tokens do not sign anyone in
 
-        return;
-      }
+      const account = await this.accountQueries.findById(claims.subjectId);
+      if (!account || account.status !== AccountStatus.ACTIVE || account.role !== claims.subjectType) return;
 
-      try {
-        const subjectId = decodedToken.subjectId?.toString();
-        const subjectType = decodedToken.subjectType?.toString();
-
-        if (!subjectId) {
-          request.auth = {
-            subjectId: '',
-            role: Role.GUEST,
-          };
-          return;
-        }
-
-        const account = await this.accountQueries.findById(subjectId);
-
-        if (!account || !account.isActive) {
-          request.auth = {
-            subjectId: '',
-            role: Role.GUEST,
-          };
-          return;
-        }
-
-        if (account?.subjectType !== subjectType) {
-          request.auth = {
-            subjectId: '',
-            role: Role.GUEST,
-          };
-          return;
-        }
-        // In a real implementation, you would get the role from a user service or from token claims
-        // For now, we'll use a hardcoded role of USER
-
-        if (decodedToken.subjectType && decodedToken.subjectType === Role.ADMIN) {
-          request.auth = {
-            subjectId: subjectId,
-            role: Role.ADMIN,
-          };
-
-          return;
-        }
-
-        request.auth = {
-          subjectId: subjectId,
-          role: Role.USER,
-        };
-      } catch {
-        // Token validation failed, continue as guest
-        request.auth = {
-          subjectId: '',
-          role: Role.GUEST,
-        };
-      }
+      request.auth = { subjectId: account.id, role: account.role };
     };
+  }
+
+  private tokenFromHeader(request: FastifyRequest): string | undefined {
+    const header = request.headers.authorization;
+    return header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : undefined;
+  }
+
+  private tokenFromCookie(request: FastifyRequest): string | undefined {
+    const cookie = request.headers.cookie;
+    if (!cookie) return undefined;
+
+    const pair = cookie.split(/\s*;\s*/).find(part => part.startsWith('token='));
+    return pair ? pair.slice('token='.length) : undefined;
   }
 }

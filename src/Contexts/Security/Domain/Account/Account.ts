@@ -1,121 +1,137 @@
-import { Email } from '@SharedKernel/Domain/Utils/Email';
-import { Result, IResult } from '@SharedKernel/Domain';
-import { Entity } from '@SharedKernel/Domain';
-import { v4 as uuidv4 } from 'uuid';
-import { Role, Id } from '@SharedKernel/Domain';
-import { InvalidAccountException } from './AccountExceptions';
-import { InvalidCredentialsException } from '../Auth/Exceptions/InvalidCredentialsException';
-import { InactiveAccountException } from '../Auth/Exceptions/InactiveAccountException';
+import { AggregateRoot, IResult, Result, Role } from '@SharedKernel/Domain';
+import { Email, Id } from '@SharedKernel/Domain/Utils';
 
-export class Account extends Entity {
-  #subjectId: Email;
-  #subjectType: Role;
-  #credentials: {
-    type: string;
-    value: string;
-    metadata?: Record<string, unknown>;
-  };
-  #lastAuthenticated?: Date;
-  #isActive: boolean;
+import { IAccount, INewAccount } from '@Contexts/Security/Domain/Account/DTOs';
+import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';
+import { Credentials } from '@Contexts/Security/Domain/Account/Credentials';
+import {
+  AccountAuthenticatedEvent,
+  AccountCreatedEvent,
+  AccountValidatedEvent,
+} from '@Contexts/Security/Domain/Account/Events/AccountEvents';
+import { AccountAlreadyActiveException } from '@Contexts/Security/Domain/Account/AccountExceptions';
+import { InactiveAccountException } from '@Contexts/Security/Domain/Auth/Exceptions/InactiveAccountException';
+
+/**
+ * Account is the aggregate root of the Security context: who can sign in, and as what.
+ *
+ * - an account always has a valid email and a set of credentials (value objects)
+ * - it is PENDING until validated, and only an ACTIVE account can authenticate
+ * - the email must be unique across accounts: that rule spans the whole collection, so it
+ *   lives in the AccountRegistration domain service, not here
+ *
+ * Checking a password against the stored hash is not business: the application layer asks
+ * the IPasswordHasher port, then calls `authenticate()` to record the fact.
+ */
+export class Account extends AggregateRoot {
+  #email: Email;
+  #role: Role;
+  #credentials: Credentials;
+  #status: AccountStatus;
+  #lastAuthenticatedAt?: Date;
 
   private constructor(
     id: Id,
-    subjectId: string,
-    subjectType: Role,
-    credentials: { type: string; value: string; metadata?: Record<string, unknown> },
-    isActive: boolean,
-    lastAuthenticated?: Date,
+    email: Email,
+    role: Role,
+    credentials: Credentials,
+    status: AccountStatus,
+    lastAuthenticatedAt?: Date,
   ) {
     super(id);
-    this.#subjectId = new Email(subjectId);
-    this.#subjectType = subjectType;
+    this.#email = email;
+    this.#role = role;
     this.#credentials = credentials;
-    this.#isActive = isActive;
-    this.#lastAuthenticated = lastAuthenticated;
+    this.#status = status;
+    this.#lastAuthenticatedAt = lastAuthenticatedAt;
   }
 
-  static create(params: {
-    subjectId: string;
-    subjectType: Role;
-    credentials: { type: string; value: string; metadata?: Record<string, unknown> };
-    isActive?: boolean;
-  }): IResult<Account> {
-    const { subjectId, subjectType, credentials, isActive = true } = params;
+  /** Opens a brand new account. Uniqueness of the email is checked by AccountRegistration. */
+  static register(props: INewAccount): IResult<Account> {
+    const email = Email.create(props.email);
+    if (email.isFailure()) return email;
 
-    if (!subjectId) {
-      return Result.fail(new InvalidAccountException('Subject ID is required'));
+    const credentials = Credentials.password(props.passwordHash);
+    if (credentials.isFailure()) return credentials;
+
+    const id = Id.generate();
+    const status = props.activated ? AccountStatus.ACTIVE : AccountStatus.PENDING;
+    const account = new Account(id, email.data, props.role, credentials.data, status);
+    account.record(AccountCreatedEvent.set({ accountId: id.value, email: email.data.value, role: props.role, status }));
+
+    return Result.ok(account);
+  }
+
+  /** Rebuilds an Account from what was persisted. No event is recorded: nothing new happened. */
+  static fromSnapshot(snapshot: IAccount): Account {
+    const email = Email.create(snapshot.email);
+    const credentials = Credentials.password(snapshot.credentials.hash);
+    if (email.isFailure() || credentials.isFailure()) {
+      throw new Error(`Corrupted account ${snapshot._id}`);
     }
 
-    if (!subjectType) {
-      return Result.fail(new InvalidAccountException('Subject type is required'));
+    return new Account(
+      new Id(snapshot._id),
+      email.data,
+      snapshot.role,
+      credentials.data,
+      snapshot.status,
+      snapshot.lastAuthenticatedAt,
+    );
+  }
+
+  /** Confirms the email address: the account becomes usable. */
+  validate(): IResult {
+    if (this.#status === AccountStatus.ACTIVE) {
+      return Result.fail(new AccountAlreadyActiveException(this._id.value));
     }
 
-    if (!credentials || !credentials.type || !credentials.value) {
-      return Result.fail(new InvalidCredentialsException('Valid credentials are required'));
-    }
+    this.#status = AccountStatus.ACTIVE;
+    this.record(AccountValidatedEvent.set({ accountId: this._id.value, email: this.#email.value }));
 
-    const id = uuidv4();
-
-    try {
-      return Result.ok(new Account(new Id(id), subjectId, subjectType, credentials, isActive));
-    } catch (error) {
-      return Result.fail(error);
-    }
-  }
-
-  get subjectId(): string {
-    return this.#subjectId.value;
-  }
-
-  get subjectType(): Role {
-    return this.#subjectType;
-  }
-
-  get credentials(): { type: string; value: string; metadata?: Record<string, unknown> } {
-    return { ...this.#credentials };
-  }
-
-  get lastAuthenticated(): Date | undefined {
-    return this.#lastAuthenticated;
-  }
-
-  get isActive(): boolean {
-    return this.#isActive;
-  }
-
-  authenticate(): Result<void> {
-    if (!this.#isActive) {
-      return Result.fail(new InactiveAccountException('Authentication failed: account is inactive'));
-    }
-
-    this.#lastAuthenticated = new Date();
     return Result.ok();
   }
 
-  activate(): Result<void> {
-    if (this.#isActive) {
-      return Result.fail(new InvalidAccountException('Account is already active'));
+  /** Records a successful sign-in. The caller has already verified the credentials. */
+  authenticate(now: Date = new Date()): IResult {
+    if (this.#status !== AccountStatus.ACTIVE) {
+      return Result.fail(new InactiveAccountException('Account is not active'));
     }
 
-    this.#isActive = true;
+    this.#lastAuthenticatedAt = now;
+    this.record(AccountAuthenticatedEvent.set({ accountId: this._id.value, at: now }));
+
     return Result.ok();
   }
 
-  deactivate(): Result<void> {
-    if (!this.#isActive) {
-      return Result.fail(new InactiveAccountException('Account is already inactive'));
-    }
-
-    this.#isActive = false;
-    return Result.ok();
+  toSnapshot(): IAccount {
+    return {
+      _id: this._id.value,
+      email: this.#email.value,
+      role: this.#role,
+      credentials: { type: this.#credentials.type, hash: this.#credentials.hash },
+      status: this.#status,
+      lastAuthenticatedAt: this.#lastAuthenticatedAt,
+    };
   }
 
-  updateCredentials(credentials: { type: string; value: string; metadata?: Record<string, unknown> }): IResult<void> {
-    if (!credentials || !credentials.type || !credentials.value) {
-      return Result.fail(new InvalidCredentialsException('Valid credentials are required'));
-    }
+  get email(): Email {
+    return this.#email;
+  }
 
-    this.#credentials = { ...credentials };
-    return Result.ok();
+  get role(): Role {
+    return this.#role;
+  }
+
+  get credentials(): Credentials {
+    return this.#credentials;
+  }
+
+  get status(): AccountStatus {
+    return this.#status;
+  }
+
+  get lastAuthenticatedAt(): Date | undefined {
+    return this.#lastAuthenticatedAt;
   }
 }

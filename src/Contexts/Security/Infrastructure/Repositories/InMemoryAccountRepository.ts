@@ -1,30 +1,24 @@
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 
 import { Account } from '@Contexts/Security/Domain/Account/Account';
+import { IAccount } from '@Contexts/Security/Domain/Account/DTOs';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
 
 export class InMemoryAccountRepository implements IAccountRepository {
-  constructor(private dataSource: InMemoryDataSource<Account>) {}
-
-  async save(account: Account): Promise<void> {
-    this.dataSource.collection.set(account._id.value, account);
-  }
-
-  async findByIdentifier(identifier: string): Promise<Account | null> {
-    const accounts = Array.from(this.dataSource.collection.values());
-    const account = accounts.find(
-      account =>
-        account.subjectId === identifier ||
-        (account.credentials.metadata && account.credentials.metadata.email === identifier),
-    );
-    return account || null;
-  }
+  constructor(private dataSource: InMemoryDataSource<IAccount>) {}
 
   async findById(id: string): Promise<Account | null> {
-    return this.dataSource.collection.get(id) || null;
+    const snapshot = this.dataSource.collection.get(id);
+    return snapshot ? Account.fromSnapshot(snapshot) : null;
   }
 
-  async delete(subjectId: string): Promise<void> {
-    this.dataSource.collection.delete(subjectId);
+  async findByEmail(email: string): Promise<Account | null> {
+    const wanted = email.trim().toLowerCase();
+    const snapshot = [...this.dataSource.collection.values()].find(account => account.email === wanted);
+    return snapshot ? Account.fromSnapshot(snapshot) : null;
+  }
+
+  async save(account: Account): Promise<void> {
+    this.dataSource.collection.set(account._id.value, account.toSnapshot());
   }
 }

@@ -68,3 +68,44 @@ describe('GET notes/:id', () => {
     expect(status).toBe(404);
   });
 });
+
+describe('Sharing a note (Notes -> Notifications)', () => {
+  it('notifies the recipient and lets them read the note', async () => {
+    // A second, validated account: bob
+    const signUp = await superagent
+      .post(`${SETTINGS.apiUrl}/auth/signup`)
+      .send({ identifier: 'bob@notes.fr', password: 'bob' });
+    const signUpOperation = await agent.get(`${SETTINGS.apiUrl}/tracker/operations/${signUp.body.operationId}`);
+    const bobId: string = signUpOperation.body.result;
+    await agent.get(`${SETTINGS.apiUrl}/auth/accounts/${bobId}/validate`);
+
+    // The admin writes a note and shares it with bob
+    await agent.post(`${SETTINGS.apiUrl}/notes`).send({ title: 'Roadmap', content: 'Q4 plans' });
+    const mine = await agent.get(`${SETTINGS.apiUrl}/notes`);
+    const noteId: string = mine.body.find((note: { title: string }) => note.title === 'Roadmap').id;
+
+    const share = await agent.post(`${SETTINGS.apiUrl}/notes/${noteId}/share`).send({ recipientId: bobId });
+    expect(share.status).toBe(202);
+
+    // Bob sees it among the notes shared with him, and was notified
+    const bobLogin = await superagent
+      .post(`${SETTINGS.apiUrl}/auth/login`)
+      .send({ identifier: 'bob@notes.fr', password: 'bob' });
+    const bob = superagent.agent().set('authorization', `Bearer ${bobLogin.body.token}`);
+
+    const shared = await bob.get(`${SETTINGS.apiUrl}/notes/shared`);
+    expect(shared.body).toEqual([{ id: noteId, title: 'Roadmap', content: 'Q4 plans', ownerId: expect.any(String) }]);
+
+    // (next to the welcome notifications his account creation and validation produced)
+    const notifications = await bob.get(`${SETTINGS.apiUrl}/notifications/account/${bobId}`);
+    expect(notifications.body.notifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          recipientId: bobId,
+          title: 'A note was shared with you: Roadmap',
+          metadata: expect.objectContaining({ noteId, source: 'Notes.NoteShared' }),
+        }),
+      ]),
+    );
+  });
+});

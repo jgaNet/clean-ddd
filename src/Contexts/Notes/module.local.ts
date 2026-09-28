@@ -2,7 +2,7 @@ import { Module } from '@SharedKernel/Application';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
-import { NoteCreatedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
+import { NoteCreatedEvent, NoteSharedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
 import {
   CreateNoteCommandEvent,
   CreateNoteCommandHandler,
@@ -21,6 +21,7 @@ import {
   GetNotesSharedWithMeQueryHandler,
 } from '@Contexts/Notes/Application/Queries';
 import { NoteCreatedHandler } from '@Contexts/Notes/Application/Events/NoteCreatedHandler';
+import { NoteSharedHandler } from '@Contexts/Notes/Application/Events/NoteSharedHandler';
 import { InMemoryNoteQueries } from '@Contexts/Notes/Infrastructure/Queries/InMemoryNoteQueries';
 import { InMemoryNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository';
 
@@ -43,5 +44,8 @@ export const localNotesModule = new Module({
     new GetNoteQueryHandler(noteQueries),
     new GetNotesSharedWithMeQueryHandler(noteQueries),
   ],
-  domainEvents: [{ event: NoteCreatedEvent, handlers: [new NoteCreatedHandler()] }],
+  domainEvents: [
+    { event: NoteCreatedEvent, handlers: [new NoteCreatedHandler()] },
+    { event: NoteSharedEvent, handlers: [new NoteSharedHandler()] },
+  ],
 });

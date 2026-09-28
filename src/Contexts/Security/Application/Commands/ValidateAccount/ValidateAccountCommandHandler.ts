@@ -1,57 +1,39 @@
-import { Result, IResult, Role, isRole, NotAllowedException } from '@SharedKernel/Domain';
+import { IResult, NotAllowedException, Result, Role, isRole } from '@SharedKernel/Domain';
 import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
-import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
-import { ValidateAccountCommandEvent } from './ValidateAccountCommandEvent';
-import { AccountValidatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountValidatedEvent';
-import { isTokenType, TokenTypes } from '@Contexts/Security/Domain/Auth/TokenTypes';
-import { accountMapper } from '@Contexts/Security/Domain/Account/AccountMapper';
-import { ActivationFailedException } from '@Contexts/Security/Domain/Account/AccountExceptions';
 
+import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
+import { AccountNotFoundException } from '@Contexts/Security/Domain/Account/AccountExceptions';
+import { TokenTypes, isTokenType } from '@Contexts/Security/Domain/Auth/TokenTypes';
+import { ValidateAccountCommandEvent } from './ValidateAccountCommandEvent';
+
+/**
+ * Two ways in: the validation token emailed at sign-up (subjectType VALIDATION), or an
+ * administrator validating an account by id (subjectType ADMIN). The guard accepts nothing else.
+ */
 export class ValidateAccountCommandHandler extends CommandHandler<ValidateAccountCommandEvent> {
   constructor(private accountRepository: IAccountRepository) {
     super();
   }
-  async execute(command: ValidateAccountCommandEvent, context: ExecutionContext): Promise<IResult<string>> {
-    try {
-      const { subjectId } = command.payload;
-      context.logger?.info(`Validating account ${subjectId}`, { traceId: context.traceId });
 
-      // Save the Account entity
-      const account = await this.accountRepository.findById(subjectId);
+  protected async guard({ payload }: ValidateAccountCommandEvent): Promise<IResult<unknown>> {
+    const { subjectType } = payload;
 
-      if (!account) {
-        return Result.fail(new ActivationFailedException('Account not found'));
-      }
+    if (isTokenType(subjectType) && subjectType === TokenTypes.VALIDATION) return Result.ok();
+    if (isRole(subjectType) && subjectType === Role.ADMIN) return Result.ok();
 
-      account.activate();
-
-      context.logger?.debug(`Account ${account._id.value} activated`, { traceId: context.traceId });
-      await this.accountRepository.save(account);
-
-      // Publish the AccountValidatedEvent
-      context.eventBus.publish(AccountValidatedEvent.set(accountMapper.toJSON(account)), context);
-
-      // Return the Account ID
-      return Result.ok(account._id.value);
-    } catch (error) {
-      return Result.fail(error);
-    }
+    return Result.fail(new NotAllowedException('Security', 'Invalid token type'));
   }
-  protected async guard(command: ValidateAccountCommandEvent, _?: ExecutionContext): Promise<IResult> {
-    const { subjectType } = command.payload;
 
-    if (!isTokenType(subjectType) && !isRole(subjectType)) {
-      return Result.fail(new NotAllowedException('Security', 'Invalid token type'));
-    }
+  async execute({ payload }: ValidateAccountCommandEvent, context: ExecutionContext): Promise<IResult<string>> {
+    const account = await this.accountRepository.findById(payload.subjectId);
+    if (!account) return Result.fail(new AccountNotFoundException(payload.subjectId));
 
-    if (isTokenType(subjectType) && subjectType !== TokenTypes.VALIDATION) {
-      return Result.fail(new NotAllowedException('Security', 'Invalid token type'));
-    }
+    const validated = account.validate();
+    if (validated.isFailure()) return validated;
 
-    if (isRole(subjectType) && subjectType !== Role.ADMIN) {
-      return Result.fail(new NotAllowedException('Security', 'Invalid subject type'));
-    }
+    await this.accountRepository.save(account);
+    this.publishDomainEvents(account, context);
 
-    return Result.ok();
+    return Result.ok(account._id.value);
   }
 }
