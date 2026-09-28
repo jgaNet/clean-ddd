@@ -18,10 +18,6 @@ export class OperationCompleteIntegrationEventHandler extends EventHandler<Opera
     const { operationId, userId, status, type, result, error } = payload;
 
     const wording: Partial<Record<OperationStatus, { title: string; content: string }>> = {
-      [OperationStatus.PENDING]: {
-        title: `Operation pending: ${type}`,
-        content: `Your operation ${operationId} is pending.`,
-      },
       [OperationStatus.SUCCESS]: {
         title: `Operation complete: ${type}`,
         content: `Your operation ${operationId} succeeded.`,
@@ -32,7 +28,7 @@ export class OperationCompleteIntegrationEventHandler extends EventHandler<Opera
       },
     };
     const words = wording[status];
-    if (!words) return Result.ok(); // SENT: an event was dispatched, nothing to tell the user
+    if (!words) return Result.ok(); // not an outcome (PENDING, SENT): nothing to tell the user yet
 
     return this.delivery.deliver(
       {
