@@ -1,0 +1,25 @@
+# 3. Domain events are published after the transaction commits
+
+## Context
+
+A command handler saves an aggregate and publishes the events it recorded. If the events go out *inside* the transaction and the commit then fails, listeners have reacted to a fact that never happened: a welcome email for an account that was rolled back, a notification for a note that does not exist.
+
+## Decision
+
+`CommandHandler.publishDomainEvents()` pulls the events from the aggregate at once (so they are captured even if the aggregate changes further) but hands their publication to `ExecutionContext.afterCommit()` ([`ExecutionContext.ts`](../../src/Contexts/@SharedKernel/Application/ExecutionContext.ts)). Callbacks registered there run:
+
+- once the outermost `withTransaction()` has committed — nested transactions join the outer one;
+- never, if the transaction returned a failure or threw;
+- immediately, when there is no transaction at all (a handler called directly, outside `handle()`).
+
+[`ExecutionContext.spec.ts`](../../src/Contexts/@SharedKernel/Application/ExecutionContext.spec.ts) pins all four behaviours.
+
+## Consequences
+
+- Listeners only ever see committed facts.
+- Publication is best-effort after commit: if the process dies between the commit and the publish, the event is lost. This is the **single-process, in-memory version** of the guarantee. It is honest about what it does and does not promise.
+- The handler code does not change: `this.publishDomainEvents(aggregate, context)` reads the same as before; the timing is the base class's concern.
+
+## When to revisit
+
+The moment events cross a process boundary (a message broker, a second service), replace the in-memory deferral with a **transactional outbox**: write the events to the same store in the same transaction, and let a relay publish them. The `afterCommit` hook is where that relay would plug in; the aggregates and handlers would not change.
