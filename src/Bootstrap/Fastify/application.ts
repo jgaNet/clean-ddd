@@ -18,9 +18,9 @@ import fastifyCookie from '@fastify/cookie';
 import { SETTINGS } from './application.settings';
 import { swaggerDescriptor } from './application.swagger';
 
-import { localTrackerModule } from '@Contexts/Tracker/module.local';
+import { localTrackerModule, trackedEventBus } from '@Contexts/Tracker/module.local';
 import { localNotesModule } from '@Contexts/Notes/module.local';
-import { localSecurityModule } from '@Contexts/Security/module.local';
+import { localSecurityModule, authMiddleware, jwtService, registerAdmin } from '@Contexts/Security/module.local';
 import { localNotificationsModule, webSocketService } from '@Contexts/Notifications/module.local';
 
 import { homeRoutes } from '@SharedKernel/Presentation/API/REST/Routes';
@@ -48,7 +48,7 @@ class FastifyApplication extends Application {
     this.logger = logger;
     this.unitOfWork = unitOfWork;
 
-    this.fastify.addHook('onRequest', localSecurityModule.services.authMiddleware.authenticate());
+    this.fastify.addHook('onRequest', authMiddleware.authenticate());
     // Add hook to create execution context for each request
     this.fastify.addHook('preHandler', (request, reply, done) => {
       // Generate a trace ID for this request
@@ -98,7 +98,7 @@ class FastifyApplication extends Application {
 
   seed() {
     if (SETTINGS.security.adminAccount) {
-      localSecurityModule.services.admin.register({
+      registerAdmin({
         identifier: SETTINGS.security.adminAccount.identifier,
         password: bcrypt.hashSync(SETTINGS.security.adminAccount.password, 10),
       });
@@ -147,7 +147,7 @@ class FastifyApplication extends Application {
 const app = new FastifyApplication();
 
 export default await app
-  .setEventBus(localTrackerModule.services.eventBus)
+  .setEventBus(trackedEventBus)
   .registerModule(localTrackerModule)
   .registerModule(localNotesModule)
   .registerModule(localSecurityModule)
@@ -164,6 +164,7 @@ export default await app
   })
   .registerRoutes('/', authRoutes, {
     securityModule: localSecurityModule,
+    jwtService,
   })
   .registerRoutes('/notifications', notificationRoutes, {
     notificationsModule: localNotificationsModule,

@@ -1,10 +1,10 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 
 import { Event, Exception, NotAllowedException } from '@SharedKernel/Domain';
+import { Module } from '@SharedKernel/Application';
 import { PresenterFactory } from '@SharedKernel/Presentation/PresenterFactory';
 
 import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteExceptions';
-import { NotesModule } from '@Contexts/Notes/Application';
 import {
   CreateNoteCommandEvent,
   EditNoteCommandEvent,
@@ -30,10 +30,10 @@ import { NewNoteHTMXPresenter } from '@Contexts/Notes/Presentation/Presenters';
  * client follows the returned operation. Queries answer synchronously.
  */
 export class FastifyNoteController {
-  #notesModule: NotesModule;
+  #notesModule: Module;
   #presenterFactory: PresenterFactory = new PresenterFactory();
 
-  constructor({ module }: { module: NotesModule }) {
+  constructor({ module }: { module: Module }) {
     this.#notesModule = module;
     this.#presenterFactory.register({
       name: 'newNote',

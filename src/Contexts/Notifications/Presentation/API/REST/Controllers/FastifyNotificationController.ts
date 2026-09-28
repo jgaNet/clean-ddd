@@ -2,10 +2,10 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { SendNotificationCommandEvent } from '@Contexts/Notifications/Application/Commands/SendNotification/SendNotificationCommandEvent';
 import { MarkAsReadNotificationCommandEvent } from '@Contexts/Notifications/Application/Commands/MarkAsRead/MarkAsReadNotificationCommandEvent';
 import { GetNotificationsQueryHandler } from '@Contexts/Notifications/Application/Queries/GetNotifications/GetNotificationsQueryHandler';
-import { localNotificationsModule } from '@Contexts/Notifications/module.local';
+import { Module } from '@SharedKernel/Application';
 
 export class FastifyNotificationController {
-  constructor(private module: typeof localNotificationsModule) {}
+  constructor(private module: Module) {}
 
   async getAccountNotifications(
     request: FastifyRequest<{

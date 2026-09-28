@@ -5,7 +5,8 @@ import {
   BasicSignUpReqBody,
 } from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes.schema';
 
-import { SecurityModule } from '@Contexts/Security/Application';
+import { Module } from '@SharedKernel/Application';
+import { IJwtService } from '@Contexts/Security/Domain/Auth/Ports/IJwtService';
 import {
   LoginCommandEvent,
   LoginCommandHandler,
@@ -31,11 +32,13 @@ import {
 } from '@Contexts/Security/Presentation/Presenters/Auth';
 
 export class FastifyAuthController {
-  #securityModule: SecurityModule;
+  #securityModule: Module;
+  #jwtService: IJwtService;
   #presenterFactory: PresenterFactory = new PresenterFactory();
 
-  constructor({ module: SecurityModule }: { module: SecurityModule }) {
-    this.#securityModule = SecurityModule;
+  constructor({ module, jwtService }: { module: Module; jwtService: IJwtService }) {
+    this.#securityModule = module;
+    this.#jwtService = jwtService;
     this.#presenterFactory.register({
       name: 'getApiMe',
       presenters: [
@@ -113,7 +116,7 @@ export class FastifyAuthController {
     const context = req.executionContext;
 
     // WARNING : This is not the best way to do it. Maybe should i move it the command handler.
-    const decodedToken = this.#securityModule.services.jwtService.verify(req.query.validation_token);
+    const decodedToken = this.#jwtService.verify(req.query.validation_token);
     if (!decodedToken) {
       return reply.code(401).send({
         error: new InvalidTokenException('Not allowed', context).message,

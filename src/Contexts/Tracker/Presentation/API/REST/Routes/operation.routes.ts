@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 
 import { FastifyOperationController } from '@Contexts/Tracker/Presentation/API/REST/Controllers/FastifyOperationController';
-import { TrackerModule } from '@Contexts/Tracker/Application';
+import { Module } from '@SharedKernel/Application';
 import {
   GetOperationsResSchema,
   GetOperationResSchema,
@@ -9,12 +9,10 @@ import {
 
 export const operationRoutes = function (
   fastify: FastifyInstance,
-  { operationsModule }: { operationsModule: TrackerModule },
+  { operationsModule }: { operationsModule: Module },
   done: () => void,
 ) {
-  const operationController = new FastifyOperationController({
-    queries: operationsModule.queries,
-  });
+  const operationController = new FastifyOperationController({ module: operationsModule });
 
   fastify.get(
     '/',

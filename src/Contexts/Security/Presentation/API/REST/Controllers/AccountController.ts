@@ -1,15 +1,15 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { SecurityModule } from '@Contexts/Security/Application';
+import { Module } from '@SharedKernel/Application';
 import { ValidateAccountCommandEvent } from '@Contexts/Security/Application/Commands/ValidateAccount/ValidateAccountCommandEvent';
 import { Role } from '@SharedKernel/Domain/AccessControl';
 import { GetAccountQueryHandler } from '@Contexts/Security/Application/Queries/GetAccount/GetAccountQueryHandler';
 import { NotAllowedException } from '@SharedKernel/Domain';
 
 export class FastifyAccountController {
-  #securityModule: SecurityModule;
+  #securityModule: Module;
 
-  constructor({ module: SecurityModule }: { module: SecurityModule }) {
-    this.#securityModule = SecurityModule;
+  constructor({ module }: { module: Module }) {
+    this.#securityModule = module;
   }
 
   async getAccountById(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
