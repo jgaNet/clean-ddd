@@ -16,7 +16,7 @@ export class FastifyAccountController {
     try {
       const meResult = await this.#securityModule
         .getQuery(GetAccountQueryHandler)
-        .executeWithContext(req.params.id, req.executionContext);
+        .handle(req.params.id, req.executionContext);
 
       if (meResult.isFailure()) {
         return reply.code(401).send({

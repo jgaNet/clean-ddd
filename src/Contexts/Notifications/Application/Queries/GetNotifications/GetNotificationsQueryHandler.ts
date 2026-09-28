@@ -31,9 +31,9 @@ export class GetNotificationsQueryHandler extends QueryHandler<INotificationQuer
 
   async execute({ recipientId, ...filters }: InboxQuery): Promise<IResult<Inbox>> {
     const [notifications, total, unread] = await Promise.all([
-      this.queriesService.findByRecipient(recipientId, filters),
-      this.queriesService.countByRecipient(recipientId),
-      this.queriesService.countByRecipient(recipientId, true),
+      this.queries.findByRecipient(recipientId, filters),
+      this.queries.countByRecipient(recipientId),
+      this.queries.countByRecipient(recipientId, true),
     ]);
 
     return Result.ok({ notifications, total, unread });

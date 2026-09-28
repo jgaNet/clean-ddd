@@ -15,9 +15,7 @@ export class FastifyOperationController {
 
   async getOperations(req: FastifyRequest<{ Querystring: { traceId?: string } }>, reply: FastifyReply) {
     try {
-      const result = await this.#module
-        .getQuery(GetOperationsHandler)
-        .executeWithContext(req.query, req.executionContext);
+      const result = await this.#module.getQuery(GetOperationsHandler).handle(req.query, req.executionContext);
 
       if (result.isFailure()) {
         throw result.error;
@@ -32,9 +30,7 @@ export class FastifyOperationController {
 
   async getOperation(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
     try {
-      const result = await this.#module
-        .getQuery(GetOperationHandler)
-        .executeWithContext(req.params, req.executionContext);
+      const result = await this.#module.getQuery(GetOperationHandler).handle(req.params, req.executionContext);
 
       if (result.isFailure()) {
         throw result.error;

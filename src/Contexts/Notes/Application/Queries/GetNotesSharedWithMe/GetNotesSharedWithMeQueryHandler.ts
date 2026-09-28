@@ -9,6 +9,6 @@ export class GetNotesSharedWithMeQueryHandler extends QueryHandler<INoteQueries,
     const reader = requireSignedIn(context);
     if (reader.isFailure()) return reader;
 
-    return Result.ok(await this.queriesService.findSharedWith(reader.data.value));
+    return Result.ok(await this.queries.findSharedWith(reader.data.value));
   }
 }

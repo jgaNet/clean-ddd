@@ -9,14 +9,14 @@ export class GetOperationHandler extends QueryHandler<IOperationRecords, { id: s
   protected async guard({ id }: { id: string }, { auth }: ExecutionContext): Promise<IResult<unknown>> {
     if (auth.role === Role.ADMIN) return Result.ok();
 
-    const record = await this.queriesService.findById(id);
+    const record = await this.queries.findById(id);
     if (auth.role === Role.USER && record?.subjectId === auth.subjectId) return Result.ok();
 
     return Result.fail(new NotAllowedException('Tracker', 'Forbidden'));
   }
 
   async execute({ id }: { id: string }): Promise<IResult<OperationRecord>> {
-    const record = await this.queriesService.findById(id);
+    const record = await this.queries.findById(id);
     if (!record) return Result.fail(new NotFoundException('Tracker', 'Operation not found', { id }));
 
     return Result.ok(record);
