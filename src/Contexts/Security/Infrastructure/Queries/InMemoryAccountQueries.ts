@@ -1,52 +1,22 @@
-import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
-import { IAccount } from '@Contexts/Security/Domain/Account/DTOs';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
-import { Account } from '@Contexts/Security/Domain/Account/Account';
-import { AccountMapper, accountMapper } from '@Contexts/Security/Domain/Account/AccountMapper';
+
+import { IAccount } from '@Contexts/Security/Domain/Account/DTOs';
+import { AccountDetail, IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
 
 export class InMemoryAccountQueries implements IAccountQueries {
-  dataSource: InMemoryDataSource<Account>;
-  private mapper: AccountMapper;
+  constructor(private dataSource: InMemoryDataSource<IAccount>) {}
 
-  constructor(dataSource: InMemoryDataSource<Account>) {
-    this.dataSource = dataSource;
-    this.mapper = accountMapper;
-  }
-
-  async findByIdentifier(identifier: string): Promise<IAccount | null> {
-    // In a real implementation, this would search by email, username or any other identifier
-    // In this in-memory implementation, we'll assume the identifier is the subjectId
-    const accounts = Array.from(this.dataSource.collection.values());
-
-    const account = accounts.find(
-      account =>
-        account.subjectId === identifier ||
-        (account.credentials.metadata && account.credentials.metadata.email === identifier),
-    );
-    return account ? this.mapper.toJSON(account) : null;
-  }
-
-  async findById(id: string): Promise<IAccount | null> {
+  async findById(id: string): Promise<AccountDetail | null> {
     const account = this.dataSource.collection.get(id);
-    return account ? this.mapper.toJSON(account) : null;
-  }
+    if (!account) return null;
 
-  async findAll(options?: { limit?: number; offset?: number }): Promise<IAccount[]> {
-    const { limit = 10, offset = 0 } = options || {};
-    const accounts = Array.from(this.dataSource.collection.values());
-    return accounts.slice(offset, offset + limit).map(account => this.mapper.toJSON(account));
-  }
-
-  async findByCredentialType(type: string, options?: { limit?: number; offset?: number }): Promise<IAccount[]> {
-    const { limit = 10, offset = 0 } = options || {};
-    const accounts = Array.from(this.dataSource.collection.values());
-    return accounts
-      .filter(account => account.credentials.type === type)
-      .slice(offset, offset + limit)
-      .map(account => this.mapper.toJSON(account));
-  }
-
-  async count(): Promise<number> {
-    return this.dataSource.collection.size;
+    // The read model deliberately leaves the credentials behind.
+    return {
+      id: account._id,
+      email: account.email,
+      role: account.role,
+      status: account.status,
+      lastAuthenticatedAt: account.lastAuthenticatedAt,
+    };
   }
 }

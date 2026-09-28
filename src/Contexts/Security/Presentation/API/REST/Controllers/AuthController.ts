@@ -1,5 +1,4 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import * as bcrypt from 'bcryptjs';
 import {
   BasicLoginReqBody,
   BasicSignUpReqBody,
@@ -18,7 +17,6 @@ import { GetAccountQueryHandler } from '@Contexts/Security/Application/Queries';
 import { InvalidTokenException } from '@Contexts/Security/Domain/Auth/Exceptions/InvalidTokenException';
 import { NotAllowedException } from '@SharedKernel/Domain';
 
-import { Role } from '@SharedKernel/Domain/AccessControl';
 import { PresenterFactory } from '@SharedKernel/Presentation/PresenterFactory';
 import {
   LoginHTMXPresenter,
@@ -88,22 +86,9 @@ export class FastifyAuthController {
       email: req.body.identifier,
     });
 
-    const hash = bcrypt.hashSync(req.body.password, bcrypt.genSaltSync());
-
-    if (!hash) {
-      return reply.code(500).send(hash);
-    }
-
+    // The password is hashed by the handler, behind the IPasswordHasher port.
     const operation = context.eventBus.publish(
-      SignUpCommandEvent.set({
-        subjectId: req.body.identifier,
-        subjectType: Role.USER,
-        isActive: false,
-        credentials: {
-          type: 'password',
-          value: hash,
-        },
-      }),
+      SignUpCommandEvent.set({ email: req.body.identifier, password: req.body.password }),
       context,
     );
 
@@ -116,7 +101,7 @@ export class FastifyAuthController {
     const context = req.executionContext;
 
     // WARNING : This is not the best way to do it. Maybe should i move it the command handler.
-    const decodedToken = this.#jwtService.verify(req.query.validation_token);
+    const decodedToken = await this.#jwtService.verify(req.query.validation_token);
     if (!decodedToken) {
       return reply.code(401).send({
         error: new InvalidTokenException('Not allowed', context).message,
@@ -144,6 +129,7 @@ export class FastifyAuthController {
       // Execute login command through the security module
       const loginResult = await (this.#securityModule.getCommand(LoginCommandEvent) as LoginCommandHandler).execute(
         loginCommand,
+        req.executionContext,
       );
 
       if (loginResult.isFailure()) {

@@ -1,49 +1,40 @@
-import { Result, IResult, NotAllowedException } from '@SharedKernel/Domain';
+import { IResult, NotAllowedException, Result, Role } from '@SharedKernel/Domain';
 import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
-import { Role } from '@SharedKernel/Domain/AccessControl';
 
-import { Account } from '@Contexts/Security/Domain/Account/Account';
+import { AccountRegistration } from '@Contexts/Security/Domain/Account/AccountRegistration';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
+import { IPasswordHasher } from '@Contexts/Security/Domain/Auth/Ports/IPasswordHasher';
 import { RegisterAdminCommandEvent } from './RegisterAdminCommandEvent';
-import { AccountCreatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountCreatedEvent';
 
+/** Reserved to administrators (and to the bootstrap, acting as the system). The account is usable at once. */
 export class RegisterAdminCommandHandler extends CommandHandler<RegisterAdminCommandEvent> {
-  constructor(private accountRepository: IAccountRepository) {
+  constructor(
+    private accountRepository: IAccountRepository,
+    private accountRegistration: AccountRegistration,
+    private passwordHasher: IPasswordHasher,
+  ) {
     super();
   }
 
-  protected async guard(_: never, context: ExecutionContext): Promise<IResult> {
-    if (!context.auth.role || ![Role.ADMIN].includes(context.auth.role)) {
-      return Result.fail(new NotAllowedException('Admin', 'Forbidden'));
+  protected async guard(_: RegisterAdminCommandEvent, { auth }: ExecutionContext): Promise<IResult<unknown>> {
+    if (auth.role !== Role.ADMIN) {
+      return Result.fail(new NotAllowedException('Security', 'Only an administrator can register another one'));
     }
     return Result.ok();
   }
 
-  async execute(command: RegisterAdminCommandEvent, context: ExecutionContext): Promise<IResult<string>> {
-    const { identifier, password } = command.payload;
-
-    // Create the Account entity
-    const accountResult = Account.create({
-      subjectId: identifier,
-      subjectType: Role.ADMIN,
-      credentials: {
-        type: 'password',
-        value: password,
-      },
-      isActive: true,
+  async execute({ payload }: RegisterAdminCommandEvent, context: ExecutionContext): Promise<IResult<string>> {
+    const account = await this.accountRegistration.register({
+      email: payload.email,
+      role: Role.ADMIN,
+      passwordHash: await this.passwordHasher.hash(payload.password),
+      activated: true,
     });
+    if (account.isFailure()) return account;
 
-    if (accountResult.isFailure()) {
-      return Result.fail(accountResult.error);
-    }
+    await this.accountRepository.save(account.data);
+    this.publishDomainEvents(account.data, context);
 
-    const account = accountResult.data;
-
-    // Save the Account entity
-    await this.accountRepository.save(account);
-
-    context.eventBus.publish(AccountCreatedEvent.set(account), context);
-    // Return the Account ID
-    return Result.ok(account._id.value);
+    return Result.ok(account.data._id.value);
   }
 }

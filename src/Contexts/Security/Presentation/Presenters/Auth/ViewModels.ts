@@ -1,11 +1,9 @@
 export interface AccountViewModel {
-  subjectId: string;
-  subjectType: string;
-  credentials: {
-    type: string;
-  };
-  lastAuthenticated?: Date;
-  isActive: boolean;
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  lastAuthenticatedAt?: Date;
 }
 
 export interface ErrorViewModel {

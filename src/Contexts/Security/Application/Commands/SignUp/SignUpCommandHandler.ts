@@ -1,52 +1,36 @@
-import { Result, IResult } from '@SharedKernel/Domain';
+import { IResult, Result, Role } from '@SharedKernel/Domain';
 import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
-import { Account } from '@Contexts/Security/Domain/Account/Account';
-import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
-import { SignUpCommandEvent } from './SignUpCommandEvent';
-import { AccountCreatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountCreatedEvent';
-import { isRole } from '@SharedKernel/Domain';
-import { accountMapper } from '@Contexts/Security/Domain/Account/AccountMapper';
 
+import { AccountRegistration } from '@Contexts/Security/Domain/Account/AccountRegistration';
+import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
+import { IPasswordHasher } from '@Contexts/Security/Domain/Auth/Ports/IPasswordHasher';
+import { SignUpCommandEvent } from './SignUpCommandEvent';
+
+/**
+ * Self-registration: anyone may sign up, the account stays PENDING until the email is
+ * validated (see AccountCreatedHandler, which sends the validation token).
+ */
 export class SignUpCommandHandler extends CommandHandler<SignUpCommandEvent> {
-  constructor(private accountRepository: IAccountRepository) {
+  constructor(
+    private accountRepository: IAccountRepository,
+    private accountRegistration: AccountRegistration,
+    private passwordHasher: IPasswordHasher,
+  ) {
     super();
   }
 
-  protected async guard(command: SignUpCommandEvent, __: ExecutionContext): Promise<IResult> {
-    const account = await this.accountRepository.findByIdentifier(command.payload.subjectId);
-
-    if (account) {
-      return Result.fail('Account already exists');
-    }
-
-    return Promise.resolve(Result.ok());
-  }
-
-  async execute(command: SignUpCommandEvent, context: ExecutionContext): Promise<IResult<string>> {
-    const { subjectId, subjectType, credentials, isActive } = command.payload;
-
-    if (!isRole(subjectType)) {
-      return Result.fail('Invalid subject type');
-    }
-    // Create the Account entity
-    const accountResult = Account.create({
-      subjectId,
-      subjectType,
-      credentials,
-      isActive,
+  async execute({ payload }: SignUpCommandEvent, context: ExecutionContext): Promise<IResult<string>> {
+    const account = await this.accountRegistration.register({
+      email: payload.email,
+      role: Role.USER,
+      passwordHash: await this.passwordHasher.hash(payload.password),
+      activated: false,
     });
+    if (account.isFailure()) return account;
 
-    if (accountResult.isFailure()) {
-      return Result.fail(accountResult.error);
-    }
+    await this.accountRepository.save(account.data);
+    this.publishDomainEvents(account.data, context);
 
-    const account = accountResult.data;
-
-    // Save the Account entity
-    await this.accountRepository.save(account);
-
-    context.eventBus.publish(AccountCreatedEvent.set(accountMapper.toJSON(account)), context);
-    // Return the Account ID
-    return Result.ok(account._id.value);
+    return Result.ok(account.data._id.value);
   }
 }

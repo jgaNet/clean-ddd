@@ -156,12 +156,11 @@ export const validateAccountByIdSchema = {
 export const AccountSchema = {
   type: 'object',
   properties: {
-    _id: { type: 'string', format: 'uuid' },
-    subjectId: { type: 'string', format: 'email' },
-    subjectType: { type: 'string', enum: Object.values(Role) },
-    credentials: { type: 'object', properties: { type: { type: 'string' }, value: { type: 'string' } } },
-    lastAuthenticated: { type: 'string' },
-    isActive: { type: 'boolean' },
+    id: { type: 'string', format: 'uuid' },
+    email: { type: 'string', format: 'email' },
+    role: { type: 'string', enum: Object.values(Role) },
+    status: { type: 'string', enum: ['pending', 'active'] },
+    lastAuthenticatedAt: { type: 'string', format: 'date-time' },
   },
 } as const;
 
