@@ -24,7 +24,7 @@ src/Contexts/@SharedKernel/
   Domain/                         Entity, AggregateRoot, ValueObject, Event(+kinds), Exception, Result, Id, Email, Role — depends on nothing
   Application/                    CommandHandler, QueryHandler, EventHandler, ExecutionContext, EventBus, Module, Application, IntegrationEvents/
   Infrastructure/                 InMemoryDataSource, InMemoryEventBus, InMemoryUnitOfWork, ConsoleLogger
-  Presentation/                   Presenter, PresenterFactory, shared HTTP pieces
+  Presentation/                   Presenter, Format (json | htmx per request), shared HTTP pieces
 src/Contexts/<Context>/
   Domain/<Aggregate>/             aggregate, value objects, status, Events/, exceptions, DTOs (snapshot), Ports/
   Application/                    Commands/<UseCase>/, Queries/<UseCase>/, Events/, Services/

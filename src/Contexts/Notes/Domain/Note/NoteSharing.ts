@@ -1,5 +1,5 @@
 import { IResult, Result } from '@SharedKernel/Domain';
-import { Id } from '@SharedKernel/Domain/Utils';
+import { Id } from '@SharedKernel/Domain/ValueObjects';
 
 import { Note } from '@Contexts/Notes/Domain/Note/Note';
 import { IAccountDirectory } from '@Contexts/Notes/Domain/Note/Ports/IAccountDirectory';
