@@ -34,7 +34,7 @@ export const notificationSchema = {
                 createdAt: { type: 'string' },
                 sentAt: { type: ['string', 'null'] },
                 readAt: { type: ['string', 'null'] },
-                metadata: { type: 'object' },
+                metadata: { type: 'object', additionalProperties: true },
               },
             },
           },
@@ -95,7 +95,7 @@ export const notificationSchema = {
         },
         title: { type: 'string' },
         content: { type: 'string' },
-        metadata: { type: 'object' },
+        metadata: { type: 'object', additionalProperties: true },
       },
     },
     response: {

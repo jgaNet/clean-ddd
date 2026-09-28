@@ -4,6 +4,7 @@ import {
   AccountValidatedIntegrationEvent,
 } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
 import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
+import { NoteSharedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
 import { SETTINGS } from '@Bootstrap/Fastify/application.settings';
@@ -17,6 +18,7 @@ import { GetNotificationsQueryHandler } from './Application/Queries/GetNotificat
 import { AccountCreatedIntegrationEventHandler } from './Application/Events/AccountCreatedIntegrationEventHandler';
 import { AccountValidatedIntegrationEventHandler } from './Application/Events/AccountValidatedIntegrationEventHandler';
 import { OperationCompleteIntegrationEventHandler } from './Application/Events/OperationCompleteIntegrationEventHandler';
+import { NoteSharedIntegrationEventHandler } from './Application/Events/NoteSharedIntegrationEventHandler';
 import { InMemoryNotificationRepository } from './Infrastructure/Repositories/InMemoryNotificationRepository';
 import { InMemoryNotificationQueries } from './Infrastructure/Queries/InMemoryNotificationQueries';
 import { EmailNotificationService } from './Infrastructure/Services/EmailNotificationService';
@@ -66,5 +68,6 @@ export const localNotificationsModule = new Module({
       event: OperationCompleteIntegrationEvent,
       handlers: [new OperationCompleteIntegrationEventHandler(notificationService)],
     },
+    { event: NoteSharedIntegrationEvent, handlers: [new NoteSharedIntegrationEventHandler(notificationService)] },
   ],
 });
