@@ -107,7 +107,8 @@
  * 5. Maintainability: Clear separation of concerns
  */
 
-import { Event, Exception } from '../DDD';
+import { Event } from './Event';
+import { Exception } from './Exception';
 
 export class CommandEvent<PayloadDTO> extends Event<PayloadDTO> {}
 export class DomainEvent<PayloadDTO> extends Event<PayloadDTO> {}

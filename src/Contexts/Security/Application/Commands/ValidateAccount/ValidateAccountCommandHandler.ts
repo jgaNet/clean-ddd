@@ -1,12 +1,5 @@
-import {
-  CommandHandler,
-  Result,
-  IResult,
-  ExecutionContext,
-  Role,
-  isRole,
-  NotAllowedException,
-} from '@SharedKernel/Domain';
+import { Result, IResult, Role, isRole, NotAllowedException } from '@SharedKernel/Domain';
+import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
 import { ValidateAccountCommandEvent } from './ValidateAccountCommandEvent';
 import { AccountValidatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountValidatedEvent';

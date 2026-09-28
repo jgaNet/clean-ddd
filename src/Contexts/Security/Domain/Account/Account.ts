@@ -1,8 +1,8 @@
-import { Email } from '@Contexts/@SharedKernel/Domain/Utils/Email';
-import { Result, IResult } from '@SharedKernel/Domain/Application';
-import { Entity } from '@SharedKernel/Domain/DDD';
+import { Email } from '@SharedKernel/Domain/Utils/Email';
+import { Result, IResult } from '@SharedKernel/Domain';
+import { Entity } from '@SharedKernel/Domain';
 import { v4 as uuidv4 } from 'uuid';
-import { Role, Id } from '@Contexts/@SharedKernel/Domain';
+import { Role, Id } from '@SharedKernel/Domain';
 import { InvalidAccountException } from './AccountExceptions';
 import { InvalidCredentialsException } from '../Auth/Exceptions/InvalidCredentialsException';
 import { InactiveAccountException } from '../Auth/Exceptions/InactiveAccountException';

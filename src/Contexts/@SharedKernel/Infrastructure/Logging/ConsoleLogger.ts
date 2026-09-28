@@ -1,4 +1,4 @@
-import { Logger } from '@SharedKernel/Domain';
+import { Logger } from '@SharedKernel/Application';
 
 /**
  * Simple console logger implementation

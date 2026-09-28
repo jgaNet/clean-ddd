@@ -1,4 +1,4 @@
-import { CommandEvent } from '@SharedKernel/Domain/Application';
+import { CommandEvent } from '@SharedKernel/Domain';
 
 interface LoginPayload {
   identifier: string; // Could be email, username, etc.

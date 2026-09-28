@@ -1,4 +1,4 @@
-import { ModuleBuilder } from '@SharedKernel/Domain/Application/Module';
+import { ModuleBuilder } from '@SharedKernel/Application/Module';
 import { SendNotificationCommandEvent } from './Application/Commands/SendNotification/SendNotificationCommandEvent';
 import { SendNotificationCommandHandler } from './Application/Commands/SendNotification/SendNotificationCommandHandler';
 import { MarkAsReadNotificationCommandEvent } from './Application/Commands/MarkAsRead/MarkAsReadNotificationCommandEvent';

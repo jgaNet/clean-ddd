@@ -15,10 +15,10 @@ import {
 
 import { GetAccountQueryHandler } from '@Contexts/Security/Application/Queries';
 import { InvalidTokenException } from '@Contexts/Security/Domain/Auth/Exceptions/InvalidTokenException';
-import { NotAllowedException } from '@Contexts/@SharedKernel/Domain';
+import { NotAllowedException } from '@SharedKernel/Domain';
 
 import { Role } from '@SharedKernel/Domain/AccessControl';
-import { PresenterFactory } from '@Contexts/@SharedKernel/Domain';
+import { PresenterFactory } from '@SharedKernel/Presentation/PresenterFactory';
 import {
   LoginHTMXPresenter,
   LoggedInHTMXPresenter,

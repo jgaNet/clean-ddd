@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 
-import { ValueObject } from '@SharedKernel/Domain/DDD';
+import { ValueObject } from '@SharedKernel/Domain';
 
 /**
  * Id is the identity of an entity. The domain generates it itself (`Id.generate()`)

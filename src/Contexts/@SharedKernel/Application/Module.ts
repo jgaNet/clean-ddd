@@ -23,15 +23,11 @@
  * ```
  */
 
-import {
-  Result,
-  QueryHandler,
-  CommandEvent,
-  EventBus,
-  Event,
-  CommandHandler,
-  EventHandler,
-} from '@SharedKernel/Domain';
+import { Result, CommandEvent, Event } from '@SharedKernel/Domain';
+import { CommandHandler } from '@SharedKernel/Application/CommandHandler';
+import { EventBus } from '@SharedKernel/Application/EventBus';
+import { EventHandler } from '@SharedKernel/Application/EventHandler';
+import { QueryHandler } from '@SharedKernel/Application/QueryHandler';
 
 type CommandModuleEvent = {
   event: typeof Event<unknown>;

@@ -1,8 +1,10 @@
-import { QueryHandler, Result } from '@SharedKernel/Domain/Application';
+import { Result } from '@SharedKernel/Domain';
+import { QueryHandler } from '@SharedKernel/Application';
 
 import { Role } from '@SharedKernel/Domain/AccessControl';
 import { GetOperationsQueryResult } from '@Contexts/Tracker/Application/DTOs';
-import { ExecutionContext, IResult, NotAllowedException } from '@SharedKernel/Domain/Application';
+import { IResult, NotAllowedException } from '@SharedKernel/Domain';
+import { ExecutionContext } from '@SharedKernel/Application';
 import { ITrackedOperationQueries } from '@Contexts/Tracker/Domain/TrackedOperation/Ports/ITrackedOperationQueries';
 
 type GetOperationsPort = {

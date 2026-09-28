@@ -1,7 +1,7 @@
 import { FastifyRequest } from 'fastify';
-import { HomeViewModel } from '@Contexts/@SharedKernel/Presentation/Presenters/Home/ViewModels';
+import { HomeViewModel } from '@SharedKernel/Presentation/Presenters/Home/ViewModels';
 import { HomeJsonPresenter, HomeHtmxPresenter } from '@SharedKernel/Presentation/Presenters/Home';
-import { PresenterFactory } from '@SharedKernel/Domain/Services';
+import { PresenterFactory } from '@SharedKernel/Presentation/PresenterFactory';
 
 export class HomeController {
   #settings: { version: string; name: string };

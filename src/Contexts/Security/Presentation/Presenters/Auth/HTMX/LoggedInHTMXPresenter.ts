@@ -1,5 +1,5 @@
-import { Presenter } from '@SharedKernel/Domain/DDD';
-import { html } from '@Contexts/@SharedKernel/Presentation/Templates';
+import { Presenter } from '@SharedKernel/Presentation/Presenter';
+import { html } from '@SharedKernel/Presentation/Templates';
 
 export class LoggedInHTMXPresenter implements Presenter<void, string> {
   present(_: never): string {

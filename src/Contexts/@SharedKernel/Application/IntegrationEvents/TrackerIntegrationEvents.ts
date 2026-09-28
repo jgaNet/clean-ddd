@@ -1,4 +1,4 @@
-import { OperationStatus } from '@Contexts/@SharedKernel/Domain';
+import { OperationStatus } from '@SharedKernel/Application/Operation';
 import { Event } from '@SharedKernel/Domain/DDD/Event';
 
 export interface OperationCompletePayload {

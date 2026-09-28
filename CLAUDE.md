@@ -20,8 +20,10 @@ This is a Clean Architecture & Domain-Driven Design implementation with CQRS pat
 ### Core Structure
 - `src/Bootstrap`: Application startup with Fastify configuration
 - `src/Contexts`: Bounded contexts (Notes, Tracker, Security, Notifications)
-- `src/Contexts/@SharedKernel/Domain`: Base abstractions (Entity, ValueObject, Application, Module)
+- `src/Contexts/@SharedKernel/Domain`: Domain building blocks (Entity, AggregateRoot, ValueObject, Event, Exception, Result) — depends on nothing
+- `src/Contexts/@SharedKernel/Application`: Use-case building blocks (CommandHandler, QueryHandler, EventHandler, ExecutionContext, EventBus, Module, Application)
 - `src/Contexts/@SharedKernel/Application/IntegrationEvents`: Cross-context communication events
+- `src/Contexts/@SharedKernel/Presentation`: Presenter, PresenterFactory and the shared HTTP pieces
 
 ### Implementation Pattern
 
@@ -92,11 +94,13 @@ Context A Domain Event → Integration Event → Context B Event Handler
 - **Imports**:
   - Group by layer (Domain → Application → Infrastructure → Presentation)
   - Use path aliases to simplify imports:
-    - `@SharedKernel/Domain` - Core abstractions and base classes
+    - `@SharedKernel/Domain` - Domain building blocks (Entity, AggregateRoot, ValueObject, Result, ...)
+    - `@SharedKernel/Application` - Use-case building blocks (handlers, ExecutionContext, EventBus, Module)
     - `@Contexts` - Bounded contexts
     - `@Bootstrap` - Application startup code
-  - Example: `import { Entity } from '@SharedKernel/Domain/DDD/Entity';`
-  - Example: `import { Result } from '@SharedKernel/Domain/Application/Result';`
+  - Example: `import { AggregateRoot, Result } from '@SharedKernel/Domain';`
+  - Example: `import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';`
+  - A context's Domain layer imports from `@SharedKernel/Domain` only, never from `@SharedKernel/Application` (eslint enforces it)
   - NEVER use relative paths (../../) - always use path aliases
   - Bad: `import { Note } from '../../Domain/Note/Note';`
   - Good: `import { Note } from '@Contexts/Notes/Domain/Note/Note';`

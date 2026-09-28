@@ -1,11 +1,5 @@
-import {
-  NotFoundException,
-  QueryHandler,
-  Result,
-  ExecutionContext,
-  IResult,
-  NotAllowedException,
-} from '@SharedKernel/Domain/Application';
+import { NotFoundException, Result, IResult, NotAllowedException } from '@SharedKernel/Domain';
+import { QueryHandler, ExecutionContext } from '@SharedKernel/Application';
 import { Role } from '@SharedKernel/Domain/AccessControl';
 import { GetOperationQueryResult, GetOperationQueryPayload } from '@Contexts/Tracker/Application/DTOs';
 import { ITrackedOperationQueries } from '@Contexts/Tracker/Domain/TrackedOperation/Ports/ITrackedOperationQueries';

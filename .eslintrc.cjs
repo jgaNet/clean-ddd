@@ -29,8 +29,13 @@ module.exports = {
             patterns: [
               {
                 group: [
+                  '@Contexts/*/Application',
                   '@Contexts/*/Application/**',
+                  '@SharedKernel/Application',
+                  '@SharedKernel/Application/**',
+                  '**/Infrastructure',
                   '**/Infrastructure/**',
+                  '**/Presentation',
                   '**/Presentation/**',
                   '@Bootstrap/**',
                   'fastify',
@@ -50,7 +55,14 @@ module.exports = {
           {
             patterns: [
               {
-                group: ['**/Infrastructure/**', '**/Presentation/**', '@Bootstrap/**', 'fastify'],
+                group: [
+                  '**/Infrastructure',
+                  '**/Infrastructure/**',
+                  '**/Presentation',
+                  '**/Presentation/**',
+                  '@Bootstrap/**',
+                  'fastify',
+                ],
                 message: 'The Application layer may only depend on the Domain.',
               },
             ],
@@ -66,7 +78,7 @@ module.exports = {
           {
             patterns: [
               {
-                group: ['**/Presentation/**', '@Bootstrap/**', 'fastify'],
+                group: ['**/Presentation', '**/Presentation/**', '@Bootstrap/**', 'fastify'],
                 message: 'Application tests may use in-memory Infrastructure as test doubles, nothing further out.',
               },
             ],
@@ -82,7 +94,7 @@ module.exports = {
           {
             patterns: [
               {
-                group: ['**/Presentation/**', '@Bootstrap/**'],
+                group: ['**/Presentation', '**/Presentation/**', '@Bootstrap/**'],
                 message: 'The Infrastructure layer does not depend on Presentation or Bootstrap.',
               },
             ],

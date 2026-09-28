@@ -1,4 +1,4 @@
-import { Presenter } from '@SharedKernel/Domain/DDD';
+import { Presenter } from '@SharedKernel/Presentation/Presenter';
 import { LogoutViewModel } from '../ViewModels';
 
 export class LogoutJSONPresenter implements Presenter<LogoutViewModel, object> {

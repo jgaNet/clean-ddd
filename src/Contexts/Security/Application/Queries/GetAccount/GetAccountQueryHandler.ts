@@ -1,7 +1,8 @@
-import { QueryHandler, Result, IResult, ExecutionContext, NotAllowedException } from '@SharedKernel/Domain/Application';
+import { Result, IResult, NotAllowedException } from '@SharedKernel/Domain';
+import { QueryHandler, ExecutionContext } from '@SharedKernel/Application';
 import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
 import { IAccount } from '@Contexts/Security/Domain/Account/DTOs';
-import { NotFoundException, Role } from '@Contexts/@SharedKernel/Domain';
+import { NotFoundException, Role } from '@SharedKernel/Domain';
 
 export class GetAccountQueryHandler extends QueryHandler<IAccountQueries, string, IResult<IAccount>> {
   constructor(private accountQueries: IAccountQueries) {
