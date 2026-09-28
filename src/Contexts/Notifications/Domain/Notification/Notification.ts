@@ -1,5 +1,5 @@
 import { AggregateRoot, IResult, Result } from '@SharedKernel/Domain';
-import { Id } from '@SharedKernel/Domain/Utils';
+import { Id } from '@SharedKernel/Domain/ValueObjects';
 
 import { Channel } from '@Contexts/Notifications/Domain/Notification/Channel';
 import { DeliveryAttempt } from '@Contexts/Notifications/Domain/Notification/DeliveryAttempt';

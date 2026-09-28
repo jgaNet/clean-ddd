@@ -1,6 +1,6 @@
 import { IResult, Result } from '@SharedKernel/Domain';
 import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
-import { Id } from '@SharedKernel/Domain/Utils';
+import { Id } from '@SharedKernel/Domain/ValueObjects';
 
 import { INoteRepository } from '@Contexts/Notes/Domain/Note/Ports/INoteRepository';
 import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteExceptions';

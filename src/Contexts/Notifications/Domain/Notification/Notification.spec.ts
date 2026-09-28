@@ -1,4 +1,4 @@
-import { Id } from '@SharedKernel/Domain/Utils';
+import { Id } from '@SharedKernel/Domain/ValueObjects';
 
 import { Notification } from '@Contexts/Notifications/Domain/Notification/Notification';
 import { Channel } from '@Contexts/Notifications/Domain/Notification/Channel';

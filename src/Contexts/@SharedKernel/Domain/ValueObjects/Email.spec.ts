@@ -1,5 +1,5 @@
 import { InvalidEmailFormat } from '@SharedKernel/Domain/DDD/CommonExceptions';
-import { Email } from '@SharedKernel/Domain/Utils/Email';
+import { Email } from '@SharedKernel/Domain/ValueObjects/Email';
 
 describe('Email', () => {
   it('accepts a well-formed address and normalises it', () => {
