@@ -1,12 +1,35 @@
+const ErrorSchema = { type: 'object', properties: { message: { type: 'string' } } } as const;
+
+const AcceptedSchema = {
+  description: 'Accepted: the command is being processed, poll the operation to know its outcome',
+  type: 'object',
+  properties: { operationId: { type: 'string', format: 'uuid' } },
+} as const;
+
+const NotificationListItemSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', format: 'uuid' },
+    recipientId: { type: 'string' },
+    title: { type: 'string' },
+    content: { type: 'string' },
+    status: { type: 'string', enum: ['PENDING', 'SENT', 'READ', 'FAILED'] },
+    channels: { type: 'array', items: { type: 'string', enum: ['WEBSOCKET', 'EMAIL'] } },
+    deliveredVia: { type: 'string', enum: ['WEBSOCKET', 'EMAIL'] },
+    createdAt: { type: 'string', format: 'date-time' },
+    sentAt: { type: 'string', format: 'date-time' },
+    readAt: { type: 'string', format: 'date-time' },
+    metadata: { type: 'object', additionalProperties: true },
+  },
+} as const;
+
 export const notificationSchema = {
   getAccountNotifications: {
     tags: ['notifications'],
     params: {
       type: 'object',
       required: ['recipientId'],
-      properties: {
-        recipientId: { type: 'string', format: 'uuid' },
-      },
+      properties: { recipientId: { type: 'string' } },
     },
     querystring: {
       type: 'object',
@@ -20,97 +43,37 @@ export const notificationSchema = {
       200: {
         type: 'object',
         properties: {
-          notifications: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                id: { type: 'string', format: 'uuid' },
-                recipientId: { type: 'string', format: 'uuid' },
-                type: { type: 'string' },
-                title: { type: 'string' },
-                content: { type: 'string' },
-                status: { type: 'string' },
-                createdAt: { type: 'string' },
-                sentAt: { type: ['string', 'null'] },
-                readAt: { type: ['string', 'null'] },
-                metadata: { type: 'object', additionalProperties: true },
-              },
-            },
-          },
+          notifications: { type: 'array', items: NotificationListItemSchema },
           total: { type: 'number' },
           unread: { type: 'number' },
         },
       },
-      400: {
-        type: 'object',
-        properties: {
-          error: { type: 'string' },
-        },
-      },
-      500: {
-        type: 'object',
-        properties: {
-          error: { type: 'string' },
-        },
-      },
+      403: ErrorSchema,
+      400: ErrorSchema,
     },
   },
-
   markAsRead: {
     tags: ['notifications'],
     params: {
       type: 'object',
       required: ['id'],
-      properties: {
-        id: { type: 'string', format: 'uuid' },
-      },
+      properties: { id: { type: 'string', format: 'uuid' } },
     },
-    response: {
-      200: {
-        type: 'object',
-        properties: {
-          operationId: { type: 'string' },
-        },
-      },
-      400: {
-        type: 'object',
-        properties: {
-          error: { type: 'string' },
-        },
-      },
-    },
+    response: { 202: AcceptedSchema },
   },
-
   sendNotification: {
     tags: ['notifications'],
     body: {
       type: 'object',
-      required: ['recipientId', 'type', 'title', 'content'],
+      required: ['recipientId', 'title', 'content', 'channels'],
       properties: {
-        recipientId: { type: 'string', format: 'uuid' },
-        type: {
-          type: 'string',
-          enum: ['EMAIL', 'PUSH', 'SMS', 'IN_APP'],
-        },
+        recipientId: { type: 'string' },
         title: { type: 'string' },
         content: { type: 'string' },
+        channels: { type: 'array', minItems: 1, items: { type: 'string', enum: ['WEBSOCKET', 'EMAIL'] } },
         metadata: { type: 'object', additionalProperties: true },
       },
     },
-    response: {
-      201: {
-        type: 'object',
-        properties: {
-          operationId: { type: 'string' },
-        },
-      },
-      500: {
-        type: 'object',
-        properties: {
-          error: { type: 'string' },
-        },
-      },
-    },
+    response: { 202: AcceptedSchema },
   },
-};
+} as const;

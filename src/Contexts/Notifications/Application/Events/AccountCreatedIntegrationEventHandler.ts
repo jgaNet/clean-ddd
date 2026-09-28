@@ -1,43 +1,33 @@
-import { EventHandler } from '@SharedKernel/Application/EventHandler';
-import { Result, IResult } from '@SharedKernel/Domain/DDD/Result';
+import { IResult } from '@SharedKernel/Domain';
+import { EventHandler, ExecutionContext } from '@SharedKernel/Application';
 import { AccountCreatedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
-import { ExecutionContext } from '@SharedKernel/Application/ExecutionContext';
-import { NotificationType } from '@Contexts/Notifications/Domain/Notification/Notification';
-import { DeliveryStrategy } from '@Contexts/Notifications/Domain/Notification/DeliveryStrategy';
-import { INotificationService } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationService';
 
+import { Channel } from '@Contexts/Notifications/Domain/Notification/Channel';
+import { NotificationDelivery } from '@Contexts/Notifications/Application/Services/NotificationDelivery';
+
+/** Anti-corruption layer towards Security: a new account gets its validation link by email. */
 export class AccountCreatedIntegrationEventHandler extends EventHandler<AccountCreatedIntegrationEvent> {
-  constructor(private readonly url: string, private readonly notificationService: INotificationService) {
+  constructor(private readonly url: string, private delivery: NotificationDelivery) {
     super();
   }
-  async execute(event: AccountCreatedIntegrationEvent, context: ExecutionContext): Promise<IResult<void>> {
-    try {
-      const { accountId, email, validationToken } = event.payload;
 
-      const notification = {
+  execute({ payload }: AccountCreatedIntegrationEvent, context: ExecutionContext): Promise<IResult<string>> {
+    const { accountId, email, validationToken } = payload;
+
+    return this.delivery.deliver(
+      {
         recipientId: accountId,
-        type: NotificationType.EMAIL,
-        deliveryStrategy: DeliveryStrategy.emailOnly(),
-        title: 'Welcome to Our Platform - Verify Your Account',
+        title: 'Welcome - verify your account',
         content: `
-            <p>Thank you for creating an account!</p>
-            <p>Please verify your account by clicking on the link below:</p>
-            <p><a href="${this.url}/auth/validate?validation_token=${validationToken}">Verify Your Account</a></p>
-            <p>This link will expire in 24 hours.</p>
-          `,
-        metadata: {
-          email: email,
-          token: validationToken,
-          source: 'Security.AccountCreated',
-        },
-        isManual: false,
-      };
-
-      this.notificationService.send(notification, context);
-
-      return Result.ok();
-    } catch (error) {
-      return Result.fail(error instanceof Error ? error : new Error(String(error)));
-    }
+          <p>Thank you for creating an account!</p>
+          <p>Please verify it by clicking on the link below:</p>
+          <p><a href="${this.url}/auth/validate?validation_token=${validationToken}">Verify your account</a></p>
+          <p>This link will expire in 24 hours.</p>
+        `,
+        channels: [Channel.EMAIL],
+        metadata: { email, source: 'Security.AccountCreated' },
+      },
+      context,
+    );
   }
 }

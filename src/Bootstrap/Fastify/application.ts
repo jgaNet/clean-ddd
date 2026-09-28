@@ -20,7 +20,7 @@ import { swaggerDescriptor } from './application.swagger';
 import { localTrackerModule, trackedEventBus } from '@Contexts/Tracker/module.local';
 import { localNotesModule } from '@Contexts/Notes/module.local';
 import { localSecurityModule, authMiddleware, jwtService, registerAdmin } from '@Contexts/Security/module.local';
-import { localNotificationsModule, webSocketService } from '@Contexts/Notifications/module.local';
+import { localNotificationsModule, webSocketChannel } from '@Contexts/Notifications/module.local';
 
 import { homeRoutes } from '@SharedKernel/Presentation/API/REST/Routes';
 import { noteRoutes } from '@Contexts/Notes/Presentation/API/REST/Routes';
@@ -129,7 +129,7 @@ class FastifyApplication extends Application {
   async start(port: number = SETTINGS.port): Promise<void> {
     try {
       // Initialize WebSocket service before server starts listening
-      await webSocketService.initialize(this.fastify);
+      await webSocketChannel.initialize(this.fastify);
 
       await this.fastify.listen({ port });
       await this.fastify.ready();

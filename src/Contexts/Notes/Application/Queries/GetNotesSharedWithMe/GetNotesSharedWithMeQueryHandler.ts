@@ -2,7 +2,7 @@ import { IResult, Result } from '@SharedKernel/Domain';
 import { ExecutionContext, QueryHandler } from '@SharedKernel/Application';
 
 import { INoteQueries, SharedNoteListItem } from '@Contexts/Notes/Domain/Note/Ports/INoteQueries';
-import { requireSignedIn } from '@Contexts/Notes/Application/Guards';
+import { requireSignedIn } from '@SharedKernel/Application/Guards';
 
 export class GetNotesSharedWithMeQueryHandler extends QueryHandler<INoteQueries, void, IResult<SharedNoteListItem[]>> {
   protected async guard(_: void, context: ExecutionContext): Promise<IResult<unknown>> {

@@ -4,7 +4,7 @@ import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
 import { Note } from '@Contexts/Notes/Domain/Note/Note';
 import { INoteRepository } from '@Contexts/Notes/Domain/Note/Ports/INoteRepository';
 import { CreateNoteCommandEvent } from '@Contexts/Notes/Application/Commands/CreateNote/CreateNoteCommandEvent';
-import { requireSignedIn } from '@Contexts/Notes/Application/Guards';
+import { requireSignedIn } from '@SharedKernel/Application/Guards';
 
 export class CreateNoteCommandHandler extends CommandHandler<CreateNoteCommandEvent> {
   constructor(private noteRepository: INoteRepository) {

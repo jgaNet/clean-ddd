@@ -4,7 +4,7 @@ import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
 import { INoteRepository } from '@Contexts/Notes/Domain/Note/Ports/INoteRepository';
 import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 import { EditNoteCommandEvent } from '@Contexts/Notes/Application/Commands/EditNote/EditNoteCommandEvent';
-import { requireSignedIn } from '@Contexts/Notes/Application/Guards';
+import { requireSignedIn } from '@SharedKernel/Application/Guards';
 
 /**
  * The shape every "change an existing note" use case follows:

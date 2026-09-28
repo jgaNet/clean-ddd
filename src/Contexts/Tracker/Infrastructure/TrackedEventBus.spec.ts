@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 
-import { CommandEvent, IResult, NotFoundException, Result, Role } from '@SharedKernel/Domain';
+import { CommandEvent, DomainEvent, IResult, NotFoundException, Result, Role } from '@SharedKernel/Domain';
 import { CommandHandler, EventBus, EventHandler, ExecutionContext, OperationStatus } from '@SharedKernel/Application';
 import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
@@ -81,6 +81,17 @@ describe('TrackedEventBus', () => {
 
     expect(completions.map(event => event.payload.status)).toEqual([OperationStatus.PENDING, OperationStatus.SUCCESS]);
     expect(completions[1].payload).toMatchObject({ userId: 'alice', type: 'Greet', result: 'Hello Alice' });
+  });
+
+  it('records domain events for the trace but never announces them (that would loop)', async () => {
+    class Greeted extends DomainEvent<{ name: string }> {}
+    bus.publish(Greeted.set({ name: 'Alice' }), contextFor('alice'));
+    await flush();
+
+    expect([...store.collection.values()].map(record => [record.name, record.status])).toEqual([
+      ['Greeted', 'PENDING'],
+    ]);
+    expect(completions).toEqual([]);
   });
 
   it('does not notify an anonymous caller, and never tracks the completion notices themselves', async () => {

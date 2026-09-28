@@ -42,8 +42,12 @@ describe('Tracker: following an operation', () => {
       .get(`${SETTINGS.apiUrl}/tracker/operations`)
       .query({ traceId: accepted.headers['x-trace-id'] });
     expect(byTrace.status).toBe(200);
-    expect(byTrace.body.map((record: { name: string; status: string }) => [record.name, record.status])).toEqual([
-      ['ShareNoteCommandEvent', 'ERROR'],
-    ]);
+
+    // The trace holds the command and everything it set off: here the notifications telling
+    // the caller how it went, whose own domain events are recorded too (never announced).
+    const records: { name: string; status: string; traceId: string }[] = byTrace.body;
+    expect(records.map(r => [r.name, r.status])).toContainEqual(['ShareNoteCommandEvent', 'ERROR']);
+    expect(records.map(r => r.name)).toEqual(expect.arrayContaining(['NotificationFailedEvent']));
+    expect(new Set(records.map(r => r.traceId))).toEqual(new Set([accepted.headers['x-trace-id']]));
   });
 });

@@ -27,7 +27,7 @@ src/Contexts/@SharedKernel/
   Presentation/                   Presenter, PresenterFactory, shared HTTP pieces
 src/Contexts/<Context>/
   Domain/<Aggregate>/             aggregate, value objects, status, Events/, exceptions, DTOs (snapshot), Ports/
-  Application/                    Commands/<UseCase>/, Queries/<UseCase>/, Events/, Guards.ts
+  Application/                    Commands/<UseCase>/, Queries/<UseCase>/, Events/, Services/
   Infrastructure/                 implementations of the ports
   Presentation/                   controllers, routes + schemas, presenters
   module.local.ts                 wiring

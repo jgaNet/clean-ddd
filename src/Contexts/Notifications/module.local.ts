@@ -3,13 +3,14 @@ import {
   AccountCreatedIntegrationEvent,
   AccountValidatedIntegrationEvent,
 } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
-import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
 import { NoteSharedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents';
+import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
 import { SETTINGS } from '@Bootstrap/Fastify/application.settings';
 
 import { INotification } from './Domain/Notification/DTOs';
+import { NotificationDelivery } from './Application/Services/NotificationDelivery';
 import { SendNotificationCommandEvent } from './Application/Commands/SendNotification/SendNotificationCommandEvent';
 import { SendNotificationCommandHandler } from './Application/Commands/SendNotification/SendNotificationCommandHandler';
 import { MarkAsReadNotificationCommandEvent } from './Application/Commands/MarkAsRead/MarkAsReadNotificationCommandEvent';
@@ -17,57 +18,43 @@ import { MarkAsReadNotificationCommandHandler } from './Application/Commands/Mar
 import { GetNotificationsQueryHandler } from './Application/Queries/GetNotifications/GetNotificationsQueryHandler';
 import { AccountCreatedIntegrationEventHandler } from './Application/Events/AccountCreatedIntegrationEventHandler';
 import { AccountValidatedIntegrationEventHandler } from './Application/Events/AccountValidatedIntegrationEventHandler';
-import { OperationCompleteIntegrationEventHandler } from './Application/Events/OperationCompleteIntegrationEventHandler';
 import { NoteSharedIntegrationEventHandler } from './Application/Events/NoteSharedIntegrationEventHandler';
+import { OperationCompleteIntegrationEventHandler } from './Application/Events/OperationCompleteIntegrationEventHandler';
 import { InMemoryNotificationRepository } from './Infrastructure/Repositories/InMemoryNotificationRepository';
 import { InMemoryNotificationQueries } from './Infrastructure/Queries/InMemoryNotificationQueries';
-import { EmailNotificationService } from './Infrastructure/Services/EmailNotificationService';
-import { FastifyHTMXWebSocketService } from './Infrastructure/Services/FastifyHTMXWebSocketService';
-import { NotificationDeliveryService } from './Infrastructure/Services/NotificationDeliveryService';
+import { EmailChannel } from './Infrastructure/Channels/EmailChannel';
+import { WebSocketChannel } from './Infrastructure/Channels/WebSocketChannel';
+import { NotificationHTMXPresenter } from './Presentation/Presenters/HTMX/NotificationHTMXPresenter';
 
-const notificationDataSource = new InMemoryDataSource<INotification>();
 const logger = new ConsoleLogger({ debug: SETTINGS.logger.debug });
-
-// Exported because the Fastify bootstrap must attach it to the server before listening.
-export const webSocketService = new FastifyHTMXWebSocketService(logger);
-const emailService = new EmailNotificationService({
-  smtpHost: process.env.SMTP_HOST || 'localhost',
-  smtpPort: Number(process.env.SMTP_PORT) || 25,
-  smtpUser: process.env.SMTP_USER || '',
-  smtpPass: process.env.SMTP_PASS || '',
-  fromEmail: process.env.FROM_EMAIL || 'noreply@example.com',
-});
-
+const notificationDataSource = new InMemoryDataSource<INotification>();
 const notificationRepository = new InMemoryNotificationRepository(notificationDataSource);
 const notificationQueries = new InMemoryNotificationQueries(notificationDataSource);
-const notificationService = new NotificationDeliveryService(webSocketService, emailService, notificationRepository);
+
+// Channels. The websocket one is exported: the bootstrap attaches it to the server before listening.
+const htmx = new NotificationHTMXPresenter();
+export const webSocketChannel = new WebSocketChannel(logger, delivery => htmx.present(delivery));
+const emailChannel = new EmailChannel(logger, { fromEmail: process.env.FROM_EMAIL || 'noreply@example.com' });
+
+const delivery = new NotificationDelivery(notificationRepository, [webSocketChannel, emailChannel]);
 
 export const localNotificationsModule = new Module({
   name: 'Notifications',
   commands: [
-    {
-      event: SendNotificationCommandEvent,
-      handlers: [new SendNotificationCommandHandler(notificationRepository, [emailService])],
-    },
+    { event: SendNotificationCommandEvent, handlers: [new SendNotificationCommandHandler(delivery)] },
     {
       event: MarkAsReadNotificationCommandEvent,
-      handlers: [new MarkAsReadNotificationCommandHandler(notificationRepository, notificationQueries)],
+      handlers: [new MarkAsReadNotificationCommandHandler(notificationRepository)],
     },
   ],
   queries: [new GetNotificationsQueryHandler(notificationQueries)],
   integrationEvents: [
     {
       event: AccountCreatedIntegrationEvent,
-      handlers: [new AccountCreatedIntegrationEventHandler(SETTINGS.url, notificationService)],
+      handlers: [new AccountCreatedIntegrationEventHandler(SETTINGS.url, delivery)],
     },
-    {
-      event: AccountValidatedIntegrationEvent,
-      handlers: [new AccountValidatedIntegrationEventHandler(notificationService)],
-    },
-    {
-      event: OperationCompleteIntegrationEvent,
-      handlers: [new OperationCompleteIntegrationEventHandler(notificationService)],
-    },
-    { event: NoteSharedIntegrationEvent, handlers: [new NoteSharedIntegrationEventHandler(notificationService)] },
+    { event: AccountValidatedIntegrationEvent, handlers: [new AccountValidatedIntegrationEventHandler(delivery)] },
+    { event: OperationCompleteIntegrationEvent, handlers: [new OperationCompleteIntegrationEventHandler(delivery)] },
+    { event: NoteSharedIntegrationEvent, handlers: [new NoteSharedIntegrationEventHandler(delivery)] },
   ],
 });

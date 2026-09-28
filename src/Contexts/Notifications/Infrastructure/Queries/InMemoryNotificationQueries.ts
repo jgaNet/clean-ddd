@@ -1,58 +1,46 @@
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
-import { INotificationQueries } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationQueries';
+
 import { INotification } from '@Contexts/Notifications/Domain/Notification/DTOs';
-import { NotificationStatus } from '@Contexts/Notifications/Domain/Notification/Notification';
+import { NotificationStatus } from '@Contexts/Notifications/Domain/Notification/NotificationStatus';
+import {
+  InboxFilters,
+  INotificationQueries,
+  NotificationListItem,
+} from '@Contexts/Notifications/Domain/Notification/Ports/INotificationQueries';
 
 export class InMemoryNotificationQueries implements INotificationQueries {
-  dataSource: InMemoryDataSource<INotification>;
+  constructor(private dataSource: InMemoryDataSource<INotification>) {}
 
-  constructor(dataSource: InMemoryDataSource<INotification>) {
-    this.dataSource = dataSource;
+  async findByRecipient(recipientId: string, { limit = 20, offset = 0, onlyUnread = false }: InboxFilters = {}) {
+    return this.inbox(recipientId, onlyUnread)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(offset, offset + limit)
+      .map(toListItem);
   }
 
-  async findAll(options?: {
-    recipientId?: string;
-    limit?: number;
-    offset?: number;
-    onlyUnread?: boolean;
-  }): Promise<INotification[]> {
-    const { recipientId, limit = 20, offset = 0, onlyUnread = false } = options || {};
-
-    let result = Array.from(this.dataSource.collection.values());
-
-    // Apply filters
-    if (recipientId) {
-      result = result.filter(n => n.recipientId === recipientId);
-    }
-
-    if (onlyUnread) {
-      result = result.filter(n => n.status === NotificationStatus.SENT);
-    }
-
-    // Sort by creation date, newest first
-    result.sort((a, b) => {
-      return b.createdAt.getTime() - a.createdAt.getTime();
-    });
-
-    // Apply pagination
-    return result.slice(offset, offset + limit);
+  async countByRecipient(recipientId: string, onlyUnread = false): Promise<number> {
+    return this.inbox(recipientId, onlyUnread).length;
   }
 
-  async findById(id: string): Promise<INotification | null> {
-    return this.dataSource.collection.get(id) || null;
+  private inbox(recipientId: string, onlyUnread: boolean): INotification[] {
+    return [...this.dataSource.collection.values()].filter(
+      n => n.recipientId === recipientId && (!onlyUnread || n.status === NotificationStatus.SENT),
+    );
   }
+}
 
-  async count(recipientId?: string, onlyUnread: boolean = false): Promise<number> {
-    let count = 0;
-
-    for (const notification of this.dataSource.collection.values()) {
-      if (recipientId && notification.recipientId !== recipientId) continue;
-
-      if (onlyUnread && notification.status !== NotificationStatus.SENT) continue;
-
-      count++;
-    }
-
-    return count;
-  }
+function toListItem(n: INotification): NotificationListItem {
+  return {
+    id: n._id,
+    recipientId: n.recipientId,
+    title: n.title,
+    content: n.content,
+    status: n.status,
+    channels: n.channels,
+    deliveredVia: n.deliveredVia,
+    createdAt: n.createdAt,
+    sentAt: n.sentAt,
+    readAt: n.readAt,
+    metadata: n.metadata,
+  };
 }
