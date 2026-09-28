@@ -5,7 +5,7 @@
  * which the Tracker context records so a client can poll `GET /tracker/operations/:id`.
  *
  * Implementations: Infrastructure/EventBus/InMemoryEventBus.ts (plain in-process emitter)
- * and Contexts/Tracker/Infrastructure/Services/TrakedEventBus.ts (same, plus tracking).
+ * and Contexts/Tracker/Infrastructure/TrackedEventBus.ts (a decorator that records every operation).
  */
 
 import { Event } from '@SharedKernel/Domain';

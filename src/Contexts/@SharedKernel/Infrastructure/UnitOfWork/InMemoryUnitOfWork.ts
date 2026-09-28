@@ -1,86 +1,38 @@
 import { UnitOfWork } from '@SharedKernel/Application';
 
 /**
- * In-memory implementation of the UnitOfWork interface.
+ * A unit of work with nothing to commit: the in-memory stores write immediately. What it
+ * does provide is the transaction *boundary* the ExecutionContext relies on (begin, commit
+ * or roll back, exactly once, one at a time), so that `afterCommit` has a commit to wait
+ * for. A database adapter would open and close a real transaction in these same four methods.
  *
- * This is a simple implementation for development and testing purposes.
- * In a real application, this would be replaced with a proper transaction
- * manager that works with your database or other persistence mechanisms.
+ * One instance per request: see the bootstrap.
  */
 export class InMemoryUnitOfWork implements UnitOfWork {
-  #activeTransaction = false;
-  #transactionListeners: { commit: (() => Promise<void>)[]; rollback: (() => Promise<void>)[] } = {
-    commit: [],
-    rollback: [],
-  };
+  #active = false;
 
-  /**
-   * Begins a new transaction.
-   */
   async beginTransaction(): Promise<void> {
-    if (this.#activeTransaction) {
+    if (this.#active) {
       throw new Error('Transaction already in progress');
     }
-
-    this.#activeTransaction = true;
+    this.#active = true;
   }
 
-  /**
-   * Commits the current transaction.
-   */
   async commitTransaction(): Promise<void> {
-    if (!this.#activeTransaction) {
+    if (!this.#active) {
       throw new Error('No active transaction to commit');
     }
-
-    // Execute all commit listeners
-    for (const listener of this.#transactionListeners.commit) {
-      await listener();
-    }
-
-    this.#activeTransaction = false;
-    this.#transactionListeners.commit = [];
-    this.#transactionListeners.rollback = [];
+    this.#active = false;
   }
 
-  /**
-   * Rolls back the current transaction.
-   */
   async rollbackTransaction(): Promise<void> {
-    if (!this.#activeTransaction) {
+    if (!this.#active) {
       throw new Error('No active transaction to rollback');
     }
-
-    // Execute all rollback listeners
-    for (const listener of this.#transactionListeners.rollback) {
-      await listener();
-    }
-
-    this.#activeTransaction = false;
-    this.#transactionListeners.commit = [];
-    this.#transactionListeners.rollback = [];
+    this.#active = false;
   }
 
-  /**
-   * Checks if there is an active transaction.
-   */
   hasActiveTransaction(): boolean {
-    return this.#activeTransaction;
-  }
-
-  /**
-   * Registers a commit listener that will be called when the transaction is committed.
-   * @param listener The listener function to register
-   */
-  onCommit(listener: () => Promise<void>): void {
-    this.#transactionListeners.commit.push(listener);
-  }
-
-  /**
-   * Registers a rollback listener that will be called when the transaction is rolled back.
-   * @param listener The listener function to register
-   */
-  onRollback(listener: () => Promise<void>): void {
-    this.#transactionListeners.rollback.push(listener);
+    return this.#active;
   }
 }

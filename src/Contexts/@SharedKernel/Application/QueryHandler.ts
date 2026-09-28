@@ -17,7 +17,7 @@ import { ExecutionContext } from './ExecutionContext';
 /**
  * Abstract QueryHandler class for handling read operations in the CQRS pattern.
  *
- * @template T The QueriesService type used for data access
+ * @template T The queries port the handler reads from (e.g. INoteQueries)
  * @template P The query payload type (parameters for the query)
  * @template R The result type, which must extend IResult
  */

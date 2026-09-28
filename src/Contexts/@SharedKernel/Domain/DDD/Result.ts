@@ -1,78 +1,22 @@
-/**
- * Result Pattern Implementation
- *
- * Purpose:
- * The Result class provides a standardized way to handle operation outcomes,
- * replacing traditional try/catch and error throwing with explicit result objects.
- *
- * Structure:
- * - Result<T>: Base class that can hold either success data or an error
- * - ResultSuccess<T>: Represents successful operations with data of type T
- * - ResultError: Represents failed operations with structured error information
- *
- * Key Methods:
- * 1. Creating Results:
- *    - Result.ok(data): Creates successful result
- *    - Result.fail(error): Creates failure result
- *
- * 2. Type Checking:
- *    - isSuccess(): Confirms if operation succeeded
- *    - isFailure(): Confirms if operation failed
- *
- * Example Usage:
- *
- * 1. Domain Entity Creation:
- *    ```typescript
- *    class User {
- *      static create(email: string): Result<User> {
- *        if (!isValidEmail(email)) {
- *          return Result.fail(new InvalidEmailError(email));
- *        }
- *        return Result.ok(new User(email));
- *      }
- *    }
- *    ```
- *
- * 2. Command Handler:
- *    ```typescript
- *    class CreateUserHandler {
- *      async execute(command: CreateUserCommand): Promise<Result<void>> {
- *        const userResult = User.create(command.email);
- *
- *        if (userResult.isFailure()) {
- *          return Result.fail(userResult.error);
- *        }
- *
- *        await this.repository.save(userResult.data);
- *        return Result.ok();
- *      }
- *    }
- *    ```
- *
- * 3. Controller Usage:
- *    ```typescript
- *    async createUser(req: Request, res: Response) {
- *      const result = await createUserHandler.execute(req.body);
- *
- *      if (result.isSuccess()) {
- *        return res.status(201).json(result.data);
- *      }
- *
- *      return res.status(400).json({ error: result.error.message });
- *    }
- *    ```
- *
- * Benefits:
- * 1. Type Safety: TypeScript knows exactly what data is available
- * 2. Explicit Error Handling: No unexpected exceptions
- * 3. Consistent Pattern: Standard way to handle all operations
- * 4. Self-Documenting: Clear success/failure paths
- * 5. Chainable: Results can be easily composed and transformed
- */
-
 import { Exception } from './Exception';
 import { UnknownException } from './CommonExceptions';
 
+/**
+ * Result is how an operation says whether it worked. An expected failure (a refused
+ * command, an invalid value) is a value the caller must look at, not an exception it may
+ * forget to catch. See docs/adr/0001-result-instead-of-exceptions.md.
+ *
+ * Write `IResult<T>` in signatures and build one with `Result.ok(data)` / `Result.fail(error)`:
+ *
+ *   static create(props): IResult<Note> {
+ *     const title = NoteTitle.create(props.title);
+ *     if (title.isFailure()) return title;          // a failure is returned as is, whatever T
+ *     return Result.ok(new Note(...));
+ *   }
+ *
+ * `isSuccess()` / `isFailure()` narrow the type: after `if (r.isFailure()) return r;` the
+ * compiler knows `r.data` is a T.
+ */
 export class Result<T = undefined> {
   constructor(public readonly data?: T, public readonly error?: Exception) {}
 
@@ -80,6 +24,7 @@ export class Result<T = undefined> {
     return new ResultSuccess<T>(data);
   }
 
+  /** Accepts an Exception, an Error or anything thrown; everything ends up as an Exception. */
   static fail(error: ResultError | Exception | Error | unknown): ResultError {
     if (error instanceof ResultError) {
       return error;

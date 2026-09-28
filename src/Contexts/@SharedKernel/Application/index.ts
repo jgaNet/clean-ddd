@@ -4,7 +4,7 @@
  * - CommandHandler / QueryHandler / EventHandler  the three kinds of use case
  * - ExecutionContext                              who is calling, with which logger, bus and unit of work
  * - EventBus / Operation / IEventEmitter          publishing and following events
- * - Module / ModuleBuilder                        wiring one bounded context together
+ * - Module                                        wiring one bounded context together
  * - Application                                   starting the modules
  * - IntegrationEvents/                            the events contexts exchange
  *
