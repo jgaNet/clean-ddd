@@ -3,5 +3,8 @@ scripts/
 cmd/
 tools/
 
+# vendored browser scripts served as static files
+src/Bootstrap/Fastify/public/
+
 *.d.ts
 *.min.js

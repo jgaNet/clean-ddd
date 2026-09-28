@@ -32,7 +32,8 @@ const notificationDataSource = new InMemoryDataSource<INotification>();
 const logger = new ConsoleLogger({ debug: SETTINGS.logger.debug });
 
 // Create services
-const webSocketService = new FastifyHTMXWebSocketService(logger);
+// Exported because the Fastify bootstrap must attach it to the server before listening.
+export const webSocketService = new FastifyHTMXWebSocketService(logger);
 const emailService = new EmailNotificationService({
   smtpHost: process.env.SMTP_HOST || 'localhost',
   smtpPort: Number(process.env.SMTP_PORT) || 25,

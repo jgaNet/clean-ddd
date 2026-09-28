@@ -155,7 +155,7 @@ export class FastifyAuthController {
       });
 
       return presenter?.present(loginResult.data);
-    } catch (error) {
+    } catch {
       return reply.code(500).send(errorPresenter?.present({ message: 'Unexpected error' }));
     }
   }
