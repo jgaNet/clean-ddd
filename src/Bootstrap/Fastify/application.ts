@@ -21,7 +21,7 @@ import { swaggerDescriptor } from './application.swagger';
 import { localTrackerModule } from '@Contexts/Tracker/module.local';
 import { localNotesModule } from '@Contexts/Notes/module.local';
 import { localSecurityModule } from '@Contexts/Security/module.local';
-import { localNotificationsModule } from '@Contexts/Notifications/module.local';
+import { localNotificationsModule, webSocketService } from '@Contexts/Notifications/module.local';
 
 import { homeRoutes } from '@SharedKernel/Presentation/API/REST/Routes';
 import { noteRoutes } from '@Contexts/Notes/Presentation/API/REST/Routes';
@@ -29,7 +29,7 @@ import { operationRoutes } from '@Contexts/Tracker/Presentation/API/REST/Routes'
 import { authRoutes } from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes';
 import { notificationRoutes } from '@Contexts/Notifications/Presentation/API/REST/Routes';
 
-import { Application, ExecutionContext } from '@SharedKernel/Domain/Application';
+import { Application, ExecutionContext } from '@SharedKernel/Application';
 import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
 import { InMemoryUnitOfWork } from '@SharedKernel/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
 
@@ -130,7 +130,7 @@ class FastifyApplication extends Application {
   async start(port: number = SETTINGS.port): Promise<void> {
     try {
       // Initialize WebSocket service before server starts listening
-      await localNotificationsModule.services.webSocketService.initialize(this.fastify);
+      await webSocketService.initialize(this.fastify);
 
       await this.fastify.listen({ port });
       await this.fastify.ready();

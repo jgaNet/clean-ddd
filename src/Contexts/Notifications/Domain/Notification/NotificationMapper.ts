@@ -1,9 +1,8 @@
-import { Mapper } from '@SharedKernel/Domain/DDD/Mapper';
 import { Notification } from './Notification';
 import { INotification } from './DTOs';
 import { DeliveryStrategy } from './DeliveryStrategy';
 
-export class NotificationMapper implements Mapper<Notification, INotification> {
+export class NotificationMapper {
   toJSON(notification: Notification): INotification {
     return {
       _id: notification._id.value,

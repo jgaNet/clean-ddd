@@ -1,4 +1,4 @@
-import { UnitOfWork } from '@SharedKernel/Domain';
+import { UnitOfWork } from '@SharedKernel/Application';
 
 /**
  * In-memory implementation of the UnitOfWork interface.

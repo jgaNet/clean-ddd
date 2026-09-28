@@ -1,4 +1,4 @@
-import { Module } from '@SharedKernel/Domain/Application';
+import { Module } from '@SharedKernel/Application';
 import {
   NotesModuleCommands,
   NotesModuleDomainEvents,

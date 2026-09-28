@@ -1,4 +1,5 @@
-import { ExecutionContext, IResult, QueryHandler, Result } from '@SharedKernel/Domain/Application';
+import { IResult, Result } from '@SharedKernel/Domain';
+import { ExecutionContext, QueryHandler } from '@SharedKernel/Application';
 
 import { INoteQueries, NoteDetail } from '@Contexts/Notes/Domain/Note/Ports/INoteQueries';
 import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteExceptions';

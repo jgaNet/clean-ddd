@@ -1,4 +1,4 @@
-import { IntegrationEvent } from '@SharedKernel/Domain/Application/EventTypes';
+import { IntegrationEvent } from '@SharedKernel/Domain/DDD/EventTypes';
 
 export class AccountCreatedIntegrationEvent extends IntegrationEvent<{
   accountId: string;

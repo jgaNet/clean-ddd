@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-import { ExecutionContext, IResult, Result } from '@SharedKernel/Domain/Application';
+import { IResult, Result } from '@SharedKernel/Domain';
+import { ExecutionContext } from '@SharedKernel/Application';
 import { Notification, NotificationType } from '@Contexts/Notifications/Domain/Notification/Notification';
 import {
   INotificationService,

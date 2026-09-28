@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Event, Result, IResult } from '@SharedKernel/Domain';
-import { ExecutionContext } from '@SharedKernel/Domain/Application';
+// eslint-disable-next-line no-restricted-imports -- pre-existing: Tracker models the event bus's own operations; to be reframed as a read-model projection
+import { ExecutionContext, OperationStatus } from '@SharedKernel/Application';
 import { ITrackedOperation } from './DTOs';
-import { OperationStatus } from '@SharedKernel/Domain';
 
 export class TrackedOperation<T extends Event<unknown>> implements ITrackedOperation<T> {
   id: string;

@@ -1,4 +1,5 @@
-import { IEvent, IResult, ExecutionContext } from '@SharedKernel/Domain';
+import { IEvent, IResult } from '@SharedKernel/Domain';
+import { ExecutionContext } from '@SharedKernel/Application/ExecutionContext';
 
 export enum OperationStatus {
   PENDING = 'PENDING',

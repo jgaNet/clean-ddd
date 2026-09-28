@@ -1,4 +1,4 @@
-import { Presenter } from '../DDD/Presenter';
+import { Presenter } from './Presenter';
 
 export class PresenterFactory {
   private presenters: Map<string, Map<string, Presenter<unknown, unknown>>> = new Map();

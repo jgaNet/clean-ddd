@@ -3,8 +3,8 @@ import {
   NotificationRequest,
 } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationService';
 import { Notification, NotificationType } from '@Contexts/Notifications/Domain/Notification/Notification';
-import { ExecutionContext } from '@SharedKernel/Domain/Application/ExecutionContext';
-import { IResult, Result } from '@Contexts/@SharedKernel/Domain';
+import { ExecutionContext } from '@SharedKernel/Application/ExecutionContext';
+import { IResult, Result } from '@SharedKernel/Domain';
 
 export class EmailNotificationService implements INotificationService {
   constructor(
@@ -31,7 +31,9 @@ export class EmailNotificationService implements INotificationService {
       }
 
       // Here you would integrate with your email service provider
-      context.logger?.info(`[EMAIL SERVICE] Sending email to ${recipientEmail}`, { traceId: context.traceId });
+      context.logger?.info(`[EMAIL SERVICE] Sending email from ${this.emailConfig.fromEmail} to ${recipientEmail}`, {
+        traceId: context.traceId,
+      });
       context.logger?.info(`[EMAIL SERVICE] Subject: ${notification.title}`, { traceId: context.traceId });
       context.logger?.info(`[EMAIL SERVICE] Content: ${notification.content}`, { traceId: context.traceId });
 

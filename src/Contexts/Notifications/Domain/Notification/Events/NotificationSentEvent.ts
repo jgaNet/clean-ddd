@@ -1,4 +1,4 @@
-import { DomainEvent } from '@SharedKernel/Domain/Application/EventTypes';
+import { DomainEvent } from '@SharedKernel/Domain/DDD/EventTypes';
 import { NotificationType } from '../Notification';
 
 export class NotificationSentEvent extends DomainEvent<{

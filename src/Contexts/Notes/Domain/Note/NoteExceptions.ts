@@ -1,4 +1,4 @@
-import { Exception } from '@SharedKernel/Domain/DDD';
+import { Exception } from '@SharedKernel/Domain';
 
 /**
  * Domain exceptions describe a broken business rule, in business words.

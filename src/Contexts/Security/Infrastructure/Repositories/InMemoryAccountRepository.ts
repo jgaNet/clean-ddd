@@ -1,18 +1,13 @@
-import { DataSource } from '@SharedKernel/Domain/Services';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 
 import { Account } from '@Contexts/Security/Domain/Account/Account';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
 
 export class InMemoryAccountRepository implements IAccountRepository {
-  dataSource: DataSource<Account>;
-
-  constructor(dataSource: InMemoryDataSource<Account>) {
-    this.dataSource = dataSource;
-  }
+  constructor(private dataSource: InMemoryDataSource<Account>) {}
 
   async save(account: Account): Promise<void> {
-    (this.dataSource as InMemoryDataSource<Account>).collection.set(account._id.value, account);
+    this.dataSource.collection.set(account._id.value, account);
   }
 
   async findByIdentifier(identifier: string): Promise<Account | null> {
@@ -30,6 +25,6 @@ export class InMemoryAccountRepository implements IAccountRepository {
   }
 
   async delete(subjectId: string): Promise<void> {
-    (this.dataSource as InMemoryDataSource<Account>).collection.delete(subjectId);
+    this.dataSource.collection.delete(subjectId);
   }
 }

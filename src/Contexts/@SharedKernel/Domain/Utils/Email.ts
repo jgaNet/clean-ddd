@@ -1,5 +1,5 @@
-import { ValueObject } from '@SharedKernel/Domain/DDD';
-import { InvalidEmailFormat } from '@Contexts/@SharedKernel/Domain/Application/CommonExceptions';
+import { ValueObject } from '@SharedKernel/Domain';
+import { InvalidEmailFormat } from '@SharedKernel/Domain/DDD/CommonExceptions';
 
 export class Email extends ValueObject<string> {
   constructor(email: string) {
