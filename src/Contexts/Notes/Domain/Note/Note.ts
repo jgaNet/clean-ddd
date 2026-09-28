@@ -1,5 +1,5 @@
-import { AggregateRoot } from '@SharedKernel/Domain/DDD';
-import { IResult, Result } from '@SharedKernel/Domain/Application';
+import { AggregateRoot } from '@SharedKernel/Domain';
+import { IResult, Result } from '@SharedKernel/Domain';
 import { Id } from '@SharedKernel/Domain/Utils';
 
 import { INewNote, INote } from '@Contexts/Notes/Domain/Note/DTOs';
@@ -41,7 +41,14 @@ export class Note extends AggregateRoot {
   #status: NoteStatus;
   #sharedWith: Set<string>;
 
-  private constructor(id: Id, ownerId: Id, title: NoteTitle, content: string, status: NoteStatus, sharedWith: string[]) {
+  private constructor(
+    id: Id,
+    ownerId: Id,
+    title: NoteTitle,
+    content: string,
+    status: NoteStatus,
+    sharedWith: string[],
+  ) {
     super(id);
     this.#ownerId = ownerId;
     this.#title = title;

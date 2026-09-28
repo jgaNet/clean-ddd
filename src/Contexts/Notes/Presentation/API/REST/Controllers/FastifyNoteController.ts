@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 
-import { Event, Exception, PresenterFactory, NotAllowedException } from '@SharedKernel/Domain';
+import { Event, Exception, NotAllowedException } from '@SharedKernel/Domain';
+import { PresenterFactory } from '@SharedKernel/Presentation/PresenterFactory';
 
 import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 import { NotesModule } from '@Contexts/Notes/Application';

@@ -1,12 +1,13 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import fastifyWebsocket from '@fastify/websocket';
-import { IResult, Result } from '@SharedKernel/Domain/Application';
-import { IEventEmitter } from '@SharedKernel/Domain/Services/EventEmitter';
+import { IResult, Result } from '@SharedKernel/Domain';
+import { IEventEmitter } from '@SharedKernel/Application/EventEmitter';
 import { Notification } from '@Contexts/Notifications/Domain/Notification/Notification';
-import { Logger, Role } from '@SharedKernel/Domain';
+import { Role } from '@SharedKernel/Domain';
+import { Logger } from '@SharedKernel/Application';
 import { WebSocket } from 'ws';
 // eslint-disable-next-line no-restricted-imports -- pre-existing: HTML rendering belongs to a Presenter, not to the transport service
-import { html } from '@Contexts/@SharedKernel/Presentation/Templates';
+import { html } from '@SharedKernel/Presentation/Templates';
 
 export interface WebSocketClientMap {
   [userId: string]: Set<WebSocket>; // userId -> WebSocket connections

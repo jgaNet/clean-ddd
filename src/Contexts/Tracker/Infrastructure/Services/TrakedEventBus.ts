@@ -1,12 +1,12 @@
+import { Event } from '@SharedKernel/Domain';
 import {
   EventBus,
-  Event,
   EventHandler,
   CommandHandler,
   IEventEmitter,
   ExecutionContext,
   IOperation,
-} from '@SharedKernel/Domain';
+} from '@SharedKernel/Application';
 import { ITrackedOperationRepository, TrackedOperation } from '@Contexts/Tracker/Domain/TrackedOperation';
 import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
 import EventEmitter from 'events';

@@ -1,4 +1,4 @@
-import { DomainEvent } from '@SharedKernel/Domain/Application';
+import { DomainEvent } from '@SharedKernel/Domain';
 
 /**
  * Domain events are facts, named in the past tense, raised by the Note aggregate when

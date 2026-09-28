@@ -1,7 +1,8 @@
 import { expect, jest } from '@jest/globals';
 
-import { EventBus, Result, UnknownException } from '@SharedKernel/Domain';
-import { ExecutionContext, UnitOfWork } from '@SharedKernel/Domain/Application/ExecutionContext';
+import { Result, UnknownException } from '@SharedKernel/Domain';
+import { EventBus } from '@SharedKernel/Application/EventBus';
+import { ExecutionContext, UnitOfWork } from '@SharedKernel/Application/ExecutionContext';
 
 const eventBus = { connect: jest.fn(), publish: jest.fn(), subscribe: jest.fn() } as EventBus;
 

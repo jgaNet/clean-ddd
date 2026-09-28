@@ -1,5 +1,6 @@
-import { IEvent, ExecutionContext, IResult } from '@SharedKernel/Domain';
-import { OperationStatus, IOperation } from '@SharedKernel/Domain';
+import { IEvent, IResult } from '@SharedKernel/Domain';
+// eslint-disable-next-line no-restricted-imports -- pre-existing: Tracker models the event bus's own operations; to be reframed as a read-model projection
+import { ExecutionContext, OperationStatus, IOperation } from '@SharedKernel/Application';
 
 export type ITrackedOperationDTO = Omit<ITrackedOperation<IEvent<unknown>>, 'success' | 'failed' | 'sent'>;
 

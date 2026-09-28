@@ -22,7 +22,9 @@
  */
 
 import { EventHandler } from './EventHandler';
-import { CommandEvent, IResult, IOperation, Result, ExecutionContext, AggregateRoot } from '@SharedKernel/Domain';
+import { CommandEvent, IResult, Result, AggregateRoot } from '@SharedKernel/Domain';
+import { ExecutionContext } from '@SharedKernel/Application/ExecutionContext';
+import { IOperation } from '@SharedKernel/Application/Operation';
 
 export abstract class CommandHandler<T extends CommandEvent<unknown>> extends EventHandler<T> {
   async handle(operation: IOperation<T>): Promise<IOperation<T>> {

@@ -1,4 +1,5 @@
-import { CommandHandler, ExecutionContext, IResult, Result } from '@SharedKernel/Domain/Application';
+import { IResult, Result } from '@SharedKernel/Domain';
+import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
 
 import { Note } from '@Contexts/Notes/Domain/Note/Note';
 import { INoteRepository } from '@Contexts/Notes/Domain/Note/Ports/INoteRepository';

@@ -1,4 +1,4 @@
-import { OperationStatus } from '@SharedKernel/Domain';
+import { OperationStatus } from '@SharedKernel/Application';
 const OperationSchema = {
   type: 'object',
   properties: {

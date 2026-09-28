@@ -1,3 +1,3 @@
-import { CommandEvent } from '@SharedKernel/Domain/Application';
+import { CommandEvent } from '@SharedKernel/Domain';
 
 export class CreateNoteCommandEvent extends CommandEvent<{ title: string; content: string }> {}

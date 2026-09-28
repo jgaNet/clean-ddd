@@ -213,7 +213,14 @@ describe('Note', () => {
 
     it('refuses a corrupted snapshot', () => {
       expect(() =>
-        Note.fromSnapshot({ _id: 'n', ownerId: 'alice', title: '', content: '', status: NoteStatus.ACTIVE, sharedWith: [] }),
+        Note.fromSnapshot({
+          _id: 'n',
+          ownerId: 'alice',
+          title: '',
+          content: '',
+          status: NoteStatus.ACTIVE,
+          sharedWith: [],
+        }),
       ).toThrow(/Corrupted note n/);
     });
   });

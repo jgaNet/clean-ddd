@@ -1,4 +1,4 @@
-import { Exception } from '../DDD/Exception';
+import { Exception } from './Exception';
 
 export class UnknownException extends Exception {
   constructor(message: string, context?: unknown) {

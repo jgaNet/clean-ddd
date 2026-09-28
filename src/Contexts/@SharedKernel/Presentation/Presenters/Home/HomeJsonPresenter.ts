@@ -1,4 +1,4 @@
-import { Presenter } from '@SharedKernel/Domain/DDD';
+import { Presenter } from '@SharedKernel/Presentation/Presenter';
 import { HomeViewModel } from './ViewModels';
 
 export class HomeJsonPresenter implements Presenter<HomeViewModel, object> {

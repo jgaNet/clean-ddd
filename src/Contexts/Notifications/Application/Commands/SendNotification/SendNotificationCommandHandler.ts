@@ -1,13 +1,13 @@
-import { CommandHandler } from '@SharedKernel/Domain/Application/CommandHandler';
-import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
-import { ExecutionContext } from '@SharedKernel/Domain/Application/ExecutionContext';
+import { CommandHandler } from '@SharedKernel/Application/CommandHandler';
+import { Result, IResult } from '@SharedKernel/Domain/DDD/Result';
+import { ExecutionContext } from '@SharedKernel/Application/ExecutionContext';
 import { Role } from '@SharedKernel/Domain/AccessControl/Role';
 import { SendNotificationCommandEvent } from './SendNotificationCommandEvent';
 import { INotificationRepository } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationRepository';
 import { INotificationService } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationService';
 import { Notification, NotificationType } from '@Contexts/Notifications/Domain/Notification/Notification';
 import { NotificationSentEvent } from '@Contexts/Notifications/Domain/Notification/Events/NotificationSentEvent';
-import { NotAllowedException } from '@SharedKernel/Domain/Application/CommonExceptions';
+import { NotAllowedException } from '@SharedKernel/Domain/DDD/CommonExceptions';
 import { DeliveryStrategy } from '@Contexts/Notifications/Domain/Notification/DeliveryStrategy';
 
 export class SendNotificationCommandHandler extends CommandHandler<SendNotificationCommandEvent> {

@@ -11,7 +11,9 @@
  * Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts
  */
 
-import { Event, IResult, ExecutionContext, IOperation } from '@SharedKernel/Domain';
+import { Event, IResult } from '@SharedKernel/Domain';
+import { ExecutionContext } from '@SharedKernel/Application/ExecutionContext';
+import { IOperation } from '@SharedKernel/Application/Operation';
 
 /**
  * Abstract base class for all event handlers in the application.

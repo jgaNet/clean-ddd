@@ -8,7 +8,10 @@
  * and Contexts/Tracker/Infrastructure/Services/TrakedEventBus.ts (same, plus tracking).
  */
 
-import { Event, EventHandler, IOperation, ExecutionContext } from '@SharedKernel/Domain';
+import { Event } from '@SharedKernel/Domain';
+import { EventHandler } from '@SharedKernel/Application/EventHandler';
+import { ExecutionContext } from '@SharedKernel/Application/ExecutionContext';
+import { IOperation } from '@SharedKernel/Application/Operation';
 
 export interface EventBus {
   /**

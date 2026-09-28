@@ -1,4 +1,4 @@
-import { ModuleBuilder } from '@SharedKernel/Domain/Application';
+import { ModuleBuilder } from '@SharedKernel/Application';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';

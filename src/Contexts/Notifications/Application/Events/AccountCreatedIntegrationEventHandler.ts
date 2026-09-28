@@ -1,7 +1,7 @@
-import { EventHandler } from '@SharedKernel/Domain/Application/EventHandler';
-import { Result, IResult } from '@SharedKernel/Domain/Application/Result';
+import { EventHandler } from '@SharedKernel/Application/EventHandler';
+import { Result, IResult } from '@SharedKernel/Domain/DDD/Result';
 import { AccountCreatedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
-import { ExecutionContext } from '@SharedKernel/Domain/Application/ExecutionContext';
+import { ExecutionContext } from '@SharedKernel/Application/ExecutionContext';
 import { NotificationType } from '@Contexts/Notifications/Domain/Notification/Notification';
 import { DeliveryStrategy } from '@Contexts/Notifications/Domain/Notification/DeliveryStrategy';
 import { INotificationService } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationService';

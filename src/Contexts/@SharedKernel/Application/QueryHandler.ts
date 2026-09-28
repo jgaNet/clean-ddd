@@ -11,7 +11,7 @@
  * Example: Contexts/Notes/Application/Queries/GetMyNotes/GetMyNotesQueryHandler.ts
  */
 
-import { IResult, Result } from './Result';
+import { IResult, Result } from '@SharedKernel/Domain';
 import { ExecutionContext } from './ExecutionContext';
 
 /**

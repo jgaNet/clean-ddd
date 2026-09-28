@@ -39,9 +39,8 @@
  * - {@link EventBus} - Provides event publishing capabilities
  */
 
-import { EventBus } from '../Services/EventBus';
-import { IResult, Result } from './Result';
-import { Role } from '../AccessControl/Role';
+import { IResult, Result, Role } from '@SharedKernel/Domain';
+import { EventBus } from '@SharedKernel/Application/EventBus';
 
 /**
  * Interface for a Unit of Work, which manages transactional boundaries
