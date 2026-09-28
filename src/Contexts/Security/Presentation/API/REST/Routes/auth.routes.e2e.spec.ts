@@ -53,7 +53,7 @@ describe('SignUp', () => {
 
     const operation = await adminAgent.get(`${SETTINGS.apiUrl}/tracker/operations/${res.body.operationId}`);
     expect(operation.body.status).toBe('SUCCESS');
-    const accountId = operation.body.result.data;
+    const accountId = operation.body.result;
 
     const pending = await adminAgent.get(`${SETTINGS.apiUrl}/auth/accounts/${accountId}`);
     expect(pending.body).toEqual({ id: accountId, email: 'user@user.fr', role: 'user', status: 'pending' });

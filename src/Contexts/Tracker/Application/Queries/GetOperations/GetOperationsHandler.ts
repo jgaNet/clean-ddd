@@ -1,36 +1,25 @@
-import { Result } from '@SharedKernel/Domain';
-import { QueryHandler } from '@SharedKernel/Application';
+import { IResult, NotAllowedException, Result, Role } from '@SharedKernel/Domain';
+import { ExecutionContext, QueryHandler } from '@SharedKernel/Application';
 
-import { Role } from '@SharedKernel/Domain/AccessControl';
-import { GetOperationsQueryResult } from '@Contexts/Tracker/Application/DTOs';
-import { IResult, NotAllowedException } from '@SharedKernel/Domain';
-import { ExecutionContext } from '@SharedKernel/Application';
-import { ITrackedOperationQueries } from '@Contexts/Tracker/Domain/TrackedOperation/Ports/ITrackedOperationQueries';
+import { IOperationRecords } from '@Contexts/Tracker/Application/Ports/IOperationRecords';
+import { OperationRecord } from '@Contexts/Tracker/Application/ReadModel/OperationRecord';
 
-type GetOperationsPort = {
-  traceId?: string;
-};
+type Filters = { traceId?: string };
 
-export class GetOperationsHandler extends QueryHandler<
-  ITrackedOperationQueries,
-  GetOperationsPort,
-  GetOperationsQueryResult
-> {
-  async execute(filters: GetOperationsPort): Promise<GetOperationsQueryResult> {
-    if (filters?.traceId) {
-      const operations = await this.queriesService.findByTraceId(filters.traceId);
-      return Result.ok(operations);
-    }
-
-    const operations = await this.queriesService.findAll();
-    return Result.ok(operations);
-  }
-
-  protected async guard(_: never, { auth }: ExecutionContext): Promise<IResult> {
-    if (!auth.role || ![Role.ADMIN].includes(auth.role)) {
+/** Listing every operation is an administrator's view. */
+export class GetOperationsHandler extends QueryHandler<IOperationRecords, Filters, IResult<OperationRecord[]>> {
+  protected async guard(_: Filters, { auth }: ExecutionContext): Promise<IResult<unknown>> {
+    if (auth.role !== Role.ADMIN) {
       return Result.fail(new NotAllowedException('Tracker', 'Forbidden'));
     }
-
     return Result.ok();
+  }
+
+  async execute(filters: Filters): Promise<IResult<OperationRecord[]>> {
+    const records = filters?.traceId
+      ? await this.queriesService.findByTraceId(filters.traceId)
+      : await this.queriesService.findAll();
+
+    return Result.ok(records);
   }
 }

@@ -76,7 +76,7 @@ describe('Sharing a note (Notes -> Notifications)', () => {
       .post(`${SETTINGS.apiUrl}/auth/signup`)
       .send({ identifier: 'bob@notes.fr', password: 'bob' });
     const signUpOperation = await agent.get(`${SETTINGS.apiUrl}/tracker/operations/${signUp.body.operationId}`);
-    const bobId: string = signUpOperation.body.result.data;
+    const bobId: string = signUpOperation.body.result;
     await agent.get(`${SETTINGS.apiUrl}/auth/accounts/${bobId}/validate`);
 
     // The admin writes a note and shares it with bob
