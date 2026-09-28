@@ -1,23 +1,12 @@
 /**
- * Repository is a primitive abstract class that implements the Repository Pattern,
- * providing a standardized way to handle data persistence operations.
+ * Repository: a base class for the write side of persistence, bound to a DataSource.
  *
- * This class serves as the base for all repository implementations, ensuring
- * consistent data access patterns across different domain entities.
+ * A repository speaks in aggregates (find one, save one). Listing and filtering do not
+ * belong here; they are the job of a queries service (see QueriesService).
  *
- * Key characteristics:
- * - Generic type T for type-safe entity handling
- * - Abstract dataSource property for flexible storage implementations
- * - Works with DataSource primitive for actual storage operations
- * - Follows Domain-Driven Design (DDD) repository pattern
- *
- * Usage examples in the project:
- * - UserRepository: Manages User entity persistence
- * - Supports different implementations:
- *   - InMemoryUserRepository
- *   - MockedUserRepository
- * - Used by domain services and command handlers
- * - Maintains persistence ignorance in domain layer
+ * The Notes context declares its repository as a plain interface instead
+ * (Contexts/Notes/Domain/Note/Ports/INoteRepository.ts): a port only needs to say what
+ * the domain requires, and the infrastructure decides how to store it.
  */
 
 import { DataSource } from '../Services';

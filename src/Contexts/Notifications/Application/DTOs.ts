@@ -7,6 +7,7 @@ import { GetNotificationsQueryHandler } from './Queries/GetNotifications/GetNoti
 import { AccountCreatedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
 import { AccountValidatedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
 import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
+// eslint-disable-next-line no-restricted-imports -- pre-existing: this port interface belongs in the Domain layer; move it to remove this
 import { IWebSocketService } from '../Infrastructure/Services/IServices';
 
 export interface NotificationDTO {

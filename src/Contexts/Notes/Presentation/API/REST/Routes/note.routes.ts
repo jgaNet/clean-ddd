@@ -4,10 +4,18 @@ import { FastifyNoteController } from '@Contexts/Notes/Presentation/API/REST/Con
 import { NotesModule } from '@Contexts/Notes/Application';
 
 import {
-  GetNotesResSchema,
+  CommandOnNoteSchema,
+  CommandResSchema,
   CreateNoteReqBody,
-  CreateNoteResSchema,
   CreateNoteReqBodySchema,
+  EditNoteReqBody,
+  EditNoteReqBodySchema,
+  GetMyNotesResSchema,
+  GetNoteResSchema,
+  GetSharedNotesResSchema,
+  NoteIdParams,
+  ShareNoteReqBody,
+  ShareNoteReqBodySchema,
 } from '@Contexts/Notes/Presentation/API/REST/Routes/note.routes.schema';
 
 export const noteRoutes = function (
@@ -15,41 +23,53 @@ export const noteRoutes = function (
   { notesModule }: { notesModule: NotesModule },
   done: () => void,
 ) {
-  const noteController = new FastifyNoteController({
-    queries: notesModule.queries,
-  });
+  const controller = new FastifyNoteController({ module: notesModule });
+  const tags = ['notes'];
 
   fastify.post<{ Body: CreateNoteReqBody }>(
     '/',
-    {
-      schema: {
-        tags: ['notes'],
-        body: CreateNoteReqBodySchema,
-        response: CreateNoteResSchema,
-      },
-    },
-    noteController.createNote.bind(noteController),
+    { schema: { tags, body: CreateNoteReqBodySchema, response: CommandResSchema } },
+    controller.createNote.bind(controller),
   );
 
-  fastify.get(
-    '/',
-    {
-      schema: {
-        tags: ['notes'],
-        response: GetNotesResSchema,
-      },
-    },
-    noteController.getNotes.bind(noteController),
-  );
+  fastify.get('/', { schema: { tags, response: GetMyNotesResSchema } }, controller.getMyNotes.bind(controller));
 
   fastify.get(
-    '/new',
-    {
-      schema: {
-        tags: ['notes'],
-      },
-    },
-    noteController.newNotes.bind(noteController),
+    '/shared',
+    { schema: { tags, response: GetSharedNotesResSchema } },
+    controller.getNotesSharedWithMe.bind(controller),
+  );
+
+  fastify.get('/new', { schema: { tags } }, controller.newNotes.bind(controller));
+
+  fastify.get<{ Params: NoteIdParams }>(
+    '/:id',
+    { schema: { tags, params: CommandOnNoteSchema.params, response: GetNoteResSchema } },
+    controller.getNote.bind(controller),
+  );
+
+  fastify.put<{ Params: NoteIdParams; Body: EditNoteReqBody }>(
+    '/:id',
+    { schema: { tags, ...CommandOnNoteSchema, body: EditNoteReqBodySchema } },
+    controller.editNote.bind(controller),
+  );
+
+  fastify.post<{ Params: NoteIdParams }>(
+    '/:id/archive',
+    { schema: { tags, ...CommandOnNoteSchema } },
+    controller.archiveNote.bind(controller),
+  );
+
+  fastify.post<{ Params: NoteIdParams }>(
+    '/:id/restore',
+    { schema: { tags, ...CommandOnNoteSchema } },
+    controller.restoreNote.bind(controller),
+  );
+
+  fastify.post<{ Params: NoteIdParams; Body: ShareNoteReqBody }>(
+    '/:id/share',
+    { schema: { tags, ...CommandOnNoteSchema, body: ShareNoteReqBodySchema } },
+    controller.shareNote.bind(controller),
   );
 
   done();

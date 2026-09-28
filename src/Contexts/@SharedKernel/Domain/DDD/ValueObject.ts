@@ -1,24 +1,11 @@
 /**
- * ValueObject is a primitive class that implements the Value Object pattern from
- * Domain-Driven Design (DDD). It represents objects that are distinguished by their
- * compositional values rather than a unique identity.
+ * ValueObject: an object defined by its value, with no identity of its own.
  *
- * Key characteristics:
- * - Immutable: Values cannot be changed after creation
- * - Equality by value: Two value objects are equal if their values are equal
- * - Generic type T for type-safe value handling
- * - Encapsulated value using private field (#value)
+ * Two value objects are equal when their values are equal. They are immutable: to "change"
+ * one you create another. Their job is to make an invalid value impossible to represent,
+ * so validation lives in the value object instead of being sprinkled across the code.
  *
- * Core features:
- * - Type-safe value storage and retrieval
- * - Deep equality comparison through JSON stringification
- * - Read-only access to internal value
- *
- * Usage examples in the project:
- * - UserEmail: Encapsulates email validation and formatting
- * - UserProfile: Represents user profile attributes
- * - Used for domain model attributes that need value semantics
- * - Supports domain invariants and validation
+ * Examples: Utils/Id.ts, Utils/Email.ts, Contexts/Notes/Domain/Note/NoteTitle.ts
  */
 
 export class ValueObject<T> {

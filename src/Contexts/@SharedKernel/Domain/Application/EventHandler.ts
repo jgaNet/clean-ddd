@@ -1,76 +1,14 @@
 /**
- * EventHandler is a primitive abstract class that defines the base contract for all event handlers
- * in the application's event-driven architecture.
+ * EventHandler: reacts to an event. It is the base of every listener in the application
+ * layer, and the parent of CommandHandler.
  *
- * This class works in conjunction with Event and EventBus primitives to provide
- * a type-safe and consistent way to handle events across the application.
+ * A domain event handler stays inside its context and typically logs, updates a read model
+ * or publishes an integration event for other contexts:
+ * Contexts/Notes/Application/Events/NoteSharedHandler.ts
  *
- * Key characteristics:
- * - Generic type T extends Event<unknown> ensures type safety for event handling
- * - Abstract execute method enforces consistent handler implementation
- * - Returns Promise<ResultValue> for async operation support
- * - Used by both command and domain event handlers
- *
- * Core features:
- * - Type-safe event handling: Ensures handlers only process their intended event types
- * - Async execution: All handlers operate asynchronously
- * - Result wrapping: Uses ResultValue for standardized success/failure handling
- *
- * Usage example:
- * ```typescript
- * // 1. Define an event
- * export class UserCreatedEvent extends Event<{
- *   userId: string;
- *   email: string;
- * }> {
- *   static readonly TYPE = 'Domain.User.Created';
- *   constructor(payload: {userId: string; email: string}) {
- *     super(UserCreatedEvent.TYPE, payload);
- *   }
- * }
- *
- * // 2. Implement an event handler
- * export class UserCreatedHandler extends EventHandler<UserCreatedEvent> {
- *   constructor(private notificationService: INotificationService) {
- *     super();
- *   }
- *
- *   async execute(event: UserCreatedEvent, eventBus: EventBus): Promise<Result<void>> {
- *     try {
- *       // Handle the event by performing some action
- *       await this.notificationService.sendWelcomeEmail({
- *         userId: event.payload.userId,
- *         email: event.payload.email
- *       });
- *
- *       return Result.ok();
- *     } catch (error) {
- *       return Result.fail(error);
- *     }
- *   }
- * }
- *
- * // 3. Register with module
- * const module = new ModuleBuilder('Notifications')
- *   .setDomainEvent({
- *     event: UserCreatedEvent,
- *     handlers: [new UserCreatedHandler(notificationService)]
- *   })
- *   .build();
- * ```
- *
- * Project examples:
- * - Command handlers (CreateUserCommandHandler)
- * - Domain event handlers (UserCreatedHandler)
- * - Integration event handlers
- * - Exception event handlers
- *
- * Related components:
- * - {@link Event} - Base class for all events
- * - {@link EventBus} - Dispatches events to registered handlers
- * - {@link Result} - Encapsulates success/failure of operations
- * - {@link Operation} - Tracks event handling state
- * - {@link CommandHandler} - Specialized event handler for commands
+ * An integration event handler lives in the receiving context and translates the foreign
+ * event into a local command or service call:
+ * Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts
  */
 
 import { Event, IResult, ExecutionContext, IOperation } from '@SharedKernel/Domain';

@@ -106,6 +106,8 @@ export class Result<T = undefined> {
 }
 
 export class ResultError extends Result<undefined> {
+  declare error: Exception;
+
   constructor(error: Exception) {
     super(undefined, error);
   }

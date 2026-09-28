@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-restricted-imports -- pre-existing: the module type names a Presentation class; extract a Domain port to remove this
 import { AuthenticationMiddleware } from '../Presentation/API/REST/Middlewares/FastifyJWTAuthenticationMiddleware';
 import { LoginCommandEvent, LoginCommandHandler } from './Commands';
 import { AccountValidatedEvent } from '../Domain/Account/Events/AccountValidatedEvent';

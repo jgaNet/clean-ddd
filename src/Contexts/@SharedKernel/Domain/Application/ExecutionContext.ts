@@ -23,28 +23,11 @@
  *   logger: new ConsoleLogger()
  * });
  *
- * // Using in a command handler
- * export class CreateUserCommandHandler extends CommandHandler<CreateUserCommand> {
- *   async execute(command: CreateUserCommand, context: ExecutionContext): Promise<Result<string>> {
- *     // Start transaction
- *     return context.withTransaction(async () => {
- *       // Log with contextual information
- *       context.logger.info(`Creating user with email ${command.payload.email}`, {
- *         traceId: context.traceId
- *       });
- *
- *       // Business logic
- *       const user = User.create(command.payload);
- *       await this.userRepository.save(user);
- *
- *       // Publish domain events
- *       await context.eventBus.publish(new UserCreatedEvent({
- *         userId: user.id
- *       }));
- *
- *       return Result.ok(user.id);
- *     });
- *   }
+ * // Using in a command handler: see Contexts/Notes/Application/Commands
+ * async execute({ payload }: EditNoteCommandEvent, context: ExecutionContext): Promise<IResult> {
+ *   const note = await this.noteRepository.findById(payload.noteId);
+ *   ...
+ *   this.publishDomainEvents(note, context); // uses context.eventBus
  * }
  * ```
  *
@@ -149,6 +132,8 @@ export class ExecutionContext {
   readonly #unitOfWork?: UnitOfWork;
   readonly #logger?: Logger;
   readonly #metadata: Record<string, unknown>;
+  #inTransaction = false;
+  #afterCommit: Array<() => void> = [];
 
   constructor(options: ExecutionContextOptions) {
     this.#traceId = options.traceId;
@@ -163,11 +148,43 @@ export class ExecutionContext {
   }
 
   /**
-   * Execute a function within a transaction
-   * @param fn The function to execute
-   * @returns The result of the function
+   * Runs `fn` inside the unit of work when there is one, then runs the `afterCommit`
+   * callbacks registered during `fn` once the transaction is committed. A failed result
+   * or a throw rolls back and drops those callbacks. Nested calls join the outer transaction.
    */
   async withTransaction<T>(fn: () => Promise<IResult<T>>): Promise<IResult<T>> {
+    const outermost = !this.#inTransaction;
+    this.#inTransaction = true;
+
+    try {
+      const result = await this.runInUnitOfWork(fn);
+
+      if (outermost) {
+        const callbacks = this.#afterCommit;
+        this.#afterCommit = [];
+        if (result.isSuccess()) callbacks.forEach(callback => callback());
+      }
+
+      return result;
+    } finally {
+      if (outermost) this.#inTransaction = false;
+    }
+  }
+
+  /**
+   * Defers `callback` until the current transaction is committed, so that its side effects
+   * (typically publishing domain events) never leak facts that end up rolled back.
+   * Outside of any transaction the callback runs immediately.
+   */
+  afterCommit(callback: () => void): void {
+    if (!this.#inTransaction) {
+      callback();
+      return;
+    }
+    this.#afterCommit.push(callback);
+  }
+
+  private async runInUnitOfWork<T>(fn: () => Promise<IResult<T>>): Promise<IResult<T>> {
     if (!this.#unitOfWork) {
       return fn();
     }

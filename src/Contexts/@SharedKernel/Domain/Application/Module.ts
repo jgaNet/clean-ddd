@@ -1,107 +1,30 @@
 /**
- * Module Primitive
+ * Module wires one bounded context together: its commands, queries, domain events,
+ * integration events and the services it exposes to other contexts.
  *
- * Purpose:
- * A foundational class that implements the Modular Architecture pattern,
- * combining CQRS and Event-Driven Architecture for bounded contexts.
+ * A Module does not contain business logic. It is the place where the application layer
+ * (handlers) is bound to the infrastructure (repositories, queries, external services)
+ * and subscribed to the event bus. Each context has one such wiring file per environment,
+ * e.g. `Contexts/Notes/module.local.ts`.
  *
- * Architecture Components:
+ * Build one with the ModuleBuilder:
+ * ```typescript
+ * export const localNotesModule = new ModuleBuilder<NotesModule>(Symbol('Notes'))
+ *   .setCommand({ event: CreateNoteCommandEvent, handlers: [new CreateNoteCommandHandler(noteRepository)] })
+ *   .setQuery(new GetMyNotesQueryHandler(noteQueries))
+ *   .setDomainEvent({ event: NoteSharedEvent, handlers: [new NoteSharedHandler()] })
+ *   .build();
+ * ```
  *
- * 1. Commands (Write Operations):
- *    - Handle state changes (create, update, delete)
- *    - Example:
- *    ```typescript
- *    class CreateUserCommand implements Command {
- *      constructor(public readonly userData: UserDTO) {}
- *    }
- *    ```
- *
- * 2. Queries (Read Operations):
- *    - Retrieve data without state changes
- *    - Example:
- *    ```typescript
- *    class GetUserByIdQuery implements Query {
- *      constructor(public readonly userId: string) {}
- *    }
- *    ```
- *
- * 3. Events:
- *    a. Domain Events (Internal):
- *       - Represent state changes within the module
- *       ```typescript
- *       class UserCreatedEvent extends DomainEvent {
- *         constructor(public readonly user: User) {}
- *       }
- *       ```
- *
- *    b. Integration Events (External):
- *       - Communicate between different modules
- *       ```typescript
- *       class UserVerifiedIntegrationEvent extends IntegrationEvent {
- *         constructor(public readonly userId: string) {}
- *       }
- *       ```
- *
- * Example Usage:
- *
- * 1. Module Definition:
- *    ```typescript
- *    export class UsersModule extends Module {
- *      constructor() {
- *        super({
- *          commands: [
- *            { event: CreateUserCommand, handlers: [createUserHandler] }
- *          ],
- *          queries: [
- *            { name: 'GetUserById', handler: getUserByIdHandler }
- *          ],
- *          domainEvents: [
- *            { event: UserCreatedEvent, handlers: [notifyAdminHandler] }
- *          ],
- *          integrationEvents: [
- *            { event: UserVerifiedEvent, handlers: [updateAuthHandler] }
- *          ]
- *        });
- *      }
- *    }
- *    ```
- *
- * 2. Module Usage:
- *    ```typescript
- *    const usersModule = new UsersModule();
- *
- *    // Start module (connects event bus and subscribes handlers)
- *    await usersModule.start();
- *
- *    // Execute command
- *    const command = new CreateUserCommand({ email: 'user@example.com' });
- *    const handler = usersModule.getCommand(CreateUserCommand);
- *    await handler.execute(command);
- *
- *    // Execute query
- *    const query = new GetUserByIdQuery('user-123');
- *    const result = await usersModule.getQuery(GetUserByIdQuery).execute(query);
- *    ```
- *
- * Key Features:
- * 1. Type Safety: Full TypeScript support for all components
- * 2. Automatic Event Handling: Self-registering event subscriptions
- * 3. Dependency Management: Built-in dependency injection support
- * 4. Bounded Context Isolation: Clear module boundaries
- * 5. Scalability: Easy to add new commands, queries, and events
- *
- * Benefits:
- * - Clear separation of read and write operations
- * - Explicit event-driven communication
- * - Modular and maintainable codebase
- * - Easy to test and mock components
- * - Scalable architecture pattern
+ * Then, from a controller:
+ * ```typescript
+ * context.eventBus.publish(CreateNoteCommandEvent.set(payload), context);        // async command
+ * await notesModule.getQuery(GetMyNotesQueryHandler).executeWithContext(undefined, context); // query
+ * ```
  */
 
 import {
   Result,
-  DataSource,
-  QueriesService,
   QueryHandler,
   CommandEvent,
   EventBus,
@@ -117,7 +40,7 @@ type CommandModuleEvent = {
 type ModuleEvent = { event: typeof Event<unknown>; handlers: EventHandler<Event<unknown>>[] };
 type ModuleQuery = {
   name: string;
-  handler: QueryHandler<QueriesService<DataSource<unknown>>, unknown, Result<unknown>>;
+  handler: QueryHandler<unknown, unknown, Result<unknown>>;
 };
 
 type ModuleServices = Record<string, unknown>;
@@ -244,18 +167,16 @@ export class Module<
     if (command) {
       return command[0];
     } else {
-      throw 'Missing command';
+      throw new Error(`Missing command ${event.name}`);
     }
   }
 
-  getQuery(
-    handler: typeof QueryHandler<QueriesService<DataSource<unknown>>, unknown, Result<unknown>>,
-  ): QueryHandler<QueriesService<DataSource<unknown>>, unknown, Result<unknown>> {
-    const query = this.queries.find(query => query.name.toString() === handler.name)?.handler;
+  getQuery<H extends ModuleQuery['handler']>(handler: abstract new (...args: never[]) => H): H {
+    const query = this.queries.find(query => query.name === handler.name)?.handler;
     if (query) {
-      return query;
+      return query as H;
     } else {
-      throw 'Missing query';
+      throw new Error(`Missing query ${handler.name}`);
     }
   }
 }

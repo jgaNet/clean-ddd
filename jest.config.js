@@ -1,7 +1,10 @@
 import 'dotenv/config';
+import { createRequire } from 'module';
 import { pathsToModuleNameMapper } from 'ts-jest';
 
-import tsconfig from './tsconfig.json' assert { type: 'json' };
+// JSON import attributes (`with { type: 'json' }`) are not understood by the TypeScript
+// version behind eslint yet, and the older `assert` form was dropped by Node 22+.
+const tsconfig = createRequire(import.meta.url)('./tsconfig.json');
 
 const isCI = process.env.CI === 'true';
 

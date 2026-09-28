@@ -1,17 +1,39 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { CreateNoteReqBody } from '@Contexts/Notes/Presentation/API/REST/Routes/note.routes.schema';
-import { CreateNoteCommandEvent } from '@Contexts/Notes/Application/Commands/CreateNote/CreateNoteCommandEvent';
-import { NotesModuleQueries } from '@Contexts/Notes/Application/DTOs';
-import { GetNotesQueryHandler } from '@Contexts/Notes/Application/Queries/GetNotes/GetNotesQueryHandler';
-import { PresenterFactory } from '@SharedKernel/Domain/Services';
+
+import { Event, Exception, PresenterFactory, NotAllowedException } from '@SharedKernel/Domain';
+
+import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteExceptions';
+import { NotesModule } from '@Contexts/Notes/Application';
+import {
+  CreateNoteCommandEvent,
+  EditNoteCommandEvent,
+  ArchiveNoteCommandEvent,
+  RestoreNoteCommandEvent,
+  ShareNoteCommandEvent,
+} from '@Contexts/Notes/Application/Commands';
+import {
+  GetMyNotesQueryHandler,
+  GetNoteQueryHandler,
+  GetNotesSharedWithMeQueryHandler,
+} from '@Contexts/Notes/Application/Queries';
+import {
+  CreateNoteReqBody,
+  EditNoteReqBody,
+  NoteIdParams,
+  ShareNoteReqBody,
+} from '@Contexts/Notes/Presentation/API/REST/Routes/note.routes.schema';
 import { NewNoteHTMXPresenter } from '@Contexts/Notes/Presentation/Presenters';
 
+/**
+ * Commands are accepted (202) and processed asynchronously through the event bus; the
+ * client follows the returned operation. Queries answer synchronously.
+ */
 export class FastifyNoteController {
-  #queries: NotesModuleQueries;
+  #notesModule: NotesModule;
   #presenterFactory: PresenterFactory = new PresenterFactory();
 
-  constructor({ queries: ModuleQueries }: { queries: NotesModuleQueries }) {
-    this.#queries = ModuleQueries;
+  constructor({ module }: { module: NotesModule }) {
+    this.#notesModule = module;
     this.#presenterFactory.register({
       name: 'newNote',
       presenters: [{ format: 'htmx', presenter: new NewNoteHTMXPresenter() }],
@@ -19,74 +41,74 @@ export class FastifyNoteController {
   }
 
   async createNote(req: FastifyRequest<{ Body: CreateNoteReqBody }>, reply: FastifyReply) {
-    try {
-      // Get the execution context from the request
-      const context = req.executionContext;
-
-      // Log the operation start using the context
-      context.logger?.info('Creating a new note', {
-        traceId: context.traceId,
-        title: req.body.title,
-      });
-
-      // Create and dispatch the command using the context's event s
-      const operation = context.eventBus.publish(
-        CreateNoteCommandEvent.set({
-          content: req.body.content,
-          title: req.body.title,
-        }),
-        context,
-      );
-
-      reply.code(202);
-      return {
-        operationId: operation.id,
-      };
-    } catch (e) {
-      // Log the error using the context
-      req.executionContext.logger?.error('Error creating note', e, {
-        traceId: req.executionContext.traceId,
-        email: req.body.email,
-      });
-
-      reply.code(400);
-      return e;
-    }
+    return this.accept(req, reply, CreateNoteCommandEvent.set({ title: req.body.title, content: req.body.content }));
   }
 
-  async getNotes(req: FastifyRequest, reply: FastifyReply) {
-    try {
-      // Get the execution context from the request
-      const context = req.executionContext;
+  async editNote(req: FastifyRequest<{ Params: NoteIdParams; Body: EditNoteReqBody }>, reply: FastifyReply) {
+    return this.accept(
+      req,
+      reply,
+      EditNoteCommandEvent.set({ noteId: req.params.id, title: req.body.title, content: req.body.content }),
+    );
+  }
 
-      // Log the operation
-      context.logger?.info('Fetching all notes', {
-        traceId: context.traceId,
-      });
+  async archiveNote(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
+    return this.accept(req, reply, ArchiveNoteCommandEvent.set({ noteId: req.params.id }));
+  }
 
-      // Get the query handler
-      const query = this.#queries.find(q => q.name == GetNotesQueryHandler.name) as { handler: GetNotesQueryHandler };
+  async restoreNote(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
+    return this.accept(req, reply, RestoreNoteCommandEvent.set({ noteId: req.params.id }));
+  }
 
-      // Execute the query with context
-      const result = await query?.handler.executeWithContext(undefined, context);
+  async shareNote(req: FastifyRequest<{ Params: NoteIdParams; Body: ShareNoteReqBody }>, reply: FastifyReply) {
+    return this.accept(
+      req,
+      reply,
+      ShareNoteCommandEvent.set({ noteId: req.params.id, recipientId: req.body.recipientId }),
+    );
+  }
 
-      if (result?.isFailure()) {
-        throw result.error;
-      }
+  async getMyNotes(req: FastifyRequest, reply: FastifyReply) {
+    const result = await this.#notesModule
+      .getQuery(GetMyNotesQueryHandler)
+      .executeWithContext(undefined, req.executionContext);
 
-      return result?.data;
-    } catch (e) {
-      // Log the error
-      req.executionContext.logger?.error('Error fetching notes', e, {
-        traceId: req.executionContext.traceId,
-      });
+    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
+  }
 
-      reply.code(400);
-      return e;
-    }
+  async getNote(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
+    const result = await this.#notesModule
+      .getQuery(GetNoteQueryHandler)
+      .executeWithContext(req.params.id, req.executionContext);
+
+    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
+  }
+
+  async getNotesSharedWithMe(req: FastifyRequest, reply: FastifyReply) {
+    const result = await this.#notesModule
+      .getQuery(GetNotesSharedWithMeQueryHandler)
+      .executeWithContext(undefined, req.executionContext);
+
+    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
   }
 
   async newNotes() {
     return this.#presenterFactory.get({ name: 'newNote', format: 'htmx' })?.present();
+  }
+
+  private accept(req: FastifyRequest, reply: FastifyReply, command: Event<unknown>) {
+    const context = req.executionContext;
+    const operation = context.eventBus.publish(command, context);
+
+    reply.code(202);
+    return { operationId: operation.id };
+  }
+
+  private refuse(reply: FastifyReply, error: Exception) {
+    if (error instanceof NotAllowedException) reply.code(403);
+    else if (error instanceof NoteNotFoundException) reply.code(404);
+    else reply.code(400);
+
+    return { message: error.message };
   }
 }

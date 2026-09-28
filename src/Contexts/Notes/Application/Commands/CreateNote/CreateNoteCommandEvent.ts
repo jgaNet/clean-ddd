@@ -1,6 +1,3 @@
-import { CommandEvent, ExceptionEvent } from '@SharedKernel/Domain/Application';
-import { CreateNoteCommandPort } from '@Contexts/Notes/Application/DTOs';
-import { Exception } from '@SharedKernel/Domain/DDD';
+import { CommandEvent } from '@SharedKernel/Domain/Application';
 
-export class CreateNoteCommandEvent extends CommandEvent<CreateNoteCommandPort> {}
-export class CreateNoteCommandExceptionEvent extends ExceptionEvent<Exception> {}
+export class CreateNoteCommandEvent extends CommandEvent<{ title: string; content: string }> {}

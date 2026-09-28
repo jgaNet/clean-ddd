@@ -16,4 +16,79 @@ module.exports = {
 
     // 'import/extensions': ['error', 'ignorePackages', { js: 'always', jsx: 'never', ts: 'never', tsx: 'never' }],
   },
+
+  // Architecture boundaries: Presentation -> Infrastructure -> Application -> Domain, never the other way.
+  // Imports are matched on their path alias, which is also why relative imports across layers are not allowed.
+  overrides: [
+    {
+      files: ['src/Contexts/*/Domain/**/*.ts'],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              {
+                group: [
+                  '@Contexts/*/Application/**',
+                  '**/Infrastructure/**',
+                  '**/Presentation/**',
+                  '@Bootstrap/**',
+                  'fastify',
+                ],
+                message: 'The Domain layer depends on nothing outside the Domain.',
+              },
+            ],
+          },
+        ],
+      },
+    },
+    {
+      files: ['src/Contexts/*/Application/**/*.ts'],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              {
+                group: ['**/Infrastructure/**', '**/Presentation/**', '@Bootstrap/**', 'fastify'],
+                message: 'The Application layer may only depend on the Domain.',
+              },
+            ],
+          },
+        ],
+      },
+    },
+    {
+      files: ['src/Contexts/*/Application/**/*.spec.ts'],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              {
+                group: ['**/Presentation/**', '@Bootstrap/**', 'fastify'],
+                message: 'Application tests may use in-memory Infrastructure as test doubles, nothing further out.',
+              },
+            ],
+          },
+        ],
+      },
+    },
+    {
+      files: ['src/Contexts/*/Infrastructure/**/*.ts'],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              {
+                group: ['**/Presentation/**', '@Bootstrap/**'],
+                message: 'The Infrastructure layer does not depend on Presentation or Bootstrap.',
+              },
+            ],
+          },
+        ],
+      },
+    },
+  ],
 };

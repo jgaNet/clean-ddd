@@ -1,7 +1,14 @@
-import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
-import { Repository } from '@SharedKernel/Domain/DDD';
+import { Note } from '@Contexts/Notes/Domain/Note/Note';
 
-export interface INoteRepository extends Repository<INote> {
-  nextIdentity(): Promise<string>;
-  save(user: INote): Promise<void>;
+/**
+ * The repository is the write side of persistence. It speaks in aggregates: it gives
+ * you a Note back, and it takes a Note in. How and where it is stored is not the
+ * domain's concern; the infrastructure layer provides an implementation.
+ *
+ * It deliberately has no "search" method (listing and filtering belong to INoteQueries)
+ * and no "next identity" method (the aggregate generates its own id in Note.create()).
+ */
+export interface INoteRepository {
+  findById(id: string): Promise<Note | null>;
+  save(note: Note): Promise<void>;
 }
