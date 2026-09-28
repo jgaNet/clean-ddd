@@ -1,5 +1,6 @@
 export * from '../Application/Result';
 export * from './Entity';
+export * from './AggregateRoot';
 export * from './Event';
 export * from './Exception';
 export * from './Presenter';

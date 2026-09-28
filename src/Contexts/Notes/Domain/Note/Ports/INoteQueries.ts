@@ -1,8 +1,35 @@
-import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
-import { Repository } from '@SharedKernel/Domain/DDD';
+import { NoteStatus } from '@Contexts/Notes/Domain/Note/NoteStatus';
 
-export interface INoteQueries extends Repository<INote> {
-  findAll(): Promise<INote[]>;
-  findById(id: string): Promise<INote | null>;
-  findByOwnerId(ownerId: string): Promise<INote | null>;
+/**
+ * Read models: the shapes a screen or an API wants to display. They are plain data,
+ * tailored to a use case, and they never come back into the domain.
+ */
+export interface NoteListItem {
+  id: string;
+  title: string;
+  status: NoteStatus;
+}
+
+export interface NoteDetail extends NoteListItem {
+  ownerId: string;
+  content: string;
+  sharedWith: string[];
+}
+
+export interface SharedNoteListItem {
+  id: string;
+  title: string;
+  content: string;
+  ownerId: string;
+}
+
+/**
+ * The queries port is the read side (the "Q" of CQRS). It returns read models, not
+ * aggregates, so the read side is free to be shaped, indexed and cached however the
+ * screens need, without dragging the business rules along.
+ */
+export interface INoteQueries {
+  findById(noteId: string): Promise<NoteDetail | null>;
+  findByOwner(ownerId: string): Promise<NoteListItem[]>;
+  findSharedWith(accountId: string): Promise<SharedNoteListItem[]>;
 }

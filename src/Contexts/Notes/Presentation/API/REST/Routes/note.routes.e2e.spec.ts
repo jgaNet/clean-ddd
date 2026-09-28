@@ -25,14 +25,46 @@ describe('POST notes/', () => {
     expect(res.body.operationId).toEqual(expect.any(String));
   });
 
-  it('should return the created note', async () => {
+  it('should list the created note', async () => {
     const res = await agent.get(`${SETTINGS.apiUrl}/notes`);
     expect(res.status).toBe(200);
     expect(res.body[0]).toEqual({
-      _id: expect.any(String),
-      ownerId: expect.any(String),
+      id: expect.any(String),
       title: 'title',
-      content: 'content',
+      status: 'ACTIVE',
     });
+  });
+
+  it('should return the created note in full', async () => {
+    const list = await agent.get(`${SETTINGS.apiUrl}/notes`);
+    const res = await agent.get(`${SETTINGS.apiUrl}/notes/${list.body[0].id}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      id: list.body[0].id,
+      title: 'title',
+      status: 'ACTIVE',
+      ownerId: expect.any(String),
+      content: 'content',
+      sharedWith: [],
+    });
+  });
+});
+
+describe('POST notes/:id/archive', () => {
+  it('should archive the note', async () => {
+    const list = await agent.get(`${SETTINGS.apiUrl}/notes`);
+    const res = await agent.post(`${SETTINGS.apiUrl}/notes/${list.body[0].id}/archive`);
+    expect(res.status).toBe(202);
+
+    const after = await agent.get(`${SETTINGS.apiUrl}/notes/${list.body[0].id}`);
+    expect(after.body.status).toBe('ARCHIVED');
+  });
+});
+
+describe('GET notes/:id', () => {
+  it('should return 404 for an unknown note', async () => {
+    let status: number | undefined;
+    await agent.get(`${SETTINGS.apiUrl}/notes/does-not-exist`).catch(err => (status = err.status));
+    expect(status).toBe(404);
   });
 });

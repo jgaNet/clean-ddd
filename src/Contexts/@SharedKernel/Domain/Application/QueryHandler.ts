@@ -1,71 +1,16 @@
 /**
- * QueryHandler is a primitive abstract class that implements the Query part of CQRS
- * (Command Query Responsibility Segregation) pattern in the application.
+ * QueryHandler is the base class of every read use case (the "Q" of CQRS).
  *
- * This class provides a standardized way to handle read operations, working in
- * conjunction with QueriesService to access data sources.
+ * A query never changes state. It asks a queries port (T) for a read model and returns it.
+ * Because it does not go through aggregates, the read side can be shaped for the screen,
+ * denormalized, cached or served from a different store than the write side.
  *
- * Key characteristics:
- * - Generic types for type-safe query handling:
- *   T: QueriesService type
- *   P: Query payload type
- *   R: Result type extending ResultValue
- * - Separation of read operations from write operations
- * - Async execution support
+ * Like CommandHandler, the base class takes care of the guard (authorization) and logging,
+ * so a concrete handler only writes `execute()`.
  *
- * Core features:
- * - Protected queriesService for data access
- * - Abstract execute method for query implementation
- * - Type-safe result handling through ResultValue
- *
- * Usage examples:
- * ```typescript
- * // Define a query payload type
- * interface GetUserByIdQuery {
- *   id: string;
- * }
- *
- * // Define a query handler implementation
- * class GetUserByIdQueryHandler extends QueryHandler<
- *   UserQueriesService,
- *   GetUserByIdQuery,
- *   Result<UserDTO>
- * > {
- *   constructor(queriesService: UserQueriesService) {
- *     super(queriesService);
- *   }
- *
- *   async execute(query: GetUserByIdQuery): Promise<Result<UserDTO>> {
- *     try {
- *       const user = await this.queriesService.findById(query.id);
- *       if (!user) return Result.fail(new UserNotFoundError());
- *       return Result.ok(UserMapper.toDTO(user));
- *     } catch (error) {
- *       return Result.fail(error);
- *     }
- *   }
- * }
- *
- * // Usage in a controller
- * const userResult = await getUserByIdQueryHandler.execute({ id: '123' });
- * if (userResult.isSuccess()) {
- *   return userResult.data;
- * }
- * ```
- *
- * Project Examples:
- * - GetUsersQueryHandler: Retrieves user lists
- * - GetOperationsHandler: Retrieves operations data
- *
- * Related components:
- * - {@link CommandHandler} - Handles write operations in CQRS
- * - {@link QueriesService} - Provides data access methods
- * - {@link Result} - Wraps query results with success/failure information
- * - {@link Module} - Registers and resolves query handlers
+ * Example: Contexts/Notes/Application/Queries/GetMyNotes/GetMyNotesQueryHandler.ts
  */
 
-import { QueriesService } from '@SharedKernel/Domain/DDD';
-import { DataSource } from '@SharedKernel/Domain/Services';
 import { IResult, Result } from './Result';
 import { ExecutionContext } from './ExecutionContext';
 
@@ -76,7 +21,7 @@ import { ExecutionContext } from './ExecutionContext';
  * @template P The query payload type (parameters for the query)
  * @template R The result type, which must extend IResult
  */
-export abstract class QueryHandler<T extends QueriesService<DataSource<unknown>>, P, R extends IResult<unknown>> {
+export abstract class QueryHandler<T, P, R extends IResult<unknown>> {
   /**
    * The queries service instance used to access data
    */
@@ -111,11 +56,15 @@ export abstract class QueryHandler<T extends QueriesService<DataSource<unknown>>
         });
       }
 
-      // Execute the guard
+      // A refused query is a normal outcome, reported like any other failure (not thrown).
       if (context?.auth) {
         const guardResult = await this.guard(payload, context);
         if (guardResult.isFailure()) {
-          throw guardResult.error;
+          context.logger?.warn(`Query refused: ${this.constructor.name}`, {
+            traceId: context.traceId,
+            error: guardResult.error,
+          });
+          return guardResult as R;
         }
       }
 
@@ -165,7 +114,7 @@ export abstract class QueryHandler<T extends QueriesService<DataSource<unknown>>
    * @param auth Optional execution context
    * @returns A promise resolving to the query result
    */
-  protected async guard(_?: P, __?: ExecutionContext): Promise<IResult> {
+  protected async guard(_?: P, __?: ExecutionContext): Promise<IResult<unknown>> {
     return Result.ok();
   }
 }

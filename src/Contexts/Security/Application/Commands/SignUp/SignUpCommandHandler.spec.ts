@@ -1,7 +1,5 @@
 import { expect, jest } from '@jest/globals';
 import { mockSecurityModule, mockAccountRepository } from '@Contexts/Security/module.mock';
-import { MockedNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/MockedNoteRepository';
-import { MockedNoteQueries } from '@Contexts/Notes/Infrastructure/Queries/MockedNoteQueries';
 import { Role, EventBus, ExecutionContext, InvalidEmailFormat } from '@SharedKernel/Domain';
 import { SignUpCommandEvent } from '@Contexts/Security/Application/Commands';
 
@@ -13,8 +11,6 @@ const eventBusMock = {
 
 beforeEach(() => {
   jest.resetAllMocks();
-  MockedNoteRepository.clearMocks();
-  MockedNoteQueries.clearMocks();
 });
 
 describe('how to create an account', function () {

@@ -1,25 +1,33 @@
-import { Event, EventHandler, CommandHandler, IResult } from '@SharedKernel/Domain';
-import { NoteCreatedEvent } from '@Contexts/Notes/Domain/Note';
-import { CreateNoteCommandEvent } from '@Contexts/Notes/Application/Commands/CreateNote';
-import { GetNotesQueryHandler } from '@Contexts/Notes/Application/Queries/GetNotes';
-import { INote } from '@Contexts/Notes/Domain/Note';
-import { INewNote } from '@Contexts/Notes/Domain/Note/DTOs';
+import { CommandHandler, EventHandler } from '@SharedKernel/Domain';
 
-export type CreateNoteCommandPort = Omit<INewNote, 'ownerId'>;
-export type GetNotesQueryResult = IResult<INote[]>;
-
-export type Subscription<T> = { event: Event<T>; handlers: EventHandler<Event<T>>[] };
-export type Subscriptions<T> = Subscription<T>[];
-
-export type ModuleSubscriptions = {
-  domain: Subscriptions<unknown>;
-};
+import { NoteCreatedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
+import {
+  CreateNoteCommandEvent,
+  EditNoteCommandEvent,
+  ArchiveNoteCommandEvent,
+  RestoreNoteCommandEvent,
+  ShareNoteCommandEvent,
+} from '@Contexts/Notes/Application/Commands';
+import {
+  GetMyNotesQueryHandler,
+  GetNoteQueryHandler,
+  GetNotesSharedWithMeQueryHandler,
+} from '@Contexts/Notes/Application/Queries';
 
 export type NotesModuleCommands = [
   { event: typeof CreateNoteCommandEvent; handlers: CommandHandler<CreateNoteCommandEvent>[] },
+  { event: typeof EditNoteCommandEvent; handlers: CommandHandler<EditNoteCommandEvent>[] },
+  { event: typeof ArchiveNoteCommandEvent; handlers: CommandHandler<ArchiveNoteCommandEvent>[] },
+  { event: typeof RestoreNoteCommandEvent; handlers: CommandHandler<RestoreNoteCommandEvent>[] },
+  { event: typeof ShareNoteCommandEvent; handlers: CommandHandler<ShareNoteCommandEvent>[] },
 ];
 
-export type NotesModuleQueries = [{ name: typeof GetNotesQueryHandler.name; handler: GetNotesQueryHandler }];
+export type NotesModuleQueries = [
+  { name: typeof GetMyNotesQueryHandler.name; handler: GetMyNotesQueryHandler },
+  { name: typeof GetNoteQueryHandler.name; handler: GetNoteQueryHandler },
+  { name: typeof GetNotesSharedWithMeQueryHandler.name; handler: GetNotesSharedWithMeQueryHandler },
+];
+
 export type NotesModuleDomainEvents = [{ event: typeof NoteCreatedEvent; handlers: EventHandler<NoteCreatedEvent>[] }];
 export type NotesModuleIntegrationEvents = [];
 export type NotesModuleServices = Record<string, unknown>;

@@ -1,24 +1,14 @@
 /**
- * Entity is a fundamental primitive class that serves as the base for all domain entities in the application.
+ * Entity: an object defined by its identity, not by its attributes.
  *
- * This class implements the concept of Entity from Domain-Driven Design (DDD), where entities
- * are distinguished by their identity rather than their attributes.
+ * Two entities with the same id are the same thing even if their fields differ; two with
+ * different ids are different things even if every field matches. That is what `equals()`
+ * expresses. The id is immutable for the whole life of the object.
  *
- * Key characteristics:
- * - Provides a unique identifier (_id) for each entity instance
- * - Uses private class fields (#_id) for encapsulation
- * - Implements equality comparison based on identity
- * - Follows DDD principles for entity identification
+ * Most of the time you will extend AggregateRoot rather than Entity directly: the root is
+ * the entity through which the rest of its aggregate is reached.
  *
- * Core features:
- * - Immutable ID: Once set, the entity's ID cannot be changed
- * - Identity comparison: equals() method for comparing entities based on their IDs
- * - Getter access: Controlled access to the entity's ID
- *
- * Usage:
- * All domain entities should extend this base class to inherit
- * standard identity management and comparison capabilities
- * (e.g., User extends Entity, Product extends Entity).
+ * Example: Contexts/Notes/Domain/Note/Note.ts
  */
 
 import { Id } from '../Utils';

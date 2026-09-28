@@ -5,6 +5,7 @@ import { IEventEmitter } from '@SharedKernel/Domain/Services/EventEmitter';
 import { Notification } from '@Contexts/Notifications/Domain/Notification/Notification';
 import { Logger, Role } from '@SharedKernel/Domain';
 import { WebSocket } from 'ws';
+// eslint-disable-next-line no-restricted-imports -- pre-existing: HTML rendering belongs to a Presenter, not to the transport service
 import { html } from '@Contexts/@SharedKernel/Presentation/Templates';
 
 export interface WebSocketClientMap {

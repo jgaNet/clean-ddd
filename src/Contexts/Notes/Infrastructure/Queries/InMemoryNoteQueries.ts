@@ -1,24 +1,43 @@
-import { INoteQueries } from '@Contexts/Notes/Domain/Note/Ports/INoteQueries';
-import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
-import { Nullable } from '@SharedKernel/Domain/Utils';
+
+import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
+import {
+  INoteQueries,
+  NoteDetail,
+  NoteListItem,
+  SharedNoteListItem,
+} from '@Contexts/Notes/Domain/Note/Ports/INoteQueries';
 
 export class InMemoryNoteQueries implements INoteQueries {
-  dataSource: InMemoryDataSource<INote>;
+  constructor(private dataSource: InMemoryDataSource<INote>) {}
 
-  constructor(dataSource: InMemoryDataSource<INote>) {
-    this.dataSource = dataSource;
+  async findById(noteId: string): Promise<NoteDetail | null> {
+    const note = this.dataSource.collection.get(noteId);
+    if (!note) return null;
+
+    return {
+      id: note._id,
+      title: note.title,
+      status: note.status,
+      ownerId: note.ownerId,
+      content: note.content,
+      sharedWith: [...note.sharedWith],
+    };
   }
 
-  async findByOwnerId(ownerId: string): Promise<Nullable<INote>> {
-    return [...this.dataSource.collection.values()].find(note => note.ownerId === ownerId) || null;
+  async findByOwner(ownerId: string): Promise<NoteListItem[]> {
+    return this.all()
+      .filter(note => note.ownerId === ownerId)
+      .map(note => ({ id: note._id, title: note.title, status: note.status }));
   }
 
-  async findById(id: string): Promise<Nullable<INote>> {
-    return this.dataSource.collection.get(id) || null;
+  async findSharedWith(accountId: string): Promise<SharedNoteListItem[]> {
+    return this.all()
+      .filter(note => note.sharedWith.includes(accountId))
+      .map(note => ({ id: note._id, title: note.title, content: note.content, ownerId: note.ownerId }));
   }
 
-  async findAll(): Promise<INote[]> {
+  private all(): INote[] {
     return [...this.dataSource.collection.values()];
   }
 }

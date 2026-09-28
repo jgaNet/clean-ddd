@@ -6,7 +6,6 @@ import {
   IEventEmitter,
   ExecutionContext,
   IOperation,
-  OperationStatus,
 } from '@SharedKernel/Domain';
 import { ITrackedOperationRepository, TrackedOperation } from '@Contexts/Tracker/Domain/TrackedOperation';
 import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
