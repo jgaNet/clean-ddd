@@ -127,10 +127,9 @@ export class FastifyAuthController {
       const loginCommand = LoginCommandEvent.set({ identifier, password });
 
       // Execute login command through the security module
-      const loginResult = await (this.#securityModule.getCommand(LoginCommandEvent) as LoginCommandHandler).execute(
-        loginCommand,
-        req.executionContext,
-      );
+      const loginResult = await this.#securityModule
+        .getCommand(LoginCommandHandler)
+        .execute(loginCommand, req.executionContext);
 
       if (loginResult.isFailure()) {
         return reply.code(200).send(notAllowedPresenter?.present(loginResult.error));

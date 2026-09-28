@@ -11,10 +11,6 @@ export class RestoreNoteCommandHandler extends CommandHandler<RestoreNoteCommand
     super();
   }
 
-  protected async guard(_: RestoreNoteCommandEvent, context: ExecutionContext): Promise<IResult<unknown>> {
-    return requireSignedIn(context);
-  }
-
   async execute({ payload }: RestoreNoteCommandEvent, context: ExecutionContext): Promise<IResult> {
     const actor = requireSignedIn(context);
     if (actor.isFailure()) return actor;

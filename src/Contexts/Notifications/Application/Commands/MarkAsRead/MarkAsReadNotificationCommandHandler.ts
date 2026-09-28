@@ -10,10 +10,6 @@ export class MarkAsReadNotificationCommandHandler extends CommandHandler<MarkAsR
     super();
   }
 
-  protected async guard(_: MarkAsReadNotificationCommandEvent, context: ExecutionContext): Promise<IResult<unknown>> {
-    return requireSignedIn(context, 'Notifications');
-  }
-
   async execute({ payload }: MarkAsReadNotificationCommandEvent, context: ExecutionContext): Promise<IResult> {
     const reader = requireSignedIn(context, 'Notifications');
     if (reader.isFailure()) return reader;

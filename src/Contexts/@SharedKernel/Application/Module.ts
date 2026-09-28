@@ -90,12 +90,13 @@ export class Module {
     }
   }
 
-  getCommand(event: typeof CommandEvent<unknown>): CommandHandler<CommandEvent<unknown>> {
-    const handler = this.commands.find(command => command.event.name === event.name)?.handlers[0];
-    if (!handler) {
-      throw new Error(`Missing command ${event.name} in module ${this.name}`);
+  /** For the rare command a caller runs synchronously instead of publishing it (see Login). */
+  getCommand<H extends CommandHandler<CommandEvent<unknown>>>(handler: new (...args: never[]) => H): H {
+    const found = this.commands.flatMap(command => command.handlers).find(candidate => candidate instanceof handler);
+    if (!found) {
+      throw new Error(`Missing command handler ${handler.name} in module ${this.name}`);
     }
-    return handler;
+    return found as H;
   }
 
   getQuery<H extends AnyQueryHandler>(handler: new (...args: never[]) => H): H {

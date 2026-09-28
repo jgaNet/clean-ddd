@@ -12,10 +12,6 @@ export class ShareNoteCommandHandler extends CommandHandler<ShareNoteCommandEven
     super();
   }
 
-  protected async guard(_: ShareNoteCommandEvent, context: ExecutionContext): Promise<IResult<unknown>> {
-    return requireSignedIn(context);
-  }
-
   async execute({ payload }: ShareNoteCommandEvent, context: ExecutionContext): Promise<IResult> {
     const actor = requireSignedIn(context);
     if (actor.isFailure()) return actor;
