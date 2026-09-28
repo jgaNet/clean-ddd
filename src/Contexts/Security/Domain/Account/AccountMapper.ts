@@ -1,8 +1,7 @@
-import { Mapper } from '@SharedKernel/Domain/DDD';
 import { Account } from './Account';
 import { IAccount } from './DTOs';
 
-export class AccountMapper implements Mapper<Account, IAccount> {
+export class AccountMapper {
   toEntity(dto: IAccount): Account {
     const account = Account.create({
       subjectId: dto.subjectId,
