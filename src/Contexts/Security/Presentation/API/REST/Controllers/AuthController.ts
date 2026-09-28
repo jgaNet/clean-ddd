@@ -1,90 +1,55 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import {
-  BasicLoginReqBody,
-  BasicSignUpReqBody,
-} from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes.schema';
 
+import { NotAllowedException } from '@SharedKernel/Domain';
 import { Module } from '@SharedKernel/Application';
+import { formatOf, present } from '@SharedKernel/Presentation/Format';
+
 import { IJwtService } from '@Contexts/Security/Domain/Auth/Ports/IJwtService';
+import { InvalidTokenException } from '@Contexts/Security/Domain/Auth/Exceptions/InvalidTokenException';
 import {
   LoginCommandEvent,
   LoginCommandHandler,
   SignUpCommandEvent,
   ValidateAccountCommandEvent,
 } from '@Contexts/Security/Application/Commands';
-
 import { GetAccountQueryHandler } from '@Contexts/Security/Application/Queries';
-import { InvalidTokenException } from '@Contexts/Security/Domain/Auth/Exceptions/InvalidTokenException';
-import { NotAllowedException } from '@SharedKernel/Domain';
-
-import { PresenterFactory } from '@SharedKernel/Presentation/PresenterFactory';
 import {
-  LoginHTMXPresenter,
+  BasicLoginReqBody,
+  BasicSignUpReqBody,
+} from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes.schema';
+import {
+  ErrorHTMXPresenter,
+  ErrorJSONPresenter,
   LoggedInHTMXPresenter,
   LoggedInJSONPresenter,
+  LoginHTMXPresenter,
   LogoutJSONPresenter,
   MeHTMXPresenter,
   MeJSONPresenter,
-  ErrorJSONPresenter,
-  ErrorHTMXPresenter,
 } from '@Contexts/Security/Presentation/Presenters/Auth';
+
+/** The same use case answered in two formats; which one is decided per request from the headers. */
+const presenters = {
+  loggedIn: { json: new LoggedInJSONPresenter(), htmx: new LoggedInHTMXPresenter() },
+  me: { json: new MeJSONPresenter(), htmx: new MeHTMXPresenter() },
+  loggedOut: { json: new LogoutJSONPresenter(), htmx: new LoginHTMXPresenter() },
+  error: { json: new ErrorJSONPresenter(), htmx: new ErrorHTMXPresenter() },
+  // For the HTMX front end, "not signed in" is answered with the login form itself.
+  signInAgain: { json: new ErrorJSONPresenter(), htmx: new LoginHTMXPresenter() },
+};
 
 export class FastifyAuthController {
   #securityModule: Module;
   #jwtService: IJwtService;
-  #presenterFactory: PresenterFactory = new PresenterFactory();
 
   constructor({ module, jwtService }: { module: Module; jwtService: IJwtService }) {
     this.#securityModule = module;
     this.#jwtService = jwtService;
-    this.#presenterFactory.register({
-      name: 'getApiMe',
-      presenters: [
-        { format: 'json', presenter: new MeJSONPresenter() },
-        { format: 'htmx', presenter: new MeHTMXPresenter() },
-      ],
-    });
-
-    this.#presenterFactory.register({
-      name: 'getApiLogout',
-      presenters: [
-        { format: 'json', presenter: new LogoutJSONPresenter() },
-        { format: 'htmx', presenter: new LoginHTMXPresenter() },
-      ],
-    });
-
-    this.#presenterFactory.register({
-      name: 'getApiLogin',
-      presenters: [
-        { format: 'json', presenter: new LoggedInJSONPresenter() },
-        { format: 'htmx', presenter: new LoggedInHTMXPresenter() },
-      ],
-    });
-
-    this.#presenterFactory.register({
-      name: 'getApiNotAllowedException',
-      presenters: [
-        { format: 'json', presenter: new ErrorJSONPresenter() },
-        { format: 'htmx', presenter: new LoginHTMXPresenter() },
-      ],
-    });
-
-    this.#presenterFactory.register({
-      name: 'getApiError',
-      presenters: [
-        { format: 'json', presenter: new ErrorJSONPresenter() },
-        { format: 'htmx', presenter: new ErrorHTMXPresenter() },
-      ],
-    });
   }
 
   async signUp(req: FastifyRequest<{ Body: BasicSignUpReqBody }>, reply: FastifyReply) {
     const context = req.executionContext;
-
-    context.logger?.info('Creating new account', {
-      traceId: context.traceId,
-      email: req.body.identifier,
-    });
+    context.logger?.info('Creating new account', { traceId: context.traceId, email: req.body.identifier });
 
     // The password is hashed by the handler, behind the IPasswordHasher port.
     const operation = context.eventBus.publish(
@@ -92,96 +57,61 @@ export class FastifyAuthController {
       context,
     );
 
-    return reply.code(200).send({
-      operationId: operation.id,
-    });
+    return reply.code(200).send({ operationId: operation.id });
   }
 
   async validate(req: FastifyRequest<{ Querystring: { validation_token: string } }>, reply: FastifyReply) {
     const context = req.executionContext;
 
-    // WARNING : This is not the best way to do it. Maybe should i move it the command handler.
     const decodedToken = await this.#jwtService.verify(req.query.validation_token);
     if (!decodedToken) {
-      return reply.code(401).send({
-        error: new InvalidTokenException('Not allowed', context).message,
-      });
+      return reply.code(401).send({ error: new InvalidTokenException('Not allowed', context).message });
     }
 
     const operation = context.eventBus.publish(ValidateAccountCommandEvent.set(decodedToken), context);
 
-    return reply.code(200).send({
-      operationId: operation.id,
-    });
+    return reply.code(200).send({ operationId: operation.id });
   }
 
+  /** Login answers synchronously: the client needs the token, so the command is executed here, not published. */
   async login(req: FastifyRequest<{ Body: BasicLoginReqBody }>, reply: FastifyReply) {
-    const format = req.headers['hx-request'] ? 'htmx' : 'json';
-    const errorPresenter = this.#presenterFactory.get({ name: 'getApiError', format });
-    const notAllowedPresenter = this.#presenterFactory.get({ name: 'getApiNotAllowedException', format });
-    const presenter = this.#presenterFactory.get({ name: 'getApiLogin', format });
-    try {
-      const { identifier, password } = req.body as { identifier: string; password: string };
+    const format = formatOf(req);
+    const { identifier, password } = req.body;
 
-      // Create login command
-      const loginCommand = LoginCommandEvent.set({ identifier, password });
+    const loginResult = await this.#securityModule
+      .getCommand(LoginCommandHandler)
+      .execute(LoginCommandEvent.set({ identifier, password }), req.executionContext);
 
-      // Execute login command through the security module
-      const loginResult = await this.#securityModule
-        .getCommand(LoginCommandHandler)
-        .execute(loginCommand, req.executionContext);
-
-      if (loginResult.isFailure()) {
-        return reply.code(200).send(notAllowedPresenter?.present(loginResult.error));
-      }
-
-      reply.setCookie('token', loginResult.data.token, {
-        path: '/',
-        httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
-      });
-
-      return presenter?.present(loginResult.data);
-    } catch {
-      return reply.code(500).send(errorPresenter?.present({ message: 'Unexpected error' }));
+    if (loginResult.isFailure()) {
+      return reply.code(401).send(present(presenters.error, format, { message: loginResult.error.message }));
     }
+
+    reply.setCookie('token', loginResult.data.token, { path: '/', httpOnly: true, secure: true, sameSite: 'strict' });
+    return present(presenters.loggedIn, format, loginResult.data);
   }
 
   async me(req: FastifyRequest, reply: FastifyReply) {
-    const format = req.headers['hx-request'] ? 'htmx' : 'json';
+    const format = formatOf(req);
 
-    const presenter = this.#presenterFactory.get({ name: 'getApiMe', format });
-    const notAllowedPresenter = this.#presenterFactory.get({ name: 'getApiNotAllowedException', format });
-    const errorPresenter = this.#presenterFactory.get({ name: 'getApiError', format });
+    const meResult = await this.#securityModule
+      .getQuery(GetAccountQueryHandler)
+      .handle(req.executionContext.auth.subjectId ?? '', req.executionContext);
 
-    try {
-      const meResult = await this.#securityModule
-        .getQuery(GetAccountQueryHandler)
-        .handle(req.executionContext.auth.subjectId ?? '', req.executionContext);
-
-      if (meResult.isFailure()) {
-        throw meResult.error;
+    if (meResult.isFailure()) {
+      const message = { message: meResult.error.message };
+      if (meResult.error instanceof NotAllowedException) {
+        // HTMX swaps the login form back in; an API client gets a 401.
+        if (format === 'htmx') return present(presenters.signInAgain, format, message);
+        return reply.code(401).send(present(presenters.signInAgain, format, message));
       }
-
-      return presenter?.present(meResult.data);
-    } catch (error) {
-      if (error instanceof NotAllowedException) {
-        if (format === 'htmx') {
-          return notAllowedPresenter?.present(error);
-        }
-
-        return reply.code(401).send(notAllowedPresenter?.present(error));
-      }
-
-      return reply.code(500).send(errorPresenter?.present('An error occurred'));
+      return reply.code(400).send(present(presenters.error, format, message));
     }
+
+    return present(presenters.me, format, meResult.data);
   }
 
   async logout(req: FastifyRequest, reply: FastifyReply) {
-    const format = req.headers['hx-request'] ? 'htmx' : 'json';
     reply.clearCookie('token');
-
-    return this.#presenterFactory.get({ name: 'getApiLogout', format })?.present({ message: 'Logout successful' });
+    return present(presenters.loggedOut, formatOf(req), { message: 'Logout successful' });
   }
 }

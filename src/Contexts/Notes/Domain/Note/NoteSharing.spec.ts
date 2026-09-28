@@ -1,4 +1,4 @@
-import { Id } from '@SharedKernel/Domain/Utils';
+import { Id } from '@SharedKernel/Domain/ValueObjects';
 
 import { Note } from '@Contexts/Notes/Domain/Note/Note';
 import { NoteSharing } from '@Contexts/Notes/Domain/Note/NoteSharing';
