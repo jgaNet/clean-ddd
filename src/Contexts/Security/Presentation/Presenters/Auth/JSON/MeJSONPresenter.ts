@@ -1,5 +1,5 @@
 import { Presenter } from '@SharedKernel/Presentation/Presenter';
-import { AccountViewModel } from '../ViewModels';
+import { AccountViewModel } from '@Contexts/Security/Presentation/Presenters/Auth/ViewModels';
 
 export class MeJSONPresenter implements Presenter<AccountViewModel, object> {
   present(data: AccountViewModel): object {

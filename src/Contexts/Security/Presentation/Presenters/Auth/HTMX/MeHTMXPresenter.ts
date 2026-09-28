@@ -1,5 +1,5 @@
 import { Presenter } from '@SharedKernel/Presentation/Presenter';
-import { AccountViewModel } from '../ViewModels';
+import { AccountViewModel } from '@Contexts/Security/Presentation/Presenters/Auth/ViewModels';
 import { html } from '@SharedKernel/Presentation/Templates';
 
 export class MeHTMXPresenter implements Presenter<AccountViewModel, string> {

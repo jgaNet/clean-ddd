@@ -11,7 +11,7 @@
  * Example: Contexts/Notes/Domain/Note/Note.ts
  */
 
-import { Id } from '../ValueObjects';
+import { Id } from '@SharedKernel/Domain/ValueObjects';
 
 export class Entity {
   readonly #_id: Id;

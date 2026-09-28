@@ -14,7 +14,7 @@ yarn test -- -t "name"  # one test
 yarn format             # prettier
 ```
 
-Node ≥ 20 (`.nvmrc` = 22). All three of `yarn typecheck`, `yarn lint`, `yarn test:units` must pass before a change is done; CI runs them on every PR.
+Node ≥ 20 (`.nvmrc` = 22). All four of `yarn typecheck`, `yarn lint`, `yarn test:units`, `yarn test:e2e` must pass before a change is done; CI runs them on every PR.
 
 ## Where things are
 
@@ -33,11 +33,11 @@ src/Contexts/<Context>/
   module.local.ts                 wiring
 ```
 
-Path aliases: `@SharedKernel/*`, `@Contexts/*`, `@Bootstrap/*`. **Never** relative paths across directories (`../../`); the boundary rules match on aliases.
+Path aliases: `@SharedKernel/*`, `@Contexts/*`, `@Bootstrap/*`. A relative import may only name a sibling file (`./NoteStatus`); anything across directories uses an alias. ESLint enforces it, because the boundary rules match on aliases.
 
 ## The rules (enforced)
 
-- **Dependencies point inward.** Domain imports nothing but `@SharedKernel/Domain`. Application imports Domain and `@SharedKernel/Application`. Infrastructure and Presentation may import both. Nothing imports Bootstrap. ESLint `no-restricted-imports` fails the build otherwise; a pre-existing exception carries `// eslint-disable-next-line no-restricted-imports -- <reason>`. Do not add new ones.
+- **Dependencies point inward, and contexts stay apart.** Domain imports nothing but its own Domain and `@SharedKernel/Domain`. Application adds its own Application and `@SharedKernel/Application` (integration events included). Infrastructure implements its own ports and may read another context's Domain (ports, read models) for an adapter. Presentation talks to its own Application and Domain. Only `module.local.ts` imports another context's wiring, and only it reads Bootstrap's settings. ESLint `no-restricted-imports` fails the build otherwise, per context and per layer; there is no exception and none may be added — a violation is fixed with a port, an integration event or a move, never with `eslint-disable`.
 - **Expected failures are `Result` values, never thrown** (`IResult<T>` in signatures, `Result.ok()` / `Result.fail(exception)` to build). `throw` only for programming errors and corrupted state.
 - **Only an aggregate root records domain events** (`this.record(...)` inside a behaviour). Handlers never construct a domain event; they call `this.publishDomainEvents(aggregate, context)` after saving, and the base class publishes after commit.
 - **Creation vs reconstitution:** `create()` / `register()` validates and records an event; `fromSnapshot()` records nothing and throws on corrupted data.

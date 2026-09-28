@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { HomeController } from '../Controllers/HomeController';
+import { HomeController } from '@SharedKernel/Presentation/API/REST/Controllers/HomeController';
 
 export const GetHomeResSchema = {
   200: {

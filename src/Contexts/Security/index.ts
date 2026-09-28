@@ -1,9 +1,9 @@
 // Domain
-export * from './Domain/Account/Account';
-export * from './Domain/Account/DTOs';
+export * from '@Contexts/Security/Domain/Account/Account';
+export * from '@Contexts/Security/Domain/Account/DTOs';
 
 // Presentation
-export * from './Presentation/API/REST/Middlewares/FastifyJWTAuthenticationMiddleware';
+export * from '@Contexts/Security/Presentation/API/REST/Middlewares/FastifyJWTAuthenticationMiddleware';
 
 // Module
 export { localSecurityModule } from './module.local';

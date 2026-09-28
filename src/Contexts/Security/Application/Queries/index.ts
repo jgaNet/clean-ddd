@@ -1,1 +1,1 @@
-export * from './GetAccount/GetAccountQueryHandler';
+export * from '@Contexts/Security/Application/Queries/GetAccount/GetAccountQueryHandler';

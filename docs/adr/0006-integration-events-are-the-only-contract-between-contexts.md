@@ -12,7 +12,7 @@ A context exposes **integration events** only ([`@SharedKernel/Application/Integ
 2. The integration event carries everything the consumer needs, so the consumer never queries back.
 3. Inside the consuming context, an **anti-corruption layer** ([`NoteSharedIntegrationEventHandler.ts`](../../src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts)) depends on the contract and nothing else, and restates the fact in local terms.
 
-The ESLint boundary rules forbid a context's Domain from importing another context; the Application layer may import `@SharedKernel/Application/IntegrationEvents` and nothing else across the border.
+The ESLint boundary rules (`.eslintrc.cjs`, generated per context) forbid a context's Domain, Application and Presentation from importing any other context; the Application layer may import `@SharedKernel/Application/IntegrationEvents`, an Infrastructure adapter may read another context's Domain (ports and read models), and a wiring file may import another context's wiring for what it exports. Nothing else crosses the border.
 
 When a context must *ask* another one something rather than react to it (Notes: "does this account exist?"), the same rule holds in the other direction: the asking context declares a port in its own words ([`IAccountDirectory.ts`](../../src/Contexts/Notes/Domain/Note/Ports/IAccountDirectory.ts)), and only its infrastructure knows how to answer it — here from Security's read model ([`SecurityAccountDirectory.ts`](../../src/Contexts/Notes/Infrastructure/Directories/SecurityAccountDirectory.ts)), in separate deployments from Security's API. The domain never imports the other context.
 
