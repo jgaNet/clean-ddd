@@ -4,7 +4,7 @@ import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
 import { INoteRepository } from '@Contexts/Notes/Domain/Note/Ports/INoteRepository';
 import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 import { RestoreNoteCommandEvent } from '@Contexts/Notes/Application/Commands/RestoreNote/RestoreNoteCommandEvent';
-import { requireSignedIn } from '@Contexts/Notes/Application/Guards';
+import { requireSignedIn } from '@SharedKernel/Application/Guards';
 
 export class RestoreNoteCommandHandler extends CommandHandler<RestoreNoteCommandEvent> {
   constructor(private noteRepository: INoteRepository) {

@@ -5,7 +5,7 @@ import { Id } from '@SharedKernel/Domain/Utils';
 import { INoteRepository } from '@Contexts/Notes/Domain/Note/Ports/INoteRepository';
 import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 import { ShareNoteCommandEvent } from '@Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandEvent';
-import { requireSignedIn } from '@Contexts/Notes/Application/Guards';
+import { requireSignedIn } from '@SharedKernel/Application/Guards';
 
 export class ShareNoteCommandHandler extends CommandHandler<ShareNoteCommandEvent> {
   constructor(private noteRepository: INoteRepository) {

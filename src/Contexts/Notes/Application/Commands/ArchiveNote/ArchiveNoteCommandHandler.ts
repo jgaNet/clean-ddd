@@ -4,7 +4,7 @@ import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
 import { INoteRepository } from '@Contexts/Notes/Domain/Note/Ports/INoteRepository';
 import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 import { ArchiveNoteCommandEvent } from '@Contexts/Notes/Application/Commands/ArchiveNote/ArchiveNoteCommandEvent';
-import { requireSignedIn } from '@Contexts/Notes/Application/Guards';
+import { requireSignedIn } from '@SharedKernel/Application/Guards';
 
 export class ArchiveNoteCommandHandler extends CommandHandler<ArchiveNoteCommandEvent> {
   constructor(private noteRepository: INoteRepository) {

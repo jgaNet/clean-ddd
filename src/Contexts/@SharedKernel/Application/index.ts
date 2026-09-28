@@ -13,10 +13,12 @@
  */
 export * from './Application';
 export * from './CommandHandler';
+export * from './DomainEvents';
 export * from './EventBus';
 export * from './EventEmitter';
 export * from './EventHandler';
 export * from './ExecutionContext';
+export * from './Guards';
 export * from './Module';
 export * from './Operation';
 export * from './QueryHandler';

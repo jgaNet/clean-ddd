@@ -3,7 +3,7 @@ import { ExecutionContext, QueryHandler } from '@SharedKernel/Application';
 
 import { INoteQueries, NoteDetail } from '@Contexts/Notes/Domain/Note/Ports/INoteQueries';
 import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteExceptions';
-import { requireSignedIn } from '@Contexts/Notes/Application/Guards';
+import { requireSignedIn } from '@SharedKernel/Application/Guards';
 
 export class GetNoteQueryHandler extends QueryHandler<INoteQueries, string, IResult<NoteDetail>> {
   protected async guard(_: string, context: ExecutionContext): Promise<IResult<unknown>> {

@@ -1,67 +1,47 @@
-import { ExecutionContext, EventHandler } from '@SharedKernel/Application';
-import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
-import { NotificationType } from '@Contexts/Notifications/Domain/Notification/Notification';
-import { DeliveryStrategy } from '@Contexts/Notifications/Domain/Notification/DeliveryStrategy';
-import { INotificationService } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationService';
 import { IResult, Result } from '@SharedKernel/Domain';
-import { OperationStatus } from '@SharedKernel/Application';
+import { EventHandler, ExecutionContext, OperationStatus } from '@SharedKernel/Application';
+import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
 
+import { Channel } from '@Contexts/Notifications/Domain/Notification/Channel';
+import { NotificationDelivery } from '@Contexts/Notifications/Application/Services/NotificationDelivery';
+
+/**
+ * Anti-corruption layer towards Tracker: the caller of an asynchronous command learns how
+ * it went, live, over the websocket. Only the outcomes are worth a notification.
+ */
 export class OperationCompleteIntegrationEventHandler extends EventHandler<OperationCompleteIntegrationEvent> {
-  constructor(private notificationService: INotificationService) {
+  constructor(private delivery: NotificationDelivery) {
     super();
   }
 
-  async execute(event: OperationCompleteIntegrationEvent, context: ExecutionContext): Promise<IResult<void>> {
-    const { operationId, userId, status, type, result, error } = event.payload;
+  async execute({ payload }: OperationCompleteIntegrationEvent, context: ExecutionContext): Promise<IResult<unknown>> {
+    const { operationId, userId, status, type, result, error } = payload;
 
-    const success = [OperationStatus.SENT, OperationStatus.SUCCESS].includes(status);
-    const pending = [OperationStatus.PENDING].includes(status);
-    const failed = [OperationStatus.ERROR].includes(status);
+    const wording: Partial<Record<OperationStatus, { title: string; content: string }>> = {
+      [OperationStatus.PENDING]: {
+        title: `Operation pending: ${type}`,
+        content: `Your operation ${operationId} is pending.`,
+      },
+      [OperationStatus.SUCCESS]: {
+        title: `Operation complete: ${type}`,
+        content: `Your operation ${operationId} succeeded.`,
+      },
+      [OperationStatus.ERROR]: {
+        title: `Operation failed: ${type}`,
+        content: `Your operation ${operationId} failed: ${error ?? 'unknown error'}`,
+      },
+    };
+    const words = wording[status];
+    if (!words) return Result.ok(); // SENT: an event was dispatched, nothing to tell the user
 
-    if (!success && !pending && !failed) {
-      return Result.fail(`Invalid operation status: ${status}`);
-    }
-
-    if (status === OperationStatus.SENT) {
-      return Result.fail('Sent operations cannot be notified');
-    }
-
-    // Create notification title based on operation status
-    const title = pending
-      ? `Operation Pending: ${type}`
-      : success
-      ? `Operation Complete: ${type}`
-      : `Operation Failed: ${type}`;
-
-    // Create notification content
-    const content = pending
-      ? `Your operation ${operationId} of type ${type} is pending.`
-      : success
-      ? `Your operation ${operationId} of type ${type} has completed successfully.`
-      : `Your operation ${operationId} of type ${type} has failed: ${error || 'Unknown error'}`;
-
-    // Create WebSocket-only strategy
-    const deliveryStrategy = DeliveryStrategy.websocketOnly();
-
-    // Send notification using the service
-    await this.notificationService.send(
+    return this.delivery.deliver(
       {
         recipientId: userId,
-        type: NotificationType.WEBSOCKET,
-        title,
-        content,
-        deliveryStrategy,
-        metadata: {
-          operationId,
-          type,
-          status,
-          ...((result && { result }) as object),
-          ...(error && { error }),
-        },
+        ...words,
+        channels: [Channel.WEBSOCKET],
+        metadata: { operationId, type, status, ...(result !== undefined && { result }), ...(error && { error }) },
       },
       context,
     );
-
-    return Result.ok();
   }
 }

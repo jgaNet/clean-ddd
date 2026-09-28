@@ -23,8 +23,12 @@ export class Event<PayloadDTO> {
     this.#name = name || this.constructor.name;
   }
 
-  static set<PayloadDTO>(payload: PayloadDTO): Event<PayloadDTO> {
-    return new Event({ payload, name: this.name });
+  /** Builds an instance of the calling class (not of Event), so `instanceof` and the name both hold. */
+  static set<PayloadDTO>(
+    this: new (event: IEvent<PayloadDTO>) => Event<PayloadDTO>,
+    payload: PayloadDTO,
+  ): Event<PayloadDTO> {
+    return new this({ payload });
   }
 
   get payload(): PayloadDTO {

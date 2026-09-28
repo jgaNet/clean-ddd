@@ -25,6 +25,7 @@ import { EventHandler } from './EventHandler';
 import { CommandEvent, IResult, Result, AggregateRoot } from '@SharedKernel/Domain';
 import { ExecutionContext } from '@SharedKernel/Application/ExecutionContext';
 import { IOperation } from '@SharedKernel/Application/Operation';
+import { publishDomainEvents } from '@SharedKernel/Application/DomainEvents';
 
 export abstract class CommandHandler<T extends CommandEvent<unknown>> extends EventHandler<T> {
   async handle(operation: IOperation<T>): Promise<IOperation<T>> {
@@ -65,12 +66,7 @@ export abstract class CommandHandler<T extends CommandEvent<unknown>> extends Ev
    * transaction is committed, so listeners never see facts that end up rolled back.
    */
   protected publishDomainEvents(aggregate: AggregateRoot, context: ExecutionContext): void {
-    const events = aggregate.pullDomainEvents();
-    context.afterCommit(() => {
-      for (const event of events) {
-        context.eventBus.publish(event, context);
-      }
-    });
+    publishDomainEvents(aggregate, context);
   }
 
   private async safeExecute(event: T, context: ExecutionContext): Promise<IResult<unknown>> {

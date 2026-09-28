@@ -1,9 +1,6 @@
-import { Notification } from '../Notification';
-import { Nullable } from '@SharedKernel/Domain/Utils/Nullable';
+import { Notification } from '@Contexts/Notifications/Domain/Notification/Notification';
 
 export interface INotificationRepository {
-  nextIdentity(): Promise<string>;
+  findById(id: string): Promise<Notification | null>;
   save(notification: Notification): Promise<void>;
-  findById(id: string): Promise<Nullable<Notification>>;
-  markAsRead(id: string): Promise<boolean>;
 }

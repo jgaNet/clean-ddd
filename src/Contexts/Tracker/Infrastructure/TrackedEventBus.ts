@@ -1,4 +1,4 @@
-import { Event, IResult } from '@SharedKernel/Domain';
+import { CommandEvent, Event, IResult } from '@SharedKernel/Domain';
 import { EventBus, EventHandler, ExecutionContext, IOperation } from '@SharedKernel/Application';
 import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
 
@@ -8,7 +8,8 @@ import { toOperationRecord } from '@Contexts/Tracker/Application/Projections/Ope
 /**
  * Decorates any EventBus so that every operation it carries is projected into the
  * Tracker records, when published (PENDING) and again once handled (SUCCESS / ERROR / SENT).
- * For an authenticated caller it also publishes OperationCompleteIntegrationEvent, which the
+ * For a command sent by an authenticated caller it also publishes
+ * OperationCompleteIntegrationEvent, which the
  * Notifications context turns into a live notification.
  *
  * Tracking is a cross-cutting concern: the inner bus does not know it is being watched, and
@@ -37,7 +38,12 @@ export class TrackedEventBus implements EventBus {
 
     try {
       await this.records.save(toOperationRecord(operation));
-      if (operation.context.auth.subjectId) this.notifyCompletion(operation);
+      // Only a command is something a client asked for and waits on. Domain and integration
+      // events are recorded for the trace but never announced: announcing them would notify
+      // about the notification, which is itself an event, and so on without end.
+      if (operation.context.auth.subjectId && operation.event instanceof CommandEvent) {
+        this.notifyCompletion(operation);
+      }
     } catch (error) {
       operation.context.logger?.error('Failed to track operation', error, { operationId: operation.id });
     }

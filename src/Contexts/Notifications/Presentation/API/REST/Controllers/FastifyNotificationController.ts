@@ -1,101 +1,66 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
+
+import { Exception, NotAllowedException } from '@SharedKernel/Domain';
+import { Module } from '@SharedKernel/Application';
+
+import { Channel } from '@Contexts/Notifications/Domain/Notification/Channel';
+import { NotificationNotFoundException } from '@Contexts/Notifications/Domain/Notification/NotificationExceptions';
 import { SendNotificationCommandEvent } from '@Contexts/Notifications/Application/Commands/SendNotification/SendNotificationCommandEvent';
 import { MarkAsReadNotificationCommandEvent } from '@Contexts/Notifications/Application/Commands/MarkAsRead/MarkAsReadNotificationCommandEvent';
 import { GetNotificationsQueryHandler } from '@Contexts/Notifications/Application/Queries/GetNotifications/GetNotificationsQueryHandler';
-import { Module } from '@SharedKernel/Application';
 
 export class FastifyNotificationController {
   constructor(private module: Module) {}
 
   async getAccountNotifications(
-    request: FastifyRequest<{
+    req: FastifyRequest<{
       Params: { recipientId: string };
-      Querystring: {
-        limit?: number;
-        offset?: number;
-        onlyUnread?: boolean;
-      };
+      Querystring: { limit?: number; offset?: number; onlyUnread?: boolean };
     }>,
     reply: FastifyReply,
-  ): Promise<void> {
-    try {
-      const recipientId = request.params.recipientId;
-      const { limit, offset, onlyUnread } = request.query;
+  ) {
+    const result = await this.module
+      .getQuery(GetNotificationsQueryHandler)
+      .executeWithContext({ recipientId: req.params.recipientId, ...req.query }, req.executionContext);
 
-      const result = await this.module.getQuery(GetNotificationsQueryHandler).executeWithContext(
-        {
-          recipientId,
-          limit: limit ? Number(limit) : undefined,
-          offset: offset ? Number(offset) : undefined,
-          onlyUnread,
-        },
-        request.executionContext,
-      );
-
-      if (result.isFailure()) {
-        return reply.code(400).send({
-          error: result.error?.message,
-        });
-      }
-
-      return reply.code(200).send(result.data);
-    } catch (error) {
-      return reply.code(500).send({
-        error: (error as Error).message,
-      });
-    }
+    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
   }
 
-  async markAsRead(
-    request: FastifyRequest<{
-      Params: { id: string };
-    }>,
-    reply: FastifyReply,
-  ): Promise<void> {
-    try {
-      const notificationId = request.params.id;
+  async markAsRead(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+    const context = req.executionContext;
+    const operation = context.eventBus.publish(
+      MarkAsReadNotificationCommandEvent.set({ notificationId: req.params.id }),
+      context,
+    );
 
-      const command = MarkAsReadNotificationCommandEvent.set(notificationId);
-
-      const operation = request.executionContext.eventBus.publish(command, request.executionContext);
-
-      return reply.code(201).send({
-        operationId: operation.id,
-      });
-    } catch (error) {
-      return reply.code(500).send({
-        error: (error as Error).message,
-      });
-    }
+    reply.code(202);
+    return { operationId: operation.id };
   }
 
   async sendNotification(
-    request: FastifyRequest<{
+    req: FastifyRequest<{
       Body: {
         recipientId: string;
-        type: string;
         title: string;
         content: string;
+        channels: Channel[];
         metadata?: Record<string, unknown>;
       };
     }>,
     reply: FastifyReply,
-  ): Promise<void> {
-    try {
-      const command = SendNotificationCommandEvent.set({
-        ...request.body,
-        isManual: true, // Flag this as manual for the guard check
-      });
+  ) {
+    const context = req.executionContext;
+    const operation = context.eventBus.publish(SendNotificationCommandEvent.set(req.body), context);
 
-      const operation = request.executionContext.eventBus.publish(command, request.executionContext);
+    reply.code(202);
+    return { operationId: operation.id };
+  }
 
-      return reply.code(201).send({
-        operationId: operation.id,
-      });
-    } catch (error) {
-      return reply.code(500).send({
-        error: (error as Error).message,
-      });
-    }
+  private refuse(reply: FastifyReply, error: Exception) {
+    if (error instanceof NotAllowedException) reply.code(403);
+    else if (error instanceof NotificationNotFoundException) reply.code(404);
+    else reply.code(400);
+
+    return { message: error.message };
   }
 }
