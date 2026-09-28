@@ -9,7 +9,7 @@ yarn start:dev          # Fastify on :10000, Swagger at /v1/docs
 yarn typecheck          # tsc --noEmit
 yarn lint               # eslint, including the layer-boundary rules
 yarn test:units         # unit tests
-yarn test:e2e           # needs a running server; suites share it and run in order
+yarn test:e2e           # each suite boots its own application on a free port; no server to start
 yarn test -- -t "name"  # one test
 yarn format             # prettier
 ```
@@ -19,7 +19,7 @@ Node ≥ 20 (`.nvmrc` = 22). All three of `yarn typecheck`, `yarn lint`, `yarn t
 ## Where things are
 
 ```
-src/Bootstrap/Fastify/            composition root (application.ts)
+src/Bootstrap/Fastify/            composition root (createApplication.ts); application.ts is the entry point
 src/Contexts/@SharedKernel/
   Domain/                         Entity, AggregateRoot, ValueObject, Event(+kinds), Exception, Result, Id, Email, Role — depends on nothing
   Application/                    CommandHandler, QueryHandler, EventHandler, ExecutionContext, EventBus, Module, Application, IntegrationEvents/
