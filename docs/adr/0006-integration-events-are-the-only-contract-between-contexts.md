@@ -14,6 +14,8 @@ A context exposes **integration events** only ([`@SharedKernel/Application/Integ
 
 The ESLint boundary rules forbid a context's Domain from importing another context; the Application layer may import `@SharedKernel/Application/IntegrationEvents` and nothing else across the border.
 
+When a context must *ask* another one something rather than react to it (Notes: "does this account exist?"), the same rule holds in the other direction: the asking context declares a port in its own words ([`IAccountDirectory.ts`](../../src/Contexts/Notes/Domain/Note/Ports/IAccountDirectory.ts)), and only its infrastructure knows how to answer it — here from Security's read model ([`SecurityAccountDirectory.ts`](../../src/Contexts/Notes/Infrastructure/Directories/SecurityAccountDirectory.ts)), in separate deployments from Security's API. The domain never imports the other context.
+
 ## Consequences
 
 - `Note` can be refactored freely; only `NoteSharedHandler` must keep producing the same integration event.

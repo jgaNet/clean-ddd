@@ -81,3 +81,13 @@ export class NoteAlreadySharedException extends NoteDomainException {
     });
   }
 }
+
+export class RecipientNotFoundException extends NoteDomainException {
+  constructor(noteId: string, recipientId: string) {
+    super({
+      type: 'RecipientNotFound',
+      message: 'There is no account to share this note with',
+      context: { noteId, recipientId },
+    });
+  }
+}

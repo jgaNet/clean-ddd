@@ -111,3 +111,22 @@ describe('Sharing a note (Notes -> Notifications)', () => {
     );
   });
 });
+
+describe('Sharing a note with an unknown account', () => {
+  it('is refused by the domain, through the port to Security', async () => {
+    await agent.post(`${SETTINGS.apiUrl}/notes`).send({ title: 'Secret', content: '...' });
+    const mine = await agent.get(`${SETTINGS.apiUrl}/notes`);
+    const noteId: string = mine.body.find((note: { title: string }) => note.title === 'Secret').id;
+
+    const share = await agent
+      .post(`${SETTINGS.apiUrl}/notes/${noteId}/share`)
+      .send({ recipientId: '00000000-0000-4000-8000-000000000000' });
+    expect(share.status).toBe(202);
+
+    const operation = await agent.get(`${SETTINGS.apiUrl}/tracker/operations/${share.body.operationId}`);
+    expect(operation.body).toMatchObject({ status: 'ERROR', error: { type: 'RecipientNotFound' } });
+
+    const note = await agent.get(`${SETTINGS.apiUrl}/notes/${noteId}`);
+    expect(note.body.sharedWith).toEqual([]);
+  });
+});

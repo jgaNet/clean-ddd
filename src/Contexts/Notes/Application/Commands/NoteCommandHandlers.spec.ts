@@ -11,6 +11,7 @@ import { BlankNoteTitleException, NoteNotFoundException, NotNoteOwnerException }
 import { InMemoryNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository';
 import { CreateNoteCommandEvent, CreateNoteCommandHandler } from '@Contexts/Notes/Application/Commands/CreateNote';
 import { ShareNoteCommandEvent, ShareNoteCommandHandler } from '@Contexts/Notes/Application/Commands/ShareNote';
+import { NoteSharing } from '@Contexts/Notes/Domain/Note/NoteSharing';
 import { ArchiveNoteCommandEvent, ArchiveNoteCommandHandler } from '@Contexts/Notes/Application/Commands/ArchiveNote';
 
 const eventBus = { connect: jest.fn(), publish: jest.fn(), subscribe: jest.fn() } as EventBus;
@@ -21,6 +22,8 @@ function contextFor(subjectId: string | undefined, role: Role = Role.USER): Exec
 
 let store: InMemoryDataSource<INote>;
 let repository: InMemoryNoteRepository;
+// Every account the tests talk about exists; the directory itself is covered by NoteSharing.spec.
+const sharing = new NoteSharing({ exists: async id => ['alice', 'bob', 'carol'].includes(id) });
 
 beforeEach(() => {
   jest.resetAllMocks();
@@ -88,7 +91,7 @@ describe('ShareNoteCommandHandler', () => {
   it('lets the owner share a note and publishes NoteShared', async () => {
     const noteId = await aNoteOwnedBy('alice');
 
-    const result = await new ShareNoteCommandHandler(repository).execute(
+    const result = await new ShareNoteCommandHandler(repository, sharing).execute(
       ShareNoteCommandEvent.set({ noteId, recipientId: 'bob' }),
       contextFor('alice'),
     );
@@ -104,7 +107,7 @@ describe('ShareNoteCommandHandler', () => {
   it('refuses a caller who does not own the note', async () => {
     const noteId = await aNoteOwnedBy('alice');
 
-    const result = await new ShareNoteCommandHandler(repository).execute(
+    const result = await new ShareNoteCommandHandler(repository, sharing).execute(
       ShareNoteCommandEvent.set({ noteId, recipientId: 'carol' }),
       contextFor('bob'),
     );
@@ -115,7 +118,7 @@ describe('ShareNoteCommandHandler', () => {
   });
 
   it('fails on an unknown note', async () => {
-    const result = await new ShareNoteCommandHandler(repository).execute(
+    const result = await new ShareNoteCommandHandler(repository, sharing).execute(
       ShareNoteCommandEvent.set({ noteId: 'nope', recipientId: 'bob' }),
       contextFor('alice'),
     );
