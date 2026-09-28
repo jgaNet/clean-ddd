@@ -5,9 +5,9 @@ import { inMemoryEventBus } from '@SharedKernel/Infrastructure/EventBus/InMemory
 import { SETTINGS } from '@Bootstrap/Fastify/application.settings';
 import { v4 } from 'uuid';
 
-import { Account } from './Domain/Account/Account';
-import { AccountCreatedEvent } from './Domain/Account/Events/AccountCreatedEvent';
-import { AccountValidatedEvent } from './Domain/Account/Events/AccountValidatedEvent';
+import { IAccount } from './Domain/Account/DTOs';
+import { AccountRegistration } from './Domain/Account/AccountRegistration';
+import { AccountCreatedEvent, AccountValidatedEvent } from './Domain/Account/Events/AccountEvents';
 import { SignUpCommandEvent } from './Application/Commands/SignUp/SignUpCommandEvent';
 import { SignUpCommandHandler } from './Application/Commands/SignUp/SignUpCommandHandler';
 import { LoginCommandEvent } from './Application/Commands/Login/LoginCommandEvent';
@@ -22,24 +22,31 @@ import { AccountValidatedHandler } from './Application/Events/AccountValidatedHa
 import { InMemoryAccountRepository } from './Infrastructure/Repositories/InMemoryAccountRepository';
 import { InMemoryAccountQueries } from './Infrastructure/Queries/InMemoryAccountQueries';
 import { JwtService } from './Infrastructure/Services/JwtService';
+import { BcryptPasswordHasher } from './Infrastructure/Services/BcryptPasswordHasher';
 import { AuthenticationMiddleware } from './Presentation/API/REST/Middlewares/FastifyJWTAuthenticationMiddleware';
 
-const accountDataSource = new InMemoryDataSource<Account>();
+const accountDataSource = new InMemoryDataSource<IAccount>();
 const accountRepository = new InMemoryAccountRepository(accountDataSource);
 export const accountQueries = new InMemoryAccountQueries(accountDataSource);
+
+const accountRegistration = new AccountRegistration(accountRepository);
+const passwordHasher = new BcryptPasswordHasher();
 
 // Exposed to the bootstrap and to the routes: the token service and the request middleware.
 export const jwtService = new JwtService({
   secret: SETTINGS.security.jwt.secret,
   expiresIn: SETTINGS.security.jwt.expiresIn,
 });
-export const authMiddleware = new AuthenticationMiddleware(accountQueries);
+export const authMiddleware = new AuthenticationMiddleware(accountQueries, jwtService);
 
 export const localSecurityModule = new Module({
   name: 'Security',
   commands: [
-    { event: SignUpCommandEvent, handlers: [new SignUpCommandHandler(accountRepository)] },
-    { event: LoginCommandEvent, handlers: [new LoginCommandHandler(accountRepository, jwtService)] },
+    {
+      event: SignUpCommandEvent,
+      handlers: [new SignUpCommandHandler(accountRepository, accountRegistration, passwordHasher)],
+    },
+    { event: LoginCommandEvent, handlers: [new LoginCommandHandler(accountRepository, passwordHasher, jwtService)] },
     { event: ValidateAccountCommandEvent, handlers: [new ValidateAccountCommandHandler(accountRepository)] },
   ],
   queries: [new GetAccountQueryHandler(accountQueries)],
@@ -50,9 +57,9 @@ export const localSecurityModule = new Module({
 });
 
 /** Seeds the admin account at startup. Runs the command directly, on behalf of the system. */
-export const registerAdmin = ({ identifier, password }: { identifier: string; password: string }) =>
-  new RegisterAdminCommandHandler(accountRepository).execute(
-    RegisterAdminCommandEvent.set({ identifier, password }),
+export const registerAdmin = ({ email, password }: { email: string; password: string }) =>
+  new RegisterAdminCommandHandler(accountRepository, accountRegistration, passwordHasher).execute(
+    RegisterAdminCommandEvent.set({ email, password }),
     new ExecutionContext({
       traceId: v4(),
       eventBus: inMemoryEventBus,

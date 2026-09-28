@@ -1,8 +1,12 @@
-import { Account } from '../Account';
+import { Account } from '@Contexts/Security/Domain/Account/Account';
 
+/**
+ * Write side of persistence: loads and saves the Account aggregate. `findByEmail` is here,
+ * not in the queries, because the domain itself needs it (AccountRegistration) and the
+ * result is an aggregate, not a read model.
+ */
 export interface IAccountRepository {
-  save(account: Account): Promise<void>;
   findById(id: string): Promise<Account | null>;
-  findByIdentifier(identifier: string): Promise<Account | null>;
-  delete(id: string): Promise<void>;
+  findByEmail(email: string): Promise<Account | null>;
+  save(account: Account): Promise<void>;
 }

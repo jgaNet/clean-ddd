@@ -2,7 +2,6 @@
 
 import 'dotenv/config';
 import { v4 as uuidv4 } from 'uuid';
-import bcrypt from 'bcryptjs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -99,8 +98,8 @@ class FastifyApplication extends Application {
   seed() {
     if (SETTINGS.security.adminAccount) {
       registerAdmin({
-        identifier: SETTINGS.security.adminAccount.identifier,
-        password: bcrypt.hashSync(SETTINGS.security.adminAccount.password, 10),
+        email: SETTINGS.security.adminAccount.identifier,
+        password: SETTINGS.security.adminAccount.password,
       });
     }
     return this;

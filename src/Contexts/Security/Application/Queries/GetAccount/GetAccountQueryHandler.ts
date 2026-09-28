@@ -1,37 +1,24 @@
-import { Result, IResult, NotAllowedException } from '@SharedKernel/Domain';
-import { QueryHandler, ExecutionContext } from '@SharedKernel/Application';
-import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
-import { IAccount } from '@Contexts/Security/Domain/Account/DTOs';
-import { NotFoundException, Role } from '@SharedKernel/Domain';
+import { IResult, NotAllowedException, NotFoundException, Result, Role } from '@SharedKernel/Domain';
+import { ExecutionContext, QueryHandler } from '@SharedKernel/Application';
 
-export class GetAccountQueryHandler extends QueryHandler<IAccountQueries, string, IResult<IAccount>> {
-  constructor(private accountQueries: IAccountQueries) {
-    super(accountQueries);
-  }
+import { AccountDetail, IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
 
-  protected async guard(id: string, context?: ExecutionContext): Promise<IResult> {
-    if (!context?.auth || context?.auth.role === Role.GUEST) {
+/** A user may read their own account; an administrator may read any. */
+export class GetAccountQueryHandler extends QueryHandler<IAccountQueries, string, IResult<AccountDetail>> {
+  protected async guard(id: string, { auth }: ExecutionContext): Promise<IResult<unknown>> {
+    if (!auth.role || auth.role === Role.GUEST) {
       return Result.fail(new NotAllowedException('Security', 'Authentication required'));
     }
-
-    if (context?.auth.role === Role.USER && context?.auth.subjectId !== id) {
+    if (auth.role === Role.USER && auth.subjectId !== id) {
       return Result.fail(new NotAllowedException('Security', 'Not Allowed'));
     }
-
     return Result.ok();
   }
 
-  async execute(id: string): Promise<IResult<IAccount>> {
-    try {
-      const account = await this.accountQueries.findById(id);
+  async execute(id: string): Promise<IResult<AccountDetail>> {
+    const account = await this.queriesService.findById(id);
+    if (!account) return Result.fail(new NotFoundException('Security', 'Account not found'));
 
-      if (!account) {
-        return Result.fail(new NotFoundException('Security', 'Account not found'));
-      }
-
-      return Result.ok(account);
-    } catch (error) {
-      return Result.fail(error instanceof Error ? error : new Error('Error getting account'));
-    }
+    return Result.ok(account);
   }
 }

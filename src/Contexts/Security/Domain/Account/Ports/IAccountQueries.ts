@@ -1,9 +1,16 @@
-import { IAccount } from '../DTOs';
+import { Role } from '@SharedKernel/Domain';
+
+import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';
+
+/** Read model of an account: what a screen or an API may show. Never the credentials. */
+export interface AccountDetail {
+  id: string;
+  email: string;
+  role: Role;
+  status: AccountStatus;
+  lastAuthenticatedAt?: Date;
+}
 
 export interface IAccountQueries {
-  findById(id: string): Promise<IAccount | null>;
-  findByIdentifier(identifier: string): Promise<IAccount | null>;
-  findAll(options?: { limit?: number; offset?: number }): Promise<IAccount[]>;
-  findByCredentialType(type: string, options?: { limit?: number; offset?: number }): Promise<IAccount[]>;
-  count(): Promise<number>;
+  findById(id: string): Promise<AccountDetail | null>;
 }

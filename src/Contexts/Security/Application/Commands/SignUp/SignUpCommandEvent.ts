@@ -1,13 +1,4 @@
 import { CommandEvent } from '@SharedKernel/Domain';
 
-interface SignUpPayload {
-  subjectId: string;
-  subjectType: string;
-  credentials: {
-    type: string;
-    value: string;
-  };
-  isActive?: boolean;
-}
-
-export class SignUpCommandEvent extends CommandEvent<SignUpPayload> {}
+/** The password travels in clear inside the process only; it is hashed before anything is stored. */
+export class SignUpCommandEvent extends CommandEvent<{ email: string; password: string }> {}

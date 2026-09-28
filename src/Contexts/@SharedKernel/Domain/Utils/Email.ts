@@ -1,28 +1,31 @@
-import { ValueObject } from '@SharedKernel/Domain';
+import { ValueObject } from '@SharedKernel/Domain/DDD/ValueObject';
+import { IResult, Result } from '@SharedKernel/Domain/DDD/Result';
 import { InvalidEmailFormat } from '@SharedKernel/Domain/DDD/CommonExceptions';
 
+/**
+ * Email is a value object: once you hold one you know it is well-formed. Like every value
+ * object in this project it is built through `create()`, which returns a Result instead of
+ * throwing, so an invalid input is an ordinary failure the caller handles.
+ */
 export class Email extends ValueObject<string> {
-  constructor(email: string) {
+  static readonly MAX_LENGTH = 254;
+  static readonly FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+  private constructor(email: string) {
     super(email);
-    this.validate(email);
   }
 
-  validate(email: string) {
-    const mailformat = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
-    if (!email.match(mailformat)) {
-      throw new InvalidEmailFormat({ email });
+  static create(raw: string): IResult<Email> {
+    const email = raw.trim().toLowerCase();
+
+    if (email.length > Email.MAX_LENGTH || !Email.FORMAT.test(email)) {
+      return Result.fail(new InvalidEmailFormat({ email: raw }));
     }
 
-    if (email.length > 30) {
-      throw new InvalidEmailFormat({ email });
-    }
+    return Result.ok(new Email(email));
   }
 
   get username(): string {
-    const username = this.value.match(/^([^@]*)@/);
-    if (!username) {
-      throw new InvalidEmailFormat({ email: this.value });
-    }
-    return username[1];
+    return this.value.slice(0, this.value.indexOf('@'));
   }
 }
