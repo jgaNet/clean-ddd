@@ -1,29 +1,13 @@
 /**
- * Exception is a primitive abstract class that provides the foundation for all
- * application-specific exceptions and error handling throughout the system.
+ * Exception describes a broken rule: which context refused (`service`), which rule
+ * (`type`, a stable identifier a client can switch on), in words (`message`), with what
+ * details (`context`). It is a plain value carried by `Result.fail()`, never thrown, so it
+ * does not extend Error: there is no stack to capture for an expected outcome.
  *
- * This class implements a structured approach to error handling, allowing for
- * detailed error context and consistent error management across different services.
- *
- * Key characteristics:
- * - Service-aware: Tracks which service threw the exception
- * - Type classification: Categorizes exceptions by type
- * - Context support: Carries additional error context data
- * - Equality comparison: Implements deep comparison of exception instances
- *
- * Core components:
- * - service: Identifies the service where the exception occurred
- * - type: Categorizes the exception type
- * - message: Human-readable error description
- * - context: Optional additional error data
- *
- * Usage in the project:
- * - Base class for domain exceptions (UserDomainException)
- * - Used in Result<T> for error handling
- * - Handled by ExceptionHandlers (AsyncExceptionHandler)
- * - Supports the UnknownException fallback type
+ * Each context declares its own subclasses next to its aggregate
+ * (Contexts/Notes/Domain/Note/NoteExceptions.ts); the generic ones (NotFound, NotAllowed,
+ * Unknown) live in CommonExceptions.ts.
  */
-
 export abstract class Exception {
   service: string;
   type: string;
@@ -61,6 +45,7 @@ export abstract class Exception {
     return this.#isException;
   }
 
+  /** Tells an Exception from an Error or anything else, e.g. in Result.fail(). */
   static isException(obj: unknown): obj is Exception {
     return obj !== null && typeof (obj as Exception).isException !== 'undefined';
   }

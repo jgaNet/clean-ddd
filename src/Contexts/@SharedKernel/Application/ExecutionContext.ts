@@ -1,42 +1,16 @@
 /**
- * ExecutionContext is a core primitive that represents the execution environment
- * for command handlers, query handlers, and event handlers.
+ * ExecutionContext travels with one request through every handler it reaches: who is
+ * calling (`auth`), how to correlate the logs (`traceId`), and the services a use case may
+ * need without owning them (`logger`, `eventBus`, `unitOfWork`).
  *
- * This class provides a shared context across the execution pipeline, containing
- * essential services, transaction management, and contextual information that can be
- * propagated from the initial request through all layers of the application.
+ * The bootstrap builds one per HTTP request (Bootstrap/Fastify/application.ts); tests build
+ * one by hand:
  *
- * Key characteristics:
- * - Encapsulates cross-cutting concerns like logging, transactions and event publishing
- * - Provides tracing capabilities for request tracking
- * - Enables consistent error handling and transaction management
- * - Follows the Context Object pattern to carry execution-scoped information
+ *   new ExecutionContext({ traceId: 'trace', eventBus, auth: { subjectId: 'alice', role: Role.USER } })
  *
- * Usage example:
- * ```typescript
- * // Creating an execution context
- * const context = new ExecutionContext({
- *   traceId: '1234-5678',
- *   userId: 'user-1',
- *   eventBus: new InMemoryEventBus(),
- *   unitOfWork: new InMemoryUnitOfWork(),
- *   logger: new ConsoleLogger()
- * });
- *
- * // Using in a command handler: see Contexts/Notes/Application/Commands
- * async execute({ payload }: EditNoteCommandEvent, context: ExecutionContext): Promise<IResult> {
- *   const note = await this.noteRepository.findById(payload.noteId);
- *   ...
- *   this.publishDomainEvents(note, context); // uses context.eventBus
- * }
- * ```
- *
- * Related components:
- * - {@link CommandHandler} - Uses the execution context for command processing
- * - {@link QueryHandler} - Uses the execution context for query processing
- * - {@link EventHandler} - Uses the execution context for event processing
- * - {@link UnitOfWork} - Provides transaction management capabilities
- * - {@link EventBus} - Provides event publishing capabilities
+ * A handler reads `context.auth` to know the caller and passes `context` on when it
+ * publishes. `withTransaction()` and `afterCommit()` are what make "publish after commit"
+ * possible (docs/adr/0003-publish-domain-events-after-commit.md).
  */
 
 import { IResult, Result, Role } from '@SharedKernel/Domain';
