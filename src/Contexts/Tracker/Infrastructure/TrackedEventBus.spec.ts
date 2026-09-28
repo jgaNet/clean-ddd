@@ -75,12 +75,14 @@ describe('TrackedEventBus', () => {
     });
   });
 
-  it('notifies an authenticated caller when the operation is published and when it completes', async () => {
+  it('notifies an authenticated caller once, when the command reaches its outcome', async () => {
     bus.publish(Greet.set({ name: 'Alice' }), contextFor('alice'));
+    bus.publish(Greet.set({ name: 'nobody' }), contextFor('alice'));
     await flush();
 
-    expect(completions.map(event => event.payload.status)).toEqual([OperationStatus.PENDING, OperationStatus.SUCCESS]);
-    expect(completions[1].payload).toMatchObject({ userId: 'alice', type: 'Greet', result: 'Hello Alice' });
+    expect(completions.map(event => event.payload.status)).toEqual([OperationStatus.SUCCESS, OperationStatus.ERROR]);
+    expect(completions[0].payload).toMatchObject({ userId: 'alice', type: 'Greet', result: 'Hello Alice' });
+    expect(completions[1].payload).toMatchObject({ userId: 'alice', type: 'Greet', error: 'Nobody to greet' });
   });
 
   it('records domain events for the trace but never announces them (that would loop)', async () => {

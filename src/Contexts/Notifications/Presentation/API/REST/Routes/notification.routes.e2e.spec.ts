@@ -44,7 +44,7 @@ describe('Notifications: an inbox', () => {
     const accepted = await carol.patch(`${SETTINGS.apiUrl}/notifications/${first.id}/read`);
     expect(accepted.status).toBe(202);
 
-    // (her own command also produced operation notices, undelivered without a websocket: FAILED, not unread)
+    // (her own command also produced one outcome notice, undelivered without a websocket: FAILED, not unread)
     const after = await carol.get(`${SETTINGS.apiUrl}/notifications/account/${carolId}`);
     expect(after.body).toMatchObject({ unread: 1 });
     expect(after.body.notifications.find((n: { id: string }) => n.id === first.id)).toMatchObject({

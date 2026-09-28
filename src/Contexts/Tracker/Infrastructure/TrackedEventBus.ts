@@ -1,5 +1,5 @@
 import { CommandEvent, Event, IResult } from '@SharedKernel/Domain';
-import { EventBus, EventHandler, ExecutionContext, IOperation } from '@SharedKernel/Application';
+import { EventBus, EventHandler, ExecutionContext, IOperation, OperationStatus } from '@SharedKernel/Application';
 import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
 
 import { IOperationRecords } from '@Contexts/Tracker/Application/Ports/IOperationRecords';
@@ -8,9 +8,9 @@ import { toOperationRecord } from '@Contexts/Tracker/Application/Projections/Ope
 /**
  * Decorates any EventBus so that every operation it carries is projected into the
  * Tracker records, when published (PENDING) and again once handled (SUCCESS / ERROR / SENT).
- * For a command sent by an authenticated caller it also publishes
- * OperationCompleteIntegrationEvent, which the
- * Notifications context turns into a live notification.
+ * When a command sent by an authenticated caller reaches its outcome, it also publishes
+ * OperationCompleteIntegrationEvent, which the Notifications context turns into a live
+ * notification: one notice per command, once there is something to say.
  *
  * Tracking is a cross-cutting concern: the inner bus does not know it is being watched, and
  * the handlers do not know they are being recorded.
@@ -38,10 +38,13 @@ export class TrackedEventBus implements EventBus {
 
     try {
       await this.records.save(toOperationRecord(operation));
-      // Only a command is something a client asked for and waits on. Domain and integration
-      // events are recorded for the trace but never announced: announcing them would notify
-      // about the notification, which is itself an event, and so on without end.
-      if (operation.context.auth.subjectId && operation.event instanceof CommandEvent) {
+      // Only a command is something a client asked for and waits on, and only its outcome is
+      // worth a notice (the client already holds the 202). Domain and integration events are
+      // recorded for the trace but never announced: announcing them would notify about the
+      // notification, which is itself an event, and so on without end.
+      const isCommand = operation.event instanceof CommandEvent;
+      const isOutcome = operation.status === OperationStatus.SUCCESS || operation.status === OperationStatus.ERROR;
+      if (operation.context.auth.subjectId && isCommand && isOutcome) {
         this.notifyCompletion(operation);
       }
     } catch (error) {
