@@ -18,7 +18,7 @@
 # This file is language-neutral on purpose: in another stack, feed it to your own dependency
 # linter (ArchUnit, deptrac, import-linter, dependency-cruiser...) and keep the same table.
 
-contexts: [Notes, Security, Notifications, Tracker]
+contexts: [Notes, Security, Notifications, Tracker, Billing]
 kernel: '@SharedKernel'
 wiring: module.local.ts
 

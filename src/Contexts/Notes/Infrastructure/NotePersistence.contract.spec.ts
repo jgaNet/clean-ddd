@@ -78,6 +78,17 @@ describe.each(adapters)('Note persistence over $name', ({ open }) => {
       expect(await queries.findByOwner(alice.value)).toHaveLength(1);
     });
 
+    it("counts an owner's notes, archived ones included, and only theirs", async () => {
+      const archived = aNote(alice, 'Old');
+      archived.archive(alice);
+      await repository.save(aNote(alice, 'First'));
+      await repository.save(archived);
+      await repository.save(aNote(bob, 'Not hers'));
+
+      expect(await repository.countByOwner(alice.value)).toBe(2);
+      expect(await repository.countByOwner('nobody')).toBe(0);
+    });
+
     it('rebuilds without recording events', async () => {
       const note = aNote(alice, 'Quiet');
       await repository.save(note);

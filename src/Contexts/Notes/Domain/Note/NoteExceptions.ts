@@ -82,6 +82,16 @@ export class NoteAlreadySharedException extends NoteDomainException {
   }
 }
 
+export class NoteQuotaExceededException extends NoteDomainException {
+  constructor(plan: string, limit: number) {
+    super({
+      type: 'NoteQuotaExceeded',
+      message: `The ${plan.toLowerCase()} plan allows at most ${limit} notes`,
+      context: { plan, limit },
+    });
+  }
+}
+
 export class RecipientNotFoundException extends NoteDomainException {
   constructor(noteId: string, recipientId: string) {
     super({

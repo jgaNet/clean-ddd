@@ -21,6 +21,13 @@ export class SqliteNoteRepository implements INoteRepository {
     return row ? Note.fromSnapshot(toSnapshot(row)) : null;
   }
 
+  async countByOwner(ownerId: string): Promise<number> {
+    const row = this.db.prepare('SELECT COUNT(*) AS count FROM notes WHERE owner_id = ?').get(ownerId) as {
+      count: number;
+    };
+    return row.count;
+  }
+
   async save(note: Note): Promise<void> {
     const row = toRow(note.toSnapshot());
     this.db

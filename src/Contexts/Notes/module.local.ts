@@ -25,22 +25,27 @@ import { NoteSharedHandler } from '@Contexts/Notes/Application/Events/NoteShared
 import { InMemoryNoteQueries } from '@Contexts/Notes/Infrastructure/Queries/InMemoryNoteQueries';
 import { InMemoryNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository';
 import { SecurityAccountDirectory } from '@Contexts/Notes/Infrastructure/Directories/SecurityAccountDirectory';
+import { BillingAccountPlans } from '@Contexts/Notes/Infrastructure/Directories/BillingAccountPlans';
+import { NoteCreation } from '@Contexts/Notes/Domain/Note/NoteCreation';
 import { NoteSharing } from '@Contexts/Notes/Domain/Note/NoteSharing';
 import { accountQueries } from '@Contexts/Security/module.local';
+import { subscriptionQueries } from '@Contexts/Billing/module.local';
 
 // Write side and read side share the same store here; a real deployment may split them.
 const noteDataSource = new InMemoryDataSource<INote>();
 const noteRepository = new InMemoryNoteRepository(noteDataSource);
 const noteQueries = new InMemoryNoteQueries(noteDataSource);
 
-// Sharing needs to know whether an account exists: Notes asks through its own port, which the
-// infrastructure answers from Security's read model. Notes never imports Security's domain.
+// Sharing needs to know whether an account exists, creating needs to know its plan: Notes asks
+// through its own ports, which the infrastructure answers from Security's and Billing's read
+// models. Notes never imports another context's domain.
 const noteSharing = new NoteSharing(new SecurityAccountDirectory(accountQueries));
+const noteCreation = new NoteCreation(noteRepository, new BillingAccountPlans(subscriptionQueries));
 
 export const localNotesModule = new Module({
   name: 'Notes',
   commands: [
-    { event: CreateNoteCommandEvent, handlers: [new CreateNoteCommandHandler(noteRepository)] },
+    { event: CreateNoteCommandEvent, handlers: [new CreateNoteCommandHandler(noteRepository, noteCreation)] },
     { event: EditNoteCommandEvent, handlers: [new EditNoteCommandHandler(noteRepository)] },
     { event: ArchiveNoteCommandEvent, handlers: [new ArchiveNoteCommandHandler(noteRepository)] },
     { event: RestoreNoteCommandEvent, handlers: [new RestoreNoteCommandHandler(noteRepository)] },

@@ -12,9 +12,12 @@ import {
   NoteArchivedException,
   NoteNotArchivedException,
   NoteNotFoundException,
+  NoteQuotaExceededException,
   NotNoteOwnerException,
 } from '@Contexts/Notes/Domain/Note/NoteExceptions';
+import { AccountPlan } from '@Contexts/Notes/Domain/Note/Ports/IAccountPlans';
 import { InMemoryNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository';
+import { NoteCreation } from '@Contexts/Notes/Domain/Note/NoteCreation';
 import { NoteSharing } from '@Contexts/Notes/Domain/Note/NoteSharing';
 import {
   ArchiveNoteCommandEvent,
@@ -37,17 +40,21 @@ function contextFor(subjectId: string | undefined, role: Role = Role.USER): Exec
 
 let store: InMemoryDataSource<INote>;
 let repository: InMemoryNoteRepository;
+let creation: NoteCreation;
 // Every account the tests talk about exists; the directory itself is covered by NoteSharing.spec.
 const sharing = new NoteSharing({ exists: async id => ['alice', 'bob', 'carol'].includes(id) });
+// Everyone is on the free plan; the quota itself is covered by NoteCreation.spec.
+const plans = { planOf: async () => AccountPlan.FREE };
 
 beforeEach(() => {
   jest.resetAllMocks();
   store = new InMemoryDataSource<INote>();
   repository = new InMemoryNoteRepository(store);
+  creation = new NoteCreation(repository, plans);
 });
 
 async function aNoteOwnedBy(ownerId: string): Promise<string> {
-  const result = await new CreateNoteCommandHandler(repository).execute(
+  const result = await new CreateNoteCommandHandler(repository, creation).execute(
     CreateNoteCommandEvent.set({ title: 'Groceries', content: 'Milk' }),
     contextFor(ownerId),
   );
@@ -58,7 +65,7 @@ async function aNoteOwnedBy(ownerId: string): Promise<string> {
 
 describe('CreateNoteCommandHandler', () => {
   it('saves a new active note owned by the caller and publishes NoteCreated', async () => {
-    const result = await new CreateNoteCommandHandler(repository).execute(
+    const result = await new CreateNoteCommandHandler(repository, creation).execute(
       CreateNoteCommandEvent.set({ title: 'Groceries', content: 'Milk' }),
       contextFor('alice'),
     );
@@ -81,7 +88,7 @@ describe('CreateNoteCommandHandler', () => {
   });
 
   it('refuses a blank title and saves nothing', async () => {
-    const result = await new CreateNoteCommandHandler(repository).execute(
+    const result = await new CreateNoteCommandHandler(repository, creation).execute(
       CreateNoteCommandEvent.set({ title: '   ', content: 'Milk' }),
       contextFor('alice'),
     );
@@ -91,8 +98,21 @@ describe('CreateNoteCommandHandler', () => {
     expect(eventBus.publish).not.toHaveBeenCalled();
   });
 
+  it('refuses the note beyond the free plan and saves nothing', async () => {
+    for (let i = 0; i < NoteCreation.FREE_PLAN_NOTE_LIMIT; i++) await aNoteOwnedBy('alice');
+
+    const result = await new CreateNoteCommandHandler(repository, creation).execute(
+      CreateNoteCommandEvent.set({ title: 'One too many', content: '' }),
+      contextFor('alice'),
+    );
+
+    expect(result.error).toBeInstanceOf(NoteQuotaExceededException);
+    expect(store.collection.size).toBe(NoteCreation.FREE_PLAN_NOTE_LIMIT);
+    expect(eventBus.publish).not.toHaveBeenCalled();
+  });
+
   it('refuses an anonymous caller', async () => {
-    const result = await new CreateNoteCommandHandler(repository).execute(
+    const result = await new CreateNoteCommandHandler(repository, creation).execute(
       CreateNoteCommandEvent.set({ title: 'Groceries', content: 'Milk' }),
       contextFor(undefined, Role.GUEST),
     );

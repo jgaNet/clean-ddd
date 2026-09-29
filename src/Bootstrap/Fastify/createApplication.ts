@@ -16,12 +16,14 @@ import { localTrackerModule, trackedEventBus } from '@Contexts/Tracker/module.lo
 import { localNotesModule } from '@Contexts/Notes/module.local';
 import { localSecurityModule, authMiddleware, registerAdmin } from '@Contexts/Security/module.local';
 import { localNotificationsModule, webSocketChannel } from '@Contexts/Notifications/module.local';
+import { localBillingModule } from '@Contexts/Billing/module.local';
 
 import { homeRoutes } from '@SharedKernel/Presentation/API/REST/Routes';
 import { noteRoutes } from '@Contexts/Notes/Presentation/API/REST/Routes';
 import { operationRoutes } from '@Contexts/Tracker/Presentation/API/REST/Routes';
 import { authRoutes } from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes';
 import { notificationRoutes } from '@Contexts/Notifications/Presentation/API/REST/Routes';
+import { planRoutes } from '@Contexts/Billing/Presentation/API/REST/Routes';
 
 import { Application, ExecutionContext, Logger } from '@SharedKernel/Application';
 import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
@@ -142,12 +144,14 @@ export async function createApplication(
     .registerModule(localNotesModule)
     .registerModule(localSecurityModule)
     .registerModule(localNotificationsModule)
+    .registerModule(localBillingModule)
     .setupSwagger()
     .registerRoutes('/', homeRoutes, { settings: SETTINGS })
     .registerRoutes('/tracker/operations', operationRoutes, { operationsModule: localTrackerModule })
     .registerRoutes('/notes', noteRoutes, { notesModule: localNotesModule })
     .registerRoutes('/', authRoutes, { securityModule: localSecurityModule })
-    .registerRoutes('/notifications', notificationRoutes, { notificationsModule: localNotificationsModule });
+    .registerRoutes('/notifications', notificationRoutes, { notificationsModule: localNotificationsModule })
+    .registerRoutes('/billing', planRoutes, { billingModule: localBillingModule });
 
   await app.startModules();
   return app.seed();

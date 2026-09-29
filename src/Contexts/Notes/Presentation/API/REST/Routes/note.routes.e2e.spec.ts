@@ -115,6 +115,31 @@ describe('Sharing a note (Notes -> Notifications)', () => {
   });
 });
 
+describe('Creating notes beyond the free plan (Notes -> Billing)', () => {
+  it('refuses the eleventh note until an administrator puts the account on the pro plan', async () => {
+    // A fresh, validated account: dave, on the free plan like everyone
+    const signUp = await superagent.post(`${api}/auth/signup`).send({ identifier: 'dave@notes.fr', password: 'dave' });
+    const daveId: string = (await agent.get(`${api}/tracker/operations/${signUp.body.operationId}`)).body.result;
+    await agent.get(`${api}/auth/accounts/${daveId}/validate`);
+    const dave = await app.agentAs('dave@notes.fr', 'dave');
+
+    const write = async (title: string) => {
+      const accepted = await dave.post(`${api}/notes`).send({ title, content: '' });
+      return (await agent.get(`${api}/tracker/operations/${accepted.body.operationId}`)).body;
+    };
+
+    for (let i = 1; i <= 10; i++) expect((await write(`Note ${i}`)).status).toBe('SUCCESS');
+
+    expect(await write('Note 11')).toMatchObject({ status: 'ERROR', error: { type: 'NoteQuotaExceeded' } });
+    expect((await dave.get(`${api}/notes`)).body).toHaveLength(10);
+
+    await agent.put(`${api}/billing/accounts/${daveId}/plan`).send({ plan: 'PRO' });
+
+    expect((await write('Note 11')).status).toBe('SUCCESS');
+    expect((await dave.get(`${api}/notes`)).body).toHaveLength(11);
+  });
+});
+
 describe('Sharing a note with an unknown account', () => {
   it('is refused by the domain, through the port to Security', async () => {
     await agent.post(`${api}/notes`).send({ title: 'Secret', content: '...' });
