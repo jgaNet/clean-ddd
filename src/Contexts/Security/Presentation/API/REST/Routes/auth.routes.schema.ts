@@ -35,6 +35,22 @@ const BasicSignupReqBodySchema = {
   },
 } as const;
 
+// Shape only: how long the new password must be is the domain's rule, and shows up on the operation.
+const ChangePasswordReqBodySchema = {
+  type: 'object',
+  required: ['currentPassword', 'newPassword'],
+  properties: {
+    currentPassword: {
+      type: 'string',
+      description: 'The password in use',
+    },
+    newPassword: {
+      type: 'string',
+      description: 'The password to use from now on',
+    },
+  },
+} as const;
+
 const ValidateAccountReqBodySchema = {
   type: 'object',
   required: ['validation_token'],
@@ -124,6 +140,15 @@ export const validateAccountByIdSchema = {
   },
 };
 
+export const changePasswordSchema = {
+  description: 'Change the password of the authenticated account (the outcome is on the operation)',
+  tags: ['auth'],
+  body: ChangePasswordReqBodySchema,
+  response: {
+    202: AcceptedSchema,
+  },
+};
+
 export const meSchema = {
   description: 'Get the authenticated account',
   tags: ['auth'],
@@ -163,4 +188,5 @@ export const logoutSchema = {
 
 export type BasicLoginReqBody = FromSchema<typeof BasicLoginReqBodySchema>;
 export type BasicSignUpReqBody = FromSchema<typeof BasicSignupReqBodySchema>;
+export type ChangePasswordReqBody = FromSchema<typeof ChangePasswordReqBodySchema>;
 export type ValidateAcccountReqBody = FromSchema<typeof ValidateAccountReqBodySchema>;

@@ -4,6 +4,7 @@ import { FastifyAccountController } from '@Contexts/Security/Presentation/API/RE
 import { Module } from '@Architecture/Application';
 
 import {
+  changePasswordSchema,
   getAccountByIdSchema,
   loginSchema,
   meSchema,
@@ -29,6 +30,11 @@ export const authRoutes = function (
   fastify.post('/auth/signup', { schema: signUpSchema }, authController.signUp.bind(authController));
   fastify.get('/auth/validate', { schema: validateAccountSchema }, authController.validate.bind(authController));
   fastify.get('/auth/me', { schema: meSchema }, authController.me.bind(authController));
+  fastify.put(
+    '/auth/me/password',
+    { schema: changePasswordSchema },
+    authController.changePassword.bind(authController),
+  );
   fastify.post('/auth/login', { schema: loginSchema }, authController.login.bind(authController));
   fastify.post('/auth/logout', { schema: logoutSchema }, authController.logout.bind(authController));
 

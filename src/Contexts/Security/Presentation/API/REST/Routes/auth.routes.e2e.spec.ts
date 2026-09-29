@@ -79,6 +79,67 @@ describe('SignUp', () => {
   });
 });
 
+describe('PUT auth/me/password', () => {
+  // A fresh, validated account for this flow: the earlier cases leave the store as they please.
+  const identifier = 'heidi@user.fr';
+  let heidi: ReturnType<typeof superagent.agent>;
+  let adminAgent: ReturnType<typeof superagent.agent>;
+  beforeAll(async () => {
+    await app.signUpValidated(identifier, 'heidi-first-password');
+    adminAgent = await app.admin();
+  });
+  beforeEach(async () => {
+    heidi = await app.agentAs(identifier, 'heidi-first-password');
+  });
+
+  const operationOf = async (res: superagent.Response) =>
+    (await adminAgent.get(`${api}/tracker/operations/${res.body.operationId}`)).body;
+
+  it('refuses a wrong current password and keeps the old one', async () => {
+    const res = await heidi
+      .put(`${api}/auth/me/password`)
+      .send({ currentPassword: 'not-her-password', newPassword: 'heidi-second-password' });
+    expect(res.status).toBe(202);
+
+    expect(await operationOf(res)).toMatchObject({ status: 'ERROR', error: { type: 'InvalidCredentials' } });
+    expect((await login(identifier, 'heidi-first-password')).status).toBe(200);
+  });
+
+  it('refuses a new password shorter than 8 characters', async () => {
+    const res = await heidi
+      .put(`${api}/auth/me/password`)
+      .send({ currentPassword: 'heidi-first-password', newPassword: 'short7!' });
+
+    expect(await operationOf(res)).toMatchObject({ status: 'ERROR', error: { type: 'PasswordTooShort' } });
+    expect((await login(identifier, 'heidi-first-password')).status).toBe(200);
+  });
+
+  it('refuses an anonymous caller', async () => {
+    const res = await superagent
+      .put(`${api}/auth/me/password`)
+      .send({ currentPassword: 'heidi-first-password', newPassword: 'heidi-second-password' });
+    expect(res.status).toBe(202);
+
+    expect(await operationOf(res)).toMatchObject({ status: 'ERROR', error: { type: 'NotAllowed' } });
+  });
+
+  it('changes the password: the new one signs in, the old one no longer does', async () => {
+    const res = await heidi
+      .put(`${api}/auth/me/password`)
+      .send({ currentPassword: 'heidi-first-password', newPassword: 'heidi-second-password' });
+    expect(res.status).toBe(202);
+
+    const operation = await operationOf(res);
+    expect(operation.status).toBe('SUCCESS');
+    expect(JSON.stringify(operation)).not.toContain('heidi-second-password');
+
+    let refused: number | undefined;
+    await login(identifier, 'heidi-first-password').catch(err => (refused = err.status));
+    expect(refused).toBe(401);
+    expect((await login(identifier, 'heidi-second-password')).body.token).toEqual(expect.any(String));
+  });
+});
+
 describe('What a bible must not do', () => {
   let adminAgent: ReturnType<typeof superagent.agent>;
   beforeEach(async () => {

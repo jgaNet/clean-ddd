@@ -5,6 +5,7 @@ import { Module } from '@Architecture/Application';
 import { formatOf, present } from '@Architecture/Presentation/Format';
 
 import {
+  ChangePasswordCommandEvent,
   LoginCommandEvent,
   LoginCommandHandler,
   SignUpCommandEvent,
@@ -14,6 +15,7 @@ import { GetAccountQueryHandler } from '@Contexts/Security/Application/Queries';
 import {
   BasicLoginReqBody,
   BasicSignUpReqBody,
+  ChangePasswordReqBody,
 } from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes.schema';
 import {
   ErrorHTMXPresenter,
@@ -37,8 +39,9 @@ const presenters = {
 };
 
 /**
- * Sign-up and validation are commands: accepted (202) and followed through the operation.
- * Login answers synchronously, in JSON or HTMX depending on the request (see the presenters).
+ * Sign-up, validation and the password change are commands: accepted (202) and followed
+ * through the operation. Login answers synchronously, in JSON or HTMX depending on the
+ * request (see the presenters).
  */
 export class FastifyAuthController {
   #securityModule: Module;
@@ -67,6 +70,22 @@ export class FastifyAuthController {
     // The token is verified by the handler; whether it is valid is the operation's outcome.
     const operation = context.eventBus.publish(
       ValidateAccountCommandEvent.set({ validationToken: req.query.validation_token }),
+      context,
+    );
+
+    reply.code(202);
+    return { operationId: operation.id };
+  }
+
+  async changePassword(req: FastifyRequest<{ Body: ChangePasswordReqBody }>, reply: FastifyReply) {
+    const context = req.executionContext;
+
+    // Whose password: the handler takes the caller from the context; the body names no account.
+    const operation = context.eventBus.publish(
+      ChangePasswordCommandEvent.set({
+        currentPassword: req.body.currentPassword,
+        newPassword: req.body.newPassword,
+      }),
       context,
     );
 

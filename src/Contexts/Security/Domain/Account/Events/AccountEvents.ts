@@ -19,3 +19,6 @@ export class AccountCreatedEvent extends DomainEvent<{
 export class AccountValidatedEvent extends DomainEvent<{ accountId: string; email: string }> {}
 
 export class AccountAuthenticatedEvent extends DomainEvent<{ accountId: string; at: Date }> {}
+
+/** The fact only: the new credentials never travel in an event. */
+export class AccountPasswordChangedEvent extends DomainEvent<{ accountId: string }> {}

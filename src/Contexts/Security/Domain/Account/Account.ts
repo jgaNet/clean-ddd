@@ -9,6 +9,7 @@ import { Credentials } from '@Contexts/Security/Domain/Account/Credentials';
 import {
   AccountAuthenticatedEvent,
   AccountCreatedEvent,
+  AccountPasswordChangedEvent,
   AccountValidatedEvent,
 } from '@Contexts/Security/Domain/Account/Events/AccountEvents';
 import {
@@ -20,12 +21,15 @@ import {
  * Account is the aggregate root of the Security context: who can sign in, and as what.
  *
  * - an account always has a valid email and a set of credentials (value objects)
- * - it is PENDING until validated, and only an ACTIVE account can authenticate
+ * - it is PENDING until validated, and only an ACTIVE account can authenticate or change
+ *   its password
  * - the email must be unique across accounts: that rule spans the whole collection, so it
  *   lives in the AccountRegistration domain service, not here
  *
  * Checking a password against the stored hash is not business: the application layer asks
- * the IPasswordHasher port, then calls `authenticate()` to record the fact.
+ * the IPasswordHasher port, then calls `authenticate()` (or `changePassword()` with the new
+ * hash) to record the fact. What a new password must look like before it is hashed is the
+ * Password value object's rule.
  */
 export class Account extends AggregateRoot {
   #email: Email;
@@ -104,6 +108,24 @@ export class Account extends AggregateRoot {
 
     this.#lastAuthenticatedAt = now;
     this.record(AccountAuthenticatedEvent.set({ accountId: this._id.value, at: now }));
+
+    return Result.ok();
+  }
+
+  /**
+   * Replaces the credentials with an already hashed new password. The caller has verified
+   * the current password (IPasswordHasher) and the shape of the new one (Password).
+   */
+  changePassword(newPasswordHash: string): IResult {
+    if (this.#status !== AccountStatus.ACTIVE) {
+      return Result.fail(new InactiveAccountException(this._id.value));
+    }
+
+    const credentials = Credentials.create(newPasswordHash);
+    if (credentials.isFailure()) return credentials;
+
+    this.#credentials = credentials.data;
+    this.record(AccountPasswordChangedEvent.set({ accountId: this._id.value }));
 
     return Result.ok();
   }

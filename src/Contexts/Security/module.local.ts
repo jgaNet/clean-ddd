@@ -15,6 +15,8 @@ import { ValidateAccountCommandEvent } from '@Contexts/Security/Application/Comm
 import { ValidateAccountCommandHandler } from '@Contexts/Security/Application/Commands/ValidateAccount/ValidateAccountCommandHandler';
 import { RegisterAdminCommandEvent } from '@Contexts/Security/Application/Commands/RegisterAdmin/RegisterAdminCommandEvent';
 import { RegisterAdminCommandHandler } from '@Contexts/Security/Application/Commands/RegisterAdmin/RegisterAdminCommandHandler';
+import { ChangePasswordCommandEvent } from '@Contexts/Security/Application/Commands/ChangePassword/ChangePasswordCommandEvent';
+import { ChangePasswordCommandHandler } from '@Contexts/Security/Application/Commands/ChangePassword/ChangePasswordCommandHandler';
 import { GetAccountQueryHandler } from '@Contexts/Security/Application/Queries/GetAccount/GetAccountQueryHandler';
 import { AccountCreatedHandler } from '@Contexts/Security/Application/Events/AccountCreatedHandler';
 import { AccountValidatedHandler } from '@Contexts/Security/Application/Events/AccountValidatedHandler';
@@ -49,6 +51,10 @@ export const localSecurityModule = new Module({
     {
       event: ValidateAccountCommandEvent,
       handlers: [new ValidateAccountCommandHandler(accountRepository, signedTokens)],
+    },
+    {
+      event: ChangePasswordCommandEvent,
+      handlers: [new ChangePasswordCommandHandler(accountRepository, passwordHasher)],
     },
   ],
   queries: [new GetAccountQueryHandler(accountQueries)],

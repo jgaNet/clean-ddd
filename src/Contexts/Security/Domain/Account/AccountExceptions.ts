@@ -41,3 +41,13 @@ export class InvalidCredentialsException extends AccountDomainException {
     super({ type: 'InvalidCredentials', message: 'Invalid credentials' });
   }
 }
+
+export class PasswordTooShortException extends AccountDomainException {
+  constructor(minLength: number) {
+    super({
+      type: 'PasswordTooShort',
+      message: `A password needs at least ${minLength} characters`,
+      context: { minLength },
+    });
+  }
+}

@@ -5,6 +5,7 @@ import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';
 import {
   AccountAuthenticatedEvent,
   AccountCreatedEvent,
+  AccountPasswordChangedEvent,
   AccountValidatedEvent,
 } from '@Contexts/Security/Domain/Account/Events/AccountEvents';
 import {
@@ -121,6 +122,36 @@ describe('Account', () => {
 
       expect(account.authenticate().error).toBeInstanceOf(InactiveAccountException);
       expect(account.lastAuthenticatedAt).toBeUndefined();
+    });
+  });
+
+  describe('changing the password', () => {
+    it('replaces the credentials of an active account and records AccountPasswordChanged', () => {
+      const account = aPendingAccount();
+      account.validate();
+      account.pullDomainEvents();
+
+      expect(account.changePassword('n3w-h4sh').isSuccess()).toBe(true);
+      expect(account.credentials.hash).toBe('n3w-h4sh');
+      expect(account.pullDomainEvents()).toEqual([AccountPasswordChangedEvent.set({ accountId: account._id.value })]);
+    });
+
+    it('refuses a pending account', () => {
+      const account = aPendingAccount();
+
+      expect(account.changePassword('n3w-h4sh').error).toBeInstanceOf(InactiveAccountException);
+      expect(account.credentials.hash).toBe('h4sh');
+      expect(account.pullDomainEvents()).toEqual([]);
+    });
+
+    it('refuses empty credentials', () => {
+      const account = aPendingAccount();
+      account.validate();
+      account.pullDomainEvents();
+
+      expect(account.changePassword('').error).toBeInstanceOf(InvalidCredentialsException);
+      expect(account.credentials.hash).toBe('h4sh');
+      expect(account.pullDomainEvents()).toEqual([]);
     });
   });
 
