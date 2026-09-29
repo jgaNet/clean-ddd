@@ -15,6 +15,10 @@ export class Credentials extends ValueObject<{ type: 'password'; hash: string }>
     return Result.ok(new Credentials({ type: 'password', hash }));
   }
 
+  protected equalsValue(a: { type: 'password'; hash: string }, b: { type: 'password'; hash: string }): boolean {
+    return a.type === b.type && a.hash === b.hash;
+  }
+
   get type(): 'password' {
     return this.value.type;
   }

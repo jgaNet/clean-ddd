@@ -9,7 +9,7 @@ import { IAccount } from '@Contexts/Security/Domain/Account/DTOs';
 import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';
 import { TokenTypes } from '@Contexts/Security/Domain/Auth/TokenTypes';
 import { InMemoryAccountRepository } from '@Contexts/Security/Infrastructure/Repositories/InMemoryAccountRepository';
-import { JwtService } from '@Contexts/Security/Infrastructure/Services/JwtService';
+import { JoseSignedTokens } from '@Contexts/Security/Infrastructure/Services/JoseSignedTokens';
 import { ValidateAccountCommandEvent } from './ValidateAccountCommandEvent';
 import { ValidateAccountCommandHandler } from './ValidateAccountCommandHandler';
 
@@ -17,7 +17,7 @@ const eventBus = { connect: jest.fn(), publish: jest.fn(), subscribe: jest.fn() 
 const contextFor = (role: Role, subjectId = '') =>
   new ExecutionContext({ traceId: 'trace', eventBus, auth: { subjectId, role } });
 
-const jwt = new JwtService({ secret: 'test', expiresIn: '1h' });
+const jwt = new JoseSignedTokens({ secret: 'test', expiresIn: '1h' });
 
 let store: InMemoryDataSource<IAccount>;
 let handler: ValidateAccountCommandHandler;
@@ -36,7 +36,7 @@ beforeEach(async () => {
 
 describe('ValidateAccountCommandHandler', () => {
   it('validates with the validation token emailed at sign-up, whoever presents it', async () => {
-    const validationToken = await jwt.sign({ subjectId: pendingId, subjectType: TokenTypes.VALIDATION });
+    const validationToken = await jwt.issue({ subjectId: pendingId, subjectType: TokenTypes.VALIDATION });
 
     const result = await handler.execute(ValidateAccountCommandEvent.set({ validationToken }), contextFor(Role.GUEST));
 
@@ -64,7 +64,7 @@ describe('ValidateAccountCommandHandler', () => {
   });
 
   it('refuses a login token presented as a validation token', async () => {
-    const loginToken = await jwt.sign({ subjectId: pendingId, subjectType: Role.USER });
+    const loginToken = await jwt.issue({ subjectId: pendingId, subjectType: Role.USER });
 
     const result = await handler.execute(
       ValidateAccountCommandEvent.set({ validationToken: loginToken }),

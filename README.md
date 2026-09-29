@@ -56,7 +56,7 @@ One canonical example per concept. When two files could teach the same thing, th
 | Snapshot DTO | [`DTOs.ts`](src/Contexts/Notes/Domain/Note/DTOs.ts) | the plain shape that crosses to the infrastructure |
 | **Domain service** | [`AccountRegistration.ts`](src/Contexts/Security/Domain/Account/AccountRegistration.ts) | a rule about the whole collection ("one account per email") — needs the port, still pure domain |
 | **Port to another context** (read side) | [`IAccountDirectory.ts`](src/Contexts/Notes/Domain/Note/Ports/IAccountDirectory.ts), used by [`NoteSharing.ts`](src/Contexts/Notes/Domain/Note/NoteSharing.ts), answered by [`SecurityAccountDirectory.ts`](src/Contexts/Notes/Infrastructure/Directories/SecurityAccountDirectory.ts) | Notes asks "does this account exist?" in its own words; only its infrastructure knows Security is next door. The read-side counterpart of the anti-corruption layer for events |
-| Ports for technical concerns | [`IPasswordHasher.ts`](src/Contexts/Security/Domain/Auth/Ports/IPasswordHasher.ts), [`IJwtService.ts`](src/Contexts/Security/Domain/Auth/Ports/IJwtService.ts) | hashing has a business meaning; the algorithm does not belong here |
+| Ports for technical concerns | [`IPasswordHasher.ts`](src/Contexts/Security/Domain/Auth/Ports/IPasswordHasher.ts), [`ISignedTokens.ts`](src/Contexts/Security/Domain/Auth/Ports/ISignedTokens.ts) | hashing has a business meaning; the algorithm does not belong here |
 | Lifecycle as an enum | [`NoteStatus.ts`](src/Contexts/Notes/Domain/Note/NoteStatus.ts), [`AccountStatus.ts`](src/Contexts/Security/Domain/Account/AccountStatus.ts) | the transitions live in the aggregate, not in the enum |
 <!-- end generated -->
 
@@ -74,7 +74,7 @@ One canonical example per concept. When two files could teach the same thing, th
 | Execution context | [`ExecutionContext.ts`](src/Contexts/@SharedKernel/Application/ExecutionContext.ts) | who is calling, with which logger, bus and unit of work; `withTransaction`, `afterCommit` |
 | Publish after commit | `publishDomainEvents()` in [`CommandHandler.ts`](src/Contexts/@SharedKernel/Application/CommandHandler.ts) | [ADR 3](docs/adr/0003-publish-domain-events-after-commit.md) |
 | Domain event handler | [`NoteSharedHandler.ts`](src/Contexts/Notes/Application/Events/NoteSharedHandler.ts) | where a fact leaves its context |
-| Integration event (published contract) | [`NoteIntegrationEvents.ts`](src/Contexts/@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts) | the only thing one context may know about another — [ADR 6](docs/adr/0006-integration-events-are-the-only-contract-between-contexts.md) |
+| Integration event (published contract) | [`NoteIntegrationEvents.ts`](src/Contexts/@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts) | the only thing one context may know about another — [ADR 6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md) |
 | **Anti-corruption layer** | [`NoteSharedIntegrationEventHandler.ts`](src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts) | restates a foreign fact in local terms |
 | **Projection / read model** | [`OperationProjection.ts`](src/Contexts/Tracker/Application/Projections/OperationProjection.ts), [`OperationRecord.ts`](src/Contexts/Tracker/Application/ReadModel/OperationRecord.ts) | a context with no aggregate at all |
 | Module (wiring) | [`Module.ts`](src/Contexts/@SharedKernel/Application/Module.ts), used in [`Notes/module.local.ts`](src/Contexts/Notes/module.local.ts) | plain data: which handler answers which command, query, event |
@@ -88,7 +88,7 @@ One canonical example per concept. When two files could teach the same thing, th
 | Repository implementation | [`InMemoryNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository.ts) | snapshot in, snapshot out |
 | Queries implementation | [`InMemoryNoteQueries.ts`](src/Contexts/Notes/Infrastructure/Queries/InMemoryNoteQueries.ts) | builds read models from the same store, here |
 | **Second adapter of the same port** | [`SqliteNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/SqliteNoteRepository.ts), [`SqliteNoteQueries.ts`](src/Contexts/Notes/Infrastructure/Queries/SqliteNoteQueries.ts) on Node's built-in `node:sqlite` | the proof that the port is the seam: a real database behind the same interfaces, not one line changed in Domain or Application. The local wiring keeps the in-memory pair; both are held to [`NotePersistence.contract.spec.ts`](src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts) |
-| Port implementations | [`JwtService.ts`](src/Contexts/Security/Infrastructure/Services/JwtService.ts) (`jose`), [`BcryptPasswordHasher.ts`](src/Contexts/Security/Infrastructure/Services/BcryptPasswordHasher.ts) |  |
+| Port implementations | [`JoseSignedTokens.ts`](src/Contexts/Security/Infrastructure/Services/JoseSignedTokens.ts) (`jose`), [`BcryptPasswordHasher.ts`](src/Contexts/Security/Infrastructure/Services/BcryptPasswordHasher.ts) |  |
 | Event bus | [`InMemoryEventBus.ts`](src/Contexts/@SharedKernel/Infrastructure/EventBus/InMemoryEventBus.ts) | the only bus implementation |
 | Decorator (cross-cutting concern) | [`TrackedEventBus.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.ts) | tracking layered on any bus; neither the bus nor the handlers know |
 | Unit of work | [`InMemoryUnitOfWork.ts`](src/Contexts/@SharedKernel/Infrastructure/UnitOfWork/InMemoryUnitOfWork.ts) |  |
@@ -115,7 +115,7 @@ One canonical example per concept. When two files could teach the same thing, th
 | Domain | [`Note.spec.ts`](src/Contexts/Notes/Domain/Note/Note.spec.ts) | none |
 | Domain service | [`AccountRegistration.spec.ts`](src/Contexts/Security/Domain/Account/AccountRegistration.spec.ts) | a 10-line fake of the port |
 | Application | [`NoteCommandHandlers.spec.ts`](src/Contexts/Notes/Application/Commands/NoteCommandHandlers.spec.ts) | the in-memory repository *is* the double |
-| Infrastructure | [`TrackedEventBus.spec.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.spec.ts), [`JwtService.spec.ts`](src/Contexts/Security/Infrastructure/Services/JwtService.spec.ts) | real in-memory pieces |
+| Infrastructure | [`TrackedEventBus.spec.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.spec.ts), [`JoseSignedTokens.spec.ts`](src/Contexts/Security/Infrastructure/Services/JoseSignedTokens.spec.ts) | real in-memory pieces |
 | **Contract** (one port, every adapter) | [`NotePersistence.contract.spec.ts`](src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts) | none — `describe.each` over the in-memory and the SQLite adapters, same expectations |
 | End to end | [`note.routes.e2e.spec.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.e2e.spec.ts) | the whole application, booted in-process by [`application.spec-helper.ts`](src/Bootstrap/Fastify/application.spec-helper.ts), spoken to over HTTP |
 <!-- end generated -->
@@ -151,11 +151,11 @@ The `@SharedKernel` is not a context: it holds the building blocks ([`Domain`](s
 | A refused command or query is a **failed `Result`**, never a thrown exception. | Base handlers ([`CommandHandler`](src/Contexts/@SharedKernel/Application/CommandHandler.ts), [`QueryHandler`](src/Contexts/@SharedKernel/Application/QueryHandler.ts)) and [ADR 1](docs/adr/0001-result-instead-of-exceptions.md) |
 | Only an **aggregate root** records domain events; a handler never builds one. | Types: `record()` is `protected` on `AggregateRoot` |
 | Domain events are published **after the transaction commits**. | `publishDomainEvents()` → `ExecutionContext.afterCommit()`; [`ExecutionContext.spec.ts`](src/Contexts/@SharedKernel/Application/ExecutionContext.spec.ts) |
-| A context's Domain, Application and Presentation never import another context. Contexts talk through **integration events**, and through **ports they own**, whose adapter (Infrastructure) may read the other context's Domain; only a wiring file imports another context's wiring. | The same ESLint table (`@Contexts/**` forbidden, own context re-allowed per layer) and [ADR 6](docs/adr/0006-integration-events-are-the-only-contract-between-contexts.md) |
+| A context's Domain, Application and Presentation never import another context. Contexts talk through **integration events**, and through **ports they own**, whose adapter (Infrastructure) may read the other context's Domain; only a wiring file imports another context's wiring. | The same ESLint table (`@Contexts/**` forbidden, own context re-allowed per layer) and [ADR 6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md) |
 | Queries return read models; repositories return aggregates. Never the other way. | Port types; [ADR 5](docs/adr/0005-queries-return-read-models-not-aggregates.md) |
 | One wiring file per context, plain data, no container. | [`module.local.ts`](src/Contexts/Notes/module.local.ts) files |
 | One shape per kind of file, whatever the context: exceptions in one `<Aggregate>Exceptions.ts` with a PascalCase `type`; enum values are their UPPERCASE names; factories are `create()`; handlers end in `CommandHandler` / `QueryHandler`; nothing but the logger writes to the console. | Review, against the Notes context; `no-console` in ESLint |
-| The map above names real files, every context on disk is covered by the rules, and every link in the documentation resolves. | [`tools/check-conventions.mjs`](tools/check-conventions.mjs), from [`conventions/concepts.yaml`](conventions/concepts.yaml) and `architecture.yaml`; `yarn check:conventions` in CI |
+| The map above names real files, every context on disk is covered by the rules, every link in the documentation resolves, nothing silences ESLint, and the generated import rules refuse and allow what a table of probes says they must. | [`tools/check-conventions.mjs`](tools/check-conventions.mjs), from [`conventions/concepts.yaml`](conventions/concepts.yaml) and `architecture.yaml`; `yarn check:conventions` in CI |
 | A newcomer can add a feature in the right shape from the documentation alone. | Periodic fresh-agent evaluations, graded against a rubric written beforehand: [`docs/evaluations`](docs/evaluations/README.md) |
 | It compiles, lints and tests, in CI, on every pull request. | [`ci.yml`](.github/workflows/ci.yml): `yarn check:conventions`, `yarn format:check`, `yarn lint`, `yarn typecheck`, `yarn test:units`, `yarn test:e2e` |
 
@@ -243,7 +243,8 @@ Non-obvious choices are recorded as short ADRs in [`docs/adr`](docs/adr):
 3. [Domain events are published after the transaction commits](docs/adr/0003-publish-domain-events-after-commit.md)
 4. [Reconstitution throws on corrupted data](docs/adr/0004-reconstitution-throws-on-corrupted-data.md)
 5. [Queries return read models, not aggregates](docs/adr/0005-queries-return-read-models-not-aggregates.md)
-6. [Integration events are the only contract between contexts](docs/adr/0006-integration-events-are-the-only-contract-between-contexts.md)
+6. [Integration events, and ports the asking side owns, are the only contracts between contexts](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md)
+7. [Non-determinism enters the domain as a value](docs/adr/0007-non-determinism-enters-the-domain-as-a-value.md)
 
 ## What is deliberately not here
 
@@ -257,6 +258,7 @@ Each of these is real vocabulary, and each would turn the building blocks back i
 
 ## Known gaps
 
+- **In-memory transactions are not isolated from one another.** `InMemoryUnitOfWork` rolls back by restoring a snapshot of each store, which is right for one transaction at a time and wrong for two interleaving on the same store ([ADR 3](docs/adr/0003-publish-domain-events-after-commit.md)). A per-transaction undo log would fix it; a database has one.
 - **A refused command that must leave a trace** (a wrong password counted towards a lockout) has no canonical example. [CLAUDE.md](CLAUDE.md) says how it should be shaped; the evaluation branch [`eval/account-lockout`](https://github.com/jgaNet/clean-ddd/tree/eval/account-lockout) is the candidate, found by [an evaluation](docs/evaluations/2026-09-29-account-lockout.md).
 
 When a gap appears, it is listed here with what would fix it, rather than hidden; the previous entries (a shared unit of work, a login answering `200`, e2e suites sharing one server, `shareWith()` not checking the recipient) each became a pull request.

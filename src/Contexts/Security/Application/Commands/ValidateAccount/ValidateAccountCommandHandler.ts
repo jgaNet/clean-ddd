@@ -2,7 +2,7 @@ import { IResult, NotAllowedException, Result, Role } from '@SharedKernel/Domain
 import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
 
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
-import { IJwtService } from '@Contexts/Security/Domain/Auth/Ports/IJwtService';
+import { ISignedTokens } from '@Contexts/Security/Domain/Auth/Ports/ISignedTokens';
 import { AccountNotFoundException } from '@Contexts/Security/Domain/Account/AccountExceptions';
 import { TokenTypes } from '@Contexts/Security/Domain/Auth/TokenTypes';
 import { ValidateAccountCommandEvent } from './ValidateAccountCommandEvent';
@@ -15,7 +15,7 @@ import { ValidateAccountCommandEvent } from './ValidateAccountCommandEvent';
 export class ValidateAccountCommandHandler extends CommandHandler<ValidateAccountCommandEvent> {
   constructor(
     private accountRepository: IAccountRepository,
-    private jwtService: IJwtService,
+    private signedTokens: ISignedTokens,
   ) {
     super();
   }
@@ -41,7 +41,7 @@ export class ValidateAccountCommandHandler extends CommandHandler<ValidateAccoun
     { auth }: ExecutionContext,
   ): Promise<IResult<string>> {
     if ('validationToken' in payload) {
-      const claims = await this.jwtService.verify(payload.validationToken);
+      const claims = await this.signedTokens.verify(payload.validationToken);
       if (!claims || claims.subjectType !== TokenTypes.VALIDATION) {
         return Result.fail(new NotAllowedException('Security', 'Invalid validation token'));
       }

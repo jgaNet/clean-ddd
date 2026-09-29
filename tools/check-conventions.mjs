@@ -8,14 +8,19 @@
  * 2. conventions/concepts.yaml names real files: every link in it resolves, and the README's map
  *    tables are exactly what it renders (`--write` regenerates them).
  * 3. Every relative link in README.md, CLAUDE.md, conventions/ and docs/ resolves.
+ * 4. No `eslint-disable` anywhere in src/, except `no-console` in the console logger: a boundary
+ *    violation is fixed with a port or a move, never silenced.
+ * 5. The import rules generated from architecture.yaml behave: a table of probes says which
+ *    imports each layer must refuse and which it must allow, and ESLint is asked about each.
  *
- * No dependency but js-yaml; no framework. Read it top to bottom.
+ * No dependency but js-yaml and eslint; no framework. Read it top to bottom.
  */
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { load } from 'js-yaml';
+import { ESLint } from 'eslint';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const write = process.argv.includes('--write');
@@ -120,6 +125,83 @@ for (const file of markdownFiles) {
   }
 }
 
+// 4. No eslint-disable, except the console logger's
+
+const allowedDisables = { 'src/Contexts/@SharedKernel/Infrastructure/Logging/ConsoleLogger.ts': 'no-console' };
+const walk = dir =>
+  readdirSync(join(root, dir), { withFileTypes: true }).flatMap(entry =>
+    entry.isDirectory() ? walk(`${dir}/${entry.name}`) : entry.name.endsWith('.ts') ? [`${dir}/${entry.name}`] : [],
+  );
+for (const file of walk('src')) {
+  for (const line of readFileSync(join(root, file), 'utf8').split('\n')) {
+    const disable = line.match(/eslint-disable(?:-next-line|-line)?\s*([\w@/-]*)/);
+    if (!disable) continue;
+    if (allowedDisables[file] === disable[1]) continue;
+    problem(`${file} silences ESLint with "${disable[0].trim()}"; fix the cause (a port, a move) instead`);
+  }
+}
+
+// 5. The generated import rules refuse and allow what the table says
+
+const probes = [
+  // [file the import sits in, what it imports, expected]
+  ['src/Contexts/Notes/Domain/Note/Probe.ts', '@SharedKernel/Domain', 'allowed'],
+  ['src/Contexts/Notes/Domain/Note/Probe.ts', './NoteTitle', 'allowed'],
+  ['src/Contexts/Notes/Domain/Note/Probe.ts', '@SharedKernel/Application', 'refused'],
+  ['src/Contexts/Notes/Domain/Note/Probe.ts', '@Contexts/Notes/Application/Commands', 'refused'],
+  ['src/Contexts/Notes/Domain/Note/Probe.ts', '@Contexts/Security/Domain/Account/Account', 'refused'],
+  ['src/Contexts/Notes/Domain/Note/Probe.ts', 'fastify', 'refused'],
+  ['src/Contexts/Notes/Domain/Note/Probe.ts', '../NoteExceptions', 'refused'],
+  ['src/Contexts/Notes/Domain/Note/Probe.ts', './Ports/INoteRepository', 'refused'],
+  [
+    'src/Contexts/Notes/Application/Commands/Probe/Probe.ts',
+    '@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents',
+    'allowed',
+  ],
+  [
+    'src/Contexts/Notes/Application/Commands/Probe/Probe.ts',
+    '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository',
+    'refused',
+  ],
+  ['src/Contexts/Notes/Application/Commands/Probe/Probe.ts', '@Contexts/Security/Domain/Account/Account', 'refused'],
+  [
+    'src/Contexts/Notes/Application/Commands/Probe/Probe.spec.ts',
+    '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository',
+    'allowed',
+  ],
+  ['src/Contexts/Notes/Infrastructure/Probe.ts', '@Contexts/Security/Domain/Account/Ports/IAccountQueries', 'allowed'],
+  ['src/Contexts/Notes/Infrastructure/Probe.ts', 'jose', 'allowed'],
+  ['src/Contexts/Notes/Infrastructure/Probe.ts', '@Contexts/Security/Application/Commands', 'refused'],
+  ['src/Contexts/Notes/Infrastructure/Probe.ts', '@Contexts/Security/module.local', 'refused'],
+  ['src/Contexts/Notes/Infrastructure/Probe.ts', '@Bootstrap/Fastify/application.settings', 'refused'],
+  ['src/Contexts/Notes/Presentation/API/Probe.ts', 'fastify', 'allowed'],
+  [
+    'src/Contexts/Notes/Presentation/API/Probe.ts',
+    '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository',
+    'refused',
+  ],
+  ['src/Contexts/Notes/Presentation/API/Probe.e2e.spec.ts', '@Bootstrap/Fastify/application.spec-helper', 'allowed'],
+  ['src/Contexts/Notes/Presentation/API/Probe.e2e.spec.ts', '@Contexts/Notes/Domain/Note/Note', 'refused'],
+  ['src/Contexts/Notes/module.local.ts', '@Contexts/Security/module.local', 'allowed'],
+  ['src/Contexts/Notes/module.local.ts', '@Bootstrap/Fastify/application.settings', 'allowed'],
+  ['src/Contexts/Notes/module.local.ts', '@Contexts/Security/Domain/Account/Account', 'refused'],
+  ['src/Contexts/@SharedKernel/Domain/DDD/Probe.ts', '@Contexts/Notes/Domain/Note/Note', 'refused'],
+  [
+    'src/Contexts/@SharedKernel/Application/Probe.ts',
+    '@SharedKernel/Infrastructure/EventBus/InMemoryEventBus',
+    'refused',
+  ],
+];
+const eslint = new ESLint({ cwd: root });
+for (const [file, specifier, expected] of probes) {
+  const [result] = await eslint.lintText(`import { probe } from '${specifier}';\nexport const p = probe;\n`, {
+    filePath: join(root, file),
+  });
+  const refused = result.messages.some(message => message.ruleId === 'no-restricted-imports');
+  const actual = refused ? 'refused' : 'allowed';
+  if (actual !== expected) problem(`import rules: ${file} importing '${specifier}' is ${actual}, expected ${expected}`);
+}
+
 // Verdict
 
 if (problems.length) {
@@ -128,5 +210,5 @@ if (problems.length) {
 }
 const rows = concepts.sections.reduce((n, section) => n + section.rows.length, 0);
 process.stdout.write(
-  `✓ ${architecture.contexts.length} contexts match conventions/architecture.yaml; ${rows} concept rows name existing files and the README shows them; every documentation link resolves.\n`,
+  `✓ ${architecture.contexts.length} contexts match conventions/architecture.yaml; ${rows} concept rows name existing files and the README shows them; every documentation link resolves; no eslint-disable; ${probes.length} import probes behave.\n`,
 );

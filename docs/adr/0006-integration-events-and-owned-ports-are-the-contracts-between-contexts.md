@@ -1,4 +1,4 @@
-# 6. Integration events are the only contract between contexts
+# 6. Integration events, and ports the asking side owns, are the only contracts between contexts
 
 ## Context
 
@@ -6,7 +6,7 @@ Notifications must react when a note is shared or an account is created. The sho
 
 ## Decision
 
-A context exposes **integration events** only ([`@SharedKernel/Application/IntegrationEvents`](../../src/Contexts/@SharedKernel/Application/IntegrationEvents)): named, versionable payloads that are a promise to other contexts, deliberately distinct from the domain events inside. Three roles:
+Contexts talk in two ways, and in no other: asynchronously, through **integration events** (a fact one context publishes and others react to); and synchronously, through a **port the asking context owns**, answered by an adapter in its own infrastructure over the other context's read model. A context exposes **integration events** only ([`@SharedKernel/Application/IntegrationEvents`](../../src/Contexts/@SharedKernel/Application/IntegrationEvents)): named, versionable payloads that are a promise to other contexts, deliberately distinct from the domain events inside. Three roles:
 
 1. Inside the publishing context, a domain event handler translates the domain event into the integration event ([`NoteSharedHandler.ts`](../../src/Contexts/Notes/Application/Events/NoteSharedHandler.ts)). This is where a fact leaves its context.
 2. The integration event carries everything the consumer needs, so the consumer never queries back. It is published whenever the fact happens, not only when a known consumer cares, and it uses the publishing context's public words (`recipientIds`), not the aggregate's internal field names.

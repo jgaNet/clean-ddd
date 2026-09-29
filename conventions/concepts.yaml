@@ -96,7 +96,7 @@ sections:
       - concept: Ports for technical concerns
         example: >-
           [`IPasswordHasher.ts`](src/Contexts/Security/Domain/Auth/Ports/IPasswordHasher.ts),
-          [`IJwtService.ts`](src/Contexts/Security/Domain/Auth/Ports/IJwtService.ts)
+          [`ISignedTokens.ts`](src/Contexts/Security/Domain/Auth/Ports/ISignedTokens.ts)
         notes: hashing has a business meaning; the algorithm does not belong here
       - concept: Lifecycle as an enum
         example: >-
@@ -151,7 +151,7 @@ sections:
         example: '[`NoteIntegrationEvents.ts`](src/Contexts/@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts)'
         notes: >-
           the only thing one context may know about another — [ADR
-          6](docs/adr/0006-integration-events-are-the-only-contract-between-contexts.md)
+          6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md)
       - concept: '**Anti-corruption layer**'
         example: '[`NoteSharedIntegrationEventHandler.ts`](src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts)'
         notes: restates a foreign fact in local terms
@@ -189,7 +189,7 @@ sections:
           [`NotePersistence.contract.spec.ts`](src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts)
       - concept: Port implementations
         example: >-
-          [`JwtService.ts`](src/Contexts/Security/Infrastructure/Services/JwtService.ts) (`jose`),
+          [`JoseSignedTokens.ts`](src/Contexts/Security/Infrastructure/Services/JoseSignedTokens.ts) (`jose`),
           [`BcryptPasswordHasher.ts`](src/Contexts/Security/Infrastructure/Services/BcryptPasswordHasher.ts)
       - concept: Event bus
         example: '[`InMemoryEventBus.ts`](src/Contexts/@SharedKernel/Infrastructure/EventBus/InMemoryEventBus.ts)'
@@ -252,7 +252,7 @@ sections:
       - layer: Infrastructure
         example: >-
           [`TrackedEventBus.spec.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.spec.ts),
-          [`JwtService.spec.ts`](src/Contexts/Security/Infrastructure/Services/JwtService.spec.ts)
+          [`JoseSignedTokens.spec.ts`](src/Contexts/Security/Infrastructure/Services/JoseSignedTokens.spec.ts)
         doubles: real in-memory pieces
       - layer: '**Contract** (one port, every adapter)'
         example: '[`NotePersistence.contract.spec.ts`](src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts)'

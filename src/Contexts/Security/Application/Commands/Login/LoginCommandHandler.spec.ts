@@ -13,7 +13,7 @@ import {
 import { AccountAuthenticatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountEvents';
 import { IPasswordHasher } from '@Contexts/Security/Domain/Auth/Ports/IPasswordHasher';
 import { InMemoryAccountRepository } from '@Contexts/Security/Infrastructure/Repositories/InMemoryAccountRepository';
-import { JwtService } from '@Contexts/Security/Infrastructure/Services/JwtService';
+import { JoseSignedTokens } from '@Contexts/Security/Infrastructure/Services/JoseSignedTokens';
 import { LoginCommandEvent, LoginCommandHandler } from '@Contexts/Security/Application/Commands';
 
 const eventBus = { connect: jest.fn(), publish: jest.fn(), subscribe: jest.fn() } as EventBus;
@@ -35,7 +35,7 @@ beforeEach(() => {
   jest.resetAllMocks();
   store = new InMemoryDataSource<IAccount>();
   repository = new InMemoryAccountRepository(store);
-  handler = new LoginCommandHandler(repository, fakeHasher, new JwtService({ secret: 'test', expiresIn: '1h' }));
+  handler = new LoginCommandHandler(repository, fakeHasher, new JoseSignedTokens({ secret: 'test', expiresIn: '1h' }));
 });
 
 async function anAccount(email: string, activated: boolean): Promise<string> {
