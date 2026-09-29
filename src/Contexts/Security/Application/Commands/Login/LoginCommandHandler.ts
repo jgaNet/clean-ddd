@@ -10,6 +10,11 @@ import { LoginCommandEvent } from './LoginCommandEvent';
 /**
  * Login answers synchronously (the caller needs the token), so the controller calls
  * `execute()` directly instead of publishing the command on the bus.
+ *
+ * A wrong password is a refusal with a side effect: the aggregate counts it, and the count
+ * is saved before the failed Result is returned (the fifth in a row locks the account).
+ * That write survives the refusal because login runs outside `handle()`'s transaction;
+ * published on the bus, a failed Result would roll it back and drop its events.
  */
 export class LoginCommandHandler extends CommandHandler<LoginCommandEvent> {
   constructor(
@@ -28,6 +33,10 @@ export class LoginCommandHandler extends CommandHandler<LoginCommandEvent> {
 
     const passwordMatches = await this.passwordHasher.compare(payload.password, account.credentials.hash);
     if (!passwordMatches) {
+      account.recordFailedLogin();
+      await this.accountRepository.save(account);
+      this.publishDomainEvents(account, context);
+
       return Result.fail(new InvalidCredentialsException());
     }
 

@@ -124,6 +124,21 @@ export const validateAccountByIdSchema = {
   },
 };
 
+export const unlockAccountByIdSchema = {
+  description:
+    'Unlock an account locked by too many wrong passwords (administrators only; the outcome is on the operation)',
+  tags: ['accounts'],
+  params: {
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+    },
+  },
+  response: {
+    202: AcceptedSchema,
+  },
+};
+
 export const meSchema = {
   description: 'Get the authenticated account',
   tags: ['auth'],

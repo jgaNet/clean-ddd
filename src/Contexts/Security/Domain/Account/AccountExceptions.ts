@@ -35,6 +35,19 @@ export class InactiveAccountException extends AccountDomainException {
   }
 }
 
+/** Told only to a caller who presented the right password; the lock is not a secret from its owner. */
+export class AccountLockedException extends AccountDomainException {
+  constructor(accountId: string) {
+    super({ type: 'AccountLocked', message: 'This account is locked', context: { accountId } });
+  }
+}
+
+export class AccountNotLockedException extends AccountDomainException {
+  constructor(accountId: string) {
+    super({ type: 'AccountNotLocked', message: 'This account is not locked', context: { accountId } });
+  }
+}
+
 /** Deliberately vague: it does not say whether the email or the password was wrong. */
 export class InvalidCredentialsException extends AccountDomainException {
   constructor() {

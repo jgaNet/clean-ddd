@@ -7,10 +7,14 @@ import { Credentials } from '@Contexts/Security/Domain/Account/Credentials';
 import {
   AccountAuthenticatedEvent,
   AccountCreatedEvent,
+  AccountLockedEvent,
+  AccountUnlockedEvent,
   AccountValidatedEvent,
 } from '@Contexts/Security/Domain/Account/Events/AccountEvents';
 import {
   AccountAlreadyActiveException,
+  AccountLockedException,
+  AccountNotLockedException,
   InactiveAccountException,
 } from '@Contexts/Security/Domain/Account/AccountExceptions';
 
@@ -19,17 +23,24 @@ import {
  *
  * - an account always has a valid email and a set of credentials (value objects)
  * - it is PENDING until validated, and only an ACTIVE account can authenticate
+ * - MAX_FAILED_LOGIN_ATTEMPTS wrong passwords in a row lock an ACTIVE account; a locked
+ *   account refuses to authenticate even with the right password, until an administrator
+ *   unlocks it. A successful sign-in resets the count
  * - the email must be unique across accounts: that rule spans the whole collection, so it
  *   lives in the AccountRegistration domain service, not here
  *
  * Checking a password against the stored hash is not business: the application layer asks
- * the IPasswordHasher port, then calls `authenticate()` to record the fact.
+ * the IPasswordHasher port, then calls `authenticate()` or `recordFailedLogin()` to record
+ * the fact.
  */
 export class Account extends AggregateRoot {
+  static readonly MAX_FAILED_LOGIN_ATTEMPTS = 5;
+
   #email: Email;
   #role: Role;
   #credentials: Credentials;
   #status: AccountStatus;
+  #failedLoginAttempts: number;
   #lastAuthenticatedAt?: Date;
 
   private constructor(
@@ -38,6 +49,7 @@ export class Account extends AggregateRoot {
     role: Role,
     credentials: Credentials,
     status: AccountStatus,
+    failedLoginAttempts: number,
     lastAuthenticatedAt?: Date,
   ) {
     super(id);
@@ -45,6 +57,7 @@ export class Account extends AggregateRoot {
     this.#role = role;
     this.#credentials = credentials;
     this.#status = status;
+    this.#failedLoginAttempts = failedLoginAttempts;
     this.#lastAuthenticatedAt = lastAuthenticatedAt;
   }
 
@@ -58,7 +71,7 @@ export class Account extends AggregateRoot {
 
     const id = Id.generate();
     const status = props.activated ? AccountStatus.ACTIVE : AccountStatus.PENDING;
-    const account = new Account(id, email.data, props.role, credentials.data, status);
+    const account = new Account(id, email.data, props.role, credentials.data, status, 0);
     account.record(AccountCreatedEvent.set({ accountId: id.value, email: email.data.value, role: props.role, status }));
 
     return Result.ok(account);
@@ -78,6 +91,7 @@ export class Account extends AggregateRoot {
       snapshot.role,
       credentials.data,
       snapshot.status,
+      snapshot.failedLoginAttempts,
       snapshot.lastAuthenticatedAt,
     );
   }
@@ -96,12 +110,48 @@ export class Account extends AggregateRoot {
 
   /** Records a successful sign-in. The caller has already verified the credentials. */
   authenticate(now: Date = new Date()): IResult {
+    if (this.#status === AccountStatus.LOCKED) {
+      return Result.fail(new AccountLockedException(this._id.value));
+    }
     if (this.#status !== AccountStatus.ACTIVE) {
       return Result.fail(new InactiveAccountException(this._id.value));
     }
 
+    this.#failedLoginAttempts = 0;
     this.#lastAuthenticatedAt = now;
     this.record(AccountAuthenticatedEvent.set({ accountId: this._id.value, at: now }));
+
+    return Result.ok();
+  }
+
+  /**
+   * Records a wrong password. The MAX_FAILED_LOGIN_ATTEMPTS-th in a row locks the account.
+   * An account that cannot sign in anyway (PENDING, already LOCKED) has nothing to protect
+   * this way, so nothing is counted for it.
+   */
+  recordFailedLogin(): IResult {
+    if (this.#status !== AccountStatus.ACTIVE) return Result.ok();
+
+    this.#failedLoginAttempts += 1;
+    if (this.#failedLoginAttempts >= Account.MAX_FAILED_LOGIN_ATTEMPTS) {
+      this.#status = AccountStatus.LOCKED;
+      this.record(
+        AccountLockedEvent.set({ accountId: this._id.value, failedLoginAttempts: this.#failedLoginAttempts }),
+      );
+    }
+
+    return Result.ok();
+  }
+
+  /** Lifts the lock: the account is ACTIVE again with a clean count. Who may ask is the handler's business. */
+  unlock(): IResult {
+    if (this.#status !== AccountStatus.LOCKED) {
+      return Result.fail(new AccountNotLockedException(this._id.value));
+    }
+
+    this.#status = AccountStatus.ACTIVE;
+    this.#failedLoginAttempts = 0;
+    this.record(AccountUnlockedEvent.set({ accountId: this._id.value }));
 
     return Result.ok();
   }
@@ -113,6 +163,7 @@ export class Account extends AggregateRoot {
       role: this.#role,
       credentials: { type: this.#credentials.type, hash: this.#credentials.hash },
       status: this.#status,
+      failedLoginAttempts: this.#failedLoginAttempts,
       lastAuthenticatedAt: this.#lastAuthenticatedAt,
     };
   }
@@ -131,6 +182,10 @@ export class Account extends AggregateRoot {
 
   get status(): AccountStatus {
     return this.#status;
+  }
+
+  get failedLoginAttempts(): number {
+    return this.#failedLoginAttempts;
   }
 
   get lastAuthenticatedAt(): Date | undefined {

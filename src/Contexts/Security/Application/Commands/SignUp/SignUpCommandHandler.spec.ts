@@ -49,6 +49,7 @@ describe('SignUpCommandHandler', () => {
       role: Role.USER,
       credentials: { type: 'password', hash: 'hashed(secret)' },
       status: AccountStatus.PENDING,
+      failedLoginAttempts: 0,
       lastAuthenticatedAt: undefined,
     });
     expect(eventBus.publish).toHaveBeenCalledWith(

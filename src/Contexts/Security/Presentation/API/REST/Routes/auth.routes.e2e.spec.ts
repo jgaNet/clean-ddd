@@ -79,6 +79,68 @@ describe('SignUp', () => {
   });
 });
 
+describe('Account lockout', () => {
+  let adminAgent: ReturnType<typeof superagent.agent>;
+  let accountId: string;
+  const failedLogin = async (identifier: string, password: string) => {
+    let failure: { status: number; body: { error?: string } } | undefined;
+    await login(identifier, password).catch(err => (failure = { status: err.status, body: err.response.body }));
+    return failure;
+  };
+
+  beforeAll(async () => {
+    adminAgent = await app.admin();
+    const signUp = await superagent.post(`${api}/auth/signup`).send({ identifier: 'heidi@user.fr', password: 'heidi' });
+    accountId = (await adminAgent.get(`${api}/tracker/operations/${signUp.body.operationId}`)).body.result;
+    await adminAgent.get(`${api}/auth/accounts/${accountId}/validate`);
+  });
+
+  it('locks the account after five wrong passwords in a row, and refuses the right one', async () => {
+    for (let i = 0; i < 5; i++) {
+      expect(await failedLogin('heidi@user.fr', 'wrong')).toEqual({
+        status: 401,
+        body: { error: 'Invalid credentials' },
+      });
+    }
+
+    expect(await failedLogin('heidi@user.fr', 'heidi')).toEqual({
+      status: 401,
+      body: { error: 'This account is locked' },
+    });
+    expect((await adminAgent.get(`${api}/auth/accounts/${accountId}`)).body.status).toBe('LOCKED');
+  });
+
+  it('does not let anyone but an administrator unlock it', async () => {
+    const attempt = await superagent.post(`${api}/auth/accounts/${accountId}/unlock`);
+    expect(attempt.status).toBe(202);
+
+    const operation = await adminAgent.get(`${api}/tracker/operations/${attempt.body.operationId}`);
+    expect(operation.body).toMatchObject({ status: 'ERROR', error: { type: 'NotAllowed' } });
+    expect((await adminAgent.get(`${api}/auth/accounts/${accountId}`)).body.status).toBe('LOCKED');
+  });
+
+  it('lets an administrator unlock it, after which the account signs in again', async () => {
+    const unlock = await adminAgent.post(`${api}/auth/accounts/${accountId}/unlock`);
+    expect(unlock.status).toBe(202);
+
+    const operation = await adminAgent.get(`${api}/tracker/operations/${unlock.body.operationId}`);
+    expect(operation.body.status).toBe('SUCCESS');
+    expect((await adminAgent.get(`${api}/auth/accounts/${accountId}`)).body.status).toBe('ACTIVE');
+
+    const accepted = await login('heidi@user.fr', 'heidi');
+    expect(accepted.status).toBe(200);
+  });
+
+  it('starts the count over after a successful login', async () => {
+    for (let i = 0; i < 4; i++) await failedLogin('heidi@user.fr', 'wrong');
+    expect((await login('heidi@user.fr', 'heidi')).status).toBe(200);
+
+    for (let i = 0; i < 4; i++) await failedLogin('heidi@user.fr', 'wrong');
+    expect((await login('heidi@user.fr', 'heidi')).status).toBe(200);
+    expect((await adminAgent.get(`${api}/auth/accounts/${accountId}`)).body.status).toBe('ACTIVE');
+  });
+});
+
 describe('What a bible must not do', () => {
   let adminAgent: ReturnType<typeof superagent.agent>;
   beforeEach(async () => {

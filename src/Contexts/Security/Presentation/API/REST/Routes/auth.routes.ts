@@ -8,6 +8,7 @@ import {
   loginSchema,
   meSchema,
   signUpSchema,
+  unlockAccountByIdSchema,
   validateAccountSchema,
   validateAccountByIdSchema,
   logoutSchema,
@@ -36,6 +37,12 @@ export const authRoutes = function (
     '/auth/accounts/:id/validate',
     { schema: validateAccountByIdSchema },
     accountController.validateAccountById.bind(accountController),
+  );
+
+  fastify.post(
+    '/auth/accounts/:id/unlock',
+    { schema: unlockAccountByIdSchema },
+    accountController.unlockAccountById.bind(accountController),
   );
 
   fastify.get(

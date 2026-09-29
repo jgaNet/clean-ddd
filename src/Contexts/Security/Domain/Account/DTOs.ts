@@ -12,6 +12,8 @@ export interface IAccount {
   role: Role;
   credentials: { type: 'password'; hash: string };
   status: AccountStatus;
+  /** Wrong passwords since the last successful sign-in; reaching the limit locks the account. */
+  failedLoginAttempts: number;
   lastAuthenticatedAt?: Date;
 }
 

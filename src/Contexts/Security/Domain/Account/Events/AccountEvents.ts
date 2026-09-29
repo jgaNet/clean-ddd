@@ -18,3 +18,7 @@ export class AccountCreatedEvent extends DomainEvent<{
 export class AccountValidatedEvent extends DomainEvent<{ accountId: string; email: string }> {}
 
 export class AccountAuthenticatedEvent extends DomainEvent<{ accountId: string; at: Date }> {}
+
+export class AccountLockedEvent extends DomainEvent<{ accountId: string; failedLoginAttempts: number }> {}
+
+export class AccountUnlockedEvent extends DomainEvent<{ accountId: string }> {}

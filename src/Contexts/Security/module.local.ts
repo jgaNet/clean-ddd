@@ -15,6 +15,8 @@ import { ValidateAccountCommandEvent } from '@Contexts/Security/Application/Comm
 import { ValidateAccountCommandHandler } from '@Contexts/Security/Application/Commands/ValidateAccount/ValidateAccountCommandHandler';
 import { RegisterAdminCommandEvent } from '@Contexts/Security/Application/Commands/RegisterAdmin/RegisterAdminCommandEvent';
 import { RegisterAdminCommandHandler } from '@Contexts/Security/Application/Commands/RegisterAdmin/RegisterAdminCommandHandler';
+import { UnlockAccountCommandEvent } from '@Contexts/Security/Application/Commands/UnlockAccount/UnlockAccountCommandEvent';
+import { UnlockAccountCommandHandler } from '@Contexts/Security/Application/Commands/UnlockAccount/UnlockAccountCommandHandler';
 import { GetAccountQueryHandler } from '@Contexts/Security/Application/Queries/GetAccount/GetAccountQueryHandler';
 import { AccountCreatedHandler } from '@Contexts/Security/Application/Events/AccountCreatedHandler';
 import { AccountValidatedHandler } from '@Contexts/Security/Application/Events/AccountValidatedHandler';
@@ -50,6 +52,7 @@ export const localSecurityModule = new Module({
       event: ValidateAccountCommandEvent,
       handlers: [new ValidateAccountCommandHandler(accountRepository, jwtService)],
     },
+    { event: UnlockAccountCommandEvent, handlers: [new UnlockAccountCommandHandler(accountRepository)] },
   ],
   queries: [new GetAccountQueryHandler(accountQueries)],
   domainEvents: [
