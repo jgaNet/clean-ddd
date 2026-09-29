@@ -28,6 +28,10 @@ Writing the allow-list rather than the deny-list is deliberate: a new layer, con
 - **A new infrastructure library**: add it to `libraries`, so the domain and the use cases are kept from importing it.
 - **A new rule** about what may import what: change the table, run `yarn lint`, and fix the code the new rule refuses. Never the other way round: an `eslint-disable` is a violation with a comment.
 
+## What the contract cannot answer yet
+
+Asked for by the first agent that used it ([record](../docs/evaluations/2026-09-29-bookmarks.md)); the next iteration's list, in the order they were missed: a **checklist** for a new aggregate (`create()` / `fromSnapshot()` / `toSnapshot()`, `version`, an exceptions file, an events file, a spec, a contract spec when a port promises an order); a **`place <concept>`** answer (where a second domain service goes, and what it is named after); the **verb table** as data; a **batch `can-import`** taking several probes in one call.
+
 ## Using it elsewhere
 
 `architecture.yaml` names no TypeScript. In another stack, keep the table and swap the enforcer: ArchUnit (JVM), deptrac (PHP), import-linter (Python), dependency-cruiser (JS), `go vet` with depguard (Go). `concepts.yaml` is the reading list: rewrite its paths to point at your files and keep its vocabulary, which is the part that does not depend on the language.

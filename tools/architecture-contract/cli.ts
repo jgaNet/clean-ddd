@@ -101,7 +101,9 @@ async function main(): Promise<void> {
           `Remediation:\n  ${rule.remediation}`,
           rule.dependency ? `\nMay import:\n  ${rule.dependency.mayImport.join(', ') || '(nothing)'}` : '',
           rule.references.length ? `\n${list('References', rule.references)}` : '',
-        ].join('\n'),
+        ]
+          .filter(line => line !== '')
+          .join('\n'),
       );
     }
     case 'concept': {

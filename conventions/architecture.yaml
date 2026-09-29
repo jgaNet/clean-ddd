@@ -205,7 +205,7 @@ rules:
 
   - id: DOMAIN-IDENTITY
     name: identity-is-generated-by-the-domain
-    statement: An aggregate generates its own identity (`Id.generate()` in `create()`); repositories only `findById` and `save`.
+    statement: An aggregate generates its own identity (`Id.generate()` in `create()`). A repository loads and saves aggregates, and answers the facts a domain rule needs about the collection (`findByEmail`, `countByOwner`); it never hands out identities and never searches for a screen.
     why: No persistence round-trip is needed to know who an object is, and the event of its creation can carry its id.
     remediation: Generate the Id in the factory; remove any "next id" method from the repository.
     enforcement: review
