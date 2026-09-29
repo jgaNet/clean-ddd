@@ -12,11 +12,13 @@ import {
   ShareNoteCommandEvent,
 } from '@Contexts/Notes/Application/Commands';
 import {
+  GetAccountNoteCountsQueryHandler,
   GetMyNotesQueryHandler,
   GetNoteQueryHandler,
   GetNotesSharedWithMeQueryHandler,
 } from '@Contexts/Notes/Application/Queries';
 import {
+  AccountIdParams,
   CreateNoteReqBody,
   EditNoteReqBody,
   NoteIdParams,
@@ -80,6 +82,14 @@ export class FastifyNoteController {
     const result = await this.#notesModule
       .getQuery(GetNotesSharedWithMeQueryHandler)
       .handle(undefined, req.executionContext);
+
+    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
+  }
+
+  async getAccountNoteCounts(req: FastifyRequest<{ Params: AccountIdParams }>, reply: FastifyReply) {
+    const result = await this.#notesModule
+      .getQuery(GetAccountNoteCountsQueryHandler)
+      .handle(req.params.accountId, req.executionContext);
 
     return result.isFailure() ? this.refuse(reply, result.error) : result.data;
   }

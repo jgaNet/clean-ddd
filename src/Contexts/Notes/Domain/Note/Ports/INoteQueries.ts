@@ -23,6 +23,12 @@ export interface SharedNoteListItem {
   ownerId: string;
 }
 
+/** How many notes an account owns, and how many are shared with it. Archived notes count: they are still the account's. */
+export interface AccountNoteCounts {
+  owned: number;
+  sharedWith: number;
+}
+
 /**
  * The queries port is the read side (the "Q" of CQRS). It returns read models, not
  * aggregates, so the read side is free to be shaped, indexed and cached however the
@@ -34,4 +40,6 @@ export interface INoteQueries {
   findByOwner(ownerId: string): Promise<NoteListItem[]>;
   /** In the order they were saved. */
   findSharedWith(accountId: string): Promise<SharedNoteListItem[]>;
+  /** Zero and zero for an account that has no note, or that does not exist: the counts are all Notes knows. */
+  countByAccount(accountId: string): Promise<AccountNoteCounts>;
 }

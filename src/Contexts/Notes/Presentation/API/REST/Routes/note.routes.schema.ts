@@ -21,6 +21,12 @@ const NoteIdParamsSchema = {
   required: ['id'],
 } as const;
 
+export const AccountIdParamsSchema = {
+  type: 'object',
+  properties: { accountId: { type: 'string' } },
+  required: ['accountId'],
+} as const;
+
 export const CreateNoteReqBodySchema = {
   type: 'object',
   properties: {
@@ -97,7 +103,20 @@ export const GetSharedNotesResSchema = {
   403: ErrorResSchema,
 } as const;
 
+export const GetAccountNoteCountsResSchema = {
+  200: {
+    description: 'Success',
+    type: 'object',
+    properties: {
+      owned: { type: 'integer' },
+      sharedWith: { type: 'integer' },
+    },
+  },
+  403: ErrorResSchema,
+} as const;
+
 export type CreateNoteReqBody = FromSchema<typeof CreateNoteReqBodySchema>;
 export type EditNoteReqBody = FromSchema<typeof EditNoteReqBodySchema>;
 export type ShareNoteReqBody = FromSchema<typeof ShareNoteReqBodySchema>;
 export type NoteIdParams = FromSchema<typeof NoteIdParamsSchema>;
+export type AccountIdParams = FromSchema<typeof AccountIdParamsSchema>;

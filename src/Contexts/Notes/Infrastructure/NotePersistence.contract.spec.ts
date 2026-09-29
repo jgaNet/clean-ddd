@@ -130,5 +130,19 @@ describe.each(adapters)('Note persistence over $name', ({ open }) => {
       ]);
       expect(await queries.findSharedWith(alice.value)).toEqual([]);
     });
+
+    it('counts the notes an account owns and the notes shared with it, archived ones included', async () => {
+      const shared = aNote(alice, 'Shared');
+      shared.shareWith(alice, bob);
+      const archived = aNote(alice, 'Old');
+      archived.archive(alice);
+      await repository.save(shared);
+      await repository.save(archived);
+      await repository.save(aNote(bob, 'His'));
+
+      expect(await queries.countByAccount(alice.value)).toEqual({ owned: 2, sharedWith: 0 });
+      expect(await queries.countByAccount(bob.value)).toEqual({ owned: 1, sharedWith: 1 });
+      expect(await queries.countByAccount('nobody')).toEqual({ owned: 0, sharedWith: 0 });
+    });
   });
 });

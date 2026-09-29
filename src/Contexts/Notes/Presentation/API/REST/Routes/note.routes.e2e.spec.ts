@@ -133,3 +133,33 @@ describe('Sharing a note with an unknown account', () => {
     expect(note.body.sharedWith).toEqual([]);
   });
 });
+
+describe('GET notes/accounts/:accountId/counts', () => {
+  // Relative to "Sharing a note" above: bob owns nothing and was shared one note; the admin owns
+  // every note the earlier cases created, the archived one included.
+  it('gives an administrator the two numbers of any account', async () => {
+    const bob = await app.agentAs('bob@notes.fr', 'bob');
+    const bobId: string = (await bob.get(`${api}/auth/me`)).body.id;
+    const adminId: string = (await agent.get(`${api}/auth/me`)).body.id;
+    const adminNotes = await agent.get(`${api}/notes`);
+
+    const bobCounts = await agent.get(`${api}/notes/accounts/${bobId}/counts`);
+    expect(bobCounts.status).toBe(200);
+    expect(bobCounts.body).toEqual({ owned: 0, sharedWith: 1 });
+
+    const adminCounts = await agent.get(`${api}/notes/accounts/${adminId}/counts`);
+    expect(adminCounts.body).toEqual({ owned: adminNotes.body.length, sharedWith: 0 });
+
+    const nobody = await agent.get(`${api}/notes/accounts/00000000-0000-4000-8000-000000000000/counts`);
+    expect(nobody.body).toEqual({ owned: 0, sharedWith: 0 });
+  });
+
+  it('refuses a user, even about their own account', async () => {
+    const bob = await app.agentAs('bob@notes.fr', 'bob');
+    const bobId: string = (await bob.get(`${api}/auth/me`)).body.id;
+
+    let status: number | undefined;
+    await bob.get(`${api}/notes/accounts/${bobId}/counts`).catch(err => (status = err.status));
+    expect(status).toBe(403);
+  });
+});

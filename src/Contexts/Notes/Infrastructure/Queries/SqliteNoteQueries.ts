@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 
 import {
+  AccountNoteCounts,
   INoteQueries,
   NoteDetail,
   NoteListItem,
@@ -44,5 +45,18 @@ export class SqliteNoteQueries implements INoteQueries {
       .all(accountId) as Pick<NoteRow, 'id' | 'title' | 'content' | 'owner_id'>[];
 
     return rows.map(({ id, title, content, owner_id }) => ({ id, title, content, ownerId: owner_id }));
+  }
+
+  async countByAccount(accountId: string): Promise<AccountNoteCounts> {
+    const row = this.db
+      .prepare(
+        `SELECT
+           (SELECT COUNT(*) FROM notes WHERE owner_id = ?) AS owned,
+           (SELECT COUNT(*) FROM notes
+            WHERE EXISTS (SELECT 1 FROM json_each(notes.shared_with) WHERE value = ?)) AS shared_with`,
+      )
+      .get(accountId, accountId) as { owned: number; shared_with: number };
+
+    return { owned: row.owned, sharedWith: row.shared_with };
   }
 }

@@ -16,6 +16,7 @@ import {
   ShareNoteCommandHandler,
 } from '@Contexts/Notes/Application/Commands';
 import {
+  GetAccountNoteCountsQueryHandler,
   GetMyNotesQueryHandler,
   GetNoteQueryHandler,
   GetNotesSharedWithMeQueryHandler,
@@ -50,6 +51,7 @@ export const localNotesModule = new Module({
     new GetMyNotesQueryHandler(noteQueries),
     new GetNoteQueryHandler(noteQueries),
     new GetNotesSharedWithMeQueryHandler(noteQueries),
+    new GetAccountNoteCountsQueryHandler(noteQueries),
   ],
   domainEvents: [
     { event: NoteCreatedEvent, handlers: [new NoteCreatedHandler()] },

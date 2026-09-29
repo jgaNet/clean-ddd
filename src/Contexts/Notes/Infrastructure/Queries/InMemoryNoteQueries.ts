@@ -2,6 +2,7 @@ import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InM
 
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import {
+  AccountNoteCounts,
   INoteQueries,
   NoteDetail,
   NoteListItem,
@@ -35,6 +36,14 @@ export class InMemoryNoteQueries implements INoteQueries {
     return this.all()
       .filter(note => note.sharedWith.includes(accountId))
       .map(note => ({ id: note._id, title: note.title, content: note.content, ownerId: note.ownerId }));
+  }
+
+  async countByAccount(accountId: string): Promise<AccountNoteCounts> {
+    const notes = this.all();
+    return {
+      owned: notes.filter(note => note.ownerId === accountId).length,
+      sharedWith: notes.filter(note => note.sharedWith.includes(accountId)).length,
+    };
   }
 
   private all(): INote[] {

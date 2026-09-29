@@ -5,12 +5,15 @@ import { Module } from '@SharedKernel/Application';
 import { FastifyNoteController } from '@Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController';
 
 import {
+  AccountIdParams,
+  AccountIdParamsSchema,
   CommandOnNoteSchema,
   CommandResSchema,
   CreateNoteReqBody,
   CreateNoteReqBodySchema,
   EditNoteReqBody,
   EditNoteReqBodySchema,
+  GetAccountNoteCountsResSchema,
   GetMyNotesResSchema,
   GetNoteResSchema,
   GetSharedNotesResSchema,
@@ -42,6 +45,12 @@ export const noteRoutes = function (
   );
 
   fastify.get('/new', { schema: { tags } }, controller.newNotes.bind(controller));
+
+  fastify.get<{ Params: AccountIdParams }>(
+    '/accounts/:accountId/counts',
+    { schema: { tags, params: AccountIdParamsSchema, response: GetAccountNoteCountsResSchema } },
+    controller.getAccountNoteCounts.bind(controller),
+  );
 
   fastify.get<{ Params: NoteIdParams }>(
     '/:id',
