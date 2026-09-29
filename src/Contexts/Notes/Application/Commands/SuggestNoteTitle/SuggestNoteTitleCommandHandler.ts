@@ -29,7 +29,7 @@ export class SuggestNoteTitleCommandHandler extends CommandHandler<SuggestNoteTi
     { payload }: SuggestNoteTitleCommandEvent,
     context: ExecutionContext,
   ): Promise<IResult<TitleSuggestion>> {
-    const actor = requireSignedIn(context);
+    const actor = requireSignedIn(context, 'Notes');
     if (actor.isFailure()) return actor;
 
     const note = await this.noteRepository.findById(payload.noteId);

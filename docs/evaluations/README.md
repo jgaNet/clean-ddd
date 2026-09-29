@@ -27,6 +27,7 @@ The README and CLAUDE.md claim that a developer (or an agent) who has never seen
 | 2026-09-29 | Plans and a ten-note quota (new context?) | PARTIAL on the context decision (stayed in Security, as the guide's default said), PASS on the cross-context port; the context criterion sharpened | [`2026-09-29-account-plans.md`](2026-09-29-account-plans.md) |
 | 2026-09-29 | My operations in Tracker (a context with no Domain) | every item PASS; a vocabulary row and a missing barrel corrected on `main` | [`2026-09-29-my-operations.md`](2026-09-29-my-operations.md) |
 | 2026-09-29 | Plans, re-run verbatim on the corrected guide | **the context criterion fired**: a Billing context, every item PASS; seam defaults and ownership written down | [`2026-09-29-account-plans-2.md`](2026-09-29-account-plans-2.md) |
+| 2026-09-29 | Change my password, on the Architecture / SharedKernel split | every item PASS; the two trees were told apart from the docs alone; two places where code lagged the words fixed | [`2026-09-29-change-password.md`](2026-09-29-change-password.md) |
 
 ## When to run one
 
