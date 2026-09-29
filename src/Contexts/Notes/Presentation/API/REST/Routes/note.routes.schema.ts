@@ -30,7 +30,15 @@ export const CreateNoteReqBodySchema = {
   required: ['title', 'content'],
 } as const;
 
-export const EditNoteReqBodySchema = CreateNoteReqBodySchema;
+// The same shape today, its own schema on purpose: what one command accepts must not leak into the other.
+export const EditNoteReqBodySchema = {
+  type: 'object',
+  properties: {
+    title: { type: 'string' },
+    content: { type: 'string' },
+  },
+  required: ['title', 'content'],
+} as const;
 
 export const ShareNoteReqBodySchema = {
   type: 'object',

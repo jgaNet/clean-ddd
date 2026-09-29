@@ -154,6 +154,19 @@ describe('ArchiveNoteCommandHandler', () => {
     expect(result.isSuccess()).toBe(true);
     expect(store.collection.get(noteId)?.status).toBe(NoteStatus.ARCHIVED);
   });
+
+  it('refuses a caller who does not own the note', async () => {
+    const noteId = await aNoteOwnedBy('alice');
+
+    const result = await new ArchiveNoteCommandHandler(repository).execute(
+      ArchiveNoteCommandEvent.set({ noteId }),
+      contextFor('bob'),
+    );
+
+    expect(result.isFailure()).toBe(true);
+    expect(result.error).toBeInstanceOf(NotNoteOwnerException);
+    expect(store.collection.get(noteId)?.status).toBe(NoteStatus.ACTIVE);
+  });
 });
 
 describe('EditNoteCommandHandler', () => {

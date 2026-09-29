@@ -6,8 +6,13 @@ docs
 dist
 out
 temp
+deployments
+
+# vendored browser scripts served as static files
+src/Bootstrap/Fastify/public/js
 
 *.yml
+*.yaml
 *.html
 *.md
 *.json

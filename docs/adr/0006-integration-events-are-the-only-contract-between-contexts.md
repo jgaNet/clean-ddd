@@ -9,7 +9,7 @@ Notifications must react when a note is shared or an account is created. The sho
 A context exposes **integration events** only ([`@SharedKernel/Application/IntegrationEvents`](../../src/Contexts/@SharedKernel/Application/IntegrationEvents)): named, versionable payloads that are a promise to other contexts, deliberately distinct from the domain events inside. Three roles:
 
 1. Inside the publishing context, a domain event handler translates the domain event into the integration event ([`NoteSharedHandler.ts`](../../src/Contexts/Notes/Application/Events/NoteSharedHandler.ts)). This is where a fact leaves its context.
-2. The integration event carries everything the consumer needs, so the consumer never queries back.
+2. The integration event carries everything the consumer needs, so the consumer never queries back. It is published whenever the fact happens, not only when a known consumer cares, and it uses the publishing context's public words (`recipientIds`), not the aggregate's internal field names.
 3. Inside the consuming context, an **anti-corruption layer** ([`NoteSharedIntegrationEventHandler.ts`](../../src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts)) depends on the contract and nothing else, and restates the fact in local terms.
 
 The ESLint boundary rules (`eslint.config.js`, generated per context) forbid a context's Domain, Application and Presentation from importing any other context; the Application layer may import `@SharedKernel/Application/IntegrationEvents`, an Infrastructure adapter may read another context's Domain (ports and read models), and a wiring file may import another context's wiring for what it exports. Nothing else crosses the border.
