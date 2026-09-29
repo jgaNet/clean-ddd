@@ -11,7 +11,8 @@ The README and CLAUDE.md claim that a developer (or an agent) who has never seen
 5. **Grading**, by a maintainer, against a rubric written **before** seeing the result (domain, application, infrastructure, presentation, wiring and hygiene; one line per expectation). Each item is PASS / PARTIAL / FAIL with evidence. The five checks are re-run by the grader, not taken from the report.
 6. **Every friction-log claim about the documentation is verified against the documentation at the base commit.** An agent can misreport what it read — and an agent harness can inject a copy of CLAUDE.md from another checkout into its context, which may be stale; the rules of engagement therefore say to read CLAUDE.md from disk, and a quoted sentence that is not in the file at the base commit is attributed to the harness, not the docs. A claim that "nothing says X" when CLAUDE.md says X is not a gap in the content; it is a gap in *findability*, and is fixed differently (a heading, a pointer from the step that raises the question).
 7. **A run that targets a modelling decision must state the facts that decide it.** Round 3 showed that a guide's *default* ("when in doubt, stay in the context") will win over its *criterion* when the request is worded neutrally; grade the decision against the criterion, and if the agent followed the default correctly, the finding is about the criterion's wording, not the agent.
-8. **Follow-up PR**: the docs fixes, the evaluation record, and nothing of the feature itself unless the maintainers want the feature. The eval branch is pushed as a reference and linked from the record.
+8. **Close the loop.** When a run fails on a decision and the docs are changed for it, re-run the same request verbatim on the corrected guide, with a fresh agent told not to read these records. A fix counts when the second run makes the decision from the documentation alone.
+9. **Follow-up PR**: the docs fixes, the evaluation record, and nothing of the feature itself unless the maintainers want the feature. The eval branch is pushed as a reference and linked from the record.
 
 ## Records
 
@@ -24,6 +25,8 @@ The README and CLAUDE.md claim that a developer (or an agent) who has never seen
 | 2026-09-29 | Comments on a shared note (child entity or own aggregate?) | PARTIAL on the modelling decision (child entity, from the only criterion the guide offered), PASS below it; aggregate-boundary criterion added | [`2026-09-29-note-comments.md`](2026-09-29-note-comments.md) |
 | 2026-09-29 | Account lockout after five wrong passwords (Security; a refusal that must persist) | every item PASS; an architectural gap named and documented, two missing handler specs added | [`2026-09-29-account-lockout.md`](2026-09-29-account-lockout.md) |
 | 2026-09-29 | Plans and a ten-note quota (new context?) | PARTIAL on the context decision (stayed in Security, as the guide's default said), PASS on the cross-context port; the context criterion sharpened | [`2026-09-29-account-plans.md`](2026-09-29-account-plans.md) |
+| 2026-09-29 | My operations in Tracker (a context with no Domain) | every item PASS; a vocabulary row and a missing barrel corrected on `main` | [`2026-09-29-my-operations.md`](2026-09-29-my-operations.md) |
+| 2026-09-29 | Plans, re-run verbatim on the corrected guide | **the context criterion fired**: a Billing context, every item PASS; seam defaults and ownership written down | [`2026-09-29-account-plans-2.md`](2026-09-29-account-plans-2.md) |
 
 ## When to run one
 
