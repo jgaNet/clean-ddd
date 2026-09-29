@@ -22,6 +22,9 @@ jobs:
       - name: Install
         run: yarn install --frozen-lockfile
 
+      - name: Conventions
+        run: yarn check:conventions
+
       - name: Lint
         run: yarn lint
 

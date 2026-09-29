@@ -33,12 +33,13 @@ The same path is exercised end to end by [`note.routes.e2e.spec.ts`](src/Context
 
 ## The map: concept → file
 
-One canonical example per concept. When two files could teach the same thing, the table names the one to read; the other exists because the application needs it, not to make a point.
+One canonical example per concept. When two files could teach the same thing, the table names the one to read; the other exists because the application needs it, not to make a point. The tables are rendered from [`conventions/concepts.yaml`](conventions/concepts.yaml), and CI checks that every file they name exists (see [`conventions/`](conventions/README.md)).
 
 ### Domain layer
 
+<!-- generated from conventions/concepts.yaml (domain); edit the YAML, then run yarn conventions:write -->
 | Concept | Canonical example | Notes |
-|---|---|---|
+| --- | --- | --- |
 | Entity | [`Entity.ts`](src/Contexts/@SharedKernel/Domain/DDD/Entity.ts) | identity, `equals()` |
 | Aggregate root | [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts) on [`AggregateRoot.ts`](src/Contexts/@SharedKernel/Domain/DDD/AggregateRoot.ts) | behaviours enforce invariants and `record()` events; also [`Account.ts`](src/Contexts/Security/Domain/Account/Account.ts), [`Notification.ts`](src/Contexts/Notifications/Domain/Notification/Notification.ts) |
 | **Entity inside an aggregate** (not a root) | [`DeliveryAttempt.ts`](src/Contexts/Notifications/Domain/Notification/DeliveryAttempt.ts) | has its own identity, exists only inside `Notification`, reached and persisted through it |
@@ -57,11 +58,13 @@ One canonical example per concept. When two files could teach the same thing, th
 | **Port to another context** (read side) | [`IAccountDirectory.ts`](src/Contexts/Notes/Domain/Note/Ports/IAccountDirectory.ts), used by [`NoteSharing.ts`](src/Contexts/Notes/Domain/Note/NoteSharing.ts), answered by [`SecurityAccountDirectory.ts`](src/Contexts/Notes/Infrastructure/Directories/SecurityAccountDirectory.ts) | Notes asks "does this account exist?" in its own words; only its infrastructure knows Security is next door. The read-side counterpart of the anti-corruption layer for events |
 | Ports for technical concerns | [`IPasswordHasher.ts`](src/Contexts/Security/Domain/Auth/Ports/IPasswordHasher.ts), [`IJwtService.ts`](src/Contexts/Security/Domain/Auth/Ports/IJwtService.ts) | hashing has a business meaning; the algorithm does not belong here |
 | Lifecycle as an enum | [`NoteStatus.ts`](src/Contexts/Notes/Domain/Note/NoteStatus.ts), [`AccountStatus.ts`](src/Contexts/Security/Domain/Account/AccountStatus.ts) | the transitions live in the aggregate, not in the enum |
+<!-- end generated -->
 
 ### Application layer
 
+<!-- generated from conventions/concepts.yaml (application); edit the YAML, then run yarn conventions:write -->
 | Concept | Canonical example | Notes |
-|---|---|---|
+| --- | --- | --- |
 | Command | [`ShareNoteCommandEvent.ts`](src/Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandEvent.ts) | a named payload, nothing more. It extends `CommandEvent`, one of the three kinds of message in [`EventTypes.ts`](src/Contexts/@SharedKernel/Domain/DDD/EventTypes.ts): a command travels on the same bus as the events and is tracked as an operation, so it has their shape; the class says its intent (one handler, may be refused) |
 | Command handler | [`EditNoteCommandHandler.ts`](src/Contexts/Notes/Application/Commands/EditNote/EditNoteCommandHandler.ts) | the shape every "change an existing thing" use case follows |
 | Guard (authorization) | `requireSignedIn()` in [`Guards.ts`](src/Contexts/@SharedKernel/Application/Guards.ts), called once at the top of `execute()`; `guard()` in [`RegisterAdminCommandHandler.ts`](src/Contexts/Security/Application/Commands/RegisterAdmin/RegisterAdminCommandHandler.ts) for role-only rules | *who may call* is answered here; *what they may do to which object* is the aggregate's business |
@@ -75,38 +78,45 @@ One canonical example per concept. When two files could teach the same thing, th
 | **Anti-corruption layer** | [`NoteSharedIntegrationEventHandler.ts`](src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts) | restates a foreign fact in local terms |
 | **Projection / read model** | [`OperationProjection.ts`](src/Contexts/Tracker/Application/Projections/OperationProjection.ts), [`OperationRecord.ts`](src/Contexts/Tracker/Application/ReadModel/OperationRecord.ts) | a context with no aggregate at all |
 | Module (wiring) | [`Module.ts`](src/Contexts/@SharedKernel/Application/Module.ts), used in [`Notes/module.local.ts`](src/Contexts/Notes/module.local.ts) | plain data: which handler answers which command, query, event |
+<!-- end generated -->
 
 ### Infrastructure layer
 
+<!-- generated from conventions/concepts.yaml (infrastructure); edit the YAML, then run yarn conventions:write -->
 | Concept | Canonical example | Notes |
-|---|---|---|
+| --- | --- | --- |
 | Repository implementation | [`InMemoryNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository.ts) | snapshot in, snapshot out |
 | Queries implementation | [`InMemoryNoteQueries.ts`](src/Contexts/Notes/Infrastructure/Queries/InMemoryNoteQueries.ts) | builds read models from the same store, here |
-| Port implementations | [`JwtService.ts`](src/Contexts/Security/Infrastructure/Services/JwtService.ts) (`jose`), [`BcryptPasswordHasher.ts`](src/Contexts/Security/Infrastructure/Services/BcryptPasswordHasher.ts) | |
+| Port implementations | [`JwtService.ts`](src/Contexts/Security/Infrastructure/Services/JwtService.ts) (`jose`), [`BcryptPasswordHasher.ts`](src/Contexts/Security/Infrastructure/Services/BcryptPasswordHasher.ts) |  |
 | Event bus | [`InMemoryEventBus.ts`](src/Contexts/@SharedKernel/Infrastructure/EventBus/InMemoryEventBus.ts) | the only bus implementation |
 | Decorator (cross-cutting concern) | [`TrackedEventBus.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.ts) | tracking layered on any bus; neither the bus nor the handlers know |
-| Unit of work | [`InMemoryUnitOfWork.ts`](src/Contexts/@SharedKernel/Infrastructure/UnitOfWork/InMemoryUnitOfWork.ts) | |
+| Unit of work | [`InMemoryUnitOfWork.ts`](src/Contexts/@SharedKernel/Infrastructure/UnitOfWork/InMemoryUnitOfWork.ts) |  |
 | The "database" | [`InMemoryDataSource.ts`](src/Contexts/@SharedKernel/Infrastructure/DataSources/InMemoryDataSource.ts) | a `Map`; the ports are what a real adapter would implement |
+<!-- end generated -->
 
 ### Presentation and bootstrap
 
+<!-- generated from conventions/concepts.yaml (presentation); edit the YAML, then run yarn conventions:write -->
 | Concept | Canonical example |
-|---|---|
+| --- | --- |
 | Controller (commands → `202 { operationId }`, queries → sync; one `refuse()` per controller: `403` not allowed, `404` not found, `400` otherwise, always `{ message }`) | [`FastifyNoteController.ts`](src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts); every other controller has the same shape |
 | Routes and JSON schemas | [`note.routes.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts), [`note.routes.schema.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.schema.ts) |
 | Authentication middleware | [`FastifyJWTAuthenticationMiddleware.ts`](src/Contexts/Security/Presentation/API/REST/Middlewares/FastifyJWTAuthenticationMiddleware.ts) — never blocks, makes the caller `GUEST` unless the token verifies |
 | Presenters (one use case, several formats) | [`Security/Presentation/Presenters/Auth`](src/Contexts/Security/Presentation/Presenters/Auth), picked per request by [`Format.ts`](src/Contexts/@SharedKernel/Presentation/Format.ts) — a plain object per controller, no registry |
 | Composition root | [`createApplication.ts`](src/Bootstrap/Fastify/createApplication.ts) on [`Application.ts`](src/Contexts/@SharedKernel/Application/Application.ts): wires, starts the modules, seeds the administrator through the same bus as any command, then listens; [`application.ts`](src/Bootstrap/Fastify/application.ts) is the process entry point |
+<!-- end generated -->
 
 ### Tests, one style per layer
 
+<!-- generated from conventions/concepts.yaml (tests); edit the YAML, then run yarn conventions:write -->
 | Layer | Example | Doubles |
-|---|---|---|
+| --- | --- | --- |
 | Domain | [`Note.spec.ts`](src/Contexts/Notes/Domain/Note/Note.spec.ts) | none |
 | Domain service | [`AccountRegistration.spec.ts`](src/Contexts/Security/Domain/Account/AccountRegistration.spec.ts) | a 10-line fake of the port |
 | Application | [`NoteCommandHandlers.spec.ts`](src/Contexts/Notes/Application/Commands/NoteCommandHandlers.spec.ts) | the in-memory repository *is* the double |
 | Infrastructure | [`TrackedEventBus.spec.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.spec.ts), [`JwtService.spec.ts`](src/Contexts/Security/Infrastructure/Services/JwtService.spec.ts) | real in-memory pieces |
 | End to end | [`note.routes.e2e.spec.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.e2e.spec.ts) | the whole application, booted in-process by [`application.spec-helper.ts`](src/Bootstrap/Fastify/application.spec-helper.ts), spoken to over HTTP |
+<!-- end generated -->
 
 ## The four contexts and what each one teaches
 
@@ -135,7 +145,7 @@ The `@SharedKernel` is not a context: it holds the building blocks ([`Domain`](s
 
 | Rule | Enforced by |
 |---|---|
-| **Dependencies point inward.** Domain depends on nothing. Application depends on Domain. Infrastructure and Presentation depend on both. Only a context's wiring file (`module.local.ts`) reads Bootstrap's settings; nothing else depends on Bootstrap. | ESLint `no-restricted-imports`, generated per context and per layer from one table in [`.eslintrc.cjs`](.eslintrc.cjs). Application tests may use their own in-memory infrastructure as doubles. Relative imports may only name a sibling file, so nothing bypasses the aliases. There is no exception in the codebase. |
+| **Dependencies point inward.** Domain depends on nothing. Application depends on Domain. Infrastructure and Presentation depend on both. Only a context's wiring file (`module.local.ts`) reads Bootstrap's settings; nothing else depends on Bootstrap. | The table is [`conventions/architecture.yaml`](conventions/architecture.yaml) (what each layer *may* import); [`.eslintrc.cjs`](.eslintrc.cjs) turns it into ESLint `no-restricted-imports` rules, per context and per layer. Application tests may use their own in-memory infrastructure as doubles. Relative imports may only name a sibling file, so nothing bypasses the aliases. There is no exception in the codebase. |
 | A refused command or query is a **failed `Result`**, never a thrown exception. | Base handlers ([`CommandHandler`](src/Contexts/@SharedKernel/Application/CommandHandler.ts), [`QueryHandler`](src/Contexts/@SharedKernel/Application/QueryHandler.ts)) and [ADR 1](docs/adr/0001-result-instead-of-exceptions.md) |
 | Only an **aggregate root** records domain events; a handler never builds one. | Types: `record()` is `protected` on `AggregateRoot` |
 | Domain events are published **after the transaction commits**. | `publishDomainEvents()` → `ExecutionContext.afterCommit()`; [`ExecutionContext.spec.ts`](src/Contexts/@SharedKernel/Application/ExecutionContext.spec.ts) |
@@ -143,7 +153,8 @@ The `@SharedKernel` is not a context: it holds the building blocks ([`Domain`](s
 | Queries return read models; repositories return aggregates. Never the other way. | Port types; [ADR 5](docs/adr/0005-queries-return-read-models-not-aggregates.md) |
 | One wiring file per context, plain data, no container. | [`module.local.ts`](src/Contexts/Notes/module.local.ts) files |
 | One shape per kind of file, whatever the context: exceptions in one `<Aggregate>Exceptions.ts` with a PascalCase `type`; enum values are their UPPERCASE names; factories are `create()`; handlers end in `CommandHandler` / `QueryHandler`; nothing but the logger writes to the console. | Review, against the Notes context; `no-console` in ESLint |
-| It compiles, lints and tests, in CI, on every pull request. | [`ci.yml`](.github/workflows/ci.yml): `yarn lint`, `yarn typecheck`, `yarn test:units`, `yarn test:e2e` |
+| The map above names real files, every context on disk is covered by the rules, and every link in the documentation resolves. | [`tools/check-conventions.mjs`](tools/check-conventions.mjs), from [`conventions/concepts.yaml`](conventions/concepts.yaml) and `architecture.yaml`; `yarn check:conventions` in CI |
+| It compiles, lints and tests, in CI, on every pull request. | [`ci.yml`](.github/workflows/ci.yml): `yarn check:conventions`, `yarn lint`, `yarn typecheck`, `yarn test:units`, `yarn test:e2e` |
 
 ## Layout of a context
 
@@ -180,6 +191,7 @@ yarn start:dev          # http://localhost:10000, Swagger UI at /v1/docs
 A default administrator is seeded from the settings: `admin@admin.fr` / `admin` (override with `ADMIN_IDENTIFIER` / `ADMIN_PASSWORD`).
 
 ```bash
+yarn check:conventions  # the tree matches conventions/architecture.yaml, the README map names real files
 yarn typecheck          # tsc --noEmit
 yarn lint               # eslint, including the layer-boundary rules
 yarn test:units         # every *.spec.ts except the e2e ones
@@ -193,8 +205,9 @@ yarn test               # both
 
 The words this README uses, in one line each, with the file that shows them. Where a word has several meanings in the literature, this is the one used here.
 
+<!-- generated from conventions/concepts.yaml (vocabulary); edit the YAML, then run yarn conventions:write -->
 | Word | Here it means | See |
-|---|---|---|
+| --- | --- | --- |
 | Bounded context | a folder with its own vocabulary and wiring, talking to others through integration events only | [`src/Contexts`](src/Contexts) |
 | Aggregate (root) | the object that owns a consistency boundary: every change goes through one of its behaviours, which checks the invariants and records an event | [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts) |
 | Entity | an object with an identity that outlives its attributes | [`Entity.ts`](src/Contexts/@SharedKernel/Domain/DDD/Entity.ts), [`DeliveryAttempt.ts`](src/Contexts/Notifications/Domain/Notification/DeliveryAttempt.ts) |
@@ -215,6 +228,7 @@ The words this README uses, in one line each, with the file that shows them. Whe
 | Snapshot | the plain shape of an aggregate that crosses to the infrastructure | [`DTOs.ts`](src/Contexts/Notes/Domain/Note/DTOs.ts) |
 | Operation | the handle a client gets for a command: its status and outcome, recorded by the Tracker | [`Operation.ts`](src/Contexts/@SharedKernel/Application/Operation.ts) |
 | Composition root | the one file that knows every context and builds the application | [`createApplication.ts`](src/Bootstrap/Fastify/createApplication.ts) |
+<!-- end generated -->
 
 ## Decisions
 
