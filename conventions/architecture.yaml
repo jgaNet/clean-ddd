@@ -1,0 +1,80 @@
+# The architecture, as data. Everything below is checked by tooling:
+#   - .eslintrc.cjs turns `layers` into import rules, per context and per layer;
+#   - tools/check-conventions.mjs checks that every context on disk is declared here and has
+#     the shape `layers` describe.
+#
+# Read it as: "a file in layer X of context C may import from ...". Anything not listed is
+# forbidden. The words:
+#   own.<Layer>      the same layer or another layer of the same context
+#   own.wiring       the context's module.local.ts
+#   kernel.<Layer>   that layer of @SharedKernel
+#   others.<Layer>   that layer of any other context
+#   others.wiring    another context's module.local.ts (for what it exports)
+#   bootstrap        src/Bootstrap (settings, the composition root)
+#   libraries        the infrastructure libraries listed below (HTTP, crypto, tokens...)
+# A relative import may only name a sibling file; across directories it is always forbidden,
+# so that nothing bypasses the aliases the rules are written against.
+#
+# This file is language-neutral on purpose: in another stack, feed it to your own dependency
+# linter (ArchUnit, deptrac, import-linter, dependency-cruiser...) and keep the same table.
+
+contexts: [Notes, Security, Notifications, Tracker]
+kernel: '@SharedKernel'
+wiring: module.local.ts
+
+# Libraries only an adapter may see: the domain and the use cases never import them.
+libraries: [fastify, '@fastify/**', jose, bcryptjs, ws]
+
+layers:
+  Domain:
+    may_import: [own.Domain, kernel.Domain]
+    why: The Domain layer depends on nothing outside its own Domain and @SharedKernel/Domain.
+
+  Application:
+    may_import: [own.Domain, own.Application, kernel.Domain, kernel.Application]
+    why: >-
+      The Application layer depends on its own Domain and Application, @SharedKernel/Domain and
+      @SharedKernel/Application (integration events included), nothing else.
+    specs:
+      may_import: [own.Infrastructure, kernel.Infrastructure]
+      why: Application tests may use their own in-memory Infrastructure as test doubles, nothing further out.
+
+  Infrastructure:
+    may_import:
+      - own.Domain
+      - own.Application
+      - own.Infrastructure
+      - kernel.Domain
+      - kernel.Application
+      - kernel.Infrastructure
+      - others.Domain
+      - libraries
+    why: >-
+      The Infrastructure layer implements its own ports; it may read another context's Domain
+      (ports, read models) but not its Application, Infrastructure, Presentation or wiring.
+
+  Presentation:
+    may_import:
+      - own.Domain
+      - own.Application
+      - own.Presentation
+      - kernel.Domain
+      - kernel.Application
+      - kernel.Presentation
+      - libraries
+    why: >-
+      The Presentation layer talks to its own Application layer (handlers, module) and Domain
+      (read models, exceptions); never to Infrastructure, wiring, Bootstrap or another context.
+
+# Two kinds of file that are not a layer.
+wiring_file:
+  may_import: [own.*, kernel.*, others.wiring, bootstrap, libraries]
+  why: >-
+    A wiring file binds its own context and may import another context's wiring for what it
+    exports; it never reaches inside another context.
+
+e2e_specs:
+  may_import: [bootstrap, libraries]
+  why: >-
+    End-to-end tests boot the application through the Bootstrap helper and speak HTTP; they do
+    not reach into any layer.
