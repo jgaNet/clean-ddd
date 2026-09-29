@@ -22,14 +22,8 @@ describe('Notifications: an inbox', () => {
     admin = superagent.agent().set('authorization', `Bearer ${(await login('admin@admin.fr', 'admin')).body.token}`);
 
     // Carol's sign-up and validation each produce one email notification for her.
-    const signUp = await superagent
-      .post(`${api}/auth/signup`)
-      .send({ identifier: 'carol@notes.fr', password: 'carol' });
-    const operation = await admin.get(`${api}/tracker/operations/${signUp.body.operationId}`);
-    carolId = operation.body.result;
-    await admin.get(`${api}/auth/accounts/${carolId}/validate`);
-
-    carol = superagent.agent().set('authorization', `Bearer ${(await login('carol@notes.fr', 'carol')).body.token}`);
+    carolId = await app.signUpValidated('carol@notes.fr', 'carol');
+    carol = await app.agentAs('carol@notes.fr', 'carol');
   });
 
   it('lists what was delivered to the recipient, unread first', async () => {
@@ -75,12 +69,8 @@ describe('Notifications: an inbox', () => {
       .then(res => (status = res.status));
     expect(status).toBe(200); // an administrator may read any inbox
 
-    const stranger = await superagent
-      .post(`${api}/auth/signup`)
-      .send({ identifier: 'dave@notes.fr', password: 'dave' });
-    const daveId = (await admin.get(`${api}/tracker/operations/${stranger.body.operationId}`)).body.result;
-    await admin.get(`${api}/auth/accounts/${daveId}/validate`);
-    const dave = superagent.agent().set('authorization', `Bearer ${(await login('dave@notes.fr', 'dave')).body.token}`);
+    await app.signUpValidated('dave@notes.fr', 'dave');
+    const dave = await app.agentAs('dave@notes.fr', 'dave');
 
     let refused: number | undefined;
     await dave.get(`${api}/notifications/account/${carolId}`).catch(err => (refused = err.status));

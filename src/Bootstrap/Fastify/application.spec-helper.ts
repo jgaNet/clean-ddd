@@ -10,6 +10,8 @@ export interface TestApplication {
   /** A superagent agent carrying the bearer token of that account. */
   agentAs(identifier: string, password: string): Promise<ReturnType<typeof superagent.agent>>;
   admin(): Promise<ReturnType<typeof superagent.agent>>;
+  /** Signs up a new account, validates it as the administrator, and returns its id: a fresh, usable user for a suite. */
+  signUpValidated(identifier: string, password: string): Promise<string>;
   stop(): Promise<void>;
 }
 
@@ -29,11 +31,22 @@ export async function startTestApplication(): Promise<TestApplication> {
   const agentAs = async (identifier: string, password: string) =>
     superagent.agent().set('authorization', `Bearer ${(await login(identifier, password)).body.token}`);
 
+  const admin = () => agentAs(SETTINGS.security.adminAccount.identifier, SETTINGS.security.adminAccount.password);
+  const signUpValidated = async (identifier: string, password: string) => {
+    const signUp = await superagent.post(`${api}/auth/signup`).send({ identifier, password });
+    const administrator = await admin();
+    const accountId: string = (await administrator.get(`${api}/tracker/operations/${signUp.body.operationId}`)).body
+      .result;
+    await administrator.get(`${api}/auth/accounts/${accountId}/validate`);
+    return accountId;
+  };
+
   return {
     api,
     login,
     agentAs,
-    admin: () => agentAs(SETTINGS.security.adminAccount.identifier, SETTINGS.security.adminAccount.password),
+    admin,
+    signUpValidated,
     stop: () => app.stop(),
   };
 }

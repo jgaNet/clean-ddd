@@ -230,7 +230,7 @@ The words this README uses, in one line each, with the file that shows them. Whe
 | Application service | orchestration shared by several entry points; no rule of its own | [`NotificationDelivery.ts`](src/Contexts/Notifications/Application/Services/NotificationDelivery.ts) |
 | Anti-corruption layer | the handler that translates a foreign contract into local terms | [`NoteSharedIntegrationEventHandler.ts`](src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts) |
 | Snapshot | the plain shape of an aggregate that crosses to the infrastructure | [`DTOs.ts`](src/Contexts/Notes/Domain/Note/DTOs.ts) |
-| Operation | the handle a client gets for a command: its status and outcome, recorded by the Tracker | [`Operation.ts`](src/Contexts/@SharedKernel/Application/Operation.ts) |
+| Operation | the handle a client gets for a command: its status and outcome. The Tracker records one for every message on the bus, events included, so a trace shows what a command set off | [`Operation.ts`](src/Contexts/@SharedKernel/Application/Operation.ts) |
 | Composition root | the one file that knows every context and builds the application | [`createApplication.ts`](src/Bootstrap/Fastify/createApplication.ts) |
 <!-- end generated -->
 

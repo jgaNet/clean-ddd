@@ -335,7 +335,9 @@ sections:
         meaning: the plain shape of an aggregate that crosses to the infrastructure
         see: '[`DTOs.ts`](src/Contexts/Notes/Domain/Note/DTOs.ts)'
       - word: Operation
-        meaning: 'the handle a client gets for a command: its status and outcome, recorded by the Tracker'
+        meaning: >-
+          the handle a client gets for a command: its status and outcome. The Tracker records one for every
+          message on the bus, events included, so a trace shows what a command set off
         see: '[`Operation.ts`](src/Contexts/@SharedKernel/Application/Operation.ts)'
       - word: Composition root
         meaning: the one file that knows every context and builds the application
