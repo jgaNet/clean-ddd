@@ -12,7 +12,7 @@ export class CreateNoteCommandHandler extends CommandHandler<CreateNoteCommandEv
   }
 
   async execute({ payload }: CreateNoteCommandEvent, context: ExecutionContext): Promise<IResult<string>> {
-    const owner = requireSignedIn(context);
+    const owner = requireSignedIn(context, 'Notes');
     if (owner.isFailure()) return owner;
 
     const note = Note.create({ ownerId: owner.data.value, title: payload.title, content: payload.content });

@@ -6,7 +6,7 @@ import { requireSignedIn } from '@SharedKernel/Application/Guards';
 
 export class GetNotesSharedWithMeQueryHandler extends QueryHandler<INoteQueries, void, IResult<SharedNoteListItem[]>> {
   async execute(_: void, context: ExecutionContext): Promise<IResult<SharedNoteListItem[]>> {
-    const reader = requireSignedIn(context);
+    const reader = requireSignedIn(context, 'Notes');
     if (reader.isFailure()) return reader;
 
     return Result.ok(await this.queries.findSharedWith(reader.data.value));

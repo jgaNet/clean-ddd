@@ -6,7 +6,7 @@ import { requireSignedIn } from '@SharedKernel/Application/Guards';
 
 export class GetMyNotesQueryHandler extends QueryHandler<INoteQueries, void, IResult<NoteListItem[]>> {
   async execute(_: void, context: ExecutionContext): Promise<IResult<NoteListItem[]>> {
-    const owner = requireSignedIn(context);
+    const owner = requireSignedIn(context, 'Notes');
     if (owner.isFailure()) return owner;
 
     return Result.ok(await this.queries.findByOwner(owner.data.value));

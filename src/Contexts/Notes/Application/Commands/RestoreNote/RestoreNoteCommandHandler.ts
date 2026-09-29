@@ -12,7 +12,7 @@ export class RestoreNoteCommandHandler extends CommandHandler<RestoreNoteCommand
   }
 
   async execute({ payload }: RestoreNoteCommandEvent, context: ExecutionContext): Promise<IResult> {
-    const actor = requireSignedIn(context);
+    const actor = requireSignedIn(context, 'Notes');
     if (actor.isFailure()) return actor;
 
     const note = await this.noteRepository.findById(payload.noteId);
