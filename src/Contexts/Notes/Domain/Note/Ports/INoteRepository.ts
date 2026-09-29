@@ -1,3 +1,5 @@
+import { IResult } from '@SharedKernel/Domain';
+
 import { Note } from '@Contexts/Notes/Domain/Note/Note';
 
 /**
@@ -10,5 +12,10 @@ import { Note } from '@Contexts/Notes/Domain/Note/Note';
  */
 export interface INoteRepository {
   findById(id: string): Promise<Note | null>;
-  save(note: Note): Promise<void>;
+  /**
+   * Stores the aggregate at version + 1, or refuses it with a ConcurrencyConflictException when the
+   * stored version is no longer the one it was loaded with: of two writers who read the same
+   * version, only the first wins (ADR 8). The contract spec asserts it for every adapter.
+   */
+  save(note: Note): Promise<IResult>;
 }

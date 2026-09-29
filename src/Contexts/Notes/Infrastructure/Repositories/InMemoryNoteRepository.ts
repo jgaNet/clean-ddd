@@ -1,3 +1,4 @@
+import { ConcurrencyConflictException, IResult, Result } from '@SharedKernel/Domain';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 
 import { Note } from '@Contexts/Notes/Domain/Note/Note';
@@ -18,7 +19,15 @@ export class InMemoryNoteRepository implements INoteRepository {
     return snapshot ? Note.fromSnapshot(snapshot) : null;
   }
 
-  async save(note: Note): Promise<void> {
-    this.dataSource.collection.set(note._id.value, note.toSnapshot());
+  async save(note: Note): Promise<IResult> {
+    const stored = this.dataSource.collection.get(note._id.value);
+    if (stored && stored.version !== note.version) {
+      return Result.fail(staleNote(note._id.value, note.version, stored.version));
+    }
+    this.dataSource.collection.set(note._id.value, { ...note.toSnapshot(), version: note.version + 1 });
+    return Result.ok();
   }
 }
+
+export const staleNote = (noteId: string, read: number, stored: number) =>
+  new ConcurrencyConflictException('Notes', 'The note changed since it was read', { noteId, read, stored });

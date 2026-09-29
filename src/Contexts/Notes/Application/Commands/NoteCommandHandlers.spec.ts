@@ -72,6 +72,7 @@ describe('CreateNoteCommandHandler', () => {
       content: 'Milk',
       status: NoteStatus.ACTIVE,
       sharedWith: [],
+      version: 1,
     });
     expect(eventBus.publish).toHaveBeenCalledTimes(1);
     expect(eventBus.publish).toHaveBeenCalledWith(

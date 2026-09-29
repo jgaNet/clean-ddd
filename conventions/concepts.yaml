@@ -71,6 +71,16 @@ sections:
       - concept: '`Result`'
         example: '[`Result.ts`](src/Contexts/@SharedKernel/Domain/DDD/Result.ts)'
         notes: '`IResult<T>` is the type you write in signatures'
+      - concept: '**Optimistic concurrency**'
+        example: >-
+          `AggregateRoot.version` in [`AggregateRoot.ts`](src/Contexts/@SharedKernel/Domain/DDD/AggregateRoot.ts);
+          `save()` in [`SqliteNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/SqliteNoteRepository.ts)
+          (`UPDATE … WHERE version = ?`) and
+          [`InMemoryNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository.ts)
+        notes: >-
+          the aggregate carries the version it was read at and never changes it; the repository stores version + 1
+          and refuses a stale one with `ConcurrencyConflict`, so of two writers who read the same version only the
+          first wins — [ADR 8](docs/adr/0008-optimistic-concurrency-on-the-aggregate.md)
       - concept: Repository port
         example: '[`INoteRepository.ts`](src/Contexts/Notes/Domain/Note/Ports/INoteRepository.ts)'
         notes: load / save an aggregate; nothing else

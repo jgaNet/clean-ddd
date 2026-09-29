@@ -13,6 +13,8 @@ export interface INote {
   content: string;
   status: NoteStatus;
   sharedWith: string[];
+  /** The version this snapshot was read at; the repository stores version + 1 (ADR 8). */
+  version: number;
 }
 
 /** What is needed to write a brand new note. */

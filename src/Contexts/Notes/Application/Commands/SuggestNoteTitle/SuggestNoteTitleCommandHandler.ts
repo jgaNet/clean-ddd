@@ -40,7 +40,8 @@ export class SuggestNoteTitleCommandHandler extends CommandHandler<SuggestNoteTi
     const applied = note.edit(actor.data, { title: suggestion.title, content: note.content });
     if (applied.isFailure()) return applied;
 
-    await this.noteRepository.save(note);
+    const saved = await this.noteRepository.save(note);
+    if (saved.isFailure()) return saved;
     this.publishDomainEvents(note, context);
 
     return Result.ok(suggestion);

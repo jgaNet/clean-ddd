@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 
+import { ConcurrencyConflictException } from '@SharedKernel/Domain';
 import { Id } from '@SharedKernel/Domain/ValueObjects';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 
@@ -58,7 +59,30 @@ describe.each(adapters)('Note persistence over $name', ({ open }) => {
       await repository.save(note);
 
       const found = await repository.findById(note._id.value);
-      expect(found?.toSnapshot()).toEqual(note.toSnapshot());
+      expect(found?.toSnapshot()).toEqual({ ...note.toSnapshot(), version: note.version + 1 });
+    });
+
+    it('stores version + 1 on every save, and refuses an aggregate that is no longer at the stored version', async () => {
+      const note = aNote(alice, 'Shared draft');
+      expect(note.version).toBe(0);
+      await repository.save(note);
+
+      // Two writers read the same version.
+      const mine = (await repository.findById(note._id.value)) as Note;
+      const theirs = (await repository.findById(note._id.value)) as Note;
+      expect(mine.version).toBe(1);
+
+      mine.edit(alice, { title: 'Mine', content: 'first' });
+      expect((await repository.save(mine)).isSuccess()).toBe(true);
+
+      theirs.edit(alice, { title: 'Theirs', content: 'second' });
+      const refused = await repository.save(theirs);
+      expect(refused.isFailure()).toBe(true);
+      expect(refused.error).toBeInstanceOf(ConcurrencyConflictException);
+
+      const stored = (await repository.findById(note._id.value)) as Note;
+      expect(stored.title).toBe('Mine');
+      expect(stored.version).toBe(2);
     });
 
     it('answers null for an unknown id', async () => {
@@ -68,9 +92,11 @@ describe.each(adapters)('Note persistence over $name', ({ open }) => {
     it('saving again replaces, it does not duplicate', async () => {
       const note = aNote(alice, 'Draft');
       await repository.save(note);
-      note.edit(alice, { title: 'Final', content: 'done' });
-      note.archive(alice);
-      await repository.save(note);
+      // As a handler does: read it back, change it, save it; the instance saved before is stale.
+      const reread = (await repository.findById(note._id.value)) as Note;
+      reread.edit(alice, { title: 'Final', content: 'done' });
+      reread.archive(alice);
+      expect((await repository.save(reread)).isSuccess()).toBe(true);
 
       const found = await repository.findById(note._id.value);
       expect(found?.title).toBe('Final');

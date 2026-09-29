@@ -51,6 +51,7 @@ One canonical example per concept. When two files could teach the same thing, th
 | Domain event | [`NoteEvents.ts`](src/Contexts/Notes/Domain/Note/Events/NoteEvents.ts) | past tense, minimal payload, internal to the context |
 | Domain exception | [`NoteExceptions.ts`](src/Contexts/Notes/Domain/Note/NoteExceptions.ts) | a broken rule in business words, carried by `Result.fail()`, never thrown — [ADR 1](docs/adr/0001-result-instead-of-exceptions.md) |
 | `Result` | [`Result.ts`](src/Contexts/@SharedKernel/Domain/DDD/Result.ts) | `IResult<T>` is the type you write in signatures |
+| **Optimistic concurrency** | `AggregateRoot.version` in [`AggregateRoot.ts`](src/Contexts/@SharedKernel/Domain/DDD/AggregateRoot.ts); `save()` in [`SqliteNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/SqliteNoteRepository.ts) (`UPDATE … WHERE version = ?`) and [`InMemoryNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository.ts) | the aggregate carries the version it was read at and never changes it; the repository stores version + 1 and refuses a stale one with `ConcurrencyConflict`, so of two writers who read the same version only the first wins — [ADR 8](docs/adr/0008-optimistic-concurrency-on-the-aggregate.md) |
 | Repository port | [`INoteRepository.ts`](src/Contexts/Notes/Domain/Note/Ports/INoteRepository.ts) | load / save an aggregate; nothing else |
 | Queries port & read models | [`INoteQueries.ts`](src/Contexts/Notes/Domain/Note/Ports/INoteQueries.ts) | returns view shapes, never aggregates — [ADR 5](docs/adr/0005-queries-return-read-models-not-aggregates.md) |
 | Snapshot DTO | [`DTOs.ts`](src/Contexts/Notes/Domain/Note/DTOs.ts) | the plain shape that crosses to the infrastructure |
@@ -246,6 +247,7 @@ Non-obvious choices are recorded as short ADRs in [`docs/adr`](docs/adr):
 5. [Queries return read models, not aggregates](docs/adr/0005-queries-return-read-models-not-aggregates.md)
 6. [Integration events, and ports the asking side owns, are the only contracts between contexts](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md)
 7. [Non-determinism enters the domain as a value](docs/adr/0007-non-determinism-enters-the-domain-as-a-value.md)
+8. [Optimistic concurrency on the aggregate](docs/adr/0008-optimistic-concurrency-on-the-aggregate.md)
 
 ## What is deliberately not here
 
@@ -255,7 +257,7 @@ Each of these is real vocabulary, and each would turn the building blocks back i
 - **An ORM or a database server.** The ports are the seam: the in-memory adapters are wired, the SQLite ones ([`SqliteNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/SqliteNoteRepository.ts)) prove that a real store fits behind the same interfaces, and one contract test holds both. A third adapter is a new line in that test, not a new pattern.
 - **A transactional outbox / message broker, idempotent commands, an inbox.** `afterCommit` is the honest single-process version of publication, and a command arrives once because it arrives over HTTP; [ADR 3](docs/adr/0003-publish-domain-events-after-commit.md) names the gap and what fills it the day messages cross a process boundary.
 - **A generic Saga / process manager.** The Security → Notifications validation flow is a process; it is expressed as two handlers, not a library.
-- **Specification pattern, optimistic concurrency, versioned events.** Add them when a real case asks for them, next to the aggregate that needs them.
+- **Specification pattern, versioned events, merge-on-conflict.** Add them when a real case asks for them, next to the aggregate that needs them. (Optimistic concurrency *is* here since [ADR 8](docs/adr/0008-optimistic-concurrency-on-the-aggregate.md); a conflict is refused, never merged.)
 
 ## Known gaps
 

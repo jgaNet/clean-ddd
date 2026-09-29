@@ -11,5 +11,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0005](0005-queries-return-read-models-not-aggregates.md) | Queries return read models, not aggregates |
 | [0006](0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md) | Integration events, and ports the asking side owns, are the only contracts between contexts |
 | [0007](0007-non-determinism-enters-the-domain-as-a-value.md) | Non-determinism enters the domain as a value |
+| [0008](0008-optimistic-concurrency-on-the-aggregate.md) | Optimistic concurrency on the aggregate |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

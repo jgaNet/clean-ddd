@@ -49,8 +49,9 @@ export class Note extends AggregateRoot {
     content: string,
     status: NoteStatus,
     sharedWith: string[],
+    version: number = 0,
   ) {
-    super(id);
+    super(id, version);
     this.#ownerId = ownerId;
     this.#title = title;
     this.#content = content;
@@ -95,6 +96,7 @@ export class Note extends AggregateRoot {
       snapshot.content,
       snapshot.status,
       snapshot.sharedWith,
+      snapshot.version,
     );
   }
 
@@ -184,6 +186,7 @@ export class Note extends AggregateRoot {
       content: this.#content,
       status: this.#status,
       sharedWith: [...this.#sharedWith],
+      version: this.version,
     };
   }
 
