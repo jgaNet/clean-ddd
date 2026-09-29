@@ -1,6 +1,6 @@
 {
   "name": "clean-ddd",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
   "main": "dist/application.js",
   "types": "dist/application.d.ts",
