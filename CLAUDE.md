@@ -55,6 +55,15 @@ Path aliases: `@SharedKernel/*`, `@Contexts/*`, `@Bootstrap/*`. A relative impor
 5. **Register** in `module.local.ts`. Add an e2e case if the flow is user-visible.
 6. Cross-context reaction? Publish an integration event from a domain event handler ([`NoteSharedHandler.ts`](src/Contexts/Notes/Application/Events/NoteSharedHandler.ts)) and consume it through an anti-corruption handler in the other context ([`NoteSharedIntegrationEventHandler.ts`](src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts)).
 
+The questions that come up while doing it, answered once:
+
+- **Where does the spec go?** Next to the file it tests, same name plus `.spec.ts`. The handlers of one aggregate may share one spec when they share fixtures ([`NoteCommandHandlers.spec.ts`](src/Contexts/Notes/Application/Commands/NoteCommandHandlers.spec.ts)); otherwise one per handler ([`SignUpCommandHandler.spec.ts`](src/Contexts/Security/Application/Commands/SignUp/SignUpCommandHandler.spec.ts)). End-to-end suites sit with the routes, as `*.e2e.spec.ts`.
+- **Does a new exception need a line in `refuse()`?** No. `refuse()` maps *kinds*, not exceptions: `NotAllowedException` → `403`, the aggregate's not-found exception → `404`, anything else → `400`. A refused command never reaches `refuse()` at all: it is on the operation.
+- **Does every domain event need a handler?** No. The aggregate records the fact because it happened; subscribe a handler only when something reacts to it. `NoteEditedEvent` has none: it is still recorded by the Tracker, and a handler can be added later without touching the aggregate.
+- **Which HTTP verb?** `GET` for a query (never changes state). `POST` to create (`/notes`) and for a command that is an action on a thing (`/notes/:id/share`, `/notes/:id/archive`); `PUT /notes/:id` to replace its editable content; `PATCH` for a partial state change (`/notifications/:id/read`). The two `GET …/validate` routes are commands on `GET` because they are links clicked from an email; do not copy that for anything else.
+- **Barrels (`index.ts`)?** One per `Commands/` and `Queries/` folder, listing the events and handlers of the context; one per presenters folder; the `@SharedKernel` layers export their public surface through one. No barrel per use-case folder, no barrel in `Domain/<Aggregate>/Ports/`; an import names the file otherwise.
+- **New aggregate in this context, or a new context?** A new context when the words change meaning (an *account* in Security is a *recipient* in Notifications), when it has its own reasons to change or its own owners, and when you could deploy it alone with nothing but integration events between it and the rest. Otherwise it is an aggregate (or a value object) in the context that already speaks its language. When in doubt, stay in the context: splitting later is a move; merging later is a rewrite.
+
 ## Code style
 
 - Strict TypeScript; no `any`; every declared variable and parameter is used (`noUnusedLocals` / `noUnusedParameters`); `_` prefix for intentionally unused parameters.
