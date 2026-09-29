@@ -10,3 +10,7 @@ export * from '@Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandEv
 export * from '@Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandHandler';
 export * from '@Contexts/Notes/Application/Commands/SuggestNoteTitle/SuggestNoteTitleCommandEvent';
 export * from '@Contexts/Notes/Application/Commands/SuggestNoteTitle/SuggestNoteTitleCommandHandler';
+export * from '@Contexts/Notes/Application/Commands/BookmarkNote/BookmarkNoteCommandEvent';
+export * from '@Contexts/Notes/Application/Commands/BookmarkNote/BookmarkNoteCommandHandler';
+export * from '@Contexts/Notes/Application/Commands/RemoveBookmark/RemoveBookmarkCommandEvent';
+export * from '@Contexts/Notes/Application/Commands/RemoveBookmark/RemoveBookmarkCommandHandler';

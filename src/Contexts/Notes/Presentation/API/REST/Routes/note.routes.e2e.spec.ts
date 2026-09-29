@@ -146,6 +146,89 @@ describe('Sharing a note (Notes -> Notifications)', () => {
   });
 });
 
+describe('Bookmarks', () => {
+  // A fresh account, so the suite's earlier state does not matter: dave owns one note and was shared another.
+  let dave: ReturnType<typeof superagent.agent>;
+  let ownNoteId: string;
+  let sharedNoteId: string;
+  let hiddenNoteId: string;
+
+  beforeAll(async () => {
+    const daveId = await app.signUpValidated('dave@notes.fr', 'dave');
+    dave = await app.agentAs('dave@notes.fr', 'dave');
+
+    await dave.post(`${api}/notes`).send({ title: 'Todo', content: 'Call mum' });
+    ownNoteId = (await dave.get(`${api}/notes`)).body[0].id;
+
+    const admin = await app.admin();
+    await admin.post(`${api}/notes`).send({ title: 'Recipes', content: 'Pancakes' });
+    await admin.post(`${api}/notes`).send({ title: 'Hidden', content: 'Not for dave' });
+    const admins = await admin.get(`${api}/notes`);
+    sharedNoteId = admins.body.find((note: { title: string }) => note.title === 'Recipes').id;
+    hiddenNoteId = admins.body.find((note: { title: string }) => note.title === 'Hidden').id;
+    await admin.post(`${api}/notes/${sharedNoteId}/share`).send({ recipientId: daveId });
+  });
+
+  it('starts empty', async () => {
+    const res = await dave.get(`${api}/notes/bookmarks`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('bookmarks an own note and a shared one, and lists them most recent first', async () => {
+    const own = await dave.post(`${api}/notes/${ownNoteId}/bookmark`);
+    expect(own.status).toBe(202);
+    const shared = await dave.post(`${api}/notes/${sharedNoteId}/bookmark`);
+    expect(shared.status).toBe(202);
+    expect((await dave.get(`${api}/tracker/operations/${shared.body.operationId}`)).body.status).toBe('SUCCESS');
+
+    const list = await dave.get(`${api}/notes/bookmarks`);
+    expect(list.body).toEqual([
+      { id: expect.any(String), noteId: sharedNoteId, title: 'Recipes', bookmarkedAt: expect.any(String) },
+      { id: expect.any(String), noteId: ownNoteId, title: 'Todo', bookmarkedAt: expect.any(String) },
+    ]);
+  });
+
+  it('refuses the same note twice, on the operation', async () => {
+    const again = await dave.post(`${api}/notes/${sharedNoteId}/bookmark`);
+    expect(again.status).toBe(202);
+
+    const operation = await dave.get(`${api}/tracker/operations/${again.body.operationId}`);
+    expect(operation.body).toMatchObject({ status: 'ERROR', error: { type: 'NoteAlreadyBookmarked' } });
+    expect((await dave.get(`${api}/notes/bookmarks`)).body).toHaveLength(2);
+  });
+
+  it('refuses a note the caller cannot see, as not found', async () => {
+    const hidden = await dave.post(`${api}/notes/${hiddenNoteId}/bookmark`);
+
+    const operation = await dave.get(`${api}/tracker/operations/${hidden.body.operationId}`);
+    expect(operation.body).toMatchObject({ status: 'ERROR', error: { type: 'NoteNotFound' } });
+  });
+
+  it('removes a bookmark, and only that one', async () => {
+    const removed = await dave.delete(`${api}/notes/${sharedNoteId}/bookmark`);
+    expect(removed.status).toBe(202);
+    expect((await dave.get(`${api}/tracker/operations/${removed.body.operationId}`)).body.status).toBe('SUCCESS');
+
+    const list = await dave.get(`${api}/notes/bookmarks`);
+    expect(list.body.map((item: { noteId: string }) => item.noteId)).toEqual([ownNoteId]);
+
+    const twice = await dave.delete(`${api}/notes/${sharedNoteId}/bookmark`);
+    const operation = await dave.get(`${api}/tracker/operations/${twice.body.operationId}`);
+    expect(operation.body).toMatchObject({ status: 'ERROR', error: { type: 'BookmarkNotFound' } });
+  });
+
+  it('keeps bookmarks per account: the admin sees none of dave’s', async () => {
+    expect((await agent.get(`${api}/notes/bookmarks`)).body).toEqual([]);
+  });
+
+  it('requires a signed-in caller', async () => {
+    let status: number | undefined;
+    await superagent.get(`${api}/notes/bookmarks`).catch(err => (status = err.status));
+    expect(status).toBe(403);
+  });
+});
+
 describe('Sharing a note with an unknown account', () => {
   it('is refused by the domain, through the port to Security', async () => {
     await agent.post(`${api}/notes`).send({ title: 'Secret', content: '...' });

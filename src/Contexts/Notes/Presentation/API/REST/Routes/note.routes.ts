@@ -11,6 +11,7 @@ import {
   CreateNoteReqBodySchema,
   EditNoteReqBody,
   EditNoteReqBodySchema,
+  GetMyBookmarksResSchema,
   GetMyNotesResSchema,
   GetNoteResSchema,
   GetSharedNotesResSchema,
@@ -39,6 +40,13 @@ export const noteRoutes = function (
     '/shared',
     { schema: { tags, response: GetSharedNotesResSchema } },
     controller.getNotesSharedWithMe.bind(controller),
+  );
+
+  // A static segment, so it cannot collide with `/:id` below (Fastify matches static routes first).
+  fastify.get(
+    '/bookmarks',
+    { schema: { tags, response: GetMyBookmarksResSchema } },
+    controller.getMyBookmarks.bind(controller),
   );
 
   fastify.get('/new', { schema: { tags } }, controller.newNotes.bind(controller));
@@ -77,6 +85,19 @@ export const noteRoutes = function (
     '/:id/suggest-title',
     { schema: { tags, ...CommandOnNoteSchema } },
     controller.suggestNoteTitle.bind(controller),
+  );
+
+  // The caller's bookmark on a note: one per (account, note), so the note names it.
+  fastify.post<{ Params: NoteIdParams }>(
+    '/:id/bookmark',
+    { schema: { tags, ...CommandOnNoteSchema } },
+    controller.bookmarkNote.bind(controller),
+  );
+
+  fastify.delete<{ Params: NoteIdParams }>(
+    '/:id/bookmark',
+    { schema: { tags, ...CommandOnNoteSchema } },
+    controller.removeBookmark.bind(controller),
   );
 
   done();

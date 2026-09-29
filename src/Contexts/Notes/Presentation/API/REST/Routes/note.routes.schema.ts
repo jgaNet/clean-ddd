@@ -105,6 +105,23 @@ export const GetSharedNotesResSchema = {
   403: ErrorResSchema,
 } as const;
 
+export const GetMyBookmarksResSchema = {
+  200: {
+    description: 'Success, most recent first',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        noteId: { type: 'string' },
+        title: { type: 'string' },
+        bookmarkedAt: { type: 'string', format: 'date-time' },
+      },
+    },
+  },
+  403: ErrorResSchema,
+} as const;
+
 export type CreateNoteReqBody = FromSchema<typeof CreateNoteReqBodySchema>;
 export type EditNoteReqBody = FromSchema<typeof EditNoteReqBodySchema>;
 export type ShareNoteReqBody = FromSchema<typeof ShareNoteReqBodySchema>;

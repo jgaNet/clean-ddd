@@ -5,14 +5,17 @@ import { Module } from '@Architecture/Application';
 
 import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 import {
+  BookmarkNoteCommandEvent,
   CreateNoteCommandEvent,
   EditNoteCommandEvent,
   ArchiveNoteCommandEvent,
+  RemoveBookmarkCommandEvent,
   RestoreNoteCommandEvent,
   ShareNoteCommandEvent,
   SuggestNoteTitleCommandEvent,
 } from '@Contexts/Notes/Application/Commands';
 import {
+  GetMyBookmarksQueryHandler,
   GetMyNotesQueryHandler,
   GetNoteQueryHandler,
   GetNotesSharedWithMeQueryHandler,
@@ -67,6 +70,20 @@ export class FastifyNoteController {
 
   async suggestNoteTitle(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
     return this.accept(req, reply, SuggestNoteTitleCommandEvent.set({ noteId: req.params.id }));
+  }
+
+  async bookmarkNote(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
+    return this.accept(req, reply, BookmarkNoteCommandEvent.set({ noteId: req.params.id }));
+  }
+
+  async removeBookmark(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
+    return this.accept(req, reply, RemoveBookmarkCommandEvent.set({ noteId: req.params.id }));
+  }
+
+  async getMyBookmarks(req: FastifyRequest, reply: FastifyReply) {
+    const result = await this.#notesModule.getQuery(GetMyBookmarksQueryHandler).handle(undefined, req.executionContext);
+
+    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
   }
 
   async getMyNotes(req: FastifyRequest, reply: FastifyReply) {
