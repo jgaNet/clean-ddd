@@ -77,11 +77,21 @@ function forbidden({ units, wholes }, allowed) {
   for (const [unit, patterns] of Object.entries(units)) {
     if (!kept.has(unit)) group.push(...patterns);
   }
-  return [...new Set([...group, ...RELATIVE_ACROSS_DIRECTORIES])];
+  return [...new Set(group)];
 }
 
-const restrict = (scope, { may_import, why }) => ({
-  'no-restricted-imports': ['error', { patterns: [{ group: forbidden(scope, may_import), message: why }] }],
+/** Every refusal names its rule id first, so a reader, a tool or `yarn architecture rule <id>` can look it up. */
+const message = ({ id, why, remediation }) => `${id}: ${why} Fix: ${remediation}`;
+const restrict = (scope, rule) => ({
+  'no-restricted-imports': [
+    'error',
+    {
+      patterns: [
+        { group: forbidden(scope, rule.may_import), message: message(rule) },
+        { group: RELATIVE_ACROSS_DIRECTORIES, message: message(architecture.relative_imports) },
+      ],
+    },
+  ],
 });
 
 /**
@@ -95,12 +105,15 @@ function rulesFor(root, alias, others, trees) {
   const blocks = [];
 
   for (const name of LAYERS) {
-    const { may_import, why, specs } = architecture.layers[name];
-    blocks.push({ files: [`${root}/${name}/**/*.ts`], rules: restrict(units, { may_import, why }) });
-    if (specs) {
+    const layerRule = architecture.layers[name];
+    blocks.push({ files: [`${root}/${name}/**/*.ts`], rules: restrict(units, layerRule) });
+    if (layerRule.specs) {
       blocks.push({
         files: [`${root}/${name}/**/*.spec.ts`],
-        rules: restrict(units, { may_import: [...may_import, ...specs.may_import], why: specs.why }),
+        rules: restrict(units, {
+          ...layerRule.specs,
+          may_import: [...layerRule.may_import, ...layerRule.specs.may_import],
+        }),
       });
     }
   }

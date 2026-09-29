@@ -147,19 +147,60 @@ Two trees stand beside the contexts, each layered like one. [`src/Architecture`]
 
 ## The rules, and how they are enforced
 
+Every rule has a stable id, a reason, a remediation and says how it is held: by ESLint, by `yarn check:conventions`, by the type checker, by a spec, by review, or by the evaluations. Ask any of them: `yarn architecture rule CONC-OPTIMISTIC` (add `--json` for a tool).
+
+<!-- generated from conventions/architecture.yaml (rules); edit the YAML, then run yarn conventions:write -->
 | Rule | Enforced by |
-|---|---|
-| **Dependencies point inward.** Domain depends on nothing. Application depends on Domain. Infrastructure and Presentation depend on both. Only a context's wiring file (`module.local.ts`) reads Bootstrap's settings; nothing else depends on Bootstrap. | The table is [`conventions/architecture.yaml`](conventions/architecture.yaml) (what each layer *may* import); [`eslint.config.js`](eslint.config.js) turns it into ESLint `no-restricted-imports` rules, per context and per layer. Application tests may use their own in-memory infrastructure as doubles. Relative imports may only name a sibling file, so nothing bypasses the aliases. There is no exception in the codebase. |
-| A refused command or query is a **failed `Result`**, never a thrown exception. | Base handlers ([`CommandHandler`](src/Architecture/Application/CommandHandler.ts), [`QueryHandler`](src/Architecture/Application/QueryHandler.ts)) and [ADR 1](docs/adr/0001-result-instead-of-exceptions.md) |
-| Only an **aggregate root** records domain events; a handler never builds one. | Types: `record()` is `protected` on `AggregateRoot` |
-| Domain events are published **after the transaction commits**. | `publishDomainEvents()` → `ExecutionContext.afterCommit()`; [`ExecutionContext.spec.ts`](src/Architecture/Application/ExecutionContext.spec.ts) |
-| A context's Domain, Application and Presentation never import another context. Contexts talk through **integration events**, and through **ports they own**, whose adapter (Infrastructure) may read the other context's Domain; only a wiring file imports another context's wiring. | The same ESLint table (`@Contexts/**` forbidden, own context re-allowed per layer) and [ADR 6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md) |
-| Queries return read models; repositories return aggregates. Never the other way. | Port types; [ADR 5](docs/adr/0005-queries-return-read-models-not-aggregates.md) |
-| One wiring file per context, plain data, no container. | [`module.local.ts`](src/Contexts/Notes/module.local.ts) files |
-| One shape per kind of file, whatever the context: exceptions in one `<Aggregate>Exceptions.ts` with a PascalCase `type`; enum values are their UPPERCASE names; factories are `create()`; handlers end in `CommandHandler` / `QueryHandler`; nothing but the logger writes to the console. | Review, against the Notes context; `no-console` in ESLint |
-| The map above names real files, every context on disk is covered by the rules, every link in the documentation resolves, nothing silences ESLint, and the generated import rules refuse and allow what a table of probes says they must. | [`tools/check-conventions.mjs`](tools/check-conventions.mjs), from [`conventions/concepts.yaml`](conventions/concepts.yaml) and `architecture.yaml`; `yarn check:conventions` in CI |
-| A newcomer can add a feature in the right shape from the documentation alone. | Periodic fresh-agent evaluations, graded against a rubric written beforehand: [`docs/evaluations`](docs/evaluations/README.md) |
-| It compiles, lints and tests, in CI, on every pull request. | [`ci.yml`](.github/workflows/ci.yml): `yarn check:conventions`, `yarn format:check`, `yarn lint`, `yarn typecheck`, `yarn test:units`, `yarn test:e2e` |
+| --- | --- |
+| **ARCH-RELATIVE** — A relative import names a sibling file (`./NoteTitle`) and nothing else; anything across directories goes through an alias. | ESLint, generated from `architecture.yaml` · [CLAUDE.md](CLAUDE.md) |
+| **ARCH-INWARD** — Dependencies point inward and contexts stay apart — each file imports only what its row of the dependency table allows; there is no exception and none may be added. | ESLint, generated from `architecture.yaml` · [architecture.yaml](conventions/architecture.yaml), [README.md](conventions/README.md) |
+| **ARCH-TREES** — The building blocks (@Architecture) import nothing outside themselves, not even the shared kernel; the shared kernel (@SharedKernel) imports the building blocks and no context. | ESLint, generated from `architecture.yaml` · [Architecture](src/Architecture), [SharedKernel](src/SharedKernel) |
+| **ARCH-CONTEXT-DECLARED** — Every directory under src/Contexts is a context declared in this file, holds only the declared layers and a module.local.ts. | `yarn check:conventions` · [README.md](conventions/README.md) |
+| **ARCH-MODULES-DATA** — A context's wiring is one module.local.ts building `new Module({ name, commands, queries, domainEvents, integrationEvents })`; anything else it exposes is a named export of that file. No container, no builder, no service locator. | review (stated here, not yet mechanical) · [module.local.ts](src/Contexts/Notes/module.local.ts) |
+| **ARCH-EXECUTION-CONTEXT** — ExecutionContext carries what exists per request and nothing else — who is calling, the trace, the transaction, the bus, the logger. A mailer, a clock, a model client is a constructor dependency of the handler that needs it. | review (stated here, not yet mechanical) · [ExecutionContext.ts](src/Architecture/Application/ExecutionContext.ts) |
+| **DOMAIN-RESULT** — A refused command or query is a failed Result (`IResult<T>` in signatures, `Result.ok()` / `Result.fail(exception)`), never a thrown exception; `throw` is for programming errors and corrupted state only. | a spec · [0001-result-instead-of-exceptions.md](docs/adr/0001-result-instead-of-exceptions.md), [CommandHandler.spec.ts](src/Architecture/Application/CommandHandler.spec.ts) |
+| **DOMAIN-RECORDS-EVENTS** — Only an aggregate root records domain events (`this.record(...)` inside a behaviour); handlers never construct one, they call `publishDomainEvents(aggregate, context)` after saving. | the type checker · [AggregateRoot.ts](src/Architecture/Domain/AggregateRoot.ts) |
+| **DOMAIN-CREATE-VS-RECONSTITUTE** — `create()` / `register()` validates and records a creation event; `fromSnapshot()` records nothing and throws on corrupted data. | a spec · [0004-reconstitution-throws-on-corrupted-data.md](docs/adr/0004-reconstitution-throws-on-corrupted-data.md), [Note.spec.ts](src/Contexts/Notes/Domain/Note/Note.spec.ts) |
+| **DOMAIN-IDENTITY** — An aggregate generates its own identity (`Id.generate()` in `create()`); repositories only `findById` and `save`. | review (stated here, not yet mechanical) · [0002-identity-is-generated-by-the-domain.md](docs/adr/0002-identity-is-generated-by-the-domain.md) |
+| **DOMAIN-NON-DETERMINISM** — Time is a parameter with a default; identity is generated by the domain; anything else that is not a function of the business state (randomness, a model, a person, another system) lives behind a port named for what it decides, and its result is a plain value the aggregate validates and may refuse. | review (stated here, not yet mechanical) · [0007-non-determinism-enters-the-domain-as-a-value.md](docs/adr/0007-non-determinism-enters-the-domain-as-a-value.md), [SuggestNoteTitleCommandHandler.ts](src/Contexts/Notes/Application/Commands/SuggestNoteTitle/SuggestNoteTitleCommandHandler.ts) |
+| **EVENT-AFTER-COMMIT** — Domain events are published after the transaction commits, never before; a rolled-back transaction publishes nothing and leaves the events on the aggregate. | a spec · [0003-publish-domain-events-after-commit.md](docs/adr/0003-publish-domain-events-after-commit.md), [DomainEvents.spec.ts](src/Architecture/Application/DomainEvents.spec.ts) |
+| **QUERY-READ-MODELS** — Queries return read models, repositories return aggregates; never the other way. | the type checker · [0005-queries-return-read-models-not-aggregates.md](docs/adr/0005-queries-return-read-models-not-aggregates.md) |
+| **CTX-CONTRACTS** — Contexts talk in two ways only — integration events published in the shared kernel, and ports the asking side owns, answered by an adapter over the other context's read model; a context's Domain never imports another context. | ESLint, generated from `architecture.yaml` · [0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md) |
+| **CONC-OPTIMISTIC** — An aggregate carries the version it was read at and never changes it; `save()` stores version + 1 and refuses an aggregate that is no longer at the stored version with a ConcurrencyConflictException. | a spec · [0008-optimistic-concurrency-on-the-aggregate.md](docs/adr/0008-optimistic-concurrency-on-the-aggregate.md), [NotePersistence.contract.spec.ts](src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts) |
+| **ARCH-MAP-IS-REAL** — Every file the concept map names exists, every documentation link resolves, nothing silences ESLint, and the generated import rules refuse and allow what the probes say. | `yarn check:conventions` · [check-conventions.ts](tools/check-conventions.ts), [concepts.yaml](conventions/concepts.yaml) |
+| **ARCH-LEARNABLE** — A newcomer, or an agent, can add a feature in the right shape from the documentation alone. | fresh-agent evaluations · [README.md](docs/evaluations/README.md) |
+<!-- end generated -->
+
+### Who may import whom
+
+The dependency table, per layer. `own` is the file's own context, `architecture` the building blocks, `kernel` the shared kernel, `others` any other context; anything not listed is refused, and the refusal names the rule.
+
+<!-- generated from conventions/architecture.yaml (dependencies); edit the YAML, then run yarn conventions:write -->
+| A file in… | may import | Rule |
+| --- | --- | --- |
+| Domain | `own.Domain`, `architecture.Domain`, `kernel.Domain` | ARCH-DOMAIN |
+| Application | `own.Domain`, `own.Application`, `architecture.Domain`, `architecture.Application`, `kernel.Domain`, `kernel.Application` | ARCH-APPLICATION |
+| Application specs | `own.Infrastructure`, `architecture.Infrastructure` | ARCH-APPLICATION-SPECS |
+| Infrastructure | `own.Domain`, `own.Application`, `own.Infrastructure`, `architecture.Domain`, `architecture.Application`, `architecture.Infrastructure`, `kernel.Domain`, `kernel.Application`, `others.Domain`, `libraries` | ARCH-INFRASTRUCTURE |
+| Presentation | `own.Domain`, `own.Application`, `own.Presentation`, `architecture.Domain`, `architecture.Application`, `architecture.Presentation`, `kernel.Domain`, `kernel.Application`, `libraries` | ARCH-PRESENTATION |
+| wiring_file | `own.*`, `architecture.*`, `kernel.*`, `others.wiring`, `bootstrap`, `libraries` | ARCH-WIRING |
+| e2e_specs | `bootstrap`, `libraries` | ARCH-E2E |
+<!-- end generated -->
+
+## The architecture contract
+
+The two YAML files under [`conventions/`](conventions/README.md) are the source of truth this page is rendered from, and a machine interface for tools and coding agents:
+
+```bash
+yarn architecture inspect                      # contexts, trees, layers, how many rules and concepts
+yarn architecture rules | concepts             # the lists
+yarn architecture rule ARCH-DOMAIN             # statement, why, remediation, references
+yarn architecture concept aggregate-root       # canonical files, rules, decisions
+yarn architecture can-import src/Contexts/Notes/Domain/Note/Note.ts fastify   # asks ESLint, names the rule
+```
+
+Every command takes `--json`: valid JSON only, a `schemaVersion`, a structured error and a non-zero status for an unknown id. `yarn check:conventions` validates the contract itself (unique ids, references that exist, concepts naming rules that exist) before checking the tree against it.
+
 
 ## Layout of a context
 

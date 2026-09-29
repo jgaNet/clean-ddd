@@ -4,13 +4,16 @@ The architecture of this repository, written as data so that tooling can hold th
 
 | File | What it holds | Who reads it |
 |---|---|---|
-| [`architecture.yaml`](architecture.yaml) | the contexts, the layers, and which layer may import from which | [`eslint.config.js`](../eslint.config.js) turns it into import rules, one per context and per layer; [`check-conventions.mjs`](../tools/check-conventions.mjs) checks the tree has that shape |
-| [`concepts.yaml`](concepts.yaml) | every concept the README teaches, with the canonical file that shows it and a one-line note; plus the vocabulary | [`check-conventions.mjs`](../tools/check-conventions.mjs) checks every file exists and renders the README's map tables from it |
+| [`architecture.yaml`](architecture.yaml) | the contexts, the layers, and which layer may import from which | [`eslint.config.js`](../eslint.config.js) turns it into import rules, one per context and per layer; [`check-conventions.ts`](../tools/check-conventions.ts) checks the tree has that shape |
+| [`concepts.yaml`](concepts.yaml) | every concept the README teaches: its canonical files, the rules that govern it, the decisions that explain it; plus the vocabulary | [`check-conventions.ts`](../tools/check-conventions.ts) checks every file and rule exists and renders the README's map tables from it |
 
 ```bash
-yarn check:conventions    # in CI: the tree matches architecture.yaml, concepts.yaml names real files, README is up to date, every doc link resolves
-yarn conventions:write    # regenerate the README tables after editing concepts.yaml
+yarn check:conventions    # in CI: the contract is sound, the tree matches it, README and CLAUDE.md are rendered from it, every doc link resolves
+yarn conventions:write    # regenerate the rendered blocks after editing either file
+yarn architecture …       # ask the contract: inspect, rules, concepts, rule <ID>, concept <id>, can-import <file> <specifier>; --json for tools
 ```
+
+Both files carry a `schemaVersion`; [`tools/architecture-contract`](../tools/architecture-contract) loads them into one typed contract, validates it and answers the questions above. Every rule has a stable id (`ARCH-*` dependencies and layout, `DOMAIN-*`, `EVENT-*`, `QUERY-*`, `CTX-*`, `CONC-*`), a reason, a remediation and an `enforcement` (`eslint`, `check`, `types`, `tests`, `review`, `evaluations`) — `review` being the honest word for a rule that people and agents apply and no tool checks yet. ESLint refusals start with the rule id.
 
 ## How the rules are written
 
