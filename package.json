@@ -6,7 +6,7 @@
   "types": "dist/application.d.ts",
   "license": "MIT",
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "scripts": {
     "start": "node dist/application.js",

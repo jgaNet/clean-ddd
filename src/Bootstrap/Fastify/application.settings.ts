@@ -1,4 +1,4 @@
-import packageJson from '../../../package.json';
+import packageJson from '../../../package.json' with { type: 'json' };
 
 const protocol = String(process.env.PROTOCOL || 'http');
 const baseUrl = String(process.env.BASE_URL || 'localhost');

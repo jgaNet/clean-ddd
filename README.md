@@ -180,7 +180,7 @@ Contexts/Notes/
 
 ## Running it
 
-Requires Node ≥ 20 (`.nvmrc` says 22).
+Requires Node ≥ 24 (`.nvmrc` says 24; Jest needs 24.9 or later to load the ESM-only packages Fastify now depends on).
 
 ```bash
 nvm use
