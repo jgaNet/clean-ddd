@@ -5,10 +5,11 @@
 #
 # Read it as: "a file in layer X of context C may import from ...". Anything not listed is
 # forbidden. The words:
-#   own.<Layer>      the same layer or another layer of the same context
-#   own.wiring       the context's module.local.ts
-#   kernel.<Layer>   that layer of @SharedKernel
-#   others.<Layer>   that layer of any other context
+#   own.<Layer>          the same layer or another layer of the same context
+#   own.wiring           the context's module.local.ts
+#   architecture.<Layer> that layer of @Architecture, the building blocks (mechanics, no vocabulary)
+#   kernel.<Layer>       that layer of @SharedKernel, the shared kernel (Email, Role, guards, contracts)
+#   others.<Layer>       that layer of any other context
 #   others.wiring    another context's module.local.ts (for what it exports)
 #   bootstrap        src/Bootstrap (settings, the composition root)
 #   libraries        the infrastructure libraries listed below (HTTP, crypto, tokens...)
@@ -19,7 +20,11 @@
 # linter (ArchUnit, deptrac, import-linter, dependency-cruiser...) and keep the same table.
 
 contexts: [Notes, Security, Notifications, Tracker]
-kernel: '@SharedKernel'
+
+# Two trees outside the contexts, each layered like one. The building blocks know nothing of
+# the shared kernel (it is vocabulary; they are mechanics); the shared kernel is built on them.
+architecture: { alias: '@Architecture', path: src/Architecture }
+kernel: { alias: '@SharedKernel', path: src/SharedKernel }
 wiring: module.local.ts
 
 # Libraries only an adapter may see: the domain and the use cases never import them.
@@ -27,16 +32,16 @@ libraries: [fastify, '@fastify/**', jose, bcryptjs, ws]
 
 layers:
   Domain:
-    may_import: [own.Domain, kernel.Domain]
-    why: The Domain layer depends on nothing outside its own Domain and @SharedKernel/Domain.
+    may_import: [own.Domain, architecture.Domain, kernel.Domain]
+    why: The Domain layer depends on nothing outside its own Domain, @Architecture/Domain and @SharedKernel/Domain.
 
   Application:
-    may_import: [own.Domain, own.Application, kernel.Domain, kernel.Application]
+    may_import: [own.Domain, own.Application, architecture.Domain, architecture.Application, kernel.Domain, kernel.Application]
     why: >-
-      The Application layer depends on its own Domain and Application, @SharedKernel/Domain and
-      @SharedKernel/Application (integration events included), nothing else.
+      The Application layer depends on its own Domain and Application, the Domain and Application of
+      @Architecture and of @SharedKernel (integration events included), nothing else.
     specs:
-      may_import: [own.Infrastructure, kernel.Infrastructure]
+      may_import: [own.Infrastructure, architecture.Infrastructure]
       why: Application tests may use their own in-memory Infrastructure as test doubles, nothing further out.
 
   Infrastructure:
@@ -44,9 +49,11 @@ layers:
       - own.Domain
       - own.Application
       - own.Infrastructure
+      - architecture.Domain
+      - architecture.Application
+      - architecture.Infrastructure
       - kernel.Domain
       - kernel.Application
-      - kernel.Infrastructure
       - others.Domain
       - libraries
     why: >-
@@ -58,9 +65,11 @@ layers:
       - own.Domain
       - own.Application
       - own.Presentation
+      - architecture.Domain
+      - architecture.Application
+      - architecture.Presentation
       - kernel.Domain
       - kernel.Application
-      - kernel.Presentation
       - libraries
     why: >-
       The Presentation layer talks to its own Application layer (handlers, module) and Domain
@@ -68,7 +77,7 @@ layers:
 
 # Two kinds of file that are not a layer.
 wiring_file:
-  may_import: [own.*, kernel.*, others.wiring, bootstrap, libraries]
+  may_import: [own.*, architecture.*, kernel.*, others.wiring, bootstrap, libraries]
   why: >-
     A wiring file binds its own context and may import another context's wiring for what it
     exports; it never reaches inside another context.

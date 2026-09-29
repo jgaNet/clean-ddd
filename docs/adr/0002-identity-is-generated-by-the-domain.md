@@ -6,7 +6,7 @@ Two ways to give a new aggregate its id: ask the persistence layer (auto-increme
 
 ## Decision
 
-An aggregate picks its own identity when it is created: `Id.generate()` ([`Id.ts`](../../src/Contexts/@SharedKernel/Domain/ValueObjects/Id.ts)), a UUID v4, inside `Note.create()` / `Account.register()`. Repositories only `findById` and `save`; there is no `nextIdentity()` on any port.
+An aggregate picks its own identity when it is created: `Id.generate()` ([`Id.ts`](../../src/Architecture/Domain/Id.ts)), a UUID v4, inside `Note.create()` / `Account.register()`. Repositories only `findById` and `save`; there is no `nextIdentity()` on any port.
 
 ## Consequences
 

@@ -1,4 +1,4 @@
-import { IResult, Result, ValueObject } from '@SharedKernel/Domain';
+import { IResult, Result, ValueObject } from '@Architecture/Domain';
 
 import { Channel } from '@Contexts/Notifications/Domain/Notification/Channel';
 import { EmptyDeliveryStrategyException } from '@Contexts/Notifications/Domain/Notification/NotificationExceptions';

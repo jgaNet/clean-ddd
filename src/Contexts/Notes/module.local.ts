@@ -1,5 +1,5 @@
-import { Module } from '@SharedKernel/Application';
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { Module } from '@Architecture/Application';
+import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
 
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import { NoteCreatedEvent, NoteSharedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';

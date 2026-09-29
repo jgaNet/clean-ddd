@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 
-import { IResult, Result } from '@SharedKernel/Domain';
+import { IResult, Result } from '@Architecture/Domain';
 
 import { Note } from '@Contexts/Notes/Domain/Note/Note';
 import { INoteRepository } from '@Contexts/Notes/Domain/Note/Ports/INoteRepository';

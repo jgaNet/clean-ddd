@@ -1,6 +1,6 @@
-import { Presenter } from '@SharedKernel/Presentation/Presenter';
+import { Presenter } from '@Architecture/Presentation/Presenter';
 import { ErrorViewModel } from '@Contexts/Security/Presentation/Presenters/Auth/ViewModels';
-import { html } from '@SharedKernel/Presentation/Templates';
+import { html } from '@Architecture/Presentation/Html';
 
 export class LoginHTMXPresenter implements Presenter<ErrorViewModel, string> {
   present({ message }: ErrorViewModel): string {

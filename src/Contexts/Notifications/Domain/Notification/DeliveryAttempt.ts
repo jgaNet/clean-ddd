@@ -1,5 +1,5 @@
-import { Entity } from '@SharedKernel/Domain';
-import { Id } from '@SharedKernel/Domain/ValueObjects';
+import { Entity } from '@Architecture/Domain';
+import { Id } from '@Architecture/Domain';
 
 import { Channel } from '@Contexts/Notifications/Domain/Notification/Channel';
 import { IDeliveryAttempt } from '@Contexts/Notifications/Domain/Notification/DTOs';

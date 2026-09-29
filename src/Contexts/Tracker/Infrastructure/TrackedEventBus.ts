@@ -1,5 +1,5 @@
-import { CommandEvent, Event, IResult } from '@SharedKernel/Domain';
-import { EventBus, EventHandler, ExecutionContext, IOperation, OperationStatus } from '@SharedKernel/Application';
+import { CommandEvent, Event, IResult } from '@Architecture/Domain';
+import { EventBus, EventHandler, ExecutionContext, IOperation, OperationStatus } from '@Architecture/Application';
 import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
 
 import { IOperationRecords } from '@Contexts/Tracker/Application/Ports/IOperationRecords';

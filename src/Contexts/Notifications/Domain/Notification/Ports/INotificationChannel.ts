@@ -1,4 +1,4 @@
-import { IResult } from '@SharedKernel/Domain';
+import { IResult } from '@Architecture/Domain';
 
 import { Channel } from '@Contexts/Notifications/Domain/Notification/Channel';
 

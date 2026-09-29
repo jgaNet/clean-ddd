@@ -1,5 +1,6 @@
-import { IResult, NotFoundException, Result, Role } from '@SharedKernel/Domain';
-import { ExecutionContext, QueryHandler } from '@SharedKernel/Application';
+import { IResult, NotFoundException, Result } from '@Architecture/Domain';
+import { Role } from '@SharedKernel/Domain';
+import { ExecutionContext, QueryHandler } from '@Architecture/Application';
 import { requireSignedIn } from '@SharedKernel/Application/Guards';
 
 import { IOperationRecords } from '@Contexts/Tracker/Application/Ports/IOperationRecords';

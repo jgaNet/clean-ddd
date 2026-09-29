@@ -1,4 +1,4 @@
-import { Exception } from '@SharedKernel/Domain';
+import { Exception } from '@Architecture/Domain';
 
 export class NotificationDomainException extends Exception {
   constructor({ type, message, context }: { type: string; message: string; context?: unknown }) {

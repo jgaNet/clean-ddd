@@ -31,8 +31,11 @@
       "@Contexts/*": [
         "Contexts/*"
       ],
+      "@Architecture/*": [
+        "Architecture/*"
+      ],
       "@SharedKernel/*": [
-        "Contexts/@SharedKernel/*"
+        "SharedKernel/*"
       ],
       "@Bootstrap/*": [
         "Bootstrap/*"

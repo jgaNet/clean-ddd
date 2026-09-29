@@ -1,4 +1,4 @@
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
 
 import { IAccount } from '@Contexts/Security/Domain/Account/DTOs';
 import { AccountDetail, IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';

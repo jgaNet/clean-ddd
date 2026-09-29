@@ -1,5 +1,5 @@
-import { ValueObject } from '@SharedKernel/Domain';
-import { IResult, Result } from '@SharedKernel/Domain';
+import { ValueObject } from '@Architecture/Domain';
+import { IResult, Result } from '@Architecture/Domain';
 import { BlankNoteTitleException, NoteTitleTooLongException } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 
 /**

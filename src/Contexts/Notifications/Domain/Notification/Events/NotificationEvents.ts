@@ -1,4 +1,4 @@
-import { DomainEvent } from '@SharedKernel/Domain';
+import { DomainEvent } from '@Architecture/Domain';
 
 import { Channel } from '@Contexts/Notifications/Domain/Notification/Channel';
 

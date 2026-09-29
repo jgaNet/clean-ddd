@@ -1,5 +1,6 @@
-import { IResult, Result, Role } from '@SharedKernel/Domain';
-import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
+import { IResult, Result } from '@Architecture/Domain';
+import { Role } from '@SharedKernel/Domain';
+import { CommandHandler, ExecutionContext } from '@Architecture/Application';
 
 import { AccountRegistration } from '@Contexts/Security/Domain/Account/AccountRegistration';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';

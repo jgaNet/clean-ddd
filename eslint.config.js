@@ -6,8 +6,9 @@
  * context and per layer, so that every context is held to the same standard.
  *
  * The translation: the YAML says what a layer MAY import; ESLint wants what it may NOT. So we
- * enumerate every "unit" a file could import (each layer of its own context, of the kernel,
- * of every other context, the wiring files, Bootstrap, the infrastructure libraries) and
+ * enumerate every "unit" a file could import (each layer of its own context, of the building
+ * blocks, of the shared kernel, of every other context, the wiring files, Bootstrap, the
+ * infrastructure libraries) and
  * forbid the ones the table does not allow. Imports are matched on their path alias; a
  * relative import may only name a sibling file (`./Note`), never cross a directory.
  *
@@ -31,10 +32,12 @@ const wiring = alias => [`${alias}/${WIRING}`];
 const whole = alias => [alias, `${alias}/**`];
 
 /**
- * The patterns of every unit, for a file of context `alias` whose other contexts are `others`,
- * and the pattern of a whole context, used when nothing of it may be imported.
+ * The patterns of every unit, for a file of tree `alias` whose other contexts are `others` and
+ * which may see the special trees in `trees` (unit prefix -> alias), plus the pattern of a
+ * whole context, used when nothing of it may be imported. A unit the table allows but the tree
+ * does not have (kernel.* for the building blocks themselves) is simply absent.
  */
-function unitsFor(alias, others) {
+function unitsFor(alias, others, trees) {
   const units = {
     bootstrap: ['@Bootstrap/**'],
     libraries: architecture.libraries,
@@ -43,7 +46,7 @@ function unitsFor(alias, others) {
   };
   for (const name of LAYERS) {
     units[`own.${name}`] = layer(alias, name);
-    units[`kernel.${name}`] = layer(architecture.kernel, name);
+    for (const [prefix, treeAlias] of Object.entries(trees)) units[`${prefix}.${name}`] = layer(treeAlias, name);
     units[`others.${name}`] = others.flatMap(other => layer(other, name));
   }
   return { units, wholes: { own: whole(alias), others: others.flatMap(whole) } };
@@ -53,8 +56,8 @@ const expand = allowed =>
   allowed.flatMap(unit =>
     unit === 'own.*'
       ? [...LAYERS.map(name => `own.${name}`), 'own.wiring']
-      : unit === 'kernel.*'
-        ? LAYERS.map(name => `kernel.${name}`)
+      : unit.endsWith('.*')
+        ? LAYERS.map(name => `${unit.slice(0, -2)}.${name}`)
         : [unit],
   );
 
@@ -82,28 +85,29 @@ const restrict = (scope, { may_import, why }) => ({
 });
 
 /**
- * @param folder  the directory under src/Contexts ('Notes', '@SharedKernel')
- * @param alias   how this context is imported ('@Contexts/Notes', '@SharedKernel')
- * @param others  the aliases of every other context
+ * @param root    the directory of the tree ('src/Contexts/Notes', 'src/SharedKernel')
+ * @param alias   how it is imported ('@Contexts/Notes', '@SharedKernel')
+ * @param others  the aliases of every other context (whole, nothing of them may be imported)
+ * @param trees   the special trees this one may see per layer: { architecture, kernel } for a context
  */
-function rulesFor(folder, alias, others) {
-  const units = unitsFor(alias, others);
+function rulesFor(root, alias, others, trees) {
+  const units = unitsFor(alias, others, trees);
   const blocks = [];
 
   for (const name of LAYERS) {
     const { may_import, why, specs } = architecture.layers[name];
-    blocks.push({ files: [`src/Contexts/${folder}/${name}/**/*.ts`], rules: restrict(units, { may_import, why }) });
+    blocks.push({ files: [`${root}/${name}/**/*.ts`], rules: restrict(units, { may_import, why }) });
     if (specs) {
       blocks.push({
-        files: [`src/Contexts/${folder}/${name}/**/*.spec.ts`],
+        files: [`${root}/${name}/**/*.spec.ts`],
         rules: restrict(units, { may_import: [...may_import, ...specs.may_import], why: specs.why }),
       });
     }
   }
 
-  blocks.push({ files: [`src/Contexts/${folder}/**/*.e2e.spec.ts`], rules: restrict(units, architecture.e2e_specs) });
+  blocks.push({ files: [`${root}/**/*.e2e.spec.ts`], rules: restrict(units, architecture.e2e_specs) });
   blocks.push({
-    files: [`src/Contexts/${folder}/${architecture.wiring}`],
+    files: [`${root}/${architecture.wiring}`],
     rules: restrict(units, architecture.wiring_file),
   });
 
@@ -112,6 +116,8 @@ function rulesFor(folder, alias, others) {
 
 const contextAlias = context => `@Contexts/${context}`;
 const CONTEXTS = architecture.contexts;
+const ARCHITECTURE = architecture.architecture;
+const KERNEL = architecture.kernel;
 
 export default tseslint.config(
   { ignores: ['dist/', 'coverage/', 'src/Bootstrap/Fastify/public/', '**/*.d.ts', '**/*.min.js'] },
@@ -125,9 +131,19 @@ export default tseslint.config(
       '@typescript-eslint/no-inferrable-types': ['off'],
     },
   },
-  // The shared kernel is not a context: it knows no context at all.
-  ...rulesFor(architecture.kernel, architecture.kernel, CONTEXTS.map(contextAlias)),
+  // The building blocks know no context and not even the shared kernel: mechanics, no vocabulary.
+  ...rulesFor(ARCHITECTURE.path, ARCHITECTURE.alias, [...CONTEXTS.map(contextAlias), KERNEL.alias], {}),
+  // The shared kernel is built on the building blocks and knows no context.
+  ...rulesFor(KERNEL.path, KERNEL.alias, CONTEXTS.map(contextAlias), { architecture: ARCHITECTURE.alias }),
   ...CONTEXTS.flatMap(context =>
-    rulesFor(context, contextAlias(context), CONTEXTS.filter(other => other !== context).map(contextAlias)),
+    rulesFor(
+      `src/Contexts/${context}`,
+      contextAlias(context),
+      CONTEXTS.filter(other => other !== context).map(contextAlias),
+      {
+        architecture: ARCHITECTURE.alias,
+        kernel: KERNEL.alias,
+      },
+    ),
   ),
 );

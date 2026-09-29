@@ -1,8 +1,9 @@
 import { expect, jest } from '@jest/globals';
 
-import { NotAllowedException, Role } from '@SharedKernel/Domain';
-import { EventBus, ExecutionContext } from '@SharedKernel/Application';
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { NotAllowedException } from '@Architecture/Domain';
+import { Role } from '@SharedKernel/Domain';
+import { EventBus, ExecutionContext } from '@Architecture/Application';
+import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
 
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import { NoteStatus } from '@Contexts/Notes/Domain/Note/NoteStatus';

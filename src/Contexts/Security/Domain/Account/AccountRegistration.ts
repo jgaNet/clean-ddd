@@ -1,5 +1,5 @@
-import { IResult, Result } from '@SharedKernel/Domain';
-import { Email } from '@SharedKernel/Domain/ValueObjects';
+import { IResult, Result } from '@Architecture/Domain';
+import { Email } from '@SharedKernel/Domain';
 
 import { Account } from '@Contexts/Security/Domain/Account/Account';
 import { INewAccount } from '@Contexts/Security/Domain/Account/DTOs';

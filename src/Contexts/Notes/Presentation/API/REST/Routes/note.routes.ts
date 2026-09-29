@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 
-import { Module } from '@SharedKernel/Application';
+import { Module } from '@Architecture/Application';
 
 import { FastifyNoteController } from '@Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController';
 

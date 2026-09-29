@@ -1,5 +1,5 @@
-import { Event } from '@SharedKernel/Domain';
-import { IOperation } from '@SharedKernel/Application';
+import { Event } from '@Architecture/Domain';
+import { IOperation } from '@Architecture/Application';
 
 import { OperationRecord } from '@Contexts/Tracker/Application/ReadModel/OperationRecord';
 

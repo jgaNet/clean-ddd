@@ -1,5 +1,7 @@
-import { IResult, NotAllowedException, Result, Role } from '@SharedKernel/Domain';
-import { ExecutionContext, QueryHandler, requireSignedIn } from '@SharedKernel/Application';
+import { IResult, NotAllowedException, Result } from '@Architecture/Domain';
+import { Role } from '@SharedKernel/Domain';
+import { ExecutionContext, QueryHandler } from '@Architecture/Application';
+import { requireSignedIn } from '@SharedKernel/Application/Guards';
 
 import {
   InboxFilters,

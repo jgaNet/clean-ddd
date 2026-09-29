@@ -1,6 +1,6 @@
-import { AggregateRoot } from '@SharedKernel/Domain';
-import { IResult, Result } from '@SharedKernel/Domain';
-import { Id } from '@SharedKernel/Domain/ValueObjects';
+import { AggregateRoot } from '@Architecture/Domain';
+import { IResult, Result } from '@Architecture/Domain';
+import { Id } from '@Architecture/Domain';
 
 import { INewNote, INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import { NoteStatus } from '@Contexts/Notes/Domain/Note/NoteStatus';

@@ -1,8 +1,8 @@
 import { expect, jest } from '@jest/globals';
 
 import { InvalidEmailFormat, Role } from '@SharedKernel/Domain';
-import { EventBus, ExecutionContext } from '@SharedKernel/Application';
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { EventBus, ExecutionContext } from '@Architecture/Application';
+import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
 
 import { IAccount } from '@Contexts/Security/Domain/Account/DTOs';
 import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';

@@ -1,5 +1,5 @@
-import { ConcurrencyConflictException, IResult, Result } from '@SharedKernel/Domain';
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { ConcurrencyConflictException, IResult, Result } from '@Architecture/Domain';
+import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
 
 import { Note } from '@Contexts/Notes/Domain/Note/Note';
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';

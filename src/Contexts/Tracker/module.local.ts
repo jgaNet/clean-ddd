@@ -1,6 +1,6 @@
-import { Module } from '@SharedKernel/Application';
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
-import { InMemoryEventBus } from '@SharedKernel/Infrastructure/EventBus/InMemoryEventBus';
+import { Module } from '@Architecture/Application';
+import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
+import { InMemoryEventBus } from '@Architecture/Infrastructure/EventBus/InMemoryEventBus';
 import { EventEmitter } from 'events';
 
 import { OperationRecord } from '@Contexts/Tracker/Application/ReadModel/OperationRecord';

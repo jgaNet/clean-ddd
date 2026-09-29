@@ -1,5 +1,7 @@
-import { AggregateRoot, IResult, Result, Role } from '@SharedKernel/Domain';
-import { Email, Id } from '@SharedKernel/Domain/ValueObjects';
+import { AggregateRoot, IResult, Result } from '@Architecture/Domain';
+import { Role } from '@SharedKernel/Domain';
+import { Email } from '@SharedKernel/Domain';
+import { Id } from '@Architecture/Domain';
 
 import { IAccount, INewAccount } from '@Contexts/Security/Domain/Account/DTOs';
 import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';

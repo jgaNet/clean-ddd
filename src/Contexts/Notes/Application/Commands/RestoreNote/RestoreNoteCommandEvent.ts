@@ -1,3 +1,3 @@
-import { CommandEvent } from '@SharedKernel/Domain';
+import { CommandEvent } from '@Architecture/Domain';
 
 export class RestoreNoteCommandEvent extends CommandEvent<{ noteId: string }> {}

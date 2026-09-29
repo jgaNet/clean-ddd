@@ -1,5 +1,5 @@
-import { IResult, Result } from '@SharedKernel/Domain';
-import { Logger } from '@SharedKernel/Application';
+import { IResult, Result } from '@Architecture/Domain';
+import { Logger } from '@Architecture/Application';
 
 import { Channel } from '@Contexts/Notifications/Domain/Notification/Channel';
 import { Delivery, INotificationChannel } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationChannel';

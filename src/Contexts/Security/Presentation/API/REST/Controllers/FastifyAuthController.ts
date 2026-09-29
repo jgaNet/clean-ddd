@@ -1,8 +1,8 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 
-import { NotAllowedException } from '@SharedKernel/Domain';
-import { Module } from '@SharedKernel/Application';
-import { formatOf, present } from '@SharedKernel/Presentation/Format';
+import { NotAllowedException } from '@Architecture/Domain';
+import { Module } from '@Architecture/Application';
+import { formatOf, present } from '@Architecture/Presentation/Format';
 
 import {
   LoginCommandEvent,

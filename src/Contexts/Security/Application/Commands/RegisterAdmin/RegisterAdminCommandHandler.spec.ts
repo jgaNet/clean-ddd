@@ -1,10 +1,11 @@
 import { EventEmitter } from 'events';
 import { expect } from '@jest/globals';
 
-import { NotAllowedException, Role } from '@SharedKernel/Domain';
-import { ExecutionContext, OperationStatus } from '@SharedKernel/Application';
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
-import { InMemoryEventBus } from '@SharedKernel/Infrastructure/EventBus/InMemoryEventBus';
+import { NotAllowedException } from '@Architecture/Domain';
+import { Role } from '@SharedKernel/Domain';
+import { ExecutionContext, OperationStatus } from '@Architecture/Application';
+import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
+import { InMemoryEventBus } from '@Architecture/Infrastructure/EventBus/InMemoryEventBus';
 
 import { IAccount } from '@Contexts/Security/Domain/Account/DTOs';
 import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';

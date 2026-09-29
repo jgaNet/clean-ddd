@@ -2,9 +2,10 @@
 /**
  * Checks that the conventions and the code agree. Runs in CI as `yarn check:conventions`.
  *
- * 1. conventions/architecture.yaml describes the tree: every context under src/Contexts is
- *    declared (so the import rules apply to it), has its wiring file, and contains nothing but
- *    the declared layers.
+ * 1. conventions/architecture.yaml describes the tree: every directory under src/Contexts is a
+ *    declared context (so the import rules apply to it), has its wiring file, and contains
+ *    nothing but the declared layers; the two trees beside the contexts (the building blocks
+ *    and the shared kernel) contain nothing but layers either.
  * 2. conventions/concepts.yaml names real files: every link in it resolves, and the README's map
  *    tables are exactly what it renders (`--write` regenerates them).
  * 3. Every relative link in README.md, CLAUDE.md, conventions/ and docs/ resolves.
@@ -34,7 +35,7 @@ const architecture = yaml('conventions/architecture.yaml');
 const layers = Object.keys(architecture.layers);
 const contextsDir = join(root, 'src/Contexts');
 const onDisk = readdirSync(contextsDir, { withFileTypes: true })
-  .filter(entry => entry.isDirectory() && entry.name !== architecture.kernel)
+  .filter(entry => entry.isDirectory())
   .map(entry => entry.name);
 
 for (const context of onDisk) {
@@ -56,6 +57,20 @@ for (const context of architecture.contexts) {
   for (const entry of readdirSync(dir)) {
     if (entry !== architecture.wiring && !layers.includes(entry)) {
       problem(`src/Contexts/${context}/${entry} is neither a layer (${layers.join(', ')}) nor ${architecture.wiring}`);
+    }
+  }
+}
+
+for (const tree of [architecture.architecture, architecture.kernel]) {
+  if (!existsSync(join(root, tree.path))) {
+    problem(`${tree.path} (${tree.alias}) does not exist`);
+    continue;
+  }
+  for (const entry of readdirSync(join(root, tree.path))) {
+    if (!layers.includes(entry)) {
+      problem(
+        `${tree.path}/${entry} is not a layer (${layers.join(', ')}): ${tree.alias} holds layers and nothing else`,
+      );
     }
   }
 }
@@ -127,7 +142,7 @@ for (const file of markdownFiles) {
 
 // 4. No eslint-disable, except the console logger's
 
-const allowedDisables = { 'src/Contexts/@SharedKernel/Infrastructure/Logging/ConsoleLogger.ts': 'no-console' };
+const allowedDisables = { 'src/Architecture/Infrastructure/Logging/ConsoleLogger.ts': 'no-console' };
 const walk = dir =>
   readdirSync(join(root, dir), { withFileTypes: true }).flatMap(entry =>
     entry.isDirectory() ? walk(`${dir}/${entry.name}`) : entry.name.endsWith('.ts') ? [`${dir}/${entry.name}`] : [],
@@ -146,6 +161,8 @@ for (const file of walk('src')) {
 const probes = [
   // [file the import sits in, what it imports, expected]
   ['src/Contexts/Notes/Domain/Note/Probe.ts', '@SharedKernel/Domain', 'allowed'],
+  ['src/Contexts/Notes/Domain/Note/Probe.ts', '@Architecture/Domain', 'allowed'],
+  ['src/Contexts/Notes/Domain/Note/Probe.ts', '@Architecture/Application', 'refused'],
   ['src/Contexts/Notes/Domain/Note/Probe.ts', './NoteTitle', 'allowed'],
   ['src/Contexts/Notes/Domain/Note/Probe.ts', '@SharedKernel/Application', 'refused'],
   ['src/Contexts/Notes/Domain/Note/Probe.ts', '@Contexts/Notes/Application/Commands', 'refused'],
@@ -185,12 +202,19 @@ const probes = [
   ['src/Contexts/Notes/module.local.ts', '@Contexts/Security/module.local', 'allowed'],
   ['src/Contexts/Notes/module.local.ts', '@Bootstrap/Fastify/application.settings', 'allowed'],
   ['src/Contexts/Notes/module.local.ts', '@Contexts/Security/Domain/Account/Account', 'refused'],
-  ['src/Contexts/@SharedKernel/Domain/DDD/Probe.ts', '@Contexts/Notes/Domain/Note/Note', 'refused'],
-  [
-    'src/Contexts/@SharedKernel/Application/Probe.ts',
-    '@SharedKernel/Infrastructure/EventBus/InMemoryEventBus',
-    'refused',
-  ],
+  // the building blocks: no context, no shared kernel, inner layers only
+  ['src/Architecture/Domain/Probe.ts', './Id', 'allowed'],
+  ['src/Architecture/Domain/Probe.ts', '@Contexts/Notes/Domain/Note/Note', 'refused'],
+  ['src/Architecture/Domain/Probe.ts', '@SharedKernel/Domain', 'refused'],
+  ['src/Architecture/Application/Probe.ts', '@Architecture/Domain', 'allowed'],
+  ['src/Architecture/Application/Probe.ts', '@SharedKernel/Application/Guards', 'refused'],
+  ['src/Architecture/Application/Probe.ts', '@Architecture/Infrastructure/EventBus/InMemoryEventBus', 'refused'],
+  // the shared kernel: built on the building blocks, knows no context
+  ['src/SharedKernel/Domain/Probe.ts', '@Architecture/Domain', 'allowed'],
+  ['src/SharedKernel/Domain/Probe.ts', '@Architecture/Application', 'refused'],
+  ['src/SharedKernel/Domain/Probe.ts', '@Contexts/Security/Domain/Account/Account', 'refused'],
+  ['src/SharedKernel/Application/Probe.ts', '@Architecture/Application', 'allowed'],
+  ['src/SharedKernel/Application/Probe.ts', '@Architecture/Infrastructure/DataSources/InMemoryDataSource', 'refused'],
 ];
 const eslint = new ESLint({ cwd: root });
 for (const [file, specifier, expected] of probes) {

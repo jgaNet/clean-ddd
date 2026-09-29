@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 
-import { Event, Exception, NotAllowedException } from '@SharedKernel/Domain';
-import { Module } from '@SharedKernel/Application';
+import { Event, Exception, NotAllowedException } from '@Architecture/Domain';
+import { Module } from '@Architecture/Application';
 
 import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 import {

@@ -1,5 +1,5 @@
-import { Presenter } from '@SharedKernel/Presentation/Presenter';
-import { html } from '@SharedKernel/Presentation/Templates';
+import { Presenter } from '@Architecture/Presentation/Presenter';
+import { html } from '@Architecture/Presentation/Html';
 
 import { Delivery } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationChannel';
 
