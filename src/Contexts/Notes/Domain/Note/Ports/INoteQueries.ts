@@ -30,6 +30,8 @@ export interface SharedNoteListItem {
  */
 export interface INoteQueries {
   findById(noteId: string): Promise<NoteDetail | null>;
+  /** In the order they were saved. Ordering is part of this contract: the contract spec asserts it for every adapter. */
   findByOwner(ownerId: string): Promise<NoteListItem[]>;
+  /** In the order they were saved. */
   findSharedWith(accountId: string): Promise<SharedNoteListItem[]>;
 }

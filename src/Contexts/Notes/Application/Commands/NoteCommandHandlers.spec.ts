@@ -9,6 +9,8 @@ import { NoteStatus } from '@Contexts/Notes/Domain/Note/NoteStatus';
 import { NoteCreatedEvent, NoteSharedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
 import {
   BlankNoteTitleException,
+  NoteArchivedException,
+  NoteNotArchivedException,
   NoteNotFoundException,
   NotNoteOwnerException,
 } from '@Contexts/Notes/Domain/Note/NoteExceptions';
@@ -19,6 +21,10 @@ import {
   ArchiveNoteCommandHandler,
   CreateNoteCommandEvent,
   CreateNoteCommandHandler,
+  EditNoteCommandEvent,
+  EditNoteCommandHandler,
+  RestoreNoteCommandEvent,
+  RestoreNoteCommandHandler,
   ShareNoteCommandEvent,
   ShareNoteCommandHandler,
 } from '@Contexts/Notes/Application/Commands';
@@ -147,5 +153,66 @@ describe('ArchiveNoteCommandHandler', () => {
 
     expect(result.isSuccess()).toBe(true);
     expect(store.collection.get(noteId)?.status).toBe(NoteStatus.ARCHIVED);
+  });
+});
+
+describe('EditNoteCommandHandler', () => {
+  it('lets the owner change title and content', async () => {
+    const noteId = await aNoteOwnedBy('alice');
+
+    const result = await new EditNoteCommandHandler(repository).execute(
+      EditNoteCommandEvent.set({ noteId, title: 'Errands', content: 'Milk, bread' }),
+      contextFor('alice'),
+    );
+
+    expect(result.isSuccess()).toBe(true);
+    expect(store.collection.get(noteId)).toMatchObject({ title: 'Errands', content: 'Milk, bread' });
+  });
+
+  it('refuses to edit an archived note', async () => {
+    const noteId = await aNoteOwnedBy('alice');
+    await new ArchiveNoteCommandHandler(repository).execute(
+      ArchiveNoteCommandEvent.set({ noteId }),
+      contextFor('alice'),
+    );
+
+    const result = await new EditNoteCommandHandler(repository).execute(
+      EditNoteCommandEvent.set({ noteId, title: 'Errands', content: 'Milk' }),
+      contextFor('alice'),
+    );
+
+    expect(result.isFailure()).toBe(true);
+    expect(result.error).toBeInstanceOf(NoteArchivedException);
+    expect(store.collection.get(noteId)?.title).toBe('Groceries');
+  });
+});
+
+describe('RestoreNoteCommandHandler', () => {
+  it('restores an archived note', async () => {
+    const noteId = await aNoteOwnedBy('alice');
+    await new ArchiveNoteCommandHandler(repository).execute(
+      ArchiveNoteCommandEvent.set({ noteId }),
+      contextFor('alice'),
+    );
+
+    const result = await new RestoreNoteCommandHandler(repository).execute(
+      RestoreNoteCommandEvent.set({ noteId }),
+      contextFor('alice'),
+    );
+
+    expect(result.isSuccess()).toBe(true);
+    expect(store.collection.get(noteId)?.status).toBe(NoteStatus.ACTIVE);
+  });
+
+  it('refuses to restore a note that is not archived', async () => {
+    const noteId = await aNoteOwnedBy('alice');
+
+    const result = await new RestoreNoteCommandHandler(repository).execute(
+      RestoreNoteCommandEvent.set({ noteId }),
+      contextFor('alice'),
+    );
+
+    expect(result.isFailure()).toBe(true);
+    expect(result.error).toBeInstanceOf(NoteNotArchivedException);
   });
 });

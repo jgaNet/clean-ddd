@@ -29,7 +29,8 @@ import {
  *
  * - a note always has a valid title (NoteTitle value object)
  * - only the owner can edit, archive, restore or share a note
- * - an archived note is read-only until it is restored
+ * - an archived note is read-only until it is restored: it can be neither edited nor shared
+ *   (`ensureActive()`); archiving, restoring and reading it are not gated by that rule
  * - a note cannot be shared twice with the same account, nor with its owner
  *
  * The aggregate never touches persistence, logging or HTTP. It only knows business.
