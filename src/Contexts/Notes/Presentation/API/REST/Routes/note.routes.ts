@@ -73,5 +73,11 @@ export const noteRoutes = function (
     controller.shareNote.bind(controller),
   );
 
+  fastify.post<{ Params: NoteIdParams }>(
+    '/:id/suggest-title',
+    { schema: { tags, ...CommandOnNoteSchema } },
+    controller.suggestNoteTitle.bind(controller),
+  );
+
   done();
 };

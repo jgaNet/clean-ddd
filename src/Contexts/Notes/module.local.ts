@@ -14,6 +14,8 @@ import {
   RestoreNoteCommandHandler,
   ShareNoteCommandEvent,
   ShareNoteCommandHandler,
+  SuggestNoteTitleCommandEvent,
+  SuggestNoteTitleCommandHandler,
 } from '@Contexts/Notes/Application/Commands';
 import {
   GetMyNotesQueryHandler,
@@ -25,6 +27,7 @@ import { NoteSharedHandler } from '@Contexts/Notes/Application/Events/NoteShared
 import { InMemoryNoteQueries } from '@Contexts/Notes/Infrastructure/Queries/InMemoryNoteQueries';
 import { InMemoryNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository';
 import { SecurityAccountDirectory } from '@Contexts/Notes/Infrastructure/Directories/SecurityAccountDirectory';
+import { FirstLineTitleSuggestions } from '@Contexts/Notes/Infrastructure/Suggestions/FirstLineTitleSuggestions';
 import { NoteSharing } from '@Contexts/Notes/Domain/Note/NoteSharing';
 import { accountQueries } from '@Contexts/Security/module.local';
 
@@ -45,6 +48,11 @@ export const localNotesModule = new Module({
     { event: ArchiveNoteCommandEvent, handlers: [new ArchiveNoteCommandHandler(noteRepository)] },
     { event: RestoreNoteCommandEvent, handlers: [new RestoreNoteCommandHandler(noteRepository)] },
     { event: ShareNoteCommandEvent, handlers: [new ShareNoteCommandHandler(noteRepository, noteSharing)] },
+    // The one non-deterministic source of the context, behind a port (ADR 7); a model would go here.
+    {
+      event: SuggestNoteTitleCommandEvent,
+      handlers: [new SuggestNoteTitleCommandHandler(noteRepository, new FirstLineTitleSuggestions())],
+    },
   ],
   queries: [
     new GetMyNotesQueryHandler(noteQueries),

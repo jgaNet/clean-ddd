@@ -59,6 +59,37 @@ describe('POST notes/', () => {
   });
 });
 
+describe('POST notes/:id/suggest-title (ADR 7: a suggestion enters the domain as a value)', () => {
+  it('applies the suggestion the note accepts and keeps its provenance on the operation', async () => {
+    await agent.post(`${api}/notes`).send({ title: 'Untitled', content: 'Groceries for Saturday\nmilk, eggs' });
+    const mine = await agent.get(`${api}/notes`);
+    const noteId: string = mine.body.find((note: { title: string }) => note.title === 'Untitled').id;
+
+    const accepted = await agent.post(`${api}/notes/${noteId}/suggest-title`);
+    expect(accepted.status).toBe(202);
+
+    const operation = await agent.get(`${api}/tracker/operations/${accepted.body.operationId}`);
+    expect(operation.body.status).toBe('SUCCESS');
+    expect(operation.body.result).toEqual({
+      title: 'Groceries for Saturday',
+      provenance: { source: 'heuristic', version: 'first-line/1', at: expect.any(String) },
+    });
+    expect((await agent.get(`${api}/notes/${noteId}`)).body.title).toBe('Groceries for Saturday');
+  });
+
+  it('lets the note refuse a suggestion that breaks its rules', async () => {
+    const tooLong = 'x'.repeat(120);
+    await agent.post(`${api}/notes`).send({ title: 'Long first line', content: `${tooLong}\nsecond line` });
+    const mine = await agent.get(`${api}/notes`);
+    const noteId: string = mine.body.find((note: { title: string }) => note.title === 'Long first line').id;
+
+    const accepted = await agent.post(`${api}/notes/${noteId}/suggest-title`);
+    const operation = await agent.get(`${api}/tracker/operations/${accepted.body.operationId}`);
+    expect(operation.body).toMatchObject({ status: 'ERROR', error: { type: 'NoteTitleTooLong' } });
+    expect((await agent.get(`${api}/notes/${noteId}`)).body.title).toBe('Long first line');
+  });
+});
+
 describe('POST notes/:id/archive', () => {
   it('should archive the note', async () => {
     const list = await agent.get(`${api}/notes`);

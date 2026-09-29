@@ -10,6 +10,7 @@ import {
   ArchiveNoteCommandEvent,
   RestoreNoteCommandEvent,
   ShareNoteCommandEvent,
+  SuggestNoteTitleCommandEvent,
 } from '@Contexts/Notes/Application/Commands';
 import {
   GetMyNotesQueryHandler,
@@ -62,6 +63,10 @@ export class FastifyNoteController {
       reply,
       ShareNoteCommandEvent.set({ noteId: req.params.id, recipientId: req.body.recipientId }),
     );
+  }
+
+  async suggestNoteTitle(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
+    return this.accept(req, reply, SuggestNoteTitleCommandEvent.set({ noteId: req.params.id }));
   }
 
   async getMyNotes(req: FastifyRequest, reply: FastifyReply) {

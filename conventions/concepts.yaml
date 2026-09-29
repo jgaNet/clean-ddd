@@ -160,6 +160,16 @@ sections:
           [`OperationProjection.ts`](src/Contexts/Tracker/Application/Projections/OperationProjection.ts),
           [`OperationRecord.ts`](src/Contexts/Tracker/Application/ReadModel/OperationRecord.ts)
         notes: a context with no aggregate at all
+      - concept: '**Non-determinism as a value** (ADR 7)'
+        example: >-
+          [`INoteTitleSuggestions.ts`](src/Contexts/Notes/Application/Suggestions/INoteTitleSuggestions.ts) →
+          [`SuggestNoteTitleCommandHandler.ts`](src/Contexts/Notes/Application/Commands/SuggestNoteTitle/SuggestNoteTitleCommandHandler.ts),
+          answered locally by
+          [`FirstLineTitleSuggestions.ts`](src/Contexts/Notes/Infrastructure/Suggestions/FirstLineTitleSuggestions.ts)
+        notes: >-
+          a decision the domain cannot make from its own state (a model, a heuristic, a person) enters it as a
+          value the aggregate validates and may refuse; the provenance travels with it and ends on the operation —
+          [ADR 7](docs/adr/0007-non-determinism-enters-the-domain-as-a-value.md)
       - concept: Module (wiring)
         example: >-
           [`Module.ts`](src/Contexts/@SharedKernel/Application/Module.ts), used in
