@@ -5,6 +5,7 @@ import { EventBus, ExecutionContext } from '@SharedKernel/Application';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 
 import { IAccount } from '@Contexts/Security/Domain/Account/DTOs';
+import { AccountPlan } from '@Contexts/Security/Domain/Account/AccountPlan';
 import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';
 import { AccountRegistration } from '@Contexts/Security/Domain/Account/AccountRegistration';
 import { AccountAlreadyExistsException } from '@Contexts/Security/Domain/Account/AccountExceptions';
@@ -49,6 +50,7 @@ describe('SignUpCommandHandler', () => {
       role: Role.USER,
       credentials: { type: 'password', hash: 'hashed(secret)' },
       status: AccountStatus.PENDING,
+      plan: AccountPlan.FREE,
       lastAuthenticatedAt: undefined,
     });
     expect(eventBus.publish).toHaveBeenCalledWith(

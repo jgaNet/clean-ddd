@@ -4,6 +4,7 @@ import { FastifyAccountController } from '@Contexts/Security/Presentation/API/RE
 import { Module } from '@SharedKernel/Application';
 
 import {
+  changeAccountPlanSchema,
   getAccountByIdSchema,
   loginSchema,
   meSchema,
@@ -42,6 +43,12 @@ export const authRoutes = function (
     '/auth/accounts/:id',
     { schema: getAccountByIdSchema },
     accountController.getAccountById.bind(accountController),
+  );
+
+  fastify.put(
+    '/auth/accounts/:id/plan',
+    { schema: changeAccountPlanSchema },
+    accountController.changeAccountPlan.bind(accountController),
   );
 
   done();

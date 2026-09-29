@@ -115,6 +115,40 @@ describe('Sharing a note (Notes -> Notifications)', () => {
   });
 });
 
+describe('The free plan allows ten notes (Notes -> Security, through the port)', () => {
+  const writeNote = (as: ReturnType<typeof superagent.agent>, title: string) =>
+    as.post(`${api}/notes`).send({ title, content: '' });
+
+  it('refuses the eleventh note until an administrator puts the account on the pro plan', async () => {
+    // A fresh, validated account: dave, on the free plan like every new account
+    const signUp = await superagent.post(`${api}/auth/signup`).send({ identifier: 'dave@notes.fr', password: 'dave' });
+    const daveId: string = (await agent.get(`${api}/tracker/operations/${signUp.body.operationId}`)).body.result;
+    await agent.get(`${api}/auth/accounts/${daveId}/validate`);
+    const dave = await app.agentAs('dave@notes.fr', 'dave');
+
+    for (let i = 1; i <= 10; i++) {
+      const written = await agent.get(
+        `${api}/tracker/operations/${(await writeNote(dave, `Note ${i}`)).body.operationId}`,
+      );
+      expect(written.body.status).toBe('SUCCESS');
+    }
+    expect((await dave.get(`${api}/notes`)).body).toHaveLength(10);
+
+    const eleventh = await writeNote(dave, 'Note 11');
+    expect(eleventh.status).toBe(202);
+    const refused = await agent.get(`${api}/tracker/operations/${eleventh.body.operationId}`);
+    expect(refused.body).toMatchObject({ status: 'ERROR', error: { type: 'NoteLimitReached' } });
+    expect((await dave.get(`${api}/notes`)).body).toHaveLength(10);
+
+    // The administrator puts dave on the pro plan: no limit any more
+    await agent.put(`${api}/auth/accounts/${daveId}/plan`).send({ plan: 'PRO' });
+
+    const allowed = await agent.get(`${api}/tracker/operations/${(await writeNote(dave, 'Note 11')).body.operationId}`);
+    expect(allowed.body.status).toBe('SUCCESS');
+    expect((await dave.get(`${api}/notes`)).body).toHaveLength(11);
+  });
+});
+
 describe('Sharing a note with an unknown account', () => {
   it('is refused by the domain, through the port to Security', async () => {
     await agent.post(`${api}/notes`).send({ title: 'Secret', content: '...' });

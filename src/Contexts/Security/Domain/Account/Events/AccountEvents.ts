@@ -1,5 +1,6 @@
 import { DomainEvent, Role } from '@SharedKernel/Domain';
 
+import { AccountPlan } from '@Contexts/Security/Domain/Account/AccountPlan';
 import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';
 
 /**
@@ -18,3 +19,5 @@ export class AccountCreatedEvent extends DomainEvent<{
 export class AccountValidatedEvent extends DomainEvent<{ accountId: string; email: string }> {}
 
 export class AccountAuthenticatedEvent extends DomainEvent<{ accountId: string; at: Date }> {}
+
+export class AccountPlanChangedEvent extends DomainEvent<{ accountId: string; plan: AccountPlan }> {}

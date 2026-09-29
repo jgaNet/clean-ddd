@@ -1,7 +1,8 @@
 import { IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
 import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';
+import { AccountPlan as SecurityAccountPlan } from '@Contexts/Security/Domain/Account/AccountPlan';
 
-import { IAccountDirectory } from '@Contexts/Notes/Domain/Note/Ports/IAccountDirectory';
+import { AccountPlan, IAccountDirectory } from '@Contexts/Notes/Domain/Note/Ports/IAccountDirectory';
 
 /**
  * Notes' view of Security's accounts: an adapter over Security's *read model*, never its
@@ -15,5 +16,20 @@ export class SecurityAccountDirectory implements IAccountDirectory {
   async exists(accountId: string): Promise<boolean> {
     const account = await this.accounts.findById(accountId);
     return account?.status === AccountStatus.ACTIVE;
+  }
+
+  async planOf(accountId: string): Promise<AccountPlan> {
+    const account = await this.accounts.findById(accountId);
+    return account ? this.translate(account.plan) : AccountPlan.FREE;
+  }
+
+  /** The translation between the two vocabularies, written out so that a new plan on either side is a visible choice here. */
+  private translate(plan: SecurityAccountPlan): AccountPlan {
+    switch (plan) {
+      case SecurityAccountPlan.PRO:
+        return AccountPlan.PRO;
+      case SecurityAccountPlan.FREE:
+        return AccountPlan.FREE;
+    }
   }
 }

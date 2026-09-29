@@ -62,7 +62,13 @@ describe('SignUp', () => {
     const accountId = operation.body.result;
 
     const pending = await adminAgent.get(`${api}/auth/accounts/${accountId}`);
-    expect(pending.body).toEqual({ id: accountId, email: 'user@user.fr', role: 'USER', status: 'PENDING' });
+    expect(pending.body).toEqual({
+      id: accountId,
+      email: 'user@user.fr',
+      role: 'USER',
+      status: 'PENDING',
+      plan: 'FREE',
+    });
 
     // A pending account cannot sign in yet
     let refused: number | undefined;
@@ -72,10 +78,64 @@ describe('SignUp', () => {
     await adminAgent.get(`${api}/auth/accounts/${accountId}/validate`);
 
     const active = await adminAgent.get(`${api}/auth/accounts/${accountId}`);
-    expect(active.body).toEqual({ id: accountId, email: 'user@user.fr', role: 'USER', status: 'ACTIVE' });
+    expect(active.body).toEqual({
+      id: accountId,
+      email: 'user@user.fr',
+      role: 'USER',
+      status: 'ACTIVE',
+      plan: 'FREE',
+    });
 
     const accepted = await login('user@user.fr', 'user');
     expect(accepted.body.token).toEqual(expect.any(String));
+  });
+});
+
+describe('Plans', () => {
+  let adminAgent: ReturnType<typeof superagent.agent>;
+  let accountId: string;
+  let user: ReturnType<typeof superagent.agent>;
+  beforeAll(async () => {
+    adminAgent = await app.admin();
+    // A fresh, validated account: heidi, on the free plan like every new account
+    const signUp = await superagent.post(`${api}/auth/signup`).send({ identifier: 'heidi@user.fr', password: 'heidi' });
+    accountId = (await adminAgent.get(`${api}/tracker/operations/${signUp.body.operationId}`)).body.result;
+    await adminAgent.get(`${api}/auth/accounts/${accountId}/validate`);
+    user = await app.agentAs('heidi@user.fr', 'heidi');
+  });
+
+  it('starts every account on the free plan, which its owner can see', async () => {
+    const me = await user.get(`${api}/auth/me`);
+    expect(me.body.plan).toBe('FREE');
+  });
+
+  it('lets an administrator put an account on the pro plan and see it', async () => {
+    const res = await adminAgent.put(`${api}/auth/accounts/${accountId}/plan`).send({ plan: 'PRO' });
+    expect(res.status).toBe(202);
+
+    const operation = await adminAgent.get(`${api}/tracker/operations/${res.body.operationId}`);
+    expect(operation.body.status).toBe('SUCCESS');
+
+    const account = await adminAgent.get(`${api}/auth/accounts/${accountId}`);
+    expect(account.body.plan).toBe('PRO');
+  });
+
+  it('does not let a user change a plan, not even their own', async () => {
+    const attempt = await user.put(`${api}/auth/accounts/${accountId}/plan`).send({ plan: 'FREE' });
+    expect(attempt.status).toBe(202);
+
+    const operation = await adminAgent.get(`${api}/tracker/operations/${attempt.body.operationId}`);
+    expect(operation.body).toMatchObject({ status: 'ERROR', error: { type: 'NotAllowed' } });
+    expect((await adminAgent.get(`${api}/auth/accounts/${accountId}`)).body.plan).toBe('PRO');
+  });
+
+  it('refuses a plan that does not exist at the door', async () => {
+    let status: number | undefined;
+    await adminAgent
+      .put(`${api}/auth/accounts/${accountId}/plan`)
+      .send({ plan: 'PLATINUM' })
+      .catch(err => (status = err.status));
+    expect(status).toBe(400);
   });
 });
 

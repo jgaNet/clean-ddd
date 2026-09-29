@@ -21,4 +21,8 @@ export class InMemoryNoteRepository implements INoteRepository {
   async save(note: Note): Promise<void> {
     this.dataSource.collection.set(note._id.value, note.toSnapshot());
   }
+
+  async countByOwner(ownerId: string): Promise<number> {
+    return [...this.dataSource.collection.values()].filter(note => note.ownerId === ownerId).length;
+  }
 }

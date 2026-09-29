@@ -16,6 +16,7 @@ export class InMemoryAccountQueries implements IAccountQueries {
       email: account.email,
       role: account.role,
       status: account.status,
+      plan: account.plan,
       lastAuthenticatedAt: account.lastAuthenticatedAt,
     };
   }

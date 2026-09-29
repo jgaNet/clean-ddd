@@ -1,5 +1,6 @@
 import { Role } from '@SharedKernel/Domain';
 
+import { AccountPlan } from '@Contexts/Security/Domain/Account/AccountPlan';
 import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';
 
 /**
@@ -12,6 +13,7 @@ export interface IAccount {
   role: Role;
   credentials: { type: 'password'; hash: string };
   status: AccountStatus;
+  plan: AccountPlan;
   lastAuthenticatedAt?: Date;
 }
 

@@ -29,6 +29,16 @@ export class AccountAlreadyActiveException extends AccountDomainException {
   }
 }
 
+export class AccountAlreadyOnPlanException extends AccountDomainException {
+  constructor(accountId: string, plan: string) {
+    super({
+      type: 'AccountAlreadyOnPlan',
+      message: 'This account is already on that plan',
+      context: { accountId, plan },
+    });
+  }
+}
+
 export class InactiveAccountException extends AccountDomainException {
   constructor(accountId: string) {
     super({ type: 'InactiveAccount', message: 'This account is not active', context: { accountId } });

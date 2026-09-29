@@ -28,6 +28,16 @@ export class NoteTitleTooLongException extends NoteDomainException {
   }
 }
 
+export class NoteLimitReachedException extends NoteDomainException {
+  constructor(ownerId: string, limit: number) {
+    super({
+      type: 'NoteLimitReached',
+      message: `The free plan allows at most ${limit} notes`,
+      context: { ownerId, limit },
+    });
+  }
+}
+
 export class NoteNotFoundException extends NoteDomainException {
   constructor(noteId: string) {
     super({ type: 'NoteNotFound', message: 'Note not found', context: { noteId } });

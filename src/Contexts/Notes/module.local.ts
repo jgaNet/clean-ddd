@@ -25,6 +25,7 @@ import { NoteSharedHandler } from '@Contexts/Notes/Application/Events/NoteShared
 import { InMemoryNoteQueries } from '@Contexts/Notes/Infrastructure/Queries/InMemoryNoteQueries';
 import { InMemoryNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository';
 import { SecurityAccountDirectory } from '@Contexts/Notes/Infrastructure/Directories/SecurityAccountDirectory';
+import { NoteCreation } from '@Contexts/Notes/Domain/Note/NoteCreation';
 import { NoteSharing } from '@Contexts/Notes/Domain/Note/NoteSharing';
 import { accountQueries } from '@Contexts/Security/module.local';
 
@@ -33,14 +34,17 @@ const noteDataSource = new InMemoryDataSource<INote>();
 const noteRepository = new InMemoryNoteRepository(noteDataSource);
 const noteQueries = new InMemoryNoteQueries(noteDataSource);
 
-// Sharing needs to know whether an account exists: Notes asks through its own port, which the
-// infrastructure answers from Security's read model. Notes never imports Security's domain.
-const noteSharing = new NoteSharing(new SecurityAccountDirectory(accountQueries));
+// Creating needs the owner's plan and sharing needs to know whether an account exists: Notes asks
+// through its own port, which the infrastructure answers from Security's read model. Notes never
+// imports Security's domain.
+const accountDirectory = new SecurityAccountDirectory(accountQueries);
+const noteCreation = new NoteCreation(accountDirectory, noteRepository);
+const noteSharing = new NoteSharing(accountDirectory);
 
 export const localNotesModule = new Module({
   name: 'Notes',
   commands: [
-    { event: CreateNoteCommandEvent, handlers: [new CreateNoteCommandHandler(noteRepository)] },
+    { event: CreateNoteCommandEvent, handlers: [new CreateNoteCommandHandler(noteRepository, noteCreation)] },
     { event: EditNoteCommandEvent, handlers: [new EditNoteCommandHandler(noteRepository)] },
     { event: ArchiveNoteCommandEvent, handlers: [new ArchiveNoteCommandHandler(noteRepository)] },
     { event: RestoreNoteCommandEvent, handlers: [new RestoreNoteCommandHandler(noteRepository)] },

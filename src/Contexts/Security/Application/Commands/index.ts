@@ -6,3 +6,5 @@ export * from '@Contexts/Security/Application/Commands/ValidateAccount/ValidateA
 export * from '@Contexts/Security/Application/Commands/ValidateAccount/ValidateAccountCommandHandler';
 export * from '@Contexts/Security/Application/Commands/RegisterAdmin/RegisterAdminCommandEvent';
 export * from '@Contexts/Security/Application/Commands/RegisterAdmin/RegisterAdminCommandHandler';
+export * from '@Contexts/Security/Application/Commands/ChangeAccountPlan/ChangeAccountPlanCommandEvent';
+export * from '@Contexts/Security/Application/Commands/ChangeAccountPlan/ChangeAccountPlanCommandHandler';

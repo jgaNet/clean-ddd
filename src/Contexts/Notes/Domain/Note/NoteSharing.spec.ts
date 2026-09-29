@@ -2,11 +2,14 @@ import { Id } from '@SharedKernel/Domain/ValueObjects';
 
 import { Note } from '@Contexts/Notes/Domain/Note/Note';
 import { NoteSharing } from '@Contexts/Notes/Domain/Note/NoteSharing';
-import { IAccountDirectory } from '@Contexts/Notes/Domain/Note/Ports/IAccountDirectory';
+import { AccountPlan, IAccountDirectory } from '@Contexts/Notes/Domain/Note/Ports/IAccountDirectory';
 import { NotNoteOwnerException, RecipientNotFoundException } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 
-/** A domain test needs only the port: a list of known ids is a directory. */
-const directoryOf = (...ids: string[]): IAccountDirectory => ({ exists: async id => ids.includes(id) });
+/** A domain test needs only the port: a list of known ids is a directory. Sharing does not look at plans. */
+const directoryOf = (...ids: string[]): IAccountDirectory => ({
+  exists: async id => ids.includes(id),
+  planOf: async () => AccountPlan.FREE,
+});
 
 const alice = new Id('alice');
 const bob = new Id('bob');

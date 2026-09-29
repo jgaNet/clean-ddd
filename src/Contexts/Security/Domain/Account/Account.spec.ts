@@ -1,14 +1,17 @@
 import { InvalidEmailFormat, Role } from '@SharedKernel/Domain';
 
 import { Account } from '@Contexts/Security/Domain/Account/Account';
+import { AccountPlan } from '@Contexts/Security/Domain/Account/AccountPlan';
 import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';
 import {
   AccountAuthenticatedEvent,
   AccountCreatedEvent,
+  AccountPlanChangedEvent,
   AccountValidatedEvent,
 } from '@Contexts/Security/Domain/Account/Events/AccountEvents';
 import {
   AccountAlreadyActiveException,
+  AccountAlreadyOnPlanException,
   InactiveAccountException,
   InvalidCredentialsException,
 } from '@Contexts/Security/Domain/Account/AccountExceptions';
@@ -39,6 +42,7 @@ describe('Account', () => {
       const account = result.data as Account;
       expect(account.email.value).toBe('alice@example.com');
       expect(account.status).toBe(AccountStatus.PENDING);
+      expect(account.plan).toBe(AccountPlan.FREE);
       expect(account.pullDomainEvents()).toEqual([
         AccountCreatedEvent.set({
           accountId: account._id.value,
@@ -102,6 +106,33 @@ describe('Account', () => {
     });
   });
 
+  describe('changing plan', () => {
+    it('moves a free account to pro and records AccountPlanChanged', () => {
+      const account = aPendingAccount();
+
+      expect(account.changePlan(AccountPlan.PRO).isSuccess()).toBe(true);
+      expect(account.plan).toBe(AccountPlan.PRO);
+      expect(account.pullDomainEvents()).toEqual([
+        AccountPlanChangedEvent.set({ accountId: account._id.value, plan: AccountPlan.PRO }),
+      ]);
+    });
+
+    it('moves a pro account back to free', () => {
+      const account = aPendingAccount();
+      account.changePlan(AccountPlan.PRO);
+
+      expect(account.changePlan(AccountPlan.FREE).isSuccess()).toBe(true);
+      expect(account.plan).toBe(AccountPlan.FREE);
+    });
+
+    it('refuses the plan the account is already on, and records nothing', () => {
+      const account = aPendingAccount();
+
+      expect(account.changePlan(AccountPlan.FREE).error).toBeInstanceOf(AccountAlreadyOnPlanException);
+      expect(account.pullDomainEvents()).toEqual([]);
+    });
+  });
+
   describe('authenticating', () => {
     it('records the sign-in of an active account', () => {
       const account = aPendingAccount();
@@ -128,6 +159,7 @@ describe('Account', () => {
     it('gives back an equal account after toSnapshot / fromSnapshot, without events', () => {
       const account = aPendingAccount();
       account.validate();
+      account.changePlan(AccountPlan.PRO);
       account.authenticate(new Date('2026-01-01T10:00:00Z'));
 
       const rebuilt = Account.fromSnapshot(account.toSnapshot());

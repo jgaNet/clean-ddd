@@ -1,6 +1,7 @@
 import { Role } from '@SharedKernel/Domain';
 import { FromSchema } from 'json-schema-to-ts';
 
+import { AccountPlan } from '@Contexts/Security/Domain/Account/AccountPlan';
 import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';
 
 const BasicLoginReqBodySchema = {
@@ -46,6 +47,18 @@ const ValidateAccountReqBodySchema = {
   },
 } as const;
 
+const ChangeAccountPlanReqBodySchema = {
+  type: 'object',
+  required: ['plan'],
+  properties: {
+    plan: {
+      type: 'string',
+      enum: Object.values(AccountPlan),
+      description: 'The plan to put the account on',
+    },
+  },
+} as const;
+
 /** A command is accepted; its outcome is on the operation (GET /tracker/operations/:id). */
 const AcceptedSchema = {
   type: 'object',
@@ -73,6 +86,7 @@ export const AccountSchema = {
     email: { type: 'string', format: 'email' },
     role: { type: 'string', enum: Object.values(Role) },
     status: { type: 'string', enum: Object.values(AccountStatus) },
+    plan: { type: 'string', enum: Object.values(AccountPlan) },
     lastAuthenticatedAt: { type: 'string', format: 'date-time' },
   },
 } as const;
@@ -124,6 +138,21 @@ export const validateAccountByIdSchema = {
   },
 };
 
+export const changeAccountPlanSchema = {
+  description: 'Put an account on a plan (administrators only; the outcome is on the operation)',
+  tags: ['accounts'],
+  params: {
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+    },
+  },
+  body: ChangeAccountPlanReqBodySchema,
+  response: {
+    202: AcceptedSchema,
+  },
+};
+
 export const meSchema = {
   description: 'Get the authenticated account',
   tags: ['auth'],
@@ -164,3 +193,4 @@ export const logoutSchema = {
 export type BasicLoginReqBody = FromSchema<typeof BasicLoginReqBodySchema>;
 export type BasicSignUpReqBody = FromSchema<typeof BasicSignupReqBodySchema>;
 export type ValidateAcccountReqBody = FromSchema<typeof ValidateAccountReqBodySchema>;
+export type ChangeAccountPlanReqBody = FromSchema<typeof ChangeAccountPlanReqBodySchema>;

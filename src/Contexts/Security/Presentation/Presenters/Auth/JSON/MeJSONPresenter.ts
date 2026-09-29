@@ -8,6 +8,7 @@ export class MeJSONPresenter implements Presenter<AccountViewModel, object> {
       email: data.email,
       role: data.role,
       status: data.status,
+      plan: data.plan,
       lastAuthenticatedAt: data.lastAuthenticatedAt,
     };
   }

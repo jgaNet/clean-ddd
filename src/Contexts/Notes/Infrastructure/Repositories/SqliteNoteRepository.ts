@@ -33,4 +33,11 @@ export class SqliteNoteRepository implements INoteRepository {
       )
       .run(row);
   }
+
+  async countByOwner(ownerId: string): Promise<number> {
+    const { count } = this.db.prepare('SELECT COUNT(*) AS count FROM notes WHERE owner_id = ?').get(ownerId) as {
+      count: number;
+    };
+    return count;
+  }
 }

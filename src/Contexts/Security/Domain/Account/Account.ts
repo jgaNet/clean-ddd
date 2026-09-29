@@ -2,15 +2,18 @@ import { AggregateRoot, IResult, Result, Role } from '@SharedKernel/Domain';
 import { Email, Id } from '@SharedKernel/Domain/ValueObjects';
 
 import { IAccount, INewAccount } from '@Contexts/Security/Domain/Account/DTOs';
+import { AccountPlan } from '@Contexts/Security/Domain/Account/AccountPlan';
 import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';
 import { Credentials } from '@Contexts/Security/Domain/Account/Credentials';
 import {
   AccountAuthenticatedEvent,
   AccountCreatedEvent,
+  AccountPlanChangedEvent,
   AccountValidatedEvent,
 } from '@Contexts/Security/Domain/Account/Events/AccountEvents';
 import {
   AccountAlreadyActiveException,
+  AccountAlreadyOnPlanException,
   InactiveAccountException,
 } from '@Contexts/Security/Domain/Account/AccountExceptions';
 
@@ -19,6 +22,8 @@ import {
  *
  * - an account always has a valid email and a set of credentials (value objects)
  * - it is PENDING until validated, and only an ACTIVE account can authenticate
+ * - it is on the FREE plan until an administrator puts it on another one (`changePlan()`);
+ *   who may do that is the command handler's guard, what the plan allows is other contexts' business
  * - the email must be unique across accounts: that rule spans the whole collection, so it
  *   lives in the AccountRegistration domain service, not here
  *
@@ -30,6 +35,7 @@ export class Account extends AggregateRoot {
   #role: Role;
   #credentials: Credentials;
   #status: AccountStatus;
+  #plan: AccountPlan;
   #lastAuthenticatedAt?: Date;
 
   private constructor(
@@ -38,6 +44,7 @@ export class Account extends AggregateRoot {
     role: Role,
     credentials: Credentials,
     status: AccountStatus,
+    plan: AccountPlan,
     lastAuthenticatedAt?: Date,
   ) {
     super(id);
@@ -45,10 +52,11 @@ export class Account extends AggregateRoot {
     this.#role = role;
     this.#credentials = credentials;
     this.#status = status;
+    this.#plan = plan;
     this.#lastAuthenticatedAt = lastAuthenticatedAt;
   }
 
-  /** Opens a brand new account. Uniqueness of the email is checked by AccountRegistration. */
+  /** Opens a brand new account, on the free plan. Uniqueness of the email is checked by AccountRegistration. */
   static register(props: INewAccount): IResult<Account> {
     const email = Email.create(props.email);
     if (email.isFailure()) return email;
@@ -58,7 +66,7 @@ export class Account extends AggregateRoot {
 
     const id = Id.generate();
     const status = props.activated ? AccountStatus.ACTIVE : AccountStatus.PENDING;
-    const account = new Account(id, email.data, props.role, credentials.data, status);
+    const account = new Account(id, email.data, props.role, credentials.data, status, AccountPlan.FREE);
     account.record(AccountCreatedEvent.set({ accountId: id.value, email: email.data.value, role: props.role, status }));
 
     return Result.ok(account);
@@ -78,8 +86,21 @@ export class Account extends AggregateRoot {
       snapshot.role,
       credentials.data,
       snapshot.status,
+      snapshot.plan,
       snapshot.lastAuthenticatedAt,
     );
+  }
+
+  /** Moves the account to another plan. Reserved to administrators: the command handler's guard says so. */
+  changePlan(plan: AccountPlan): IResult {
+    if (this.#plan === plan) {
+      return Result.fail(new AccountAlreadyOnPlanException(this._id.value, plan));
+    }
+
+    this.#plan = plan;
+    this.record(AccountPlanChangedEvent.set({ accountId: this._id.value, plan }));
+
+    return Result.ok();
   }
 
   /** Confirms the email address: the account becomes usable. */
@@ -113,6 +134,7 @@ export class Account extends AggregateRoot {
       role: this.#role,
       credentials: { type: this.#credentials.type, hash: this.#credentials.hash },
       status: this.#status,
+      plan: this.#plan,
       lastAuthenticatedAt: this.#lastAuthenticatedAt,
     };
   }
@@ -131,6 +153,10 @@ export class Account extends AggregateRoot {
 
   get status(): AccountStatus {
     return this.#status;
+  }
+
+  get plan(): AccountPlan {
+    return this.#plan;
   }
 
   get lastAuthenticatedAt(): Date | undefined {

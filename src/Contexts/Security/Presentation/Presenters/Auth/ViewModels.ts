@@ -3,6 +3,7 @@ export interface AccountViewModel {
   email: string;
   role: string;
   status: string;
+  plan: string;
   lastAuthenticatedAt?: Date;
 }
 
