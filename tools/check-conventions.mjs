@@ -34,7 +34,9 @@ const onDisk = readdirSync(contextsDir, { withFileTypes: true })
 
 for (const context of onDisk) {
   if (!architecture.contexts.includes(context)) {
-    problem(`src/Contexts/${context} is not declared in conventions/architecture.yaml, so no import rule applies to it`);
+    problem(
+      `src/Contexts/${context} is not declared in conventions/architecture.yaml, so no import rule applies to it`,
+    );
   }
 }
 for (const context of architecture.contexts) {
@@ -55,7 +57,8 @@ for (const context of architecture.contexts) {
 
 // 2. concepts.yaml names real files and the README renders it
 
-const linksIn = text => [...text.matchAll(/\]\(([^)\s]+)\)/g)].map(match => match[1]).filter(link => !/^[a-z]+:/.test(link));
+const linksIn = text =>
+  [...text.matchAll(/\]\(([^)\s]+)\)/g)].map(match => match[1]).filter(link => !/^[a-z]+:/.test(link));
 const checkLinks = (text, from) => {
   for (const link of linksIn(text)) {
     const [path] = link.split('#');
@@ -68,12 +71,17 @@ const escape = cell => String(cell ?? '').replace(/\|/g, '\\|');
 const renderSection = ({ columns, rows }) => {
   const keys = Object.keys(columns);
   const line = cells => `| ${cells.join(' | ')} |`;
-  return [line(keys.map(key => columns[key])), line(keys.map(() => '---')), ...rows.map(row => line(keys.map(key => escape(row[key]))))].join('\n');
+  return [
+    line(keys.map(key => columns[key])),
+    line(keys.map(() => '---')),
+    ...rows.map(row => line(keys.map(key => escape(row[key])))),
+  ].join('\n');
 };
 
 let readme = readFileSync(join(root, 'README.md'), 'utf8');
 for (const section of concepts.sections) {
-  for (const row of section.rows) checkLinks(Object.values(row).join(' '), `conventions/concepts.yaml (${section.id}: ${Object.values(row)[0]})`);
+  for (const row of section.rows)
+    checkLinks(Object.values(row).join(' '), `conventions/concepts.yaml (${section.id}: ${Object.values(row)[0]})`);
 
   const open = `<!-- generated from conventions/concepts.yaml (${section.id}); edit the YAML, then run yarn conventions:write -->`;
   const close = '<!-- end generated -->';
@@ -86,14 +94,22 @@ for (const section of concepts.sections) {
   const rendered = renderSection(section);
   if (match[1] !== rendered) {
     if (write) readme = readme.replace(pattern, `${open}\n${rendered}\n${close}`);
-    else problem(`README.md section "${section.id}" differs from conventions/concepts.yaml; run yarn conventions:write`);
+    else
+      problem(`README.md section "${section.id}" differs from conventions/concepts.yaml; run yarn conventions:write`);
   }
 }
 if (write) writeFileSync(join(root, 'README.md'), readme);
 
 // 3. Every relative link in the documentation resolves
 
-const markdownFiles = ['README.md', 'CLAUDE.md', ...readdirSync(join(root, 'conventions')).filter(f => f.endsWith('.md')).map(f => `conventions/${f}`), ...readdirSync(join(root, 'docs/adr')).map(f => `docs/adr/${f}`)];
+const markdownFiles = [
+  'README.md',
+  'CLAUDE.md',
+  ...readdirSync(join(root, 'conventions'))
+    .filter(f => f.endsWith('.md'))
+    .map(f => `conventions/${f}`),
+  ...readdirSync(join(root, 'docs/adr')).map(f => `docs/adr/${f}`),
+];
 for (const file of markdownFiles) {
   const base = dirname(join(root, file));
   for (const link of linksIn(readFileSync(join(root, file), 'utf8'))) {

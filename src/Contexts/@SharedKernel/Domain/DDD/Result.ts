@@ -18,7 +18,10 @@ import { UnknownException } from './CommonExceptions';
  * compiler knows `r.data` is a T.
  */
 export class Result<T = undefined> {
-  constructor(public readonly data?: T, public readonly error?: Exception) {}
+  constructor(
+    public readonly data?: T,
+    public readonly error?: Exception,
+  ) {}
 
   static ok<T>(data?: T): ResultSuccess<T> {
     return new ResultSuccess<T>(data);

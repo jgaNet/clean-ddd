@@ -16,7 +16,10 @@ export interface EmailConfig {
 export class EmailChannel implements INotificationChannel {
   readonly channel = Channel.EMAIL;
 
-  constructor(private logger: Logger, private config: EmailConfig) {}
+  constructor(
+    private logger: Logger,
+    private config: EmailConfig,
+  ) {}
 
   async isAvailableFor(): Promise<boolean> {
     return true;

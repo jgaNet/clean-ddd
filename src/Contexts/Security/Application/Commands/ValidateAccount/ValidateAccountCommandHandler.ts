@@ -13,7 +13,10 @@ import { ValidateAccountCommandEvent } from './ValidateAccountCommandEvent';
  * controller, so that the rule cannot be bypassed by publishing the command another way.
  */
 export class ValidateAccountCommandHandler extends CommandHandler<ValidateAccountCommandEvent> {
-  constructor(private accountRepository: IAccountRepository, private jwtService: IJwtService) {
+  constructor(
+    private accountRepository: IAccountRepository,
+    private jwtService: IJwtService,
+  ) {
     super();
   }
 

@@ -7,7 +7,10 @@ import { NotificationDelivery } from '@Contexts/Notifications/Application/Servic
 
 /** Anti-corruption layer towards Security: a new account gets its validation link by email. */
 export class AccountCreatedIntegrationEventHandler extends EventHandler<AccountCreatedIntegrationEvent> {
-  constructor(private readonly url: string, private delivery: NotificationDelivery) {
+  constructor(
+    private readonly url: string,
+    private delivery: NotificationDelivery,
+  ) {
     super();
   }
 

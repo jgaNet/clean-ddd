@@ -18,7 +18,10 @@ import { INotificationRepository } from '@Contexts/Notifications/Domain/Notifica
 export class NotificationDelivery {
   #channels: Map<string, INotificationChannel>;
 
-  constructor(private notifications: INotificationRepository, channels: INotificationChannel[]) {
+  constructor(
+    private notifications: INotificationRepository,
+    channels: INotificationChannel[],
+  ) {
     this.#channels = new Map(channels.map(channel => [channel.channel, channel]));
   }
 

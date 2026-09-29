@@ -7,7 +7,11 @@ import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InM
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import { NoteStatus } from '@Contexts/Notes/Domain/Note/NoteStatus';
 import { NoteCreatedEvent, NoteSharedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
-import { BlankNoteTitleException, NoteNotFoundException, NotNoteOwnerException } from '@Contexts/Notes/Domain/Note/NoteExceptions';
+import {
+  BlankNoteTitleException,
+  NoteNotFoundException,
+  NotNoteOwnerException,
+} from '@Contexts/Notes/Domain/Note/NoteExceptions';
 import { InMemoryNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository';
 import { NoteSharing } from '@Contexts/Notes/Domain/Note/NoteSharing';
 import {
