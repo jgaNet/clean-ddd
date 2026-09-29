@@ -1,11 +1,12 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 
-import { NotFoundException } from '@SharedKernel/Domain';
+import { Exception, NotAllowedException, NotFoundException } from '@SharedKernel/Domain';
 import { Module } from '@SharedKernel/Application';
 
-import { GetOperationsHandler } from '@Contexts/Tracker/Application/Queries/GetOperations';
-import { GetOperationHandler } from '@Contexts/Tracker/Application/Queries/GetOperation';
+import { GetOperationsQueryHandler } from '@Contexts/Tracker/Application/Queries/GetOperations';
+import { GetOperationQueryHandler } from '@Contexts/Tracker/Application/Queries/GetOperation';
 
+/** Read-only: the Tracker has no commands. Same shape as FastifyNoteController. */
 export class FastifyOperationController {
   #module: Module;
 
@@ -14,36 +15,22 @@ export class FastifyOperationController {
   }
 
   async getOperations(req: FastifyRequest<{ Querystring: { traceId?: string } }>, reply: FastifyReply) {
-    try {
-      const result = await this.#module.getQuery(GetOperationsHandler).handle(req.query, req.executionContext);
+    const result = await this.#module.getQuery(GetOperationsQueryHandler).handle(req.query, req.executionContext);
 
-      if (result.isFailure()) {
-        throw result.error;
-      }
-
-      return result.data;
-    } catch (e) {
-      reply.code(400);
-      return e;
-    }
+    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
   }
 
   async getOperation(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
-    try {
-      const result = await this.#module.getQuery(GetOperationHandler).handle(req.params, req.executionContext);
+    const result = await this.#module.getQuery(GetOperationQueryHandler).handle(req.params, req.executionContext);
 
-      if (result.isFailure()) {
-        throw result.error;
-      }
+    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
+  }
 
-      return result.data;
-    } catch (e) {
-      if (e instanceof NotFoundException) {
-        reply.code(404);
-        return e;
-      }
-      reply.code(400);
-      return e;
-    }
+  private refuse(reply: FastifyReply, error: Exception) {
+    if (error instanceof NotAllowedException) reply.code(403);
+    else if (error instanceof NotFoundException) reply.code(404);
+    else reply.code(400);
+
+    return { message: error.message };
   }
 }

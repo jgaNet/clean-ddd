@@ -21,8 +21,6 @@
     "noImplicitReturns": true,
     "strict": true,
     "noFallthroughCasesInSwitch": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
     "composite": true,
     "skipLibCheck": true,
     "noEmitHelpers": false,

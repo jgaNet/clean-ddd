@@ -58,7 +58,10 @@ Path aliases: `@SharedKernel/*`, `@Contexts/*`, `@Bootstrap/*`. A relative impor
 ## Code style
 
 - Strict TypeScript; no `any`; every declared variable and parameter is used (`noUnusedLocals` / `noUnusedParameters`); `_` prefix for intentionally unused parameters.
-- PascalCase for types and classes, camelCase otherwise, `I` prefix for ports (`INoteRepository`), suffixes `CommandEvent`, `CommandHandler`, `QueryHandler`, `Event`, `Exception`.
+- PascalCase for types and classes, camelCase otherwise, `I` prefix for ports (`INoteRepository`), suffixes `CommandEvent`, `CommandHandler`, `QueryHandler`, `Event`, `Exception`. A file is named after the class it exports (`FastifyNoteController.ts`), a folder after its use case (`RegisterAdmin/`).
+- One `<Aggregate>Exceptions.ts` per aggregate, each exception with a PascalCase `type` (`'InvalidCredentials'`) and the context as `service`. Enum values are their UPPERCASE names (`AccountStatus.PENDING = 'PENDING'`). Factories are `create()`; a reconstitution is `fromSnapshot()`.
+- Controllers all have the shape of [`FastifyNoteController.ts`](src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts): a command is published and answered `202 { operationId }`; a query's failure goes through one private `refuse()` (`403` for `NotAllowedException`, `404` for a not-found exception, `400` otherwise, body `{ message }`). No `try/catch` in a controller: handlers never throw an expected failure.
+- Only [`ConsoleLogger.ts`](src/Contexts/@SharedKernel/Infrastructure/Logging/ConsoleLogger.ts) writes to the console; everything else logs through `context.logger` or the injected `Logger`.
 - Doc comments explain *why* a file exists and what rule it protects, in a few lines. No commented-out code. No constructor that only calls `super()`.
 - Prettier formats; do not fight it.
 - Conventional commits (`feat:`, `fix:`, `refactor:`, `chore:`, `docs:`), one concern per PR, and the PR body states how it was verified.

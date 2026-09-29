@@ -61,7 +61,7 @@ One canonical example per concept. When two files could teach the same thing, th
 |---|---|---|
 | Command | [`ShareNoteCommandEvent.ts`](src/Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandEvent.ts) | a named payload, nothing more |
 | Command handler | [`EditNoteCommandHandler.ts`](src/Contexts/Notes/Application/Commands/EditNote/EditNoteCommandHandler.ts) | the shape every "change an existing thing" use case follows |
-| Guard (authorization) | `requireSignedIn()` in [`Guards.ts`](src/Contexts/@SharedKernel/Application/Guards.ts), called once at the top of `execute()`; `guard()` in [`RegisterAdminCommandHandler.ts`](src/Contexts/Security/Application/Commands/AddAdmin/RegisterAdminCommandHandler.ts) for role-only rules | *who may call* is answered here; *what they may do to which object* is the aggregate's business |
+| Guard (authorization) | `requireSignedIn()` in [`Guards.ts`](src/Contexts/@SharedKernel/Application/Guards.ts), called once at the top of `execute()`; `guard()` in [`RegisterAdminCommandHandler.ts`](src/Contexts/Security/Application/Commands/RegisterAdmin/RegisterAdminCommandHandler.ts) for role-only rules | *who may call* is answered here; *what they may do to which object* is the aggregate's business |
 | Application service | [`NotificationDelivery.ts`](src/Contexts/Notifications/Application/Services/NotificationDelivery.ts) | orchestrates ports for a use case several entry points share; holds no rule of its own |
 | Base handler (guard, transaction, safety net) | [`CommandHandler.ts`](src/Contexts/@SharedKernel/Application/CommandHandler.ts) | a concrete handler only writes `execute()` |
 | Query handler | [`GetNoteQueryHandler.ts`](src/Contexts/Notes/Application/Queries/GetNote/GetNoteQueryHandler.ts) | reads through the queries port; a refused query is a failed `Result`, not a throw |
@@ -89,11 +89,11 @@ One canonical example per concept. When two files could teach the same thing, th
 
 | Concept | Canonical example |
 |---|---|
-| Controller (commands → `202`, queries → sync) | [`FastifyNoteController.ts`](src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts) |
+| Controller (commands → `202 { operationId }`, queries → sync; one `refuse()` per controller: `403` not allowed, `404` not found, `400` otherwise, always `{ message }`) | [`FastifyNoteController.ts`](src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts); every other controller has the same shape |
 | Routes and JSON schemas | [`note.routes.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts), [`note.routes.schema.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.schema.ts) |
 | Authentication middleware | [`FastifyJWTAuthenticationMiddleware.ts`](src/Contexts/Security/Presentation/API/REST/Middlewares/FastifyJWTAuthenticationMiddleware.ts) — never blocks, makes the caller `GUEST` unless the token verifies |
 | Presenters (one use case, several formats) | [`Security/Presentation/Presenters/Auth`](src/Contexts/Security/Presentation/Presenters/Auth), picked per request by [`Format.ts`](src/Contexts/@SharedKernel/Presentation/Format.ts) — a plain object per controller, no registry |
-| Composition root | [`createApplication.ts`](src/Bootstrap/Fastify/createApplication.ts) on [`Application.ts`](src/Contexts/@SharedKernel/Application/Application.ts); [`application.ts`](src/Bootstrap/Fastify/application.ts) is the process entry point |
+| Composition root | [`createApplication.ts`](src/Bootstrap/Fastify/createApplication.ts) on [`Application.ts`](src/Contexts/@SharedKernel/Application/Application.ts): wires, starts the modules, seeds the administrator through the same bus as any command, then listens; [`application.ts`](src/Bootstrap/Fastify/application.ts) is the process entry point |
 
 ### Tests, one style per layer
 
@@ -137,6 +137,7 @@ The `@SharedKernel` is not a context: it holds the building blocks ([`Domain`](s
 | A context's Domain, Application and Presentation never import another context. Contexts talk through **integration events**, and through **ports they own**, whose adapter (Infrastructure) may read the other context's Domain; only a wiring file imports another context's wiring. | The same ESLint table (`@Contexts/**` forbidden, own context re-allowed per layer) and [ADR 6](docs/adr/0006-integration-events-are-the-only-contract-between-contexts.md) |
 | Queries return read models; repositories return aggregates. Never the other way. | Port types; [ADR 5](docs/adr/0005-queries-return-read-models-not-aggregates.md) |
 | One wiring file per context, plain data, no container. | [`module.local.ts`](src/Contexts/Notes/module.local.ts) files |
+| One shape per kind of file, whatever the context: exceptions in one `<Aggregate>Exceptions.ts` with a PascalCase `type`; enum values are their UPPERCASE names; factories are `create()`; handlers end in `CommandHandler` / `QueryHandler`; nothing but the logger writes to the console. | Review, against the Notes context; `no-console` in ESLint |
 | It compiles, lints and tests, in CI, on every pull request. | [`ci.yml`](.github/workflows/ci.yml): `yarn lint`, `yarn typecheck`, `yarn test:units`, `yarn test:e2e` |
 
 ## Layout of a context
@@ -180,6 +181,8 @@ yarn test:units         # every *.spec.ts except the e2e ones
 yarn test:e2e           # each suite boots its own application on a free port, with fresh stores; no server to start
 yarn test               # both
 ```
+
+`yarn build` bundles the server with [`deployments/build.js`](deployments/build.js); the Docker and Kubernetes files next to it are described in [`deployments/README.md`](deployments/README.md). They are not part of the reference architecture.
 
 ## Decisions
 

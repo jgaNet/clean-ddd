@@ -39,7 +39,7 @@ export class Note extends AggregateRoot {
   #title: NoteTitle;
   #content: string;
   #status: NoteStatus;
-  #sharedWith: Set<string>;
+  #sharedWith: Set<string>; // raw ids: a Set needs a primitive key; the accessors speak Id
 
   private constructor(
     id: Id,

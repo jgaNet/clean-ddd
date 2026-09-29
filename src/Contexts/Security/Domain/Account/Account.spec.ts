@@ -7,9 +7,11 @@ import {
   AccountCreatedEvent,
   AccountValidatedEvent,
 } from '@Contexts/Security/Domain/Account/Events/AccountEvents';
-import { AccountAlreadyActiveException } from '@Contexts/Security/Domain/Account/AccountExceptions';
-import { InactiveAccountException } from '@Contexts/Security/Domain/Auth/Exceptions/InactiveAccountException';
-import { InvalidCredentialsException } from '@Contexts/Security/Domain/Auth/Exceptions/InvalidCredentialsException';
+import {
+  AccountAlreadyActiveException,
+  InactiveAccountException,
+  InvalidCredentialsException,
+} from '@Contexts/Security/Domain/Account/AccountExceptions';
 
 function aPendingAccount(): Account {
   const account = Account.register({

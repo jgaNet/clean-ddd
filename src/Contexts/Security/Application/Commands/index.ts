@@ -4,5 +4,5 @@ export * from '@Contexts/Security/Application/Commands/Login/LoginCommandEvent';
 export * from '@Contexts/Security/Application/Commands/Login/LoginCommandHandler';
 export * from '@Contexts/Security/Application/Commands/ValidateAccount/ValidateAccountCommandEvent';
 export * from '@Contexts/Security/Application/Commands/ValidateAccount/ValidateAccountCommandHandler';
-export * from '@Contexts/Security/Application/Commands/AddAdmin/RegisterAdminCommandEvent';
-export * from '@Contexts/Security/Application/Commands/AddAdmin/RegisterAdminCommandHandler';
+export * from '@Contexts/Security/Application/Commands/RegisterAdmin/RegisterAdminCommandEvent';
+export * from '@Contexts/Security/Application/Commands/RegisterAdmin/RegisterAdminCommandHandler';

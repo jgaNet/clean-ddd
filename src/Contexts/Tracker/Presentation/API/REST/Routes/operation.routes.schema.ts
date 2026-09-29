@@ -18,17 +18,20 @@ const OperationRecordSchema = {
   },
 } as const;
 
-const ErrorSchema = {
+const RefusedSchema = {
   type: 'object',
   properties: { message: { type: 'string' } },
 } as const;
 
 export const GetOperationsResSchema = {
   200: { description: 'Success', type: 'array', items: OperationRecordSchema },
-  400: ErrorSchema,
+  400: RefusedSchema,
+  403: RefusedSchema,
 } as const;
 
 export const GetOperationResSchema = {
   200: { description: 'Success', ...OperationRecordSchema },
-  404: ErrorSchema,
+  400: RefusedSchema,
+  403: RefusedSchema,
+  404: RefusedSchema,
 } as const;

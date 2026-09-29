@@ -71,15 +71,9 @@ export class Module {
   }
 
   async start(eventBus?: EventBus) {
-    // eslint-disable-next-line no-console
-    console.log(`[************************************] [INFO]  ${this.name} module starting...`);
-
     if (eventBus) {
       await eventBus.connect().then(this.subscribe.bind(this, eventBus));
     }
-
-    // eslint-disable-next-line no-console
-    console.log(`[************************************] [INFO]  ${this.name} module started`);
   }
 
   async subscribe(eventBus: EventBus) {

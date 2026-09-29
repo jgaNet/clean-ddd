@@ -1,7 +1,7 @@
 export enum Role {
-  ADMIN = 'admin',
-  USER = 'user',
-  GUEST = 'guest',
+  ADMIN = 'ADMIN',
+  USER = 'USER',
+  GUEST = 'GUEST',
 }
 
 export function isRole(value: unknown): value is Role {

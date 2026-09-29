@@ -2,7 +2,7 @@
  * EventBus: publishes events and routes them to the handlers subscribed to their name.
  *
  * Publishing returns an Operation: a handle on the asynchronous processing of that event,
- * which the Tracker context records so a client can poll `GET /tracker/operations/:id`.
+ * which the Tracker context records so a client can poll `GET /v1/tracker/operations/:id`.
  *
  * Implementations: Infrastructure/EventBus/InMemoryEventBus.ts (plain in-process emitter)
  * and Contexts/Tracker/Infrastructure/TrackedEventBus.ts (a decorator that records every operation).
@@ -22,7 +22,7 @@ export interface EventBus {
   /**
    * Publishes an event to the event bus
    * @param event The event to dispatch
-   * @param context Optional execution context for cross-cutting concerns
+   * @param context The execution context of the caller, carried to the handlers
    * @returns The operation tracking the event
    */
   publish<T>(event: Event<T>, context: ExecutionContext): IOperation<Event<T>>;

@@ -1,3 +1,1 @@
-import notificationRoutes from './notification.routes';
-
-export { notificationRoutes };
+export { notificationRoutes } from './notification.routes';

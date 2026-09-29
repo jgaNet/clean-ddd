@@ -133,7 +133,7 @@ export class Notification extends AggregateRoot {
       return Result.fail(new ChannelAlreadyTriedException(this._id.value, channel));
     }
 
-    this.#attempts.push(DeliveryAttempt.record(channel, succeeded, at));
+    this.#attempts.push(DeliveryAttempt.create(channel, succeeded, at));
 
     if (succeeded) {
       this.#status = NotificationStatus.SENT;

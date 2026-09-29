@@ -7,10 +7,10 @@ import { OperationRecord } from '@Contexts/Tracker/Application/ReadModel/Operati
 type Filters = { traceId?: string };
 
 /** Listing every operation is an administrator's view. */
-export class GetOperationsHandler extends QueryHandler<IOperationRecords, Filters, IResult<OperationRecord[]>> {
+export class GetOperationsQueryHandler extends QueryHandler<IOperationRecords, Filters, IResult<OperationRecord[]>> {
   protected async guard(_: Filters, { auth }: ExecutionContext): Promise<IResult<unknown>> {
     if (auth.role !== Role.ADMIN) {
-      return Result.fail(new NotAllowedException('Tracker', 'Forbidden'));
+      return Result.fail(new NotAllowedException('Tracker', 'Only an administrator can list operations'));
     }
     return Result.ok();
   }

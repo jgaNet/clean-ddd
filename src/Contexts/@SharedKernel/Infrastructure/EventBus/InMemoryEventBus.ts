@@ -1,4 +1,3 @@
-import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Event, Result } from '@SharedKernel/Domain';
@@ -24,14 +23,8 @@ export class InMemoryEventBus implements EventBus {
     this.#eventEmitter = eventEmitter;
   }
 
-  async connect() {
-    if (this.#eventEmitter instanceof EventEmitter) {
-      // eslint-disable-next-line no-console
-      console.log(
-        '[************************************] [WARN]  In memory event emitter used. No need to connect. Skipping...',
-      );
-    }
-  }
+  /** Nothing to connect to: the emitter is in this process. */
+  async connect() {}
 
   publish<T>(event: Event<T>, context: ExecutionContext): IOperation<Event<T>> {
     const operation: IOperation<Event<T>> = {
@@ -64,10 +57,7 @@ export class InMemoryEventBus implements EventBus {
   }
 
   async subscribe<T>(channel: Event<T>['name'], eventHandler: EventHandler<Event<T>> | CommandHandler<Event<T>>) {
-    this.#eventEmitter.addListener(channel, async (operation: IOperation<Event<T>>) => {
-      await eventHandler.handle.bind(eventHandler)(operation);
-    });
+    // The channel is the event's name: what arrives on it is that event, which the emitter cannot know.
+    this.#eventEmitter.addListener(channel, operation => eventHandler.handle(operation as IOperation<Event<T>>));
   }
 }
-
-export const inMemoryEventBus = new InMemoryEventBus({ eventEmitter: new EventEmitter() });

@@ -9,8 +9,10 @@ import {
   AccountCreatedEvent,
   AccountValidatedEvent,
 } from '@Contexts/Security/Domain/Account/Events/AccountEvents';
-import { AccountAlreadyActiveException } from '@Contexts/Security/Domain/Account/AccountExceptions';
-import { InactiveAccountException } from '@Contexts/Security/Domain/Auth/Exceptions/InactiveAccountException';
+import {
+  AccountAlreadyActiveException,
+  InactiveAccountException,
+} from '@Contexts/Security/Domain/Account/AccountExceptions';
 
 /**
  * Account is the aggregate root of the Security context: who can sign in, and as what.
@@ -51,7 +53,7 @@ export class Account extends AggregateRoot {
     const email = Email.create(props.email);
     if (email.isFailure()) return email;
 
-    const credentials = Credentials.password(props.passwordHash);
+    const credentials = Credentials.create(props.passwordHash);
     if (credentials.isFailure()) return credentials;
 
     const id = Id.generate();
@@ -65,7 +67,7 @@ export class Account extends AggregateRoot {
   /** Rebuilds an Account from what was persisted. No event is recorded: nothing new happened. */
   static fromSnapshot(snapshot: IAccount): Account {
     const email = Email.create(snapshot.email);
-    const credentials = Credentials.password(snapshot.credentials.hash);
+    const credentials = Credentials.create(snapshot.credentials.hash);
     if (email.isFailure() || credentials.isFailure()) {
       throw new Error(`Corrupted account ${snapshot._id}`);
     }
@@ -95,7 +97,7 @@ export class Account extends AggregateRoot {
   /** Records a successful sign-in. The caller has already verified the credentials. */
   authenticate(now: Date = new Date()): IResult {
     if (this.#status !== AccountStatus.ACTIVE) {
-      return Result.fail(new InactiveAccountException('Account is not active'));
+      return Result.fail(new InactiveAccountException(this._id.value));
     }
 
     this.#lastAuthenticatedAt = now;

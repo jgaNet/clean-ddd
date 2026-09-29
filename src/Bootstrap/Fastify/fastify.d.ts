@@ -1,20 +1,17 @@
 import { Role } from '@SharedKernel/Domain';
 import { ExecutionContext } from '@SharedKernel/Application';
-import { FastifyRequest } from 'fastify';
 
 export interface AuthInfo {
   subjectId: string;
   role: Role;
 }
 
-
+/** What the two request hooks of createApplication.ts attach to every Fastify request. */
 declare module 'fastify' {
   interface FastifyRequest {
-    /**
-     * Execution context for the current request
-     * Contains event bus, unit of work, logger, and other cross-cutting concerns
-     */
-    executionContext: ExecutionContext;
+    /** Set by the authentication middleware from the bearer token or cookie; absent when anonymous. */
     auth: AuthInfo;
+    /** Set by the preHandler hook: the request's trace, caller, bus, unit of work and logger. */
+    executionContext: ExecutionContext;
   }
 }

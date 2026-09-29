@@ -46,7 +46,7 @@ describe('SignUp', () => {
 
   it('should fail if account already exists', async () => {
     const res = await superagent.post(`${api}/auth/signup`).send({ identifier: 'admin@admin.fr', password: 'admin' });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(202);
     expect(res.body.operationId).toEqual(expect.any(String));
 
     const operation = await adminAgent.get(`${api}/tracker/operations/${res.body.operationId}`);
@@ -55,14 +55,14 @@ describe('SignUp', () => {
 
   it('should create a pending account, validated by an admin', async () => {
     const res = await superagent.post(`${api}/auth/signup`).send({ identifier: 'user@user.fr', password: 'user' });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(202);
 
     const operation = await adminAgent.get(`${api}/tracker/operations/${res.body.operationId}`);
     expect(operation.body.status).toBe('SUCCESS');
     const accountId = operation.body.result;
 
     const pending = await adminAgent.get(`${api}/auth/accounts/${accountId}`);
-    expect(pending.body).toEqual({ id: accountId, email: 'user@user.fr', role: 'user', status: 'pending' });
+    expect(pending.body).toEqual({ id: accountId, email: 'user@user.fr', role: 'USER', status: 'PENDING' });
 
     // A pending account cannot sign in yet
     let refused: number | undefined;
@@ -72,7 +72,7 @@ describe('SignUp', () => {
     await adminAgent.get(`${api}/auth/accounts/${accountId}/validate`);
 
     const active = await adminAgent.get(`${api}/auth/accounts/${accountId}`);
-    expect(active.body).toEqual({ id: accountId, email: 'user@user.fr', role: 'user', status: 'active' });
+    expect(active.body).toEqual({ id: accountId, email: 'user@user.fr', role: 'USER', status: 'ACTIVE' });
 
     const accepted = await login('user@user.fr', 'user');
     expect(accepted.body.token).toEqual(expect.any(String));
@@ -104,6 +104,6 @@ describe('What a bible must not do', () => {
 
     const operation = await adminAgent.get(`${api}/tracker/operations/${attempt.body.operationId}`);
     expect(operation.body).toMatchObject({ status: 'ERROR', error: { type: 'NotAllowed' } });
-    expect((await adminAgent.get(`${api}/auth/accounts/${accountId}`)).body.status).toBe('pending');
+    expect((await adminAgent.get(`${api}/auth/accounts/${accountId}`)).body.status).toBe('PENDING');
   });
 });

@@ -1,1 +1,1 @@
-export * from './GetOperationsHandler';
+export * from './GetOperationsQueryHandler';

@@ -22,7 +22,7 @@ export class DeliveryAttempt extends Entity {
     this.#succeeded = succeeded;
   }
 
-  static record(channel: Channel, succeeded: boolean, at: Date): DeliveryAttempt {
+  static create(channel: Channel, succeeded: boolean, at: Date): DeliveryAttempt {
     return new DeliveryAttempt(Id.generate(), channel, at, succeeded);
   }
 

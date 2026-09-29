@@ -36,6 +36,10 @@ const presenters = {
   signInAgain: { json: new ErrorJSONPresenter(), htmx: new LoginHTMXPresenter() },
 };
 
+/**
+ * Sign-up and validation are commands: accepted (202) and followed through the operation.
+ * Login answers synchronously, in JSON or HTMX depending on the request (see the presenters).
+ */
 export class FastifyAuthController {
   #securityModule: Module;
 
@@ -53,7 +57,8 @@ export class FastifyAuthController {
       context,
     );
 
-    return reply.code(200).send({ operationId: operation.id });
+    reply.code(202);
+    return { operationId: operation.id };
   }
 
   async validate(req: FastifyRequest<{ Querystring: { validation_token: string } }>, reply: FastifyReply) {
@@ -65,7 +70,8 @@ export class FastifyAuthController {
       context,
     );
 
-    return reply.code(200).send({ operationId: operation.id });
+    reply.code(202);
+    return { operationId: operation.id };
   }
 
   /** Login answers synchronously: the client needs the token, so the command is executed here, not published. */

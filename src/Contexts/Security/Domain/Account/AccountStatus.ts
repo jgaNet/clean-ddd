@@ -4,6 +4,6 @@
  * can authenticate. The transitions are enforced by the Account aggregate.
  */
 export enum AccountStatus {
-  PENDING = 'pending',
-  ACTIVE = 'active',
+  PENDING = 'PENDING',
+  ACTIVE = 'ACTIVE',
 }

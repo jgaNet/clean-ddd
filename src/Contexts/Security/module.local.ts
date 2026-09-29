@@ -1,7 +1,6 @@
 import { Role } from '@SharedKernel/Domain';
-import { ExecutionContext, Module } from '@SharedKernel/Application';
+import { EventBus, ExecutionContext, Module } from '@SharedKernel/Application';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
-import { inMemoryEventBus } from '@SharedKernel/Infrastructure/EventBus/InMemoryEventBus';
 import { SETTINGS } from '@Bootstrap/Fastify/application.settings';
 import { v4 } from 'uuid';
 
@@ -14,8 +13,8 @@ import { LoginCommandEvent } from '@Contexts/Security/Application/Commands/Login
 import { LoginCommandHandler } from '@Contexts/Security/Application/Commands/Login/LoginCommandHandler';
 import { ValidateAccountCommandEvent } from '@Contexts/Security/Application/Commands/ValidateAccount/ValidateAccountCommandEvent';
 import { ValidateAccountCommandHandler } from '@Contexts/Security/Application/Commands/ValidateAccount/ValidateAccountCommandHandler';
-import { RegisterAdminCommandEvent } from '@Contexts/Security/Application/Commands/AddAdmin/RegisterAdminCommandEvent';
-import { RegisterAdminCommandHandler } from '@Contexts/Security/Application/Commands/AddAdmin/RegisterAdminCommandHandler';
+import { RegisterAdminCommandEvent } from '@Contexts/Security/Application/Commands/RegisterAdmin/RegisterAdminCommandEvent';
+import { RegisterAdminCommandHandler } from '@Contexts/Security/Application/Commands/RegisterAdmin/RegisterAdminCommandHandler';
 import { GetAccountQueryHandler } from '@Contexts/Security/Application/Queries/GetAccount/GetAccountQueryHandler';
 import { AccountCreatedHandler } from '@Contexts/Security/Application/Events/AccountCreatedHandler';
 import { AccountValidatedHandler } from '@Contexts/Security/Application/Events/AccountValidatedHandler';
@@ -59,13 +58,16 @@ export const localSecurityModule = new Module({
   ],
 });
 
-/** Seeds the admin account at startup. Runs the command directly, on behalf of the system. */
-export const registerAdmin = ({ email, password }: { email: string; password: string }) =>
+/**
+ * Seeds the admin account at startup. Runs the command directly, on behalf of the system, on the
+ * application's bus: the seed is an operation like any other, recorded by the Tracker.
+ */
+export const registerAdmin = ({ email, password, eventBus }: { email: string; password: string; eventBus: EventBus }) =>
   new RegisterAdminCommandHandler(accountRepository, accountRegistration, passwordHasher).execute(
     RegisterAdminCommandEvent.set({ email, password }),
     new ExecutionContext({
       traceId: v4(),
-      eventBus: inMemoryEventBus,
+      eventBus,
       auth: { subjectId: 'system', role: Role.ADMIN },
     }),
   );

@@ -4,7 +4,7 @@ import { notificationSchema } from './notification.routes.schema';
 
 import { Module } from '@SharedKernel/Application';
 
-export default function notificationRoutes(
+export function notificationRoutes(
   fastify: FastifyInstance,
   options: FastifyPluginOptions & { notificationsModule: Module },
   done: (err?: Error) => void,

@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { FastifyAuthController } from '@Contexts/Security/Presentation/API/REST/Controllers/AuthController';
-import { FastifyAccountController } from '@Contexts/Security/Presentation/API/REST/Controllers/AccountController';
+import { FastifyAuthController } from '@Contexts/Security/Presentation/API/REST/Controllers/FastifyAuthController';
+import { FastifyAccountController } from '@Contexts/Security/Presentation/API/REST/Controllers/FastifyAccountController';
 import { Module } from '@SharedKernel/Application';
 
 import {
