@@ -4,8 +4,8 @@ import { InMemoryEventBus } from '@SharedKernel/Infrastructure/EventBus/InMemory
 import { EventEmitter } from 'events';
 
 import { OperationRecord } from '@Contexts/Tracker/Application/ReadModel/OperationRecord';
-import { GetOperationsQueryHandler } from '@Contexts/Tracker/Application/Queries/GetOperations';
-import { GetOperationQueryHandler } from '@Contexts/Tracker/Application/Queries/GetOperation';
+import { GetOperationsQueryHandler } from '@Contexts/Tracker/Application/Queries/GetOperations/GetOperationsQueryHandler';
+import { GetOperationQueryHandler } from '@Contexts/Tracker/Application/Queries/GetOperation/GetOperationQueryHandler';
 import { InMemoryOperationRecords } from '@Contexts/Tracker/Infrastructure/InMemoryOperationRecords';
 import { TrackedEventBus } from '@Contexts/Tracker/Infrastructure/TrackedEventBus';
 

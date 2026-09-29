@@ -7,12 +7,17 @@ import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InM
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import { NoteStatus } from '@Contexts/Notes/Domain/Note/NoteStatus';
 import { NoteCreatedEvent, NoteSharedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
-import { BlankNoteTitleException, NoteNotFoundException, NotNoteOwnerException } from '@Contexts/Notes/Domain/Note';
+import { BlankNoteTitleException, NoteNotFoundException, NotNoteOwnerException } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 import { InMemoryNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository';
-import { CreateNoteCommandEvent, CreateNoteCommandHandler } from '@Contexts/Notes/Application/Commands/CreateNote';
-import { ShareNoteCommandEvent, ShareNoteCommandHandler } from '@Contexts/Notes/Application/Commands/ShareNote';
 import { NoteSharing } from '@Contexts/Notes/Domain/Note/NoteSharing';
-import { ArchiveNoteCommandEvent, ArchiveNoteCommandHandler } from '@Contexts/Notes/Application/Commands/ArchiveNote';
+import {
+  ArchiveNoteCommandEvent,
+  ArchiveNoteCommandHandler,
+  CreateNoteCommandEvent,
+  CreateNoteCommandHandler,
+  ShareNoteCommandEvent,
+  ShareNoteCommandHandler,
+} from '@Contexts/Notes/Application/Commands';
 
 const eventBus = { connect: jest.fn(), publish: jest.fn(), subscribe: jest.fn() } as EventBus;
 

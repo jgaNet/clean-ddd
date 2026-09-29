@@ -3,8 +3,8 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { Exception, NotAllowedException, NotFoundException } from '@SharedKernel/Domain';
 import { Module } from '@SharedKernel/Application';
 
-import { GetOperationsQueryHandler } from '@Contexts/Tracker/Application/Queries/GetOperations';
-import { GetOperationQueryHandler } from '@Contexts/Tracker/Application/Queries/GetOperation';
+import { GetOperationsQueryHandler } from '@Contexts/Tracker/Application/Queries/GetOperations/GetOperationsQueryHandler';
+import { GetOperationQueryHandler } from '@Contexts/Tracker/Application/Queries/GetOperation/GetOperationQueryHandler';
 
 /** Read-only: the Tracker has no commands. Same shape as FastifyNoteController. */
 export class FastifyOperationController {
