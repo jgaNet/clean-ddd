@@ -21,7 +21,8 @@ export class RestoreNoteCommandHandler extends CommandHandler<RestoreNoteCommand
     const restored = note.restore(actor.data);
     if (restored.isFailure()) return restored;
 
-    await this.noteRepository.save(note);
+    const saved = await this.noteRepository.save(note);
+    if (saved.isFailure()) return saved;
     this.publishDomainEvents(note, context);
 
     return Result.ok();

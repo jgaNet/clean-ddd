@@ -33,6 +33,18 @@ export class NotAllowedException extends Exception {
   }
 }
 
+/** The aggregate changed since it was read: the caller re-reads and decides again (ADR 8). */
+export class ConcurrencyConflictException extends Exception {
+  constructor(service: string, message: string, context?: unknown) {
+    super({
+      service: service || 'unknown',
+      type: 'ConcurrencyConflict',
+      message,
+      context,
+    });
+  }
+}
+
 export class InvalidEmailFormat extends Exception {
   constructor({ service, email }: { service?: string; email: string }) {
     super({

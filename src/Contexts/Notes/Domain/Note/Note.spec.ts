@@ -193,6 +193,7 @@ describe('Note', () => {
         content: 'Text',
         status: NoteStatus.ARCHIVED,
         sharedWith: ['bob'],
+        version: 7,
       });
 
       expect(note._id.value).toBe('note-9');
@@ -220,6 +221,7 @@ describe('Note', () => {
           content: '',
           status: NoteStatus.ACTIVE,
           sharedWith: [],
+          version: 3,
         }),
       ).toThrow(/Corrupted note n/);
     });

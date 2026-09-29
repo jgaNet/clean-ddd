@@ -25,7 +25,8 @@ export class EditNoteCommandHandler extends CommandHandler<EditNoteCommandEvent>
     const edited = note.edit(actor.data, { title: payload.title, content: payload.content });
     if (edited.isFailure()) return edited;
 
-    await this.noteRepository.save(note);
+    const saved = await this.noteRepository.save(note);
+    if (saved.isFailure()) return saved;
     this.publishDomainEvents(note, context);
 
     return Result.ok();

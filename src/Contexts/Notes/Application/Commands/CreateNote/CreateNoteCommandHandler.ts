@@ -18,7 +18,8 @@ export class CreateNoteCommandHandler extends CommandHandler<CreateNoteCommandEv
     const note = Note.create({ ownerId: owner.data.value, title: payload.title, content: payload.content });
     if (note.isFailure()) return note;
 
-    await this.noteRepository.save(note.data);
+    const saved = await this.noteRepository.save(note.data);
+    if (saved.isFailure()) return saved;
     this.publishDomainEvents(note.data, context);
 
     return Result.ok(note.data._id.value);

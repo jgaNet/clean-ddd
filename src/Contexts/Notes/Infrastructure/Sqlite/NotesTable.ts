@@ -26,7 +26,8 @@ export function createNotesTable(db: DatabaseSync): void {
       title       TEXT NOT NULL,
       content     TEXT NOT NULL,
       status      TEXT NOT NULL,
-      shared_with TEXT NOT NULL
+      shared_with TEXT NOT NULL,
+      version     INTEGER NOT NULL
     )
   `);
 }
@@ -39,6 +40,7 @@ export type NoteRow = {
   content: string;
   status: string;
   shared_with: string;
+  version: number;
 };
 
 export const toRow = (note: INote): NoteRow => ({
@@ -48,6 +50,7 @@ export const toRow = (note: INote): NoteRow => ({
   content: note.content,
   status: note.status,
   shared_with: JSON.stringify(note.sharedWith),
+  version: note.version,
 });
 
 export const toSnapshot = (row: NoteRow): INote => ({
@@ -57,4 +60,5 @@ export const toSnapshot = (row: NoteRow): INote => ({
   content: row.content,
   status: row.status as NoteStatus,
   sharedWith: JSON.parse(row.shared_with),
+  version: row.version,
 });

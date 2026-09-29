@@ -1,7 +1,10 @@
 import { DatabaseSync } from 'node:sqlite';
 
+import { IResult, Result } from '@SharedKernel/Domain';
+
 import { Note } from '@Contexts/Notes/Domain/Note/Note';
 import { INoteRepository } from '@Contexts/Notes/Domain/Note/Ports/INoteRepository';
+import { staleNote } from '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository';
 import { createNotesTable, NoteRow, toRow, toSnapshot } from '@Contexts/Notes/Infrastructure/Sqlite/NotesTable';
 
 /**
@@ -21,16 +24,33 @@ export class SqliteNoteRepository implements INoteRepository {
     return row ? Note.fromSnapshot(toSnapshot(row)) : null;
   }
 
-  async save(note: Note): Promise<void> {
+  /**
+   * The optimistic check the way SQL makes it atomic: update only the row still at the version
+   * the aggregate was read at; no row changed means someone else wrote first (ADR 8).
+   */
+  async save(note: Note): Promise<IResult> {
     const row = toRow(note.toSnapshot());
+    // Bound to what the statement uses (node:sqlite refuses a spare parameter); an update never moves a note to another owner.
+    const { id, title, content, status, shared_with, version } = row;
+    const updated = this.db
+      .prepare(
+        `UPDATE notes SET title = :title, content = :content, status = :status,
+           shared_with = :shared_with, version = :version + 1
+         WHERE id = :id AND version = :version`,
+      )
+      .run({ id, title, content, status, shared_with, version });
+    if (updated.changes > 0) return Result.ok();
+
+    const stored = this.db.prepare('SELECT version FROM notes WHERE id = ?').get(row.id) as
+      Pick<NoteRow, 'version'> | undefined;
+    if (stored) return Result.fail(staleNote(row.id, note.version, stored.version));
+
     this.db
       .prepare(
-        `INSERT INTO notes (id, owner_id, title, content, status, shared_with)
-         VALUES (:id, :owner_id, :title, :content, :status, :shared_with)
-         ON CONFLICT (id) DO UPDATE SET
-           title = excluded.title, content = excluded.content,
-           status = excluded.status, shared_with = excluded.shared_with`,
+        `INSERT INTO notes (id, owner_id, title, content, status, shared_with, version)
+         VALUES (:id, :owner_id, :title, :content, :status, :shared_with, :version + 1)`,
       )
       .run(row);
+    return Result.ok();
   }
 }
