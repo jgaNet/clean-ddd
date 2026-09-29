@@ -17,7 +17,7 @@ The domain stays deterministic by taking every such input **as a value**:
 
 - Domain and handler specs never touch a clock, a random generator or a model: they pass values. The one adapter that talks to the non-deterministic source is tested on its own, or replaced by a stub.
 - The verdict of a model is data, so the rules that decide what a verdict may do stay in the aggregate; a model can never become the authority on an invariant.
-- The repository has no example of a persisted, provenance-carrying decision yet. If one is added, it is a port in the Application layer of the context that needs it, a value type next to it, and an adapter in its infrastructure; not a new kind of message.
+- The canonical example is a title suggested from a note's content: the port [`INoteTitleSuggestions.ts`](../../src/Contexts/Notes/Application/Suggestions/INoteTitleSuggestions.ts) (Application layer: the decision is not a business rule, the rules that judge it are), the handler [`SuggestNoteTitleCommandHandler.ts`](../../src/Contexts/Notes/Application/Commands/SuggestNoteTitle/SuggestNoteTitleCommandHandler.ts) that hands the suggestion to `Note.edit()` like any typed title, and the local adapter [`FirstLineTitleSuggestions.ts`](../../src/Contexts/Notes/Infrastructure/Suggestions/FirstLineTitleSuggestions.ts), a heuristic standing where a model would stand. The suggestion and its provenance are the operation's result, which the Tracker keeps. It is a port, a value and an adapter; not a new kind of message.
 
 ## When to revisit
 

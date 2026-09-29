@@ -1,7 +1,10 @@
 /**
  * ExecutionContext travels with one request through every handler it reaches: who is
  * calling (`auth`), how to correlate the logs (`traceId`), and the services a use case may
- * need without owning them (`logger`, `eventBus`, `unitOfWork`).
+ * need without owning them (`logger`, `eventBus`, `unitOfWork`). That is the whole list, on
+ * purpose: each member exists per request. Anything a handler needs that does not (a mailer,
+ * a clock, a model client) is a constructor dependency, so that the handler's needs stay in
+ * its signature and the context does not become a service locator.
  *
  * The bootstrap builds one per HTTP request (Bootstrap/Fastify/createApplication.ts); tests build
  * one by hand:

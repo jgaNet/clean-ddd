@@ -6,7 +6,7 @@ A command handler saves an aggregate and publishes the events it recorded. If th
 
 ## Decision
 
-`CommandHandler.publishDomainEvents()` pulls the events from the aggregate at once (so they are captured even if the aggregate changes further) but hands their publication to `ExecutionContext.afterCommit()` ([`ExecutionContext.ts`](../../src/Contexts/@SharedKernel/Application/ExecutionContext.ts)). Callbacks registered there run:
+`CommandHandler.publishDomainEvents()` hands the work to `ExecutionContext.afterCommit()`; the events are pulled from the aggregate *inside* that callback, so what goes out is everything the aggregate recorded during the transaction, and a rollback leaves them on the aggregate, unpublished ([`DomainEvents.spec.ts`](../../src/Contexts/@SharedKernel/Application/DomainEvents.spec.ts)) ([`ExecutionContext.ts`](../../src/Contexts/@SharedKernel/Application/ExecutionContext.ts)). Callbacks registered there run:
 
 - once the outermost `withTransaction()` has committed — nested transactions join the outer one;
 - never, if the transaction returned a failure or threw;

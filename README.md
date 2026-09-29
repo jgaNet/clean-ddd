@@ -77,6 +77,7 @@ One canonical example per concept. When two files could teach the same thing, th
 | Integration event (published contract) | [`NoteIntegrationEvents.ts`](src/Contexts/@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts) | the only thing one context may know about another — [ADR 6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md) |
 | **Anti-corruption layer** | [`NoteSharedIntegrationEventHandler.ts`](src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts) | restates a foreign fact in local terms |
 | **Projection / read model** | [`OperationProjection.ts`](src/Contexts/Tracker/Application/Projections/OperationProjection.ts), [`OperationRecord.ts`](src/Contexts/Tracker/Application/ReadModel/OperationRecord.ts) | a context with no aggregate at all |
+| **Non-determinism as a value** (ADR 7) | [`INoteTitleSuggestions.ts`](src/Contexts/Notes/Application/Suggestions/INoteTitleSuggestions.ts) → [`SuggestNoteTitleCommandHandler.ts`](src/Contexts/Notes/Application/Commands/SuggestNoteTitle/SuggestNoteTitleCommandHandler.ts), answered locally by [`FirstLineTitleSuggestions.ts`](src/Contexts/Notes/Infrastructure/Suggestions/FirstLineTitleSuggestions.ts) | a decision the domain cannot make from its own state (a model, a heuristic, a person) enters it as a value the aggregate validates and may refuse; the provenance travels with it and ends on the operation — [ADR 7](docs/adr/0007-non-determinism-enters-the-domain-as-a-value.md) |
 | Module (wiring) | [`Module.ts`](src/Contexts/@SharedKernel/Application/Module.ts), used in [`Notes/module.local.ts`](src/Contexts/Notes/module.local.ts) | plain data: which handler answers which command, query, event |
 <!-- end generated -->
 
@@ -252,7 +253,7 @@ Each of these is real vocabulary, and each would turn the building blocks back i
 
 - **A DI container.** `module.local.ts` is the container: `new` and constructor arguments.
 - **An ORM or a database server.** The ports are the seam: the in-memory adapters are wired, the SQLite ones ([`SqliteNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/SqliteNoteRepository.ts)) prove that a real store fits behind the same interfaces, and one contract test holds both. A third adapter is a new line in that test, not a new pattern.
-- **A transactional outbox / message broker.** `afterCommit` is the honest single-process version; [ADR 3](docs/adr/0003-publish-domain-events-after-commit.md) names the gap.
+- **A transactional outbox / message broker, idempotent commands, an inbox.** `afterCommit` is the honest single-process version of publication, and a command arrives once because it arrives over HTTP; [ADR 3](docs/adr/0003-publish-domain-events-after-commit.md) names the gap and what fills it the day messages cross a process boundary.
 - **A generic Saga / process manager.** The Security → Notifications validation flow is a process; it is expressed as two handlers, not a library.
 - **Specification pattern, optimistic concurrency, versioned events.** Add them when a real case asks for them, next to the aggregate that needs them.
 
