@@ -38,6 +38,7 @@ describe('POST notes/', () => {
       id: expect.any(String),
       title: 'title',
       status: 'ACTIVE',
+      pinned: false,
     });
   });
 
@@ -49,6 +50,7 @@ describe('POST notes/', () => {
       id: list.body[0].id,
       title: 'title',
       status: 'ACTIVE',
+      pinned: false,
       ownerId: expect.any(String),
       content: 'content',
       sharedWith: [],
@@ -109,6 +111,45 @@ describe('Sharing a note (Notes -> Notifications)', () => {
         }),
       ]),
     );
+  });
+});
+
+describe('Pinning a note', () => {
+  const titlesOf = (list: { title: string }[]) => list.map(note => note.title);
+
+  it('puts the pinned note first in my notes, and unpinning sends it back', async () => {
+    await agent.post(`${api}/notes`).send({ title: 'Later', content: '...' });
+    const before = await agent.get(`${api}/notes`);
+    const noteId: string = before.body.find((note: { title: string }) => note.title === 'Later').id;
+    expect(titlesOf(before.body).at(-1)).toBe('Later');
+
+    const pin = await agent.post(`${api}/notes/${noteId}/pin`);
+    expect(pin.status).toBe(202);
+
+    const pinned = await agent.get(`${api}/notes`);
+    expect(pinned.body[0]).toEqual({ id: noteId, title: 'Later', status: 'ACTIVE', pinned: true });
+    expect(titlesOf(pinned.body).slice(1)).toEqual(titlesOf(before.body).slice(0, -1));
+
+    const unpin = await agent.post(`${api}/notes/${noteId}/unpin`);
+    expect(unpin.status).toBe(202);
+
+    const after = await agent.get(`${api}/notes`);
+    expect(titlesOf(after.body)).toEqual(titlesOf(before.body));
+    expect(after.body.at(-1).pinned).toBe(false);
+  });
+
+  it('is refused on an archived note', async () => {
+    const mine = await agent.get(`${api}/notes`);
+    const archived = mine.body.find((note: { status: string }) => note.status === 'ARCHIVED');
+
+    const pin = await agent.post(`${api}/notes/${archived.id}/pin`);
+    expect(pin.status).toBe(202);
+
+    const operation = await agent.get(`${api}/tracker/operations/${pin.body.operationId}`);
+    expect(operation.body).toMatchObject({ status: 'ERROR', error: { type: 'NoteArchived' } });
+
+    const note = await agent.get(`${api}/notes/${archived.id}`);
+    expect(note.body.pinned).toBe(false);
   });
 });
 

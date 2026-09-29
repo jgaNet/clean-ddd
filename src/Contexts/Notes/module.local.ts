@@ -12,6 +12,10 @@ import {
   ArchiveNoteCommandHandler,
   RestoreNoteCommandEvent,
   RestoreNoteCommandHandler,
+  PinNoteCommandEvent,
+  PinNoteCommandHandler,
+  UnpinNoteCommandEvent,
+  UnpinNoteCommandHandler,
   ShareNoteCommandEvent,
   ShareNoteCommandHandler,
 } from '@Contexts/Notes/Application/Commands';
@@ -44,6 +48,8 @@ export const localNotesModule = new Module({
     { event: EditNoteCommandEvent, handlers: [new EditNoteCommandHandler(noteRepository)] },
     { event: ArchiveNoteCommandEvent, handlers: [new ArchiveNoteCommandHandler(noteRepository)] },
     { event: RestoreNoteCommandEvent, handlers: [new RestoreNoteCommandHandler(noteRepository)] },
+    { event: PinNoteCommandEvent, handlers: [new PinNoteCommandHandler(noteRepository)] },
+    { event: UnpinNoteCommandEvent, handlers: [new UnpinNoteCommandHandler(noteRepository)] },
     { event: ShareNoteCommandEvent, handlers: [new ShareNoteCommandHandler(noteRepository, noteSharing)] },
   ],
   queries: [

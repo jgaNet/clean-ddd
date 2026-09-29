@@ -12,6 +12,7 @@ export interface INote {
   title: string;
   content: string;
   status: NoteStatus;
+  pinned: boolean;
   sharedWith: string[];
 }
 

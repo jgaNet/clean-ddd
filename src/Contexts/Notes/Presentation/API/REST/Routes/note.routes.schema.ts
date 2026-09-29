@@ -57,11 +57,12 @@ const NoteListItemSchema = {
     id: { type: 'string' },
     title: { type: 'string' },
     status: { type: 'string', enum: ['ACTIVE', 'ARCHIVED'] },
+    pinned: { type: 'boolean' },
   },
 } as const;
 
 export const GetMyNotesResSchema = {
-  200: { description: 'Success', type: 'array', items: NoteListItemSchema },
+  200: { description: 'Success, pinned notes first', type: 'array', items: NoteListItemSchema },
   403: ErrorResSchema,
 } as const;
 

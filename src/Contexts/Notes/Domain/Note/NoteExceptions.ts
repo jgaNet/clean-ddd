@@ -66,6 +66,18 @@ export class NoteNotArchivedException extends NoteDomainException {
   }
 }
 
+export class NoteAlreadyPinnedException extends NoteDomainException {
+  constructor(noteId: string) {
+    super({ type: 'NoteAlreadyPinned', message: 'This note is already pinned', context: { noteId } });
+  }
+}
+
+export class NoteNotPinnedException extends NoteDomainException {
+  constructor(noteId: string) {
+    super({ type: 'NoteNotPinned', message: 'Only a pinned note can be unpinned', context: { noteId } });
+  }
+}
+
 export class CannotShareWithSelfException extends NoteDomainException {
   constructor(noteId: string) {
     super({ type: 'CannotShareWithSelf', message: 'You already own this note', context: { noteId } });

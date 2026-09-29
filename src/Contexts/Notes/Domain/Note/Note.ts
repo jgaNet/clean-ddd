@@ -10,15 +10,19 @@ import {
   NoteEditedEvent,
   NoteArchivedEvent,
   NoteRestoredEvent,
+  NotePinnedEvent,
+  NoteUnpinnedEvent,
   NoteSharedEvent,
 } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
 import {
   CannotShareWithSelfException,
   NotNoteOwnerException,
   NoteAlreadyArchivedException,
+  NoteAlreadyPinnedException,
   NoteAlreadySharedException,
   NoteArchivedException,
   NoteNotArchivedException,
+  NoteNotPinnedException,
 } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 
 /**
@@ -28,9 +32,10 @@ import {
  * enforces the business rules before changing state:
  *
  * - a note always has a valid title (NoteTitle value object)
- * - only the owner can edit, archive, restore or share a note
- * - an archived note is read-only until it is restored
+ * - only the owner can edit, archive, restore, pin or share a note
+ * - an archived note is read-only until it is restored: it cannot be edited, shared or pinned
  * - a note cannot be shared twice with the same account, nor with its owner
+ * - a note is pinned at most once; pinning is a flag on the note, not a lifecycle status
  *
  * The aggregate never touches persistence, logging or HTTP. It only knows business.
  */
@@ -39,6 +44,7 @@ export class Note extends AggregateRoot {
   #title: NoteTitle;
   #content: string;
   #status: NoteStatus;
+  #pinned: boolean;
   #sharedWith: Set<string>; // raw ids: a Set needs a primitive key; the accessors speak Id
 
   private constructor(
@@ -47,6 +53,7 @@ export class Note extends AggregateRoot {
     title: NoteTitle,
     content: string,
     status: NoteStatus,
+    pinned: boolean,
     sharedWith: string[],
   ) {
     super(id);
@@ -54,6 +61,7 @@ export class Note extends AggregateRoot {
     this.#title = title;
     this.#content = content;
     this.#status = status;
+    this.#pinned = pinned;
     this.#sharedWith = new Set(sharedWith);
   }
 
@@ -66,7 +74,7 @@ export class Note extends AggregateRoot {
     if (title.isFailure()) return title;
 
     const id = Id.generate();
-    const note = new Note(id, new Id(props.ownerId), title.data, props.content, NoteStatus.ACTIVE, []);
+    const note = new Note(id, new Id(props.ownerId), title.data, props.content, NoteStatus.ACTIVE, false, []);
     note.record(NoteCreatedEvent.set({ noteId: id.value, ownerId: props.ownerId, title: title.data.value }));
 
     return Result.ok(note);
@@ -93,6 +101,7 @@ export class Note extends AggregateRoot {
       title.data,
       snapshot.content,
       snapshot.status,
+      snapshot.pinned,
       snapshot.sharedWith,
     );
   }
@@ -142,6 +151,38 @@ export class Note extends AggregateRoot {
     return Result.ok();
   }
 
+  pin(actorId: Id): IResult {
+    const allowed = this.ensureOwner(actorId);
+    if (allowed.isFailure()) return allowed;
+
+    const writable = this.ensureActive();
+    if (writable.isFailure()) return writable;
+
+    if (this.#pinned) {
+      return Result.fail(new NoteAlreadyPinnedException(this._id.value));
+    }
+
+    this.#pinned = true;
+    this.record(NotePinnedEvent.set({ noteId: this._id.value }));
+
+    return Result.ok();
+  }
+
+  /** Unpinning is allowed whatever the status: the rule is about pinning an archived note, not about letting go of it. */
+  unpin(actorId: Id): IResult {
+    const allowed = this.ensureOwner(actorId);
+    if (allowed.isFailure()) return allowed;
+
+    if (!this.#pinned) {
+      return Result.fail(new NoteNotPinnedException(this._id.value));
+    }
+
+    this.#pinned = false;
+    this.record(NoteUnpinnedEvent.set({ noteId: this._id.value }));
+
+    return Result.ok();
+  }
+
   shareWith(actorId: Id, recipientId: Id): IResult {
     const allowed = this.ensureOwner(actorId);
     if (allowed.isFailure()) return allowed;
@@ -182,6 +223,7 @@ export class Note extends AggregateRoot {
       title: this.#title.value,
       content: this.#content,
       status: this.#status,
+      pinned: this.#pinned,
       sharedWith: [...this.#sharedWith],
     };
   }
@@ -214,6 +256,10 @@ export class Note extends AggregateRoot {
 
   get status(): NoteStatus {
     return this.#status;
+  }
+
+  get pinned(): boolean {
+    return this.#pinned;
   }
 
   get sharedWith(): string[] {

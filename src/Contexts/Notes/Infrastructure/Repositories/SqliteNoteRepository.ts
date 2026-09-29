@@ -25,11 +25,11 @@ export class SqliteNoteRepository implements INoteRepository {
     const row = toRow(note.toSnapshot());
     this.db
       .prepare(
-        `INSERT INTO notes (id, owner_id, title, content, status, shared_with)
-         VALUES (:id, :owner_id, :title, :content, :status, :shared_with)
+        `INSERT INTO notes (id, owner_id, title, content, status, pinned, shared_with)
+         VALUES (:id, :owner_id, :title, :content, :status, :pinned, :shared_with)
          ON CONFLICT (id) DO UPDATE SET
            title = excluded.title, content = excluded.content,
-           status = excluded.status, shared_with = excluded.shared_with`,
+           status = excluded.status, pinned = excluded.pinned, shared_with = excluded.shared_with`,
       )
       .run(row);
   }

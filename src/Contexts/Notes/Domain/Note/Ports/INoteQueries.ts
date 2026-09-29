@@ -8,6 +8,7 @@ export interface NoteListItem {
   id: string;
   title: string;
   status: NoteStatus;
+  pinned: boolean;
 }
 
 export interface NoteDetail extends NoteListItem {
@@ -30,6 +31,7 @@ export interface SharedNoteListItem {
  */
 export interface INoteQueries {
   findById(noteId: string): Promise<NoteDetail | null>;
+  /** Pinned notes first; within each group, in the order they were saved. Every adapter is held to it by the contract spec. */
   findByOwner(ownerId: string): Promise<NoteListItem[]>;
   findSharedWith(accountId: string): Promise<SharedNoteListItem[]>;
 }

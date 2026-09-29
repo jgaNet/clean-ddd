@@ -69,12 +69,14 @@ describe.each(adapters)('Note persistence over $name', ({ open }) => {
       const note = aNote(alice, 'Draft');
       await repository.save(note);
       note.edit(alice, { title: 'Final', content: 'done' });
+      note.pin(alice);
       note.archive(alice);
       await repository.save(note);
 
       const found = await repository.findById(note._id.value);
       expect(found?.title).toBe('Final');
       expect(found?.status).toBe(NoteStatus.ARCHIVED);
+      expect(found?.pinned).toBe(true);
       expect(await queries.findByOwner(alice.value)).toHaveLength(1);
     });
 
@@ -98,6 +100,7 @@ describe.each(adapters)('Note persistence over $name', ({ open }) => {
         title: 'Groceries',
         content: 'milk',
         status: NoteStatus.ACTIVE,
+        pinned: false,
         ownerId: 'alice',
         sharedWith: ['bob'],
       });
@@ -112,10 +115,32 @@ describe.each(adapters)('Note persistence over $name', ({ open }) => {
       await repository.save(second);
 
       expect(await queries.findByOwner(alice.value)).toEqual([
-        { id: first._id.value, title: 'First', status: NoteStatus.ACTIVE },
-        { id: second._id.value, title: 'Second', status: NoteStatus.ACTIVE },
+        { id: first._id.value, title: 'First', status: NoteStatus.ACTIVE, pinned: false },
+        { id: second._id.value, title: 'Second', status: NoteStatus.ACTIVE, pinned: false },
       ]);
       expect(await queries.findByOwner('nobody')).toEqual([]);
+    });
+
+    it("lists an owner's pinned notes first, each group in the order they were saved", async () => {
+      const first = aNote(alice, 'First');
+      const second = aNote(alice, 'Second');
+      const third = aNote(alice, 'Third');
+      second.pin(alice);
+      third.pin(alice);
+      await repository.save(first);
+      await repository.save(second);
+      await repository.save(third);
+
+      expect(await queries.findByOwner(alice.value)).toEqual([
+        { id: second._id.value, title: 'Second', status: NoteStatus.ACTIVE, pinned: true },
+        { id: third._id.value, title: 'Third', status: NoteStatus.ACTIVE, pinned: true },
+        { id: first._id.value, title: 'First', status: NoteStatus.ACTIVE, pinned: false },
+      ]);
+
+      second.unpin(alice);
+      await repository.save(second);
+
+      expect((await queries.findByOwner(alice.value)).map(note => note.title)).toEqual(['Third', 'First', 'Second']);
     });
 
     it('lists the notes shared with an account, whoever owns them', async () => {

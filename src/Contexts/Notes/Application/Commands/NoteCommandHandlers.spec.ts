@@ -6,10 +6,17 @@ import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InM
 
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import { NoteStatus } from '@Contexts/Notes/Domain/Note/NoteStatus';
-import { NoteCreatedEvent, NoteSharedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
+import {
+  NoteCreatedEvent,
+  NotePinnedEvent,
+  NoteSharedEvent,
+  NoteUnpinnedEvent,
+} from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
 import {
   BlankNoteTitleException,
+  NoteArchivedException,
   NoteNotFoundException,
+  NoteNotPinnedException,
   NotNoteOwnerException,
 } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 import { InMemoryNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository';
@@ -19,8 +26,12 @@ import {
   ArchiveNoteCommandHandler,
   CreateNoteCommandEvent,
   CreateNoteCommandHandler,
+  PinNoteCommandEvent,
+  PinNoteCommandHandler,
   ShareNoteCommandEvent,
   ShareNoteCommandHandler,
+  UnpinNoteCommandEvent,
+  UnpinNoteCommandHandler,
 } from '@Contexts/Notes/Application/Commands';
 
 const eventBus = { connect: jest.fn(), publish: jest.fn(), subscribe: jest.fn() } as EventBus;
@@ -65,6 +76,7 @@ describe('CreateNoteCommandHandler', () => {
       title: 'Groceries',
       content: 'Milk',
       status: NoteStatus.ACTIVE,
+      pinned: false,
       sharedWith: [],
     });
     expect(eventBus.publish).toHaveBeenCalledTimes(1);
@@ -147,5 +159,90 @@ describe('ArchiveNoteCommandHandler', () => {
 
     expect(result.isSuccess()).toBe(true);
     expect(store.collection.get(noteId)?.status).toBe(NoteStatus.ARCHIVED);
+  });
+});
+
+describe('PinNoteCommandHandler', () => {
+  it('lets the owner pin a note and publishes NotePinned', async () => {
+    const noteId = await aNoteOwnedBy('alice');
+
+    const result = await new PinNoteCommandHandler(repository).execute(
+      PinNoteCommandEvent.set({ noteId }),
+      contextFor('alice'),
+    );
+
+    expect(result.isSuccess()).toBe(true);
+    expect(store.collection.get(noteId)?.pinned).toBe(true);
+    expect(eventBus.publish).toHaveBeenCalledTimes(1);
+    expect(eventBus.publish).toHaveBeenCalledWith(NotePinnedEvent.set({ noteId }), expect.any(ExecutionContext));
+  });
+
+  it('refuses a caller who does not own the note', async () => {
+    const noteId = await aNoteOwnedBy('alice');
+
+    const result = await new PinNoteCommandHandler(repository).execute(
+      PinNoteCommandEvent.set({ noteId }),
+      contextFor('bob'),
+    );
+
+    expect(result.error).toBeInstanceOf(NotNoteOwnerException);
+    expect(store.collection.get(noteId)?.pinned).toBe(false);
+    expect(eventBus.publish).not.toHaveBeenCalled();
+  });
+
+  it('refuses to pin an archived note', async () => {
+    const noteId = await aNoteOwnedBy('alice');
+    await new ArchiveNoteCommandHandler(repository).execute(
+      ArchiveNoteCommandEvent.set({ noteId }),
+      contextFor('alice'),
+    );
+    jest.resetAllMocks();
+
+    const result = await new PinNoteCommandHandler(repository).execute(
+      PinNoteCommandEvent.set({ noteId }),
+      contextFor('alice'),
+    );
+
+    expect(result.error).toBeInstanceOf(NoteArchivedException);
+    expect(store.collection.get(noteId)?.pinned).toBe(false);
+    expect(eventBus.publish).not.toHaveBeenCalled();
+  });
+
+  it('fails on an unknown note', async () => {
+    const result = await new PinNoteCommandHandler(repository).execute(
+      PinNoteCommandEvent.set({ noteId: 'nope' }),
+      contextFor('alice'),
+    );
+
+    expect(result.error).toBeInstanceOf(NoteNotFoundException);
+  });
+});
+
+describe('UnpinNoteCommandHandler', () => {
+  it('lets the owner unpin a pinned note and publishes NoteUnpinned', async () => {
+    const noteId = await aNoteOwnedBy('alice');
+    await new PinNoteCommandHandler(repository).execute(PinNoteCommandEvent.set({ noteId }), contextFor('alice'));
+    jest.resetAllMocks();
+
+    const result = await new UnpinNoteCommandHandler(repository).execute(
+      UnpinNoteCommandEvent.set({ noteId }),
+      contextFor('alice'),
+    );
+
+    expect(result.isSuccess()).toBe(true);
+    expect(store.collection.get(noteId)?.pinned).toBe(false);
+    expect(eventBus.publish).toHaveBeenCalledWith(NoteUnpinnedEvent.set({ noteId }), expect.any(ExecutionContext));
+  });
+
+  it('refuses to unpin a note that is not pinned', async () => {
+    const noteId = await aNoteOwnedBy('alice');
+
+    const result = await new UnpinNoteCommandHandler(repository).execute(
+      UnpinNoteCommandEvent.set({ noteId }),
+      contextFor('alice'),
+    );
+
+    expect(result.error).toBeInstanceOf(NoteNotPinnedException);
+    expect(eventBus.publish).not.toHaveBeenCalled();
   });
 });

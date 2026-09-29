@@ -67,6 +67,18 @@ export const noteRoutes = function (
     controller.restoreNote.bind(controller),
   );
 
+  fastify.post<{ Params: NoteIdParams }>(
+    '/:id/pin',
+    { schema: { tags, ...CommandOnNoteSchema } },
+    controller.pinNote.bind(controller),
+  );
+
+  fastify.post<{ Params: NoteIdParams }>(
+    '/:id/unpin',
+    { schema: { tags, ...CommandOnNoteSchema } },
+    controller.unpinNote.bind(controller),
+  );
+
   fastify.post<{ Params: NoteIdParams; Body: ShareNoteReqBody }>(
     '/:id/share',
     { schema: { tags, ...CommandOnNoteSchema, body: ShareNoteReqBodySchema } },

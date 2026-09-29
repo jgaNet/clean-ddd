@@ -9,6 +9,8 @@ import {
   EditNoteCommandEvent,
   ArchiveNoteCommandEvent,
   RestoreNoteCommandEvent,
+  PinNoteCommandEvent,
+  UnpinNoteCommandEvent,
   ShareNoteCommandEvent,
 } from '@Contexts/Notes/Application/Commands';
 import {
@@ -54,6 +56,14 @@ export class FastifyNoteController {
 
   async restoreNote(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
     return this.accept(req, reply, RestoreNoteCommandEvent.set({ noteId: req.params.id }));
+  }
+
+  async pinNote(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
+    return this.accept(req, reply, PinNoteCommandEvent.set({ noteId: req.params.id }));
+  }
+
+  async unpinNote(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
+    return this.accept(req, reply, UnpinNoteCommandEvent.set({ noteId: req.params.id }));
   }
 
   async shareNote(req: FastifyRequest<{ Params: NoteIdParams; Body: ShareNoteReqBody }>, reply: FastifyReply) {

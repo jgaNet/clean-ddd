@@ -7,6 +7,8 @@ import {
   NoteEditedEvent,
   NoteArchivedEvent,
   NoteRestoredEvent,
+  NotePinnedEvent,
+  NoteUnpinnedEvent,
   NoteSharedEvent,
 } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
 import {
@@ -14,9 +16,11 @@ import {
   CannotShareWithSelfException,
   NotNoteOwnerException,
   NoteAlreadyArchivedException,
+  NoteAlreadyPinnedException,
   NoteAlreadySharedException,
   NoteArchivedException,
   NoteNotArchivedException,
+  NoteNotPinnedException,
 } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 
 const owner = new Id('alice');
@@ -38,13 +42,14 @@ function anArchivedNote(): Note {
 
 describe('Note', () => {
   describe('writing a note', () => {
-    it('picks its own identity, starts active, unshared, and records NoteCreated', () => {
+    it('picks its own identity, starts active, unpinned, unshared, and records NoteCreated', () => {
       const result = Note.create({ ownerId: 'alice', title: 'Groceries', content: 'Milk' });
 
       expect(result.isSuccess()).toBe(true);
       const note = result.data as Note;
       expect(note._id.value).toEqual(expect.any(String));
       expect(note.status).toBe(NoteStatus.ACTIVE);
+      expect(note.pinned).toBe(false);
       expect(note.sharedWith).toEqual([]);
       expect(note.pullDomainEvents()).toEqual([
         NoteCreatedEvent.set({ noteId: note._id.value, ownerId: 'alice', title: 'Groceries' }),
@@ -143,6 +148,66 @@ describe('Note', () => {
     });
   });
 
+  describe('pinning and unpinning', () => {
+    it('pins an active note and records NotePinned', () => {
+      const note = aNote();
+
+      expect(note.pin(owner).isSuccess()).toBe(true);
+      expect(note.pinned).toBe(true);
+      expect(note.pullDomainEvents()).toEqual([NotePinnedEvent.set({ noteId: note._id.value })]);
+    });
+
+    it('cannot pin twice', () => {
+      const note = aNote();
+      note.pin(owner);
+
+      expect(note.pin(owner).error).toBeInstanceOf(NoteAlreadyPinnedException);
+    });
+
+    it('cannot pin an archived note', () => {
+      const note = anArchivedNote();
+
+      expect(note.pin(owner).error).toBeInstanceOf(NoteArchivedException);
+      expect(note.pinned).toBe(false);
+    });
+
+    it('unpins a pinned note and records NoteUnpinned', () => {
+      const note = aNote();
+      note.pin(owner);
+      note.pullDomainEvents();
+
+      expect(note.unpin(owner).isSuccess()).toBe(true);
+      expect(note.pinned).toBe(false);
+      expect(note.pullDomainEvents()).toEqual([NoteUnpinnedEvent.set({ noteId: note._id.value })]);
+    });
+
+    it('cannot unpin a note that is not pinned', () => {
+      const note = aNote();
+
+      expect(note.unpin(owner).error).toBeInstanceOf(NoteNotPinnedException);
+    });
+
+    it('can unpin a note that was archived while pinned', () => {
+      const note = aNote();
+      note.pin(owner);
+      note.archive(owner);
+
+      expect(note.unpin(owner).isSuccess()).toBe(true);
+      expect(note.pinned).toBe(false);
+    });
+
+    it('is reserved to the owner', () => {
+      const note = aNote();
+
+      expect(note.pin(stranger).error).toBeInstanceOf(NotNoteOwnerException);
+      expect(note.pinned).toBe(false);
+
+      note.pin(owner);
+      expect(note.unpin(stranger).error).toBeInstanceOf(NotNoteOwnerException);
+      expect(note.pinned).toBe(true);
+    });
+  });
+
   describe('sharing', () => {
     it('shares with another account and records NoteShared', () => {
       const note = aNote();
@@ -192,11 +257,13 @@ describe('Note', () => {
         title: 'Old',
         content: 'Text',
         status: NoteStatus.ARCHIVED,
+        pinned: true,
         sharedWith: ['bob'],
       });
 
       expect(note._id.value).toBe('note-9');
       expect(note.status).toBe(NoteStatus.ARCHIVED);
+      expect(note.pinned).toBe(true);
       expect(note.sharedWith).toEqual(['bob']);
       expect(note.pullDomainEvents()).toEqual([]);
     });
@@ -204,6 +271,7 @@ describe('Note', () => {
     it('gives back an equal note after toSnapshot / fromSnapshot', () => {
       const note = aNote();
       note.shareWith(owner, stranger);
+      note.pin(owner);
 
       const rebuilt = Note.fromSnapshot(note.toSnapshot());
 
@@ -219,6 +287,7 @@ describe('Note', () => {
           title: '',
           content: '',
           status: NoteStatus.ACTIVE,
+          pinned: false,
           sharedWith: [],
         }),
       ).toThrow(/Corrupted note n/);

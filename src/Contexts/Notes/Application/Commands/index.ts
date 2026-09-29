@@ -6,5 +6,9 @@ export * from '@Contexts/Notes/Application/Commands/ArchiveNote/ArchiveNoteComma
 export * from '@Contexts/Notes/Application/Commands/ArchiveNote/ArchiveNoteCommandHandler';
 export * from '@Contexts/Notes/Application/Commands/RestoreNote/RestoreNoteCommandEvent';
 export * from '@Contexts/Notes/Application/Commands/RestoreNote/RestoreNoteCommandHandler';
+export * from '@Contexts/Notes/Application/Commands/PinNote/PinNoteCommandEvent';
+export * from '@Contexts/Notes/Application/Commands/PinNote/PinNoteCommandHandler';
+export * from '@Contexts/Notes/Application/Commands/UnpinNote/UnpinNoteCommandEvent';
+export * from '@Contexts/Notes/Application/Commands/UnpinNote/UnpinNoteCommandHandler';
 export * from '@Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandEvent';
 export * from '@Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandHandler';

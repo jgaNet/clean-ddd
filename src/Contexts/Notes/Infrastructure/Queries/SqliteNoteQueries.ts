@@ -22,16 +22,21 @@ export class SqliteNoteQueries implements INoteQueries {
     const row = this.db.prepare('SELECT * FROM notes WHERE id = ?').get(noteId) as NoteRow | undefined;
     if (!row) return null;
 
-    const { _id, title, status, ownerId, content, sharedWith } = toSnapshot(row);
-    return { id: _id, title, status, ownerId, content, sharedWith };
+    const { _id, title, status, pinned, ownerId, content, sharedWith } = toSnapshot(row);
+    return { id: _id, title, status, pinned, ownerId, content, sharedWith };
   }
 
   async findByOwner(ownerId: string): Promise<NoteListItem[]> {
     const rows = this.db
-      .prepare('SELECT id, title, status FROM notes WHERE owner_id = ? ORDER BY rowid')
-      .all(ownerId) as Pick<NoteRow, 'id' | 'title' | 'status'>[];
+      .prepare('SELECT id, title, status, pinned FROM notes WHERE owner_id = ? ORDER BY pinned DESC, rowid')
+      .all(ownerId) as Pick<NoteRow, 'id' | 'title' | 'status' | 'pinned'>[];
 
-    return rows.map(({ id, title, status }) => ({ id, title, status: status as NoteListItem['status'] }));
+    return rows.map(({ id, title, status, pinned }) => ({
+      id,
+      title,
+      status: status as NoteListItem['status'],
+      pinned: pinned === 1,
+    }));
   }
 
   async findSharedWith(accountId: string): Promise<SharedNoteListItem[]> {

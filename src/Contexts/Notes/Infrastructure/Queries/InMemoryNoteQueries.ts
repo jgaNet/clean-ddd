@@ -19,6 +19,7 @@ export class InMemoryNoteQueries implements INoteQueries {
       id: note._id,
       title: note.title,
       status: note.status,
+      pinned: note.pinned,
       ownerId: note.ownerId,
       content: note.content,
       sharedWith: [...note.sharedWith],
@@ -26,9 +27,11 @@ export class InMemoryNoteQueries implements INoteQueries {
   }
 
   async findByOwner(ownerId: string): Promise<NoteListItem[]> {
+    // The Map keeps insertion order and sort() is stable, so pinned notes come first and each group stays in save order.
     return this.all()
       .filter(note => note.ownerId === ownerId)
-      .map(note => ({ id: note._id, title: note.title, status: note.status }));
+      .sort((a, b) => Number(b.pinned) - Number(a.pinned))
+      .map(note => ({ id: note._id, title: note.title, status: note.status, pinned: note.pinned }));
   }
 
   async findSharedWith(accountId: string): Promise<SharedNoteListItem[]> {

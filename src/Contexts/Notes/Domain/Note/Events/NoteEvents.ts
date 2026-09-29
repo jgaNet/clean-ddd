@@ -16,6 +16,10 @@ export class NoteArchivedEvent extends DomainEvent<{ noteId: string }> {}
 
 export class NoteRestoredEvent extends DomainEvent<{ noteId: string }> {}
 
+export class NotePinnedEvent extends DomainEvent<{ noteId: string }> {}
+
+export class NoteUnpinnedEvent extends DomainEvent<{ noteId: string }> {}
+
 export class NoteSharedEvent extends DomainEvent<{
   noteId: string;
   title: string;
