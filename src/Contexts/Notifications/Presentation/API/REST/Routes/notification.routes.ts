@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { FastifyNotificationController } from '@Contexts/Notifications/Presentation/API/REST/Controllers/FastifyNotificationController';
 import { notificationSchema } from './notification.routes.schema';
 
-import { Module } from '@SharedKernel/Application';
+import { Module } from '@Architecture/Application';
 
 export function notificationRoutes(
   fastify: FastifyInstance,

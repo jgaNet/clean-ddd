@@ -1,5 +1,5 @@
-import { IResult, Result } from '@SharedKernel/Domain';
-import { ExecutionContext, QueryHandler } from '@SharedKernel/Application';
+import { IResult, Result } from '@Architecture/Domain';
+import { ExecutionContext, QueryHandler } from '@Architecture/Application';
 
 import { INoteQueries, SharedNoteListItem } from '@Contexts/Notes/Domain/Note/Ports/INoteQueries';
 import { requireSignedIn } from '@SharedKernel/Application/Guards';

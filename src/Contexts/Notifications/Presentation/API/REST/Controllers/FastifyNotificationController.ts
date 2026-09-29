@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 
-import { Exception, NotAllowedException } from '@SharedKernel/Domain';
-import { Module } from '@SharedKernel/Application';
+import { Exception, NotAllowedException } from '@Architecture/Domain';
+import { Module } from '@Architecture/Application';
 
 import { Channel } from '@Contexts/Notifications/Domain/Notification/Channel';
 import { NotificationNotFoundException } from '@Contexts/Notifications/Domain/Notification/NotificationExceptions';

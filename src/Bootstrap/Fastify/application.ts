@@ -2,7 +2,7 @@
 
 import 'dotenv/config';
 
-import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
+import { ConsoleLogger } from '@Architecture/Infrastructure/Logging/ConsoleLogger';
 
 import { SETTINGS } from './application.settings';
 import { createApplication } from './createApplication';

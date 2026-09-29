@@ -1,4 +1,4 @@
-import { Exception } from '@SharedKernel/Domain';
+import { Exception } from '@Architecture/Domain';
 
 /**
  * Domain exceptions of the Account aggregate: a broken business rule, in business words.

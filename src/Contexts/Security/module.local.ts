@@ -1,6 +1,6 @@
 import { Role } from '@SharedKernel/Domain';
-import { EventBus, ExecutionContext, Module } from '@SharedKernel/Application';
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { EventBus, ExecutionContext, Module } from '@Architecture/Application';
+import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
 import { SETTINGS } from '@Bootstrap/Fastify/application.settings';
 import { v4 } from 'uuid';
 

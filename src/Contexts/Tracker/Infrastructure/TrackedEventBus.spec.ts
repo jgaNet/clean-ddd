@@ -1,10 +1,11 @@
 import { EventEmitter } from 'events';
 
-import { CommandEvent, DomainEvent, IResult, NotFoundException, Result, Role } from '@SharedKernel/Domain';
-import { CommandHandler, EventBus, EventHandler, ExecutionContext, OperationStatus } from '@SharedKernel/Application';
+import { CommandEvent, DomainEvent, IResult, NotFoundException, Result } from '@Architecture/Domain';
+import { Role } from '@SharedKernel/Domain';
+import { CommandHandler, EventBus, EventHandler, ExecutionContext, OperationStatus } from '@Architecture/Application';
 import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
-import { InMemoryEventBus } from '@SharedKernel/Infrastructure/EventBus/InMemoryEventBus';
+import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
+import { InMemoryEventBus } from '@Architecture/Infrastructure/EventBus/InMemoryEventBus';
 
 import { OperationRecord } from '@Contexts/Tracker/Application/ReadModel/OperationRecord';
 import { InMemoryOperationRecords } from '@Contexts/Tracker/Infrastructure/InMemoryOperationRecords';

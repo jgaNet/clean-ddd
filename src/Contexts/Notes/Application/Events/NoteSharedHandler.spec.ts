@@ -1,6 +1,6 @@
 import { expect, jest } from '@jest/globals';
 
-import { EventBus, ExecutionContext } from '@SharedKernel/Application';
+import { EventBus, ExecutionContext } from '@Architecture/Application';
 import { NoteSharedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents';
 
 import { NoteSharedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';

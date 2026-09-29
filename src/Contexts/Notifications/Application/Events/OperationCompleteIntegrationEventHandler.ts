@@ -1,5 +1,5 @@
-import { IResult, Result } from '@SharedKernel/Domain';
-import { EventHandler, ExecutionContext, OperationStatus } from '@SharedKernel/Application';
+import { IResult, Result } from '@Architecture/Domain';
+import { EventHandler, ExecutionContext, OperationStatus } from '@Architecture/Application';
 import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
 
 import { Channel } from '@Contexts/Notifications/Domain/Notification/Channel';

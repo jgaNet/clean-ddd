@@ -1,5 +1,5 @@
 import { Role } from '@SharedKernel/Domain';
-import { ExecutionContext } from '@SharedKernel/Application';
+import { ExecutionContext } from '@Architecture/Application';
 
 export interface AuthInfo {
   subjectId: string;

@@ -1,4 +1,4 @@
-import { IResult, Result, ValueObject } from '@SharedKernel/Domain';
+import { IResult, Result, ValueObject } from '@Architecture/Domain';
 
 import { InvalidCredentialsException } from '@Contexts/Security/Domain/Account/AccountExceptions';
 

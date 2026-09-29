@@ -1,4 +1,4 @@
-import { CommandEvent } from '@SharedKernel/Domain';
+import { CommandEvent } from '@Architecture/Domain';
 
 /**
  * Two ways to ask: with the token emailed at sign-up (anyone holding it), or by account id

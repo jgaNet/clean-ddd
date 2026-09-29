@@ -14,7 +14,7 @@ yarn conventions:write    # regenerate the README tables after editing concepts.
 
 ## How the rules are written
 
-`architecture.yaml` says what a layer **may** import, in seven words: `own.<Layer>`, `own.wiring`, `kernel.<Layer>`, `others.<Layer>`, `others.wiring`, `bootstrap`, `libraries`. Anything not listed is forbidden. The linter needs the complement, so `eslint.config.js` enumerates every unit a file could import and forbids the ones the table leaves out; the two formulations are checked equal by construction, not by hand.
+`architecture.yaml` says what a layer **may** import, in eight words: `own.<Layer>`, `own.wiring`, `architecture.<Layer>` (the building blocks), `kernel.<Layer>` (the shared kernel), `others.<Layer>`, `others.wiring`, `bootstrap`, `libraries`. Anything not listed is forbidden. The linter needs the complement, so `eslint.config.js` enumerates every unit a file could import and forbids the ones the table leaves out; the two formulations are checked equal by construction, not by hand.
 
 Writing the allow-list rather than the deny-list is deliberate: a new layer, context or library is forbidden everywhere until the table says otherwise.
 

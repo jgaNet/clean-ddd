@@ -1,7 +1,8 @@
 import { expect, jest } from '@jest/globals';
 
-import { CommandEvent, NotFoundException, Result, Role } from '@SharedKernel/Domain';
-import { EventBus, ExecutionContext, IOperation, OperationStatus } from '@SharedKernel/Application';
+import { CommandEvent, NotFoundException, Result } from '@Architecture/Domain';
+import { Role } from '@SharedKernel/Domain';
+import { EventBus, ExecutionContext, IOperation, OperationStatus } from '@Architecture/Application';
 
 import { toOperationRecord } from '@Contexts/Tracker/Application/Projections/OperationProjection';
 

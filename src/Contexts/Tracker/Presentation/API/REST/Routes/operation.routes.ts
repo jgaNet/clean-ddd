@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 
 import { FastifyOperationController } from '@Contexts/Tracker/Presentation/API/REST/Controllers/FastifyOperationController';
-import { Module } from '@SharedKernel/Application';
+import { Module } from '@Architecture/Application';
 import {
   GetOperationsResSchema,
   GetOperationResSchema,

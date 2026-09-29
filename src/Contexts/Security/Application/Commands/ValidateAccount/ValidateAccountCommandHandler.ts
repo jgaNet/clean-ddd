@@ -1,5 +1,6 @@
-import { IResult, NotAllowedException, Result, Role } from '@SharedKernel/Domain';
-import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
+import { IResult, NotAllowedException, Result } from '@Architecture/Domain';
+import { Role } from '@SharedKernel/Domain';
+import { CommandHandler, ExecutionContext } from '@Architecture/Application';
 
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
 import { ISignedTokens } from '@Contexts/Security/Domain/Auth/Ports/ISignedTokens';

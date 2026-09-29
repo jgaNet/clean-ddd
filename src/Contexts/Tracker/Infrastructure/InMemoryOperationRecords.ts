@@ -1,4 +1,4 @@
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
 
 import { IOperationRecords } from '@Contexts/Tracker/Application/Ports/IOperationRecords';
 import { OperationRecord } from '@Contexts/Tracker/Application/ReadModel/OperationRecord';

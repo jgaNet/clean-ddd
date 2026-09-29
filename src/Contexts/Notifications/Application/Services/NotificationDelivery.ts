@@ -1,5 +1,5 @@
-import { IResult, Result } from '@SharedKernel/Domain';
-import { ExecutionContext, publishDomainEvents } from '@SharedKernel/Application';
+import { IResult, Result } from '@Architecture/Domain';
+import { ExecutionContext, publishDomainEvents } from '@Architecture/Application';
 
 import { Notification } from '@Contexts/Notifications/Domain/Notification/Notification';
 import { INewNotification } from '@Contexts/Notifications/Domain/Notification/DTOs';

@@ -1,5 +1,6 @@
-import { IResult, Result } from '@SharedKernel/Domain';
-import { CommandHandler, ExecutionContext, requireSignedIn } from '@SharedKernel/Application';
+import { IResult, Result } from '@Architecture/Domain';
+import { CommandHandler, ExecutionContext } from '@Architecture/Application';
+import { requireSignedIn } from '@SharedKernel/Application/Guards';
 
 import { INotificationRepository } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationRepository';
 import { NotificationNotFoundException } from '@Contexts/Notifications/Domain/Notification/NotificationExceptions';

@@ -6,7 +6,7 @@ A command can be refused for many ordinary reasons: the title is blank, the call
 
 ## Decision
 
-Expected failures are **values**: every domain behaviour, domain service, command handler and query handler returns an `IResult<T>` ([`Result.ts`](../../src/Contexts/@SharedKernel/Domain/DDD/Result.ts)), created with `Result.ok(data)` or `Result.fail(exception)`. A domain exception ([`NoteExceptions.ts`](../../src/Contexts/Notes/Domain/Note/NoteExceptions.ts)) is a plain object describing the broken rule in business words; it is *carried* by `Result.fail()`, never thrown.
+Expected failures are **values**: every domain behaviour, domain service, command handler and query handler returns an `IResult<T>` ([`Result.ts`](../../src/Architecture/Domain/Result.ts)), created with `Result.ok(data)` or `Result.fail(exception)`. A domain exception ([`NoteExceptions.ts`](../../src/Contexts/Notes/Domain/Note/NoteExceptions.ts)) is a plain object describing the broken rule in business words; it is *carried* by `Result.fail()`, never thrown.
 
 `throw` is reserved for programming errors and corrupted state (see [ADR 4](0004-reconstitution-throws-on-corrupted-data.md)). The base `CommandHandler` still catches a throw and converts it into a failed result, so that a bug in one handler cannot crash the process — but that is a safety net, not the way to report a refusal.
 

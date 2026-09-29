@@ -1,12 +1,12 @@
-import { Module } from '@SharedKernel/Application';
+import { Module } from '@Architecture/Application';
 import {
   AccountCreatedIntegrationEvent,
   AccountValidatedIntegrationEvent,
 } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
 import { NoteSharedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents';
 import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
-import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
+import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
+import { ConsoleLogger } from '@Architecture/Infrastructure/Logging/ConsoleLogger';
 import { SETTINGS } from '@Bootstrap/Fastify/application.settings';
 
 import { INotification } from '@Contexts/Notifications/Domain/Notification/DTOs';

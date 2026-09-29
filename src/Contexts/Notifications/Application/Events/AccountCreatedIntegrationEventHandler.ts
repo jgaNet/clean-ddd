@@ -1,5 +1,5 @@
-import { IResult } from '@SharedKernel/Domain';
-import { EventHandler, ExecutionContext } from '@SharedKernel/Application';
+import { IResult } from '@Architecture/Domain';
+import { EventHandler, ExecutionContext } from '@Architecture/Application';
 import { AccountCreatedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
 
 import { Channel } from '@Contexts/Notifications/Domain/Notification/Channel';

@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 
-import { Exception, NotAllowedException, NotFoundException } from '@SharedKernel/Domain';
-import { Module } from '@SharedKernel/Application';
+import { Exception, NotAllowedException, NotFoundException } from '@Architecture/Domain';
+import { Module } from '@Architecture/Application';
 
 import { GetOperationQueryHandler, GetOperationsQueryHandler } from '@Contexts/Tracker/Application/Queries';
 

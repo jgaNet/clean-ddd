@@ -1,4 +1,5 @@
-import { DomainEvent, Role } from '@SharedKernel/Domain';
+import { DomainEvent } from '@Architecture/Domain';
+import { Role } from '@SharedKernel/Domain';
 
 import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';
 

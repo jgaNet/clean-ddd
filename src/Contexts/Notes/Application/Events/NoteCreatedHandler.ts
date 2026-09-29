@@ -1,5 +1,5 @@
-import { IResult, Result } from '@SharedKernel/Domain';
-import { EventHandler, ExecutionContext } from '@SharedKernel/Application';
+import { IResult, Result } from '@Architecture/Domain';
+import { EventHandler, ExecutionContext } from '@Architecture/Application';
 import { NoteCreatedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
 
 export class NoteCreatedHandler extends EventHandler<NoteCreatedEvent> {

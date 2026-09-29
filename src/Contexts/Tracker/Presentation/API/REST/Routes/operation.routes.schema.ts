@@ -1,4 +1,4 @@
-import { OperationStatus } from '@SharedKernel/Application';
+import { OperationStatus } from '@Architecture/Application';
 
 const OperationRecordSchema = {
   type: 'object',

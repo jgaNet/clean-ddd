@@ -1,6 +1,6 @@
-import { IResult, Result } from '@SharedKernel/Domain';
-import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
-import { Id } from '@SharedKernel/Domain/ValueObjects';
+import { IResult, Result } from '@Architecture/Domain';
+import { CommandHandler, ExecutionContext } from '@Architecture/Application';
+import { Id } from '@Architecture/Domain';
 
 import { INoteRepository } from '@Contexts/Notes/Domain/Note/Ports/INoteRepository';
 import { NoteSharing } from '@Contexts/Notes/Domain/Note/NoteSharing';

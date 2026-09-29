@@ -1,5 +1,5 @@
-import { IResult, Result } from '@SharedKernel/Domain';
-import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
+import { IResult, Result } from '@Architecture/Domain';
+import { CommandHandler, ExecutionContext } from '@Architecture/Application';
 
 import { INoteRepository } from '@Contexts/Notes/Domain/Note/Ports/INoteRepository';
 import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteExceptions';

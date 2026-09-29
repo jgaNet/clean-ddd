@@ -17,15 +17,15 @@ import { localNotesModule } from '@Contexts/Notes/module.local';
 import { localSecurityModule, authMiddleware, registerAdmin } from '@Contexts/Security/module.local';
 import { localNotificationsModule, webSocketChannel } from '@Contexts/Notifications/module.local';
 
-import { homeRoutes } from '@SharedKernel/Presentation/API/REST/Routes';
+import { homeRoutes } from '@Bootstrap/Fastify/Home/home.routes';
 import { noteRoutes } from '@Contexts/Notes/Presentation/API/REST/Routes';
 import { operationRoutes } from '@Contexts/Tracker/Presentation/API/REST/Routes';
 import { authRoutes } from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes';
 import { notificationRoutes } from '@Contexts/Notifications/Presentation/API/REST/Routes';
 
-import { Application, ExecutionContext, Logger } from '@SharedKernel/Application';
-import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
-import { InMemoryUnitOfWork } from '@SharedKernel/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
+import { Application, ExecutionContext, Logger } from '@Architecture/Application';
+import { ConsoleLogger } from '@Architecture/Infrastructure/Logging/ConsoleLogger';
+import { InMemoryUnitOfWork } from '@Architecture/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

@@ -1,4 +1,4 @@
-import { IResult } from '@SharedKernel/Domain';
+import { IResult } from '@Architecture/Domain';
 
 import { Note } from '@Contexts/Notes/Domain/Note/Note';
 

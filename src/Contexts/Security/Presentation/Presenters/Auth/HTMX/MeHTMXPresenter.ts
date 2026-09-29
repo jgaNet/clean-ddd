@@ -1,6 +1,6 @@
-import { Presenter } from '@SharedKernel/Presentation/Presenter';
+import { Presenter } from '@Architecture/Presentation/Presenter';
 import { AccountViewModel } from '@Contexts/Security/Presentation/Presenters/Auth/ViewModels';
-import { html } from '@SharedKernel/Presentation/Templates';
+import { html } from '@Architecture/Presentation/Html';
 
 export class MeHTMXPresenter implements Presenter<AccountViewModel, string> {
   present(data: AccountViewModel): string {

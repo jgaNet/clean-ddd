@@ -1,4 +1,4 @@
-import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
+import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
 
 import { Notification } from '@Contexts/Notifications/Domain/Notification/Notification';
 import { INotification } from '@Contexts/Notifications/Domain/Notification/DTOs';

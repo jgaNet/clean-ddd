@@ -1,5 +1,6 @@
-import { IResult, NotAllowedException, Result, Role } from '@SharedKernel/Domain';
-import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
+import { IResult, NotAllowedException, Result } from '@Architecture/Domain';
+import { Role } from '@SharedKernel/Domain';
+import { CommandHandler, ExecutionContext } from '@Architecture/Application';
 
 import { NotificationDelivery } from '@Contexts/Notifications/Application/Services/NotificationDelivery';
 import { SendNotificationCommandEvent } from './SendNotificationCommandEvent';

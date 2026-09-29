@@ -1,4 +1,4 @@
-import { CommandEvent } from '@SharedKernel/Domain';
+import { CommandEvent } from '@Architecture/Domain';
 
 import { INewNotification } from '@Contexts/Notifications/Domain/Notification/DTOs';
 

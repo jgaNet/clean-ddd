@@ -1,4 +1,4 @@
-import { OperationStatus } from '@SharedKernel/Application';
+import { OperationStatus } from '@Architecture/Application';
 
 /**
  * Tracker has no aggregate. It is a projection: every operation the event bus carries is

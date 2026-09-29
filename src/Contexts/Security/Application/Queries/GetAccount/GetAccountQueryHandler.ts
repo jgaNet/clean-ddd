@@ -1,5 +1,6 @@
-import { IResult, NotAllowedException, NotFoundException, Result, Role } from '@SharedKernel/Domain';
-import { ExecutionContext, QueryHandler } from '@SharedKernel/Application';
+import { IResult, NotAllowedException, NotFoundException, Result } from '@Architecture/Domain';
+import { Role } from '@SharedKernel/Domain';
+import { ExecutionContext, QueryHandler } from '@Architecture/Application';
 
 import { AccountDetail, IAccountQueries } from '@Contexts/Security/Domain/Account/Ports/IAccountQueries';
 

@@ -1,4 +1,4 @@
-import { CommandEvent } from '@SharedKernel/Domain';
+import { CommandEvent } from '@Architecture/Domain';
 
 interface LoginPayload {
   identifier: string; // the account's email; the field is named for what a login form calls it
