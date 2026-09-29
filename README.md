@@ -87,6 +87,7 @@ One canonical example per concept. When two files could teach the same thing, th
 | --- | --- | --- |
 | Repository implementation | [`InMemoryNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository.ts) | snapshot in, snapshot out |
 | Queries implementation | [`InMemoryNoteQueries.ts`](src/Contexts/Notes/Infrastructure/Queries/InMemoryNoteQueries.ts) | builds read models from the same store, here |
+| **Second adapter of the same port** | [`SqliteNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/SqliteNoteRepository.ts), [`SqliteNoteQueries.ts`](src/Contexts/Notes/Infrastructure/Queries/SqliteNoteQueries.ts) on Node's built-in `node:sqlite` | the proof that the port is the seam: a real database behind the same interfaces, not one line changed in Domain or Application. The local wiring keeps the in-memory pair; both are held to [`NotePersistence.contract.spec.ts`](src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts) |
 | Port implementations | [`JwtService.ts`](src/Contexts/Security/Infrastructure/Services/JwtService.ts) (`jose`), [`BcryptPasswordHasher.ts`](src/Contexts/Security/Infrastructure/Services/BcryptPasswordHasher.ts) |  |
 | Event bus | [`InMemoryEventBus.ts`](src/Contexts/@SharedKernel/Infrastructure/EventBus/InMemoryEventBus.ts) | the only bus implementation |
 | Decorator (cross-cutting concern) | [`TrackedEventBus.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.ts) | tracking layered on any bus; neither the bus nor the handlers know |
@@ -115,6 +116,7 @@ One canonical example per concept. When two files could teach the same thing, th
 | Domain service | [`AccountRegistration.spec.ts`](src/Contexts/Security/Domain/Account/AccountRegistration.spec.ts) | a 10-line fake of the port |
 | Application | [`NoteCommandHandlers.spec.ts`](src/Contexts/Notes/Application/Commands/NoteCommandHandlers.spec.ts) | the in-memory repository *is* the double |
 | Infrastructure | [`TrackedEventBus.spec.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.spec.ts), [`JwtService.spec.ts`](src/Contexts/Security/Infrastructure/Services/JwtService.spec.ts) | real in-memory pieces |
+| **Contract** (one port, every adapter) | [`NotePersistence.contract.spec.ts`](src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts) | none — `describe.each` over the in-memory and the SQLite adapters, same expectations |
 | End to end | [`note.routes.e2e.spec.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.e2e.spec.ts) | the whole application, booted in-process by [`application.spec-helper.ts`](src/Bootstrap/Fastify/application.spec-helper.ts), spoken to over HTTP |
 <!-- end generated -->
 
@@ -246,7 +248,7 @@ Non-obvious choices are recorded as short ADRs in [`docs/adr`](docs/adr):
 Each of these is real vocabulary, and each would turn the building blocks back into a framework. The ADRs say when you would add them.
 
 - **A DI container.** `module.local.ts` is the container: `new` and constructor arguments.
-- **An ORM or a real database.** The ports are the seam; the in-memory implementations show what an adapter must do.
+- **An ORM or a database server.** The ports are the seam: the in-memory adapters are wired, the SQLite ones ([`SqliteNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/SqliteNoteRepository.ts)) prove that a real store fits behind the same interfaces, and one contract test holds both. A third adapter is a new line in that test, not a new pattern.
 - **A transactional outbox / message broker.** `afterCommit` is the honest single-process version; [ADR 3](docs/adr/0003-publish-domain-events-after-commit.md) names the gap.
 - **A generic Saga / process manager.** The Security → Notifications validation flow is a process; it is expressed as two handlers, not a library.
 - **Specification pattern, optimistic concurrency, versioned events.** Add them when a real case asks for them, next to the aggregate that needs them.

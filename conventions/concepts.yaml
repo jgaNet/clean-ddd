@@ -175,6 +175,15 @@ sections:
       - concept: Queries implementation
         example: '[`InMemoryNoteQueries.ts`](src/Contexts/Notes/Infrastructure/Queries/InMemoryNoteQueries.ts)'
         notes: builds read models from the same store, here
+      - concept: '**Second adapter of the same port**'
+        example: >-
+          [`SqliteNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/SqliteNoteRepository.ts),
+          [`SqliteNoteQueries.ts`](src/Contexts/Notes/Infrastructure/Queries/SqliteNoteQueries.ts) on Node's
+          built-in `node:sqlite`
+        notes: >-
+          the proof that the port is the seam: a real database behind the same interfaces, not one line
+          changed in Domain or Application. The local wiring keeps the in-memory pair; both are held to
+          [`NotePersistence.contract.spec.ts`](src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts)
       - concept: Port implementations
         example: >-
           [`JwtService.ts`](src/Contexts/Security/Infrastructure/Services/JwtService.ts) (`jose`),
@@ -242,6 +251,9 @@ sections:
           [`TrackedEventBus.spec.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.spec.ts),
           [`JwtService.spec.ts`](src/Contexts/Security/Infrastructure/Services/JwtService.spec.ts)
         doubles: real in-memory pieces
+      - layer: '**Contract** (one port, every adapter)'
+        example: '[`NotePersistence.contract.spec.ts`](src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts)'
+        doubles: none — `describe.each` over the in-memory and the SQLite adapters, same expectations
       - layer: End to end
         example: '[`note.routes.e2e.spec.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.e2e.spec.ts)'
         doubles: >-
