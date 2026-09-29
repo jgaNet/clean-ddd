@@ -1,18 +1,19 @@
 import { Id } from '@SharedKernel/Domain/ValueObjects';
 import { Entity } from './Entity';
 
-describe('Entity', function () {
-  it('should check if 2 entity are equals', () => {
-    const entity1 = new Entity(new Id('a'));
-    const entity2 = new Entity(new Id('a'));
+class Order extends Entity {}
+class Invoice extends Entity {}
 
-    expect(entity1.equals(entity2)).toBeTruthy();
+describe('Entity', () => {
+  it('is the same thing as another of its kind with the same id', () => {
+    expect(new Order(new Id('a')).equals(new Order(new Id('a')))).toBe(true);
   });
 
-  it('should check if 2 entity are not equals', () => {
-    const entity1 = new Entity(new Id('a'));
-    const entity2 = new Entity(new Id('b'));
+  it('is a different thing with a different id', () => {
+    expect(new Order(new Id('a')).equals(new Order(new Id('b')))).toBe(false);
+  });
 
-    expect(entity1.equals(entity2)).toBeFalsy();
+  it('is never the same thing as an entity of another kind, whatever the id', () => {
+    expect(new Order(new Id('a')).equals(new Invoice(new Id('a')))).toBe(false);
   });
 });

@@ -17,6 +17,11 @@ export class DeliveryStrategy extends ValueObject<Channel[]> {
     return Result.ok(new DeliveryStrategy(distinct));
   }
 
+  /** Same channels in the same order: the order is the strategy. */
+  protected equalsValue(a: Channel[], b: Channel[]): boolean {
+    return a.length === b.length && a.every((channel, i) => channel === b[i]);
+  }
+
   get channels(): Channel[] {
     return [...this.value];
   }

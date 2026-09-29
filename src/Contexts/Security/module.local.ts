@@ -20,7 +20,7 @@ import { AccountCreatedHandler } from '@Contexts/Security/Application/Events/Acc
 import { AccountValidatedHandler } from '@Contexts/Security/Application/Events/AccountValidatedHandler';
 import { InMemoryAccountRepository } from '@Contexts/Security/Infrastructure/Repositories/InMemoryAccountRepository';
 import { InMemoryAccountQueries } from '@Contexts/Security/Infrastructure/Queries/InMemoryAccountQueries';
-import { JwtService } from '@Contexts/Security/Infrastructure/Services/JwtService';
+import { JoseSignedTokens } from '@Contexts/Security/Infrastructure/Services/JoseSignedTokens';
 import { BcryptPasswordHasher } from '@Contexts/Security/Infrastructure/Services/BcryptPasswordHasher';
 import { AuthenticationMiddleware } from '@Contexts/Security/Presentation/API/REST/Middlewares/FastifyJWTAuthenticationMiddleware';
 
@@ -32,11 +32,11 @@ const accountRegistration = new AccountRegistration(accountRepository);
 const passwordHasher = new BcryptPasswordHasher();
 
 // Exposed to the bootstrap and to the routes: the token service and the request middleware.
-export const jwtService = new JwtService({
+export const signedTokens = new JoseSignedTokens({
   secret: SETTINGS.security.jwt.secret,
   expiresIn: SETTINGS.security.jwt.expiresIn,
 });
-export const authMiddleware = new AuthenticationMiddleware(accountQueries, jwtService);
+export const authMiddleware = new AuthenticationMiddleware(accountQueries, signedTokens);
 
 export const localSecurityModule = new Module({
   name: 'Security',
@@ -45,15 +45,15 @@ export const localSecurityModule = new Module({
       event: SignUpCommandEvent,
       handlers: [new SignUpCommandHandler(accountRepository, accountRegistration, passwordHasher)],
     },
-    { event: LoginCommandEvent, handlers: [new LoginCommandHandler(accountRepository, passwordHasher, jwtService)] },
+    { event: LoginCommandEvent, handlers: [new LoginCommandHandler(accountRepository, passwordHasher, signedTokens)] },
     {
       event: ValidateAccountCommandEvent,
-      handlers: [new ValidateAccountCommandHandler(accountRepository, jwtService)],
+      handlers: [new ValidateAccountCommandHandler(accountRepository, signedTokens)],
     },
   ],
   queries: [new GetAccountQueryHandler(accountQueries)],
   domainEvents: [
-    { event: AccountCreatedEvent, handlers: [new AccountCreatedHandler(jwtService)] },
+    { event: AccountCreatedEvent, handlers: [new AccountCreatedHandler(signedTokens)] },
     { event: AccountValidatedEvent, handlers: [new AccountValidatedHandler()] },
   ],
 });

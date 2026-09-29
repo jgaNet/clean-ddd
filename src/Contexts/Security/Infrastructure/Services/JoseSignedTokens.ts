@@ -1,24 +1,24 @@
 import { SignJWT, jwtVerify } from 'jose';
 
-import { IJwtService, TokenPayload } from '@Contexts/Security/Domain/Auth/Ports/IJwtService';
+import { ISignedTokens, TokenPayload } from '@Contexts/Security/Domain/Auth/Ports/ISignedTokens';
 
-export interface JwtConfig {
+export interface SignedTokensConfig {
   secret: string;
   /** e.g. '24h', '15m' */
   expiresIn: string;
 }
 
-/** HS256 tokens signed with a shared secret. `verify` rejects a bad signature or an expired token. */
-export class JwtService implements IJwtService {
+/** The ISignedTokens port as HS256 JSON Web Tokens signed with a shared secret (jose). `verify` rejects a bad signature or an expired token. */
+export class JoseSignedTokens implements ISignedTokens {
   #key: Uint8Array;
   #expiresIn: string;
 
-  constructor({ secret, expiresIn }: JwtConfig) {
+  constructor({ secret, expiresIn }: SignedTokensConfig) {
     this.#key = new TextEncoder().encode(secret);
     this.#expiresIn = expiresIn;
   }
 
-  sign(payload: TokenPayload): Promise<string> {
+  issue(payload: TokenPayload): Promise<string> {
     return new SignJWT({ subjectId: payload.subjectId, subjectType: payload.subjectType })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()

@@ -1,11 +1,19 @@
 /**
  * ValueObject: an object defined by its value, with no identity of its own.
  *
- * Two value objects are equal when their values are equal. They are immutable: to "change"
- * one you create another. Their job is to make an invalid value impossible to represent,
- * so validation lives in the value object instead of being sprinkled across the code.
+ * Two value objects are equal when they are of the same kind and their values are equal.
+ * They are immutable: to "change" one you create another. Their job is to make an invalid
+ * value impossible to represent, so validation lives in the value object instead of being
+ * sprinkled across the code.
+ *
+ * Equality is explicit. For a primitive value (a string, a number, a boolean) the base class
+ * compares with `===`; a value object built over a structure (an object, an array) must say
+ * what "equal" means by overriding `equalsValue()`, because no generic comparison gets dates,
+ * key order and nested values right for every case. Forgetting to do so is a programming
+ * error and throws, at the first comparison, naming the class.
  *
  * Examples: ValueObjects/Id.ts, ValueObjects/Email.ts, Contexts/Notes/Domain/Note/NoteTitle.ts
+ * (primitive); Contexts/Security/Domain/Account/Credentials.ts (structured).
  */
 
 export class ValueObject<T> {
@@ -19,6 +27,16 @@ export class ValueObject<T> {
   }
 
   equals(other: ValueObject<T>): boolean {
-    return JSON.stringify(this.#value) === JSON.stringify(other.value);
+    return this.constructor === other.constructor && this.equalsValue(this.#value, other.value);
+  }
+
+  protected equalsValue(a: T, b: T): boolean {
+    if (isPrimitive(a) && isPrimitive(b)) return a === b;
+    throw new Error(
+      `${this.constructor.name} holds a structured value: override equalsValue() to say when two are equal`,
+    );
   }
 }
+
+const isPrimitive = (value: unknown): boolean =>
+  value === null || (typeof value !== 'object' && typeof value !== 'function');
