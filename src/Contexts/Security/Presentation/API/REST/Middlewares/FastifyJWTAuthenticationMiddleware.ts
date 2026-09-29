@@ -16,7 +16,10 @@ const GUEST = { subjectId: '', role: Role.GUEST };
  * account still exists and is active, and the role it claims is the account's current role.
  */
 export class AuthenticationMiddleware {
-  constructor(private accountQueries: IAccountQueries, private jwtService: IJwtService) {}
+  constructor(
+    private accountQueries: IAccountQueries,
+    private jwtService: IJwtService,
+  ) {}
 
   authenticate() {
     return async (request: FastifyRequest<{ Querystring: { token?: string } }>): Promise<void> => {

@@ -7,7 +7,11 @@ import { Delivery, INotificationChannel } from '@Contexts/Notifications/Domain/N
 export class FakeChannel implements INotificationChannel {
   delivered: Delivery[] = [];
 
-  constructor(readonly channel: Channel, private available = true, private accepts = true) {}
+  constructor(
+    readonly channel: Channel,
+    private available = true,
+    private accepts = true,
+  ) {}
 
   async isAvailableFor(): Promise<boolean> {
     return this.available;

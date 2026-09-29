@@ -1,5 +1,5 @@
 # The architecture, as data. Everything below is checked by tooling:
-#   - .eslintrc.cjs turns `layers` into import rules, per context and per layer;
+#   - eslint.config.js turns `layers` into import rules, per context and per layer;
 #   - tools/check-conventions.mjs checks that every context on disk is declared here and has
 #     the shape `layers` describe.
 #

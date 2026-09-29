@@ -15,7 +15,7 @@ yarn test -- -t "name"  # one test
 yarn format             # prettier
 ```
 
-Node ≥ 20 (`.nvmrc` = 22). All five of `yarn check:conventions`, `yarn typecheck`, `yarn lint`, `yarn test:units`, `yarn test:e2e` must pass before a change is done; CI runs them on every PR.
+Node ≥ 24 (`.nvmrc` = 24). All five of `yarn check:conventions`, `yarn typecheck`, `yarn lint`, `yarn test:units`, `yarn test:e2e` must pass before a change is done; CI runs them on every PR.
 
 ## Where things are
 

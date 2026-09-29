@@ -16,7 +16,10 @@ import { toOperationRecord } from '@Contexts/Tracker/Application/Projections/Ope
  * the handlers do not know they are being recorded.
  */
 export class TrackedEventBus implements EventBus {
-  constructor(private bus: EventBus, private records: IOperationRecords) {}
+  constructor(
+    private bus: EventBus,
+    private records: IOperationRecords,
+  ) {}
 
   connect(): Promise<void> {
     return this.bus.connect();
@@ -70,7 +73,10 @@ export class TrackedEventBus implements EventBus {
 
 /** Runs the real handler, then reports the finished operation; a throw becomes a failed operation. */
 class RecordedHandler<T extends Event<unknown>> extends EventHandler<T> {
-  constructor(private inner: EventHandler<T>, private report: (operation: IOperation<T>) => Promise<void>) {
+  constructor(
+    private inner: EventHandler<T>,
+    private report: (operation: IOperation<T>) => Promise<void>,
+  ) {
     super();
   }
 

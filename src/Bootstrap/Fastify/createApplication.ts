@@ -3,7 +3,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { AddressInfo } from 'net';
 
-import Fastify, { FastifyInstance, FastifyPluginCallback, FastifyPluginOptions } from 'fastify';
+import Fastify, { FastifyError, FastifyInstance, FastifyPluginCallback, FastifyPluginOptions } from 'fastify';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 import fastifyStatic from '@fastify/static';
@@ -68,7 +68,8 @@ export class FastifyApplication extends Application {
     this.fastify.setNotFoundHandler((_, reply) => {
       reply.sendFile('index.html');
     });
-    this.fastify.setErrorHandler((error, req, reply) => {
+    // Only programming errors and schema violations get here: expected failures are Results.
+    this.fastify.setErrorHandler((error: FastifyError, req, reply) => {
       const format = req.headers['hx-request'] ? 'htmx' : 'json';
       if (format === 'htmx') {
         return reply.code(error.statusCode || 500).send(`<div>${error.message}</div>`);

@@ -15,7 +15,10 @@ import { requireSignedIn } from '@SharedKernel/Application/Guards';
  * is refused by NoteSharing or by Note, and comes back as a failed Result.
  */
 export class ShareNoteCommandHandler extends CommandHandler<ShareNoteCommandEvent> {
-  constructor(private noteRepository: INoteRepository, private noteSharing: NoteSharing) {
+  constructor(
+    private noteRepository: INoteRepository,
+    private noteSharing: NoteSharing,
+  ) {
     super();
   }
 

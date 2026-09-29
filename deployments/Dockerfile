@@ -1,6 +1,6 @@
 # Build Stage
 # ---
-FROM node:20.9.0-alpine AS builder
+FROM node:24.9.0-alpine AS builder
 
 WORKDIR /opt/app
 
@@ -14,7 +14,7 @@ RUN rm -rf node_modules && yarn install --production --ignore-scripts
 
 # Run Stage
 # ---
-FROM node:20.9.0-slim
+FROM node:24.9.0-slim
 
 USER node
 

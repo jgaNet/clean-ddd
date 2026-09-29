@@ -4,7 +4,7 @@ The architecture of this repository, written as data so that tooling can hold th
 
 | File | What it holds | Who reads it |
 |---|---|---|
-| [`architecture.yaml`](architecture.yaml) | the contexts, the layers, and which layer may import from which | [`.eslintrc.cjs`](../.eslintrc.cjs) turns it into import rules, one per context and per layer; [`check-conventions.mjs`](../tools/check-conventions.mjs) checks the tree has that shape |
+| [`architecture.yaml`](architecture.yaml) | the contexts, the layers, and which layer may import from which | [`eslint.config.js`](../eslint.config.js) turns it into import rules, one per context and per layer; [`check-conventions.mjs`](../tools/check-conventions.mjs) checks the tree has that shape |
 | [`concepts.yaml`](concepts.yaml) | every concept the README teaches, with the canonical file that shows it and a one-line note; plus the vocabulary | [`check-conventions.mjs`](../tools/check-conventions.mjs) checks every file exists and renders the README's map tables from it |
 
 ```bash
@@ -14,7 +14,7 @@ yarn conventions:write    # regenerate the README tables after editing concepts.
 
 ## How the rules are written
 
-`architecture.yaml` says what a layer **may** import, in six words: `own.<Layer>`, `own.wiring`, `kernel.<Layer>`, `others.<Layer>`, `others.wiring`, `bootstrap`, `libraries`. Anything not listed is forbidden. The linter needs the complement, so `.eslintrc.cjs` enumerates every unit a file could import and forbids the ones the table leaves out; the two formulations are checked equal by construction, not by hand.
+`architecture.yaml` says what a layer **may** import, in seven words: `own.<Layer>`, `own.wiring`, `kernel.<Layer>`, `others.<Layer>`, `others.wiring`, `bootstrap`, `libraries`. Anything not listed is forbidden. The linter needs the complement, so `eslint.config.js` enumerates every unit a file could import and forbids the ones the table leaves out; the two formulations are checked equal by construction, not by hand.
 
 Writing the allow-list rather than the deny-list is deliberate: a new layer, context or library is forbidden everywhere until the table says otherwise.
 

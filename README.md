@@ -145,7 +145,7 @@ The `@SharedKernel` is not a context: it holds the building blocks ([`Domain`](s
 
 | Rule | Enforced by |
 |---|---|
-| **Dependencies point inward.** Domain depends on nothing. Application depends on Domain. Infrastructure and Presentation depend on both. Only a context's wiring file (`module.local.ts`) reads Bootstrap's settings; nothing else depends on Bootstrap. | The table is [`conventions/architecture.yaml`](conventions/architecture.yaml) (what each layer *may* import); [`.eslintrc.cjs`](.eslintrc.cjs) turns it into ESLint `no-restricted-imports` rules, per context and per layer. Application tests may use their own in-memory infrastructure as doubles. Relative imports may only name a sibling file, so nothing bypasses the aliases. There is no exception in the codebase. |
+| **Dependencies point inward.** Domain depends on nothing. Application depends on Domain. Infrastructure and Presentation depend on both. Only a context's wiring file (`module.local.ts`) reads Bootstrap's settings; nothing else depends on Bootstrap. | The table is [`conventions/architecture.yaml`](conventions/architecture.yaml) (what each layer *may* import); [`eslint.config.js`](eslint.config.js) turns it into ESLint `no-restricted-imports` rules, per context and per layer. Application tests may use their own in-memory infrastructure as doubles. Relative imports may only name a sibling file, so nothing bypasses the aliases. There is no exception in the codebase. |
 | A refused command or query is a **failed `Result`**, never a thrown exception. | Base handlers ([`CommandHandler`](src/Contexts/@SharedKernel/Application/CommandHandler.ts), [`QueryHandler`](src/Contexts/@SharedKernel/Application/QueryHandler.ts)) and [ADR 1](docs/adr/0001-result-instead-of-exceptions.md) |
 | Only an **aggregate root** records domain events; a handler never builds one. | Types: `record()` is `protected` on `AggregateRoot` |
 | Domain events are published **after the transaction commits**. | `publishDomainEvents()` → `ExecutionContext.afterCommit()`; [`ExecutionContext.spec.ts`](src/Contexts/@SharedKernel/Application/ExecutionContext.spec.ts) |
@@ -180,7 +180,7 @@ Contexts/Notes/
 
 ## Running it
 
-Requires Node ≥ 20 (`.nvmrc` says 22).
+Requires Node ≥ 24 (`.nvmrc` says 24; Jest needs 24.9 or later to load the ESM-only packages Fastify now depends on).
 
 ```bash
 nvm use

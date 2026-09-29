@@ -2,7 +2,7 @@
  * Architecture boundaries, enforced.
  *
  * The table lives in conventions/architecture.yaml: which layer may import from which, per
- * context. This file only translates it into `no-restricted-imports` rules, one override per
+ * context. This file only translates it into `no-restricted-imports` rules, one block per
  * context and per layer, so that every context is held to the same standard.
  *
  * The translation: the YAML says what a layer MAY import; ESLint wants what it may NOT. So we
@@ -15,10 +15,11 @@
  * so "every context but your own" is written by listing the other contexts, not by negation.
  */
 
-const { readFileSync } = require('fs');
-const { load } = require('js-yaml');
+import { readFileSync } from 'fs';
+import { load } from 'js-yaml';
+import tseslint from 'typescript-eslint';
 
-const architecture = load(readFileSync(`${__dirname}/conventions/architecture.yaml`, 'utf8'));
+const architecture = load(readFileSync(new URL('./conventions/architecture.yaml', import.meta.url), 'utf8'));
 const LAYERS = Object.keys(architecture.layers);
 const WIRING = architecture.wiring.replace(/\.ts$/, '');
 
@@ -53,8 +54,8 @@ const expand = allowed =>
     unit === 'own.*'
       ? [...LAYERS.map(name => `own.${name}`), 'own.wiring']
       : unit === 'kernel.*'
-      ? LAYERS.map(name => `kernel.${name}`)
-      : [unit],
+        ? LAYERS.map(name => `kernel.${name}`)
+        : [unit],
   );
 
 /**
@@ -87,49 +88,46 @@ const restrict = (scope, { may_import, why }) => ({
  */
 function rulesFor(folder, alias, others) {
   const units = unitsFor(alias, others);
-  const overrides = [];
+  const blocks = [];
 
   for (const name of LAYERS) {
     const { may_import, why, specs } = architecture.layers[name];
-    overrides.push({ files: [`src/Contexts/${folder}/${name}/**/*.ts`], rules: restrict(units, { may_import, why }) });
+    blocks.push({ files: [`src/Contexts/${folder}/${name}/**/*.ts`], rules: restrict(units, { may_import, why }) });
     if (specs) {
-      overrides.push({
+      blocks.push({
         files: [`src/Contexts/${folder}/${name}/**/*.spec.ts`],
         rules: restrict(units, { may_import: [...may_import, ...specs.may_import], why: specs.why }),
       });
     }
   }
 
-  overrides.push({ files: [`src/Contexts/${folder}/**/*.e2e.spec.ts`], rules: restrict(units, architecture.e2e_specs) });
-  overrides.push({ files: [`src/Contexts/${folder}/${architecture.wiring}`], rules: restrict(units, architecture.wiring_file) });
+  blocks.push({ files: [`src/Contexts/${folder}/**/*.e2e.spec.ts`], rules: restrict(units, architecture.e2e_specs) });
+  blocks.push({
+    files: [`src/Contexts/${folder}/${architecture.wiring}`],
+    rules: restrict(units, architecture.wiring_file),
+  });
 
-  return overrides;
+  return blocks;
 }
 
 const contextAlias = context => `@Contexts/${context}`;
 const CONTEXTS = architecture.contexts;
 
-module.exports = {
-  root: true,
-  parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint/eslint-plugin', 'import', 'eslint-plugin-tsdoc'],
-  extends: ['plugin:@typescript-eslint/recommended'],
-  env: {
-    jest: true,
-    node: true,
+export default tseslint.config(
+  { ignores: ['dist/', 'coverage/', 'src/Bootstrap/Fastify/public/', '**/*.d.ts', '**/*.min.js'] },
+  ...tseslint.configs.recommended,
+  {
+    rules: {
+      'no-console': 'error',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-dupe-class-members': ['error'],
+      '@typescript-eslint/no-useless-constructor': ['error'],
+      '@typescript-eslint/no-inferrable-types': ['off'],
+    },
   },
-  rules: {
-    'no-console': 'error',
-    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-    '@typescript-eslint/no-dupe-class-members': ['error'],
-    '@typescript-eslint/no-useless-constructor': ['error'],
-    '@typescript-eslint/no-inferrable-types': ['off'],
-  },
-  overrides: [
-    // The shared kernel is not a context: it knows no context at all.
-    ...rulesFor(architecture.kernel, architecture.kernel, CONTEXTS.map(contextAlias)),
-    ...CONTEXTS.flatMap(context =>
-      rulesFor(context, contextAlias(context), CONTEXTS.filter(other => other !== context).map(contextAlias)),
-    ),
-  ],
-};
+  // The shared kernel is not a context: it knows no context at all.
+  ...rulesFor(architecture.kernel, architecture.kernel, CONTEXTS.map(contextAlias)),
+  ...CONTEXTS.flatMap(context =>
+    rulesFor(context, contextAlias(context), CONTEXTS.filter(other => other !== context).map(contextAlias)),
+  ),
+);

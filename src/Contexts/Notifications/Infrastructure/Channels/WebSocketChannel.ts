@@ -17,7 +17,10 @@ export class WebSocketChannel implements INotificationChannel {
   readonly channel = Channel.WEBSOCKET;
   #clients = new Map<string, Set<WebSocket>>();
 
-  constructor(private logger: Logger, private render: (delivery: Delivery) => string) {}
+  constructor(
+    private logger: Logger,
+    private render: (delivery: Delivery) => string,
+  ) {}
 
   /** Registers the `/ws` route. Called by the bootstrap before the server listens. */
   async initialize(fastify: FastifyInstance): Promise<void> {
