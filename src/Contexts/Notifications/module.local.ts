@@ -3,7 +3,10 @@ import {
   AccountCreatedIntegrationEvent,
   AccountValidatedIntegrationEvent,
 } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
-import { NoteSharedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents';
+import {
+  NoteArchivedIntegrationEvent,
+  NoteSharedIntegrationEvent,
+} from '@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents';
 import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
@@ -18,6 +21,7 @@ import { MarkAsReadNotificationCommandHandler } from '@Contexts/Notifications/Ap
 import { GetNotificationsQueryHandler } from '@Contexts/Notifications/Application/Queries/GetNotifications/GetNotificationsQueryHandler';
 import { AccountCreatedIntegrationEventHandler } from '@Contexts/Notifications/Application/Events/AccountCreatedIntegrationEventHandler';
 import { AccountValidatedIntegrationEventHandler } from '@Contexts/Notifications/Application/Events/AccountValidatedIntegrationEventHandler';
+import { NoteArchivedIntegrationEventHandler } from '@Contexts/Notifications/Application/Events/NoteArchivedIntegrationEventHandler';
 import { NoteSharedIntegrationEventHandler } from '@Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler';
 import { OperationCompleteIntegrationEventHandler } from '@Contexts/Notifications/Application/Events/OperationCompleteIntegrationEventHandler';
 import { InMemoryNotificationRepository } from '@Contexts/Notifications/Infrastructure/Repositories/InMemoryNotificationRepository';
@@ -56,5 +60,6 @@ export const localNotificationsModule = new Module({
     { event: AccountValidatedIntegrationEvent, handlers: [new AccountValidatedIntegrationEventHandler(delivery)] },
     { event: OperationCompleteIntegrationEvent, handlers: [new OperationCompleteIntegrationEventHandler(delivery)] },
     { event: NoteSharedIntegrationEvent, handlers: [new NoteSharedIntegrationEventHandler(delivery)] },
+    { event: NoteArchivedIntegrationEvent, handlers: [new NoteArchivedIntegrationEventHandler(delivery)] },
   ],
 });

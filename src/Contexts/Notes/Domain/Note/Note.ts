@@ -124,7 +124,14 @@ export class Note extends AggregateRoot {
     }
 
     this.#status = NoteStatus.ARCHIVED;
-    this.record(NoteArchivedEvent.set({ noteId: this._id.value }));
+    this.record(
+      NoteArchivedEvent.set({
+        noteId: this._id.value,
+        title: this.#title.value,
+        ownerId: this.#ownerId.value,
+        sharedWith: [...this.#sharedWith],
+      }),
+    );
 
     return Result.ok();
   }

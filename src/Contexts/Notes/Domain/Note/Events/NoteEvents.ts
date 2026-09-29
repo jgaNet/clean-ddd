@@ -12,7 +12,16 @@ export class NoteCreatedEvent extends DomainEvent<{ noteId: string; ownerId: str
 
 export class NoteEditedEvent extends DomainEvent<{ noteId: string; title: string }> {}
 
-export class NoteArchivedEvent extends DomainEvent<{ noteId: string }> {}
+/**
+ * Carries who had access when the note was archived: the accounts it was shared with are
+ * told it is no longer available, and a listener must not have to load the note to know them.
+ */
+export class NoteArchivedEvent extends DomainEvent<{
+  noteId: string;
+  title: string;
+  ownerId: string;
+  sharedWith: string[];
+}> {}
 
 export class NoteRestoredEvent extends DomainEvent<{ noteId: string }> {}
 

@@ -112,7 +112,21 @@ describe('Note', () => {
 
       expect(note.archive(owner).isSuccess()).toBe(true);
       expect(note.status).toBe(NoteStatus.ARCHIVED);
-      expect(note.pullDomainEvents()).toEqual([NoteArchivedEvent.set({ noteId: note._id.value })]);
+      expect(note.pullDomainEvents()).toEqual([
+        NoteArchivedEvent.set({ noteId: note._id.value, title: 'Groceries', ownerId: 'alice', sharedWith: [] }),
+      ]);
+    });
+
+    it('records who the note was shared with when it is archived, and keeps them', () => {
+      const note = aNote();
+      note.shareWith(owner, stranger);
+      note.pullDomainEvents();
+
+      expect(note.archive(owner).isSuccess()).toBe(true);
+      expect(note.pullDomainEvents()).toEqual([
+        NoteArchivedEvent.set({ noteId: note._id.value, title: 'Groceries', ownerId: 'alice', sharedWith: ['bob'] }),
+      ]);
+      expect(note.sharedWith).toEqual(['bob']);
     });
 
     it('cannot archive twice', () => {

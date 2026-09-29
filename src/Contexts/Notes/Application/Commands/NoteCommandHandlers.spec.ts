@@ -6,7 +6,7 @@ import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InM
 
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import { NoteStatus } from '@Contexts/Notes/Domain/Note/NoteStatus';
-import { NoteCreatedEvent, NoteSharedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
+import { NoteArchivedEvent, NoteCreatedEvent, NoteSharedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
 import {
   BlankNoteTitleException,
   NoteArchivedException,
@@ -153,6 +153,39 @@ describe('ArchiveNoteCommandHandler', () => {
 
     expect(result.isSuccess()).toBe(true);
     expect(store.collection.get(noteId)?.status).toBe(NoteStatus.ARCHIVED);
+  });
+
+  it('publishes NoteArchived with the accounts the note was shared with', async () => {
+    const noteId = await aNoteOwnedBy('alice');
+    await new ShareNoteCommandHandler(repository, sharing).execute(
+      ShareNoteCommandEvent.set({ noteId, recipientId: 'bob' }),
+      contextFor('alice'),
+    );
+    jest.resetAllMocks();
+
+    await new ArchiveNoteCommandHandler(repository).execute(
+      ArchiveNoteCommandEvent.set({ noteId }),
+      contextFor('alice'),
+    );
+
+    expect(eventBus.publish).toHaveBeenCalledTimes(1);
+    expect(eventBus.publish).toHaveBeenCalledWith(
+      NoteArchivedEvent.set({ noteId, title: 'Groceries', ownerId: 'alice', sharedWith: ['bob'] }),
+      expect.any(ExecutionContext),
+    );
+  });
+
+  it('refuses a caller who does not own the note', async () => {
+    const noteId = await aNoteOwnedBy('alice');
+
+    const result = await new ArchiveNoteCommandHandler(repository).execute(
+      ArchiveNoteCommandEvent.set({ noteId }),
+      contextFor('bob'),
+    );
+
+    expect(result.error).toBeInstanceOf(NotNoteOwnerException);
+    expect(store.collection.get(noteId)?.status).toBe(NoteStatus.ACTIVE);
+    expect(eventBus.publish).not.toHaveBeenCalled();
   });
 });
 

@@ -14,3 +14,14 @@ export class NoteSharedIntegrationEvent extends IntegrationEvent<{
   ownerId: string;
   recipientId: string;
 }> {}
+
+/**
+ * A note was archived. `recipientIds` are the accounts it was shared with at that moment,
+ * so a consumer can tell them without asking Notes; empty when it was shared with nobody.
+ */
+export class NoteArchivedIntegrationEvent extends IntegrationEvent<{
+  noteId: string;
+  title: string;
+  ownerId: string;
+  recipientIds: string[];
+}> {}

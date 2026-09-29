@@ -115,6 +115,56 @@ describe('Sharing a note (Notes -> Notifications)', () => {
   });
 });
 
+describe('Archiving a shared note (Notes -> Notifications)', () => {
+  it('tells the recipient the note is no longer available', async () => {
+    // A fresh, validated account: carol
+    const signUp = await superagent
+      .post(`${api}/auth/signup`)
+      .send({ identifier: 'carol@notes.fr', password: 'carol' });
+    const signUpOperation = await agent.get(`${api}/tracker/operations/${signUp.body.operationId}`);
+    const carolId: string = signUpOperation.body.result;
+    await agent.get(`${api}/auth/accounts/${carolId}/validate`);
+
+    // The admin writes a note, shares it with carol, then archives it
+    await agent.post(`${api}/notes`).send({ title: 'Budget', content: 'Draft' });
+    const mine = await agent.get(`${api}/notes`);
+    const noteId: string = mine.body.find((note: { title: string }) => note.title === 'Budget').id;
+    await agent.post(`${api}/notes/${noteId}/share`).send({ recipientId: carolId });
+
+    const archive = await agent.post(`${api}/notes/${noteId}/archive`);
+    expect(archive.status).toBe(202);
+
+    // Carol was told, next to the notifications her account creation, validation and the share produced
+    const carolLogin = await superagent
+      .post(`${api}/auth/login`)
+      .send({ identifier: 'carol@notes.fr', password: 'carol' });
+    const carol = superagent.agent().set('authorization', `Bearer ${carolLogin.body.token}`);
+
+    const notifications = await carol.get(`${api}/notifications/account/${carolId}`);
+    expect(notifications.body.notifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          recipientId: carolId,
+          title: 'A note shared with you is no longer available: Budget',
+          metadata: expect.objectContaining({ noteId, source: 'Notes.NoteArchived' }),
+        }),
+      ]),
+    );
+  });
+
+  it('tells nobody when the archived note was shared with nobody', async () => {
+    await agent.post(`${api}/notes`).send({ title: 'Private', content: '...' });
+    const mine = await agent.get(`${api}/notes`);
+    const noteId: string = mine.body.find((note: { title: string }) => note.title === 'Private').id;
+
+    const archive = await agent.post(`${api}/notes/${noteId}/archive`);
+    expect(archive.status).toBe(202);
+
+    const operation = await agent.get(`${api}/tracker/operations/${archive.body.operationId}`);
+    expect(operation.body.status).toBe('SUCCESS');
+  });
+});
+
 describe('Sharing a note with an unknown account', () => {
   it('is refused by the domain, through the port to Security', async () => {
     await agent.post(`${api}/notes`).send({ title: 'Secret', content: '...' });
