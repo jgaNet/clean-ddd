@@ -11,6 +11,9 @@ import { NoteStatus } from '@Contexts/Notes/Domain/Note/NoteStatus';
  * `shared_with` is a JSON array; SQLite's json_each() lets the queries filter on it without
  * a second table, which is all this reference needs. A real schema would normalise it.
  *
+ * A JSON column keeps strings, numbers and booleans as they were, but a Date comes back as a
+ * string: revive it in toSnapshot(), or the contract spec's round-trip case will tell you.
+ *
  * CREATE TABLE IF NOT EXISTS is enough because the store is created per process (an in-memory
  * database in tests). A file database that outlives the code would need a migration for every
  * new column; this reference has no migration mechanism, on purpose.

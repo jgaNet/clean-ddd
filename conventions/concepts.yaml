@@ -26,7 +26,10 @@ sections:
           [`Notification.ts`](src/Contexts/Notifications/Domain/Notification/Notification.ts)
       - concept: '**Entity inside an aggregate** (not a root)'
         example: '[`DeliveryAttempt.ts`](src/Contexts/Notifications/Domain/Notification/DeliveryAttempt.ts)'
-        notes: has its own identity, exists only inside `Notification`, reached and persisted through it
+        notes: >-
+          has its own identity, exists only inside `Notification`, reached and persisted through it. The criterion:
+          few, consistent with the root in the same change, written through the root. What grows without bound or
+          is written by others is its own aggregate (comments on a note)
       - concept: Value object
         example: >-
           [`NoteTitle.ts`](src/Contexts/Notes/Domain/Note/NoteTitle.ts),
