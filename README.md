@@ -156,6 +156,7 @@ The `@SharedKernel` is not a context: it holds the building blocks ([`Domain`](s
 | One wiring file per context, plain data, no container. | [`module.local.ts`](src/Contexts/Notes/module.local.ts) files |
 | One shape per kind of file, whatever the context: exceptions in one `<Aggregate>Exceptions.ts` with a PascalCase `type`; enum values are their UPPERCASE names; factories are `create()`; handlers end in `CommandHandler` / `QueryHandler`; nothing but the logger writes to the console. | Review, against the Notes context; `no-console` in ESLint |
 | The map above names real files, every context on disk is covered by the rules, and every link in the documentation resolves. | [`tools/check-conventions.mjs`](tools/check-conventions.mjs), from [`conventions/concepts.yaml`](conventions/concepts.yaml) and `architecture.yaml`; `yarn check:conventions` in CI |
+| A newcomer can add a feature in the right shape from the documentation alone. | Periodic fresh-agent evaluations, graded against a rubric written beforehand: [`docs/evaluations`](docs/evaluations/README.md) |
 | It compiles, lints and tests, in CI, on every pull request. | [`ci.yml`](.github/workflows/ci.yml): `yarn check:conventions`, `yarn lint`, `yarn typecheck`, `yarn test:units`, `yarn test:e2e` |
 
 ## Layout of a context

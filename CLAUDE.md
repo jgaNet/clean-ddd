@@ -50,16 +50,19 @@ Path aliases: `@SharedKernel/*`, `@Contexts/*`, `@Bootstrap/*`. A relative impor
 
 ## How to add a feature (follow an existing one, do not invent a shape)
 
+The questions each step raises (verbs, barrels, where a spec goes, whether an event needs a handler) are answered in the next section; read it before starting.
+
 1. **Domain first.** Add a behaviour to the aggregate that enforces the rule and records an event ([`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts)). New rule about the whole collection? A domain service ([`AccountRegistration.ts`](src/Contexts/Security/Domain/Account/AccountRegistration.ts)). New concept with validation? A value object ([`NoteTitle.ts`](src/Contexts/Notes/Domain/Note/NoteTitle.ts)). Write the spec next to it.
 2. **Command + handler**, copied from [`EditNoteCommandHandler.ts`](src/Contexts/Notes/Application/Commands/EditNote/EditNoteCommandHandler.ts): who is calling → load → ask the aggregate → save → `publishDomainEvents`. Or a query handler from [`GetNoteQueryHandler.ts`](src/Contexts/Notes/Application/Queries/GetNote/GetNoteQueryHandler.ts). Test with the in-memory implementations as doubles ([`NoteCommandHandlers.spec.ts`](src/Contexts/Notes/Application/Commands/NoteCommandHandlers.spec.ts)).
 3. **Infrastructure** only if a port changed. A new adapter of an existing port is added to the `adapters` list of its contract spec ([`NotePersistence.contract.spec.ts`](src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts)) and must pass it unchanged; that is the whole review.
-4. **Route + controller method** ([`note.routes.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts)): commands answer `202 { operationId }`, queries answer synchronously. Add the JSON schema.
-5. **Register** in `module.local.ts`. Add an e2e case if the flow is user-visible.
+4. **Route + controller method** ([`note.routes.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts)): commands answer `202 { operationId }`, queries answer synchronously. Add the JSON schema — and remember that Fastify serializes **only** the response fields the schema lists: a new read-model field without its schema line is silently dropped from the API.
+5. **Register** in `module.local.ts`. Add an e2e case if the flow is user-visible. Each e2e suite boots one application that its tests share, in order: write a case relative to what the earlier ones left (or with a fresh account), never assuming an empty store.
 6. Cross-context reaction? Publish an integration event from a domain event handler ([`NoteSharedHandler.ts`](src/Contexts/Notes/Application/Events/NoteSharedHandler.ts)) and consume it through an anti-corruption handler in the other context ([`NoteSharedIntegrationEventHandler.ts`](src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts)).
 
-The questions that come up while doing it, answered once:
+## Questions you will have, answered once
 
-- **Where does the spec go?** Next to the file it tests, same name plus `.spec.ts`. The handlers of one aggregate may share one spec when they share fixtures ([`NoteCommandHandlers.spec.ts`](src/Contexts/Notes/Application/Commands/NoteCommandHandlers.spec.ts)); otherwise one per handler ([`SignUpCommandHandler.spec.ts`](src/Contexts/Security/Application/Commands/SignUp/SignUpCommandHandler.spec.ts)). End-to-end suites sit with the routes, as `*.e2e.spec.ts`.
+- **Where does the spec go?** Next to the file it tests, same name plus `.spec.ts`. The handlers of one aggregate may share one spec when they share fixtures ([`NoteCommandHandlers.spec.ts`](src/Contexts/Notes/Application/Commands/NoteCommandHandlers.spec.ts)); otherwise one per handler ([`SignUpCommandHandler.spec.ts`](src/Contexts/Security/Application/Commands/SignUp/SignUpCommandHandler.spec.ts)). Every command handler has at least its happy path and one refusal in a spec. End-to-end suites sit with the routes, as `*.e2e.spec.ts`.
+- **Does the read side's order matter?** Yes, and it belongs to the queries port: the order a method returns is written in its JSDoc ([`INoteQueries.ts`](src/Contexts/Notes/Domain/Note/Ports/INoteQueries.ts)) and asserted for every adapter by the contract spec. A query handler never sorts.
 - **Does a new exception need a line in `refuse()`?** No. `refuse()` maps *kinds*, not exceptions: `NotAllowedException` → `403`, the aggregate's not-found exception → `404`, anything else → `400`. A refused command never reaches `refuse()` at all: it is on the operation.
 - **Does every domain event need a handler?** No. The aggregate records the fact because it happened; subscribe a handler only when something reacts to it. `NoteEditedEvent` has none: it is still recorded by the Tracker, and a handler can be added later without touching the aggregate.
 - **Which HTTP verb?** `GET` for a query (never changes state). `POST` to create (`/notes`) and for a command that is an action on a thing (`/notes/:id/share`, `/notes/:id/archive`); `PUT /notes/:id` to replace its editable content; `PATCH` for a partial state change (`/notifications/:id/read`). The two `GET …/validate` routes are commands on `GET` because they are links clicked from an email; do not copy that for anything else.
@@ -83,3 +86,7 @@ The questions that come up while doing it, answered once:
 - A second copy of an example. If a concept already has its canonical file, point to it.
 - Exposing internals through a read model (no credentials, no execution context in an API response).
 - Fixing a boundary violation with an `eslint-disable` instead of a port.
+
+## How this guide is tested
+
+Periodically a fresh agent, with nothing but this repository, is handed a small feature request and graded on whether it lands the right shape; what it guessed becomes a fix here. Protocol and records: [`docs/evaluations`](docs/evaluations/README.md).

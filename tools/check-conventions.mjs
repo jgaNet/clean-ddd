@@ -108,7 +108,9 @@ const markdownFiles = [
   ...readdirSync(join(root, 'conventions'))
     .filter(f => f.endsWith('.md'))
     .map(f => `conventions/${f}`),
-  ...readdirSync(join(root, 'docs/adr')).map(f => `docs/adr/${f}`),
+  ...readdirSync(join(root, 'docs'), { recursive: true })
+    .filter(f => String(f).endsWith('.md'))
+    .map(f => `docs/${f}`),
 ];
 for (const file of markdownFiles) {
   const base = dirname(join(root, file));

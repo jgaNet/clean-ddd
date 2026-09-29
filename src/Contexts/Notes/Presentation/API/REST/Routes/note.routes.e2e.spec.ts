@@ -2,6 +2,9 @@ import superagent from 'superagent';
 
 import { startTestApplication, TestApplication } from '@Bootstrap/Fastify/application.spec-helper';
 
+// One application for the whole suite, shared by its tests in order: each case starts from what
+// the earlier ones left (the admin's notes accumulate). Write a case relative to that state, or
+// with a fresh account; never assume an empty store.
 let app: TestApplication;
 let api: string;
 beforeAll(async () => {
