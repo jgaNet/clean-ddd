@@ -2,6 +2,8 @@ export * from '@Contexts/Notes/Application/Commands/CreateNote/CreateNoteCommand
 export * from '@Contexts/Notes/Application/Commands/CreateNote/CreateNoteCommandHandler';
 export * from '@Contexts/Notes/Application/Commands/EditNote/EditNoteCommandEvent';
 export * from '@Contexts/Notes/Application/Commands/EditNote/EditNoteCommandHandler';
+export * from '@Contexts/Notes/Application/Commands/RetagNote/RetagNoteCommandEvent';
+export * from '@Contexts/Notes/Application/Commands/RetagNote/RetagNoteCommandHandler';
 export * from '@Contexts/Notes/Application/Commands/ArchiveNote/ArchiveNoteCommandEvent';
 export * from '@Contexts/Notes/Application/Commands/ArchiveNote/ArchiveNoteCommandHandler';
 export * from '@Contexts/Notes/Application/Commands/RestoreNote/RestoreNoteCommandEvent';

@@ -12,6 +12,8 @@ export class NoteCreatedEvent extends DomainEvent<{ noteId: string; ownerId: str
 
 export class NoteEditedEvent extends DomainEvent<{ noteId: string; title: string }> {}
 
+export class NoteRetaggedEvent extends DomainEvent<{ noteId: string; tags: string[] }> {}
+
 export class NoteArchivedEvent extends DomainEvent<{ noteId: string }> {}
 
 export class NoteRestoredEvent extends DomainEvent<{ noteId: string }> {}

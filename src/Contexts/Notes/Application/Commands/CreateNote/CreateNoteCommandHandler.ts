@@ -15,7 +15,12 @@ export class CreateNoteCommandHandler extends CommandHandler<CreateNoteCommandEv
     const owner = requireSignedIn(context);
     if (owner.isFailure()) return owner;
 
-    const note = Note.create({ ownerId: owner.data.value, title: payload.title, content: payload.content });
+    const note = Note.create({
+      ownerId: owner.data.value,
+      title: payload.title,
+      content: payload.content,
+      tags: payload.tags,
+    });
     if (note.isFailure()) return note;
 
     await this.noteRepository.save(note.data);

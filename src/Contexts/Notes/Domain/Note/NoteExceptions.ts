@@ -28,6 +28,32 @@ export class NoteTitleTooLongException extends NoteDomainException {
   }
 }
 
+export class InvalidNoteTagException extends NoteDomainException {
+  constructor(tag: string, minLength: number, maxLength: number) {
+    super({
+      type: 'InvalidNoteTag',
+      message: `A tag is ${minLength} to ${maxLength} lowercase letters and digits`,
+      context: { tag, minLength, maxLength },
+    });
+  }
+}
+
+export class TooManyNoteTagsException extends NoteDomainException {
+  constructor(maxCount: number, actualCount: number) {
+    super({
+      type: 'TooManyNoteTags',
+      message: `A note cannot have more than ${maxCount} tags`,
+      context: { maxCount, actualCount },
+    });
+  }
+}
+
+export class DuplicateNoteTagException extends NoteDomainException {
+  constructor(tag: string) {
+    super({ type: 'DuplicateNoteTag', message: 'A note cannot have the same tag twice', context: { tag } });
+  }
+}
+
 export class NoteNotFoundException extends NoteDomainException {
   constructor(noteId: string) {
     super({ type: 'NoteNotFound', message: 'Note not found', context: { noteId } });

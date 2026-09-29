@@ -21,7 +21,11 @@ const NoteIdParamsSchema = {
   required: ['id'],
 } as const;
 
-export const CreateNoteReqBodySchema = {
+const TagsSchema = { type: 'array', items: { type: 'string' } } as const;
+
+// The tag rules (2 to 20 lowercase letters and digits, at most five, none twice) are the
+// aggregate's; the schema only says the shape, as it does for the title.
+export const EditNoteReqBodySchema = {
   type: 'object',
   properties: {
     title: { type: 'string' },
@@ -30,7 +34,16 @@ export const CreateNoteReqBodySchema = {
   required: ['title', 'content'],
 } as const;
 
-export const EditNoteReqBodySchema = CreateNoteReqBodySchema;
+export const CreateNoteReqBodySchema = {
+  ...EditNoteReqBodySchema,
+  properties: { ...EditNoteReqBodySchema.properties, tags: TagsSchema },
+} as const;
+
+export const RetagNoteReqBodySchema = {
+  type: 'object',
+  properties: { tags: TagsSchema },
+  required: ['tags'],
+} as const;
 
 export const ShareNoteReqBodySchema = {
   type: 'object',
@@ -74,6 +87,7 @@ export const GetNoteResSchema = {
       ownerId: { type: 'string' },
       content: { type: 'string' },
       sharedWith: { type: 'array', items: { type: 'string' } },
+      tags: TagsSchema,
     },
   },
   403: ErrorResSchema,
@@ -99,5 +113,6 @@ export const GetSharedNotesResSchema = {
 
 export type CreateNoteReqBody = FromSchema<typeof CreateNoteReqBodySchema>;
 export type EditNoteReqBody = FromSchema<typeof EditNoteReqBodySchema>;
+export type RetagNoteReqBody = FromSchema<typeof RetagNoteReqBodySchema>;
 export type ShareNoteReqBody = FromSchema<typeof ShareNoteReqBodySchema>;
 export type NoteIdParams = FromSchema<typeof NoteIdParamsSchema>;

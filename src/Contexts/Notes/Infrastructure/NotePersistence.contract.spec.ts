@@ -40,8 +40,8 @@ const adapters: { name: string; open: () => { repository: INoteRepository; queri
 const alice = new Id('alice');
 const bob = new Id('bob');
 
-const aNote = (ownerId: Id, title: string, content = `content of ${title}`): Note => {
-  const note = Note.create({ ownerId: ownerId.value, title, content });
+const aNote = (ownerId: Id, title: string, content = `content of ${title}`, tags: string[] = []): Note => {
+  const note = Note.create({ ownerId: ownerId.value, title, content, tags });
   if (note.isFailure()) throw note.error;
   return note.data;
 };
@@ -53,12 +53,23 @@ describe.each(adapters)('Note persistence over $name', ({ open }) => {
 
   describe('INoteRepository', () => {
     it('gives back an equal aggregate', async () => {
-      const note = aNote(alice, 'Groceries');
+      const note = aNote(alice, 'Groceries', 'milk', ['food', 'weekly']);
       note.shareWith(alice, bob);
       await repository.save(note);
 
       const found = await repository.findById(note._id.value);
       expect(found?.toSnapshot()).toEqual(note.toSnapshot());
+      expect(found?.tags).toEqual(['food', 'weekly']);
+    });
+
+    it('keeps the tags in the order the owner gave them, and replaces them on save', async () => {
+      const note = aNote(alice, 'Tagged', 'text', ['zz', 'aa']);
+      await repository.save(note);
+      note.retag(alice, ['mm']);
+      await repository.save(note);
+
+      const found = await repository.findById(note._id.value);
+      expect(found?.tags).toEqual(['mm']);
     });
 
     it('answers null for an unknown id', async () => {
@@ -88,8 +99,8 @@ describe.each(adapters)('Note persistence over $name', ({ open }) => {
   });
 
   describe('INoteQueries', () => {
-    it('shows the detail of a saved note', async () => {
-      const note = aNote(alice, 'Groceries', 'milk');
+    it('shows the detail of a saved note, tags in the order the owner gave them', async () => {
+      const note = aNote(alice, 'Groceries', 'milk', ['weekly', 'food']);
       note.shareWith(alice, bob);
       await repository.save(note);
 
@@ -100,6 +111,7 @@ describe.each(adapters)('Note persistence over $name', ({ open }) => {
         status: NoteStatus.ACTIVE,
         ownerId: 'alice',
         sharedWith: ['bob'],
+        tags: ['weekly', 'food'],
       });
       expect(await queries.findById('nobody')).toBeNull();
     });

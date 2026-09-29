@@ -14,6 +14,8 @@ export interface NoteDetail extends NoteListItem {
   ownerId: string;
   content: string;
   sharedWith: string[];
+  /** In the order the owner gave them. */
+  tags: string[];
 }
 
 export interface SharedNoteListItem {

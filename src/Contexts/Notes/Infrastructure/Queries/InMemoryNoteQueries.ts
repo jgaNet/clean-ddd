@@ -22,6 +22,7 @@ export class InMemoryNoteQueries implements INoteQueries {
       ownerId: note.ownerId,
       content: note.content,
       sharedWith: [...note.sharedWith],
+      tags: [...note.tags],
     };
   }
 

@@ -6,13 +6,15 @@ import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InM
 
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import { NoteStatus } from '@Contexts/Notes/Domain/Note/NoteStatus';
-import { NoteCreatedEvent, NoteSharedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
+import { NoteCreatedEvent, NoteRetaggedEvent, NoteSharedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
 import {
   BlankNoteTitleException,
+  InvalidNoteTagException,
   NoteArchivedException,
   NoteNotArchivedException,
   NoteNotFoundException,
   NotNoteOwnerException,
+  TooManyNoteTagsException,
 } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 import { InMemoryNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository';
 import { NoteSharing } from '@Contexts/Notes/Domain/Note/NoteSharing';
@@ -25,6 +27,8 @@ import {
   EditNoteCommandHandler,
   RestoreNoteCommandEvent,
   RestoreNoteCommandHandler,
+  RetagNoteCommandEvent,
+  RetagNoteCommandHandler,
   ShareNoteCommandEvent,
   ShareNoteCommandHandler,
 } from '@Contexts/Notes/Application/Commands';
@@ -72,12 +76,34 @@ describe('CreateNoteCommandHandler', () => {
       content: 'Milk',
       status: NoteStatus.ACTIVE,
       sharedWith: [],
+      tags: [],
     });
     expect(eventBus.publish).toHaveBeenCalledTimes(1);
     expect(eventBus.publish).toHaveBeenCalledWith(
       NoteCreatedEvent.set({ noteId, ownerId: 'alice', title: 'Groceries' }),
       expect.any(ExecutionContext),
     );
+  });
+
+  it('saves the tags the note was written with', async () => {
+    const result = await new CreateNoteCommandHandler(repository).execute(
+      CreateNoteCommandEvent.set({ title: 'Groceries', content: 'Milk', tags: ['food', 'weekly'] }),
+      contextFor('alice'),
+    );
+
+    expect(result.isSuccess()).toBe(true);
+    expect(store.collection.get(result.data as string)?.tags).toEqual(['food', 'weekly']);
+  });
+
+  it('refuses an invalid tag and saves nothing', async () => {
+    const result = await new CreateNoteCommandHandler(repository).execute(
+      CreateNoteCommandEvent.set({ title: 'Groceries', content: 'Milk', tags: ['Not Valid'] }),
+      contextFor('alice'),
+    );
+
+    expect(result.error).toBeInstanceOf(InvalidNoteTagException);
+    expect(store.collection.size).toBe(0);
+    expect(eventBus.publish).not.toHaveBeenCalled();
   });
 
   it('refuses a blank title and saves nothing', async () => {
@@ -184,6 +210,58 @@ describe('EditNoteCommandHandler', () => {
     expect(result.isFailure()).toBe(true);
     expect(result.error).toBeInstanceOf(NoteArchivedException);
     expect(store.collection.get(noteId)?.title).toBe('Groceries');
+  });
+});
+
+describe('RetagNoteCommandHandler', () => {
+  it('lets the owner replace the tags and publishes NoteRetagged', async () => {
+    const noteId = await aNoteOwnedBy('alice');
+
+    const result = await new RetagNoteCommandHandler(repository).execute(
+      RetagNoteCommandEvent.set({ noteId, tags: ['food', 'urgent'] }),
+      contextFor('alice'),
+    );
+
+    expect(result.isSuccess()).toBe(true);
+    expect(store.collection.get(noteId)?.tags).toEqual(['food', 'urgent']);
+    expect(eventBus.publish).toHaveBeenCalledWith(
+      NoteRetaggedEvent.set({ noteId, tags: ['food', 'urgent'] }),
+      expect.any(ExecutionContext),
+    );
+  });
+
+  it('refuses a caller who does not own the note', async () => {
+    const noteId = await aNoteOwnedBy('alice');
+
+    const result = await new RetagNoteCommandHandler(repository).execute(
+      RetagNoteCommandEvent.set({ noteId, tags: ['food'] }),
+      contextFor('bob'),
+    );
+
+    expect(result.error).toBeInstanceOf(NotNoteOwnerException);
+    expect(store.collection.get(noteId)?.tags).toEqual([]);
+    expect(eventBus.publish).not.toHaveBeenCalled();
+  });
+
+  it('refuses more than five tags and keeps the note as it was', async () => {
+    const noteId = await aNoteOwnedBy('alice');
+
+    const result = await new RetagNoteCommandHandler(repository).execute(
+      RetagNoteCommandEvent.set({ noteId, tags: ['t1', 't2', 't3', 't4', 't5', 't6'] }),
+      contextFor('alice'),
+    );
+
+    expect(result.error).toBeInstanceOf(TooManyNoteTagsException);
+    expect(store.collection.get(noteId)?.tags).toEqual([]);
+  });
+
+  it('fails on an unknown note', async () => {
+    const result = await new RetagNoteCommandHandler(repository).execute(
+      RetagNoteCommandEvent.set({ noteId: 'nope', tags: ['food'] }),
+      contextFor('alice'),
+    );
+
+    expect(result.error).toBeInstanceOf(NoteNotFoundException);
   });
 });
 

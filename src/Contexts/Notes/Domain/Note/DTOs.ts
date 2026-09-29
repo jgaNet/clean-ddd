@@ -13,7 +13,8 @@ export interface INote {
   content: string;
   status: NoteStatus;
   sharedWith: string[];
+  tags: string[];
 }
 
-/** What is needed to write a brand new note. */
-export type INewNote = Pick<INote, 'ownerId' | 'title' | 'content'>;
+/** What is needed to write a brand new note. A note may start without tags. */
+export type INewNote = Pick<INote, 'ownerId' | 'title' | 'content'> & Partial<Pick<INote, 'tags'>>;

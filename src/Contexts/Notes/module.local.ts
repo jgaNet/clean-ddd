@@ -12,6 +12,8 @@ import {
   ArchiveNoteCommandHandler,
   RestoreNoteCommandEvent,
   RestoreNoteCommandHandler,
+  RetagNoteCommandEvent,
+  RetagNoteCommandHandler,
   ShareNoteCommandEvent,
   ShareNoteCommandHandler,
 } from '@Contexts/Notes/Application/Commands';
@@ -42,6 +44,7 @@ export const localNotesModule = new Module({
   commands: [
     { event: CreateNoteCommandEvent, handlers: [new CreateNoteCommandHandler(noteRepository)] },
     { event: EditNoteCommandEvent, handlers: [new EditNoteCommandHandler(noteRepository)] },
+    { event: RetagNoteCommandEvent, handlers: [new RetagNoteCommandHandler(noteRepository)] },
     { event: ArchiveNoteCommandEvent, handlers: [new ArchiveNoteCommandHandler(noteRepository)] },
     { event: RestoreNoteCommandEvent, handlers: [new RestoreNoteCommandHandler(noteRepository)] },
     { event: ShareNoteCommandEvent, handlers: [new ShareNoteCommandHandler(noteRepository, noteSharing)] },

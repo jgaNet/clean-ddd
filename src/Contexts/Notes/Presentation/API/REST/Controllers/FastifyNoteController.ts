@@ -9,6 +9,7 @@ import {
   EditNoteCommandEvent,
   ArchiveNoteCommandEvent,
   RestoreNoteCommandEvent,
+  RetagNoteCommandEvent,
   ShareNoteCommandEvent,
 } from '@Contexts/Notes/Application/Commands';
 import {
@@ -20,6 +21,7 @@ import {
   CreateNoteReqBody,
   EditNoteReqBody,
   NoteIdParams,
+  RetagNoteReqBody,
   ShareNoteReqBody,
 } from '@Contexts/Notes/Presentation/API/REST/Routes/note.routes.schema';
 import { NewNoteHTMXPresenter } from '@Contexts/Notes/Presentation/Presenters';
@@ -37,7 +39,15 @@ export class FastifyNoteController {
   }
 
   async createNote(req: FastifyRequest<{ Body: CreateNoteReqBody }>, reply: FastifyReply) {
-    return this.accept(req, reply, CreateNoteCommandEvent.set({ title: req.body.title, content: req.body.content }));
+    return this.accept(
+      req,
+      reply,
+      CreateNoteCommandEvent.set({ title: req.body.title, content: req.body.content, tags: req.body.tags }),
+    );
+  }
+
+  async retagNote(req: FastifyRequest<{ Params: NoteIdParams; Body: RetagNoteReqBody }>, reply: FastifyReply) {
+    return this.accept(req, reply, RetagNoteCommandEvent.set({ noteId: req.params.id, tags: req.body.tags }));
   }
 
   async editNote(req: FastifyRequest<{ Params: NoteIdParams; Body: EditNoteReqBody }>, reply: FastifyReply) {

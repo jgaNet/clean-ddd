@@ -5,6 +5,7 @@ import { NoteStatus } from '@Contexts/Notes/Domain/Note/NoteStatus';
 import {
   NoteCreatedEvent,
   NoteEditedEvent,
+  NoteRetaggedEvent,
   NoteArchivedEvent,
   NoteRestoredEvent,
   NoteSharedEvent,
@@ -12,11 +13,14 @@ import {
 import {
   BlankNoteTitleException,
   CannotShareWithSelfException,
+  DuplicateNoteTagException,
+  InvalidNoteTagException,
   NotNoteOwnerException,
   NoteAlreadyArchivedException,
   NoteAlreadySharedException,
   NoteArchivedException,
   NoteNotArchivedException,
+  TooManyNoteTagsException,
 } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 
 const owner = new Id('alice');
@@ -38,7 +42,7 @@ function anArchivedNote(): Note {
 
 describe('Note', () => {
   describe('writing a note', () => {
-    it('picks its own identity, starts active, unshared, and records NoteCreated', () => {
+    it('picks its own identity, starts active, unshared, untagged, and records NoteCreated', () => {
       const result = Note.create({ ownerId: 'alice', title: 'Groceries', content: 'Milk' });
 
       expect(result.isSuccess()).toBe(true);
@@ -46,9 +50,37 @@ describe('Note', () => {
       expect(note._id.value).toEqual(expect.any(String));
       expect(note.status).toBe(NoteStatus.ACTIVE);
       expect(note.sharedWith).toEqual([]);
+      expect(note.tags).toEqual([]);
       expect(note.pullDomainEvents()).toEqual([
         NoteCreatedEvent.set({ noteId: note._id.value, ownerId: 'alice', title: 'Groceries' }),
       ]);
+    });
+
+    it('carries the tags it was written with', () => {
+      const result = Note.create({ ownerId: 'alice', title: 'Groceries', content: 'Milk', tags: ['food', 'weekly'] });
+
+      expect(result.isSuccess()).toBe(true);
+      expect(result.data?.tags).toEqual(['food', 'weekly']);
+    });
+
+    it('refuses an invalid tag', () => {
+      const result = Note.create({ ownerId: 'alice', title: 'Groceries', content: 'Milk', tags: ['Food'] });
+
+      expect(result.error).toBeInstanceOf(InvalidNoteTagException);
+    });
+
+    it('refuses more than the maximum number of tags', () => {
+      const tags = Array.from({ length: Note.MAX_TAGS + 1 }, (_, i) => `tag${i}`);
+
+      const result = Note.create({ ownerId: 'alice', title: 'Groceries', content: 'Milk', tags });
+
+      expect(result.error).toBeInstanceOf(TooManyNoteTagsException);
+    });
+
+    it('refuses the same tag twice', () => {
+      const result = Note.create({ ownerId: 'alice', title: 'Groceries', content: 'Milk', tags: ['food', 'food'] });
+
+      expect(result.error).toBeInstanceOf(DuplicateNoteTagException);
     });
 
     it('gives every note a distinct identity', () => {
@@ -103,6 +135,53 @@ describe('Note', () => {
       expect(result.error).toBeInstanceOf(BlankNoteTitleException);
       expect(note.title).toBe('Groceries');
       expect(note.content).toBe('Milk, eggs');
+    });
+  });
+
+  describe('retagging a note', () => {
+    it('replaces the tags and records NoteRetagged', () => {
+      const note = aNote();
+
+      const result = note.retag(owner, ['food', 'urgent']);
+
+      expect(result.isSuccess()).toBe(true);
+      expect(note.tags).toEqual(['food', 'urgent']);
+      expect(note.pullDomainEvents()).toEqual([
+        NoteRetaggedEvent.set({ noteId: note._id.value, tags: ['food', 'urgent'] }),
+      ]);
+    });
+
+    it('can remove every tag', () => {
+      const note = aNote();
+      note.retag(owner, ['food']);
+
+      expect(note.retag(owner, []).isSuccess()).toBe(true);
+      expect(note.tags).toEqual([]);
+    });
+
+    it('is reserved to the owner', () => {
+      const note = aNote();
+
+      expect(note.retag(stranger, ['food']).error).toBeInstanceOf(NotNoteOwnerException);
+      expect(note.tags).toEqual([]);
+    });
+
+    it('is refused on an archived note', () => {
+      const note = anArchivedNote();
+
+      expect(note.retag(owner, ['food']).error).toBeInstanceOf(NoteArchivedException);
+    });
+
+    it('keeps the previous tags when the new set is invalid', () => {
+      const note = aNote();
+      note.retag(owner, ['food']);
+      note.pullDomainEvents();
+
+      expect(note.retag(owner, ['ok', 'ok']).error).toBeInstanceOf(DuplicateNoteTagException);
+      expect(note.retag(owner, ['a']).error).toBeInstanceOf(InvalidNoteTagException);
+      expect(note.retag(owner, ['t1', 't2', 't3', 't4', 't5', 't6']).error).toBeInstanceOf(TooManyNoteTagsException);
+      expect(note.tags).toEqual(['food']);
+      expect(note.pullDomainEvents()).toEqual([]);
     });
   });
 
@@ -193,17 +272,20 @@ describe('Note', () => {
         content: 'Text',
         status: NoteStatus.ARCHIVED,
         sharedWith: ['bob'],
+        tags: ['old'],
       });
 
       expect(note._id.value).toBe('note-9');
       expect(note.status).toBe(NoteStatus.ARCHIVED);
       expect(note.sharedWith).toEqual(['bob']);
+      expect(note.tags).toEqual(['old']);
       expect(note.pullDomainEvents()).toEqual([]);
     });
 
     it('gives back an equal note after toSnapshot / fromSnapshot', () => {
       const note = aNote();
       note.shareWith(owner, stranger);
+      note.retag(owner, ['food', 'weekly']);
 
       const rebuilt = Note.fromSnapshot(note.toSnapshot());
 
@@ -220,6 +302,21 @@ describe('Note', () => {
           content: '',
           status: NoteStatus.ACTIVE,
           sharedWith: [],
+          tags: [],
+        }),
+      ).toThrow(/Corrupted note n/);
+    });
+
+    it('refuses a snapshot with corrupted tags', () => {
+      expect(() =>
+        Note.fromSnapshot({
+          _id: 'n',
+          ownerId: 'alice',
+          title: 'Fine',
+          content: '',
+          status: NoteStatus.ACTIVE,
+          sharedWith: [],
+          tags: ['Not Valid'],
         }),
       ).toThrow(/Corrupted note n/);
     });

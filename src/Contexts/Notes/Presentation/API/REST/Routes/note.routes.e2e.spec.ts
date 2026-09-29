@@ -55,7 +55,48 @@ describe('POST notes/', () => {
       ownerId: expect.any(String),
       content: 'content',
       sharedWith: [],
+      tags: [],
     });
+  });
+});
+
+describe('Tags on a note', () => {
+  it('are set at creation and shown when the note is read', async () => {
+    const created = await agent
+      .post(`${api}/notes`)
+      .send({ title: 'Tagged', content: 'with tags', tags: ['work', 'q4'] });
+    expect(created.status).toBe(202);
+
+    const mine = await agent.get(`${api}/notes`);
+    const noteId: string = mine.body.find((note: { title: string }) => note.title === 'Tagged').id;
+
+    const note = await agent.get(`${api}/notes/${noteId}`);
+    expect(note.body.tags).toEqual(['work', 'q4']);
+  });
+
+  it('are replaced by the owner with PUT /notes/:id/tags', async () => {
+    const mine = await agent.get(`${api}/notes`);
+    const noteId: string = mine.body.find((note: { title: string }) => note.title === 'Tagged').id;
+
+    const retag = await agent.put(`${api}/notes/${noteId}/tags`).send({ tags: ['personal'] });
+    expect(retag.status).toBe(202);
+
+    const note = await agent.get(`${api}/notes/${noteId}`);
+    expect(note.body.tags).toEqual(['personal']);
+  });
+
+  it('are refused by the domain when a tag is invalid, and the note keeps its tags', async () => {
+    const mine = await agent.get(`${api}/notes`);
+    const noteId: string = mine.body.find((note: { title: string }) => note.title === 'Tagged').id;
+
+    const retag = await agent.put(`${api}/notes/${noteId}/tags`).send({ tags: ['Not Valid'] });
+    expect(retag.status).toBe(202);
+
+    const operation = await agent.get(`${api}/tracker/operations/${retag.body.operationId}`);
+    expect(operation.body).toMatchObject({ status: 'ERROR', error: { type: 'InvalidNoteTag' } });
+
+    const note = await agent.get(`${api}/notes/${noteId}`);
+    expect(note.body.tags).toEqual(['personal']);
   });
 });
 

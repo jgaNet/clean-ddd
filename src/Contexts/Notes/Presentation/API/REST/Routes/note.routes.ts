@@ -15,6 +15,8 @@ import {
   GetNoteResSchema,
   GetSharedNotesResSchema,
   NoteIdParams,
+  RetagNoteReqBody,
+  RetagNoteReqBodySchema,
   ShareNoteReqBody,
   ShareNoteReqBodySchema,
 } from '@Contexts/Notes/Presentation/API/REST/Routes/note.routes.schema';
@@ -53,6 +55,12 @@ export const noteRoutes = function (
     '/:id',
     { schema: { tags, ...CommandOnNoteSchema, body: EditNoteReqBodySchema } },
     controller.editNote.bind(controller),
+  );
+
+  fastify.put<{ Params: NoteIdParams; Body: RetagNoteReqBody }>(
+    '/:id/tags',
+    { schema: { tags, ...CommandOnNoteSchema, body: RetagNoteReqBodySchema } },
+    controller.retagNote.bind(controller),
   );
 
   fastify.post<{ Params: NoteIdParams }>(

@@ -22,8 +22,8 @@ export class SqliteNoteQueries implements INoteQueries {
     const row = this.db.prepare('SELECT * FROM notes WHERE id = ?').get(noteId) as NoteRow | undefined;
     if (!row) return null;
 
-    const { _id, title, status, ownerId, content, sharedWith } = toSnapshot(row);
-    return { id: _id, title, status, ownerId, content, sharedWith };
+    const { _id, title, status, ownerId, content, sharedWith, tags } = toSnapshot(row);
+    return { id: _id, title, status, ownerId, content, sharedWith, tags };
   }
 
   async findByOwner(ownerId: string): Promise<NoteListItem[]> {
