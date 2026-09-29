@@ -3,7 +3,7 @@
  * calling (`auth`), how to correlate the logs (`traceId`), and the services a use case may
  * need without owning them (`logger`, `eventBus`, `unitOfWork`).
  *
- * The bootstrap builds one per HTTP request (Bootstrap/Fastify/application.ts); tests build
+ * The bootstrap builds one per HTTP request (Bootstrap/Fastify/createApplication.ts); tests build
  * one by hand:
  *
  *   new ExecutionContext({ traceId: 'trace', eventBus, auth: { subjectId: 'alice', role: Role.USER } })
@@ -199,16 +199,7 @@ export class ExecutionContext {
     return this.#traceId;
   }
 
-  /**
-   * The authenticated user ID, if available
-   */
-  get subjectId(): string | undefined {
-    return this.#auth.subjectId;
-  }
-
-  /**
-   * The authenticated user role, if available
-   */
+  /** Who is calling: the subject's id and role, both absent for an anonymous request. */
   get auth(): { subjectId?: string; role?: Role } {
     return this.#auth;
   }

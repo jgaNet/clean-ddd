@@ -1,5 +1,5 @@
 import { Presenter } from '@SharedKernel/Presentation/Presenter';
-import { LogoutViewModel } from '../ViewModels';
+import { LogoutViewModel } from '@Contexts/Security/Presentation/Presenters/Auth/ViewModels';
 
 export class LogoutJSONPresenter implements Presenter<LogoutViewModel, object> {
   present({ message }: LogoutViewModel): object {

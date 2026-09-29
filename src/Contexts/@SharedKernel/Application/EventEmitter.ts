@@ -1,5 +1,11 @@
+import { IEvent } from '@SharedKernel/Domain';
+import { IOperation } from '@SharedKernel/Application/Operation';
+
+/** What travels on the emitter: an operation, whose event is the one the channel is named after. */
+export type EmittedOperation = IOperation<IEvent<unknown>>;
+
+/** The emitter the InMemoryEventBus is built on: the subset of Node's EventEmitter it uses. */
 export interface IEventEmitter {
-  emit(event: string, ...args: unknown[]): boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addListener(event: string, listener: (...args: any[]) => void): this;
+  emit(event: string, operation: EmittedOperation): boolean;
+  addListener(event: string, listener: (operation: EmittedOperation) => void): this;
 }

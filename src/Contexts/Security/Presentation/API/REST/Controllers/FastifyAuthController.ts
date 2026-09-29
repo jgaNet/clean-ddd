@@ -4,8 +4,6 @@ import { NotAllowedException } from '@SharedKernel/Domain';
 import { Module } from '@SharedKernel/Application';
 import { formatOf, present } from '@SharedKernel/Presentation/Format';
 
-import { IJwtService } from '@Contexts/Security/Domain/Auth/Ports/IJwtService';
-import { InvalidTokenException } from '@Contexts/Security/Domain/Auth/Exceptions/InvalidTokenException';
 import {
   LoginCommandEvent,
   LoginCommandHandler,
@@ -38,13 +36,15 @@ const presenters = {
   signInAgain: { json: new ErrorJSONPresenter(), htmx: new LoginHTMXPresenter() },
 };
 
+/**
+ * Sign-up and validation are commands: accepted (202) and followed through the operation.
+ * Login answers synchronously, in JSON or HTMX depending on the request (see the presenters).
+ */
 export class FastifyAuthController {
   #securityModule: Module;
-  #jwtService: IJwtService;
 
-  constructor({ module, jwtService }: { module: Module; jwtService: IJwtService }) {
+  constructor({ module }: { module: Module }) {
     this.#securityModule = module;
-    this.#jwtService = jwtService;
   }
 
   async signUp(req: FastifyRequest<{ Body: BasicSignUpReqBody }>, reply: FastifyReply) {
@@ -57,20 +57,21 @@ export class FastifyAuthController {
       context,
     );
 
-    return reply.code(200).send({ operationId: operation.id });
+    reply.code(202);
+    return { operationId: operation.id };
   }
 
   async validate(req: FastifyRequest<{ Querystring: { validation_token: string } }>, reply: FastifyReply) {
     const context = req.executionContext;
 
-    const decodedToken = await this.#jwtService.verify(req.query.validation_token);
-    if (!decodedToken) {
-      return reply.code(401).send({ error: new InvalidTokenException('Not allowed', context).message });
-    }
+    // The token is verified by the handler; whether it is valid is the operation's outcome.
+    const operation = context.eventBus.publish(
+      ValidateAccountCommandEvent.set({ validationToken: req.query.validation_token }),
+      context,
+    );
 
-    const operation = context.eventBus.publish(ValidateAccountCommandEvent.set(decodedToken), context);
-
-    return reply.code(200).send({ operationId: operation.id });
+    reply.code(202);
+    return { operationId: operation.id };
   }
 
   /** Login answers synchronously: the client needs the token, so the command is executed here, not published. */

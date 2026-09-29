@@ -1,10 +1,10 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { FastifyNotificationController } from '../Controllers/FastifyNotificationController';
+import { FastifyNotificationController } from '@Contexts/Notifications/Presentation/API/REST/Controllers/FastifyNotificationController';
 import { notificationSchema } from './notification.routes.schema';
 
 import { Module } from '@SharedKernel/Application';
 
-export default function notificationRoutes(
+export function notificationRoutes(
   fastify: FastifyInstance,
   options: FastifyPluginOptions & { notificationsModule: Module },
   done: (err?: Error) => void,

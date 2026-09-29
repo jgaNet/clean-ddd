@@ -9,42 +9,38 @@
  * An integration event handler lives in the receiving context and translates the foreign
  * event into a local command or service call:
  * Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts
+ *
+ * A reaction is awaited and its outcome recorded on the operation (SENT, or ERROR with the
+ * failure), so a listener that fails is visible in the trace (see Tracker) instead of
+ * vanishing as an unhandled rejection. It cannot undo the fact it reacted to: the event was
+ * published after the commit (ADR 3), and a failed reaction is the listener's problem to
+ * retry or report, never the publisher's.
  */
 
 import { Event, IResult } from '@SharedKernel/Domain';
 import { ExecutionContext } from '@SharedKernel/Application/ExecutionContext';
 import { IOperation } from '@SharedKernel/Application/Operation';
 
-/**
- * Abstract base class for all event handlers in the application.
- *
- * @template T The specific Event type this handler processes
- */
 export abstract class EventHandler<T extends Event<unknown>> {
-  /**
-   * Handles an event operation by executing the event handler logic and
-   * updating the operation state.
-   *
-   * This method:
-   * 1. Executes the event using the abstract execute method
-   * 2. Marks the operation as sent
-   * 3. Returns the updated operation
-   *
-   * @param operation The operation containing the event to handle
-   * @returns A promise resolving to the updated operation
-   */
   async handle(operation: IOperation<T>): Promise<IOperation<T>> {
-    this.execute(operation.event, operation.context);
-    return operation.sent();
+    const { event, context } = operation;
+    try {
+      const result = await this.execute(event, context);
+      if (result.isFailure()) {
+        context.logger?.warn(`${this.constructor.name} failed on ${event.name}: ${result.error.message}`, {
+          traceId: context.traceId,
+        });
+        return operation.failed(result.error);
+      }
+      return operation.sent();
+    } catch (error) {
+      context.logger?.error(`Unexpected error in ${this.constructor.name} on ${event.name}`, error, {
+        traceId: context.traceId,
+      });
+      return operation.failed(error);
+    }
   }
 
-  /**
-   * Abstract method that must be implemented by concrete event handlers.
-   * Contains the actual business logic for processing the event.
-   *
-   * @param payload The event to execute
-   * @param eventBus The event bus for publishing additional events
-   * @returns A promise resolving to the result of the event execution
-   */
-  abstract execute(payload: T, context: ExecutionContext): Promise<IResult<unknown>>;
+  /** The reaction. Implement it in each concrete handler. */
+  abstract execute(event: T, context: ExecutionContext): Promise<IResult<unknown>>;
 }

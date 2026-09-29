@@ -14,7 +14,7 @@ yarn test -- -t "name"  # one test
 yarn format             # prettier
 ```
 
-Node ≥ 20 (`.nvmrc` = 22). All three of `yarn typecheck`, `yarn lint`, `yarn test:units` must pass before a change is done; CI runs them on every PR.
+Node ≥ 20 (`.nvmrc` = 22). All four of `yarn typecheck`, `yarn lint`, `yarn test:units`, `yarn test:e2e` must pass before a change is done; CI runs them on every PR.
 
 ## Where things are
 
@@ -33,11 +33,11 @@ src/Contexts/<Context>/
   module.local.ts                 wiring
 ```
 
-Path aliases: `@SharedKernel/*`, `@Contexts/*`, `@Bootstrap/*`. **Never** relative paths across directories (`../../`); the boundary rules match on aliases.
+Path aliases: `@SharedKernel/*`, `@Contexts/*`, `@Bootstrap/*`. A relative import may only name a sibling file (`./NoteStatus`); anything across directories uses an alias. ESLint enforces it, because the boundary rules match on aliases.
 
 ## The rules (enforced)
 
-- **Dependencies point inward.** Domain imports nothing but `@SharedKernel/Domain`. Application imports Domain and `@SharedKernel/Application`. Infrastructure and Presentation may import both. Nothing imports Bootstrap. ESLint `no-restricted-imports` fails the build otherwise; a pre-existing exception carries `// eslint-disable-next-line no-restricted-imports -- <reason>`. Do not add new ones.
+- **Dependencies point inward, and contexts stay apart.** Domain imports nothing but its own Domain and `@SharedKernel/Domain`. Application adds its own Application and `@SharedKernel/Application` (integration events included). Infrastructure implements its own ports and may read another context's Domain (ports, read models) for an adapter. Presentation talks to its own Application and Domain. Only `module.local.ts` imports another context's wiring, and only it reads Bootstrap's settings. ESLint `no-restricted-imports` fails the build otherwise, per context and per layer; there is no exception and none may be added — a violation is fixed with a port, an integration event or a move, never with `eslint-disable`.
 - **Expected failures are `Result` values, never thrown** (`IResult<T>` in signatures, `Result.ok()` / `Result.fail(exception)` to build). `throw` only for programming errors and corrupted state.
 - **Only an aggregate root records domain events** (`this.record(...)` inside a behaviour). Handlers never construct a domain event; they call `this.publishDomainEvents(aggregate, context)` after saving, and the base class publishes after commit.
 - **Creation vs reconstitution:** `create()` / `register()` validates and records an event; `fromSnapshot()` records nothing and throws on corrupted data.
@@ -55,10 +55,22 @@ Path aliases: `@SharedKernel/*`, `@Contexts/*`, `@Bootstrap/*`. **Never** relati
 5. **Register** in `module.local.ts`. Add an e2e case if the flow is user-visible.
 6. Cross-context reaction? Publish an integration event from a domain event handler ([`NoteSharedHandler.ts`](src/Contexts/Notes/Application/Events/NoteSharedHandler.ts)) and consume it through an anti-corruption handler in the other context ([`NoteSharedIntegrationEventHandler.ts`](src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts)).
 
+The questions that come up while doing it, answered once:
+
+- **Where does the spec go?** Next to the file it tests, same name plus `.spec.ts`. The handlers of one aggregate may share one spec when they share fixtures ([`NoteCommandHandlers.spec.ts`](src/Contexts/Notes/Application/Commands/NoteCommandHandlers.spec.ts)); otherwise one per handler ([`SignUpCommandHandler.spec.ts`](src/Contexts/Security/Application/Commands/SignUp/SignUpCommandHandler.spec.ts)). End-to-end suites sit with the routes, as `*.e2e.spec.ts`.
+- **Does a new exception need a line in `refuse()`?** No. `refuse()` maps *kinds*, not exceptions: `NotAllowedException` → `403`, the aggregate's not-found exception → `404`, anything else → `400`. A refused command never reaches `refuse()` at all: it is on the operation.
+- **Does every domain event need a handler?** No. The aggregate records the fact because it happened; subscribe a handler only when something reacts to it. `NoteEditedEvent` has none: it is still recorded by the Tracker, and a handler can be added later without touching the aggregate.
+- **Which HTTP verb?** `GET` for a query (never changes state). `POST` to create (`/notes`) and for a command that is an action on a thing (`/notes/:id/share`, `/notes/:id/archive`); `PUT /notes/:id` to replace its editable content; `PATCH` for a partial state change (`/notifications/:id/read`). The two `GET …/validate` routes are commands on `GET` because they are links clicked from an email; do not copy that for anything else.
+- **Barrels (`index.ts`)?** One per `Commands/` and `Queries/` folder, listing the events and handlers of the context; one per presenters folder; the `@SharedKernel` layers export their public surface through one. No barrel per use-case folder, no barrel in `Domain/<Aggregate>/Ports/`; an import names the file otherwise.
+- **New aggregate in this context, or a new context?** A new context when the words change meaning (an *account* in Security is a *recipient* in Notifications), when it has its own reasons to change or its own owners, and when you could deploy it alone with nothing but integration events between it and the rest. Otherwise it is an aggregate (or a value object) in the context that already speaks its language. When in doubt, stay in the context: splitting later is a move; merging later is a rewrite.
+
 ## Code style
 
 - Strict TypeScript; no `any`; every declared variable and parameter is used (`noUnusedLocals` / `noUnusedParameters`); `_` prefix for intentionally unused parameters.
-- PascalCase for types and classes, camelCase otherwise, `I` prefix for ports (`INoteRepository`), suffixes `CommandEvent`, `CommandHandler`, `QueryHandler`, `Event`, `Exception`.
+- PascalCase for types and classes, camelCase otherwise, `I` prefix for ports (`INoteRepository`), suffixes `CommandEvent`, `CommandHandler`, `QueryHandler`, `Event`, `Exception`. A file is named after the class it exports (`FastifyNoteController.ts`), a folder after its use case (`RegisterAdmin/`).
+- One `<Aggregate>Exceptions.ts` per aggregate, each exception with a PascalCase `type` (`'InvalidCredentials'`) and the context as `service`. Enum values are their UPPERCASE names (`AccountStatus.PENDING = 'PENDING'`). Factories are `create()`; a reconstitution is `fromSnapshot()`.
+- Controllers all have the shape of [`FastifyNoteController.ts`](src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts): a command is published and answered `202 { operationId }`; a query's failure goes through one private `refuse()` (`403` for `NotAllowedException`, `404` for a not-found exception, `400` otherwise, body `{ message }`). No `try/catch` in a controller: handlers never throw an expected failure.
+- Only [`ConsoleLogger.ts`](src/Contexts/@SharedKernel/Infrastructure/Logging/ConsoleLogger.ts) writes to the console; everything else logs through `context.logger` or the injected `Logger`.
 - Doc comments explain *why* a file exists and what rule it protects, in a few lines. No commented-out code. No constructor that only calls `super()`.
 - Prettier formats; do not fight it.
 - Conventional commits (`feat:`, `fix:`, `refactor:`, `chore:`, `docs:`), one concern per PR, and the PR body states how it was verified.

@@ -37,7 +37,7 @@ export abstract class CommandHandler<T extends CommandEvent<unknown>> extends Ev
       return operation.failed(guardResult.error);
     }
 
-    context.logger?.info(`Executing ${event.name}`, { traceId: context.traceId, payload: event.payload });
+    context.logger?.info(`Executing ${event.name}`, { traceId: context.traceId });
 
     const result = await context.withTransaction(() => this.safeExecute(event, context));
 

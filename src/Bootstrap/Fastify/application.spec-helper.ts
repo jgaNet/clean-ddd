@@ -21,7 +21,6 @@ export interface TestApplication {
  */
 export async function startTestApplication(): Promise<TestApplication> {
   const app = await createApplication();
-  await app.startModules();
   await app.start(0);
 
   const api = `${app.address}/${SETTINGS.apiPrefix}`;

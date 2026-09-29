@@ -1,5 +1,5 @@
 import { Presenter } from '@SharedKernel/Presentation/Presenter';
-import { ErrorViewModel } from '../ViewModels';
+import { ErrorViewModel } from '@Contexts/Security/Presentation/Presenters/Auth/ViewModels';
 import { html } from '@SharedKernel/Presentation/Templates';
 
 export class LoginHTMXPresenter implements Presenter<ErrorViewModel, string> {

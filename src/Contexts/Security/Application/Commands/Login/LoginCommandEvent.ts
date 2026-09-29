@@ -1,7 +1,7 @@
 import { CommandEvent } from '@SharedKernel/Domain';
 
 interface LoginPayload {
-  identifier: string; // Could be email, username, etc.
+  identifier: string; // the account's email; the field is named for what a login form calls it
   password: string;
 }
 

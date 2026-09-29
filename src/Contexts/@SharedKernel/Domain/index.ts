@@ -4,7 +4,7 @@
  * enforce it), so a domain model built on it stays free of application and infrastructure
  * concerns.
  *
- * - DDD/           Entity, AggregateRoot, ValueObject, Event (+ the event kinds), Exception, Result, Nullable
+ * - DDD/           Entity, AggregateRoot, ValueObject, Event (+ the event kinds), Exception, Result
  * - ValueObjects/  Id, Email: the value objects every context shares
  * - AccessControl/ Role
  *

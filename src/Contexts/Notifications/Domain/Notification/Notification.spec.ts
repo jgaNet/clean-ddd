@@ -170,7 +170,9 @@ describe('DeliveryStrategy', () => {
 
   it('compares by value', () => {
     expect(
-      DeliveryStrategy.websocketThenEmail().equals(DeliveryStrategy.create([Channel.WEBSOCKET, Channel.EMAIL]).data!),
+      DeliveryStrategy.create([Channel.WEBSOCKET, Channel.EMAIL]).data!.equals(
+        DeliveryStrategy.create([Channel.WEBSOCKET, Channel.EMAIL]).data!,
+      ),
     ).toBe(true);
   });
 });

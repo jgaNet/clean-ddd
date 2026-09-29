@@ -1,5 +1,5 @@
 import { OperationStatus } from '@SharedKernel/Application/Operation';
-import { Event } from '@SharedKernel/Domain/DDD/Event';
+import { IntegrationEvent } from '@SharedKernel/Domain/DDD/EventTypes';
 
 export interface OperationCompletePayload {
   operationId: string;
@@ -10,4 +10,5 @@ export interface OperationCompletePayload {
   error?: string;
 }
 
-export class OperationCompleteIntegrationEvent extends Event<OperationCompletePayload> {}
+/** Published by the Tracker's bus decorator when a command of an authenticated caller reaches its outcome. */
+export class OperationCompleteIntegrationEvent extends IntegrationEvent<OperationCompletePayload> {}

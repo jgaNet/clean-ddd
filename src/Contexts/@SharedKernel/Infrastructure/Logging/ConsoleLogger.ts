@@ -1,76 +1,44 @@
 import { Logger } from '@SharedKernel/Application';
 
 /**
- * Simple console logger implementation
+ * The Logger port on the console. Each line starts with the trace id when the meta carries
+ * one, so the lines of one request can be grepped together; the rest of the meta is printed
+ * after the message. The only place in the project allowed to write to the console.
  */
 export class ConsoleLogger implements Logger {
   #debug: boolean;
+
   constructor({ debug }: { debug: boolean }) {
     this.#debug = debug;
   }
-  /**
-   * Log an info message
-   * @param message The message to log
-   * @param meta Additional metadata to log
-   */
+
   info(message: string, meta?: Record<string, unknown>): void {
     // eslint-disable-next-line no-console
-    console.info(
-      `\x1b[36;20m${
-        meta?.traceId ? `[${meta?.traceId}]` : '[************************************]'
-      } [INFO]  ${message} \x1b[0m`,
-      meta && !meta.traceId ? meta : '',
-    );
+    console.info(...this.line('36', 'INFO ', message, meta));
   }
 
-  /**
-   * Log a warning message
-   * @param message The message to log
-   * @param meta Additional metadata to log
-   */
   warn(message: string, meta?: Record<string, unknown>): void {
     // eslint-disable-next-line no-console
-    console.warn(
-      `\x1b[33;20m${
-        meta?.traceId ? `[${meta?.traceId}]` : '[************************************]'
-      } [WARN] ${message}\x1b[0m`,
-      meta && !meta.traceId ? meta : '',
-    );
+    console.warn(...this.line('33', 'WARN ', message, meta));
   }
 
-  /**
-   * Log an error message
-   * @param message The message to log
-   * @param error The error to log
-   * @param meta Additional metadata to log
-   */
   error(message: string, error?: unknown, meta?: Record<string, unknown>): void {
     // eslint-disable-next-line no-console
-    console.error(
-      `\x1b[91;20m${
-        meta?.traceId ? `[${meta?.traceId}]` : '[************************************]'
-      } [ERROR] ${message}\x1b[0m`,
-      error || '',
-      meta && !meta.traceId ? meta : '',
-    );
+    console.error(...this.line('91', 'ERROR', message, meta), error ?? '');
   }
 
-  /**
-   * Log a debug message
-   * @param message The message to log
-   * @param meta Additional metadata to log
-   */
   debug(message: string, meta?: Record<string, unknown>): void {
-    if (!this.#debug) {
-      return;
-    }
+    if (!this.#debug) return;
 
     // eslint-disable-next-line no-console
-    console.debug(
-      `\x1b[35;20m${
-        meta?.traceId ? `[${meta?.traceId}]` : '[************************************]'
-      } [DEBUG] ${message}\x1b[0m`,
-      meta && !meta.traceId ? meta : '',
-    );
+    console.debug(...this.line('35', 'DEBUG', message, meta));
+  }
+
+  private line(color: string, level: string, message: string, meta?: Record<string, unknown>): unknown[] {
+    const { traceId, ...rest } = meta ?? {};
+    const trace = typeof traceId === 'string' ? traceId : '************************************';
+    const text = `\x1b[${color};20m[${trace}] [${level}] ${message}\x1b[0m`;
+
+    return Object.keys(rest).length ? [text, rest] : [text];
   }
 }

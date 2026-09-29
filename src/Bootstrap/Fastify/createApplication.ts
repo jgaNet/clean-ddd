@@ -3,7 +3,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { AddressInfo } from 'net';
 
-import Fastify, { FastifyInstance } from 'fastify';
+import Fastify, { FastifyInstance, FastifyPluginCallback, FastifyPluginOptions } from 'fastify';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 import fastifyStatic from '@fastify/static';
@@ -14,7 +14,7 @@ import { swaggerDescriptor } from './application.swagger';
 
 import { localTrackerModule, trackedEventBus } from '@Contexts/Tracker/module.local';
 import { localNotesModule } from '@Contexts/Notes/module.local';
-import { localSecurityModule, authMiddleware, jwtService, registerAdmin } from '@Contexts/Security/module.local';
+import { localSecurityModule, authMiddleware, registerAdmin } from '@Contexts/Security/module.local';
 import { localNotificationsModule, webSocketChannel } from '@Contexts/Notifications/module.local';
 
 import { homeRoutes } from '@SharedKernel/Presentation/API/REST/Routes';
@@ -23,7 +23,7 @@ import { operationRoutes } from '@Contexts/Tracker/Presentation/API/REST/Routes'
 import { authRoutes } from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes';
 import { notificationRoutes } from '@Contexts/Notifications/Presentation/API/REST/Routes';
 
-import { Application, ExecutionContext } from '@SharedKernel/Application';
+import { Application, ExecutionContext, Logger } from '@SharedKernel/Application';
 import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
 import { InMemoryUnitOfWork } from '@SharedKernel/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
 
@@ -36,9 +36,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  */
 export class FastifyApplication extends Application {
   readonly fastify: FastifyInstance;
-  readonly logger: ConsoleLogger;
+  readonly logger: Logger;
 
-  constructor(logger: ConsoleLogger) {
+  constructor(logger: Logger) {
     super();
     this.logger = logger;
     this.fastify = Fastify({ logger: false });
@@ -83,6 +83,7 @@ export class FastifyApplication extends Application {
       await registerAdmin({
         email: SETTINGS.security.adminAccount.identifier,
         password: SETTINGS.security.adminAccount.password,
+        eventBus: this.getEventBus(),
       });
     }
     return this;
@@ -96,11 +97,10 @@ export class FastifyApplication extends Application {
     return this;
   }
 
-  registerRoutes(
+  registerRoutes<Options extends FastifyPluginOptions>(
     prefix: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    routes: (app: FastifyInstance, opts: any, done: () => void) => void,
-    options: Record<string, unknown> = {},
+    routes: FastifyPluginCallback<Options>,
+    options: Options,
   ): this {
     this.fastify.register(routes, {
       prefix: prefix === '/' ? `${SETTINGS.apiPrefix}` : SETTINGS.apiPrefix + prefix,
@@ -128,10 +128,13 @@ export class FastifyApplication extends Application {
   }
 }
 
-/** Builds the whole application, seeded and wired, not yet listening. */
-export async function createApplication(): Promise<FastifyApplication> {
-  const logger = new ConsoleLogger({ debug: SETTINGS.logger.debug });
-
+/**
+ * Builds the whole application: wired, its modules listening on the bus, seeded; not yet
+ * serving. The modules start before the seed so that the seed's events reach their handlers.
+ */
+export async function createApplication(
+  logger: Logger = new ConsoleLogger({ debug: SETTINGS.logger.debug }),
+): Promise<FastifyApplication> {
   const app = new FastifyApplication(logger)
     .setEventBus(trackedEventBus)
     .registerModule(localTrackerModule)
@@ -142,8 +145,9 @@ export async function createApplication(): Promise<FastifyApplication> {
     .registerRoutes('/', homeRoutes, { settings: SETTINGS })
     .registerRoutes('/tracker/operations', operationRoutes, { operationsModule: localTrackerModule })
     .registerRoutes('/notes', noteRoutes, { notesModule: localNotesModule })
-    .registerRoutes('/', authRoutes, { securityModule: localSecurityModule, jwtService })
+    .registerRoutes('/', authRoutes, { securityModule: localSecurityModule })
     .registerRoutes('/notifications', notificationRoutes, { notificationsModule: localNotificationsModule });
 
+  await app.startModules();
   return app.seed();
 }

@@ -17,18 +17,6 @@ export class DeliveryStrategy extends ValueObject<Channel[]> {
     return Result.ok(new DeliveryStrategy(distinct));
   }
 
-  static websocketOnly(): DeliveryStrategy {
-    return new DeliveryStrategy([Channel.WEBSOCKET]);
-  }
-
-  static emailOnly(): DeliveryStrategy {
-    return new DeliveryStrategy([Channel.EMAIL]);
-  }
-
-  static websocketThenEmail(): DeliveryStrategy {
-    return new DeliveryStrategy([Channel.WEBSOCKET, Channel.EMAIL]);
-  }
-
   get channels(): Channel[] {
     return [...this.value];
   }

@@ -33,7 +33,6 @@ describe('Tracker: following an operation', () => {
       status: 'ERROR',
       traceId: accepted.headers['x-trace-id'],
       subjectId: expect.any(String),
-      payload: { noteId: '00000000-0000-4000-8000-000000000000', recipientId: 'bob' },
       error: { type: 'NoteNotFound', message: 'Note not found' },
       createdAt: expect.any(String),
       finishedAt: expect.any(String),

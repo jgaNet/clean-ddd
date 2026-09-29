@@ -8,6 +8,12 @@ import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteException
 import { ShareNoteCommandEvent } from '@Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandEvent';
 import { requireSignedIn } from '@SharedKernel/Application/Guards';
 
+/**
+ * The use case, and nothing but the use case: who is calling, load the aggregate, hand it to
+ * the domain service that holds the one rule the aggregate cannot check alone (the recipient
+ * exists), save, publish what was recorded. No rule of its own: everything that can be refused
+ * is refused by NoteSharing or by Note, and comes back as a failed Result.
+ */
 export class ShareNoteCommandHandler extends CommandHandler<ShareNoteCommandEvent> {
   constructor(private noteRepository: INoteRepository, private noteSharing: NoteSharing) {
     super();

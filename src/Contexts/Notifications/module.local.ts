@@ -9,22 +9,22 @@ import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InM
 import { ConsoleLogger } from '@SharedKernel/Infrastructure/Logging/ConsoleLogger';
 import { SETTINGS } from '@Bootstrap/Fastify/application.settings';
 
-import { INotification } from './Domain/Notification/DTOs';
-import { NotificationDelivery } from './Application/Services/NotificationDelivery';
-import { SendNotificationCommandEvent } from './Application/Commands/SendNotification/SendNotificationCommandEvent';
-import { SendNotificationCommandHandler } from './Application/Commands/SendNotification/SendNotificationCommandHandler';
-import { MarkAsReadNotificationCommandEvent } from './Application/Commands/MarkAsRead/MarkAsReadNotificationCommandEvent';
-import { MarkAsReadNotificationCommandHandler } from './Application/Commands/MarkAsRead/MarkAsReadNotificationCommandHandler';
-import { GetNotificationsQueryHandler } from './Application/Queries/GetNotifications/GetNotificationsQueryHandler';
-import { AccountCreatedIntegrationEventHandler } from './Application/Events/AccountCreatedIntegrationEventHandler';
-import { AccountValidatedIntegrationEventHandler } from './Application/Events/AccountValidatedIntegrationEventHandler';
-import { NoteSharedIntegrationEventHandler } from './Application/Events/NoteSharedIntegrationEventHandler';
-import { OperationCompleteIntegrationEventHandler } from './Application/Events/OperationCompleteIntegrationEventHandler';
-import { InMemoryNotificationRepository } from './Infrastructure/Repositories/InMemoryNotificationRepository';
-import { InMemoryNotificationQueries } from './Infrastructure/Queries/InMemoryNotificationQueries';
-import { EmailChannel } from './Infrastructure/Channels/EmailChannel';
-import { WebSocketChannel } from './Infrastructure/Channels/WebSocketChannel';
-import { NotificationHTMXPresenter } from './Presentation/Presenters/HTMX/NotificationHTMXPresenter';
+import { INotification } from '@Contexts/Notifications/Domain/Notification/DTOs';
+import { NotificationDelivery } from '@Contexts/Notifications/Application/Services/NotificationDelivery';
+import { SendNotificationCommandEvent } from '@Contexts/Notifications/Application/Commands/SendNotification/SendNotificationCommandEvent';
+import { SendNotificationCommandHandler } from '@Contexts/Notifications/Application/Commands/SendNotification/SendNotificationCommandHandler';
+import { MarkAsReadNotificationCommandEvent } from '@Contexts/Notifications/Application/Commands/MarkAsRead/MarkAsReadNotificationCommandEvent';
+import { MarkAsReadNotificationCommandHandler } from '@Contexts/Notifications/Application/Commands/MarkAsRead/MarkAsReadNotificationCommandHandler';
+import { GetNotificationsQueryHandler } from '@Contexts/Notifications/Application/Queries/GetNotifications/GetNotificationsQueryHandler';
+import { AccountCreatedIntegrationEventHandler } from '@Contexts/Notifications/Application/Events/AccountCreatedIntegrationEventHandler';
+import { AccountValidatedIntegrationEventHandler } from '@Contexts/Notifications/Application/Events/AccountValidatedIntegrationEventHandler';
+import { NoteSharedIntegrationEventHandler } from '@Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler';
+import { OperationCompleteIntegrationEventHandler } from '@Contexts/Notifications/Application/Events/OperationCompleteIntegrationEventHandler';
+import { InMemoryNotificationRepository } from '@Contexts/Notifications/Infrastructure/Repositories/InMemoryNotificationRepository';
+import { InMemoryNotificationQueries } from '@Contexts/Notifications/Infrastructure/Queries/InMemoryNotificationQueries';
+import { EmailChannel } from '@Contexts/Notifications/Infrastructure/Channels/EmailChannel';
+import { WebSocketChannel } from '@Contexts/Notifications/Infrastructure/Channels/WebSocketChannel';
+import { NotificationHTMXPresenter } from '@Contexts/Notifications/Presentation/Presenters/HTMX/NotificationHTMXPresenter';
 
 const logger = new ConsoleLogger({ debug: SETTINGS.logger.debug });
 const notificationDataSource = new InMemoryDataSource<INotification>();

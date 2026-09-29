@@ -5,10 +5,12 @@ import { AccountCreatedIntegrationEvent } from '@SharedKernel/Application/Integr
 import { AccountCreatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountEvents';
 import { IJwtService } from '@Contexts/Security/Domain/Auth/Ports/IJwtService';
 import { TokenTypes } from '@Contexts/Security/Domain/Auth/TokenTypes';
+import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';
 
 /**
  * Translates the domain fact into what other contexts need: a validation token the
- * Notifications context will email to the new account.
+ * Notifications context will email to the new account. An account opened active (by an
+ * administrator, or the seed) has nothing to validate, so nothing leaves the context.
  */
 export class AccountCreatedHandler extends EventHandler<AccountCreatedEvent> {
   constructor(private jwtService: IJwtService) {
@@ -17,6 +19,7 @@ export class AccountCreatedHandler extends EventHandler<AccountCreatedEvent> {
 
   async execute({ payload }: AccountCreatedEvent, context: ExecutionContext): Promise<IResult> {
     context.logger?.debug(`Account ${payload.accountId} created`, { traceId: context.traceId });
+    if (payload.status === AccountStatus.ACTIVE) return Result.ok();
 
     const validationToken = await this.jwtService.sign({
       subjectId: payload.accountId,

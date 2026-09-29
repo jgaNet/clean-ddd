@@ -10,7 +10,7 @@ There is no database and no framework of our own: an in-memory `Map` stands in f
 - [The rules, and how they are enforced](#the-rules-and-how-they-are-enforced)
 - [Layout of a context](#layout-of-a-context)
 - [Running it](#running-it)
-- [Decisions](#decisions) · [What is deliberately not here](#what-is-deliberately-not-here) · [Known gaps](#known-gaps)
+- [Vocabulary](#vocabulary) · [Decisions](#decisions) · [What is deliberately not here](#what-is-deliberately-not-here) · [Known gaps](#known-gaps)
 
 ## Start here: one request, end to end
 
@@ -20,13 +20,14 @@ There is no database and no framework of our own: an in-memory `Map` stands in f
 |---|---|---|
 | 1 | The controller turns the HTTP request into a command and publishes it on the bus. It answers `202 { operationId }` at once. | [`FastifyNoteController.ts`](src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts) |
 | 2 | The base command handler runs the **guard** (who may do this?), opens a **transaction**, and turns any throw into a failed `Result`. | [`CommandHandler.ts`](src/Contexts/@SharedKernel/Application/CommandHandler.ts) |
-| 3 | The use case: load the aggregate, ask it to change, save it, publish what it recorded. Nothing else. | [`ShareNoteCommandHandler.ts`](src/Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandHandler.ts) |
-| 4 | The **aggregate** enforces the rules (only the owner, not archived, not twice, not with yourself) and **records** `NoteSharedEvent`. | [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts) |
-| 5 | The **repository** persists a snapshot of the aggregate. | [`InMemoryNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository.ts) |
-| 6 | Domain events are published **after the transaction commits**, never before. | [`ExecutionContext.ts`](src/Contexts/@SharedKernel/Application/ExecutionContext.ts) (`afterCommit`) |
-| 7 | A handler inside Notes translates the domain event into the **published contract**, `NoteSharedIntegrationEvent`. | [`NoteSharedHandler.ts`](src/Contexts/Notes/Application/Events/NoteSharedHandler.ts) → [`NoteIntegrationEvents.ts`](src/Contexts/@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts) |
-| 8 | The Notifications context reacts through an **anti-corruption layer**: it knows the contract and nothing else about Notes. | [`NoteSharedIntegrationEventHandler.ts`](src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts) |
-| 9 | Meanwhile the bus decorator has **projected** the operation into a read model; the client polls `GET /v1/tracker/operations/:id` to learn how it went. | [`TrackedEventBus.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.ts) → [`OperationProjection.ts`](src/Contexts/Tracker/Application/Projections/OperationProjection.ts) |
+| 3 | The use case: load the aggregate, hand it to the domain service, save it, publish what it recorded. Nothing else. | [`ShareNoteCommandHandler.ts`](src/Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandHandler.ts) |
+| 4 | The **domain service** checks the one rule the aggregate cannot check alone (the recipient must exist) through a **port Notes owns**, then lets the aggregate decide. | [`NoteSharing.ts`](src/Contexts/Notes/Domain/Note/NoteSharing.ts) → [`IAccountDirectory.ts`](src/Contexts/Notes/Domain/Note/Ports/IAccountDirectory.ts), answered by [`SecurityAccountDirectory.ts`](src/Contexts/Notes/Infrastructure/Directories/SecurityAccountDirectory.ts) |
+| 5 | The **aggregate** enforces the rules (only the owner, not archived, not twice, not with yourself) and **records** `NoteSharedEvent`. | [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts) |
+| 6 | The **repository** persists a snapshot of the aggregate. | [`InMemoryNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository.ts) |
+| 7 | Domain events are published **after the transaction commits**, never before. | [`ExecutionContext.ts`](src/Contexts/@SharedKernel/Application/ExecutionContext.ts) (`afterCommit`) |
+| 8 | A handler inside Notes translates the domain event into the **published contract**, `NoteSharedIntegrationEvent`. | [`NoteSharedHandler.ts`](src/Contexts/Notes/Application/Events/NoteSharedHandler.ts) → [`NoteIntegrationEvents.ts`](src/Contexts/@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts) |
+| 9 | The Notifications context reacts through an **anti-corruption layer**: it knows the contract and nothing else about Notes. | [`NoteSharedIntegrationEventHandler.ts`](src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts) |
+| 10 | Meanwhile the bus decorator has **projected** the operation into a read model; the client polls `GET /v1/tracker/operations/:id` to learn how it went. | [`TrackedEventBus.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.ts) → [`OperationProjection.ts`](src/Contexts/Tracker/Application/Projections/OperationProjection.ts) |
 
 The same path is exercised end to end by [`note.routes.e2e.spec.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.e2e.spec.ts) ("Sharing a note").
 
@@ -43,6 +44,8 @@ One canonical example per concept. When two files could teach the same thing, th
 | **Entity inside an aggregate** (not a root) | [`DeliveryAttempt.ts`](src/Contexts/Notifications/Domain/Notification/DeliveryAttempt.ts) | has its own identity, exists only inside `Notification`, reached and persisted through it |
 | Value object | [`NoteTitle.ts`](src/Contexts/Notes/Domain/Note/NoteTitle.ts), [`Email.ts`](src/Contexts/@SharedKernel/Domain/ValueObjects/Email.ts), [`Credentials.ts`](src/Contexts/Security/Domain/Account/Credentials.ts) | built through `create()` → `Result`; never invalid once you hold one |
 | Identity | [`Id.ts`](src/Contexts/@SharedKernel/Domain/ValueObjects/Id.ts) | generated by the domain (`Id.generate()`), not by the database — [ADR 2](docs/adr/0002-identity-is-generated-by-the-domain.md) |
+| Factory | `Note.create()` in [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts) | the aggregate is its own factory: a static `create()` that validates, generates the identity and records the creation event; the constructor is private. When creation needs a collaborator (a port), the factory is a domain service: [`AccountRegistration.ts`](src/Contexts/Security/Domain/Account/AccountRegistration.ts). No `Factory` class |
+| Invariant | `shareWith()` in [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts) | a rule that must hold after every change (only the owner, not archived, not twice, not with yourself): checked inside the behaviour, before the state changes and the event is recorded. There is no `validate()` to forget, and no way to reach the state but through the behaviour |
 | Creation vs reconstitution | `Note.create()` vs `Note.fromSnapshot()` in [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts) | creation records an event; rebuilding from persistence records nothing — [ADR 4](docs/adr/0004-reconstitution-throws-on-corrupted-data.md) |
 | Domain event | [`NoteEvents.ts`](src/Contexts/Notes/Domain/Note/Events/NoteEvents.ts) | past tense, minimal payload, internal to the context |
 | Domain exception | [`NoteExceptions.ts`](src/Contexts/Notes/Domain/Note/NoteExceptions.ts) | a broken rule in business words, carried by `Result.fail()`, never thrown — [ADR 1](docs/adr/0001-result-instead-of-exceptions.md) |
@@ -59,9 +62,9 @@ One canonical example per concept. When two files could teach the same thing, th
 
 | Concept | Canonical example | Notes |
 |---|---|---|
-| Command | [`ShareNoteCommandEvent.ts`](src/Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandEvent.ts) | a named payload, nothing more |
+| Command | [`ShareNoteCommandEvent.ts`](src/Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandEvent.ts) | a named payload, nothing more. It extends `CommandEvent`, one of the three kinds of message in [`EventTypes.ts`](src/Contexts/@SharedKernel/Domain/DDD/EventTypes.ts): a command travels on the same bus as the events and is tracked as an operation, so it has their shape; the class says its intent (one handler, may be refused) |
 | Command handler | [`EditNoteCommandHandler.ts`](src/Contexts/Notes/Application/Commands/EditNote/EditNoteCommandHandler.ts) | the shape every "change an existing thing" use case follows |
-| Guard (authorization) | `requireSignedIn()` in [`Guards.ts`](src/Contexts/@SharedKernel/Application/Guards.ts), called once at the top of `execute()`; `guard()` in [`RegisterAdminCommandHandler.ts`](src/Contexts/Security/Application/Commands/AddAdmin/RegisterAdminCommandHandler.ts) for role-only rules | *who may call* is answered here; *what they may do to which object* is the aggregate's business |
+| Guard (authorization) | `requireSignedIn()` in [`Guards.ts`](src/Contexts/@SharedKernel/Application/Guards.ts), called once at the top of `execute()`; `guard()` in [`RegisterAdminCommandHandler.ts`](src/Contexts/Security/Application/Commands/RegisterAdmin/RegisterAdminCommandHandler.ts) for role-only rules | *who may call* is answered here; *what they may do to which object* is the aggregate's business |
 | Application service | [`NotificationDelivery.ts`](src/Contexts/Notifications/Application/Services/NotificationDelivery.ts) | orchestrates ports for a use case several entry points share; holds no rule of its own |
 | Base handler (guard, transaction, safety net) | [`CommandHandler.ts`](src/Contexts/@SharedKernel/Application/CommandHandler.ts) | a concrete handler only writes `execute()` |
 | Query handler | [`GetNoteQueryHandler.ts`](src/Contexts/Notes/Application/Queries/GetNote/GetNoteQueryHandler.ts) | reads through the queries port; a refused query is a failed `Result`, not a throw |
@@ -89,11 +92,11 @@ One canonical example per concept. When two files could teach the same thing, th
 
 | Concept | Canonical example |
 |---|---|
-| Controller (commands → `202`, queries → sync) | [`FastifyNoteController.ts`](src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts) |
+| Controller (commands → `202 { operationId }`, queries → sync; one `refuse()` per controller: `403` not allowed, `404` not found, `400` otherwise, always `{ message }`) | [`FastifyNoteController.ts`](src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts); every other controller has the same shape |
 | Routes and JSON schemas | [`note.routes.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts), [`note.routes.schema.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.schema.ts) |
 | Authentication middleware | [`FastifyJWTAuthenticationMiddleware.ts`](src/Contexts/Security/Presentation/API/REST/Middlewares/FastifyJWTAuthenticationMiddleware.ts) — never blocks, makes the caller `GUEST` unless the token verifies |
 | Presenters (one use case, several formats) | [`Security/Presentation/Presenters/Auth`](src/Contexts/Security/Presentation/Presenters/Auth), picked per request by [`Format.ts`](src/Contexts/@SharedKernel/Presentation/Format.ts) — a plain object per controller, no registry |
-| Composition root | [`createApplication.ts`](src/Bootstrap/Fastify/createApplication.ts) on [`Application.ts`](src/Contexts/@SharedKernel/Application/Application.ts); [`application.ts`](src/Bootstrap/Fastify/application.ts) is the process entry point |
+| Composition root | [`createApplication.ts`](src/Bootstrap/Fastify/createApplication.ts) on [`Application.ts`](src/Contexts/@SharedKernel/Application/Application.ts): wires, starts the modules, seeds the administrator through the same bus as any command, then listens; [`application.ts`](src/Bootstrap/Fastify/application.ts) is the process entry point |
 
 ### Tests, one style per layer
 
@@ -117,6 +120,8 @@ graph LR
     Notifications -. every operation .-> Tracker
 ```
 
+A **bounded context** is one folder under `src/Contexts`, with one vocabulary (the same word means one thing inside it: an *account* in Security is a *recipient* in Notifications), one `module.local.ts`, and integration events as its only public surface. It is the unit you could deploy alone. Four of them here, each teaching what the others do not:
+
 | Context | Teaches | Read |
 |---|---|---|
 | **Notes** | the canonical aggregate and everything around it: value object, events, commands, queries, read models, the full path from HTTP to a domain event | [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts) first, then any handler |
@@ -130,13 +135,14 @@ The `@SharedKernel` is not a context: it holds the building blocks ([`Domain`](s
 
 | Rule | Enforced by |
 |---|---|
-| **Dependencies point inward.** Domain depends on nothing. Application depends on Domain. Infrastructure and Presentation depend on both. Nothing depends on Bootstrap. | ESLint `no-restricted-imports`, per layer, in [`.eslintrc.cjs`](.eslintrc.cjs). Application tests may use in-memory infrastructure as doubles. There is no exception left in the codebase. |
+| **Dependencies point inward.** Domain depends on nothing. Application depends on Domain. Infrastructure and Presentation depend on both. Only a context's wiring file (`module.local.ts`) reads Bootstrap's settings; nothing else depends on Bootstrap. | ESLint `no-restricted-imports`, generated per context and per layer from one table in [`.eslintrc.cjs`](.eslintrc.cjs). Application tests may use their own in-memory infrastructure as doubles. Relative imports may only name a sibling file, so nothing bypasses the aliases. There is no exception in the codebase. |
 | A refused command or query is a **failed `Result`**, never a thrown exception. | Base handlers ([`CommandHandler`](src/Contexts/@SharedKernel/Application/CommandHandler.ts), [`QueryHandler`](src/Contexts/@SharedKernel/Application/QueryHandler.ts)) and [ADR 1](docs/adr/0001-result-instead-of-exceptions.md) |
 | Only an **aggregate root** records domain events; a handler never builds one. | Types: `record()` is `protected` on `AggregateRoot` |
 | Domain events are published **after the transaction commits**. | `publishDomainEvents()` → `ExecutionContext.afterCommit()`; [`ExecutionContext.spec.ts`](src/Contexts/@SharedKernel/Application/ExecutionContext.spec.ts) |
-| A context's Domain never imports another context. Contexts talk through **integration events** only. | ESLint (`@Contexts/*/...` patterns) and [ADR 6](docs/adr/0006-integration-events-are-the-only-contract-between-contexts.md) |
+| A context's Domain, Application and Presentation never import another context. Contexts talk through **integration events**, and through **ports they own**, whose adapter (Infrastructure) may read the other context's Domain; only a wiring file imports another context's wiring. | The same ESLint table (`@Contexts/**` forbidden, own context re-allowed per layer) and [ADR 6](docs/adr/0006-integration-events-are-the-only-contract-between-contexts.md) |
 | Queries return read models; repositories return aggregates. Never the other way. | Port types; [ADR 5](docs/adr/0005-queries-return-read-models-not-aggregates.md) |
 | One wiring file per context, plain data, no container. | [`module.local.ts`](src/Contexts/Notes/module.local.ts) files |
+| One shape per kind of file, whatever the context: exceptions in one `<Aggregate>Exceptions.ts` with a PascalCase `type`; enum values are their UPPERCASE names; factories are `create()`; handlers end in `CommandHandler` / `QueryHandler`; nothing but the logger writes to the console. | Review, against the Notes context; `no-console` in ESLint |
 | It compiles, lints and tests, in CI, on every pull request. | [`ci.yml`](.github/workflows/ci.yml): `yarn lint`, `yarn typecheck`, `yarn test:units`, `yarn test:e2e` |
 
 ## Layout of a context
@@ -151,7 +157,7 @@ Contexts/Notes/
 │   ├── NoteExceptions.ts        broken rules, in business words
 │   ├── DTOs.ts                  the snapshot shape
 │   └── Ports/                   INoteRepository (write), INoteQueries (read models)
-├── Application/
+├── Application/                 (a context with no Domain, like Tracker, keeps its Ports/ and ReadModel/ here)
 │   ├── Commands/<UseCase>/      command + handler
 │   ├── Queries/<UseCase>/       query handler
 │   ├── Events/                  reactions to domain events (incl. translation to integration events)
@@ -180,6 +186,35 @@ yarn test:units         # every *.spec.ts except the e2e ones
 yarn test:e2e           # each suite boots its own application on a free port, with fresh stores; no server to start
 yarn test               # both
 ```
+
+`yarn build` bundles the server with [`deployments/build.js`](deployments/build.js); the Docker and Kubernetes files next to it are described in [`deployments/README.md`](deployments/README.md). They are not part of the reference architecture.
+
+## Vocabulary
+
+The words this README uses, in one line each, with the file that shows them. Where a word has several meanings in the literature, this is the one used here.
+
+| Word | Here it means | See |
+|---|---|---|
+| Bounded context | a folder with its own vocabulary and wiring, talking to others through integration events only | [`src/Contexts`](src/Contexts) |
+| Aggregate (root) | the object that owns a consistency boundary: every change goes through one of its behaviours, which checks the invariants and records an event | [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts) |
+| Entity | an object with an identity that outlives its attributes | [`Entity.ts`](src/Contexts/@SharedKernel/Domain/DDD/Entity.ts), [`DeliveryAttempt.ts`](src/Contexts/Notifications/Domain/Notification/DeliveryAttempt.ts) |
+| Value object | an object without identity, compared by value, valid from the moment it exists | [`NoteTitle.ts`](src/Contexts/Notes/Domain/Note/NoteTitle.ts) |
+| Invariant | a rule that must hold after every change of an aggregate | `shareWith()` in [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts) |
+| Domain event | a fact, in the past tense, recorded by an aggregate for the rest of the system | [`NoteEvents.ts`](src/Contexts/Notes/Domain/Note/Events/NoteEvents.ts) |
+| Integration event | a fact restated as a published contract for other contexts | [`NoteIntegrationEvents.ts`](src/Contexts/@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts) |
+| Command | a request that something happen; one handler; may be refused | [`ShareNoteCommandEvent.ts`](src/Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandEvent.ts) |
+| Query | a question; answered from a read model; changes nothing | [`GetNoteQueryHandler.ts`](src/Contexts/Notes/Application/Queries/GetNote/GetNoteQueryHandler.ts) |
+| Read model | a shape built for reading, not an aggregate | [`INoteQueries.ts`](src/Contexts/Notes/Domain/Note/Ports/INoteQueries.ts) |
+| Projection | a read model fed by events | [`OperationProjection.ts`](src/Contexts/Tracker/Application/Projections/OperationProjection.ts) |
+| Port | an interface the domain or the application declares in its own words, for something outside | [`INoteRepository.ts`](src/Contexts/Notes/Domain/Note/Ports/INoteRepository.ts), [`IAccountDirectory.ts`](src/Contexts/Notes/Domain/Note/Ports/IAccountDirectory.ts) |
+| Adapter | the implementation of a port, in the infrastructure | [`InMemoryNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository.ts), [`SecurityAccountDirectory.ts`](src/Contexts/Notes/Infrastructure/Directories/SecurityAccountDirectory.ts) |
+| Repository | the port that loads and saves one aggregate by identity | [`INoteRepository.ts`](src/Contexts/Notes/Domain/Note/Ports/INoteRepository.ts) |
+| Domain service | a business rule that spans several aggregates or needs a port | [`AccountRegistration.ts`](src/Contexts/Security/Domain/Account/AccountRegistration.ts), [`NoteSharing.ts`](src/Contexts/Notes/Domain/Note/NoteSharing.ts) |
+| Application service | orchestration shared by several entry points; no rule of its own | [`NotificationDelivery.ts`](src/Contexts/Notifications/Application/Services/NotificationDelivery.ts) |
+| Anti-corruption layer | the handler that translates a foreign contract into local terms | [`NoteSharedIntegrationEventHandler.ts`](src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts) |
+| Snapshot | the plain shape of an aggregate that crosses to the infrastructure | [`DTOs.ts`](src/Contexts/Notes/Domain/Note/DTOs.ts) |
+| Operation | the handle a client gets for a command: its status and outcome, recorded by the Tracker | [`Operation.ts`](src/Contexts/@SharedKernel/Application/Operation.ts) |
+| Composition root | the one file that knows every context and builds the application | [`createApplication.ts`](src/Bootstrap/Fastify/createApplication.ts) |
 
 ## Decisions
 

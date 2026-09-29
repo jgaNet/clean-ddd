@@ -16,7 +16,7 @@ A command handler saves an aggregate and publishes the events it recorded. If th
 
 ## Consequences
 
-- Listeners only ever see committed facts.
+- Listeners only ever see committed facts. What a listener does with a fact is its own operation: `EventHandler.handle()` awaits the reaction and records its outcome (SENT, or ERROR with the failure) on the operation, so a failing reaction is visible in the trace rather than lost; it can never undo the committed fact it reacted to.
 - Publication is best-effort after commit: if the process dies between the commit and the publish, the event is lost. This is the **single-process, in-memory version** of the guarantee. It is honest about what it does and does not promise.
 - The handler code does not change: `this.publishDomainEvents(aggregate, context)` reads the same as before; the timing is the base class's concern.
 

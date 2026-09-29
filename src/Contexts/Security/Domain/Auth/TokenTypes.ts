@@ -1,5 +1,5 @@
 export enum TokenTypes {
-  VALIDATION = 'validation',
+  VALIDATION = 'VALIDATION',
 }
 
 export function isTokenType(value: unknown): value is TokenTypes {

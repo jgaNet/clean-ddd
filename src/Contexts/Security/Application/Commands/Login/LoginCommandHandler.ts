@@ -4,7 +4,7 @@ import { CommandHandler, ExecutionContext } from '@SharedKernel/Application';
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
 import { IJwtService } from '@Contexts/Security/Domain/Auth/Ports/IJwtService';
 import { IPasswordHasher } from '@Contexts/Security/Domain/Auth/Ports/IPasswordHasher';
-import { InvalidCredentialsException } from '@Contexts/Security/Domain/Auth/Exceptions/InvalidCredentialsException';
+import { InvalidCredentialsException } from '@Contexts/Security/Domain/Account/AccountExceptions';
 import { LoginCommandEvent } from './LoginCommandEvent';
 
 /**
@@ -23,12 +23,12 @@ export class LoginCommandHandler extends CommandHandler<LoginCommandEvent> {
   async execute({ payload }: LoginCommandEvent, context: ExecutionContext): Promise<IResult<{ token: string }>> {
     const account = await this.accountRepository.findByEmail(payload.identifier);
     if (!account) {
-      return Result.fail(new InvalidCredentialsException('Invalid credentials'));
+      return Result.fail(new InvalidCredentialsException());
     }
 
     const passwordMatches = await this.passwordHasher.compare(payload.password, account.credentials.hash);
     if (!passwordMatches) {
-      return Result.fail(new InvalidCredentialsException('Invalid credentials'));
+      return Result.fail(new InvalidCredentialsException());
     }
 
     const authenticated = account.authenticate();

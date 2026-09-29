@@ -1,6 +1,6 @@
 import { IResult, Result, ValueObject } from '@SharedKernel/Domain';
 
-import { InvalidCredentialsException } from '@Contexts/Security/Domain/Auth/Exceptions/InvalidCredentialsException';
+import { InvalidCredentialsException } from '@Contexts/Security/Domain/Account/AccountExceptions';
 
 /**
  * What an account authenticates with. The domain only ever sees a hash: hashing and
@@ -8,9 +8,9 @@ import { InvalidCredentialsException } from '@Contexts/Security/Domain/Auth/Exce
  * The `type` leaves room for other kinds of credentials without touching the aggregate.
  */
 export class Credentials extends ValueObject<{ type: 'password'; hash: string }> {
-  static password(hash: string): IResult<Credentials> {
+  static create(hash: string): IResult<Credentials> {
     if (!hash) {
-      return Result.fail(new InvalidCredentialsException('A password hash is required'));
+      return Result.fail(new InvalidCredentialsException());
     }
     return Result.ok(new Credentials({ type: 'password', hash }));
   }

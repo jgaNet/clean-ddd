@@ -8,7 +8,7 @@ import { Exception } from '@SharedKernel/Domain';
  */
 export class NoteDomainException extends Exception {
   constructor({ type, message, context }: { type: string; message: string; context?: unknown }) {
-    super({ service: 'notes', type, message, context });
+    super({ service: 'Notes', type, message, context });
   }
 }
 
