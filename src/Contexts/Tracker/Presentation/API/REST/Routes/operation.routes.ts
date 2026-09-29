@@ -1,8 +1,9 @@
 import { FastifyInstance } from 'fastify';
 
 import { FastifyOperationController } from '@Contexts/Tracker/Presentation/API/REST/Controllers/FastifyOperationController';
-import { Module } from '@SharedKernel/Application';
+import { Module, OperationStatus } from '@SharedKernel/Application';
 import {
+  GetMyOperationsResSchema,
   GetOperationsResSchema,
   GetOperationResSchema,
 } from '@Contexts/Tracker/Presentation/API/REST/Routes/operation.routes.schema';
@@ -29,6 +30,24 @@ export const operationRoutes = function (
       },
     },
     operationController.getOperations.bind(operationController),
+  );
+
+  // A static segment, so it cannot collide with `/:id`.
+  fastify.get(
+    '/mine',
+    {
+      schema: {
+        tags: ['tracker'],
+        querystring: {
+          type: 'object',
+          properties: {
+            status: { type: 'string', enum: Object.values(OperationStatus) },
+          },
+        },
+        response: GetMyOperationsResSchema,
+      },
+    },
+    operationController.getMyOperations.bind(operationController),
   );
 
   fastify.get(

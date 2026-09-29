@@ -1,6 +1,6 @@
 import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InMemoryDataSource';
 
-import { IOperationRecords } from '@Contexts/Tracker/Application/Ports/IOperationRecords';
+import { IOperationRecords, OperationFilters } from '@Contexts/Tracker/Application/Ports/IOperationRecords';
 import { OperationRecord } from '@Contexts/Tracker/Application/ReadModel/OperationRecord';
 
 export class InMemoryOperationRecords implements IOperationRecords {
@@ -20,5 +20,16 @@ export class InMemoryOperationRecords implements IOperationRecords {
 
   async findByTraceId(traceId: string): Promise<OperationRecord[]> {
     return [...this.dataSource.collection.values()].filter(record => record.traceId === traceId);
+  }
+
+  async findBySubjectId(subjectId: string, filters: OperationFilters = {}): Promise<OperationRecord[]> {
+    return (
+      [...this.dataSource.collection.values()]
+        .filter(record => record.subjectId === subjectId)
+        .filter(record => !filters.status || record.status === filters.status)
+        // The Map keeps insertion order; reversed, a stable sort leaves equal timestamps last-saved first.
+        .reverse()
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    );
   }
 }

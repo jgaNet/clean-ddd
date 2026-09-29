@@ -29,6 +29,11 @@ export const GetOperationsResSchema = {
   403: RefusedSchema,
 } as const;
 
+export const GetMyOperationsResSchema = {
+  200: { description: 'Success', type: 'array', items: OperationRecordSchema },
+  403: RefusedSchema,
+} as const;
+
 export const GetOperationResSchema = {
   200: { description: 'Success', ...OperationRecordSchema },
   400: RefusedSchema,

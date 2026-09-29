@@ -54,3 +54,66 @@ describe('Tracker: following an operation', () => {
     expect(new Set(records.map(r => r.traceId))).toEqual(new Set([accepted.headers['x-trace-id']]));
   });
 });
+
+describe('Tracker: my operations', () => {
+  type Listed = { name: string; status: string; subjectId: string; createdAt: string };
+
+  // A fresh, validated user: bob. His sign-up was anonymous, so it is not among his operations.
+  let bob: ReturnType<typeof superagent.agent>;
+  let bobId: string;
+  beforeAll(async () => {
+    const validator = await app.admin(); // `admin` is set per test, not yet here
+    const signUp = await superagent.post(`${api}/auth/signup`).send({ identifier: 'bob@tracker.fr', password: 'bob' });
+    const signUpOperation = await validator.get(`${api}/tracker/operations/${signUp.body.operationId}`);
+    bobId = signUpOperation.body.result;
+    await validator.get(`${api}/auth/accounts/${bobId}/validate`);
+    bob = await app.agentAs('bob@tracker.fr', 'bob');
+  });
+
+  it("lists a user's own operations, most recent first, and nobody else's", async () => {
+    await shareUnknownNote(); // the admin's, not bob's
+    const created = await bob.post(`${api}/notes`).send({ title: 'Mine', content: '...' });
+    const failed = await bob.post(`${api}/notes/00000000-0000-4000-8000-000000000000/share`).send({ recipientId: 'x' });
+
+    const mine = await bob.get(`${api}/tracker/operations/mine`);
+    expect(mine.status).toBe(200);
+
+    const records: Listed[] = mine.body;
+    expect(records.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(records.map(r => r.subjectId))).toEqual(new Set([bobId]));
+    expect(records.map(r => r.name)).toEqual(
+      expect.arrayContaining(['CreateNoteCommandEvent', 'ShareNoteCommandEvent']),
+    );
+    expect(records.map(r => r.createdAt)).toEqual([...records.map(r => r.createdAt)].sort().reverse());
+    expect(records.findIndex(r => r.name === 'ShareNoteCommandEvent')).toBeLessThan(
+      records.findIndex(r => r.name === 'CreateNoteCommandEvent'),
+    );
+    expect(created.status).toBe(202);
+    expect(failed.status).toBe(202);
+  });
+
+  it('narrows them down to the failed ones when asked', async () => {
+    const failed = await bob.get(`${api}/tracker/operations/mine`).query({ status: 'ERROR' });
+    expect(failed.status).toBe(200);
+
+    const records: Listed[] = failed.body;
+    expect(records.map(r => r.status)).toEqual(records.map(() => 'ERROR'));
+    expect(records.map(r => r.name)).toContain('ShareNoteCommandEvent');
+    expect(records.map(r => r.name)).not.toContain('CreateNoteCommandEvent');
+  });
+
+  it("gives an administrator their own list, not everyone's", async () => {
+    const mine = await admin.get(`${api}/tracker/operations/mine`);
+    expect(mine.status).toBe(200);
+
+    const records: Listed[] = mine.body;
+    expect(records.length).toBeGreaterThan(0);
+    expect(records.map(r => r.subjectId)).not.toContain(bobId);
+  });
+
+  it('refuses an anonymous caller', async () => {
+    let status: number | undefined;
+    await superagent.get(`${api}/tracker/operations/mine`).catch(err => (status = err.status));
+    expect(status).toBe(403);
+  });
+});
