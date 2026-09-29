@@ -25,6 +25,9 @@ jobs:
       - name: Conventions
         run: yarn check:conventions
 
+      - name: Format
+        run: yarn format:check
+
       - name: Lint
         run: yarn lint
 
