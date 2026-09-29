@@ -7,11 +7,14 @@ import { FastifyNoteController } from '@Contexts/Notes/Presentation/API/REST/Con
 import {
   CommandOnNoteSchema,
   CommandResSchema,
+  CommentNoteReqBody,
+  CommentNoteReqBodySchema,
   CreateNoteReqBody,
   CreateNoteReqBodySchema,
   EditNoteReqBody,
   EditNoteReqBodySchema,
   GetMyNotesResSchema,
+  GetNoteCommentsResSchema,
   GetNoteResSchema,
   GetSharedNotesResSchema,
   NoteIdParams,
@@ -71,6 +74,18 @@ export const noteRoutes = function (
     '/:id/share',
     { schema: { tags, ...CommandOnNoteSchema, body: ShareNoteReqBodySchema } },
     controller.shareNote.bind(controller),
+  );
+
+  fastify.post<{ Params: NoteIdParams; Body: CommentNoteReqBody }>(
+    '/:id/comments',
+    { schema: { tags, ...CommandOnNoteSchema, body: CommentNoteReqBodySchema } },
+    controller.commentNote.bind(controller),
+  );
+
+  fastify.get<{ Params: NoteIdParams }>(
+    '/:id/comments',
+    { schema: { tags, params: CommandOnNoteSchema.params, response: GetNoteCommentsResSchema } },
+    controller.getNoteComments.bind(controller),
   );
 
   done();

@@ -3,6 +3,8 @@ import { IResult, Result } from '@SharedKernel/Domain';
 import { Id } from '@SharedKernel/Domain/ValueObjects';
 
 import { INewNote, INote } from '@Contexts/Notes/Domain/Note/DTOs';
+import { NoteComment } from '@Contexts/Notes/Domain/Note/NoteComment';
+import { NoteCommentText } from '@Contexts/Notes/Domain/Note/NoteCommentText';
 import { NoteStatus } from '@Contexts/Notes/Domain/Note/NoteStatus';
 import { NoteTitle } from '@Contexts/Notes/Domain/Note/NoteTitle';
 import {
@@ -11,10 +13,12 @@ import {
   NoteArchivedEvent,
   NoteRestoredEvent,
   NoteSharedEvent,
+  NoteCommentedEvent,
 } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
 import {
   CannotShareWithSelfException,
   NotNoteOwnerException,
+  NotNoteRecipientException,
   NoteAlreadyArchivedException,
   NoteAlreadySharedException,
   NoteArchivedException,
@@ -29,8 +33,10 @@ import {
  *
  * - a note always has a valid title (NoteTitle value object)
  * - only the owner can edit, archive, restore or share a note
- * - an archived note is read-only until it is restored: it can be neither edited nor shared
- *   (`ensureActive()`); archiving, restoring and reading it are not gated by that rule
+ * - only an account the note is shared with can comment on it (the owner reads the comments,
+ *   they do not write them); a comment is a NoteComment child entity with a valid text
+ * - an archived note is read-only until it is restored: it can be neither edited, shared nor
+ *   commented (`ensureActive()`); archiving, restoring and reading it are not gated by that rule
  * - a note cannot be shared twice with the same account, nor with its owner
  *
  * The aggregate never touches persistence, logging or HTTP. It only knows business.
@@ -41,6 +47,7 @@ export class Note extends AggregateRoot {
   #content: string;
   #status: NoteStatus;
   #sharedWith: Set<string>; // raw ids: a Set needs a primitive key; the accessors speak Id
+  #comments: NoteComment[];
 
   private constructor(
     id: Id,
@@ -49,6 +56,7 @@ export class Note extends AggregateRoot {
     content: string,
     status: NoteStatus,
     sharedWith: string[],
+    comments: NoteComment[],
   ) {
     super(id);
     this.#ownerId = ownerId;
@@ -56,6 +64,7 @@ export class Note extends AggregateRoot {
     this.#content = content;
     this.#status = status;
     this.#sharedWith = new Set(sharedWith);
+    this.#comments = comments;
   }
 
   /**
@@ -67,7 +76,7 @@ export class Note extends AggregateRoot {
     if (title.isFailure()) return title;
 
     const id = Id.generate();
-    const note = new Note(id, new Id(props.ownerId), title.data, props.content, NoteStatus.ACTIVE, []);
+    const note = new Note(id, new Id(props.ownerId), title.data, props.content, NoteStatus.ACTIVE, [], []);
     note.record(NoteCreatedEvent.set({ noteId: id.value, ownerId: props.ownerId, title: title.data.value }));
 
     return Result.ok(note);
@@ -95,6 +104,7 @@ export class Note extends AggregateRoot {
       snapshot.content,
       snapshot.status,
       snapshot.sharedWith,
+      snapshot.comments.map(NoteComment.fromSnapshot),
     );
   }
 
@@ -171,6 +181,31 @@ export class Note extends AggregateRoot {
     return Result.ok();
   }
 
+  /**
+   * Leaves a comment on the note. Reserved to the accounts the note is shared with: the owner
+   * is not one of them. The comment is a child entity; the note hands back the one it created
+   * so the caller can name it, and records the fact.
+   */
+  comment(authorId: Id, text: string, now: Date = new Date()): IResult<NoteComment> {
+    if (!this.#sharedWith.has(authorId.value)) {
+      return Result.fail(new NotNoteRecipientException(this._id.value, authorId.value));
+    }
+
+    const writable = this.ensureActive();
+    if (writable.isFailure()) return writable;
+
+    const body = NoteCommentText.create(text);
+    if (body.isFailure()) return body;
+
+    const comment = NoteComment.create(authorId, body.data, now);
+    this.#comments.push(comment);
+    this.record(
+      NoteCommentedEvent.set({ noteId: this._id.value, commentId: comment._id.value, authorId: authorId.value }),
+    );
+
+    return Result.ok(comment);
+  }
+
   isVisibleTo(accountId: Id): boolean {
     return this.#ownerId.equals(accountId) || this.#sharedWith.has(accountId.value);
   }
@@ -184,6 +219,7 @@ export class Note extends AggregateRoot {
       content: this.#content,
       status: this.#status,
       sharedWith: [...this.#sharedWith],
+      comments: this.#comments.map(comment => comment.toSnapshot()),
     };
   }
 
@@ -219,5 +255,9 @@ export class Note extends AggregateRoot {
 
   get sharedWith(): string[] {
     return [...this.#sharedWith];
+  }
+
+  get comments(): readonly NoteComment[] {
+    return [...this.#comments];
   }
 }

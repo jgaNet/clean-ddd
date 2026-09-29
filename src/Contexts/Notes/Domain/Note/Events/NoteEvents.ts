@@ -22,3 +22,5 @@ export class NoteSharedEvent extends DomainEvent<{
   ownerId: string;
   recipientId: string;
 }> {}
+
+export class NoteCommentedEvent extends DomainEvent<{ noteId: string; commentId: string; authorId: string }> {}

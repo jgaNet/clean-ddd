@@ -6,19 +6,23 @@ import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InM
 
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import { NoteStatus } from '@Contexts/Notes/Domain/Note/NoteStatus';
-import { NoteCreatedEvent, NoteSharedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
+import { NoteCommentedEvent, NoteCreatedEvent, NoteSharedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
 import {
   BlankNoteTitleException,
   NoteArchivedException,
+  NoteCommentTooLongException,
   NoteNotArchivedException,
   NoteNotFoundException,
   NotNoteOwnerException,
+  NotNoteRecipientException,
 } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 import { InMemoryNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository';
 import { NoteSharing } from '@Contexts/Notes/Domain/Note/NoteSharing';
 import {
   ArchiveNoteCommandEvent,
   ArchiveNoteCommandHandler,
+  CommentNoteCommandEvent,
+  CommentNoteCommandHandler,
   CreateNoteCommandEvent,
   CreateNoteCommandHandler,
   EditNoteCommandEvent,
@@ -72,6 +76,7 @@ describe('CreateNoteCommandHandler', () => {
       content: 'Milk',
       status: NoteStatus.ACTIVE,
       sharedWith: [],
+      comments: [],
     });
     expect(eventBus.publish).toHaveBeenCalledTimes(1);
     expect(eventBus.publish).toHaveBeenCalledWith(
@@ -136,6 +141,71 @@ describe('ShareNoteCommandHandler', () => {
     const result = await new ShareNoteCommandHandler(repository, sharing).execute(
       ShareNoteCommandEvent.set({ noteId: 'nope', recipientId: 'bob' }),
       contextFor('alice'),
+    );
+
+    expect(result.error).toBeInstanceOf(NoteNotFoundException);
+  });
+});
+
+describe('CommentNoteCommandHandler', () => {
+  async function aNoteSharedWithBob(): Promise<string> {
+    const noteId = await aNoteOwnedBy('alice');
+    await new ShareNoteCommandHandler(repository, sharing).execute(
+      ShareNoteCommandEvent.set({ noteId, recipientId: 'bob' }),
+      contextFor('alice'),
+    );
+    jest.resetAllMocks();
+    return noteId;
+  }
+
+  it('lets a recipient comment, answers the comment id and publishes NoteCommented', async () => {
+    const noteId = await aNoteSharedWithBob();
+
+    const result = await new CommentNoteCommandHandler(repository).execute(
+      CommentNoteCommandEvent.set({ noteId, text: 'Looks good' }),
+      contextFor('bob'),
+    );
+
+    expect(result.isSuccess()).toBe(true);
+    const commentId = result.data as string;
+    expect(store.collection.get(noteId)?.comments).toEqual([
+      { _id: commentId, authorId: 'bob', text: 'Looks good', postedAt: expect.any(Date) },
+    ]);
+    expect(eventBus.publish).toHaveBeenCalledWith(
+      NoteCommentedEvent.set({ noteId, commentId, authorId: 'bob' }),
+      expect.any(ExecutionContext),
+    );
+  });
+
+  it('refuses the owner, who reads comments but does not write them', async () => {
+    const noteId = await aNoteSharedWithBob();
+
+    const result = await new CommentNoteCommandHandler(repository).execute(
+      CommentNoteCommandEvent.set({ noteId, text: 'Thanks' }),
+      contextFor('alice'),
+    );
+
+    expect(result.error).toBeInstanceOf(NotNoteRecipientException);
+    expect(store.collection.get(noteId)?.comments).toEqual([]);
+    expect(eventBus.publish).not.toHaveBeenCalled();
+  });
+
+  it('refuses a comment longer than 500 characters', async () => {
+    const noteId = await aNoteSharedWithBob();
+
+    const result = await new CommentNoteCommandHandler(repository).execute(
+      CommentNoteCommandEvent.set({ noteId, text: 'x'.repeat(501) }),
+      contextFor('bob'),
+    );
+
+    expect(result.error).toBeInstanceOf(NoteCommentTooLongException);
+    expect(store.collection.get(noteId)?.comments).toEqual([]);
+  });
+
+  it('fails on an unknown note', async () => {
+    const result = await new CommentNoteCommandHandler(repository).execute(
+      CommentNoteCommandEvent.set({ noteId: 'nope', text: 'Hello?' }),
+      contextFor('bob'),
     );
 
     expect(result.error).toBeInstanceOf(NoteNotFoundException);

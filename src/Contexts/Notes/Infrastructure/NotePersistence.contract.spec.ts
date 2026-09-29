@@ -52,13 +52,15 @@ describe.each(adapters)('Note persistence over $name', ({ open }) => {
   beforeEach(() => ({ repository, queries } = open()));
 
   describe('INoteRepository', () => {
-    it('gives back an equal aggregate', async () => {
+    it('gives back an equal aggregate, comments included', async () => {
       const note = aNote(alice, 'Groceries');
       note.shareWith(alice, bob);
+      note.comment(bob, 'Do not forget the eggs');
       await repository.save(note);
 
       const found = await repository.findById(note._id.value);
       expect(found?.toSnapshot()).toEqual(note.toSnapshot());
+      expect(found?.comments[0].postedAt).toBeInstanceOf(Date);
     });
 
     it('answers null for an unknown id', async () => {
@@ -129,6 +131,31 @@ describe.each(adapters)('Note persistence over $name', ({ open }) => {
         { id: shared._id.value, title: 'Shared', content: 'for bob', ownerId: 'alice' },
       ]);
       expect(await queries.findSharedWith(alice.value)).toEqual([]);
+    });
+
+    it('lists the comments of a note in the order they were posted, and nothing for an unknown note', async () => {
+      const note = aNote(alice, 'Reviewed');
+      note.shareWith(alice, bob);
+      const first = note.comment(bob, 'First thought', new Date('2026-09-29T10:00:00.000Z'));
+      const second = note.comment(bob, 'Second thought', new Date('2026-09-29T10:05:00.000Z'));
+      await repository.save(note);
+      await repository.save(aNote(alice, 'Uncommented'));
+
+      expect(await queries.findComments(note._id.value)).toEqual([
+        {
+          id: first.data?._id.value,
+          authorId: 'bob',
+          text: 'First thought',
+          postedAt: new Date('2026-09-29T10:00:00.000Z'),
+        },
+        {
+          id: second.data?._id.value,
+          authorId: 'bob',
+          text: 'Second thought',
+          postedAt: new Date('2026-09-29T10:05:00.000Z'),
+        },
+      ]);
+      expect(await queries.findComments('nobody')).toEqual([]);
     });
   });
 });

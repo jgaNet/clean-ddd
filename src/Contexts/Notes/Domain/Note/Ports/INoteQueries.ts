@@ -23,6 +23,13 @@ export interface SharedNoteListItem {
   ownerId: string;
 }
 
+export interface NoteCommentListItem {
+  id: string;
+  authorId: string;
+  text: string;
+  postedAt: Date;
+}
+
 /**
  * The queries port is the read side (the "Q" of CQRS). It returns read models, not
  * aggregates, so the read side is free to be shaped, indexed and cached however the
@@ -34,4 +41,9 @@ export interface INoteQueries {
   findByOwner(ownerId: string): Promise<NoteListItem[]>;
   /** In the order they were saved. */
   findSharedWith(accountId: string): Promise<SharedNoteListItem[]>;
+  /**
+   * The comments of one note, in the order they were posted. An unknown note gets an empty
+   * list; whether the reader may see the note at all is the handler's question (findById).
+   */
+  findComments(noteId: string): Promise<NoteCommentListItem[]>;
 }

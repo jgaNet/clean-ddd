@@ -14,10 +14,13 @@ import {
   RestoreNoteCommandHandler,
   ShareNoteCommandEvent,
   ShareNoteCommandHandler,
+  CommentNoteCommandEvent,
+  CommentNoteCommandHandler,
 } from '@Contexts/Notes/Application/Commands';
 import {
   GetMyNotesQueryHandler,
   GetNoteQueryHandler,
+  GetNoteCommentsQueryHandler,
   GetNotesSharedWithMeQueryHandler,
 } from '@Contexts/Notes/Application/Queries';
 import { NoteCreatedHandler } from '@Contexts/Notes/Application/Events/NoteCreatedHandler';
@@ -45,10 +48,12 @@ export const localNotesModule = new Module({
     { event: ArchiveNoteCommandEvent, handlers: [new ArchiveNoteCommandHandler(noteRepository)] },
     { event: RestoreNoteCommandEvent, handlers: [new RestoreNoteCommandHandler(noteRepository)] },
     { event: ShareNoteCommandEvent, handlers: [new ShareNoteCommandHandler(noteRepository, noteSharing)] },
+    { event: CommentNoteCommandEvent, handlers: [new CommentNoteCommandHandler(noteRepository)] },
   ],
   queries: [
     new GetMyNotesQueryHandler(noteQueries),
     new GetNoteQueryHandler(noteQueries),
+    new GetNoteCommentsQueryHandler(noteQueries),
     new GetNotesSharedWithMeQueryHandler(noteQueries),
   ],
   domainEvents: [

@@ -10,13 +10,16 @@ import {
   ArchiveNoteCommandEvent,
   RestoreNoteCommandEvent,
   ShareNoteCommandEvent,
+  CommentNoteCommandEvent,
 } from '@Contexts/Notes/Application/Commands';
 import {
   GetMyNotesQueryHandler,
   GetNoteQueryHandler,
+  GetNoteCommentsQueryHandler,
   GetNotesSharedWithMeQueryHandler,
 } from '@Contexts/Notes/Application/Queries';
 import {
+  CommentNoteReqBody,
   CreateNoteReqBody,
   EditNoteReqBody,
   NoteIdParams,
@@ -64,6 +67,10 @@ export class FastifyNoteController {
     );
   }
 
+  async commentNote(req: FastifyRequest<{ Params: NoteIdParams; Body: CommentNoteReqBody }>, reply: FastifyReply) {
+    return this.accept(req, reply, CommentNoteCommandEvent.set({ noteId: req.params.id, text: req.body.text }));
+  }
+
   async getMyNotes(req: FastifyRequest, reply: FastifyReply) {
     const result = await this.#notesModule.getQuery(GetMyNotesQueryHandler).handle(undefined, req.executionContext);
 
@@ -72,6 +79,14 @@ export class FastifyNoteController {
 
   async getNote(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
     const result = await this.#notesModule.getQuery(GetNoteQueryHandler).handle(req.params.id, req.executionContext);
+
+    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
+  }
+
+  async getNoteComments(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
+    const result = await this.#notesModule
+      .getQuery(GetNoteCommentsQueryHandler)
+      .handle(req.params.id, req.executionContext);
 
     return result.isFailure() ? this.refuse(reply, result.error) : result.data;
   }

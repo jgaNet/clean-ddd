@@ -82,6 +82,32 @@ export class NoteAlreadySharedException extends NoteDomainException {
   }
 }
 
+export class BlankNoteCommentException extends NoteDomainException {
+  constructor() {
+    super({ type: 'BlankNoteComment', message: 'A comment needs a text' });
+  }
+}
+
+export class NoteCommentTooLongException extends NoteDomainException {
+  constructor(maxLength: number, actualLength: number) {
+    super({
+      type: 'NoteCommentTooLong',
+      message: `A comment cannot exceed ${maxLength} characters`,
+      context: { maxLength, actualLength },
+    });
+  }
+}
+
+export class NotNoteRecipientException extends NoteDomainException {
+  constructor(noteId: string, actorId: string) {
+    super({
+      type: 'NotNoteRecipient',
+      message: 'Only someone the note is shared with can comment on it',
+      context: { noteId, actorId },
+    });
+  }
+}
+
 export class RecipientNotFoundException extends NoteDomainException {
   constructor(noteId: string, recipientId: string) {
     super({

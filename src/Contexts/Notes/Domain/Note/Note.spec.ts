@@ -8,14 +8,17 @@ import {
   NoteArchivedEvent,
   NoteRestoredEvent,
   NoteSharedEvent,
+  NoteCommentedEvent,
 } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
 import {
   BlankNoteTitleException,
   CannotShareWithSelfException,
   NotNoteOwnerException,
+  NotNoteRecipientException,
   NoteAlreadyArchivedException,
   NoteAlreadySharedException,
   NoteArchivedException,
+  NoteCommentTooLongException,
   NoteNotArchivedException,
 } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 
@@ -32,6 +35,13 @@ function aNote(): Note {
 function anArchivedNote(): Note {
   const note = aNote();
   note.archive(owner);
+  note.pullDomainEvents();
+  return note;
+}
+
+function aNoteSharedWith(recipient: Id): Note {
+  const note = aNote();
+  note.shareWith(owner, recipient);
   note.pullDomainEvents();
   return note;
 }
@@ -184,6 +194,61 @@ describe('Note', () => {
     });
   });
 
+  describe('commenting', () => {
+    const postedAt = new Date('2026-09-29T10:00:00.000Z');
+
+    it('lets a recipient comment, keeps the comments in order, and records NoteCommented', () => {
+      const note = aNoteSharedWith(stranger);
+
+      const first = note.comment(stranger, 'Looks good', postedAt);
+      const second = note.comment(stranger, 'One more thing', postedAt);
+
+      expect(first.isSuccess()).toBe(true);
+      expect(second.isSuccess()).toBe(true);
+      expect(note.comments.map(comment => comment.text)).toEqual(['Looks good', 'One more thing']);
+      expect(note.comments[0].authorId.equals(stranger)).toBe(true);
+      expect(note.comments[0].postedAt).toEqual(postedAt);
+      const [firstId, secondId] = note.comments.map(comment => comment._id.value);
+      expect(note.pullDomainEvents()).toEqual([
+        NoteCommentedEvent.set({ noteId: note._id.value, commentId: firstId, authorId: 'bob' }),
+        NoteCommentedEvent.set({ noteId: note._id.value, commentId: secondId, authorId: 'bob' }),
+      ]);
+    });
+
+    it('is reserved to the accounts the note is shared with: not the owner', () => {
+      const note = aNoteSharedWith(stranger);
+
+      expect(note.comment(owner, 'Thanks').error).toBeInstanceOf(NotNoteRecipientException);
+      expect(note.comments).toEqual([]);
+    });
+
+    it('is reserved to the accounts the note is shared with: not a stranger', () => {
+      const note = aNote();
+
+      expect(note.comment(stranger, 'Hi').error).toBeInstanceOf(NotNoteRecipientException);
+      expect(note.comments).toEqual([]);
+      expect(note.pullDomainEvents()).toEqual([]);
+    });
+
+    it('is refused on an archived note', () => {
+      const note = aNoteSharedWith(stranger);
+      note.archive(owner);
+      note.pullDomainEvents();
+
+      expect(note.comment(stranger, 'Too late').error).toBeInstanceOf(NoteArchivedException);
+    });
+
+    it('refuses a comment longer than 500 characters and keeps none of it', () => {
+      const note = aNoteSharedWith(stranger);
+
+      const result = note.comment(stranger, 'x'.repeat(501));
+
+      expect(result.error).toBeInstanceOf(NoteCommentTooLongException);
+      expect(note.comments).toEqual([]);
+      expect(note.pullDomainEvents()).toEqual([]);
+    });
+  });
+
   describe('persistence round-trip', () => {
     it('rebuilds the full state from a snapshot without recording any event', () => {
       const note = Note.fromSnapshot({
@@ -193,17 +258,20 @@ describe('Note', () => {
         content: 'Text',
         status: NoteStatus.ARCHIVED,
         sharedWith: ['bob'],
+        comments: [{ _id: 'c-1', authorId: 'bob', text: 'Nice', postedAt: new Date('2026-09-29T10:00:00.000Z') }],
       });
 
       expect(note._id.value).toBe('note-9');
       expect(note.status).toBe(NoteStatus.ARCHIVED);
       expect(note.sharedWith).toEqual(['bob']);
+      expect(note.comments.map(comment => comment.text)).toEqual(['Nice']);
       expect(note.pullDomainEvents()).toEqual([]);
     });
 
     it('gives back an equal note after toSnapshot / fromSnapshot', () => {
       const note = aNote();
       note.shareWith(owner, stranger);
+      note.comment(stranger, 'Nice');
 
       const rebuilt = Note.fromSnapshot(note.toSnapshot());
 
@@ -220,8 +288,23 @@ describe('Note', () => {
           content: '',
           status: NoteStatus.ACTIVE,
           sharedWith: [],
+          comments: [],
         }),
       ).toThrow(/Corrupted note n/);
+    });
+
+    it('refuses a snapshot with a corrupted comment', () => {
+      expect(() =>
+        Note.fromSnapshot({
+          _id: 'n',
+          ownerId: 'alice',
+          title: 'Fine',
+          content: '',
+          status: NoteStatus.ACTIVE,
+          sharedWith: ['bob'],
+          comments: [{ _id: 'c', authorId: 'bob', text: '   ', postedAt: new Date() }],
+        }),
+      ).toThrow(/Corrupted note comment c/);
     });
   });
 });

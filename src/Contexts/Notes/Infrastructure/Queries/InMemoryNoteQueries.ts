@@ -3,6 +3,7 @@ import { InMemoryDataSource } from '@SharedKernel/Infrastructure/DataSources/InM
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import {
   INoteQueries,
+  NoteCommentListItem,
   NoteDetail,
   NoteListItem,
   SharedNoteListItem,
@@ -35,6 +36,13 @@ export class InMemoryNoteQueries implements INoteQueries {
     return this.all()
       .filter(note => note.sharedWith.includes(accountId))
       .map(note => ({ id: note._id, title: note.title, content: note.content, ownerId: note.ownerId }));
+  }
+
+  async findComments(noteId: string): Promise<NoteCommentListItem[]> {
+    const note = this.dataSource.collection.get(noteId);
+    if (!note) return [];
+
+    return note.comments.map(({ _id, authorId, text, postedAt }) => ({ id: _id, authorId, text, postedAt }));
   }
 
   private all(): INote[] {

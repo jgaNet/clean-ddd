@@ -8,3 +8,5 @@ export * from '@Contexts/Notes/Application/Commands/RestoreNote/RestoreNoteComma
 export * from '@Contexts/Notes/Application/Commands/RestoreNote/RestoreNoteCommandHandler';
 export * from '@Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandEvent';
 export * from '@Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandHandler';
+export * from '@Contexts/Notes/Application/Commands/CommentNote/CommentNoteCommandEvent';
+export * from '@Contexts/Notes/Application/Commands/CommentNote/CommentNoteCommandHandler';

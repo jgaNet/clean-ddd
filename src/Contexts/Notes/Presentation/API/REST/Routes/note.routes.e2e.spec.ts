@@ -59,6 +59,75 @@ describe('POST notes/', () => {
   });
 });
 
+describe('Commenting on a shared note', () => {
+  // A validated account of its own, so the case does not depend on what the earlier ones created.
+  async function aValidatedAccount(identifier: string, password: string) {
+    const signUp = await superagent.post(`${api}/auth/signup`).send({ identifier, password });
+    const operation = await agent.get(`${api}/tracker/operations/${signUp.body.operationId}`);
+    const id: string = operation.body.result;
+    await agent.get(`${api}/auth/accounts/${id}/validate`);
+    return { id, agent: await app.agentAs(identifier, password) };
+  }
+
+  let noteId: string;
+  let carol: { id: string; agent: ReturnType<typeof superagent.agent> };
+  let dave: { id: string; agent: ReturnType<typeof superagent.agent> };
+
+  beforeAll(async () => {
+    agent = await app.admin();
+    carol = await aValidatedAccount('carol@notes.fr', 'carol');
+    dave = await aValidatedAccount('dave@notes.fr', 'dave');
+
+    await agent.post(`${api}/notes`).send({ title: 'Design review', content: 'Please have a look' });
+    const mine = await agent.get(`${api}/notes`);
+    noteId = mine.body.find((note: { title: string }) => note.title === 'Design review').id;
+    await agent.post(`${api}/notes/${noteId}/share`).send({ recipientId: carol.id });
+  });
+
+  it('lets a recipient comment, and everyone with access read the comments', async () => {
+    const res = await carol.agent.post(`${api}/notes/${noteId}/comments`).send({ text: 'Looks good to me' });
+    expect(res.status).toBe(202);
+
+    const operation = await agent.get(`${api}/tracker/operations/${res.body.operationId}`);
+    expect(operation.body).toMatchObject({ status: 'SUCCESS', result: expect.any(String) });
+
+    const expected = [
+      { id: operation.body.result, authorId: carol.id, text: 'Looks good to me', postedAt: expect.any(String) },
+    ];
+    const owner = await agent.get(`${api}/notes/${noteId}/comments`);
+    expect(owner.status).toBe(200);
+    expect(owner.body).toEqual(expected);
+
+    const recipient = await carol.agent.get(`${api}/notes/${noteId}/comments`);
+    expect(recipient.body).toEqual(expected);
+  });
+
+  it('refuses the owner as a commenter, on the operation', async () => {
+    const res = await agent.post(`${api}/notes/${noteId}/comments`).send({ text: 'Thanks!' });
+    expect(res.status).toBe(202);
+
+    const operation = await agent.get(`${api}/tracker/operations/${res.body.operationId}`);
+    expect(operation.body).toMatchObject({ status: 'ERROR', error: { type: 'NotNoteRecipient' } });
+  });
+
+  it('refuses a comment over 500 characters, on the operation', async () => {
+    const res = await carol.agent.post(`${api}/notes/${noteId}/comments`).send({ text: 'x'.repeat(501) });
+    expect(res.status).toBe(202);
+
+    const operation = await agent.get(`${api}/tracker/operations/${res.body.operationId}`);
+    expect(operation.body).toMatchObject({ status: 'ERROR', error: { type: 'NoteCommentTooLong' } });
+
+    const comments = await agent.get(`${api}/notes/${noteId}/comments`);
+    expect(comments.body).toHaveLength(1);
+  });
+
+  it('hides the comments from someone the note is not shared with', async () => {
+    let status: number | undefined;
+    await dave.agent.get(`${api}/notes/${noteId}/comments`).catch(err => (status = err.status));
+    expect(status).toBe(404);
+  });
+});
+
 describe('POST notes/:id/archive', () => {
   it('should archive the note', async () => {
     const list = await agent.get(`${api}/notes`);

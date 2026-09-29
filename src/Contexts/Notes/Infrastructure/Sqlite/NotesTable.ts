@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 
-import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
+import { INote, INoteComment } from '@Contexts/Notes/Domain/Note/DTOs';
 import { NoteStatus } from '@Contexts/Notes/Domain/Note/NoteStatus';
 
 /**
@@ -8,8 +8,10 @@ import { NoteStatus } from '@Contexts/Notes/Domain/Note/NoteStatus';
  * snapshot the aggregate is rebuilt from. The repository and the queries share it, the way
  * their in-memory counterparts share one InMemoryDataSource: same store, two ports.
  *
- * `shared_with` is a JSON array; SQLite's json_each() lets the queries filter on it without
- * a second table, which is all this reference needs. A real schema would normalise it.
+ * `shared_with` and `comments` are JSON; SQLite's json_each() lets the queries filter on them
+ * without a second table, which is all this reference needs. A real schema would normalise
+ * both. A comment's `postedAt` travels as an ISO string inside that JSON and is revived as a
+ * Date on the way back, so a round-trip gives an equal snapshot.
  *
  * CREATE TABLE IF NOT EXISTS is enough because the store is created per process (an in-memory
  * database in tests). A file database that outlives the code would need a migration for every
@@ -23,7 +25,8 @@ export function createNotesTable(db: DatabaseSync): void {
       title       TEXT NOT NULL,
       content     TEXT NOT NULL,
       status      TEXT NOT NULL,
-      shared_with TEXT NOT NULL
+      shared_with TEXT NOT NULL,
+      comments    TEXT NOT NULL
     )
   `);
 }
@@ -36,7 +39,11 @@ export type NoteRow = {
   content: string;
   status: string;
   shared_with: string;
+  comments: string;
 };
+
+/** What JSON.stringify made of an INoteComment: the Date became a string. */
+type StoredComment = Omit<INoteComment, 'postedAt'> & { postedAt: string };
 
 export const toRow = (note: INote): NoteRow => ({
   id: note._id,
@@ -45,7 +52,11 @@ export const toRow = (note: INote): NoteRow => ({
   content: note.content,
   status: note.status,
   shared_with: JSON.stringify(note.sharedWith),
+  comments: JSON.stringify(note.comments),
 });
+
+export const toComments = (json: string): INoteComment[] =>
+  (JSON.parse(json) as StoredComment[]).map(comment => ({ ...comment, postedAt: new Date(comment.postedAt) }));
 
 export const toSnapshot = (row: NoteRow): INote => ({
   _id: row.id,
@@ -54,4 +65,5 @@ export const toSnapshot = (row: NoteRow): INote => ({
   content: row.content,
   status: row.status as NoteStatus,
   sharedWith: JSON.parse(row.shared_with),
+  comments: toComments(row.comments),
 });

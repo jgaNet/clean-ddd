@@ -48,6 +48,14 @@ export const ShareNoteReqBodySchema = {
   required: ['recipientId'],
 } as const;
 
+export const CommentNoteReqBodySchema = {
+  type: 'object',
+  properties: {
+    text: { type: 'string' },
+  },
+  required: ['text'],
+} as const;
+
 export const CommandResSchema = {
   202: AcceptedResSchema,
   400: ErrorResSchema,
@@ -105,7 +113,26 @@ export const GetSharedNotesResSchema = {
   403: ErrorResSchema,
 } as const;
 
+export const GetNoteCommentsResSchema = {
+  200: {
+    description: 'Success',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        authorId: { type: 'string' },
+        text: { type: 'string' },
+        postedAt: { type: 'string', format: 'date-time' },
+      },
+    },
+  },
+  403: ErrorResSchema,
+  404: ErrorResSchema,
+} as const;
+
 export type CreateNoteReqBody = FromSchema<typeof CreateNoteReqBodySchema>;
 export type EditNoteReqBody = FromSchema<typeof EditNoteReqBodySchema>;
 export type ShareNoteReqBody = FromSchema<typeof ShareNoteReqBodySchema>;
+export type CommentNoteReqBody = FromSchema<typeof CommentNoteReqBodySchema>;
 export type NoteIdParams = FromSchema<typeof NoteIdParamsSchema>;
