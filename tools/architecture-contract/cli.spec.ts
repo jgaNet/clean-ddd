@@ -57,6 +57,25 @@ describe('yarn architecture', () => {
     expect(JSON.parse(concept.stdout)).toMatchObject({ error: { code: 'unknown-concept' } });
   });
 
+  it('verb <intent> answers with the shape and when to use it', () => {
+    expect(architecture('verb', 'remove').stdout).toContain('DELETE /notes/:id/bookmark');
+    const { status, stdout } = architecture('verb', 'create-under', '--json');
+    expect(status).toBe(0);
+    expect(JSON.parse(stdout).verbs[0]).toMatchObject({ verb: 'POST', shape: 'POST /notes/:id/comments' });
+    expect(architecture('verb', 'TRACE', '--json').status).toBe(1);
+  });
+
+  it('checklist <kind> lists the parts, place <kind> answers the path alone', () => {
+    expect(architecture('checklist', 'command').stdout).toMatch(/publishDomainEvents/);
+    expect(architecture('place', 'domain-service').stdout.trim()).toBe(
+      'src/Contexts/<Context>/Domain/<Aggregate>/<Rule>.ts',
+    );
+    const { status, stdout } = architecture('checklist', 'aggregate', '--json');
+    expect(status).toBe(0);
+    expect(JSON.parse(stdout)).toMatchObject({ kind: 'aggregate', concept: 'aggregate-root' });
+    expect(architecture('place', 'saga', '--json').status).toBe(1);
+  });
+
   it('can-import answers with the enforcement and names the rule that refuses', () => {
     const allowed = architecture(
       'can-import',
@@ -69,5 +88,20 @@ describe('yarn architecture', () => {
     const refused = architecture('can-import', 'src/Contexts/Notes/Domain/Note/Probe.ts', 'fastify', '--json');
     expect(refused.status).toBe(1);
     expect(JSON.parse(refused.stdout)).toMatchObject({ allowed: false, rule: 'ARCH-DOMAIN' });
+  });
+
+  it('can-import takes several pairs at once and refuses if any is refused', () => {
+    const { status, stdout } = architecture(
+      'can-import',
+      'src/Contexts/Notes/Domain/Note/Probe.ts',
+      '@Architecture/Domain',
+      'src/Contexts/Notes/Domain/Note/Probe.ts',
+      'fastify',
+      '--json',
+    );
+    expect(status).toBe(1);
+    const { imports } = JSON.parse(stdout);
+    expect(imports.map((verdict: { allowed: boolean }) => verdict.allowed)).toEqual([true, false]);
+    expect(imports[1]).toMatchObject({ rule: 'ARCH-DOMAIN', remediation: expect.any(String) });
   });
 });

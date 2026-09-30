@@ -22,7 +22,7 @@ import {
   END_MARKER,
   RULES_MARKER,
   SECTION_MARKER,
-  canImport,
+  canImportAll,
   loadArchitectureContract,
   renderConceptLayer,
   renderDependencyTable,
@@ -207,14 +207,18 @@ const probes: [string, string, 'allowed' | 'refused'][] = [
   ['src/SharedKernel/Application/Probe.ts', '@Architecture/Application', 'allowed'],
   ['src/SharedKernel/Application/Probe.ts', '@Architecture/Infrastructure/DataSources/InMemoryDataSource', 'refused'],
 ];
-for (const [file, specifier, expected] of probes) {
-  const verdict = await canImport(file, specifier, root);
+const verdicts = await canImportAll(
+  probes.map(([file, specifier]) => [file, specifier]),
+  root,
+);
+probes.forEach(([file, specifier, expected], index) => {
+  const verdict = verdicts[index];
   const actual = verdict.allowed ? 'allowed' : 'refused';
   if (actual !== expected)
     problem(`ARCH-MAP-IS-REAL: ${file} importing '${specifier}' is ${actual}, expected ${expected}`);
   if (!verdict.allowed && !verdict.rule)
     problem(`ARCH-MAP-IS-REAL: the refusal of '${specifier}' from ${file} names no rule id`);
-}
+});
 
 // Verdict
 

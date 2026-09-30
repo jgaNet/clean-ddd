@@ -192,10 +192,12 @@ The dependency table, per layer. `own` is the file's own context, `architecture`
 The two YAML files under [`conventions/`](conventions/README.md) are the source of truth this page is rendered from, and a machine interface for tools and coding agents:
 
 ```bash
-yarn architecture inspect                      # contexts, trees, layers, how many rules and concepts
-yarn architecture rules | concepts             # the lists
+yarn architecture inspect                      # contexts, trees, layers, how much of everything
+yarn architecture rules | concepts | verbs | checklists        # the lists
 yarn architecture rule ARCH-DOMAIN             # statement, why, remediation, references
 yarn architecture concept aggregate-root       # canonical files, rules, decisions
+yarn architecture verb remove                  # which HTTP verb and path shape a use case takes, and when
+yarn architecture checklist aggregate          # what a new one is made of; `place aggregate` for the path alone
 yarn architecture can-import src/Contexts/Notes/Domain/Note/Note.ts fastify   # asks ESLint, names the rule
 ```
 

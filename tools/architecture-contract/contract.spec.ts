@@ -3,7 +3,7 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 
 import { ContractError, loadArchitectureContract, validateContract, repositoryRoot } from './index';
-import { getConcept, getRule, listConcepts, listRules, rulesOf } from './query';
+import { getChecklist, getConcept, getRule, getVerbs, listConcepts, listRules, rulesOf } from './query';
 
 const root = repositoryRoot();
 
@@ -84,6 +84,27 @@ describe('the architecture contract', () => {
     expect(rule?.enforcement).toBe('eslint');
     expect(rule?.dependency?.mayImport).toEqual(['own.Domain', 'architecture.Domain', 'kernel.Domain']);
     expect(getRule(contract, 'ARCH-NOPE')).toBeUndefined();
+  });
+
+  it('answers the verb of an intent, or of a method, and nothing for an unknown one', () => {
+    expect(getVerbs(contract, 'remove').map(verb => verb.verb)).toEqual(['DELETE']);
+    expect(getVerbs(contract, 'read')[0].shape).toBe('GET /notes/:id');
+    expect(getVerbs(contract, 'POST').map(verb => verb.intent)).toEqual(['create', 'act', 'create-under']);
+    expect(getVerbs(contract, 'TRACE')).toEqual([]);
+  });
+
+  it('answers what a new thing of a kind is made of, and where it goes', () => {
+    const aggregate = getChecklist(contract, 'aggregate');
+    expect(aggregate?.place).toBe('src/Contexts/<Context>/Domain/<Aggregate>/<Aggregate>.ts');
+    expect(aggregate?.concept).toBe('aggregate-root');
+    expect(aggregate?.parts.join(' ')).toMatch(/fromSnapshot/);
+    expect(getChecklist(contract, 'saga')).toBeUndefined();
+  });
+
+  it('every checklist names a concept the map defines, and every verb an example that exists', () => {
+    const conceptIds = listConcepts(contract).map(concept => concept.id);
+    for (const checklist of contract.checklists) expect(conceptIds).toContain(checklist.concept);
+    expect(contract.verbs.length).toBeGreaterThan(5);
   });
 
   it('answers a concept by id with its canonical files and resolved rules, and nothing for an unknown id', () => {

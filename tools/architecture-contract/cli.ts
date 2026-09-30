@@ -6,7 +6,11 @@
  *   yarn architecture rule <ID>               one rule: statement, why, remediation, references
  *   yarn architecture concept <id>            one concept: canonical files, rules, decisions
  *   yarn architecture can-import <file> <specifier>   would ESLint allow it, and which rule says
- *   yarn architecture rules | concepts        the lists
+ *                                             (several pairs at once: file specifier file specifier …)
+ *   yarn architecture verb <intent>           which HTTP verb and path shape a use case takes
+ *   yarn architecture checklist <kind>        what a new aggregate, value object, command … is made of
+ *   yarn architecture place <kind>            where it goes, path only
+ *   yarn architecture rules | concepts | verbs | checklists   the lists
  *
  * Every command takes --json: valid JSON only on stdout, nothing decorative, exit 1 on an
  * unknown id with a structured error. That output is the stable interface for coding agents.
@@ -14,7 +18,7 @@
 
 import { ContractError } from './types';
 import { loadArchitectureContract } from './load';
-import { canImport, getConcept, getRule, rulesOf } from './query';
+import { canImportAll, getChecklist, getConcept, getRule, getVerbs, rulesOf } from './query';
 
 const args = process.argv.slice(2);
 const json = args.includes('--json');
@@ -51,6 +55,8 @@ async function main(): Promise<void> {
           layers: contract.layers,
           rules: contract.rules.length,
           concepts: contract.concepts.length,
+          verbs: contract.verbs.length,
+          checklists: contract.checklists.length,
           sources: contract.sources,
         },
         () =>
@@ -66,6 +72,8 @@ async function main(): Promise<void> {
             '',
             `Rules: ${contract.rules.length} (yarn architecture rules)`,
             `Concepts: ${contract.concepts.length} (yarn architecture concepts)`,
+            `Verbs: ${contract.verbs.length} (yarn architecture verbs)`,
+            `Checklists: ${contract.checklists.length} (yarn architecture checklists)`,
             '',
             list('Sources', [contract.sources.architecture, contract.sources.concepts]),
           ].join('\n'),
@@ -85,6 +93,54 @@ async function main(): Promise<void> {
             .map(concept => `${concept.id.padEnd(34)} ${concept.layer.padEnd(15)} ${concept.canonical[0] ?? ''}`)
             .join('\n'),
       );
+    case 'verbs':
+      return out({ schemaVersion, verbs: contract.verbs }, () =>
+        contract.verbs.map(verb => `${verb.intent.padEnd(18)} ${verb.verb.padEnd(7)} ${verb.shape}`).join('\n'),
+      );
+    case 'checklists':
+      return out(
+        {
+          schemaVersion,
+          checklists: contract.checklists.map(({ kind, place, concept }) => ({ kind, place, concept })),
+        },
+        () => contract.checklists.map(checklist => `${checklist.kind.padEnd(16)} ${checklist.place}`).join('\n'),
+      );
+    case 'verb': {
+      const [intent] = rest;
+      if (!intent) return fail('usage', 'usage: yarn architecture verb <intent>');
+      const verbs = getVerbs(contract, intent);
+      if (!verbs.length) return fail('unknown-intent', `No verb for "${intent}". Try: yarn architecture verbs`);
+      const rule = getRule(contract, contract.rules.find(r => r.id === 'ARCH-PRESENTATION')?.id ?? '');
+      return out({ schemaVersion, verbs, rule: rule?.id }, () =>
+        verbs.map(verb => `${verb.verb} ${verb.shape}\n  ${verb.when}\n  See: ${verb.example}`).join('\n\n'),
+      );
+    }
+    case 'checklist':
+    case 'place': {
+      const [kind] = rest;
+      if (!kind) return fail('usage', `usage: yarn architecture ${command} <kind>`);
+      const checklist = getChecklist(contract, kind);
+      if (!checklist) return fail('unknown-kind', `No checklist for "${kind}". Try: yarn architecture checklists`);
+      if (command === 'place') {
+        return out(
+          { schemaVersion, kind: checklist.kind, place: checklist.place, concept: checklist.concept },
+          () => checklist.place,
+        );
+      }
+      const concept = getConcept(contract, checklist.concept);
+      return out(
+        { schemaVersion, ...checklist, canonical: concept?.canonical ?? [], rules: concept?.rules ?? [] },
+        () =>
+          [
+            `A new ${checklist.kind} goes in ${checklist.place}`,
+            '',
+            ...checklist.parts.map(part => `- ${part}`),
+            concept?.canonical.length ? `\n${list('Canonical example', concept.canonical)}` : '',
+          ]
+            .filter(line => line !== '')
+            .join('\n'),
+      );
+    }
     case 'rule': {
       const [id] = rest;
       if (!id) return fail('usage', 'usage: yarn architecture rule <ID>');
@@ -131,21 +187,32 @@ async function main(): Promise<void> {
       );
     }
     case 'can-import': {
-      const [file, specifier] = rest;
-      if (!file || !specifier) return fail('usage', 'usage: yarn architecture can-import <file> <specifier>');
-      const verdict = await canImport(file, specifier);
-      const rule = verdict.rule ? getRule(contract, verdict.rule) : undefined;
-      out({ schemaVersion, ...verdict, remediation: rule?.remediation }, () =>
-        verdict.allowed
-          ? `allowed: ${file} may import '${specifier}'`
-          : `refused by ${verdict.rule ?? 'the import rules'}: ${file} may not import '${specifier}'\n\n${rule?.why ?? ''}\n\nRemediation:\n  ${rule?.remediation ?? ''}`,
+      if (rest.length < 2 || rest.length % 2 !== 0) {
+        return fail('usage', 'usage: yarn architecture can-import <file> <specifier> [<file> <specifier> …]');
+      }
+      const pairs: [string, string][] = [];
+      for (let i = 0; i < rest.length; i += 2) pairs.push([rest[i], rest[i + 1]]);
+      const verdicts = await canImportAll(pairs);
+      const answers = verdicts.map(verdict => ({
+        ...verdict,
+        remediation: verdict.rule ? getRule(contract, verdict.rule)?.remediation : undefined,
+      }));
+      out(answers.length === 1 ? { schemaVersion, ...answers[0] } : { schemaVersion, imports: answers }, () =>
+        answers
+          .map(answer => {
+            const rule = answer.rule ? getRule(contract, answer.rule) : undefined;
+            return answer.allowed
+              ? `allowed: ${answer.file} may import '${answer.specifier}'`
+              : `refused by ${answer.rule ?? 'the import rules'}: ${answer.file} may not import '${answer.specifier}'\n\n${rule?.why ?? ''}\n\nRemediation:\n  ${rule?.remediation ?? ''}`;
+          })
+          .join('\n\n'),
       );
-      return process.exit(verdict.allowed ? 0 : 1);
+      return process.exit(answers.every(answer => answer.allowed) ? 0 : 1);
     }
     default:
       return fail(
         'usage',
-        'usage: yarn architecture <inspect | rules | concepts | rule <ID> | concept <id> | can-import <file> <specifier>> [--json]',
+        'usage: yarn architecture <inspect | rules | concepts | verbs | checklists | rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind> | can-import <file> <specifier> …> [--json]',
       );
   }
 }
