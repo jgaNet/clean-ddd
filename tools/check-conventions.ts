@@ -25,6 +25,7 @@ import {
   RULES_MARKER,
   SECTION_MARKER,
   canImportAll,
+  generateProbes,
   explainPlan,
   loadFeaturePlan,
   validatePlan,
@@ -109,16 +110,26 @@ function renderInto(file: string, blocks: [string, string][]): void {
   if (write) writeFileSync(join(root, file), text);
 }
 
-renderInto('README.md', [
-  [SECTION_MARKER('domain'), renderConceptLayer(contract, 'domain')],
-  [SECTION_MARKER('application'), renderConceptLayer(contract, 'application')],
-  [SECTION_MARKER('infrastructure'), renderConceptLayer(contract, 'infrastructure')],
-  [SECTION_MARKER('presentation'), renderConceptLayer(contract, 'presentation')],
-  [SECTION_MARKER('tests'), renderTests(contract)],
-  [SECTION_MARKER('vocabulary'), renderVocabulary(contract)],
-  [RULES_MARKER('rules'), renderRulesTable(contract)],
-  [RULES_MARKER('dependencies'), renderDependencyTable(contract)],
-]);
+/** A section with nothing in it yet (a new application has no vocabulary) needs no block. */
+const nonEmpty = (blocks: [string, string, boolean][]): [string, string][] =>
+  blocks.filter(([, , has]) => has).map(([marker, rendered]) => [marker, rendered]);
+
+const layerHas = (layer: 'domain' | 'application' | 'infrastructure' | 'presentation') =>
+  contract.concepts.some(concept => concept.layer === layer);
+
+renderInto(
+  'README.md',
+  nonEmpty([
+    [SECTION_MARKER('domain'), renderConceptLayer(contract, 'domain'), layerHas('domain')],
+    [SECTION_MARKER('application'), renderConceptLayer(contract, 'application'), layerHas('application')],
+    [SECTION_MARKER('infrastructure'), renderConceptLayer(contract, 'infrastructure'), layerHas('infrastructure')],
+    [SECTION_MARKER('presentation'), renderConceptLayer(contract, 'presentation'), layerHas('presentation')],
+    [SECTION_MARKER('tests'), renderTests(contract), contract.tests.length > 0],
+    [SECTION_MARKER('vocabulary'), renderVocabulary(contract), contract.vocabulary.length > 0],
+    [RULES_MARKER('rules'), renderRulesTable(contract), true],
+    [RULES_MARKER('dependencies'), renderDependencyTable(contract), contract.contexts.length > 0],
+  ]),
+);
 renderInto('CLAUDE.md', [[RULES_MARKER('rules'), renderRulesList(contract)]]);
 
 // 4. Every relative link in the documentation resolves
@@ -171,74 +182,20 @@ if (existsSync(plansDir)) {
 
 // 7. The generated import rules refuse and allow what the table says
 
-const probes: [string, string, 'allowed' | 'refused'][] = [
-  ['src/Contexts/Notes/Domain/Note/Probe.ts', '@SharedKernel/Domain', 'allowed'],
-  ['src/Contexts/Notes/Domain/Note/Probe.ts', '@Architecture/Domain', 'allowed'],
-  ['src/Contexts/Notes/Domain/Note/Probe.ts', './NoteTitle', 'allowed'],
-  ['src/Contexts/Notes/Domain/Note/Probe.ts', '@Architecture/Application', 'refused'],
-  ['src/Contexts/Notes/Domain/Note/Probe.ts', '@SharedKernel/Application', 'refused'],
-  ['src/Contexts/Notes/Domain/Note/Probe.ts', '@Contexts/Notes/Application/Commands', 'refused'],
-  ['src/Contexts/Notes/Domain/Note/Probe.ts', '@Contexts/Security/Domain/Account/Account', 'refused'],
-  ['src/Contexts/Notes/Domain/Note/Probe.ts', 'fastify', 'refused'],
-  ['src/Contexts/Notes/Domain/Note/Probe.ts', '../NoteExceptions', 'refused'],
-  ['src/Contexts/Notes/Domain/Note/Probe.ts', './Ports/INoteRepository', 'refused'],
-  [
-    'src/Contexts/Notes/Application/Commands/Probe/Probe.ts',
-    '@SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents',
-    'allowed',
-  ],
-  [
-    'src/Contexts/Notes/Application/Commands/Probe/Probe.ts',
-    '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository',
-    'refused',
-  ],
-  ['src/Contexts/Notes/Application/Commands/Probe/Probe.ts', '@Contexts/Security/Domain/Account/Account', 'refused'],
-  [
-    'src/Contexts/Notes/Application/Commands/Probe/Probe.spec.ts',
-    '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository',
-    'allowed',
-  ],
-  ['src/Contexts/Notes/Infrastructure/Probe.ts', '@Contexts/Security/Domain/Account/Ports/IAccountQueries', 'allowed'],
-  ['src/Contexts/Notes/Infrastructure/Probe.ts', 'jose', 'allowed'],
-  ['src/Contexts/Notes/Infrastructure/Probe.ts', '@Contexts/Security/Application/Commands', 'refused'],
-  ['src/Contexts/Notes/Infrastructure/Probe.ts', '@Contexts/Security/module.local', 'refused'],
-  ['src/Contexts/Notes/Infrastructure/Probe.ts', '@Bootstrap/Fastify/application.settings', 'refused'],
-  ['src/Contexts/Notes/Presentation/API/Probe.ts', 'fastify', 'allowed'],
-  [
-    'src/Contexts/Notes/Presentation/API/Probe.ts',
-    '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository',
-    'refused',
-  ],
-  ['src/Contexts/Notes/Presentation/API/Probe.e2e.spec.ts', '@Bootstrap/Fastify/application.spec-helper', 'allowed'],
-  ['src/Contexts/Notes/Presentation/API/Probe.e2e.spec.ts', '@Contexts/Notes/Domain/Note/Note', 'refused'],
-  ['src/Contexts/Notes/module.local.ts', '@Contexts/Security/module.local', 'allowed'],
-  ['src/Contexts/Notes/module.local.ts', '@Bootstrap/Fastify/application.settings', 'allowed'],
-  ['src/Contexts/Notes/module.local.ts', '@Contexts/Security/Domain/Account/Account', 'refused'],
-  // the building blocks: no context, no shared kernel, inner layers only
-  ['src/Architecture/Domain/Probe.ts', './Id', 'allowed'],
-  ['src/Architecture/Domain/Probe.ts', '@Contexts/Notes/Domain/Note/Note', 'refused'],
-  ['src/Architecture/Domain/Probe.ts', '@SharedKernel/Domain', 'refused'],
-  ['src/Architecture/Application/Probe.ts', '@Architecture/Domain', 'allowed'],
-  ['src/Architecture/Application/Probe.ts', '@SharedKernel/Application/Guards', 'refused'],
-  ['src/Architecture/Application/Probe.ts', '@Architecture/Infrastructure/EventBus/InMemoryEventBus', 'refused'],
-  // the shared kernel: built on the building blocks, knows no context
-  ['src/SharedKernel/Domain/Probe.ts', '@Architecture/Domain', 'allowed'],
-  ['src/SharedKernel/Domain/Probe.ts', '@Architecture/Application', 'refused'],
-  ['src/SharedKernel/Domain/Probe.ts', '@Contexts/Security/Domain/Account/Account', 'refused'],
-  ['src/SharedKernel/Application/Probe.ts', '@Architecture/Application', 'allowed'],
-  ['src/SharedKernel/Application/Probe.ts', '@Architecture/Infrastructure/DataSources/InMemoryDataSource', 'refused'],
-];
+const probes = generateProbes(contract);
 const verdicts = await canImportAll(
-  probes.map(([file, specifier]) => [file, specifier]),
+  probes.map(probe => [probe.file, probe.specifier] as [string, string]),
   root,
 );
-probes.forEach(([file, specifier, expected], index) => {
+probes.forEach((probe, index) => {
   const verdict = verdicts[index];
   const actual = verdict.allowed ? 'allowed' : 'refused';
-  if (actual !== expected)
-    problem(`ARCH-MAP-IS-REAL: ${file} importing '${specifier}' is ${actual}, expected ${expected}`);
-  if (!verdict.allowed && !verdict.rule)
-    problem(`ARCH-MAP-IS-REAL: the refusal of '${specifier}' from ${file} names no rule id`);
+  if (actual !== probe.expected) {
+    problem(`${probe.rule}: ${probe.file} importing '${probe.specifier}' is ${actual}, expected ${probe.expected}`);
+  }
+  if (!verdict.allowed && !verdict.rule) {
+    problem(`${probe.rule}: the refusal of '${probe.specifier}' from ${probe.file} names no rule id`);
+  }
 });
 
 // Verdict

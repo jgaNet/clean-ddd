@@ -203,7 +203,10 @@ yarn architecture mode feature                                               # d
 yarn architecture mode architecture                                          # does it record the decision it makes?
 yarn architecture plan validate conventions/plans/share-a-note.yaml           # is this intended change legal?
 yarn architecture plan explain  conventions/plans/share-a-note.yaml           # the files, rules and examples it implies
+yarn architecture create ../my-app                                           # a new application with this architecture and none of this business
 ```
+
+`create` ([ADR 10](docs/adr/0010-a-new-application-is-copied-not-templated.md)) is the contract used to start something. It copies what exists — the building blocks with their specs, the shared kernel's model, the tooling, the configuration — and renders the new README, CLAUDE.md and `conventions/` from the same contract that renders this page, with `contexts` emptied and every reference to a file it did not copy removed. It templates nothing, so it cannot drift from the reference, and it gives no business: no context, no composition root, no route, because copying someone else's business is how a reference implementation becomes a framework. What you get is an empty `src/Contexts`, all 24 rules, the linter that enforces them and the six checks, green on the first run.
 
 Two **modes** say which rules a change is being held to, against a diff rather than the tree ([ADR 9](docs/adr/0009-work-is-done-in-one-of-two-modes.md)): `mode feature` refuses any change to the building blocks, the shared kernel, the conventions, the decisions or the tools — if a feature seems to need one, that is the finding, not a detour — and `mode architecture` allows them and asks for the ADR that explains them. Neither is a CI gate; they are for whoever has agreed to work under a constraint, and the evaluation protocol now uses the first instead of trusting a report.
 
@@ -302,6 +305,7 @@ Non-obvious choices are recorded as short ADRs in [`docs/adr`](docs/adr):
 7. [Non-determinism enters the domain as a value](docs/adr/0007-non-determinism-enters-the-domain-as-a-value.md)
 8. [Optimistic concurrency on the aggregate](docs/adr/0008-optimistic-concurrency-on-the-aggregate.md)
 9. [Work is done in one of two modes](docs/adr/0009-work-is-done-in-one-of-two-modes.md)
+10. [A new application is copied from the reference, not templated](docs/adr/0010-a-new-application-is-copied-not-templated.md)
 
 ## What is deliberately not here
 

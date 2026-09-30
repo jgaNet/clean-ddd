@@ -56,7 +56,8 @@ export interface Verb {
   verb: string;
   shape: string;
   when: string;
-  example: string;
+  /** The routes file that shows it, when the application has one. */
+  example?: string;
 }
 
 export interface Checklist {

@@ -10,6 +10,7 @@
  *   yarn architecture verb <intent>           which HTTP verb and path shape a use case takes
  *   yarn architecture checklist <kind>        what a new aggregate, value object, command … is made of
  *   yarn architecture place <kind>            where it goes, path only
+ *   yarn architecture create <dir> [--name x] a new application on this architecture, with none of its business
  *   yarn architecture mode feature [--base <ref>]     did this change leave the architecture alone
  *   yarn architecture mode architecture [--base <ref>] does it record the decision it makes
  *   yarn architecture plan validate <file>    is this intended change legal, before writing it
@@ -25,6 +26,7 @@ import { loadArchitectureContract } from './load';
 import { canImportAll, getChecklist, getConcept, getRule, getVerbs, rulesOf } from './query';
 import { explainPlan, loadFeaturePlan, validatePlan } from './plan';
 import { changedFiles, checkMode } from './modes';
+import { createApplication } from './create';
 import type { ModeName } from './types';
 import { repositoryRoot } from './load';
 
@@ -121,7 +123,10 @@ async function main(): Promise<void> {
       if (!verbs.length) return fail('unknown-intent', `No verb for "${intent}". Try: yarn architecture verbs`);
       const rule = getRule(contract, contract.rules.find(r => r.id === 'ARCH-PRESENTATION')?.id ?? '');
       return out({ schemaVersion, verbs, rule: rule?.id }, () =>
-        verbs.map(verb => `${verb.verb} ${verb.shape}\n  ${verb.when}\n  See: ${verb.example}`).join('\n\n'),
+        // The shape already begins with the verb ("POST /notes"); printing both said it twice.
+        verbs
+          .map(verb => `${verb.shape}\n  ${verb.when}${verb.example ? `\n  See: ${verb.example}` : ''}`)
+          .join('\n\n'),
       );
     }
     case 'checklist':
@@ -193,6 +198,32 @@ async function main(): Promise<void> {
         ]
           .filter(Boolean)
           .join('\n'),
+      );
+    }
+    case 'create': {
+      const [directory] = rest;
+      if (!directory) return fail('usage', 'usage: yarn architecture create <dir> [--name <name>]');
+      const name = rest.includes('--name')
+        ? rest[rest.indexOf('--name') + 1]
+        : directory.split('/').filter(Boolean).pop();
+      let created;
+      try {
+        created = createApplication(directory, name ?? 'my-app');
+      } catch (error) {
+        return fail('cannot-create', error instanceof Error ? error.message : String(error));
+      }
+      return out({ schemaVersion, ...created }, () =>
+        [
+          `${created.name}: ${created.files} files in ${created.directory}`,
+          '',
+          `The building blocks, the shared kernel, the tooling and the contract — ${created.rules} rules,`,
+          `${created.concepts} concepts — and no business: src/Contexts is yours to fill.`,
+          '',
+          'Next:',
+          `  cd ${created.directory} && yarn install`,
+          '  yarn check:conventions && yarn test:units',
+          '  yarn architecture checklist context',
+        ].join('\n'),
       );
     }
     case 'mode': {
@@ -293,7 +324,7 @@ async function main(): Promise<void> {
     default:
       return fail(
         'usage',
-        'usage: yarn architecture <inspect | rules | concepts | verbs | checklists | rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind> | mode <feature|architecture> | plan <validate|explain> <file> | can-import <file> <specifier> …> [--json]',
+        'usage: yarn architecture <inspect | rules | concepts | verbs | checklists | rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind> | mode <feature|architecture> | plan <validate|explain> <file> | create <dir> | can-import <file> <specifier> …> [--json]',
       );
   }
 }

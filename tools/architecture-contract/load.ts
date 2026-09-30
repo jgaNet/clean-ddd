@@ -172,9 +172,10 @@ export function validateContract(contract: ArchitectureContract, root: string = 
 
   for (const verb of contract.verbs) {
     const where = `${contract.sources.architecture} verb "${verb.intent}"`;
-    for (const field of ['verb', 'shape', 'when', 'example'] as const) {
+    for (const field of ['verb', 'shape', 'when'] as const) {
       if (!verb[field]) problems.push(`${where}: "${field}" is missing`);
     }
+    // An example is a route where the shape is used; an application that has no routes yet has none.
     if (verb.example && !existsSync(join(root, verb.example))) {
       problems.push(`${where}: names ${verb.example}, which does not exist`);
     }

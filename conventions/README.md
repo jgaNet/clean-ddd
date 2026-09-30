@@ -11,13 +11,14 @@ The architecture of this repository, written as data so that tooling can hold th
 yarn check:conventions    # in CI: the contract is sound, the tree matches it, README and CLAUDE.md are rendered from it, every doc link resolves
 yarn conventions:write    # regenerate the rendered blocks after editing either file
 yarn architecture …       # ask the contract: inspect, rules, concepts, rule <ID>, concept <id>, can-import <file> <specifier>; --json for tools
+yarn architecture create <dir>   # a new application with this architecture and none of this business
 ```
 
 Both files carry a `schemaVersion`; [`tools/architecture-contract`](../tools/architecture-contract) loads them into one typed contract, validates it and answers the questions above. Every rule has a stable id (`ARCH-*` dependencies and layout, `DOMAIN-*`, `EVENT-*`, `QUERY-*`, `CTX-*`, `CONC-*`), a reason, a remediation and an `enforcement` (`eslint`, `check`, `types`, `tests`, `review`, `evaluations`) — `review` being the honest word for a rule that people and agents apply and no tool checks yet. ESLint refusals start with the rule id.
 
 ## How the rules are written
 
-`architecture.yaml` says what a layer **may** import, in eight words: `own.<Layer>`, `own.wiring`, `architecture.<Layer>` (the building blocks), `kernel.<Layer>` (the shared kernel), `others.<Layer>`, `others.wiring`, `bootstrap`, `libraries`. Anything not listed is forbidden. The linter needs the complement, so `eslint.config.js` enumerates every unit a file could import and forbids the ones the table leaves out; the two formulations are checked equal by construction, not by hand.
+`architecture.yaml` says what a layer **may** import, in eight words: `own.<Layer>`, `own.wiring`, `architecture.<Layer>` (the building blocks), `kernel.<Layer>` (the shared kernel), `others.<Layer>`, `others.wiring`, `bootstrap`, `libraries`. Anything not listed is forbidden. The linter needs the complement, so `eslint.config.js` enumerates every unit a file could import and forbids the ones the table leaves out. That translation is where a mistake would hide, so `yarn check:conventions` asks the linter about it: it generates a probe for every row of the table — every tree, every layer, every unit, in both directions — and fails if the answer is not the one the table gives, or if a refusal does not name its rule. The probes are derived from the contract, so a new context is covered the day it is declared and a project with no contexts probes only what it has.
 
 Writing the allow-list rather than the deny-list is deliberate: a new layer, context or library is forbidden everywhere until the table says otherwise.
 
@@ -56,6 +57,12 @@ yarn architecture mode feature --base working   # what is uncommitted right now
 The plan validator reads the same lists, so a plan's `architectureChanges` and the feature mode cannot drift apart. Neither mode is a CI gate — the maintainer changes the architecture on purpose, and a gate they must fight is a gate they will remove.
 
 Still deliberately absent: anything that writes code.
+
+### Starting an application from it
+
+`yarn architecture create <dir> [--name <app>]` makes a new project with this architecture and none of this business. It copies what exists — `src/Architecture` with its specs, the shared kernel's model, `tools/`, the TypeScript, Jest, ESLint and Prettier configuration — and renders the new `README.md`, `CLAUDE.md` and `conventions/` from the contract, with `contexts` emptied, every reference to a file it did not copy removed and every dead Markdown link turned back into plain text. The rule that keeps it honest is that **it templates nothing**: there is no second copy of a building block and no second wording of a rule to drift, and the tooling's own specs stay behind because they assert on *this* repository's contract.
+
+What it does not give you is an application — no context, no composition root, no route. Copying someone else's business is how a reference implementation becomes a framework; the generated `CLAUDE.md` says what to write first, and `yarn architecture checklist context` says what a context is made of. On its first run, after `yarn install`, the new project passes the same six checks this one does, with its own `check:conventions` probing its own table.
 
 ## Using it elsewhere
 

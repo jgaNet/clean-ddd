@@ -86,10 +86,12 @@ const restrict = (scope, rule) => ({
   'no-restricted-imports': [
     'error',
     {
+      // A row that forbids nothing (a wiring file in an application with one context) yields an
+      // empty group, which the rule's schema rejects; it is left out rather than written empty.
       patterns: [
         { group: forbidden(scope, rule.may_import), message: message(rule) },
         { group: RELATIVE_ACROSS_DIRECTORIES, message: message(architecture.relative_imports) },
-      ],
+      ].filter(({ group }) => group.length),
     },
   ],
 });

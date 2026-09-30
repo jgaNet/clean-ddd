@@ -12,6 +12,7 @@ yarn architecture rule <ID> | concept <id> | verb <intent> | checklist <kind> | 
 yarn architecture can-import <file> <specifier> [<file> <specifier> …]     # asks ESLint before you write the import
 yarn architecture mode feature|architecture [--base <ref>|--base working]  # which rules this change is held to
 yarn architecture plan validate|explain <file>                             # a feature plan, checked against the contract
+yarn architecture create <dir> [--name <app>]                              # a new application: this architecture, none of this business
                                                                            # --json everywhere, for tools
 yarn typecheck          # tsc --noEmit
 yarn lint               # eslint, including the layer-boundary rules

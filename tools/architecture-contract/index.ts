@@ -9,3 +9,5 @@ export * from './query';
 export * from './render';
 export * from './plan';
 export * from './modes';
+export * from './create';
+export * from './probes';
