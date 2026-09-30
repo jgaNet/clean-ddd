@@ -235,6 +235,24 @@ checklists:
       - 'One line in `Application/Queries/index.ts`.'
       - 'A spec when the handler holds a visibility or role rule.'
       - 'A route answering synchronously, refusals through the controller''s `refuse()`, the response fields listed in the schema.'
+  integration-event:
+    place: src/SharedKernel/Application/IntegrationEvents/<Aggregate>IntegrationEvents.ts
+    concept: integration-event
+    parts:
+      - 'A class extending `IntegrationEvent<Payload>`, named for the fact in the publishing context''s public words, in that context''s file.'
+      - 'A payload carrying everything a consumer needs, so it never queries back.'
+      - 'A domain event handler in the publishing context that translates the domain event into it — that is where a fact leaves its context.'
+      - 'An anti-corruption handler in each consuming context, registered in its `module.local.ts`.'
+      - 'Adding one is not an architecture change: the folder is where a context publishes, and a feature may publish.'
+  event-handler:
+    place: src/Contexts/<Context>/Application/Events/<Name>Handler.ts
+    concept: domain-event-handler
+    parts:
+      - 'Extends `EventHandler<TheEvent>`; `execute()` returns an `IResult`; no guard — the fact was already allowed.'
+      - 'A reaction inside its own context, or the translation of a domain event into an integration event, or an anti-corruption layer over another context''s contract.'
+      - 'Registered in `module.local.ts` under `domainEvents` or `integrationEvents`.'
+      - '`<Name>Handler.spec.ts` beside it.'
+
   context:
     place: src/Contexts/<Context>/
     concept: module

@@ -37,7 +37,13 @@ Beyond the rules and the concepts, `architecture.yaml` holds two tables that use
 
 `can-import` takes several pairs in one call (`can-import <file> <specifier> <file> <specifier> …`), on one ESLint instance, so a planned layout is checked in a single command; it exits non-zero if any pair is refused.
 
-Still not answered, and deliberately: anything about a *feature plan* (validating an intended change against the contract before it is written). That is the next iteration.
+### Feature plans
+
+A **plan** ([`plans/share-a-note.yaml`](plans/share-a-note.yaml)) is what someone intends to change, written before writing it: the context, the changes by kind and name, the invariants it adds, the events it records, how it crosses a context boundary if it does, and whether it means to touch the protected trees. `yarn architecture plan validate <file>` answers whether that shape is legal against the contract *and* against the tree; `plan explain <file>` expands it into the files, with the checklists' placeholders filled with the plan's own names, the canonical examples and the rules it is bound by.
+
+A plan generates no code and is not a source of truth — the code is. Every plan under `plans/` is validated by `yarn check:conventions`, so the examples cannot rot. While the work is only planned, its changes carry no `new:` line and the check confirms that none of it exists yet; once the work is done, the same entries say `new: false` and the check confirms that each part is where the plan said it would be. A plan kept in the repository is therefore edited once, at the end — and that is what makes it a test rather than a note.
+
+Still deliberately absent: development modes (a *feature mode* in which the protected trees are immutable), and anything that writes code.
 
 ## Using it elsewhere
 
