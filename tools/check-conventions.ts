@@ -9,7 +9,9 @@
  * 3. README and CLAUDE.md show what the contract renders, between their markers (`--write` regenerates).
  * 4. Every relative link in README.md, CLAUDE.md, conventions/ and docs/ resolves.
  * 5. No `eslint-disable` anywhere in src/, except `no-console` in the console logger.
- * 6. The import rules generated from the contract behave: a table of probes says which imports each
+ * 6. Every feature plan under conventions/plans is legal against the contract, so the examples
+ *    cannot rot.
+ * 7. The import rules generated from the contract behave: a table of probes says which imports each
  *    layer must refuse and which it must allow, and ESLint is asked about each.
  *
  * A client of tools/architecture-contract, like the CLI; it parses no YAML itself.
@@ -23,6 +25,9 @@ import {
   RULES_MARKER,
   SECTION_MARKER,
   canImportAll,
+  explainPlan,
+  loadFeaturePlan,
+  validatePlan,
   loadArchitectureContract,
   renderConceptLayer,
   renderDependencyTable,
@@ -148,7 +153,23 @@ for (const file of walk('src', '.ts')) {
   }
 }
 
-// 6. The generated import rules refuse and allow what the table says
+// 6. Every feature plan is legal
+
+const plansDir = join(root, 'conventions/plans');
+if (existsSync(plansDir)) {
+  for (const entry of readdirSync(plansDir).filter(name => name.endsWith('.yaml'))) {
+    const file = `conventions/plans/${entry}`;
+    try {
+      const plan = loadFeaturePlan(file, root);
+      for (const wrong of validatePlan(plan, contract, root)) problem(`${file}: ${wrong}`);
+      explainPlan(plan, contract); // it must expand without throwing
+    } catch (error) {
+      problem(`${file}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+}
+
+// 7. The generated import rules refuse and allow what the table says
 
 const probes: [string, string, 'allowed' | 'refused'][] = [
   ['src/Contexts/Notes/Domain/Note/Probe.ts', '@SharedKernel/Domain', 'allowed'],

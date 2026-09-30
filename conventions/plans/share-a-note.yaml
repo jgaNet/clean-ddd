@@ -1,0 +1,57 @@
+# A feature plan: what someone intends to change, written before writing it, in the contract's
+# own words. `yarn architecture plan validate <file>` checks it against the contract and against
+# the tree; `yarn architecture plan explain <file>` expands it into the files, the rules and the
+# canonical examples it implies. A plan generates no code and is not a source of truth — the code
+# is. It is a statement of intent the architecture can answer before the work starts.
+#
+# This one describes a feature that already exists, sharing a note, so that the conventions check
+# can validate it on every build and the example cannot rot: every change says `new: false`, and
+# the check confirms each named part is really there. A plan for work not yet done leaves `new`
+# alone, and the same check then confirms that none of it exists yet.
+
+schemaVersion: 1
+
+feature: share-a-note
+context: Notes
+
+intent: >-
+  The owner of a note shares it with another account, which can then read it. The people a note
+  is shared with are told about it. This is the repository's canonical path from HTTP to a
+  domain event and across a context boundary.
+
+changes:
+  - kind: aggregate
+    name: Note
+    new: false
+  - kind: domain-service
+    name: NoteSharing
+    aggregate: Note
+    new: false
+  - kind: command
+    name: ShareNote
+    verb: act
+    route: POST /notes/:id/share
+    new: false
+  - kind: query
+    name: GetNotesSharedWithMe
+    verb: read
+    route: GET /notes/shared
+    new: false
+
+invariants:
+  - Only the owner of a note shares it.
+  - An archived note cannot be shared.
+  - A note is not shared twice with the same account, nor with its owner.
+  - The recipient must be an account that exists — a rule that needs a port, so a domain service holds it.
+
+events:
+  - NoteSharedEvent
+
+crossContext:
+  context: Notifications
+  strategy: integration-event
+  why: >-
+    The recipient is told that a note was shared with them. Notifications learns the fact from
+    the published contract and restates it in its own words; Notes knows nothing of it.
+
+architectureChanges: false

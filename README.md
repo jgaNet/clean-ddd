@@ -199,7 +199,11 @@ yarn architecture concept aggregate-root       # canonical files, rules, decisio
 yarn architecture verb remove                  # which HTTP verb and path shape a use case takes, and when
 yarn architecture checklist aggregate          # what a new one is made of; `place aggregate` for the path alone
 yarn architecture can-import src/Contexts/Notes/Domain/Note/Note.ts fastify   # asks ESLint, names the rule
+yarn architecture plan validate conventions/plans/share-a-note.yaml           # is this intended change legal?
+yarn architecture plan explain  conventions/plans/share-a-note.yaml           # the files, rules and examples it implies
 ```
+
+A **feature plan** is what someone intends to change, written before writing it, in the contract's own words ([`conventions/plans/share-a-note.yaml`](conventions/plans/share-a-note.yaml) describes a feature that exists, so the check can hold it). `plan validate` answers whether the shape is legal — a declared context, known kinds, a route whose method matches its intent, a cross-context strategy that is one of the two, nothing new where something already exists — and `plan explain` expands it into the files to write, with each checklist's placeholders filled with the plan's own names, the canonical examples to copy, and the rules the work is bound by. It generates no code.
 
 Every command takes `--json`: valid JSON only, a `schemaVersion`, a structured error and a non-zero status for an unknown id. `yarn check:conventions` validates the contract itself (unique ids, references that exist, concepts naming rules that exist) before checking the tree against it.
 

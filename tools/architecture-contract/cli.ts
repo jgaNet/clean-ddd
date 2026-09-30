@@ -10,6 +10,8 @@
  *   yarn architecture verb <intent>           which HTTP verb and path shape a use case takes
  *   yarn architecture checklist <kind>        what a new aggregate, value object, command … is made of
  *   yarn architecture place <kind>            where it goes, path only
+ *   yarn architecture plan validate <file>    is this intended change legal, before writing it
+ *   yarn architecture plan explain <file>     the files, rules and examples it implies
  *   yarn architecture rules | concepts | verbs | checklists   the lists
  *
  * Every command takes --json: valid JSON only on stdout, nothing decorative, exit 1 on an
@@ -19,6 +21,8 @@
 import { ContractError } from './types';
 import { loadArchitectureContract } from './load';
 import { canImportAll, getChecklist, getConcept, getRule, getVerbs, rulesOf } from './query';
+import { explainPlan, loadFeaturePlan, validatePlan } from './plan';
+import { repositoryRoot } from './load';
 
 const args = process.argv.slice(2);
 const json = args.includes('--json');
@@ -186,6 +190,48 @@ async function main(): Promise<void> {
           .join('\n'),
       );
     }
+    case 'plan': {
+      const [action, file] = rest;
+      if (!['validate', 'explain'].includes(action) || !file) {
+        return fail('usage', 'usage: yarn architecture plan <validate | explain> <file>');
+      }
+      let plan;
+      try {
+        plan = loadFeaturePlan(file, repositoryRoot());
+      } catch (error) {
+        if (error instanceof ContractError) return fail(error.code, error.message);
+        throw error;
+      }
+      if (action === 'validate') {
+        const problems = validatePlan(plan, contract, repositoryRoot());
+        out({ schemaVersion, feature: plan.feature, valid: problems.length === 0, problems }, () =>
+          problems.length
+            ? `${plan.feature}: ${problems.length} problem(s)\n${problems.map(problem => `  ✗ ${problem}`).join('\n')}`
+            : `${plan.feature}: the plan is legal against the contract (${plan.changes.length} changes, context ${plan.context}).`,
+        );
+        return process.exit(problems.length ? 1 : 0);
+      }
+      const explained = explainPlan(plan, contract);
+      return out({ schemaVersion, ...explained }, () =>
+        [
+          `${explained.feature} — ${explained.context}`,
+          '',
+          explained.intent,
+          '',
+          ...explained.changes.flatMap(change => [
+            `${change.new ? 'Add' : 'Change'} the ${change.kind} ${change.name} — ${change.place}`,
+            ...(change.verb ? [`  ${change.route ?? change.verb.shape} — ${change.verb.when}`] : []),
+            ...change.parts.map(part => `  - ${part}`),
+            ...(change.canonical.length ? [`  Copy the shape of: ${change.canonical.join(', ')}`] : []),
+            '',
+          ]),
+          'Rules this plan is bound by:',
+          ...explained.rules.map(rule => `  ${rule.id}: ${rule.statement}`),
+          '',
+          `Before it is done: ${explained.checks.join(', ')}.`,
+        ].join('\n'),
+      );
+    }
     case 'can-import': {
       if (rest.length < 2 || rest.length % 2 !== 0) {
         return fail('usage', 'usage: yarn architecture can-import <file> <specifier> [<file> <specifier> …]');
@@ -212,7 +258,7 @@ async function main(): Promise<void> {
     default:
       return fail(
         'usage',
-        'usage: yarn architecture <inspect | rules | concepts | verbs | checklists | rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind> | can-import <file> <specifier> …> [--json]',
+        'usage: yarn architecture <inspect | rules | concepts | verbs | checklists | rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind> | plan <validate|explain> <file> | can-import <file> <specifier> …> [--json]',
       );
   }
 }
