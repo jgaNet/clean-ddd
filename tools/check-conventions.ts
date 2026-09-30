@@ -140,7 +140,11 @@ const walk = (dir: string, ext: string): string[] =>
   readdirSync(join(root, dir), { withFileTypes: true }).flatMap(entry =>
     entry.isDirectory() ? walk(`${dir}/${entry.name}`, ext) : entry.name.endsWith(ext) ? [`${dir}/${entry.name}`] : [],
   );
-for (const file of ['README.md', 'CLAUDE.md', ...walk('conventions', '.md'), ...walk('docs', '.md')]) {
+// `.claude` is documentation too: a skill or an agent definition that points at a file which
+// is not there sends an agent looking for it.
+const docs = ['README.md', 'CLAUDE.md', ...walk('conventions', '.md'), ...walk('docs', '.md')];
+if (existsSync(join(root, '.claude'))) docs.push(...walk('.claude', '.md'));
+for (const file of docs) {
   const base = dirname(join(root, file));
   for (const link of linksIn(readFileSync(join(root, file), 'utf8'))) {
     const [path] = link.split('#');
