@@ -9,6 +9,12 @@
  * Most of the time you will extend AggregateRoot rather than Entity directly: the root is
  * the entity through which the rest of its aggregate is reached.
  *
+ * Its state stays in `#private` fields, and that is the encapsulation the whole design rests
+ * on — so, unlike a value object, an entity cannot be compared structurally: `expect(a).toEqual(b)`
+ * on two entities compares nothing and passes for any two. Compare them with `equals()` (are
+ * they the same thing?) or through `toSnapshot()` (do they hold the same state?). Entity.spec.ts
+ * shows both.
+ *
  * Example: Contexts/Notes/Domain/Note/Note.ts
  */
 
