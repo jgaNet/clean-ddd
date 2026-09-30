@@ -76,6 +76,24 @@ describe('yarn architecture', () => {
     expect(architecture('place', 'saga', '--json').status).toBe(1);
   });
 
+  it('plan validate says whether an intended change is legal, and exits non-zero when it is not', () => {
+    const ok = architecture('plan', 'validate', 'conventions/plans/share-a-note.yaml', '--json');
+    expect(ok.status).toBe(0);
+    expect(JSON.parse(ok.stdout)).toMatchObject({ feature: 'share-a-note', valid: true, problems: [] });
+    const missing = architecture('plan', 'validate', 'conventions/plans/nope.yaml', '--json');
+    expect(missing.status).toBe(1);
+    expect(JSON.parse(missing.stdout)).toMatchObject({ error: { code: 'malformed' } });
+  });
+
+  it('plan explain expands a plan into files, rules and examples', () => {
+    const { status, stdout } = architecture('plan', 'explain', 'conventions/plans/share-a-note.yaml', '--json');
+    expect(status).toBe(0);
+    const explained = JSON.parse(stdout);
+    expect(explained.changes[0]).toMatchObject({ kind: 'aggregate', place: 'src/Contexts/Notes/Domain/Note/Note.ts' });
+    expect(explained.rules.map((rule: { id: string }) => rule.id)).toContain('CTX-CONTRACTS');
+    expect(architecture('plan', 'explain').status).toBe(1);
+  });
+
   it('can-import answers with the enforcement and names the rule that refuses', () => {
     const allowed = architecture(
       'can-import',
