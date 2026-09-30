@@ -126,6 +126,10 @@ Before writing: `yarn architecture checklist <aggregate | value-object | domain-
 - Fixing a boundary violation with an `eslint-disable` instead of a port.
 - A sixth member on `ExecutionContext`. It carries what exists per request and nothing else: who is calling, the trace, the transaction, the bus that carries the context along, the logger that stamps the trace. A mailer, a clock, a model client, a cache are constructor dependencies of the handler that needs them, visible in its signature; a context that grows is a service locator with a better name.
 
+## Working here as an agent
+
+The `feature` skill ([`.claude/skills/feature/SKILL.md`](.claude/skills/feature/SKILL.md)) is this section as a procedure: ask the contract for the shape before writing (`checklist`, `verb`, `can-import`), follow the canonical file the checklist names, then prove the change with `yarn architecture mode feature` and the six checks. The `feature-author` subagent ([`.claude/agents/feature-author.md`](.claude/agents/feature-author.md)) is bound to that mode and told to stop and report rather than work around a rule it cannot satisfy — which is the more useful outcome.
+
 ## How this guide is tested
 
 Periodically a fresh agent, with nothing but this repository, is handed a small feature request and graded on whether it lands the right shape; what it guessed becomes a fix here. Protocol and records: [`docs/evaluations`](docs/evaluations/README.md).

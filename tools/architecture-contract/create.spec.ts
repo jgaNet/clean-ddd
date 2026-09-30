@@ -38,6 +38,8 @@ describe('yarn architecture create', () => {
       'tsconfig.json',
       'conventions/architecture.yaml',
       'conventions/concepts.yaml',
+      '.claude/skills/feature/SKILL.md',
+      '.claude/agents/feature-author.md',
       'README.md',
       'CLAUDE.md',
       'package.json',

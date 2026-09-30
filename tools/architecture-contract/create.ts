@@ -38,6 +38,10 @@ const COPY_VERBATIM = [
   'src/SharedKernel/Application/Guards.ts',
   'tools/architecture-contract',
   'tools/check-conventions.ts',
+  // The loop, for whoever works here with an agent: the skill asks the contract for the shape
+  // before writing, the agent definition is bound to the feature mode. Both name commands
+  // rather than files, so they are as true in a new project as they are here.
+  '.claude',
   'tsconfig.json',
   'tsconfig.test.json',
   'tsconfig.tools.json',

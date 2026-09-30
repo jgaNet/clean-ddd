@@ -58,6 +58,21 @@ The plan validator reads the same lists, so a plan's `architectureChanges` and t
 
 Still deliberately absent: anything that writes code.
 
+### Working here with an agent
+
+The contract is a machine interface: every command takes `--json` — valid JSON only, a `schemaVersion`, a structured error and a non-zero exit — so an agent can ask what to write and where instead of guessing, and can check a planned import before writing it. That is the whole integration; there is no server and no plugin, because a second interface to the same data is a second thing to drift.
+
+Two files make the loop the default rather than something an agent has to notice:
+
+| File | What it is |
+|---|---|
+| [`.claude/skills/feature/SKILL.md`](../.claude/skills/feature/SKILL.md) | the order of operations for adding a feature: ask the contract for the shape, follow the canonical example the checklist names, prove the change with `mode feature` and the six checks |
+| [`.claude/agents/feature-author.md`](../.claude/agents/feature-author.md) | a subagent bound to the feature mode, which reports what it needed instead of working around it |
+
+Both name commands rather than files, so they stay true in a project generated from this one, and `yarn architecture create` copies them. The agent definition's instruction to stop rather than widen a rule is the important half: an agent that says "I needed to change the dependency table, and here is why" has found something, and an agent that quietly adds an `eslint-disable` has hidden it.
+
+The feedback loop is [`docs/evaluations`](../docs/evaluations/README.md): a fresh agent is handed a small feature, graded on whether it lands the right shape, and every guess in its report becomes a sentence missing from the guide.
+
 ### Starting an application from it
 
 `yarn architecture create <dir> [--name <app>]` makes a new project with this architecture and none of this business. It copies what exists — `src/Architecture` with its specs, the shared kernel's model, `tools/`, the TypeScript, Jest, ESLint and Prettier configuration — and renders the new `README.md`, `CLAUDE.md` and `conventions/` from the contract, with `contexts` emptied, every reference to a file it did not copy removed and every dead Markdown link turned back into plain text. The rule that keeps it honest is that **it templates nothing**: there is no second copy of a building block and no second wording of a rule to drift, and the tooling's own specs stay behind because they assert on *this* repository's contract.
