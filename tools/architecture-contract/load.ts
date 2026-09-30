@@ -5,12 +5,14 @@ import { load } from 'js-yaml';
 
 import {
   ArchitectureContract,
+  Checklist,
   Concept,
   ContractError,
   Enforcement,
   Rule,
   SUPPORTED_SCHEMA_VERSION,
   TestRow,
+  Verb,
   VocabularyRow,
 } from './types';
 
@@ -132,6 +134,10 @@ export function loadArchitectureContract(root: string = repositoryRoot()): Archi
     layers: Object.keys(layersRaw),
     rules,
     concepts: conceptList,
+    verbs: ((architecture.http as { verbs?: Verb[] } | undefined)?.verbs ?? []).map(verb => ({ ...verb })),
+    checklists: Object.entries((architecture.checklists as Record<string, Omit<Checklist, 'kind'>>) ?? {}).map(
+      ([kind, entry]) => ({ kind, ...entry }),
+    ),
     tests: (concepts.tests as TestRow[] | undefined) ?? [],
     vocabulary: (concepts.vocabulary as VocabularyRow[] | undefined) ?? [],
     sources: SOURCES,
@@ -161,6 +167,16 @@ export function validateContract(contract: ArchitectureContract, root: string = 
     }
   }
 
+  for (const verb of contract.verbs) {
+    const where = `${contract.sources.architecture} verb "${verb.intent}"`;
+    for (const field of ['verb', 'shape', 'when', 'example'] as const) {
+      if (!verb[field]) problems.push(`${where}: "${field}" is missing`);
+    }
+    if (verb.example && !existsSync(join(root, verb.example))) {
+      problems.push(`${where}: names ${verb.example}, which does not exist`);
+    }
+  }
+
   const conceptIds = new Set<string>();
   for (const concept of contract.concepts) {
     const where = `${contract.sources.concepts} concept "${concept.id || '(no id)'}"`;
@@ -182,6 +198,14 @@ export function validateContract(contract: ArchitectureContract, root: string = 
     for (const ruleId of concept.rules) {
       if (!ids.has(ruleId))
         problems.push(`${where}: names the rule ${ruleId}, which architecture.yaml does not define`);
+    }
+  }
+  for (const checklist of contract.checklists) {
+    const where = `${contract.sources.architecture} checklist "${checklist.kind}"`;
+    if (!checklist.place) problems.push(`${where}: "place" is missing`);
+    if (!checklist.parts.length) problems.push(`${where}: lists no parts`);
+    if (checklist.concept && !conceptIds.has(checklist.concept)) {
+      problems.push(`${where}: names the concept ${checklist.concept}, which concepts.yaml does not define`);
     }
   }
   return problems;

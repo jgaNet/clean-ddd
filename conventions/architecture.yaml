@@ -133,6 +133,118 @@ relative_imports:
   remediation: Import through the alias (@Contexts/..., @Architecture/..., @SharedKernel/...).
   references: [CLAUDE.md]
 
+# How a use case is exposed over HTTP. The verb follows what the request does to what the URL
+# names, not the handler's name; `yarn architecture verb <intent>` answers from this table.
+http:
+  rule: ARCH-PRESENTATION
+  verbs:
+    - intent: read
+      verb: GET
+      shape: GET /notes/:id
+      when: A query. It never changes state, and answers synchronously.
+      example: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
+    - intent: create
+      verb: POST
+      shape: POST /notes
+      when: A command that brings a new thing into existence. Answers 202 with the operation id.
+      example: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
+    - intent: act
+      verb: POST
+      shape: POST /notes/:id/share
+      when: A command that is an action on an existing thing, named after the action.
+      example: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
+    - intent: create-under
+      verb: POST
+      shape: POST /notes/:id/comments
+      when: A command that adds one item to a collection the URL names.
+      example: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
+    - intent: replace
+      verb: PUT
+      shape: PUT /notes/:id
+      when: A command that replaces the editable content of a thing.
+      example: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
+    - intent: replace-part
+      verb: PUT
+      shape: PUT /notes/:id/tags
+      when: A command that replaces one named part of a thing, wholesale.
+      example: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
+    - intent: change-part
+      verb: PATCH
+      shape: PATCH /notifications/:id/read
+      when: A command that changes part of a thing's state without replacing it.
+      example: src/Contexts/Notifications/Presentation/API/REST/Routes/notification.routes.ts
+    - intent: remove
+      verb: DELETE
+      shape: DELETE /notes/:id/bookmark
+      when: A command that removes a thing the caller created and the URL identifies. A thing with a lifecycle is archived, not deleted.
+      example: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
+    - intent: link-in-an-email
+      verb: GET
+      shape: GET /auth/validate?validation_token=…
+      when: A command behind a link someone clicks in an email. The exception, not a pattern to copy.
+      example: src/Contexts/Security/Presentation/API/REST/Routes/auth.routes.ts
+
+# What a new thing of each kind is made of, and where each part goes. `yarn architecture
+# checklist <kind>` prints it; `yarn architecture place <kind>` answers only the path.
+checklists:
+  aggregate:
+    place: src/Contexts/<Context>/Domain/<Aggregate>/<Aggregate>.ts
+    concept: aggregate-root
+    parts:
+      - 'The aggregate itself: a private constructor, `create()` (validates, generates the Id, records the creation event), `fromSnapshot()` (records nothing, throws on corrupted data), `toSnapshot()`, `super(id, version)` for the version it was read at.'
+      - '`DTOs.ts` beside it: the snapshot shape, `version` included.'
+      - '`<Aggregate>Exceptions.ts`: one file, one base exception for the aggregate, a PascalCase `type` per rule.'
+      - '`Events/<Aggregate>Events.ts`: the facts its behaviours record, past tense, minimal payload.'
+      - '`Ports/I<Aggregate>Repository.ts`: `findById`, `save` returning `IResult`, plus the facts a rule needs about the collection.'
+      - '`Ports/I<Aggregate>Queries.ts` and its read models, when a screen reads it.'
+      - '`<Aggregate>.spec.ts` beside it: every rule, and the round-trip through the snapshot.'
+      - 'An in-memory adapter per port under `Infrastructure/`, and a contract spec once a port promises an order or a filter.'
+      - 'Wiring in `module.local.ts`: the store, the adapters, the handlers.'
+  value-object:
+    place: src/Contexts/<Context>/Domain/<Aggregate>/<Name>.ts
+    concept: value-object
+    parts:
+      - '`static create()` returning `IResult`, a private constructor, the rule as a `static readonly` constant when there is a number.'
+      - 'One exception per rule the user could act on differently, in the aggregate''s exceptions file.'
+      - '`equalsValue()` when the value is structured (an object, an array); primitives need nothing.'
+      - '`<Name>.spec.ts` beside it: what it accepts, what it refuses, and equality.'
+  domain-service:
+    place: src/Contexts/<Context>/Domain/<Aggregate>/<Rule>.ts
+    concept: domain-service
+    parts:
+      - 'Named after the rule it holds (`AccountRegistration`, `NoteSharing`, `NoteBookmarking`), not after a layer.'
+      - 'Takes the ports it needs in its constructor; returns `IResult`; holds no logging, no transaction, no publishing.'
+      - 'Used when a rule spans several aggregates or needs a fact about the collection; a rule about one aggregate stays a behaviour.'
+      - '`<Rule>.spec.ts` beside it, with a small fake of each port.'
+  command:
+    place: src/Contexts/<Context>/Application/Commands/<UseCase>/
+    concept: command-handler
+    parts:
+      - '`<UseCase>CommandEvent.ts`: a named payload, nothing more.'
+      - '`<UseCase>CommandHandler.ts`: `requireSignedIn` at the top of `execute()`, load, ask the aggregate or the domain service, save (check the `IResult`), `publishDomainEvents`.'
+      - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
+      - 'Two lines in `Application/Commands/index.ts`; no barrel in the use-case folder.'
+      - 'A spec with at least a happy path and one refusal; through `handle()` when the rule is in `guard()`.'
+      - 'A route answering `202 { operationId }`, its JSON schema, and the handler registered in `module.local.ts`.'
+  query:
+    place: src/Contexts/<Context>/Application/Queries/<UseCase>/
+    concept: query-handler
+    parts:
+      - 'A read model and a method on the queries port, with the order and the unknown-id answer in its JSDoc.'
+      - 'The handler reads the port and nothing else: no sorting, no second port, no aggregate.'
+      - 'One line in `Application/Queries/index.ts`.'
+      - 'A spec when the handler holds a visibility or role rule.'
+      - 'A route answering synchronously, refusals through the controller''s `refuse()`, the response fields listed in the schema.'
+  context:
+    place: src/Contexts/<Context>/
+    concept: module
+    parts:
+      - 'Declared in `contexts` in this file, or no import rule applies to it.'
+      - 'The four layers and nothing else beside `module.local.ts`.'
+      - 'Its own vocabulary: a word that means something else here is a sign the context is right.'
+      - 'It asks other contexts through ports it owns, and tells them through integration events; never both sides of an import.'
+      - 'Registered in the composition root, with its routes under its own prefix.'
+
 # The rules that are not a row of the table. Each says how it is enforced.
 rules:
   - id: ARCH-INWARD

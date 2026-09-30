@@ -28,9 +28,16 @@ Writing the allow-list rather than the deny-list is deliberate: a new layer, con
 - **A new infrastructure library**: add it to `libraries`, so the domain and the use cases are kept from importing it.
 - **A new rule** about what may import what: change the table, run `yarn lint`, and fix the code the new rule refuses. Never the other way round: an `eslint-disable` is a violation with a comment.
 
-## What the contract cannot answer yet
+## What the contract answers
 
-Asked for by the first agent that used it ([record](../docs/evaluations/2026-09-29-bookmarks.md)); the next iteration's list, in the order they were missed: a **checklist** for a new aggregate (`create()` / `fromSnapshot()` / `toSnapshot()`, `version`, an exceptions file, an events file, a spec, a contract spec when a port promises an order); a **`place <concept>`** answer (where a second domain service goes, and what it is named after); the **verb table** as data; a **batch `can-import`** taking several probes in one call.
+Beyond the rules and the concepts, `architecture.yaml` holds two tables that used to live only in prose, both asked for by the first agent that worked with the contract ([record](../docs/evaluations/2026-09-29-bookmarks.md)):
+
+- **`http.verbs`** — which verb and path shape a use case takes, by intent (`read`, `create`, `act`, `create-under`, `replace`, `replace-part`, `change-part`, `remove`, and the one exception), each with an example route: `yarn architecture verb remove`.
+- **`checklists`** — what a new aggregate, value object, domain service, command, query or context is made of, and where it goes: `yarn architecture checklist aggregate`, or `yarn architecture place domain-service` for the path alone. Each names the concept whose canonical file shows it, and the check refuses a checklist naming a concept that does not exist.
+
+`can-import` takes several pairs in one call (`can-import <file> <specifier> <file> <specifier> …`), on one ESLint instance, so a planned layout is checked in a single command; it exits non-zero if any pair is refused.
+
+Still not answered, and deliberately: anything about a *feature plan* (validating an intended change against the contract before it is written). That is the next iteration.
 
 ## Using it elsewhere
 

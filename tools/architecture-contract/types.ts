@@ -50,6 +50,25 @@ export interface VocabularyRow {
   see: string;
 }
 
+export interface Verb {
+  /** What the request does to what the URL names: read, create, act, create-under, replace, replace-part, change-part, remove. */
+  intent: string;
+  verb: string;
+  shape: string;
+  when: string;
+  example: string;
+}
+
+export interface Checklist {
+  /** The kind of thing: aggregate, value-object, domain-service, command, query, context. */
+  kind: string;
+  /** Where it goes, as a path with <Placeholders>. */
+  place: string;
+  /** The concept in concepts.yaml that shows it. */
+  concept: string;
+  parts: string[];
+}
+
 export interface Tree {
   alias: string;
   path: string;
@@ -67,6 +86,8 @@ export interface ArchitectureContract {
   concepts: Concept[];
   tests: TestRow[];
   vocabulary: VocabularyRow[];
+  verbs: Verb[];
+  checklists: Checklist[];
   sources: { architecture: string; concepts: string };
 }
 
