@@ -69,6 +69,21 @@ export interface Checklist {
   parts: string[];
 }
 
+export type ModeName = 'feature' | 'architecture';
+
+/** A way of working, from the contract: what a change of this kind may and may not touch. */
+export interface Mode {
+  why: string;
+  /** feature: the trees it may not touch at all. */
+  protected?: string[];
+  /** feature: the exceptions inside them (publishing a contract is a feature's business). */
+  allowed?: string[];
+  /** architecture: the trees whose change is a decision. */
+  decides?: string[];
+  /** architecture: where the decision is written. */
+  records?: string;
+}
+
 export interface Tree {
   alias: string;
   path: string;
@@ -88,6 +103,7 @@ export interface ArchitectureContract {
   vocabulary: VocabularyRow[];
   verbs: Verb[];
   checklists: Checklist[];
+  modes: Record<ModeName, Mode>;
   sources: { architecture: string; concepts: string };
 }
 

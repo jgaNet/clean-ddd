@@ -199,9 +199,13 @@ yarn architecture concept aggregate-root       # canonical files, rules, decisio
 yarn architecture verb remove                  # which HTTP verb and path shape a use case takes, and when
 yarn architecture checklist aggregate          # what a new one is made of; `place aggregate` for the path alone
 yarn architecture can-import src/Contexts/Notes/Domain/Note/Note.ts fastify   # asks ESLint, names the rule
+yarn architecture mode feature                                               # did this change leave the architecture alone?
+yarn architecture mode architecture                                          # does it record the decision it makes?
 yarn architecture plan validate conventions/plans/share-a-note.yaml           # is this intended change legal?
 yarn architecture plan explain  conventions/plans/share-a-note.yaml           # the files, rules and examples it implies
 ```
+
+Two **modes** say which rules a change is being held to, against a diff rather than the tree ([ADR 9](docs/adr/0009-work-is-done-in-one-of-two-modes.md)): `mode feature` refuses any change to the building blocks, the shared kernel, the conventions, the decisions or the tools — if a feature seems to need one, that is the finding, not a detour — and `mode architecture` allows them and asks for the ADR that explains them. Neither is a CI gate; they are for whoever has agreed to work under a constraint, and the evaluation protocol now uses the first instead of trusting a report.
 
 A **feature plan** is what someone intends to change, written before writing it, in the contract's own words ([`conventions/plans/share-a-note.yaml`](conventions/plans/share-a-note.yaml) describes a feature that exists, so the check can hold it). `plan validate` answers whether the shape is legal — a declared context, known kinds, a route whose method matches its intent, a cross-context strategy that is one of the two, nothing new where something already exists — and `plan explain` expands it into the files to write, with each checklist's placeholders filled with the plan's own names, the canonical examples to copy, and the rules the work is bound by. It generates no code.
 
@@ -297,6 +301,7 @@ Non-obvious choices are recorded as short ADRs in [`docs/adr`](docs/adr):
 6. [Integration events, and ports the asking side owns, are the only contracts between contexts](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md)
 7. [Non-determinism enters the domain as a value](docs/adr/0007-non-determinism-enters-the-domain-as-a-value.md)
 8. [Optimistic concurrency on the aggregate](docs/adr/0008-optimistic-concurrency-on-the-aggregate.md)
+9. [Work is done in one of two modes](docs/adr/0009-work-is-done-in-one-of-two-modes.md)
 
 ## What is deliberately not here
 

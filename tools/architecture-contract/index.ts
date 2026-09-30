@@ -8,3 +8,4 @@ export * from './load';
 export * from './query';
 export * from './render';
 export * from './plan';
+export * from './modes';

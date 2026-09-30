@@ -107,6 +107,29 @@ layers:
     remediation: A controller gets its Module from the route options, which the composition root passes; it never builds an adapter.
     references: [src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts]
 
+# The two modes a change can be made in, as data, so that a person, a tool or an agent can be
+# held to one. `yarn architecture mode feature` proves a change touched none of the protected
+# trees; `yarn architecture mode architecture` allows them and asks for the decision that
+# explains them. Nothing here is a CI gate: the maintainer changes the architecture on purpose,
+# and the check is for whoever has agreed to work under a constraint.
+modes:
+  feature:
+    why: >-
+      A feature is written inside the architecture, not around it. Under this mode the building
+      blocks, the shared kernel's model, the conventions and the decisions are immutable; if the
+      work seems to need one of them changed, that is the finding, and it becomes an
+      architecture change with its own reasoning.
+    protected: [src/Architecture, src/SharedKernel, conventions, docs/adr, eslint.config.js, tools]
+    # Publishing a fact is what a cross-context feature does: the contracts folder is not protected.
+    allowed: [src/SharedKernel/Application/IntegrationEvents, conventions/plans]
+  architecture:
+    why: >-
+      The architecture may change; it may not change silently. A change to the building blocks,
+      to the shared kernel's model or to the dependency table is a decision, and a decision is
+      written down where the next reader will find it.
+    decides: [src/Architecture, src/SharedKernel/Domain, conventions/architecture.yaml]
+    records: docs/adr
+
 # Two kinds of file that are not a layer.
 wiring_file:
   id: ARCH-WIRING
