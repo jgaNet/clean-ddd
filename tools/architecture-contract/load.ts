@@ -11,6 +11,8 @@ import {
   Enforcement,
   Rule,
   SUPPORTED_SCHEMA_VERSION,
+  Mode,
+  ModeName,
   TestRow,
   Verb,
   VocabularyRow,
@@ -138,6 +140,7 @@ export function loadArchitectureContract(root: string = repositoryRoot()): Archi
     checklists: Object.entries((architecture.checklists as Record<string, Omit<Checklist, 'kind'>>) ?? {}).map(
       ([kind, entry]) => ({ kind, ...entry }),
     ),
+    modes: (architecture.modes as Record<ModeName, Mode>) ?? ({} as Record<ModeName, Mode>),
     tests: (concepts.tests as TestRow[] | undefined) ?? [],
     vocabulary: (concepts.vocabulary as VocabularyRow[] | undefined) ?? [],
     sources: SOURCES,

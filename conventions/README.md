@@ -43,7 +43,19 @@ A **plan** ([`plans/share-a-note.yaml`](plans/share-a-note.yaml)) is what someon
 
 A plan generates no code and is not a source of truth — the code is. Every plan under `plans/` is validated by `yarn check:conventions`, so the examples cannot rot. While the work is only planned, its changes carry no `new:` line and the check confirms that none of it exists yet; once the work is done, the same entries say `new: false` and the check confirms that each part is where the plan said it would be. A plan kept in the repository is therefore edited once, at the end — and that is what makes it a test rather than a note.
 
-Still deliberately absent: development modes (a *feature mode* in which the protected trees are immutable), and anything that writes code.
+### Modes
+
+`architecture.yaml` also holds the two **modes** a change can be made in ([ADR 9](../docs/adr/0009-work-is-done-in-one-of-two-modes.md)), checked against a diff rather than the tree:
+
+```bash
+yarn architecture mode feature                  # refuses any change to the protected trees
+yarn architecture mode architecture             # allows them, asks for the ADR that explains them
+yarn architecture mode feature --base working   # what is uncommitted right now
+```
+
+The plan validator reads the same lists, so a plan's `architectureChanges` and the feature mode cannot drift apart. Neither mode is a CI gate — the maintainer changes the architecture on purpose, and a gate they must fight is a gate they will remove.
+
+Still deliberately absent: anything that writes code.
 
 ## Using it elsewhere
 

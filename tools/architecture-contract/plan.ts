@@ -42,14 +42,18 @@ export interface FeaturePlan {
   architectureChanges?: boolean;
 }
 
-const PROTECTED = ['src/Architecture', 'src/SharedKernel', 'conventions', 'docs/adr'];
-/**
- * Except this: the integration events are where a context publishes its contracts, and adding
- * one is what a cross-context feature does. Changing the shared kernel's model (a Role, the
- * Email, the guard) is an architecture change; publishing a new fact is not.
- */
-const PUBLISHABLE = ['src/SharedKernel/Application/IntegrationEvents'];
 const STRATEGIES = ['integration-event', 'owned-port'];
+
+/**
+ * What a plan may not touch unless it says architectureChanges — the same trees the feature
+ * mode protects, taken from the contract so the two cannot drift. The integration events are
+ * the exception on both: publishing a fact is what a cross-context feature does.
+ */
+const guarded = (contract: ArchitectureContract, place: string): boolean => {
+  const mode = contract.modes.feature ?? {};
+  const under = (trees: string[] = []) => trees.some(tree => place === tree || place.startsWith(`${tree}/`));
+  return under(mode.protected) && !under(mode.allowed);
+};
 
 export function loadFeaturePlan(file: string, root: string): FeaturePlan {
   const path = join(root, file);
@@ -128,8 +132,7 @@ export function validatePlan(plan: FeaturePlan, contract: ArchitectureContract, 
       problems.push(`${where}: "${change.name}" is not new, but ${place} does not exist`);
     if (change.new !== false && exists)
       problems.push(`${where}: "${change.name}" is planned as new, but ${place} already exists`);
-    const guarded = PROTECTED.some(tree => place.startsWith(tree)) && !PUBLISHABLE.some(tree => place.startsWith(tree));
-    if (!plan.architectureChanges && guarded) {
+    if (!plan.architectureChanges && guarded(contract, place)) {
       problems.push(
         `${where}: "${change.name}" would go in ${place}, which is protected; a plan that touches it says architectureChanges: true`,
       );

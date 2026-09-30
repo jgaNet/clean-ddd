@@ -10,6 +10,8 @@
  *   yarn architecture verb <intent>           which HTTP verb and path shape a use case takes
  *   yarn architecture checklist <kind>        what a new aggregate, value object, command … is made of
  *   yarn architecture place <kind>            where it goes, path only
+ *   yarn architecture mode feature [--base <ref>]     did this change leave the architecture alone
+ *   yarn architecture mode architecture [--base <ref>] does it record the decision it makes
  *   yarn architecture plan validate <file>    is this intended change legal, before writing it
  *   yarn architecture plan explain <file>     the files, rules and examples it implies
  *   yarn architecture rules | concepts | verbs | checklists   the lists
@@ -22,6 +24,8 @@ import { ContractError } from './types';
 import { loadArchitectureContract } from './load';
 import { canImportAll, getChecklist, getConcept, getRule, getVerbs, rulesOf } from './query';
 import { explainPlan, loadFeaturePlan, validatePlan } from './plan';
+import { changedFiles, checkMode } from './modes';
+import type { ModeName } from './types';
 import { repositoryRoot } from './load';
 
 const args = process.argv.slice(2);
@@ -77,6 +81,7 @@ async function main(): Promise<void> {
             `Rules: ${contract.rules.length} (yarn architecture rules)`,
             `Concepts: ${contract.concepts.length} (yarn architecture concepts)`,
             `Verbs: ${contract.verbs.length} (yarn architecture verbs)`,
+            `Modes: ${Object.keys(contract.modes).join(', ')} (yarn architecture mode <name>)`,
             `Checklists: ${contract.checklists.length} (yarn architecture checklists)`,
             '',
             list('Sources', [contract.sources.architecture, contract.sources.concepts]),
@@ -190,6 +195,36 @@ async function main(): Promise<void> {
           .join('\n'),
       );
     }
+    case 'mode': {
+      const mode = rest[0] as ModeName;
+      if (!['feature', 'architecture'].includes(mode)) {
+        return fail('usage', 'usage: yarn architecture mode <feature | architecture> [--base <ref> | --base working]');
+      }
+      const base =
+        rest[rest.indexOf('--base') + 1] && rest.includes('--base') ? rest[rest.indexOf('--base') + 1] : 'origin/main';
+      let changed;
+      try {
+        changed = changedFiles(base);
+      } catch {
+        return fail(
+          'no-such-base',
+          `Cannot compare with "${base}": no such ref. Try --base main, or --base working for uncommitted changes.`,
+        );
+      }
+      const verdict = checkMode(mode, changed, contract, base);
+      out({ schemaVersion, ...verdict, why: contract.modes[mode]?.why }, () =>
+        verdict.ok
+          ? `${mode} mode: the ${changed.length} changed file(s) are within it.`
+          : [
+              `${mode} mode: ${verdict.problems.length} problem(s) over ${changed.length} changed file(s)`,
+              '',
+              ...verdict.problems.map(problem => `  ✗ ${problem}`),
+              '',
+              contract.modes[mode]?.why ?? '',
+            ].join('\n'),
+      );
+      return process.exit(verdict.ok ? 0 : 1);
+    }
     case 'plan': {
       const [action, file] = rest;
       if (!['validate', 'explain'].includes(action) || !file) {
@@ -258,7 +293,7 @@ async function main(): Promise<void> {
     default:
       return fail(
         'usage',
-        'usage: yarn architecture <inspect | rules | concepts | verbs | checklists | rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind> | plan <validate|explain> <file> | can-import <file> <specifier> …> [--json]',
+        'usage: yarn architecture <inspect | rules | concepts | verbs | checklists | rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind> | mode <feature|architecture> | plan <validate|explain> <file> | can-import <file> <specifier> …> [--json]',
       );
   }
 }
