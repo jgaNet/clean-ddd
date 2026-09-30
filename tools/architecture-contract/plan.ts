@@ -43,6 +43,12 @@ export interface FeaturePlan {
 }
 
 const PROTECTED = ['src/Architecture', 'src/SharedKernel', 'conventions', 'docs/adr'];
+/**
+ * Except this: the integration events are where a context publishes its contracts, and adding
+ * one is what a cross-context feature does. Changing the shared kernel's model (a Role, the
+ * Email, the guard) is an architecture change; publishing a new fact is not.
+ */
+const PUBLISHABLE = ['src/SharedKernel/Application/IntegrationEvents'];
 const STRATEGIES = ['integration-event', 'owned-port'];
 
 export function loadFeaturePlan(file: string, root: string): FeaturePlan {
@@ -122,7 +128,8 @@ export function validatePlan(plan: FeaturePlan, contract: ArchitectureContract, 
       problems.push(`${where}: "${change.name}" is not new, but ${place} does not exist`);
     if (change.new !== false && exists)
       problems.push(`${where}: "${change.name}" is planned as new, but ${place} already exists`);
-    if (!plan.architectureChanges && PROTECTED.some(tree => place.startsWith(tree))) {
+    const guarded = PROTECTED.some(tree => place.startsWith(tree)) && !PUBLISHABLE.some(tree => place.startsWith(tree));
+    if (!plan.architectureChanges && guarded) {
       problems.push(
         `${where}: "${change.name}" would go in ${place}, which is protected; a plan that touches it says architectureChanges: true`,
       );
@@ -159,6 +166,22 @@ export function validatePlan(plan: FeaturePlan, contract: ArchitectureContract, 
         `${where}: crossContext strategy must be ${STRATEGIES.join(' or ')} — those are the only two contracts between contexts (CTX-CONTRACTS)`,
       );
     }
+  }
+  if (
+    plan.crossContext?.strategy === 'integration-event' &&
+    !plan.changes.some(change => change.kind === 'integration-event')
+  ) {
+    problems.push(
+      `${where}: the plan crosses into ${plan.crossContext.context} through an integration event, so it lists the contract it publishes or reuses as a change of kind "integration-event" (CTX-CONTRACTS)`,
+    );
+  }
+  if (
+    plan.crossContext?.strategy === 'owned-port' &&
+    !plan.changes.some(change => ['port', 'domain-service'].includes(change.kind))
+  ) {
+    problems.push(
+      `${where}: the plan asks ${plan.crossContext.context} through a port it owns, so it lists the domain service that uses it among its changes (CTX-CONTRACTS)`,
+    );
   }
   if (
     !plan.invariants.length &&

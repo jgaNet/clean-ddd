@@ -7,6 +7,12 @@
  *
  * The name defaults to the class name, which is also the channel the event bus routes on.
  * Create one with `MyEvent.set(payload)`.
+ *
+ * `payload` and `name` are public and `readonly`, not private fields behind getters: an event
+ * is a value, so two events are equal when their class and their payload are, and a test that
+ * writes `expect(published).toEqual([NoteSharedEvent.set({ noteId })])` must compare the
+ * payload. A `#private` field is invisible to a structural comparison, so that assertion would
+ * pass whatever the payload said — which it silently did until an evaluation caught it.
  */
 
 export type IEvent<PayloadDTO> = {
@@ -15,12 +21,12 @@ export type IEvent<PayloadDTO> = {
 };
 
 export class Event<PayloadDTO> {
-  #payload: PayloadDTO;
-  #name: string;
+  readonly payload: PayloadDTO;
+  readonly name: string;
 
   constructor({ payload, name }: IEvent<PayloadDTO>) {
-    this.#payload = payload;
-    this.#name = name || this.constructor.name;
+    this.payload = payload;
+    this.name = name || this.constructor.name;
   }
 
   /** Builds an instance of the calling class (not of Event), so `instanceof` and the name both hold. */
@@ -29,13 +35,5 @@ export class Event<PayloadDTO> {
     payload: PayloadDTO,
   ): Event<PayloadDTO> {
     return new this({ payload });
-  }
-
-  get payload(): PayloadDTO {
-    return this.#payload;
-  }
-
-  get name(): string {
-    return this.#name;
   }
 }

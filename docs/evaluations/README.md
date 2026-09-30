@@ -29,6 +29,7 @@ The README and CLAUDE.md claim that a developer (or an agent) who has never seen
 | 2026-09-29 | Plans, re-run verbatim on the corrected guide | **the context criterion fired**: a Billing context, every item PASS; seam defaults and ownership written down | [`2026-09-29-account-plans-2.md`](2026-09-29-account-plans-2.md) |
 | 2026-09-29 | Change my password, on the Architecture / SharedKernel split | every item PASS; the two trees were told apart from the docs alone; two places where code lagged the words fixed | [`2026-09-29-change-password.md`](2026-09-29-change-password.md) |
 | 2026-09-29 | Bookmarks, with the architecture contract at hand | every item PASS; `can-import` used before writing code, the linter refused nothing; a contradiction inside the contract found and fixed | [`2026-09-29-bookmarks.md`](2026-09-29-bookmarks.md) |
+| 2026-09-30 | React to a note, written plan-first | every item PASS; the plan changed two decisions before any code, and the run found that event assertions compared nothing | [`2026-09-30-react-to-a-note.md`](2026-09-30-react-to-a-note.md) |
 
 ## When to run one
 

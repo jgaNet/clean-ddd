@@ -137,6 +137,44 @@ describe('a feature plan', () => {
     ).toEqual([]);
   });
 
+  it('requires a plan that crosses a boundary to name the contract it publishes, or the service that asks', () => {
+    const byEvent = validatePlan(
+      aPlan({ crossContext: { context: 'Notifications', strategy: 'integration-event' } }),
+      contract,
+      root,
+    );
+    expect(byEvent).toEqual(
+      expect.arrayContaining([expect.stringContaining('as a change of kind "integration-event"')]),
+    );
+
+    const withContract = validatePlan(
+      aPlan({
+        changes: [
+          { kind: 'aggregate', name: 'Bookmark' },
+          { kind: 'integration-event', name: 'NoteBookmarkedIntegrationEvent', aggregate: 'Note', new: false },
+        ],
+        crossContext: { context: 'Notifications', strategy: 'integration-event' },
+      }),
+      contract,
+      root,
+    );
+    expect(withContract).toEqual([]);
+  });
+
+  it('treats the integration events as publishable: adding a contract is not an architecture change', () => {
+    const problems = validatePlan(
+      aPlan({
+        changes: [
+          { kind: 'integration-event', name: 'SomethingHappenedIntegrationEvent', aggregate: 'Note', new: false },
+        ],
+        crossContext: { context: 'Notifications', strategy: 'integration-event' },
+      }),
+      contract,
+      root,
+    );
+    expect(problems).toEqual([]);
+  });
+
   it('rejects a file that is not a plan, and a schema version it does not understand', () => {
     const { dir, file } = planFile({ ...aPlan(), schemaVersion: 2 });
     expect(() => loadFeaturePlan(file, dir)).toThrow(ContractError);

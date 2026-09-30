@@ -37,6 +37,13 @@ changes:
     verb: read
     route: GET /notes/shared
     new: false
+  - kind: integration-event
+    name: NoteSharedIntegrationEvent
+    aggregate: Note
+    new: false
+  - kind: event-handler
+    name: NoteShared
+    new: false
 
 invariants:
   - Only the owner of a note shares it.
