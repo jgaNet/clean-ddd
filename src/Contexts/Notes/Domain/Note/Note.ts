@@ -19,6 +19,7 @@ import {
   NoteAlreadySharedException,
   NoteArchivedException,
   NoteNotArchivedException,
+  NoteNotSharedWithException,
 } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 
 /**
@@ -32,6 +33,8 @@ import {
  * - an archived note is read-only until it is restored: it can be neither edited nor shared
  *   (`ensureActive()`); archiving, restoring and reading it are not gated by that rule
  * - a note cannot be shared twice with the same account, nor with its owner
+ * - only the people it is shared with may react to it (`allowsReactionFrom()`); the reaction
+ *   itself is another aggregate, NoteReaction, because they write it and the owner does not
  *
  * The aggregate never touches persistence, logging or HTTP. It only knows business.
  */
@@ -169,6 +172,23 @@ export class Note extends AggregateRoot {
         recipientId: recipientId.value,
       }),
     );
+
+    return Result.ok();
+  }
+
+  /**
+   * Whether this note is open to a reaction from that account. The Note answers it because it
+   * owns its audience and its lifecycle: only the people it is shared with may react, and an
+   * archived note is read-only. The reaction itself is another aggregate (NoteReaction), so
+   * nothing changes here and nothing is recorded.
+   */
+  allowsReactionFrom(accountId: Id): IResult {
+    const writable = this.ensureActive();
+    if (writable.isFailure()) return writable;
+
+    if (!this.#sharedWith.has(accountId.value)) {
+      return Result.fail(new NoteNotSharedWithException(this._id.value, accountId.value));
+    }
 
     return Result.ok();
   }

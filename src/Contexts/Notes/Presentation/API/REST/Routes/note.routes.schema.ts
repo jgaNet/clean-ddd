@@ -1,5 +1,7 @@
 import { FromSchema } from 'json-schema-to-ts';
 
+import { ReactionEmoji } from '@Contexts/Notes/Domain/NoteReaction/ReactionEmoji';
+
 const AcceptedResSchema = {
   description: 'Accepted: the command is being processed, poll the operation to know its outcome',
   type: 'object',
@@ -46,6 +48,16 @@ export const ShareNoteReqBodySchema = {
     recipientId: { type: 'string' },
   },
   required: ['recipientId'],
+} as const;
+
+// The emojis are shape, not a business rule: the list is the domain's, so widening it there
+// needs no change here, and the domain refuses anything else anyway.
+export const ReactToNoteReqBodySchema = {
+  type: 'object',
+  properties: {
+    emoji: { type: 'string', enum: ReactionEmoji.ALLOWED },
+  },
+  required: ['emoji'],
 } as const;
 
 export const CommandResSchema = {
@@ -105,7 +117,24 @@ export const GetSharedNotesResSchema = {
   403: ErrorResSchema,
 } as const;
 
+export const GetNoteReactionsResSchema = {
+  200: {
+    description: 'Success',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        reactorId: { type: 'string' },
+        emoji: { type: 'string' },
+      },
+    },
+  },
+  403: ErrorResSchema,
+  404: ErrorResSchema,
+} as const;
+
 export type CreateNoteReqBody = FromSchema<typeof CreateNoteReqBodySchema>;
 export type EditNoteReqBody = FromSchema<typeof EditNoteReqBodySchema>;
 export type ShareNoteReqBody = FromSchema<typeof ShareNoteReqBodySchema>;
+export type ReactToNoteReqBody = FromSchema<typeof ReactToNoteReqBodySchema>;
 export type NoteIdParams = FromSchema<typeof NoteIdParamsSchema>;

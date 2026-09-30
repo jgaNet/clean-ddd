@@ -13,9 +13,14 @@ import {
   NoteArchivedException,
   NoteNotArchivedException,
   NoteNotFoundException,
+  NoteNotSharedWithException,
   NotNoteOwnerException,
 } from '@Contexts/Notes/Domain/Note/NoteExceptions';
+import { INoteReaction } from '@Contexts/Notes/Domain/NoteReaction/DTOs';
+import { NoteReacting } from '@Contexts/Notes/Domain/NoteReaction/NoteReacting';
+import { UnsupportedReactionEmojiException } from '@Contexts/Notes/Domain/NoteReaction/NoteReactionExceptions';
 import { InMemoryNoteRepository } from '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository';
+import { InMemoryNoteReactionRepository } from '@Contexts/Notes/Infrastructure/Repositories/InMemoryNoteReactionRepository';
 import { NoteSharing } from '@Contexts/Notes/Domain/Note/NoteSharing';
 import {
   ArchiveNoteCommandEvent,
@@ -24,6 +29,8 @@ import {
   CreateNoteCommandHandler,
   EditNoteCommandEvent,
   EditNoteCommandHandler,
+  ReactToNoteCommandEvent,
+  ReactToNoteCommandHandler,
   RestoreNoteCommandEvent,
   RestoreNoteCommandHandler,
   ShareNoteCommandEvent,
@@ -38,6 +45,8 @@ function contextFor(subjectId: string | undefined, role: Role = Role.USER): Exec
 
 let store: InMemoryDataSource<INote>;
 let repository: InMemoryNoteRepository;
+let reactionStore: InMemoryDataSource<INoteReaction>;
+let reactions: InMemoryNoteReactionRepository;
 // Every account the tests talk about exists; the directory itself is covered by NoteSharing.spec.
 const sharing = new NoteSharing({ exists: async id => ['alice', 'bob', 'carol'].includes(id) });
 
@@ -45,6 +54,8 @@ beforeEach(() => {
   jest.resetAllMocks();
   store = new InMemoryDataSource<INote>();
   repository = new InMemoryNoteRepository(store);
+  reactionStore = new InMemoryDataSource<INoteReaction>();
+  reactions = new InMemoryNoteReactionRepository(reactionStore);
 });
 
 async function aNoteOwnedBy(ownerId: string): Promise<string> {
@@ -141,6 +152,71 @@ describe('ShareNoteCommandHandler', () => {
     );
 
     expect(result.error).toBeInstanceOf(NoteNotFoundException);
+  });
+});
+
+describe('ReactToNoteCommandHandler', () => {
+  const reactTo = (noteId: string, emoji: string, reactorId: string) =>
+    new ReactToNoteCommandHandler(repository, reactions, new NoteReacting(reactions)).execute(
+      ReactToNoteCommandEvent.set({ noteId, emoji }),
+      contextFor(reactorId),
+    );
+
+  async function aNoteSharedWithBob(): Promise<string> {
+    const noteId = await aNoteOwnedBy('alice');
+    await new ShareNoteCommandHandler(repository, sharing).execute(
+      ShareNoteCommandEvent.set({ noteId, recipientId: 'bob' }),
+      contextFor('alice'),
+    );
+    jest.resetAllMocks();
+    return noteId;
+  }
+
+  it('saves the reaction of someone the note is shared with and publishes NoteReacted', async () => {
+    const noteId = await aNoteSharedWithBob();
+
+    const result = await reactTo(noteId, '👍', 'bob');
+
+    expect(result.isSuccess()).toBe(true);
+    expect([...reactionStore.collection.values()]).toEqual([
+      expect.objectContaining({ noteId, reactorId: 'bob', emoji: '👍', version: 1 }),
+    ]);
+    expect(eventBus.publish).toHaveBeenCalledTimes(1);
+  });
+
+  it('changes the reaction instead of adding a second one', async () => {
+    const noteId = await aNoteSharedWithBob();
+    await reactTo(noteId, '👍', 'bob');
+
+    const result = await reactTo(noteId, '😂', 'bob');
+
+    expect(result.isSuccess()).toBe(true);
+    expect([...reactionStore.collection.values()]).toEqual([
+      expect.objectContaining({ noteId, reactorId: 'bob', emoji: '😂', version: 2 }),
+    ]);
+  });
+
+  it('refuses someone the note is not shared with, and saves nothing', async () => {
+    const noteId = await aNoteSharedWithBob();
+
+    const result = await reactTo(noteId, '👍', 'carol');
+
+    expect(result.error).toBeInstanceOf(NoteNotSharedWithException);
+    expect(reactionStore.collection.size).toBe(0);
+    expect(eventBus.publish).not.toHaveBeenCalled();
+  });
+
+  it('refuses an emoji the domain does not support', async () => {
+    const noteId = await aNoteSharedWithBob();
+
+    const result = await reactTo(noteId, '🦄', 'bob');
+
+    expect(result.error).toBeInstanceOf(UnsupportedReactionEmojiException);
+    expect(reactionStore.collection.size).toBe(0);
+  });
+
+  it('fails on an unknown note', async () => {
+    expect((await reactTo('nope', '👍', 'bob')).error).toBeInstanceOf(NoteNotFoundException);
   });
 });
 

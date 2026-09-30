@@ -12,9 +12,12 @@ import {
   EditNoteReqBody,
   EditNoteReqBodySchema,
   GetMyNotesResSchema,
+  GetNoteReactionsResSchema,
   GetNoteResSchema,
   GetSharedNotesResSchema,
   NoteIdParams,
+  ReactToNoteReqBody,
+  ReactToNoteReqBodySchema,
   ShareNoteReqBody,
   ShareNoteReqBodySchema,
 } from '@Contexts/Notes/Presentation/API/REST/Routes/note.routes.schema';
@@ -71,6 +74,20 @@ export const noteRoutes = function (
     '/:id/share',
     { schema: { tags, ...CommandOnNoteSchema, body: ShareNoteReqBodySchema } },
     controller.shareNote.bind(controller),
+  );
+
+  // The caller's reaction is one named part of a note, replaced wholesale: reacting again
+  // changes it rather than adding a second one, so the same request twice means the same thing.
+  fastify.put<{ Params: NoteIdParams; Body: ReactToNoteReqBody }>(
+    '/:id/reaction',
+    { schema: { tags, ...CommandOnNoteSchema, body: ReactToNoteReqBodySchema } },
+    controller.reactToNote.bind(controller),
+  );
+
+  fastify.get<{ Params: NoteIdParams }>(
+    '/:id/reactions',
+    { schema: { tags, params: CommandOnNoteSchema.params, response: GetNoteReactionsResSchema } },
+    controller.getNoteReactions.bind(controller),
   );
 
   fastify.post<{ Params: NoteIdParams }>(

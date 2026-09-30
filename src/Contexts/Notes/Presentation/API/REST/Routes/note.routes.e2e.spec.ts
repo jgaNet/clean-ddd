@@ -146,6 +146,66 @@ describe('Sharing a note (Notes -> Notifications)', () => {
   });
 });
 
+describe('Reacting to a shared note (Notes -> Notifications)', () => {
+  it('lets the people it is shared with react, tells the owner once, and shows the reactions', async () => {
+    // A second, validated account: carol
+    const signUp = await superagent
+      .post(`${api}/auth/signup`)
+      .send({ identifier: 'carol@notes.fr', password: 'carol' });
+    const signUpOperation = await agent.get(`${api}/tracker/operations/${signUp.body.operationId}`);
+    const carolId: string = signUpOperation.body.result;
+    await agent.get(`${api}/auth/accounts/${carolId}/validate`);
+
+    // The admin writes a note and shares it with carol
+    await agent.post(`${api}/notes`).send({ title: 'Retrospective', content: 'What went well' });
+    const mine = await agent.get(`${api}/notes`);
+    const note = mine.body.find((each: { title: string }) => each.title === 'Retrospective');
+    const ownerId: string = (await agent.get(`${api}/notes/${note.id}`)).body.ownerId;
+    await agent.post(`${api}/notes/${note.id}/share`).send({ recipientId: carolId });
+
+    const carolLogin = await superagent
+      .post(`${api}/auth/login`)
+      .send({ identifier: 'carol@notes.fr', password: 'carol' });
+    const carol = superagent.agent().set('authorization', `Bearer ${carolLogin.body.token}`);
+
+    const reacted = await carol.put(`${api}/notes/${note.id}/reaction`).send({ emoji: '👍' });
+    expect(reacted.status).toBe(202);
+    expect((await agent.get(`${api}/tracker/operations/${reacted.body.operationId}`)).body.status).toBe('SUCCESS');
+
+    // She changes her mind: the same request again replaces her reaction, it does not add one
+    const changed = await carol.put(`${api}/notes/${note.id}/reaction`).send({ emoji: '🎉' });
+    expect((await agent.get(`${api}/tracker/operations/${changed.body.operationId}`)).body.status).toBe('SUCCESS');
+
+    const reactions = await agent.get(`${api}/notes/${note.id}/reactions`);
+    expect(reactions.status).toBe(200);
+    expect(reactions.body).toEqual([{ reactorId: carolId, emoji: '🎉' }]);
+
+    // The owner was told, once: the second reaction was not the first one on the note
+    const notifications = await agent.get(`${api}/notifications/account/${ownerId}`);
+    const reactionNotifications = notifications.body.notifications.filter(
+      (notification: { metadata: { source?: string; noteId?: string } }) =>
+        notification.metadata.source === 'Notes.NoteFirstReaction' && notification.metadata.noteId === note.id,
+    );
+    expect(reactionNotifications).toHaveLength(1);
+    expect(reactionNotifications[0]).toMatchObject({
+      recipientId: ownerId,
+      title: 'Someone reacted to your note: Retrospective',
+    });
+  });
+
+  it('refuses the owner, who the note was never shared with', async () => {
+    const mine = await agent.get(`${api}/notes`);
+    const note = mine.body.find((each: { title: string }) => each.title === 'Retrospective');
+
+    const refused = await agent.put(`${api}/notes/${note.id}/reaction`).send({ emoji: '👍' });
+    expect(refused.status).toBe(202);
+
+    const operation = await agent.get(`${api}/tracker/operations/${refused.body.operationId}`);
+    expect(operation.body).toMatchObject({ status: 'ERROR', error: { type: 'NoteNotSharedWith' } });
+    expect((await agent.get(`${api}/notes/${note.id}/reactions`)).body).toHaveLength(1);
+  });
+});
+
 describe('Sharing a note with an unknown account', () => {
   it('is refused by the domain, through the port to Security', async () => {
     await agent.post(`${api}/notes`).send({ title: 'Secret', content: '...' });

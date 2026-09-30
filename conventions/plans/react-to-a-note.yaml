@@ -1,0 +1,69 @@
+# A feature plan, written before the code: people a note is shared with react to it with an
+# emoji. Checked with `yarn architecture plan validate conventions/plans/react-to-a-note.yaml`
+# and expanded with `plan explain`.
+#
+# Every change said `new: true` while the plan was the only thing written, and the check
+# confirmed none of it existed yet. Now that the work is done they say `new: false`, so
+# `yarn check:conventions` keeps confirming, on every build, that each part named here is
+# really where the plan said it would be.
+
+schemaVersion: 1
+
+feature: react-to-a-note
+context: Notes
+
+intent: >-
+  A person a note is shared with reacts to it with an emoji: one reaction per person per note,
+  which they can change at any time. The owner of the note is told the first time anyone reacts
+  to it. A reaction is written by someone other than the owner, so it is its own aggregate that
+  references the note by id, and the rules that span the two live in a domain service.
+
+changes:
+  - kind: aggregate
+    name: NoteReaction
+    new: false
+  - kind: value-object
+    name: ReactionEmoji
+    aggregate: NoteReaction
+    new: false
+  - kind: domain-service
+    name: NoteReacting
+    aggregate: NoteReaction
+    new: false
+  - kind: aggregate
+    name: Note
+    new: false
+  - kind: command
+    name: ReactToNote
+    verb: replace-part
+    route: PUT /notes/:id/reaction
+    new: false
+  - kind: query
+    name: GetNoteReactions
+    verb: read
+    route: GET /notes/:id/reactions
+    new: false
+
+invariants:
+  - Only a person the note is shared with may react to it; the Note owns that rule, because it owns its audience.
+  - An archived note is read-only, so it cannot be reacted to either.
+  - An emoji is one of the reactions the domain supports (ReactionEmoji), never an arbitrary string.
+  - One reaction per person per note — a second one changes the first instead of adding to it.
+  - Only the person who made a reaction changes it, and changing it to the same emoji is refused.
+  - Whether a reaction is the first one on a note is a fact about the whole collection, so the domain service establishes it through the repository and hands it to the aggregate.
+  - The reactions of a note are readable by the people who can read the note.
+
+events:
+  - NoteReactedEvent
+  - NoteReactionChangedEvent
+
+crossContext:
+  context: Notifications
+  strategy: integration-event
+  why: >-
+    The owner is told the first time someone reacts. Notes publishes the fact as
+    NoteFirstReactionIntegrationEvent (the domain event carries whether it was the first, because
+    the Notes side is the only one that can know); Notifications restates it in its own words
+    through an anti-corruption handler and knows nothing else about Notes.
+
+architectureChanges: false

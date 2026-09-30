@@ -8,6 +8,7 @@ import {
   CreateNoteCommandEvent,
   EditNoteCommandEvent,
   ArchiveNoteCommandEvent,
+  ReactToNoteCommandEvent,
   RestoreNoteCommandEvent,
   ShareNoteCommandEvent,
   SuggestNoteTitleCommandEvent,
@@ -15,12 +16,14 @@ import {
 import {
   GetMyNotesQueryHandler,
   GetNoteQueryHandler,
+  GetNoteReactionsQueryHandler,
   GetNotesSharedWithMeQueryHandler,
 } from '@Contexts/Notes/Application/Queries';
 import {
   CreateNoteReqBody,
   EditNoteReqBody,
   NoteIdParams,
+  ReactToNoteReqBody,
   ShareNoteReqBody,
 } from '@Contexts/Notes/Presentation/API/REST/Routes/note.routes.schema';
 import { NewNoteHTMXPresenter } from '@Contexts/Notes/Presentation/Presenters';
@@ -65,6 +68,10 @@ export class FastifyNoteController {
     );
   }
 
+  async reactToNote(req: FastifyRequest<{ Params: NoteIdParams; Body: ReactToNoteReqBody }>, reply: FastifyReply) {
+    return this.accept(req, reply, ReactToNoteCommandEvent.set({ noteId: req.params.id, emoji: req.body.emoji }));
+  }
+
   async suggestNoteTitle(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
     return this.accept(req, reply, SuggestNoteTitleCommandEvent.set({ noteId: req.params.id }));
   }
@@ -77,6 +84,14 @@ export class FastifyNoteController {
 
   async getNote(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
     const result = await this.#notesModule.getQuery(GetNoteQueryHandler).handle(req.params.id, req.executionContext);
+
+    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
+  }
+
+  async getNoteReactions(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
+    const result = await this.#notesModule
+      .getQuery(GetNoteReactionsQueryHandler)
+      .handle(req.params.id, req.executionContext);
 
     return result.isFailure() ? this.refuse(reply, result.error) : result.data;
   }

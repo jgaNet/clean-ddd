@@ -14,3 +14,16 @@ export class NoteSharedIntegrationEvent extends IntegrationEvent<{
   ownerId: string;
   recipientId: string;
 }> {}
+
+/**
+ * A note was reacted to for the first time. Notes publishes it only once per note, because it
+ * is the only side that can tell a first reaction from the next ones; a context that listens
+ * needs no memory of its own.
+ */
+export class NoteFirstReactionIntegrationEvent extends IntegrationEvent<{
+  noteId: string;
+  title: string;
+  ownerId: string;
+  reactorId: string;
+  emoji: string;
+}> {}

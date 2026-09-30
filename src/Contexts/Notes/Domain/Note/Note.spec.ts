@@ -17,6 +17,7 @@ import {
   NoteAlreadySharedException,
   NoteArchivedException,
   NoteNotArchivedException,
+  NoteNotSharedWithException,
 } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 
 const owner = new Id('alice');
@@ -181,6 +182,33 @@ describe('Note', () => {
       const note = aNote();
 
       expect(note.shareWith(stranger, new Id('carol')).error).toBeInstanceOf(NotNoteOwnerException);
+    });
+  });
+
+  describe('who may react to it', () => {
+    it('opens a note to the people it is shared with', () => {
+      const note = aNote();
+      note.shareWith(owner, stranger);
+      note.pullDomainEvents();
+
+      expect(note.allowsReactionFrom(stranger).isSuccess()).toBe(true);
+      // Asking changes nothing: the reaction is another aggregate's business.
+      expect(note.pullDomainEvents()).toEqual([]);
+    });
+
+    it('refuses someone it was not shared with, the owner included', () => {
+      const note = aNote();
+
+      expect(note.allowsReactionFrom(stranger).error).toBeInstanceOf(NoteNotSharedWithException);
+      expect(note.allowsReactionFrom(owner).error).toBeInstanceOf(NoteNotSharedWithException);
+    });
+
+    it('refuses everyone once the note is archived', () => {
+      const note = aNote();
+      note.shareWith(owner, stranger);
+      note.archive(owner);
+
+      expect(note.allowsReactionFrom(stranger).error).toBeInstanceOf(NoteArchivedException);
     });
   });
 

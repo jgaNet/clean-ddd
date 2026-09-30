@@ -82,6 +82,16 @@ export class NoteAlreadySharedException extends NoteDomainException {
   }
 }
 
+export class NoteNotSharedWithException extends NoteDomainException {
+  constructor(noteId: string, accountId: string) {
+    super({
+      type: 'NoteNotSharedWith',
+      message: 'Only the people a note is shared with can react to it',
+      context: { noteId, accountId },
+    });
+  }
+}
+
 export class RecipientNotFoundException extends NoteDomainException {
   constructor(noteId: string, recipientId: string) {
     super({
