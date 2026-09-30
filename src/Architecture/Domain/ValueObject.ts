@@ -12,22 +12,25 @@
  * key order and nested values right for every case. Forgetting to do so is a programming
  * error and throws, at the first comparison, naming the class.
  *
- * Examples: ValueObjects/Id.ts, ValueObjects/Email.ts, Contexts/Notes/Domain/Note/NoteTitle.ts
+ * `value` is a public `readonly` field rather than a `#private` one behind a getter, for the
+ * same reason as on Event: a value object *is* its value, so a test that writes
+ * `expect(note.title).toEqual(NoteTitle.create('Groceries').data)` must compare it. A private
+ * field is invisible to a structural comparison, and that assertion would pass whatever the
+ * value said.
+ *
+ * Examples: ValueObjects/Id.ts, SharedKernel/Domain/Email.ts, Contexts/Notes/Domain/Note/NoteTitle.ts
  * (primitive); Contexts/Security/Domain/Account/Credentials.ts (structured).
  */
 
 export class ValueObject<T> {
-  readonly #value: T;
-  constructor(value: T) {
-    this.#value = value;
-  }
+  readonly value: T;
 
-  get value() {
-    return this.#value;
+  constructor(value: T) {
+    this.value = value;
   }
 
   equals(other: ValueObject<T>): boolean {
-    return this.constructor === other.constructor && this.equalsValue(this.#value, other.value);
+    return this.constructor === other.constructor && this.equalsValue(this.value, other.value);
   }
 
   protected equalsValue(a: T, b: T): boolean {
