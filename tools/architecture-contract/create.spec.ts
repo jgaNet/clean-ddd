@@ -69,6 +69,19 @@ describe('yarn architecture create', () => {
     }
   });
 
+  it('keeps the verb table’s grammar and none of this repository’s nouns', () => {
+    const shapes = generated.verbs.map(verb => verb.shape);
+    expect(shapes).toContain('GET /<things>/:id');
+    expect(shapes).toContain('POST /<things>');
+    expect(shapes).toContain('POST /<things>/:id/<action>');
+    expect(shapes).toContain('PUT /<things>/:id/<part>');
+    // Every shape still says a verb and a path, and no shape says "notes" or "notifications".
+    for (const verb of generated.verbs) {
+      expect(verb.shape).toMatch(/^[A-Z]+ \//);
+      expect(verb.shape.toLowerCase()).not.toMatch(/note|notification|account|auth|bookmark|tag/);
+    }
+  });
+
   it('carries the whole contract: every rule, and the vocabulary it is read with', () => {
     expect(generated.rules.map(rule => rule.id)).toEqual(reference.rules.map(rule => rule.id));
     expect(generated.layers).toEqual(reference.layers);

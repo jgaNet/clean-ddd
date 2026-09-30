@@ -113,6 +113,32 @@ const leanRule = (rule: Rule, target: string): Rule => ({
  * example pointing at a file nobody copied. A rule keeps its statement, its reason and its
  * remediation — those are the architecture — and loses only its pointers.
  */
+/**
+ * The same URL shape with this repository's nouns replaced by placeholders: `GET /notes/:id`
+ * becomes `GET /<things>/:id`, `POST /notes/:id/share` becomes `POST /<things>/:id/<action>`.
+ *
+ * What the table teaches is the grammar — which verb a use case takes, and what the URL names
+ * — and the grammar survives the substitution. A made-up noun would not be a placeholder but
+ * a small fictional domain, which is the templating ADR 10 refuses; `<things>` is the same
+ * idiom the checklists already use for `src/Contexts/<Context>/...`.
+ */
+function neutralShape(shape: string, intent: string): string {
+  const trailing: Record<string, string> = { act: '<action>', 'create-under': '<items>' };
+  const [verb, path = ''] = shape.split(' ');
+  const [route, query] = path.split('?');
+  let collection = false;
+  const segments = route
+    .split('/')
+    .filter(Boolean)
+    .map(segment => {
+      if (segment.startsWith(':')) return segment;
+      if (collection) return trailing[intent] ?? '<part>';
+      collection = true;
+      return '<things>';
+    });
+  return `${verb} /${segments.join('/')}${query ? `?${query}` : ''}`;
+}
+
 function prune(node: unknown, target: string): void {
   if (Array.isArray(node)) return node.forEach(child => prune(child, target));
   if (typeof node !== 'object' || node === null) return;
@@ -248,6 +274,10 @@ function writeContract(directory: string, source: string, contract: Architecture
   const table = load(rawText) as Record<string, unknown>;
   table.contexts = [];
   prune(table, directory);
+  // The verb table keeps its grammar and loses this repository's nouns.
+  for (const verb of (table.http as { verbs?: { intent: string; shape: string }[] })?.verbs ?? []) {
+    verb.shape = neutralShape(verb.shape, verb.intent);
+  }
   // A checklist points at the concept that shows it; if no file shows it here yet, the pointer goes.
   const known = new Set(concepts.map(concept => concept.id));
   for (const checklist of Object.values((table.checklists as Record<string, { concept?: string }>) ?? {})) {
@@ -256,9 +286,9 @@ function writeContract(directory: string, source: string, contract: Architecture
   const note = [
     '# Created by `yarn architecture create` from the clean-ddd reference. `contexts` is empty:',
     '# declare your first one there, or no import rule applies to its files. The URL shapes in',
-    '# `http.verbs` are the reference’s (`GET /notes/:id`); what they teach is the grammar — which',
-    '# verb a use case takes, and what the URL names — so rewrite them in your own nouns as your',
-    '# first routes appear.',
+    '# `http.verbs` are written with placeholders (`GET /<things>/:id`), because what that table',
+    '# teaches is the grammar — which verb a use case takes, and what the URL names. Fill them in',
+    '# with your own nouns as your first routes appear.',
     '',
     '',
   ].join('\n');
