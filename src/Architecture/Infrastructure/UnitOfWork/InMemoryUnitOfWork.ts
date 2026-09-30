@@ -8,9 +8,12 @@ import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InM
  * transaction saved remains, which is what ExecutionContext.withTransaction() promises.
  *
  * Honest limit: the snapshot is of the whole store, so two transactions interleaving writes
- * on the same store are not isolated from each other (a rollback of one would also undo the
- * other's writes). A database isolates them; this reference does not, and says so in
- * docs/adr/0003-publish-domain-events-after-commit.md. One instance per request: see the
+ * are not isolated from each other — a rollback undoes everything written since it began,
+ * including another request's work. Undoing only its own writes would need the store to know
+ * which request is writing, which needs request-scoped propagation (AsyncLocalStorage); that
+ * is machinery this reference declines, so what these four methods give you is a transaction
+ * *boundary*, not isolation. A database gives both, through the same four methods
+ * (docs/adr/0003-publish-domain-events-after-commit.md). One instance per request: see the
  * bootstrap.
  */
 export class InMemoryUnitOfWork implements UnitOfWork {
