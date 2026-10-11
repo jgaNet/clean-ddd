@@ -2,8 +2,8 @@
 /**
  * `yarn architecture <command>`: the contract, asked from a terminal or by a tool.
  *
- *   yarn architecture inspect                 what the contract holds
- *   yarn architecture rule <ID>               one rule: statement, why, remediation, references
+ *   yarn architecture inspect                 what the contract holds, for this language
+ *   yarn architecture rule <ID>               one rule: statement, why, remediation, references, examples
  *   yarn architecture concept <id>            one concept: canonical files, rules, decisions
  *   yarn architecture can-import <file> <specifier>   would ESLint allow it, and which rule says
  *                                             (several pairs at once: file specifier file specifier …)
@@ -19,20 +19,31 @@
  *
  * Every command takes --json: valid JSON only on stdout, nothing decorative, exit 1 on an
  * unknown id with a structured error. That output is the stable interface for coding agents.
+ *
+ * Paths are printed relative to the repository root, which is where the contract and the
+ * decisions live; a path given on the command line is read relative to where the command was
+ * typed (`yarn` records it as INIT_CWD), so `src/…` from this directory and `typescript/src/…`
+ * from the root name the same file.
  */
 
+import { relative, resolve } from 'path';
+
 import { ContractError } from './types';
-import { loadArchitectureContract } from './load';
+import { loadArchitectureContract, repositoryRoot } from './load';
 import { canImportAll, getChecklist, getConcept, getRule, getVerbs, rulesOf } from './query';
 import { explainPlan, loadFeaturePlan, validatePlan } from './plan';
 import { changedFiles, checkMode } from './modes';
 import { createApplication } from './create';
 import type { ModeName } from './types';
-import { repositoryRoot } from './load';
 
 const args = process.argv.slice(2);
 const json = args.includes('--json');
 const [command, ...rest] = args.filter(arg => arg !== '--json');
+
+const root = repositoryRoot();
+const typedFrom = process.env.INIT_CWD ?? process.cwd();
+/** A path as typed, made repository-relative. */
+const fromHere = (path: string) => relative(root, resolve(typedFrom, path)).split('\\').join('/');
 
 const out = (value: unknown, text: () => string) => {
   process.stdout.write(json ? `${JSON.stringify(value, null, 2)}\n` : `${text()}\n`);
@@ -48,7 +59,7 @@ const list = (title: string, items: string[]) => (items.length ? `${title}:\n  $
 async function main(): Promise<void> {
   let contract;
   try {
-    contract = loadArchitectureContract();
+    contract = loadArchitectureContract(root);
   } catch (error) {
     if (error instanceof ContractError) return fail(error.code, error.message);
     throw error;
@@ -60,8 +71,15 @@ async function main(): Promise<void> {
       return out(
         {
           schemaVersion,
+          language: contract.language,
+          languages: contract.languages,
           contexts: contract.contexts,
-          trees: { architecture: contract.architecture, kernel: contract.kernel },
+          trees: {
+            contexts: contract.contextsTree,
+            architecture: contract.architecture,
+            kernel: contract.kernel,
+            bootstrap: contract.bootstrap,
+          },
           layers: contract.layers,
           rules: contract.rules.length,
           concepts: contract.concepts.length,
@@ -71,12 +89,15 @@ async function main(): Promise<void> {
         },
         () =>
           [
-            'Architecture contract',
+            `Architecture contract, ${contract.language.name} binding (${contract.language.root}/)`,
             '',
+            list('Languages', contract.languages),
             list('Contexts', contract.contexts),
             list('Trees', [
+              `${contract.contextsTree.alias} → ${contract.contextsTree.path}`,
               `${contract.architecture.alias} → ${contract.architecture.path}`,
               `${contract.kernel.alias} → ${contract.kernel.path}`,
+              `${contract.bootstrap.alias} → ${contract.bootstrap.path}`,
             ]),
             list('Layers', contract.layers),
             '',
@@ -86,7 +107,7 @@ async function main(): Promise<void> {
             `Modes: ${Object.keys(contract.modes).join(', ')} (yarn architecture mode <name>)`,
             `Checklists: ${contract.checklists.length} (yarn architecture checklists)`,
             '',
-            list('Sources', [contract.sources.architecture, contract.sources.concepts]),
+            list('Sources', [contract.sources.architecture, contract.sources.concepts, contract.sources.binding]),
           ].join('\n'),
       );
     }
@@ -101,7 +122,10 @@ async function main(): Promise<void> {
         { schemaVersion, concepts: contract.concepts.map(({ id, layer, canonical }) => ({ id, layer, canonical })) },
         () =>
           contract.concepts
-            .map(concept => `${concept.id.padEnd(34)} ${concept.layer.padEnd(15)} ${concept.canonical[0] ?? ''}`)
+            .map(
+              concept =>
+                `${concept.id.padEnd(34)} ${concept.layer.padEnd(15)} ${concept.canonical[0] ?? `(not shown in ${contract.language.id} yet)`}`,
+            )
             .join('\n'),
       );
     case 'verbs':
@@ -160,9 +184,9 @@ async function main(): Promise<void> {
       if (!id) return fail('usage', 'usage: yarn architecture rule <ID>');
       const rule = getRule(contract, id);
       if (!rule) return fail('unknown-rule', `No rule ${id}. Try: yarn architecture rules`);
-      return out({ schemaVersion, ...rule }, () =>
+      return out({ schemaVersion, ...rule, enforcedBy: contract.enforcers[rule.enforcement] }, () =>
         [
-          `${rule.id} (${rule.name}) — enforced by ${rule.enforcement}`,
+          `${rule.id} (${rule.name}) — enforced by ${rule.enforcement}: ${contract.enforcers[rule.enforcement]}`,
           '',
           rule.statement,
           '',
@@ -171,6 +195,7 @@ async function main(): Promise<void> {
           `Remediation:\n  ${rule.remediation}`,
           rule.dependency ? `\nMay import:\n  ${rule.dependency.mayImport.join(', ') || '(nothing)'}` : '',
           rule.references.length ? `\n${list('References', rule.references)}` : '',
+          rule.examples.length ? `\n${list(`Shown in ${contract.language.name} by`, rule.examples)}` : '',
         ]
           .filter(line => line !== '')
           .join('\n'),
@@ -188,7 +213,9 @@ async function main(): Promise<void> {
           '',
           concept.description.replace(/\[`([^`]+)`\]\([^)]+\)/g, '$1'),
           '',
-          list('Canonical', concept.canonical),
+          concept.canonical.length
+            ? list('Canonical', concept.canonical)
+            : `Not shown in ${contract.language.name} yet: ${contract.sources.binding} names no file for it.`,
           list('Also', concept.examples),
           list(
             'Rules',
@@ -208,7 +235,7 @@ async function main(): Promise<void> {
         : directory.split('/').filter(Boolean).pop();
       let created;
       try {
-        created = createApplication(directory, name ?? 'my-app');
+        created = createApplication(resolve(typedFrom, directory), name ?? 'my-app');
       } catch (error) {
         return fail('cannot-create', error instanceof Error ? error.message : String(error));
       }
@@ -235,7 +262,7 @@ async function main(): Promise<void> {
         rest[rest.indexOf('--base') + 1] && rest.includes('--base') ? rest[rest.indexOf('--base') + 1] : 'origin/main';
       let changed;
       try {
-        changed = changedFiles(base);
+        changed = changedFiles(base, root);
       } catch {
         return fail(
           'no-such-base',
@@ -263,24 +290,31 @@ async function main(): Promise<void> {
       }
       let plan;
       try {
-        plan = loadFeaturePlan(file, repositoryRoot());
+        plan = loadFeaturePlan(fromHere(file), root);
       } catch (error) {
         if (error instanceof ContractError) return fail(error.code, error.message);
         throw error;
       }
+      // A plan for another language of the reference is checked against that language's binding.
+      const bound =
+        plan.language && plan.language !== contract.language.id && contract.languages.includes(plan.language)
+          ? loadArchitectureContract(root, plan.language)
+          : contract;
       if (action === 'validate') {
-        const problems = validatePlan(plan, contract, repositoryRoot());
-        out({ schemaVersion, feature: plan.feature, valid: problems.length === 0, problems }, () =>
-          problems.length
-            ? `${plan.feature}: ${problems.length} problem(s)\n${problems.map(problem => `  ✗ ${problem}`).join('\n')}`
-            : `${plan.feature}: the plan is legal against the contract (${plan.changes.length} changes, context ${plan.context}).`,
+        const problems = validatePlan(plan, bound, root);
+        out(
+          { schemaVersion, feature: plan.feature, language: bound.language.id, valid: problems.length === 0, problems },
+          () =>
+            problems.length
+              ? `${plan.feature}: ${problems.length} problem(s)\n${problems.map(problem => `  ✗ ${problem}`).join('\n')}`
+              : `${plan.feature}: the plan is legal against the ${bound.language.id} binding (${plan.changes.length} changes, context ${plan.context}).`,
         );
         return process.exit(problems.length ? 1 : 0);
       }
-      const explained = explainPlan(plan, contract);
+      const explained = explainPlan(plan, bound);
       return out({ schemaVersion, ...explained }, () =>
         [
-          `${explained.feature} — ${explained.context}`,
+          `${explained.feature} — ${explained.context}, in ${explained.language}`,
           '',
           explained.intent,
           '',
@@ -303,8 +337,8 @@ async function main(): Promise<void> {
         return fail('usage', 'usage: yarn architecture can-import <file> <specifier> [<file> <specifier> …]');
       }
       const pairs: [string, string][] = [];
-      for (let i = 0; i < rest.length; i += 2) pairs.push([rest[i], rest[i + 1]]);
-      const verdicts = await canImportAll(pairs);
+      for (let i = 0; i < rest.length; i += 2) pairs.push([fromHere(rest[i]), rest[i + 1]]);
+      const verdicts = await canImportAll(pairs, contract, root);
       const answers = verdicts.map(verdict => ({
         ...verdict,
         remediation: verdict.rule ? getRule(contract, verdict.rule)?.remediation : undefined,

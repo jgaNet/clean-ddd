@@ -5,9 +5,11 @@ description: Add a feature to this codebase in the shape the architecture requir
 
 # Adding a feature
 
-This repository's architecture is data, not prose: `conventions/architecture.yaml` and
-`conventions/concepts.yaml` are the source of truth, and `yarn architecture` answers from them.
-**Ask it instead of guessing.** Every command takes `--json` (a `schemaVersion`, a structured
+This repository's architecture is data, not prose: `conventions/architecture.yaml` (the contract,
+shared by every language), `conventions/concepts.yaml` (the vocabulary) and the language's binding
+(`conventions/typescript.yaml`) are the source of truth, and `yarn architecture` answers from them.
+**Ask it instead of guessing.** The commands run from the language's directory (`cd typescript`, or
+`yarn --cwd typescript …` from the root); the tooling prints paths from the repository root. Every command takes `--json` (a `schemaVersion`, a structured
 error, a non-zero exit on an unknown id), so the answers can be parsed.
 
 Nothing here replaces `CLAUDE.md` — read it first. This is the order of operations.
@@ -19,7 +21,7 @@ yarn architecture inspect          # contexts, trees, layers, how much of everyt
 yarn architecture concepts         # every concept, with the file that shows it
 ```
 
-A project with no contexts yet needs its first one declared in `conventions/architecture.yaml`
+A project with no contexts yet needs its first one declared in its binding (`conventions/typescript.yaml`)
 before any import rule applies to it: `yarn architecture checklist context` says what it is
 made of.
 
@@ -47,8 +49,8 @@ whole planned layout at once; it exits non-zero if any pair is refused.
 ## 3. Write a plan when the change is worth stating first
 
 ```bash
-yarn architecture plan validate conventions/plans/<name>.yaml
-yarn architecture plan explain  conventions/plans/<name>.yaml
+yarn architecture plan validate ../conventions/plans/<name>.yaml
+yarn architecture plan explain  ../conventions/plans/<name>.yaml
 ```
 
 `validate` refuses an undeclared context, an unknown kind, a route whose method contradicts its

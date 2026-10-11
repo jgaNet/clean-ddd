@@ -1,13 +1,18 @@
 /**
  * The typed shape of the architecture contract: what conventions/architecture.yaml and
- * conventions/concepts.yaml say, once loaded. TypeScript types and validates; the data stays in
- * the YAML files, so that tooling in another language can read the same contract.
+ * conventions/concepts.yaml say for every language, and what one language's binding
+ * (conventions/<language>.yaml) adds — its trees, its canonical files, its tools — once the two
+ * are loaded into one. TypeScript types and validates; the data stays in the YAML files, so that
+ * tooling in another language can read the same contract.
+ *
+ * Every path in a loaded contract is relative to the repository root, whichever file it came
+ * from: a binding writes its paths relative to its own directory and the loader prefixes them.
  */
 
 export const SUPPORTED_SCHEMA_VERSION = 1;
 
-/** How a rule is held: by the linter, by the conventions check, by the compiler, by a spec, by people, by the evaluations. */
-export type Enforcement = 'eslint' | 'check' | 'types' | 'tests' | 'review' | 'evaluations';
+/** How a rule is held: by the import linter, by the conventions check, by the compiler, by a spec, by people, by the evaluations. */
+export type Enforcement = 'linter' | 'check' | 'types' | 'tests' | 'review' | 'evaluations';
 
 export interface Rule {
   id: string;
@@ -17,8 +22,10 @@ export interface Rule {
   why: string;
   remediation: string;
   enforcement: Enforcement;
-  /** ADRs and canonical files, as repository-relative paths. */
+  /** What explains the rule in every language: ADRs and conventions, as repository-relative paths. */
   references: string[];
+  /** The files that show the rule in this language, as repository-relative paths. */
+  examples: string[];
   /** A dependency rule comes from the layers table and carries what the layer may import. */
   dependency?: { layer: string; mayImport: string[] };
 }
@@ -28,12 +35,15 @@ export interface Concept {
   /** Markdown allowed (bold for the concepts the README emphasises). */
   name: string;
   layer: 'domain' | 'application' | 'infrastructure' | 'presentation';
+  /** The files that show it in this language; empty when the language does not show it yet. */
   canonical: string[];
   examples: string[];
   /** The README's "canonical example" cell, Markdown; defaults to links to `canonical`. */
   example?: string;
-  /** The README's "notes" cell, Markdown. */
+  /** The README's "notes" cell, Markdown, the same in every language. */
   description: string;
+  /** What this language adds to the notes cell, Markdown. */
+  notes?: string;
   rules: string[];
   references: string[];
 }
@@ -47,6 +57,7 @@ export interface TestRow {
 export interface VocabularyRow {
   word: string;
   meaning: string;
+  /** Where this language shows the word, Markdown; empty when it does not yet. */
   see: string;
 }
 
@@ -90,13 +101,30 @@ export interface Tree {
   path: string;
 }
 
+/** The language a contract is loaded for: its binding's id, its display name, its directory. */
+export interface Language {
+  id: string;
+  name: string;
+  /** The language's directory, relative to the repository root; '.' when the language is alone. */
+  root: string;
+}
+
 export interface ArchitectureContract {
   schemaVersion: number;
+  /** Every language the reference is written in, by binding id. */
+  languages: string[];
+  language: Language;
   contexts: string[];
+  contextsTree: Tree;
   architecture: Tree;
   kernel: Tree;
+  bootstrap: Tree;
   wiring: string;
   libraries: string[];
+  /** What stands behind each enforcement word in this language, for the documents. */
+  enforcers: Record<Enforcement, string>;
+  /** The commands a change must pass before it is done, in CI's order. */
+  checks: string[];
   layers: string[];
   rules: Rule[];
   concepts: Concept[];
@@ -105,7 +133,7 @@ export interface ArchitectureContract {
   verbs: Verb[];
   checklists: Checklist[];
   modes: Record<ModeName, Mode>;
-  sources: { architecture: string; concepts: string };
+  sources: { architecture: string; concepts: string; binding: string };
 }
 
 export class ContractError extends Error {

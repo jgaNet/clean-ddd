@@ -42,7 +42,14 @@ describe('a feature plan', () => {
 
   it('validates the example plan in the repository, against the repository', () => {
     const plan = loadFeaturePlan('conventions/plans/share-a-note.yaml', root);
+    expect(plan.language).toBe('typescript');
     expect(validatePlan(plan, contract, root)).toEqual([]);
+  });
+
+  it('says so when a plan written for another language is checked against this binding', () => {
+    expect(validatePlan(aPlan({ language: 'rust' }), contract, root)).toEqual(
+      expect.arrayContaining([expect.stringContaining('written for rust')]),
+    );
   });
 
   it('refuses an unknown context, an unknown kind, and a domain part with no aggregate', () => {
@@ -98,8 +105,12 @@ describe('a feature plan', () => {
     );
     expect(problems).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('"Note" is planned as new, but src/Contexts/Notes/Domain/Note/Note.ts already exists'),
-        expect.stringContaining('"Ghost" is not new, but src/Contexts/Notes/Domain/Ghost/Ghost.ts does not exist'),
+        expect.stringContaining(
+          '"Note" is planned as new, but typescript/src/Contexts/Notes/Domain/Note/Note.ts already exists',
+        ),
+        expect.stringContaining(
+          '"Ghost" is not new, but typescript/src/Contexts/Notes/Domain/Ghost/Ghost.ts does not exist',
+        ),
       ]),
     );
   });
@@ -197,10 +208,10 @@ describe('a feature plan', () => {
     );
 
     const [aggregate, command] = explained.changes;
-    expect(aggregate.place).toBe('src/Contexts/Notes/Domain/Bookmark/Bookmark.ts');
+    expect(aggregate.place).toBe('typescript/src/Contexts/Notes/Domain/Bookmark/Bookmark.ts');
     expect(aggregate.parts.join(' ')).toContain('BookmarkExceptions.ts'); // the placeholders are filled in
-    expect(aggregate.canonical).toContain('src/Architecture/Domain/AggregateRoot.ts');
-    expect(command.place).toBe('src/Contexts/Notes/Application/Commands/BookmarkNote/');
+    expect(aggregate.canonical).toContain('typescript/src/Architecture/Domain/AggregateRoot.ts');
+    expect(command.place).toBe('typescript/src/Contexts/Notes/Application/Commands/BookmarkNote/');
     expect(command.verb?.verb).toBe('POST');
 
     const rules = explained.rules.map(rule => rule.id);

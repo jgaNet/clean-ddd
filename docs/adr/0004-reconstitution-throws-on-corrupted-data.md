@@ -2,7 +2,7 @@
 
 ## Context
 
-An aggregate is rebuilt from persistence through `fromSnapshot()` ([`Note.ts`](../../src/Contexts/Notes/Domain/Note/Note.ts)). The snapshot went through the same value objects when it was created, so it *should* be valid. But what if it is not — a manual edit in the store, a migration that went wrong, a rule that changed since?
+An aggregate is rebuilt from persistence through `fromSnapshot()` ([`Note.ts`](../../typescript/src/Contexts/Notes/Domain/Note/Note.ts)). The snapshot went through the same value objects when it was created, so it *should* be valid. But what if it is not — a manual edit in the store, a migration that went wrong, a rule that changed since?
 
 ## Decision
 

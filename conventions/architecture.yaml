@@ -1,48 +1,45 @@
-# The architecture, as data: the architecture contract. Everything below is checked by tooling:
-#   - eslint.config.js turns `layers` into import rules, per context and per layer, and names
-#     the rule id in every refusal;
-#   - tools/check-conventions.ts checks that every context on disk is declared here and has the
-#     shape `layers` describe, and that this file is well-formed (unique ids, existing references);
-#   - `yarn architecture rule <id>` explains any rule, for a human or a tool (`--json`).
+# The architecture, as data: the architecture contract. This file is the part that is true in
+# every language the reference is written in — the layers, what each may import, the rules, the
+# HTTP grammar, the two modes. It names no file, no alias, no linter and no tool: those belong to
+# a language binding (`typescript.yaml`, one per entry of `languages` below), which says where the
+# trees are in that language, which file shows each concept and which tool holds each rule.
+#
+# Everything here is checked by tooling, in each language:
+#   - the import rules of the language (ESLint in TypeScript) are generated from `layers`;
+#   - the conventions check of the language proves the tree has the shape `layers` describe, and
+#     that this file and the binding are well-formed (unique ids, existing references);
+#   - `yarn architecture rule <id>` (TypeScript) explains any rule, for a human or a tool (`--json`).
 #
 # Read the layers as: "a file in layer X of context C may import from ...". Anything not listed
 # is forbidden. The words:
 #   own.<Layer>          the same layer or another layer of the same context
-#   own.wiring           the context's module.local.ts
-#   architecture.<Layer> that layer of @Architecture, the building blocks (mechanics, no vocabulary)
-#   kernel.<Layer>       that layer of @SharedKernel, the shared kernel (Email, Role, guards, contracts)
+#   own.wiring           the context's wiring file
+#   architecture.<Layer> that layer of the building blocks (mechanics, no vocabulary)
+#   kernel.<Layer>       that layer of the shared kernel (Email, Role, guards, contracts)
 #   others.<Layer>       that layer of any other context
-#   others.wiring        another context's module.local.ts (for what it exports)
-#   bootstrap            src/Bootstrap (settings, the composition root)
-#   libraries            the infrastructure libraries listed below (HTTP, crypto, tokens...)
+#   others.wiring        another context's wiring file (for what it exports)
+#   bootstrap            the composition root (settings, the application)
+#   libraries            the infrastructure libraries the binding lists (HTTP, crypto, tokens...)
 #
 # Every rule has a stable id (never renumbered, never reused), a reason and a remediation, and
-# says how it is enforced: `eslint` (generated import rules), `check` (tools/check-conventions),
-# `types` (the compiler), `tests` (a spec names the behaviour), `review` (stated, read by people
-# and agents, not yet mechanical), `evaluations`. Saying `review` is the honest word, not a
-# weaker rule.
+# says how it is enforced: `linter` (import rules generated from this table), `check` (the
+# conventions check), `types` (the compiler), `tests` (a spec names the behaviour), `review`
+# (stated, read by people and agents, not yet mechanical), `evaluations`. Saying `review` is the
+# honest word, not a weaker rule. The binding says which tool stands behind each word.
 #
-# This file is language-neutral on purpose: in another stack, feed it to your own dependency
-# linter (ArchUnit, deptrac, import-linter, dependency-cruiser...) and keep the same table.
+# Paths in this file are relative to the repository root; a binding's are relative to its own
+# directory. The decision behind the split is docs/adr/0011-one-reference-several-languages.md.
 
 schemaVersion: 1
 
-contexts: [Notes, Security, Notifications, Tracker]
-
-# Two trees outside the contexts, each layered like one. The building blocks know nothing of
-# the shared kernel (it is vocabulary; they are mechanics); the shared kernel is built on them.
-architecture: { alias: '@Architecture', path: src/Architecture }
-kernel: { alias: '@SharedKernel', path: src/SharedKernel }
-wiring: module.local.ts
-
-# Libraries only an adapter may see: the domain and the use cases never import them.
-libraries: [fastify, '@fastify/**', jose, bcryptjs, ws]
+# The languages the reference is written in: one binding each, conventions/<language>.yaml.
+languages: [typescript]
 
 layers:
   Domain:
     id: ARCH-DOMAIN
     may_import: [own.Domain, architecture.Domain, kernel.Domain]
-    why: The Domain layer depends on nothing outside its own Domain, @Architecture/Domain and @SharedKernel/Domain.
+    why: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain.
     remediation: >-
       Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let
       the infrastructure implement it; a fact from another context arrives as a value through such a port.
@@ -53,9 +50,9 @@ layers:
     may_import: [own.Domain, own.Application, architecture.Domain, architecture.Application, kernel.Domain, kernel.Application]
     why: >-
       The Application layer depends on its own Domain and Application, the Domain and Application of
-      @Architecture and of @SharedKernel (integration events included), nothing else.
+      the building blocks and of the shared kernel (integration events included), nothing else.
     remediation: >-
-      A handler that needs an adapter asks for the port in its constructor; module.local.ts passes the
+      A handler that needs an adapter asks for the port in its constructor; the wiring file passes the
       implementation. A handler that needs another context reacts to its integration event or asks a
       port its own context owns.
     references: [docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md]
@@ -64,7 +61,7 @@ layers:
       may_import: [own.Infrastructure, architecture.Infrastructure]
       why: Application tests may use their own in-memory Infrastructure as test doubles, nothing further out.
       remediation: Use the in-memory adapter of the port as the double; do not reach for Presentation, Bootstrap or another context.
-      references: [src/Contexts/Notes/Application/Commands/NoteCommandHandlers.spec.ts]
+      references: []
 
   Infrastructure:
     id: ARCH-INFRASTRUCTURE
@@ -87,7 +84,6 @@ layers:
       adapters; translate into your own words in the adapter.
     references:
       - docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md
-      - src/Contexts/Notes/Infrastructure/Directories/SecurityAccountDirectory.ts
 
   Presentation:
     id: ARCH-PRESENTATION
@@ -105,13 +101,14 @@ layers:
       The Presentation layer talks to its own Application layer (handlers, module) and Domain
       (read models, exceptions); never to Infrastructure, wiring, Bootstrap or another context.
     remediation: A controller gets its Module from the route options, which the composition root passes; it never builds an adapter.
-    references: [src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts]
+    references: []
 
 # The two modes a change can be made in, as data, so that a person, a tool or an agent can be
-# held to one. `yarn architecture mode feature` proves a change touched none of the protected
-# trees; `yarn architecture mode architecture` allows them and asks for the decision that
-# explains them. Nothing here is a CI gate: the maintainer changes the architecture on purpose,
-# and the check is for whoever has agreed to work under a constraint.
+# held to one. The feature mode proves a change touched none of the protected trees; the
+# architecture mode allows them and asks for the decision that explains them. Nothing here is a
+# CI gate: the maintainer changes the architecture on purpose, and the check is for whoever has
+# agreed to work under a constraint. What is protected here is what every language shares — the
+# contract and the decisions; each binding adds its building blocks, its shared kernel and its tools.
 modes:
   feature:
     why: >-
@@ -119,15 +116,15 @@ modes:
       blocks, the shared kernel's model, the conventions and the decisions are immutable; if the
       work seems to need one of them changed, that is the finding, and it becomes an
       architecture change with its own reasoning.
-    protected: [src/Architecture, src/SharedKernel, conventions, docs/adr, eslint.config.js, tools]
-    # Publishing a fact is what a cross-context feature does: the contracts folder is not protected.
-    allowed: [src/SharedKernel/Application/IntegrationEvents, conventions/plans]
+    protected: [conventions, docs/adr]
+    # A feature may bring its plan.
+    allowed: [conventions/plans]
   architecture:
     why: >-
       The architecture may change; it may not change silently. A change to the building blocks,
       to the shared kernel's model or to the dependency table is a decision, and a decision is
       written down where the next reader will find it.
-    decides: [src/Architecture, src/SharedKernel/Domain, conventions/architecture.yaml]
+    decides: [conventions/architecture.yaml]
     records: docs/adr
 
 # Two kinds of file that are not a layer.
@@ -137,8 +134,8 @@ wiring_file:
   why: >-
     A wiring file binds its own context and may import another context's wiring for what it
     exports; it never reaches inside another context.
-  remediation: Export what another context needs from your module.local.ts (a read-model adapter, a module); import only that.
-  references: [src/Contexts/Notes/module.local.ts]
+  remediation: Export what another context needs from your wiring file (a read-model adapter, a module); import only that.
+  references: []
 
 e2e_specs:
   id: ARCH-E2E
@@ -147,17 +144,18 @@ e2e_specs:
     End-to-end tests boot the application through the Bootstrap helper and speak HTTP; they do
     not reach into any layer.
   remediation: Prove it over HTTP; if you need a fact only the code knows, the read model is missing it.
-  references: [src/Bootstrap/Fastify/application.spec-helper.ts]
+  references: []
 
 relative_imports:
   id: ARCH-RELATIVE
-  statement: A relative import names a sibling file (`./NoteTitle`) and nothing else; anything across directories goes through an alias.
-  why: The import rules are written against the aliases; a relative path across directories would bypass them.
-  remediation: Import through the alias (@Contexts/..., @Architecture/..., @SharedKernel/...).
-  references: [CLAUDE.md]
+  statement: A relative import names a sibling file and nothing else; anything across directories goes through the path the import rules are written against.
+  why: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them.
+  remediation: Import through the path the rules match on; the binding names it.
+  references: []
 
 # How a use case is exposed over HTTP. The verb follows what the request does to what the URL
-# names, not the handler's name; `yarn architecture verb <intent>` answers from this table.
+# names, not the handler's name. The nouns are the reference's own (a note, a notification): the
+# same application is written in every language, so the routes are too.
 http:
   rule: ARCH-PRESENTATION
   verbs:
@@ -165,126 +163,51 @@ http:
       verb: GET
       shape: GET /notes/:id
       when: A query. It never changes state, and answers synchronously.
-      example: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
     - intent: create
       verb: POST
       shape: POST /notes
       when: A command that brings a new thing into existence. Answers 202 with the operation id.
-      example: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
     - intent: act
       verb: POST
       shape: POST /notes/:id/share
       when: A command that is an action on an existing thing, named after the action.
-      example: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
     - intent: create-under
       verb: POST
       shape: POST /notes/:id/comments
       when: A command that adds one item to a collection the URL names.
-      example: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
     - intent: replace
       verb: PUT
       shape: PUT /notes/:id
       when: A command that replaces the editable content of a thing.
-      example: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
     - intent: replace-part
       verb: PUT
       shape: PUT /notes/:id/tags
       when: A command that replaces one named part of a thing, wholesale.
-      example: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
     - intent: change-part
       verb: PATCH
       shape: PATCH /notifications/:id/read
       when: A command that changes part of a thing's state without replacing it.
-      example: src/Contexts/Notifications/Presentation/API/REST/Routes/notification.routes.ts
     - intent: remove
       verb: DELETE
       shape: DELETE /notes/:id/bookmark
       when: A command that removes a thing the caller created and the URL identifies. A thing with a lifecycle is archived, not deleted.
-      example: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
     - intent: link-in-an-email
       verb: GET
       shape: GET /auth/validate?validation_token=…
       when: A command behind a link someone clicks in an email. The exception, not a pattern to copy.
-      example: src/Contexts/Security/Presentation/API/REST/Routes/auth.routes.ts
 
-# What a new thing of each kind is made of, and where each part goes. `yarn architecture
-# checklist <kind>` prints it; `yarn architecture place <kind>` answers only the path.
+# The kinds of thing a feature is made of, each pointing at the concept whose canonical file
+# shows it. Where one goes and what it is made of in a given language is the binding's
+# `checklists`, under the same kinds.
 checklists:
-  aggregate:
-    place: src/Contexts/<Context>/Domain/<Aggregate>/<Aggregate>.ts
-    concept: aggregate-root
-    parts:
-      - 'The aggregate itself: a private constructor, `create()` (validates, generates the Id, records the creation event), `fromSnapshot()` (records nothing, throws on corrupted data), `toSnapshot()`, `super(id, version)` for the version it was read at.'
-      - '`DTOs.ts` beside it: the snapshot shape, `version` included.'
-      - '`<Aggregate>Exceptions.ts`: one file, one base exception for the aggregate, a PascalCase `type` per rule.'
-      - '`Events/<Aggregate>Events.ts`: the facts its behaviours record, past tense, minimal payload.'
-      - '`Ports/I<Aggregate>Repository.ts`: `findById`, `save` returning `IResult`, plus the facts a rule needs about the collection.'
-      - '`Ports/I<Aggregate>Queries.ts` and its read models, when a screen reads it.'
-      - '`<Aggregate>.spec.ts` beside it: every rule, and the round-trip through the snapshot.'
-      - 'An in-memory adapter per port under `Infrastructure/`, and a contract spec once a port promises an order or a filter.'
-      - 'Wiring in `module.local.ts`: the store, the adapters, the handlers.'
-  value-object:
-    place: src/Contexts/<Context>/Domain/<Aggregate>/<Name>.ts
-    concept: value-object
-    parts:
-      - '`static create()` returning `IResult`, a private constructor, the rule as a `static readonly` constant when there is a number.'
-      - 'One exception per rule the user could act on differently, in the aggregate''s exceptions file.'
-      - '`equalsValue()` when the value is structured (an object, an array); primitives need nothing.'
-      - '`<Name>.spec.ts` beside it: what it accepts, what it refuses, and equality.'
-  domain-service:
-    place: src/Contexts/<Context>/Domain/<Aggregate>/<Rule>.ts
-    concept: domain-service
-    parts:
-      - 'Named after the rule it holds (`AccountRegistration`, `NoteSharing`, `NoteBookmarking`), not after a layer.'
-      - 'Takes the ports it needs in its constructor; returns `IResult`; holds no logging, no transaction, no publishing.'
-      - 'Used when a rule spans several aggregates or needs a fact about the collection; a rule about one aggregate stays a behaviour.'
-      - '`<Rule>.spec.ts` beside it, with a small fake of each port.'
-  command:
-    place: src/Contexts/<Context>/Application/Commands/<UseCase>/
-    concept: command-handler
-    parts:
-      - '`<UseCase>CommandEvent.ts`: a named payload, nothing more.'
-      - '`<UseCase>CommandHandler.ts`: `requireSignedIn` at the top of `execute()`, load, ask the aggregate or the domain service, save (check the `IResult`), `publishDomainEvents`.'
-      - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
-      - 'Two lines in `Application/Commands/index.ts`; no barrel in the use-case folder.'
-      - 'A spec with at least a happy path and one refusal; through `handle()` when the rule is in `guard()`.'
-      - 'A route answering `202 { operationId }`, its JSON schema, and the handler registered in `module.local.ts`.'
-  query:
-    place: src/Contexts/<Context>/Application/Queries/<UseCase>/
-    concept: query-handler
-    parts:
-      - 'A read model and a method on the queries port, with the order and the unknown-id answer in its JSDoc.'
-      - 'The handler reads the port and nothing else: no sorting, no second port, no aggregate.'
-      - 'One line in `Application/Queries/index.ts`.'
-      - 'A spec when the handler holds a visibility or role rule.'
-      - 'A route answering synchronously, refusals through the controller''s `refuse()`, the response fields listed in the schema.'
-  integration-event:
-    place: src/SharedKernel/Application/IntegrationEvents/<Aggregate>IntegrationEvents.ts
-    concept: integration-event
-    parts:
-      - 'A class extending `IntegrationEvent<Payload>`, named for the fact in the publishing context''s public words, in that context''s file.'
-      - 'A payload carrying everything a consumer needs, so it never queries back.'
-      - 'A domain event handler in the publishing context that translates the domain event into it — that is where a fact leaves its context.'
-      - 'An anti-corruption handler in each consuming context, registered in its `module.local.ts`.'
-      - 'Adding one is not an architecture change: the folder is where a context publishes, and a feature may publish.'
-  event-handler:
-    place: src/Contexts/<Context>/Application/Events/<Name>Handler.ts
-    concept: domain-event-handler
-    parts:
-      - 'Extends `EventHandler<TheEvent>`; `execute()` returns an `IResult`; no guard — the fact was already allowed.'
-      - 'A reaction inside its own context, or the translation of a domain event into an integration event, or an anti-corruption layer over another context''s contract.'
-      - 'Registered in `module.local.ts` under `domainEvents` or `integrationEvents`.'
-      - '`<Name>Handler.spec.ts` beside it.'
-
-  context:
-    place: src/Contexts/<Context>/
-    concept: module
-    parts:
-      - 'Declared in `contexts` in this file, or no import rule applies to it.'
-      - 'The four layers and nothing else beside `module.local.ts`.'
-      - 'Its own vocabulary: a word that means something else here is a sign the context is right.'
-      - 'It asks other contexts through ports it owns, and tells them through integration events; never both sides of an import.'
-      - 'Registered in the composition root, with its routes under its own prefix.'
+  aggregate: { concept: aggregate-root }
+  value-object: { concept: value-object }
+  domain-service: { concept: domain-service }
+  command: { concept: command-handler }
+  query: { concept: query-handler }
+  integration-event: { concept: integration-event }
+  event-handler: { concept: domain-event-handler }
+  context: { concept: module }
 
 # The rules that are not a row of the table. Each says how it is enforced.
 rules:
@@ -292,59 +215,58 @@ rules:
     name: dependencies-point-inward
     statement: Dependencies point inward and contexts stay apart — each file imports only what its row of the dependency table allows; there is no exception and none may be added.
     why: A boundary that can be crossed when convenient is not a boundary; the table is the architecture.
-    remediation: Fix a violation with a port, an integration event or a move, never with an eslint-disable (the conventions check refuses one).
-    enforcement: eslint
+    remediation: Fix a violation with a port, an integration event or a move, never by silencing the linter (the conventions check refuses a silenced rule).
+    enforcement: linter
     references: [conventions/architecture.yaml, conventions/README.md]
 
   - id: ARCH-TREES
     name: building-blocks-and-shared-kernel
-    statement: The building blocks (@Architecture) import nothing outside themselves, not even the shared kernel; the shared kernel (@SharedKernel) imports the building blocks and no context.
+    statement: The building blocks import nothing outside themselves, not even the shared kernel; the shared kernel imports the building blocks and no context.
     why: The building blocks are mechanics and must know no vocabulary, not even the roles; the shared kernel is the part of the domain model every context agrees on, built on those mechanics.
-    remediation: Vocabulary (a role, an email, a policy) goes to @SharedKernel; mechanics go to @Architecture; a context's things stay in the context.
-    enforcement: eslint
-    references: [src/Architecture, src/SharedKernel]
+    remediation: Vocabulary (a role, an email, a policy) goes to the shared kernel; mechanics go to the building blocks; a context's things stay in the context.
+    enforcement: linter
+    references: []
 
   - id: ARCH-CONTEXT-DECLARED
     name: every-context-is-declared
-    statement: Every directory under src/Contexts is a context declared in this file, holds only the declared layers and a module.local.ts.
+    statement: Every directory under the contexts tree is a context declared in the language's binding, holds only the declared layers and its wiring file.
     why: An undeclared context has no import rule applying to it.
-    remediation: Add the context to `contexts` above; move stray files into a layer.
+    remediation: Add the context to `contexts` in the binding; move stray files into a layer.
     enforcement: check
     references: [conventions/README.md]
 
   - id: ARCH-MODULES-DATA
     name: modules-are-plain-data
-    statement: A context's wiring is one module.local.ts building `new Module({ name, commands, queries, domainEvents, integrationEvents })`; anything else it exposes is a named export of that file. No container, no builder, no service locator.
+    statement: A context's wiring is one file building a Module as data — its name, its commands, its queries, its domain event and integration event handlers; anything else it exposes is a named export of that file. No container, no builder, no service locator.
     why: Wiring that is data can be read in one screen and explained to an agent; a container hides which handler answers which command.
-    remediation: Construct the handler with `new`, pass its ports, list it in the Module.
+    remediation: Construct the handler, pass its ports, list it in the Module.
     enforcement: review
-    references: [src/Contexts/Notes/module.local.ts]
+    references: []
 
   - id: ARCH-EXECUTION-CONTEXT
     name: execution-context-carries-only-the-request
     statement: ExecutionContext carries what exists per request and nothing else — who is calling, the trace, the transaction, the bus, the logger. A mailer, a clock, a model client is a constructor dependency of the handler that needs it.
     why: A context that grows is a service locator with a better name; a handler's needs belong in its signature.
-    remediation: Add a port, inject it in the constructor, pass it from module.local.ts.
+    remediation: Add a port, inject it in the constructor, pass it from the wiring file.
     enforcement: review
-    references: [src/Architecture/Application/ExecutionContext.ts]
+    references: []
 
   - id: DOMAIN-RESULT
     name: expected-failures-are-results
-    statement: A refused command or query is a failed Result (`IResult<T>` in signatures, `Result.ok()` / `Result.fail(exception)`), never a thrown exception; `throw` is for programming errors and corrupted state only.
+    statement: A refused command or query is a failed Result value, never a thrown exception; throwing (or panicking) is for programming errors and corrupted state only.
     why: A refusal is a normal outcome the caller must handle; a throw is a crash that hides it.
-    remediation: Return `Result.fail(new <Rule>Exception(...))` from the behaviour; let the handler pass it on; the base handler turns a stray throw into a failed operation.
+    remediation: Return a failed Result carrying the rule's exception from the behaviour; let the handler pass it on; the base handler turns a stray throw into a failed operation.
     enforcement: tests
     references:
       - docs/adr/0001-result-instead-of-exceptions.md
-      - src/Architecture/Application/CommandHandler.spec.ts
 
   - id: DOMAIN-RECORDS-EVENTS
     name: only-an-aggregate-root-records-events
-    statement: Only an aggregate root records domain events (`this.record(...)` inside a behaviour); handlers never construct one, they call `publishDomainEvents(aggregate, context)` after saving.
+    statement: Only an aggregate root records domain events (`record(...)` inside a behaviour); handlers never construct one, they call `publishDomainEvents(aggregate, context)` after saving.
     why: The fact belongs to the object whose rule produced it; a handler that builds events can lie about what happened.
     remediation: Move the `record()` call into the behaviour that changes the state.
     enforcement: types
-    references: [src/Architecture/Domain/AggregateRoot.ts]
+    references: []
 
   - id: DOMAIN-CREATE-VS-RECONSTITUTE
     name: creation-validates-reconstitution-throws
@@ -354,7 +276,6 @@ rules:
     enforcement: tests
     references:
       - docs/adr/0004-reconstitution-throws-on-corrupted-data.md
-      - src/Contexts/Notes/Domain/Note/Note.spec.ts
 
   - id: DOMAIN-IDENTITY
     name: identity-is-generated-by-the-domain
@@ -372,7 +293,6 @@ rules:
     enforcement: review
     references:
       - docs/adr/0007-non-determinism-enters-the-domain-as-a-value.md
-      - src/Contexts/Notes/Application/Commands/SuggestNoteTitle/SuggestNoteTitleCommandHandler.ts
 
   - id: EVENT-AFTER-COMMIT
     name: domain-events-publish-after-commit
@@ -382,7 +302,6 @@ rules:
     enforcement: tests
     references:
       - docs/adr/0003-publish-domain-events-after-commit.md
-      - src/Architecture/Application/DomainEvents.spec.ts
 
   - id: QUERY-READ-MODELS
     name: queries-return-read-models
@@ -397,7 +316,7 @@ rules:
     statement: Contexts talk in two ways only — integration events published in the shared kernel, and ports the asking side owns, answered by an adapter over the other context's read model; a context's Domain never imports another context.
     why: The contract between contexts must be a visible, versionable file, not a class that changes for its own reasons.
     remediation: Publish an integration event from a domain event handler and consume it through an anti-corruption handler; or declare a port in your words and adapt the other context's read model.
-    enforcement: eslint
+    enforcement: linter
     references: [docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md]
 
   - id: CONC-OPTIMISTIC
@@ -408,15 +327,14 @@ rules:
     enforcement: tests
     references:
       - docs/adr/0008-optimistic-concurrency-on-the-aggregate.md
-      - src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts
 
   - id: ARCH-MAP-IS-REAL
     name: the-map-names-real-files
-    statement: Every file the concept map names exists, every documentation link resolves, nothing silences ESLint, and the generated import rules refuse and allow what the probes say.
+    statement: Every file the concept map names exists, every documentation link resolves, nothing silences the linter, and the generated import rules refuse and allow what the probes say.
     why: A reference whose map points at nothing teaches nothing.
-    remediation: Run `yarn check:conventions`; fix the file or the map, never the check.
+    remediation: Run the conventions check; fix the file or the map, never the check.
     enforcement: check
-    references: [tools/check-conventions.ts, conventions/concepts.yaml]
+    references: [conventions/concepts.yaml]
 
   - id: ARCH-LEARNABLE
     name: a-newcomer-can-add-a-feature-from-the-docs
@@ -425,3 +343,11 @@ rules:
     remediation: Run a fresh-agent evaluation; every guess in its report is a sentence missing from the guide.
     enforcement: evaluations
     references: [docs/evaluations/README.md]
+
+  - id: ARCH-ONE-CONTRACT
+    name: every-language-is-held-to-the-same-contract
+    statement: Every language the reference is written in is held to this file — the same layers, the same rules under the same ids, the same HTTP grammar — through a binding that says where its trees are and which file shows each concept; a language never carries a rule of its own.
+    why: The architecture is one thing rendered in several languages; a second wording of a rule is a second thing to drift.
+    remediation: Put the rule here and point the binding at the file that shows it; what a language cannot hold, it reports as a gap in its binding, not as a rule it lacks.
+    enforcement: check
+    references: [docs/adr/0011-one-reference-several-languages.md, conventions/README.md]

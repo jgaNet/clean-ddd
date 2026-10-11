@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-import { createApplication, loadArchitectureContract, repositoryRoot, validateContract } from './index';
+import { createApplication, loadArchitectureContract, repositoryRoot, shown, validateContract } from './index';
 
 /**
  * What `yarn architecture create` promises: an application with this repository's architecture
@@ -38,6 +38,7 @@ describe('yarn architecture create', () => {
       'tsconfig.json',
       'conventions/architecture.yaml',
       'conventions/concepts.yaml',
+      'conventions/typescript.yaml',
       '.claude/skills/feature/SKILL.md',
       '.claude/agents/feature-author.md',
       'README.md',
@@ -64,7 +65,13 @@ describe('yarn architecture create', () => {
     expect(existsSync(join(directory, 'src/Bootstrap'))).toBe(false);
     // `src/Contexts/<Context>/...` stays: a checklist's placeholder is not a business. A named
     // context of this repository would be.
-    for (const document of ['README.md', 'CLAUDE.md', 'conventions/architecture.yaml', 'conventions/concepts.yaml']) {
+    for (const document of [
+      'README.md',
+      'CLAUDE.md',
+      'conventions/architecture.yaml',
+      'conventions/concepts.yaml',
+      'conventions/typescript.yaml',
+    ]) {
       for (const context of reference.contexts) {
         expect(read(document)).not.toContain(`src/Contexts/${context}`);
       }
@@ -96,14 +103,24 @@ describe('yarn architecture create', () => {
     expect(validateContract(generated, directory)).toEqual([]);
   });
 
-  it('keeps only the concepts a copied file still shows, and their canonical files exist', () => {
-    expect(generated.concepts.length).toBeGreaterThan(5);
-    expect(generated.concepts.length).toBeLessThan(reference.concepts.length);
+  it('keeps every concept, shows only those a copied file still shows, and their canonical files exist', () => {
+    expect(generated.concepts.map(concept => concept.id)).toEqual(reference.concepts.map(concept => concept.id));
+    const displayed = generated.concepts.filter(shown);
+    expect(displayed.length).toBeGreaterThan(5);
+    expect(displayed.length).toBeLessThan(reference.concepts.filter(shown).length);
+    expect(created.concepts).toBe(displayed.length);
     for (const concept of generated.concepts) {
       for (const file of [...concept.canonical, ...concept.examples]) {
         expect(existsSync(join(directory, file))).toBe(true);
       }
     }
+  });
+
+  it("is a repository of one language: the binding's root is the application itself", () => {
+    expect(generated.language).toEqual({ id: 'typescript', name: 'TypeScript', root: '.' });
+    expect(generated.languages).toEqual(['typescript']);
+    expect(generated.architecture.path).toBe('src/Architecture');
+    expect(read('eslint.config.js')).toBe(readFileSync(join(root, 'typescript/eslint.config.js'), 'utf8'));
   });
 
   it('refuses a directory that is not empty', () => {

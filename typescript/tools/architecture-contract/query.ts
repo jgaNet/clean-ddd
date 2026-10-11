@@ -40,17 +40,18 @@ export interface ImportVerdict {
 }
 
 /**
- * Would a file at `file` be allowed to import `specifier`? Asked of the same ESLint configuration
- * the build runs, on a one-line synthetic module, so the answer is the enforcement's, not a
- * re-implementation of it. The refusing message starts with the rule id, which is how the id is
- * read back.
+ * Would a file at `file` (repository-relative) be allowed to import `specifier`? Asked of the
+ * same ESLint configuration the build runs — the language's, found from its directory — on a
+ * one-line synthetic module, so the answer is the enforcement's, not a re-implementation of it.
+ * The refusing message starts with the rule id, which is how the id is read back.
  */
 export async function canImport(
   file: string,
   specifier: string,
+  contract: ArchitectureContract,
   root: string = repositoryRoot(),
 ): Promise<ImportVerdict> {
-  const [verdict] = await canImportAll([[file, specifier]], root);
+  const [verdict] = await canImportAll([[file, specifier]], contract, root);
   return verdict;
 }
 
@@ -60,9 +61,10 @@ export async function canImport(
  */
 export async function canImportAll(
   probes: [file: string, specifier: string][],
+  contract: ArchitectureContract,
   root: string = repositoryRoot(),
 ): Promise<ImportVerdict[]> {
-  const eslint = new ESLint({ cwd: root });
+  const eslint = new ESLint({ cwd: join(root, contract.language.root) });
   return Promise.all(
     probes.map(async ([file, specifier]) => {
       const [result] = await eslint.lintText(`import { probe } from '${specifier}';\nexport const p = probe;\n`, {

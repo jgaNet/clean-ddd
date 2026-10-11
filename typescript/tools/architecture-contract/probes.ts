@@ -14,7 +14,7 @@ import { ArchitectureContract, Rule } from './types';
  */
 
 export interface Probe {
-  /** A file that does not exist; the linter is asked what it would allow there. */
+  /** A file that does not exist, repository-relative; the linter is asked what it would allow there. */
   file: string;
   specifier: string;
   expected: 'allowed' | 'refused';
@@ -33,16 +33,17 @@ interface Scope {
 }
 
 const scopesOf = (contract: ArchitectureContract): Scope[] => {
-  const contexts = contract.contexts.map(context => `@Contexts/${context}`);
+  const contextAlias = (context: string) => `${contract.contextsTree.alias}/${context}`;
+  const contexts = contract.contexts.map(contextAlias);
   const architecture = contract.architecture.alias;
   const kernel = contract.kernel.alias;
   return [
     { root: contract.architecture.path, alias: architecture, others: [...contexts, kernel], trees: {} },
     { root: contract.kernel.path, alias: kernel, others: contexts, trees: { architecture } },
     ...contract.contexts.map(context => ({
-      root: `src/Contexts/${context}`,
-      alias: `@Contexts/${context}`,
-      others: contexts.filter(other => other !== `@Contexts/${context}`),
+      root: `${contract.contextsTree.path}/${context}`,
+      alias: contextAlias(context),
+      others: contexts.filter(other => other !== contextAlias(context)),
       trees: { architecture, kernel },
     })),
   ];
@@ -58,7 +59,7 @@ const scopesOf = (contract: ArchitectureContract): Scope[] => {
 function unitsOf(scope: Scope, contract: ArchitectureContract): [string, string][] {
   const wiring = (alias: string) => `${alias}/${contract.wiring.replace(/\.ts$/, '')}`;
   const units: [string, string][] = [
-    ['bootstrap', '@Bootstrap/Fastify/application.settings'],
+    ['bootstrap', `${contract.bootstrap.alias}/Probe`],
     ['libraries', contract.libraries[0]],
     ['own.wiring', wiring(scope.alias)],
     ...scope.others.map((other): [string, string] => ['others.wiring', wiring(other)]),

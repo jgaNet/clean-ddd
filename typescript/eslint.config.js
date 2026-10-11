@@ -1,9 +1,12 @@
 /**
  * Architecture boundaries, enforced.
  *
- * The table lives in conventions/architecture.yaml: which layer may import from which, per
- * context. This file only translates it into `no-restricted-imports` rules, one block per
- * context and per layer, so that every context is held to the same standard.
+ * The table lives in conventions/architecture.yaml — which layer may import from which — and
+ * this language's trees in conventions/typescript.yaml: the contexts, the aliases, the wiring
+ * file, the libraries. Both sit in the repository's `conventions/`, found by walking up from this
+ * file (one level up here; the same directory in an application `yarn architecture create` made).
+ * This file only translates them into `no-restricted-imports` rules, one block per context and
+ * per layer, so that every context is held to the same standard.
  *
  * The translation: the YAML says what a layer MAY import; ESLint wants what it may NOT. So we
  * enumerate every "unit" a file could import (each layer of its own context, of the building
@@ -16,13 +19,27 @@
  * so "every context but your own" is written by listing the other contexts, not by negation.
  */
 
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { load } from 'js-yaml';
 import tseslint from 'typescript-eslint';
 
-const architecture = load(readFileSync(new URL('./conventions/architecture.yaml', import.meta.url), 'utf8'));
+/** The nearest directory at or above this one holding the contract: the repository root. */
+function conventionsDir(from) {
+  let dir = from;
+  for (;;) {
+    if (existsSync(join(dir, 'conventions/architecture.yaml'))) return join(dir, 'conventions');
+    const parent = dirname(dir);
+    if (parent === dir) throw new Error(`conventions/architecture.yaml not found at or above ${from}`);
+    dir = parent;
+  }
+}
+const conventions = conventionsDir(dirname(fileURLToPath(import.meta.url)));
+const architecture = load(readFileSync(join(conventions, 'architecture.yaml'), 'utf8'));
+const binding = load(readFileSync(join(conventions, 'typescript.yaml'), 'utf8'));
 const LAYERS = Object.keys(architecture.layers);
-const WIRING = architecture.wiring.replace(/\.ts$/, '');
+const WIRING = binding.wiring.replace(/\.ts$/, '');
 
 /** A relative import may only name a sibling file. */
 const RELATIVE_ACROSS_DIRECTORIES = ['../*', '../**', './*/**'];
@@ -39,8 +56,8 @@ const whole = alias => [alias, `${alias}/**`];
  */
 function unitsFor(alias, others, trees) {
   const units = {
-    bootstrap: ['@Bootstrap/**'],
-    libraries: architecture.libraries,
+    bootstrap: [`${binding.bootstrap.alias}/**`],
+    libraries: binding.libraries,
     'own.wiring': wiring(alias),
     'others.wiring': others.flatMap(wiring),
   };
@@ -122,17 +139,18 @@ function rulesFor(root, alias, others, trees) {
 
   blocks.push({ files: [`${root}/**/*.e2e.spec.ts`], rules: restrict(units, architecture.e2e_specs) });
   blocks.push({
-    files: [`${root}/${architecture.wiring}`],
+    files: [`${root}/${binding.wiring}`],
     rules: restrict(units, architecture.wiring_file),
   });
 
   return blocks;
 }
 
-const contextAlias = context => `@Contexts/${context}`;
-const CONTEXTS = architecture.contexts;
-const ARCHITECTURE = architecture.architecture;
-const KERNEL = architecture.kernel;
+const CONTEXTS_TREE = binding.contexts_tree;
+const contextAlias = context => `${CONTEXTS_TREE.alias}/${context}`;
+const CONTEXTS = binding.contexts;
+const ARCHITECTURE = binding.architecture;
+const KERNEL = binding.kernel;
 
 export default tseslint.config(
   { ignores: ['dist/', 'coverage/', 'src/Bootstrap/Fastify/public/', '**/*.d.ts', '**/*.min.js'] },
@@ -152,7 +170,7 @@ export default tseslint.config(
   ...rulesFor(KERNEL.path, KERNEL.alias, CONTEXTS.map(contextAlias), { architecture: ARCHITECTURE.alias }),
   ...CONTEXTS.flatMap(context =>
     rulesFor(
-      `src/Contexts/${context}`,
+      `${CONTEXTS_TREE.path}/${context}`,
       contextAlias(context),
       CONTEXTS.filter(other => other !== context).map(contextAlias),
       {
