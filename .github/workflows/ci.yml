@@ -1,6 +1,7 @@
 name: ci
 
-# One job per language, each run from its own directory with its own toolchain. There is no
+# One job per language, each run from its own directory with its own toolchain, and one `check`
+# job that fans them in, which is what the branch protection requires. There is no
 # path filter on purpose: a change to the contract, to a decision or to a shared document must
 # run every language's checks, since every language's documents are rendered from them.
 
@@ -47,3 +48,15 @@ jobs:
 
       - name: End-to-end tests
         run: yarn test:e2e
+
+  # The one check the branch protection requires: green when every language's job is. A new
+  # language is added to `needs`, and nothing else changes.
+  check:
+    runs-on: ubuntu-latest
+    needs: [typescript]
+    if: always()
+    steps:
+      - name: Every language is green
+        run: |
+          echo "typescript: ${{ needs.typescript.result }}"
+          test "${{ needs.typescript.result }}" = "success"
