@@ -1,0 +1,19 @@
+# The Notes context's wiring: the one place its handlers are bound to its adapters and listed in
+# a Module. A wiring crate may see every layer of its own context and the building blocks, and
+# another context's wiring for what it exports (ARCH-WIRING).
+[package]
+name = "notes-wiring"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-application = { path = "../../../architecture/application" }
+architecture-infrastructure = { path = "../../../architecture/infrastructure" }
+notes-domain = { path = "../domain" }
+notes-application = { path = "../application" }
+notes-infrastructure = { path = "../infrastructure" }
+
+[lints]
+workspace = true

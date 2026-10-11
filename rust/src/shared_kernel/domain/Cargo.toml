@@ -1,0 +1,14 @@
+# The shared kernel's Domain: what every context agrees on, built on the building blocks and on
+# nothing else (ARCH-DOMAIN, ARCH-TREES).
+[package]
+name = "shared-kernel-domain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-domain = { path = "../../architecture/domain" }
+
+[lints]
+workspace = true

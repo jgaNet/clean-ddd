@@ -1,0 +1,22 @@
+# The Notes context's Infrastructure: the adapters of its ports. Its row of the table adds the
+# building blocks' Infrastructure and another context's Domain to what the Application sees
+# (ARCH-INFRASTRUCTURE).
+[package]
+name = "notes-infrastructure"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-domain = { path = "../../../architecture/domain" }
+architecture-application = { path = "../../../architecture/application" }
+architecture-infrastructure = { path = "../../../architecture/infrastructure" }
+notes-domain = { path = "../domain" }
+notes-application = { path = "../application" }
+
+[dev-dependencies]
+pollster.workspace = true
+
+[lints]
+workspace = true

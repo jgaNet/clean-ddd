@@ -145,24 +145,30 @@ const nonEmpty = (blocks: [string, string, boolean][]): [string, string][] =>
   blocks.filter(([, , has]) => has).map(([marker, rendered]) => [marker, rendered]);
 
 const LAYERS = ['domain', 'application', 'infrastructure', 'presentation'] as const;
-const layerHas = (layer: (typeof LAYERS)[number]) =>
-  contract.concepts.some(concept => concept.layer === layer && concept.canonical.length > 0);
 
-renderInto(
-  posix.join(at, 'README.md'),
-  nonEmpty([
-    ...LAYERS.map((layer): [string, string, boolean] => [
-      SECTION_MARKER(layer),
-      renderConceptLayer(contract, layer, at),
-      layerHas(layer),
+// Every language's README is rendered from its own contract, with links relative to its
+// directory; a language renders its documents here rather than in its own tooling because the
+// renderer reads data, and a second renderer would be a second thing to drift.
+for (const each of contracts) {
+  const layerHas = (layer: (typeof LAYERS)[number]) =>
+    each.concepts.some(concept => concept.layer === layer && concept.canonical.length > 0);
+  const there = each.language.root;
+  renderInto(
+    posix.join(there, 'README.md'),
+    nonEmpty([
+      ...LAYERS.map((layer): [string, string, boolean] => [
+        SECTION_MARKER(layer),
+        renderConceptLayer(each, layer, there),
+        layerHas(layer),
+      ]),
+      [SECTION_MARKER('tests'), renderTests(each, there), each.tests.length > 0],
+      // The words are the contract's; a language whose binding shows none of them yet has no table to render.
+      [SECTION_MARKER('vocabulary'), renderVocabulary(each, there), each.vocabulary.some(row => row.see)],
+      [RULES_MARKER('rules'), renderRulesTable(each, there), true],
+      [RULES_MARKER('dependencies'), renderDependencyTable(each), each.contexts.length > 0],
     ]),
-    [SECTION_MARKER('tests'), renderTests(contract, at), contract.tests.length > 0],
-    // The words are the contract's; a language whose binding shows none of them yet has no table to render.
-    [SECTION_MARKER('vocabulary'), renderVocabulary(contract, at), contract.vocabulary.some(row => row.see)],
-    [RULES_MARKER('rules'), renderRulesTable(contract, at), true],
-    [RULES_MARKER('dependencies'), renderDependencyTable(contract), contract.contexts.length > 0],
-  ]),
-);
+  );
+}
 renderInto('CLAUDE.md', [[RULES_MARKER('rules'), renderRulesList(contract)]]);
 if (multi) {
   const title = (layer: string) => `${layer[0].toUpperCase()}${layer.slice(1)} layer`;

@@ -33,7 +33,7 @@
 schemaVersion: 1
 
 # The languages the reference is written in: one binding each, conventions/<language>.yaml.
-languages: [typescript]
+languages: [typescript, rust]
 
 layers:
   Domain:
