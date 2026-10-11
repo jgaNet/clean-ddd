@@ -1,0 +1,247 @@
+# The Rust binding of the architecture contract: where this language keeps the trees that
+# architecture.yaml reasons about, which file shows each concept of concepts.yaml, which tool holds
+# each rule, and what a new thing of each kind is made of in this language's idiom. It adds no
+# rule: a rule lives in architecture.yaml, under one id for every language (ARCH-ONE-CONTRACT).
+#
+# In Rust every layer of every tree is a crate, and a crate's `[dependencies]` are its row of the
+# dependency table: the compiler holds the boundary, and `cargo run -p conventions` proves the
+# graph is the table. A crate directory is the layer's name in lowercase (`domain`); a crate is
+# named after its tree and its layer (`architecture-domain`, `shared-kernel-domain`, `notes-domain`).
+#
+# Paths are relative to `root`, the directory of this language; the loader turns them into
+# repository-relative paths, so every tool, document and diff speaks the same ones. What this
+# language does not show yet is simply not named here, and the root README's map shows the gap.
+
+schemaVersion: 1
+language: rust
+name: Rust
+root: rust
+
+contexts: [Notes]
+
+# The trees. `alias` is how a tree is named in a crate name: a context's crates are named after
+# the context (`notes-domain`), the two trees after themselves.
+contexts_tree: { alias: '<context>', path: src/contexts }
+architecture: { alias: architecture, path: src/architecture }
+kernel: { alias: shared-kernel, path: src/shared_kernel }
+bootstrap: { alias: bootstrap, path: src/bootstrap }
+# A context's wiring is a crate of its own, `<context>-wiring`, beside its layer crates.
+wiring: wiring
+
+# Libraries only an adapter may depend on: the domain and the use cases never see them.
+libraries: [axum, hyper, tower, sqlx, rusqlite]
+
+# What stands behind each enforcement word of architecture.yaml, in this language.
+enforcers:
+  linter: the crate graph — each layer is a crate whose `[dependencies]` are its row of the table, held by the compiler and compared to the contract by `cargo run -p conventions`
+  check: '`cargo run -p conventions`'
+  types: the compiler
+  tests: a `#[test]`
+  review: review (stated here, not yet mechanical)
+  evaluations: fresh-agent evaluations
+
+# The checks a change must pass before it is done; CI runs them in this order.
+checks:
+  - cargo run -p conventions
+  - cargo fmt --check
+  - cargo clippy --all-targets -- -D warnings
+  - cargo test
+
+# What the two modes protect and decide in this language, on top of the contract and the
+# decisions, which architecture.yaml protects for every language.
+modes:
+  feature:
+    protected: [src/architecture, src/shared_kernel, tools]
+    # Publishing a fact is what a cross-context feature does: the contracts crate is not protected.
+    allowed: [src/shared_kernel/application/src/integration_events]
+  architecture:
+    decides: [src/architecture, src/shared_kernel/domain]
+
+# The files that show a rule, by id. The rule itself is in architecture.yaml.
+rules:
+  ARCH-RELATIVE:
+    references: [CLAUDE.md]
+  ARCH-TREES:
+    references: [src/architecture, src/shared_kernel]
+  ARCH-INWARD:
+    references: [src/contexts/notes/domain/Cargo.toml]
+  DOMAIN-RESULT:
+    references: [src/architecture/domain/src/result.rs]
+  DOMAIN-RECORDS-EVENTS:
+    references: [src/architecture/domain/src/aggregate_root.rs]
+  DOMAIN-CREATE-VS-RECONSTITUTE:
+    references: [src/contexts/notes/domain/src/note/mod.rs]
+  CONC-OPTIMISTIC:
+    references: [src/architecture/domain/src/aggregate_root.rs]
+  ARCH-MAP-IS-REAL:
+    references: [tools/conventions/src/main.rs]
+
+# What a new thing of each kind is made of in Rust, and where each part goes. The kinds are
+# architecture.yaml's. Lowercase placeholders (`<context>`, `<aggregate>`) are filled in
+# snake_case, which is what a Rust path wants; `yarn architecture checklist <kind>` prints one.
+checklists:
+  aggregate:
+    place: src/contexts/<context>/domain/src/<aggregate>/mod.rs
+    parts:
+      - 'The aggregate itself: a struct holding an `AggregateRoot<Event>` in a private field, `create()` (validates, generates the Id, records the creation event) returning `DomainResult`, `from_snapshot()` (records nothing, panics on corrupted data), `to_snapshot()`, `impl Entity`.'
+      - '`dtos.rs` beside it: the snapshot struct, `version` included, and the `New<Aggregate>` input.'
+      - '`<aggregate>_exceptions.rs`: a `SERVICE` constant, a `kind` constant and a constructor function per rule.'
+      - '`events.rs`: one enum, one variant per fact its behaviours record, past tense, minimal payload; `impl Event` and `impl DomainEvent`.'
+      - '`ports/<aggregate>_repository.rs`: a trait with `find_by_id` and `save` returning `DomainResult`, plus the facts a rule needs about the collection.'
+      - '`ports/<aggregate>_queries.rs` and its read models, when a screen reads it.'
+      - 'A `#[cfg(test)] mod tests` at the bottom of `mod.rs`: every rule, and the round-trip through the snapshot.'
+      - 'An in-memory adapter per port in the `infrastructure` crate, and a contract test once a port promises an order or a filter.'
+      - 'Wiring in the `wiring` crate: the store, the adapters, the handlers.'
+  value-object:
+    place: src/contexts/<context>/domain/src/<aggregate>/<name>.rs
+    parts:
+      - 'A newtype with a private field, `create()` returning `DomainResult`, the rule as a `pub const` when there is a number; `#[derive(PartialEq, Clone, Debug)]` and `impl ValueObject`.'
+      - 'One exception per rule the user could act on differently, in the aggregate''s exceptions file.'
+      - 'A structured value derives or writes `PartialEq` on its fields; the compiler refuses to compare two kinds.'
+      - 'A `#[cfg(test)] mod tests` beside it: what it accepts, what it refuses, and equality.'
+  domain-service:
+    place: src/contexts/<context>/domain/src/<aggregate>/<rule>.rs
+    parts:
+      - 'Named after the rule it holds (`NoteSharing`), not after a layer.'
+      - 'Generic over the ports it needs, taken in `new()`; returns `DomainResult`; holds no logging, no transaction, no publishing.'
+      - 'Used when a rule spans several aggregates or needs a fact about the collection; a rule about one aggregate stays a behaviour.'
+      - 'A `#[cfg(test)] mod tests` beside it, with a small struct implementing each port.'
+  command:
+    place: src/contexts/<context>/application/src/commands/<use_case>/
+    parts:
+      - '`mod.rs`: the command, a struct with a named payload and nothing more, `impl CommandEvent`.'
+      - '`handler.rs`: the handler, `execute()` with the signed-in guard at the top, load, ask the aggregate or the domain service, save (`?` on the `DomainResult`), publish the domain events.'
+      - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
+      - 'One `pub mod` line in `commands/mod.rs`; no re-export of the use case''s internals.'
+      - 'A `#[cfg(test)] mod tests` with at least a happy path and one refusal; through `handle()` when the rule is in `guard()`.'
+      - 'A route answering `202 { operationId }`, and the handler registered in the wiring crate.'
+  query:
+    place: src/contexts/<context>/application/src/queries/<use_case>/
+    parts:
+      - 'A read model and a method on the queries port, with the order and the unknown-id answer in its doc comment.'
+      - 'The handler reads the port and nothing else: no sorting, no second port, no aggregate.'
+      - 'One `pub mod` line in `queries/mod.rs`.'
+      - 'A `#[cfg(test)] mod tests` when the handler holds a visibility or role rule.'
+      - 'A route answering synchronously, refusals through the controller''s `refuse()`.'
+  integration-event:
+    place: src/shared_kernel/application/src/integration_events/<aggregate>_integration_events.rs
+    parts:
+      - 'An enum of the facts the publishing context tells the others, in its public words, `impl IntegrationEvent`, in that context''s file.'
+      - 'A payload carrying everything a consumer needs, so it never queries back.'
+      - 'A domain event handler in the publishing context that translates the domain event into it — that is where a fact leaves its context.'
+      - 'An anti-corruption handler in each consuming context, registered in its wiring crate.'
+      - 'Adding one is not an architecture change: the module is where a context publishes, and a feature may publish.'
+  event-handler:
+    place: src/contexts/<context>/application/src/events/<name>_handler.rs
+    parts:
+      - '`impl EventHandler<TheEvent>`; `execute()` returns a `DomainResult`; no guard — the fact was already allowed.'
+      - 'A reaction inside its own context, or the translation of a domain event into an integration event, or an anti-corruption layer over another context''s contract.'
+      - 'Registered in the wiring crate under the domain events or the integration events.'
+      - 'A `#[cfg(test)] mod tests` beside it.'
+  context:
+    place: src/contexts/<context>/
+    parts:
+      - 'Declared in `contexts` in this file, or no row of the table applies to its crates.'
+      - 'One crate per layer (`domain`, `application`, `infrastructure`, `presentation`) and the `wiring` crate, nothing else; each crate''s `[dependencies]` are its row of the table.'
+      - 'Its own vocabulary: a word that means something else here is a sign the context is right.'
+      - 'It asks other contexts through ports it owns, and tells them through integration events; never both sides of a dependency.'
+      - 'Registered in the composition root, with its routes under its own prefix.'
+
+# One test style per layer, for the README; the rows the language has so far.
+tests:
+  - layer: Domain
+    example: '`mod tests` in [`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs)'
+    doubles: none
+  - layer: Domain service
+    example: '`mod tests` in [`note_sharing.rs`](src/contexts/notes/domain/src/note/note_sharing.rs)'
+    doubles: a five-line struct implementing the port
+
+# Where each word of concepts.yaml's vocabulary is shown, by word; the words the language has so far.
+vocabulary:
+  Building blocks: '[`src/architecture`](src/architecture)'
+  Shared kernel: '[`src/shared_kernel`](src/shared_kernel)'
+  Bounded context: '[`src/contexts`](src/contexts)'
+  Aggregate (root): '[`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs)'
+  Entity: '[`entity.rs`](src/architecture/domain/src/entity.rs)'
+  Value object: '[`note_title.rs`](src/contexts/notes/domain/src/note/note_title.rs)'
+  Invariant: '`share_with()` in [`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs)'
+  Domain event: '[`events.rs`](src/contexts/notes/domain/src/note/events.rs)'
+  Read model: '[`note_queries.rs`](src/contexts/notes/domain/src/note/ports/note_queries.rs)'
+  Port: >-
+    [`note_repository.rs`](src/contexts/notes/domain/src/note/ports/note_repository.rs),
+    [`account_directory.rs`](src/contexts/notes/domain/src/note/ports/account_directory.rs)
+  Repository: '[`note_repository.rs`](src/contexts/notes/domain/src/note/ports/note_repository.rs)'
+  Domain service: '[`note_sharing.rs`](src/contexts/notes/domain/src/note/note_sharing.rs)'
+  Snapshot: '[`dtos.rs`](src/contexts/notes/domain/src/note/dtos.rs)'
+
+# The file that shows each concept of concepts.yaml, by id; a concept not listed here is one
+# this language does not show yet, and the map says so.
+concepts:
+  entity:
+    canonical: [src/architecture/domain/src/entity.rs]
+    notes: 'a trait; the kind is the type, so two kinds cannot even be compared'
+  aggregate-root:
+    canonical:
+      - src/contexts/notes/domain/src/note/mod.rs
+      - src/architecture/domain/src/aggregate_root.rs
+    example: >-
+      [`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs) holding an
+      [`AggregateRoot`](src/architecture/domain/src/aggregate_root.rs)
+    notes: 'no inheritance: the aggregate holds the root in a private field and delegates'
+  value-object:
+    canonical:
+      - src/contexts/notes/domain/src/note/note_title.rs
+      - src/shared_kernel/domain/src/email.rs
+    example: >-
+      [`note_title.rs`](src/contexts/notes/domain/src/note/note_title.rs),
+      [`email.rs`](src/shared_kernel/domain/src/email.rs)
+    notes: 'a newtype with a private field deriving `PartialEq`; [`value_object.rs`](src/architecture/domain/src/value_object.rs) names the shape'
+    examples: [src/architecture/domain/src/value_object.rs]
+  identity:
+    canonical: [src/architecture/domain/src/id.rs]
+  factory:
+    canonical: [src/contexts/notes/domain/src/note/mod.rs]
+    example: '`Note::create()` in [`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs)'
+    notes: 'the domain-service factory is not written yet'
+  invariant:
+    canonical: [src/contexts/notes/domain/src/note/mod.rs]
+    example: '`share_with()` in [`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs)'
+  creation-vs-reconstitution:
+    canonical: [src/contexts/notes/domain/src/note/mod.rs]
+    example: '`Note::create()` vs `Note::from_snapshot()` in [`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs)'
+    notes: 'corrupted storage panics, which is what a throw is here'
+  domain-event:
+    canonical: [src/contexts/notes/domain/src/note/events.rs]
+    notes: 'one enum per aggregate, one variant per fact; [`event.rs`](src/architecture/domain/src/event.rs) has the three kinds as traits'
+    examples: [src/architecture/domain/src/event.rs]
+  domain-exception:
+    canonical: [src/contexts/notes/domain/src/note/note_exceptions.rs]
+    notes: 'a `kind` constant and a constructor function per rule, building an [`Exception`](src/architecture/domain/src/exception.rs)'
+    examples: [src/architecture/domain/src/exception.rs]
+  result:
+    canonical: [src/architecture/domain/src/result.rs]
+    notes: 'the language''s own `Result<T, Exception>`, and `?` where TypeScript wrote `if (r.isFailure()) return r`'
+  optimistic-concurrency:
+    canonical: [src/architecture/domain/src/aggregate_root.rs]
+    example: '`AggregateRoot::version` in [`aggregate_root.rs`](src/architecture/domain/src/aggregate_root.rs)'
+    notes: 'the repository that stores version + 1 is not written yet'
+  repository-port:
+    canonical: [src/contexts/notes/domain/src/note/ports/note_repository.rs]
+    notes: 'a trait whose methods return `impl Future`, so an adapter may be in-memory or a database'
+  queries-port-read-models:
+    canonical: [src/contexts/notes/domain/src/note/ports/note_queries.rs]
+  snapshot-dto:
+    canonical: [src/contexts/notes/domain/src/note/dtos.rs]
+  domain-service:
+    canonical: [src/contexts/notes/domain/src/note/note_sharing.rs]
+    notes: 'generic over its port, so a test hands it a five-line struct'
+  port-to-another-context:
+    canonical:
+      - src/contexts/notes/domain/src/note/ports/account_directory.rs
+      - src/contexts/notes/domain/src/note/note_sharing.rs
+    example: >-
+      [`account_directory.rs`](src/contexts/notes/domain/src/note/ports/account_directory.rs), used by
+      [`note_sharing.rs`](src/contexts/notes/domain/src/note/note_sharing.rs)
+    notes: 'the adapter over Security''s read model is not written yet'
+  lifecycle-as-an-enum:
+    canonical: [src/contexts/notes/domain/src/note/note_status.rs]

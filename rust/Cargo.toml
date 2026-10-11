@@ -1,0 +1,19 @@
+# The Rust implementation of the reference. Every layer of every tree is a crate, and a crate's
+# `[dependencies]` are its row of the dependency table in ../conventions/architecture.yaml: the
+# compiler holds the boundary, and `cargo run -p conventions` proves the graph is the table.
+[workspace]
+resolver = "3"
+members = ["src/architecture/*", "src/shared_kernel/*", "src/contexts/*/*", "tools/*"]
+
+[workspace.package]
+version = "3.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[workspace.dependencies]
+uuid = { version = "1", features = ["v4"] }
+pollster = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+toml = "0.8"

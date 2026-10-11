@@ -1,0 +1,37 @@
+# The same feature plan as share-a-note.yaml, written for the Rust binding: `language` names
+# the binding whose checklists say where each part goes, and the check validates it against the
+# Rust tree. Only the parts the Rust implementation has so far are listed, each `new: false`, so
+# that the check confirms they are where the binding's checklists say — `<aggregate>` filled in
+# snake_case, as a Rust path wants. The command, the query, the contract and the handler join
+# this plan when their layers do.
+
+schemaVersion: 1
+
+feature: share-a-note
+language: rust
+context: Notes
+
+intent: >-
+  The owner of a note shares it with another account, which can then read it. In Rust, the part
+  of the path that exists today: the aggregate's rule, and the domain service that asks another
+  context whether the recipient exists.
+
+changes:
+  - kind: aggregate
+    name: Note
+    new: false
+  - kind: domain-service
+    name: NoteSharing
+    aggregate: Note
+    new: false
+
+invariants:
+  - Only the owner of a note shares it.
+  - An archived note cannot be shared.
+  - A note is not shared twice with the same account, nor with its owner.
+  - The recipient must be an account that exists — a rule that needs a port, so a domain service holds it.
+
+events:
+  - NoteSharedEvent
+
+architectureChanges: false

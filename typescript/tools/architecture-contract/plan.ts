@@ -92,12 +92,26 @@ export function loadFeaturePlan(file: string, root: string): FeaturePlan {
   };
 }
 
-/** The checklist's placeholders, filled with the plan's names: a path or a part becomes concrete. */
-const fill = (text: string, plan: FeaturePlan, change: PlannedChange): string =>
-  text
-    .replaceAll('<Context>', change.kind === 'context' ? change.name : plan.context)
-    .replaceAll('<Aggregate>', change.aggregate ?? change.name)
-    .replaceAll(/<Name>|<Rule>|<UseCase>/g, change.name);
+/** `NoteSharing` as a Rust path wants it: `note_sharing`. */
+const snake = (name: string): string => name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+
+/**
+ * The checklist's placeholders, filled with the plan's names: a path or a part becomes concrete.
+ * A PascalCase placeholder (`<Aggregate>`) takes the name as written, which is what a TypeScript
+ * path wants; a lowercase one (`<aggregate>`) takes it in snake_case, which is what a Rust path
+ * wants. A binding uses the ones its language needs.
+ */
+const fill = (text: string, plan: FeaturePlan, change: PlannedChange): string => {
+  const context = change.kind === 'context' ? change.name : plan.context;
+  const aggregate = change.aggregate ?? change.name;
+  return text
+    .replaceAll('<Context>', context)
+    .replaceAll('<Aggregate>', aggregate)
+    .replaceAll(/<Name>|<Rule>|<UseCase>/g, change.name)
+    .replaceAll('<context>', snake(context))
+    .replaceAll('<aggregate>', snake(aggregate))
+    .replaceAll(/<name>|<rule>|<use_case>/g, snake(change.name));
+};
 
 /** Where a planned change goes: the checklist's path, with the plan's names in it. */
 export const placeOf = (checklist: Checklist, plan: FeaturePlan, change: PlannedChange): string =>
