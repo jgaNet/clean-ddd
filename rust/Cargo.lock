@@ -3,10 +3,29 @@
 version = 4
 
 [[package]]
+name = "architecture-application"
+version = "3.1.0"
+dependencies = [
+ "architecture-domain",
+ "futures",
+ "pollster",
+]
+
+[[package]]
 name = "architecture-domain"
 version = "3.1.0"
 dependencies = [
  "uuid",
+]
+
+[[package]]
+name = "architecture-infrastructure"
+version = "3.1.0"
+dependencies = [
+ "architecture-application",
+ "architecture-domain",
+ "indexmap",
+ "pollster",
 ]
 
 [[package]]
@@ -37,10 +56,69 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
+name = "futures"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a31d2a3fbaaeb2af2368bbdd904aa8e812d3c04a1ee10d3171f52d556e5d0a3"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-executor",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
+name = "futures-channel"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1f9e3d69d39e4862ffed03ed071a76f9a13ba1d9109d355b0f0aa6b15e393c4"
+dependencies = [
+ "futures-core",
+ "futures-sink",
+]
+
+[[package]]
 name = "futures-core"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92d699e522242e69e3003b94ecc1f960f3a5e015aa7c5d7486e65ad01dd94f5e"
+
+[[package]]
+name = "futures-executor"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "031b47cf1a3c6cc8bc2fc76cd437f521619387907d469316e7c0bc278f1f5432"
+dependencies = [
+ "futures-core",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
+name = "futures-io"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53c0fa8157de1303bfffdaa1cc2a673bfffb60102f76b0ef4441659124373fed"
+
+[[package]]
+name = "futures-macro"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9fb9654ba8355388abeb8dcb4fc62f511300867002afc858860463bdd9fe0c44"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "futures-sink"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1944426bf7d03f1d14f708785e4b33efd750b36d48a157b836b3efc15ede8e1d"
 
 [[package]]
 name = "futures-task"
@@ -54,8 +132,13 @@ version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d50a92467f8ba5dd6e3ee5d4bd04d73ab2e4e1c44474a0674821dfce14b79bc"
 dependencies = [
+ "futures-channel",
  "futures-core",
+ "futures-io",
+ "futures-macro",
+ "futures-sink",
  "futures-task",
+ "memchr",
  "pin-project-lite",
  "slab",
 ]
@@ -117,12 +200,49 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "notes-application"
+version = "3.1.0"
+dependencies = [
+ "architecture-application",
+ "architecture-domain",
+ "architecture-infrastructure",
+ "notes-domain",
+ "notes-infrastructure",
+ "pollster",
+ "shared-kernel-application",
+ "shared-kernel-domain",
+]
+
+[[package]]
 name = "notes-domain"
 version = "3.1.0"
 dependencies = [
  "architecture-domain",
  "pollster",
  "shared-kernel-domain",
+]
+
+[[package]]
+name = "notes-infrastructure"
+version = "3.1.0"
+dependencies = [
+ "architecture-application",
+ "architecture-domain",
+ "architecture-infrastructure",
+ "notes-application",
+ "notes-domain",
+ "pollster",
+]
+
+[[package]]
+name = "notes-wiring"
+version = "3.1.0"
+dependencies = [
+ "architecture-application",
+ "architecture-infrastructure",
+ "notes-application",
+ "notes-domain",
+ "notes-infrastructure",
 ]
 
 [[package]]
@@ -229,6 +349,15 @@ dependencies = [
  "ryu",
  "serde",
  "unsafe-libyaml",
+]
+
+[[package]]
+name = "shared-kernel-application"
+version = "3.1.0"
+dependencies = [
+ "architecture-application",
+ "architecture-domain",
+ "shared-kernel-domain",
 ]
 
 [[package]]

@@ -312,6 +312,7 @@ Non-obvious choices are recorded as short ADRs in [`docs/adr`](../docs/adr):
 10. [A new application is copied from the reference, not templated](../docs/adr/0010-a-new-application-is-copied-not-templated.md)
 11. [One reference, several languages: a shared contract, a binding per language](../docs/adr/0011-one-reference-several-languages.md)
 12. [In Rust, a layer is a crate, and the dependency table is its dependencies](../docs/adr/0012-in-rust-a-layer-is-a-crate.md)
+13. [In Rust, the bus routes type-erased events by name, and a handler is a trait with a provided `handle()`](../docs/adr/0013-in-rust-the-bus-routes-by-name-and-a-handler-is-a-trait.md)
 
 In TypeScript the decisions land as written: a `Result` is a class of the building blocks, a `throw` is a JavaScript throw, and the dependency table is held by ESLint. Where another language's idiom changes that, its README says so.
 

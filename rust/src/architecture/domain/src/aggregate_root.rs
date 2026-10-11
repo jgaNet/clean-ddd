@@ -24,8 +24,17 @@
 //! only the aggregate's own behaviours can record a fact (DOMAIN-RECORDS-EVENTS). See `Note` in
 //! the Notes context for a complete example.
 
+use crate::entity::Entity;
 use crate::event::DomainEvent;
 use crate::id::Id;
+
+/// What an aggregate is to the rest of the system: an entity that records domain events. An
+/// aggregate holds an [`AggregateRoot`] in a private field and delegates this to it; a command
+/// handler hands the aggregate to `publish_domain_events` once it is saved.
+pub trait Aggregate: Entity {
+    type Event: DomainEvent;
+    fn pull_domain_events(&mut self) -> Vec<Self::Event>;
+}
 
 #[derive(Debug)]
 pub struct AggregateRoot<E: DomainEvent> {

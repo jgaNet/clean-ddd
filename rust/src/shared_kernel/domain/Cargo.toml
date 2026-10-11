@@ -9,3 +9,6 @@ publish.workspace = true
 
 [dependencies]
 architecture-domain = { path = "../../architecture/domain" }
+
+[lints]
+workspace = true

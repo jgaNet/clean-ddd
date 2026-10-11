@@ -64,15 +64,29 @@ rules:
   ARCH-TREES:
     references: [src/architecture, src/shared_kernel]
   ARCH-INWARD:
-    references: [src/contexts/notes/domain/Cargo.toml]
+    references: [src/contexts/notes/domain/Cargo.toml, src/contexts/notes/application/Cargo.toml]
+  ARCH-APPLICATION-SPECS:
+    references: [src/contexts/notes/application/src/commands/mod.rs]
+  ARCH-INFRASTRUCTURE:
+    references: [src/contexts/notes/infrastructure/Cargo.toml]
+  ARCH-WIRING:
+    references: [src/contexts/notes/wiring/src/lib.rs]
+  ARCH-MODULES-DATA:
+    references: [src/contexts/notes/wiring/src/lib.rs]
+  ARCH-EXECUTION-CONTEXT:
+    references: [src/architecture/application/src/execution_context.rs]
   DOMAIN-RESULT:
-    references: [src/architecture/domain/src/result.rs]
+    references: [src/architecture/domain/src/result.rs, src/architecture/application/src/command_handler.rs]
   DOMAIN-RECORDS-EVENTS:
     references: [src/architecture/domain/src/aggregate_root.rs]
   DOMAIN-CREATE-VS-RECONSTITUTE:
     references: [src/contexts/notes/domain/src/note/mod.rs]
+  DOMAIN-NON-DETERMINISM:
+    references: [src/contexts/notes/application/src/commands/suggest_note_title.rs]
+  EVENT-AFTER-COMMIT:
+    references: [src/architecture/application/src/domain_events.rs]
   CONC-OPTIMISTIC:
-    references: [src/architecture/domain/src/aggregate_root.rs]
+    references: [src/contexts/notes/infrastructure/src/repositories.rs]
   ARCH-MAP-IS-REAL:
     references: [tools/conventions/src/main.rs]
 
@@ -107,26 +121,26 @@ checklists:
       - 'Used when a rule spans several aggregates or needs a fact about the collection; a rule about one aggregate stays a behaviour.'
       - 'A `#[cfg(test)] mod tests` beside it, with a small struct implementing each port.'
   command:
-    place: src/contexts/<context>/application/src/commands/<use_case>/
+    place: src/contexts/<context>/application/src/commands/<use_case>.rs
     parts:
-      - '`mod.rs`: the command, a struct with a named payload and nothing more, `impl CommandEvent`.'
-      - '`handler.rs`: the handler, `execute()` with the signed-in guard at the top, load, ask the aggregate or the domain service, save (`?` on the `DomainResult`), publish the domain events.'
+      - 'The command: a struct with a named payload and nothing more, `impl Event` and `impl CommandEvent` with its `NAME`.'
+      - 'The handler in the same file: a struct generic over the ports it takes in `new()`, `impl CommandHandler` with `execute()` — the signed-in guard at the top, load, ask the aggregate or the domain service, save (`?` on the `DomainResult`), `publish_domain_events`.'
       - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
-      - 'One `pub mod` line in `commands/mod.rs`; no re-export of the use case''s internals.'
-      - 'A `#[cfg(test)] mod tests` with at least a happy path and one refusal; through `handle()` when the rule is in `guard()`.'
-      - 'A route answering `202 { operationId }`, and the handler registered in the wiring crate.'
+      - 'One `pub mod` line in `commands/mod.rs`; the handlers of one aggregate share the tests at the bottom of that file.'
+      - 'At least a happy path and one refusal in the tests; through `handle()` when the rule is in `guard()`.'
+      - 'A route answering `202 { operationId }`, and the handler listed in the wiring crate with `Subscription::command`.'
   query:
-    place: src/contexts/<context>/application/src/queries/<use_case>/
+    place: src/contexts/<context>/application/src/queries/<use_case>.rs
     parts:
       - 'A read model and a method on the queries port, with the order and the unknown-id answer in its doc comment.'
-      - 'The handler reads the port and nothing else: no sorting, no second port, no aggregate.'
+      - 'The handler: a struct holding the queries port, `impl QueryHandler` with `execute()`; it reads the port and nothing else: no sorting, no second port, no aggregate.'
       - 'One `pub mod` line in `queries/mod.rs`.'
-      - 'A `#[cfg(test)] mod tests` when the handler holds a visibility or role rule.'
-      - 'A route answering synchronously, refusals through the controller''s `refuse()`.'
+      - 'A test in `queries/mod.rs` when the handler holds a visibility or role rule.'
+      - 'A route answering synchronously, refusals through the controller''s `refuse()`, and the handler listed in the wiring crate with `query()`.'
   integration-event:
     place: src/shared_kernel/application/src/integration_events/<aggregate>_integration_events.rs
     parts:
-      - 'An enum of the facts the publishing context tells the others, in its public words, `impl IntegrationEvent`, in that context''s file.'
+      - 'An enum of the facts the publishing context tells the others, in its public words, `impl Event` with the published name and `impl IntegrationEvent`, in that context''s file.'
       - 'A payload carrying everything a consumer needs, so it never queries back.'
       - 'A domain event handler in the publishing context that translates the domain event into it — that is where a fact leaves its context.'
       - 'An anti-corruption handler in each consuming context, registered in its wiring crate.'
@@ -134,9 +148,9 @@ checklists:
   event-handler:
     place: src/contexts/<context>/application/src/events/<name>_handler.rs
     parts:
-      - '`impl EventHandler<TheEvent>`; `execute()` returns a `DomainResult`; no guard — the fact was already allowed.'
-      - 'A reaction inside its own context, or the translation of a domain event into an integration event, or an anti-corruption layer over another context''s contract.'
-      - 'Registered in the wiring crate under the domain events or the integration events.'
+      - '`impl EventHandler` with `type Event` the aggregate''s enum; `execute()` matches the variant its channel carries and returns a `DomainResult`; no guard — the fact was already allowed.'
+      - 'A reaction inside its own context, or the translation of a domain event into an integration event (`context.publish(...)`), or an anti-corruption layer over another context''s contract.'
+      - 'Listed in the wiring crate with `Subscription::reaction("<TheFact>", handler)`, under the domain events or the integration events.'
       - 'A `#[cfg(test)] mod tests` beside it.'
   context:
     place: src/contexts/<context>/
@@ -155,6 +169,15 @@ tests:
   - layer: Domain service
     example: '`mod tests` in [`note_sharing.rs`](src/contexts/notes/domain/src/note/note_sharing.rs)'
     doubles: a five-line struct implementing the port
+  - layer: Application
+    example: '`mod tests` in [`commands/mod.rs`](src/contexts/notes/application/src/commands/mod.rs)'
+    doubles: the in-memory repository *is* the double; the in-memory bus, with a recording handler, says what was published
+  - layer: Infrastructure
+    example: '`mod tests` in [`in_memory_unit_of_work`](src/architecture/infrastructure/src/unit_of_work.rs)'
+    doubles: real in-memory pieces
+  - layer: '**Contract** (one port, every adapter)'
+    example: '[`persistence_contract.rs`](src/contexts/notes/infrastructure/src/persistence_contract.rs)'
+    doubles: none — every case runs over each entry of `adapters()`, same expectations
 
 # Where each word of concepts.yaml's vocabulary is shown, by word; the words the language has so far.
 vocabulary:
@@ -166,13 +189,20 @@ vocabulary:
   Value object: '[`note_title.rs`](src/contexts/notes/domain/src/note/note_title.rs)'
   Invariant: '`share_with()` in [`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs)'
   Domain event: '[`events.rs`](src/contexts/notes/domain/src/note/events.rs)'
+  Integration event: '[`note_integration_events.rs`](src/shared_kernel/application/src/integration_events/note_integration_events.rs)'
+  Command: '`ShareNote` in [`share_note.rs`](src/contexts/notes/application/src/commands/share_note.rs)'
+  Query: '[`get_note.rs`](src/contexts/notes/application/src/queries/get_note.rs)'
   Read model: '[`note_queries.rs`](src/contexts/notes/domain/src/note/ports/note_queries.rs)'
   Port: >-
     [`note_repository.rs`](src/contexts/notes/domain/src/note/ports/note_repository.rs),
     [`account_directory.rs`](src/contexts/notes/domain/src/note/ports/account_directory.rs)
+  Adapter: >-
+    [`repositories.rs`](src/contexts/notes/infrastructure/src/repositories.rs),
+    [`suggestions.rs`](src/contexts/notes/infrastructure/src/suggestions.rs)
   Repository: '[`note_repository.rs`](src/contexts/notes/domain/src/note/ports/note_repository.rs)'
   Domain service: '[`note_sharing.rs`](src/contexts/notes/domain/src/note/note_sharing.rs)'
   Snapshot: '[`dtos.rs`](src/contexts/notes/domain/src/note/dtos.rs)'
+  Operation: '[`operation.rs`](src/architecture/application/src/operation.rs)'
 
 # The file that shows each concept of concepts.yaml, by id; a concept not listed here is one
 # this language does not show yet, and the map says so.
@@ -202,7 +232,7 @@ concepts:
   factory:
     canonical: [src/contexts/notes/domain/src/note/mod.rs]
     example: '`Note::create()` in [`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs)'
-    notes: 'the domain-service factory is not written yet'
+    notes: 'the domain-service factory (an account''s registration) is not written yet'
   invariant:
     canonical: [src/contexts/notes/domain/src/note/mod.rs]
     example: '`share_with()` in [`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs)'
@@ -222,9 +252,12 @@ concepts:
     canonical: [src/architecture/domain/src/result.rs]
     notes: 'the language''s own `Result<T, Exception>`, and `?` where TypeScript wrote `if (r.isFailure()) return r`'
   optimistic-concurrency:
-    canonical: [src/architecture/domain/src/aggregate_root.rs]
-    example: '`AggregateRoot::version` in [`aggregate_root.rs`](src/architecture/domain/src/aggregate_root.rs)'
-    notes: 'the repository that stores version + 1 is not written yet'
+    canonical:
+      - src/architecture/domain/src/aggregate_root.rs
+      - src/contexts/notes/infrastructure/src/repositories.rs
+    example: >-
+      `AggregateRoot::version` in [`aggregate_root.rs`](src/architecture/domain/src/aggregate_root.rs);
+      `save()` in [`repositories.rs`](src/contexts/notes/infrastructure/src/repositories.rs)
   repository-port:
     canonical: [src/contexts/notes/domain/src/note/ports/note_repository.rs]
     notes: 'a trait whose methods return `impl Future`, so an adapter may be in-memory or a database'
@@ -245,3 +278,63 @@ concepts:
     notes: 'the adapter over Security''s read model is not written yet'
   lifecycle-as-an-enum:
     canonical: [src/contexts/notes/domain/src/note/note_status.rs]
+  command:
+    canonical: [src/contexts/notes/application/src/commands/share_note.rs]
+    example: '`ShareNote` in [`share_note.rs`](src/contexts/notes/application/src/commands/share_note.rs)'
+    notes: 'a struct with a `NAME`, which is the channel its handler listens on; the three kinds of message are three traits in [`event.rs`](src/architecture/domain/src/event.rs)'
+    examples: [src/architecture/domain/src/event.rs]
+  command-handler:
+    canonical: [src/contexts/notes/application/src/commands/edit_note.rs]
+    example: '`EditNoteCommandHandler` in [`edit_note.rs`](src/contexts/notes/application/src/commands/edit_note.rs)'
+    notes: 'generic over its ports, `Arc`-shared with the other handlers of the aggregate'
+  guard:
+    canonical: [src/shared_kernel/application/src/guards.rs]
+    example: '`require_signed_in()` in [`guards.rs`](src/shared_kernel/application/src/guards.rs), called once at the top of `execute()`'
+    notes: 'a `guard()` override for a role-only rule is not written yet'
+  base-handler:
+    canonical: [src/architecture/application/src/command_handler.rs]
+    notes: 'a trait whose provided `handle()` is the template method; a concrete handler writes `execute()`'
+  query-handler:
+    canonical: [src/contexts/notes/application/src/queries/get_note.rs]
+  execution-context:
+    canonical: [src/architecture/application/src/execution_context.rs]
+    notes: 'shared by `Arc`, so a clone is the same context; `after_commit` takes a future'
+  publish-after-commit:
+    canonical: [src/architecture/application/src/domain_events.rs]
+    example: '`publish_domain_events()` in [`domain_events.rs`](src/architecture/application/src/domain_events.rs)'
+    notes: 'the handler hands the aggregate over, and the events are pulled at the commit'
+  domain-event-handler:
+    canonical: [src/contexts/notes/application/src/events/note_shared_handler.rs]
+  integration-event:
+    canonical: [src/shared_kernel/application/src/integration_events/note_integration_events.rs]
+  non-determinism-as-a-value:
+    canonical:
+      - src/contexts/notes/application/src/suggestions.rs
+      - src/contexts/notes/application/src/commands/suggest_note_title.rs
+      - src/contexts/notes/infrastructure/src/suggestions.rs
+    example: >-
+      [`suggestions.rs`](src/contexts/notes/application/src/suggestions.rs) →
+      [`suggest_note_title.rs`](src/contexts/notes/application/src/commands/suggest_note_title.rs), answered
+      locally by [`infrastructure/suggestions.rs`](src/contexts/notes/infrastructure/src/suggestions.rs)
+  module:
+    canonical:
+      - src/architecture/application/src/module.rs
+      - src/contexts/notes/wiring/src/lib.rs
+    example: >-
+      [`module.rs`](src/architecture/application/src/module.rs), used in
+      [`notes/wiring`](src/contexts/notes/wiring/src/lib.rs)
+    notes: 'the wiring is a crate; a handler is listed with `Subscription::command`, a query with `query()`'
+  repository-implementation:
+    canonical: [src/contexts/notes/infrastructure/src/repositories.rs]
+  queries-implementation:
+    canonical: [src/contexts/notes/infrastructure/src/queries.rs]
+  event-bus:
+    canonical: [src/architecture/infrastructure/src/event_bus.rs]
+    notes: 'routes by name, awaits the handlers inline; the port is [`event_bus.rs`](src/architecture/application/src/event_bus.rs)'
+    examples: [src/architecture/application/src/event_bus.rs]
+  unit-of-work:
+    canonical: [src/architecture/infrastructure/src/unit_of_work.rs]
+    notes: 'over the stores the composition root lists, rather than every store of the process'
+  the-database:
+    canonical: [src/architecture/infrastructure/src/data_sources.rs]
+    notes: 'an insertion-ordered map behind a mutex'

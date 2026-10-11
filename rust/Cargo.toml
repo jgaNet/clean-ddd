@@ -10,9 +10,17 @@ version = "3.1.0"
 edition = "2024"
 license = "MIT"
 publish = false
+rust-version = "1.85"
+
+# Only the console logger and the tools write to the console; everything else logs through the Logger port.
+[workspace.lints.clippy]
+print_stdout = "deny"
+print_stderr = "deny"
 
 [workspace.dependencies]
 uuid = { version = "1", features = ["v4"] }
+futures = "0.3"
+indexmap = "2"
 pollster = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"

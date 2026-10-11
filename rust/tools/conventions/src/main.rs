@@ -20,6 +20,9 @@
 //! Layer names are the contract's (`Domain`); a crate directory is the same word in lowercase
 //! (`domain`), which is Rust's convention for a path.
 
+// A tool talks on the console: the workspace denies it to everything but the logger and the tools.
+#![allow(clippy::print_stdout, clippy::print_stderr)]
+
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};

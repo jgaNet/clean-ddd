@@ -12,3 +12,6 @@ path = "src/lib.rs"
 
 [dependencies]
 uuid.workspace = true
+
+[lints]
+workspace = true

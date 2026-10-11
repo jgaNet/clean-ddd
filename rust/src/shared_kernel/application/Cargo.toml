@@ -1,0 +1,17 @@
+# The shared kernel's Application: the guard every context asks first, and the integration
+# events that are the contracts between contexts. Built on the building blocks and its own
+# Domain, on no context (ARCH-APPLICATION, ARCH-TREES).
+[package]
+name = "shared-kernel-application"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-domain = { path = "../../architecture/domain" }
+architecture-application = { path = "../../architecture/application" }
+shared-kernel-domain = { path = "../domain" }
+
+[lints]
+workspace = true

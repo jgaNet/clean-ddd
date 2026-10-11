@@ -20,11 +20,17 @@ All four `cargo` checks must pass before a change is done; CI runs them on every
 ## Where things are
 
 ```
-src/architecture/domain/          crate architecture-domain: the building blocks' Domain (mechanics, no vocabulary)
-src/shared_kernel/domain/         crate shared-kernel-domain: Email, Role
+src/architecture/<layer>/         the building blocks, one crate per layer: domain (Entity, Aggregate, ValueObject, Id,
+                                  Event, Exception, DomainResult), application (the handler traits, ExecutionContext,
+                                  EventBus, Operation, Module), infrastructure (the in-memory adapters, ConsoleLogger)
+src/shared_kernel/<layer>/        domain (Email, Role), application (require_signed_in, integration_events/)
 src/contexts/<context>/           one crate per layer (domain/, application/, infrastructure/, presentation/) and wiring/
   domain/src/<aggregate>/mod.rs   the aggregate; beside it <name>.rs value objects, events.rs, <aggregate>_exceptions.rs,
                                   dtos.rs (the snapshot), <rule>.rs domain services, ports/
+  application/src/                commands/<use_case>.rs, queries/<use_case>.rs, events/<name>_handler.rs, the ports the
+                                  Application owns (suggestions.rs)
+  infrastructure/src/             the adapters, and the contract test of a port with several adapters
+  wiring/src/lib.rs               local_<context>_module(): the Module as data
 tools/conventions/                the conventions check
 ../conventions/rust.yaml          this language's binding of the contract: contexts, trees, enforcers, checklists, canonical files
 ```
@@ -39,19 +45,23 @@ The rules are the contract's, the same in every language, and listed in the root
 
 ## How to add a feature (follow an existing one, do not invent a shape)
 
-Only the Domain layer exists so far, so a feature here is a domain change; the steps below are the ones that apply today, in the order of the TypeScript guide.
+Ask the contract first: `yarn --cwd ../typescript architecture checklist <kind>` lists what a new one is made of in Rust and where it goes, with the placeholders filled in snake_case; `plan validate|explain` works on a plan that says `language: rust` ([`conventions/plans/share-a-note.rust.yaml`](../conventions/plans/share-a-note.rust.yaml) is the example). The questions the TypeScript guide answers (verbs, where a spec goes, whether an event needs a handler, a guard on an event handler) are answered the same way here.
 
-1. **Domain first.** Add a behaviour to the aggregate that enforces the rule and records an event ([`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs)): check the rules with `?` on the private `ensure_*` helpers, change the state, `self.root.record(NoteEvent::…)`, return `Ok(())`. New concept with validation? A value object ([`note_title.rs`](src/contexts/notes/domain/src/note/note_title.rs)): a newtype, a private field, `create()` returning `DomainResult`, one exception per rule in [`note_exceptions.rs`](src/contexts/notes/domain/src/note/note_exceptions.rs) (a `kind` constant and a constructor). New rule about the whole collection, or a fact another context owns? A domain service generic over its port ([`note_sharing.rs`](src/contexts/notes/domain/src/note/note_sharing.rs)). A new fact is a new variant of the aggregate's event enum ([`events.rs`](src/contexts/notes/domain/src/note/events.rs)), named in the past tense, with its payload as fields.
-2. **Tests beside the code**, in a `#[cfg(test)] mod tests` at the bottom of the file: every rule, the happy path and each refusal (`expect_err(...).is(KIND)`), and for an aggregate the round-trip through the snapshot. A port is doubled by a small struct implementing the trait; an `async` port is driven with `pollster::block_on`.
-3. **The map.** A new file worth pointing at goes under `concepts` in [`conventions/rust.yaml`](../conventions/rust.yaml); then `yarn --cwd ../typescript conventions:write` and `cargo run -p conventions`.
-
-The Application, Infrastructure and Presentation steps are the TypeScript guide's; when those crates exist here, this section grows with them.
+1. **Domain first.** Add a behaviour to the aggregate that enforces the rule and records an event ([`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs)): check the rules with `?` on the private `ensure_*` helpers, change the state, `self.root.record(NoteEvent::…)`, return `Ok(())`. A pure read skips the aggregate: its first step is a read model and a method on the queries port ([`note_queries.rs`](src/contexts/notes/domain/src/note/ports/note_queries.rs)). New concept with validation? A value object ([`note_title.rs`](src/contexts/notes/domain/src/note/note_title.rs)): a newtype, a private field, `create()` returning `DomainResult`, one exception per rule in [`note_exceptions.rs`](src/contexts/notes/domain/src/note/note_exceptions.rs) (a `kind` constant and a constructor). New rule about the whole collection, or a fact another context owns? A domain service generic over its port ([`note_sharing.rs`](src/contexts/notes/domain/src/note/note_sharing.rs)). A new fact is a new variant of the aggregate's event enum ([`events.rs`](src/contexts/notes/domain/src/note/events.rs)), named in the past tense, with its payload as fields. Tests at the bottom of the file.
+2. **Command + handler**, in one file copied from [`edit_note.rs`](src/contexts/notes/application/src/commands/edit_note.rs): the command struct with its `NAME`, the handler generic over its ports with `execute()` — `require_signed_in` → load → ask the aggregate → `save(&note).await?` → `publish_domain_events(note, context).await`. Or a query handler from [`get_note.rs`](src/contexts/notes/application/src/queries/get_note.rs). One `pub mod` line in `commands/mod.rs` or `queries/mod.rs`; the tests of the handlers of one aggregate share the fixture at the bottom of [`commands/mod.rs`](src/contexts/notes/application/src/commands/mod.rs), with the in-memory repository as the double and the in-memory bus with a recording handler to see what was published.
+3. **Infrastructure** only if a port changed. A new adapter of an existing port is added to `adapters()` in [`persistence_contract.rs`](src/contexts/notes/infrastructure/src/persistence_contract.rs) and must pass it unchanged; that is the whole review.
+4. **Route + controller**: not here yet; the TypeScript guide's step applies when the Presentation crate exists.
+5. **List it in the wiring** ([`wiring/src/lib.rs`](src/contexts/notes/wiring/src/lib.rs)): `Subscription::command(handler)` for a command, `query(handler)` for a query, `Subscription::reaction("<TheFact>", handler)` for a reaction.
+6. Cross-context reaction? Publish an integration event from a domain event handler ([`note_shared_handler.rs`](src/contexts/notes/application/src/events/note_shared_handler.rs)): the contract is an enum in the shared kernel's `integration_events/`, with its published name; the consuming context's anti-corruption handler comes with that context.
+7. **The map.** A new file worth pointing at goes under `concepts` in [`conventions/rust.yaml`](../conventions/rust.yaml); then `yarn --cwd ../typescript conventions:write` and `cargo run -p conventions`.
 
 ## Code style
 
 - Edition 2024, `cargo clippy --all-targets -- -D warnings` clean, `cargo fmt` applied (`rustfmt.toml`: 120 columns).
 - Private fields everywhere in the domain; the only way into an aggregate is `create()` or `from_snapshot()`, the only way into a value object is `create()`. Accessors return references or copies, never `&mut`.
-- `DomainResult<T>` in every signature that can refuse; `?` to pass a refusal on; `panic!` only for corrupted state, with the id in the message. No `unwrap()` outside tests; `expect("why")` in tests.
+- `DomainResult<T>` in every signature that can refuse; `?` to pass a refusal on; `panic!` only for corrupted state, with the id in the message. No `unwrap()` outside tests; `expect("why")` in tests. A handler never catches: the provided `handle()` is the safety net.
+- A handler takes its ports in `new()`, generic over their traits, shared in `Arc` with the other handlers of the aggregate; the only state it holds is those ports (ARCH-EXECUTION-CONTEXT: a clock, a mailer, a model client is such a port, never a member of the context).
+- Only [`logging.rs`](src/architecture/infrastructure/src/logging.rs) and the tools print: the workspace denies `println!` and `eprintln!` everywhere else; a handler logs through `context.logger()`.
 - `snake_case` files named after what they hold (`note_title.rs`, `note_sharing.rs`); `PascalCase` types; a `kind` constant in `SCREAMING_CASE` per rule (`NOT_NOTE_OWNER`); enum names in the outside world are the variant in uppercase (`NoteStatus::Active.as_str() == "ACTIVE"`).
 - A doc comment (`//!` at the top of a file, `///` on an item) explains *why* the file exists and what rule it protects, in a few lines. No commented-out code.
 - Conventional commits (`feat:`, `fix:`, `refactor:`, `chore:`, `docs:`), one concern per PR, and the PR body states how it was verified.
@@ -62,3 +72,5 @@ The Application, Infrastructure and Presentation steps are the TypeScript guide'
 - A dependency a crate's row does not allow, however convenient: the compiler says no, `cargo run -p conventions` says which rule, and the fix is a port, an integration event or a move — never an edit to the binding.
 - A rule in `conventions/rust.yaml`: a binding points at files and holds no rule (ARCH-ONE-CONTRACT).
 - A `Result` type of our own, a `Mapper`, a generic `Repository<T>`, a service locator or a DI container.
+- A runtime dependency (`tokio`) below the Presentation layer: the ports are `async` by shape, the tests drive them with `pollster`, and the bus awaits the handlers inline; spawning is the transport's business.
+- Overriding `handle()`: it is the template method, the same for every handler; what differs goes in `execute()` or `guard()`.

@@ -16,5 +16,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0010](0010-a-new-application-is-copied-not-templated.md) | A new application is copied from the reference, not templated |
 | [0011](0011-one-reference-several-languages.md) | One reference, several languages: a shared contract, a binding per language |
 | [0012](0012-in-rust-a-layer-is-a-crate.md) | In Rust, a layer is a crate, and the dependency table is its dependencies |
+| [0013](0013-in-rust-the-bus-routes-by-name-and-a-handler-is-a-trait.md) | In Rust, the bus routes type-erased events by name, and a handler is a trait with a provided `handle()` |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

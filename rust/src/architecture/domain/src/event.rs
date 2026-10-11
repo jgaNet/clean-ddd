@@ -27,8 +27,11 @@ pub trait Event: fmt::Debug + Clone + PartialEq {
     fn name(&self) -> &'static str;
 }
 
-/// A request that something happen; one handler, may be refused.
-pub trait CommandEvent: Event {}
+/// A request that something happen; one handler, may be refused. A command is a struct with
+/// one name, which is the channel its handler is subscribed on.
+pub trait CommandEvent: Event {
+    const NAME: &'static str;
+}
 
 /// A fact that happened inside a context; recorded by an aggregate, published after commit.
 pub trait DomainEvent: Event {}

@@ -21,7 +21,7 @@ pub mod note_status;
 pub mod note_title;
 pub mod ports;
 
-use architecture_domain::{AggregateRoot, DomainResult, Entity, Id};
+use architecture_domain::{Aggregate, AggregateRoot, DomainResult, Entity, Id};
 
 pub use dtos::{NewNote, NoteSnapshot};
 pub use events::NoteEvent;
@@ -47,6 +47,15 @@ pub struct Note {
 impl Entity for Note {
     fn id(&self) -> &Id {
         self.root.id()
+    }
+}
+
+impl Aggregate for Note {
+    type Event = NoteEvent;
+
+    /// The facts recorded since the last pull; a command handler publishes them after saving.
+    fn pull_domain_events(&mut self) -> Vec<NoteEvent> {
+        self.root.pull_domain_events()
     }
 }
 
@@ -167,11 +176,6 @@ impl Note {
             shared_with: self.shared_with.clone(),
             version: self.root.version(),
         }
-    }
-
-    /// The facts recorded since the last pull; a command handler publishes them after saving.
-    pub fn pull_domain_events(&mut self) -> Vec<NoteEvent> {
-        self.root.pull_domain_events()
     }
 
     /// The version this note was read at; the repository stores version + 1 (ADR 8).

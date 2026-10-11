@@ -13,3 +13,6 @@ shared-kernel-domain = { path = "../../../shared_kernel/domain" }
 
 [dev-dependencies]
 pollster.workspace = true
+
+[lints]
+workspace = true
