@@ -1,0 +1,500 @@
+# The TypeScript binding of the architecture contract: where this language keeps the trees that
+# architecture.yaml reasons about, which file shows each concept of concepts.yaml, which tool holds
+# each rule, and what a new thing of each kind is made of in this language's idiom. It adds no
+# rule: a rule lives in architecture.yaml, under one id for every language (ARCH-ONE-CONTRACT).
+#
+# Paths are relative to `root`, the directory of this language; the loader turns them into
+# repository-relative paths, so every tool, document and diff speaks the same ones. The decision
+# behind the file is docs/adr/0011-one-reference-several-languages.md.
+
+schemaVersion: 1
+language: typescript
+name: TypeScript
+root: typescript
+
+contexts: [Notes, Security, Notifications, Tracker]
+
+# The trees, and how they are imported. The import rules are written against the aliases, which
+# is why a relative import may only name a sibling file (ARCH-RELATIVE).
+contexts_tree: { alias: '@Contexts', path: src/Contexts }
+architecture: { alias: '@Architecture', path: src/Architecture }
+kernel: { alias: '@SharedKernel', path: src/SharedKernel }
+bootstrap: { alias: '@Bootstrap', path: src/Bootstrap }
+wiring: module.local.ts
+
+# Libraries only an adapter may see: the domain and the use cases never import them.
+libraries: [fastify, '@fastify/**', jose, bcryptjs, ws]
+
+# What stands behind each enforcement word of architecture.yaml, in this language.
+enforcers:
+  linter: ESLint, generated from `architecture.yaml`
+  check: '`yarn check:conventions`'
+  types: the type checker
+  tests: a spec
+  review: review (stated here, not yet mechanical)
+  evaluations: fresh-agent evaluations
+
+# The checks a change must pass before it is done; CI runs them in this order.
+checks:
+  - yarn check:conventions
+  - yarn format:check
+  - yarn lint
+  - yarn typecheck
+  - yarn test:units
+  - yarn test:e2e
+
+# What the two modes protect and decide in this language, on top of the contract and the
+# decisions, which architecture.yaml protects for every language.
+modes:
+  feature:
+    protected: [src/Architecture, src/SharedKernel, eslint.config.js, tools]
+    # Publishing a fact is what a cross-context feature does: the contracts folder is not protected.
+    allowed: [src/SharedKernel/Application/IntegrationEvents]
+  architecture:
+    decides: [src/Architecture, src/SharedKernel/Domain]
+
+# The files that show a rule, by id. The rule itself is in architecture.yaml.
+rules:
+  ARCH-RELATIVE:
+    references: [CLAUDE.md]
+  ARCH-APPLICATION-SPECS:
+    references: [src/Contexts/Notes/Application/Commands/NoteCommandHandlers.spec.ts]
+  ARCH-INFRASTRUCTURE:
+    references: [src/Contexts/Notes/Infrastructure/Directories/SecurityAccountDirectory.ts]
+  ARCH-PRESENTATION:
+    references: [src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts]
+  ARCH-WIRING:
+    references: [src/Contexts/Notes/module.local.ts]
+  ARCH-E2E:
+    references: [src/Bootstrap/Fastify/application.spec-helper.ts]
+  ARCH-TREES:
+    references: [src/Architecture, src/SharedKernel]
+  ARCH-MODULES-DATA:
+    references: [src/Contexts/Notes/module.local.ts]
+  ARCH-EXECUTION-CONTEXT:
+    references: [src/Architecture/Application/ExecutionContext.ts]
+  DOMAIN-RESULT:
+    references: [src/Architecture/Application/CommandHandler.spec.ts]
+  DOMAIN-RECORDS-EVENTS:
+    references: [src/Architecture/Domain/AggregateRoot.ts]
+  DOMAIN-CREATE-VS-RECONSTITUTE:
+    references: [src/Contexts/Notes/Domain/Note/Note.spec.ts]
+  DOMAIN-NON-DETERMINISM:
+    references: [src/Contexts/Notes/Application/Commands/SuggestNoteTitle/SuggestNoteTitleCommandHandler.ts]
+  EVENT-AFTER-COMMIT:
+    references: [src/Architecture/Application/DomainEvents.spec.ts]
+  CONC-OPTIMISTIC:
+    references: [src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts]
+  ARCH-MAP-IS-REAL:
+    references: [tools/check-conventions.ts]
+
+# The routes file that shows each verb of the HTTP table, by intent.
+verbs:
+  read: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
+  create: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
+  act: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
+  create-under: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
+  replace: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
+  replace-part: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
+  change-part: src/Contexts/Notifications/Presentation/API/REST/Routes/notification.routes.ts
+  remove: src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
+  link-in-an-email: src/Contexts/Security/Presentation/API/REST/Routes/auth.routes.ts
+
+# What a new thing of each kind is made of in TypeScript, and where each part goes. The kinds
+# are architecture.yaml's; `yarn architecture checklist <kind>` prints one, `place <kind>` only
+# the path.
+checklists:
+  aggregate:
+    place: src/Contexts/<Context>/Domain/<Aggregate>/<Aggregate>.ts
+    parts:
+      - 'The aggregate itself: a private constructor, `create()` (validates, generates the Id, records the creation event), `fromSnapshot()` (records nothing, throws on corrupted data), `toSnapshot()`, `super(id, version)` for the version it was read at.'
+      - '`DTOs.ts` beside it: the snapshot shape, `version` included.'
+      - '`<Aggregate>Exceptions.ts`: one file, one base exception for the aggregate, a PascalCase `type` per rule.'
+      - '`Events/<Aggregate>Events.ts`: the facts its behaviours record, past tense, minimal payload.'
+      - '`Ports/I<Aggregate>Repository.ts`: `findById`, `save` returning `IResult`, plus the facts a rule needs about the collection.'
+      - '`Ports/I<Aggregate>Queries.ts` and its read models, when a screen reads it.'
+      - '`<Aggregate>.spec.ts` beside it: every rule, and the round-trip through the snapshot.'
+      - 'An in-memory adapter per port under `Infrastructure/`, and a contract spec once a port promises an order or a filter.'
+      - 'Wiring in `module.local.ts`: the store, the adapters, the handlers.'
+  value-object:
+    place: src/Contexts/<Context>/Domain/<Aggregate>/<Name>.ts
+    parts:
+      - '`static create()` returning `IResult`, a private constructor, the rule as a `static readonly` constant when there is a number.'
+      - 'One exception per rule the user could act on differently, in the aggregate''s exceptions file.'
+      - '`equalsValue()` when the value is structured (an object, an array); primitives need nothing.'
+      - '`<Name>.spec.ts` beside it: what it accepts, what it refuses, and equality.'
+  domain-service:
+    place: src/Contexts/<Context>/Domain/<Aggregate>/<Rule>.ts
+    parts:
+      - 'Named after the rule it holds (`AccountRegistration`, `NoteSharing`, `NoteBookmarking`), not after a layer.'
+      - 'Takes the ports it needs in its constructor; returns `IResult`; holds no logging, no transaction, no publishing.'
+      - 'Used when a rule spans several aggregates or needs a fact about the collection; a rule about one aggregate stays a behaviour.'
+      - '`<Rule>.spec.ts` beside it, with a small fake of each port.'
+  command:
+    place: src/Contexts/<Context>/Application/Commands/<UseCase>/
+    parts:
+      - '`<UseCase>CommandEvent.ts`: a named payload, nothing more.'
+      - '`<UseCase>CommandHandler.ts`: `requireSignedIn` at the top of `execute()`, load, ask the aggregate or the domain service, save (check the `IResult`), `publishDomainEvents`.'
+      - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
+      - 'Two lines in `Application/Commands/index.ts`; no barrel in the use-case folder.'
+      - 'A spec with at least a happy path and one refusal; through `handle()` when the rule is in `guard()`.'
+      - 'A route answering `202 { operationId }`, its JSON schema, and the handler registered in `module.local.ts`.'
+  query:
+    place: src/Contexts/<Context>/Application/Queries/<UseCase>/
+    parts:
+      - 'A read model and a method on the queries port, with the order and the unknown-id answer in its JSDoc.'
+      - 'The handler reads the port and nothing else: no sorting, no second port, no aggregate.'
+      - 'One line in `Application/Queries/index.ts`.'
+      - 'A spec when the handler holds a visibility or role rule.'
+      - 'A route answering synchronously, refusals through the controller''s `refuse()`, the response fields listed in the schema.'
+  integration-event:
+    place: src/SharedKernel/Application/IntegrationEvents/<Aggregate>IntegrationEvents.ts
+    parts:
+      - 'A class extending `IntegrationEvent<Payload>`, named for the fact in the publishing context''s public words, in that context''s file.'
+      - 'A payload carrying everything a consumer needs, so it never queries back.'
+      - 'A domain event handler in the publishing context that translates the domain event into it — that is where a fact leaves its context.'
+      - 'An anti-corruption handler in each consuming context, registered in its `module.local.ts`.'
+      - 'Adding one is not an architecture change: the folder is where a context publishes, and a feature may publish.'
+  event-handler:
+    place: src/Contexts/<Context>/Application/Events/<Name>Handler.ts
+    parts:
+      - 'Extends `EventHandler<TheEvent>`; `execute()` returns an `IResult`; no guard — the fact was already allowed.'
+      - 'A reaction inside its own context, or the translation of a domain event into an integration event, or an anti-corruption layer over another context''s contract.'
+      - 'Registered in `module.local.ts` under `domainEvents` or `integrationEvents`.'
+      - '`<Name>Handler.spec.ts` beside it.'
+  context:
+    place: src/Contexts/<Context>/
+    parts:
+      - 'Declared in `contexts` in this file, or no import rule applies to it.'
+      - 'The four layers and nothing else beside `module.local.ts`.'
+      - 'Its own vocabulary: a word that means something else here is a sign the context is right.'
+      - 'It asks other contexts through ports it owns, and tells them through integration events; never both sides of an import.'
+      - 'Registered in the composition root, with its routes under its own prefix.'
+
+# One test style per layer, for the README.
+tests:
+  - layer: Domain
+    example: '[`Note.spec.ts`](src/Contexts/Notes/Domain/Note/Note.spec.ts)'
+    doubles: none
+  - layer: Domain service
+    example: '[`AccountRegistration.spec.ts`](src/Contexts/Security/Domain/Account/AccountRegistration.spec.ts)'
+    doubles: a 10-line fake of the port
+  - layer: Application
+    example: '[`NoteCommandHandlers.spec.ts`](src/Contexts/Notes/Application/Commands/NoteCommandHandlers.spec.ts)'
+    doubles: the in-memory repository *is* the double
+  - layer: Infrastructure
+    example: >-
+      [`TrackedEventBus.spec.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.spec.ts),
+      [`JoseSignedTokens.spec.ts`](src/Contexts/Security/Infrastructure/Services/JoseSignedTokens.spec.ts)
+    doubles: real in-memory pieces
+  - layer: '**Contract** (one port, every adapter)'
+    example: '[`NotePersistence.contract.spec.ts`](src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts)'
+    doubles: none — `describe.each` over the in-memory and the SQLite adapters, same expectations
+  - layer: End to end
+    example: '[`note.routes.e2e.spec.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.e2e.spec.ts)'
+    doubles: >-
+      the whole application, booted in-process by
+      [`application.spec-helper.ts`](src/Bootstrap/Fastify/application.spec-helper.ts), spoken to over HTTP
+
+# Where each word of concepts.yaml's vocabulary is shown, by word.
+vocabulary:
+  Building blocks: '[`src/Architecture`](src/Architecture)'
+  Shared kernel: '[`src/SharedKernel`](src/SharedKernel)'
+  Bounded context: '[`src/Contexts`](src/Contexts)'
+  Aggregate (root): '[`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts)'
+  Entity: >-
+    [`Entity.ts`](src/Architecture/Domain/Entity.ts),
+    [`DeliveryAttempt.ts`](src/Contexts/Notifications/Domain/Notification/DeliveryAttempt.ts)
+  Value object: '[`NoteTitle.ts`](src/Contexts/Notes/Domain/Note/NoteTitle.ts)'
+  Invariant: '`shareWith()` in [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts)'
+  Domain event: '[`NoteEvents.ts`](src/Contexts/Notes/Domain/Note/Events/NoteEvents.ts)'
+  Integration event: '[`NoteIntegrationEvents.ts`](src/SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts)'
+  Command: '[`ShareNoteCommandEvent.ts`](src/Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandEvent.ts)'
+  Query: '[`GetNoteQueryHandler.ts`](src/Contexts/Notes/Application/Queries/GetNote/GetNoteQueryHandler.ts)'
+  Read model: '[`INoteQueries.ts`](src/Contexts/Notes/Domain/Note/Ports/INoteQueries.ts)'
+  Projection: '[`OperationProjection.ts`](src/Contexts/Tracker/Application/Projections/OperationProjection.ts)'
+  Port: >-
+    [`INoteRepository.ts`](src/Contexts/Notes/Domain/Note/Ports/INoteRepository.ts),
+    [`IAccountDirectory.ts`](src/Contexts/Notes/Domain/Note/Ports/IAccountDirectory.ts)
+  Adapter: >-
+    [`InMemoryNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository.ts),
+    [`SecurityAccountDirectory.ts`](src/Contexts/Notes/Infrastructure/Directories/SecurityAccountDirectory.ts)
+  Repository: '[`INoteRepository.ts`](src/Contexts/Notes/Domain/Note/Ports/INoteRepository.ts)'
+  Domain service: >-
+    [`AccountRegistration.ts`](src/Contexts/Security/Domain/Account/AccountRegistration.ts),
+    [`NoteSharing.ts`](src/Contexts/Notes/Domain/Note/NoteSharing.ts)
+  Application service: '[`NotificationDelivery.ts`](src/Contexts/Notifications/Application/Services/NotificationDelivery.ts)'
+  Anti-corruption layer: '[`NoteSharedIntegrationEventHandler.ts`](src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts)'
+  Snapshot: '[`DTOs.ts`](src/Contexts/Notes/Domain/Note/DTOs.ts)'
+  Operation: '[`Operation.ts`](src/Architecture/Application/Operation.ts)'
+  Composition root: '[`createApplication.ts`](src/Bootstrap/Fastify/createApplication.ts)'
+
+# The file that shows each concept of concepts.yaml, by id: `canonical` is what the map names,
+# `example` the README cell (Markdown; defaults to links to `canonical`), `examples` the other
+# files the cell mentions, `notes` what this language adds to the concept's description.
+concepts:
+  entity:
+    canonical:
+      - src/Architecture/Domain/Entity.ts
+    example: '[`Entity.ts`](src/Architecture/Domain/Entity.ts)'
+  aggregate-root:
+    canonical:
+      - src/Contexts/Notes/Domain/Note/Note.ts
+      - src/Architecture/Domain/AggregateRoot.ts
+    example: >-
+      [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts) on
+      [`AggregateRoot.ts`](src/Architecture/Domain/AggregateRoot.ts)
+    examples:
+      - src/Contexts/Security/Domain/Account/Account.ts
+      - src/Contexts/Notifications/Domain/Notification/Notification.ts
+    notes: >-
+      also [`Account.ts`](src/Contexts/Security/Domain/Account/Account.ts),
+      [`Notification.ts`](src/Contexts/Notifications/Domain/Notification/Notification.ts)
+  entity-inside-an-aggregate:
+    canonical:
+      - src/Contexts/Notifications/Domain/Notification/DeliveryAttempt.ts
+    example: '[`DeliveryAttempt.ts`](src/Contexts/Notifications/Domain/Notification/DeliveryAttempt.ts)'
+  value-object:
+    canonical:
+      - src/Contexts/Notes/Domain/Note/NoteTitle.ts
+      - src/SharedKernel/Domain/Email.ts
+      - src/Contexts/Security/Domain/Account/Credentials.ts
+    example: >-
+      [`NoteTitle.ts`](src/Contexts/Notes/Domain/Note/NoteTitle.ts),
+      [`Email.ts`](src/SharedKernel/Domain/Email.ts),
+      [`Credentials.ts`](src/Contexts/Security/Domain/Account/Credentials.ts)
+  identity:
+    canonical:
+      - src/Architecture/Domain/Id.ts
+    example: '[`Id.ts`](src/Architecture/Domain/Id.ts)'
+  factory:
+    canonical:
+      - src/Contexts/Notes/Domain/Note/Note.ts
+    example: '`Note.create()` in [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts)'
+    examples:
+      - src/Contexts/Security/Domain/Account/AccountRegistration.ts
+    notes: 'the domain-service factory: [`AccountRegistration.ts`](src/Contexts/Security/Domain/Account/AccountRegistration.ts)'
+  invariant:
+    canonical:
+      - src/Contexts/Notes/Domain/Note/Note.ts
+    example: '`shareWith()` in [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts)'
+  creation-vs-reconstitution:
+    canonical:
+      - src/Contexts/Notes/Domain/Note/Note.ts
+    example: '`Note.create()` vs `Note.fromSnapshot()` in [`Note.ts`](src/Contexts/Notes/Domain/Note/Note.ts)'
+  domain-event:
+    canonical:
+      - src/Contexts/Notes/Domain/Note/Events/NoteEvents.ts
+    example: '[`NoteEvents.ts`](src/Contexts/Notes/Domain/Note/Events/NoteEvents.ts)'
+  domain-exception:
+    canonical:
+      - src/Contexts/Notes/Domain/Note/NoteExceptions.ts
+    example: '[`NoteExceptions.ts`](src/Contexts/Notes/Domain/Note/NoteExceptions.ts)'
+  result:
+    canonical:
+      - src/Architecture/Domain/Result.ts
+    example: '[`Result.ts`](src/Architecture/Domain/Result.ts)'
+  optimistic-concurrency:
+    canonical:
+      - src/Architecture/Domain/AggregateRoot.ts
+      - src/Contexts/Notes/Infrastructure/Repositories/SqliteNoteRepository.ts
+      - src/Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository.ts
+    example: >-
+      `AggregateRoot.version` in [`AggregateRoot.ts`](src/Architecture/Domain/AggregateRoot.ts); `save()` in
+      [`SqliteNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/SqliteNoteRepository.ts)
+      (`UPDATE … WHERE version = ?`) and
+      [`InMemoryNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository.ts)
+  repository-port:
+    canonical:
+      - src/Contexts/Notes/Domain/Note/Ports/INoteRepository.ts
+    example: '[`INoteRepository.ts`](src/Contexts/Notes/Domain/Note/Ports/INoteRepository.ts)'
+  queries-port-read-models:
+    canonical:
+      - src/Contexts/Notes/Domain/Note/Ports/INoteQueries.ts
+    example: '[`INoteQueries.ts`](src/Contexts/Notes/Domain/Note/Ports/INoteQueries.ts)'
+  snapshot-dto:
+    canonical:
+      - src/Contexts/Notes/Domain/Note/DTOs.ts
+    example: '[`DTOs.ts`](src/Contexts/Notes/Domain/Note/DTOs.ts)'
+  domain-service:
+    canonical:
+      - src/Contexts/Security/Domain/Account/AccountRegistration.ts
+    example: '[`AccountRegistration.ts`](src/Contexts/Security/Domain/Account/AccountRegistration.ts)'
+  port-to-another-context:
+    canonical:
+      - src/Contexts/Notes/Domain/Note/Ports/IAccountDirectory.ts
+      - src/Contexts/Notes/Domain/Note/NoteSharing.ts
+      - src/Contexts/Notes/Infrastructure/Directories/SecurityAccountDirectory.ts
+    example: >-
+      [`IAccountDirectory.ts`](src/Contexts/Notes/Domain/Note/Ports/IAccountDirectory.ts), used by
+      [`NoteSharing.ts`](src/Contexts/Notes/Domain/Note/NoteSharing.ts), answered by
+      [`SecurityAccountDirectory.ts`](src/Contexts/Notes/Infrastructure/Directories/SecurityAccountDirectory.ts)
+  ports-for-technical-concerns:
+    canonical:
+      - src/Contexts/Security/Domain/Auth/Ports/IPasswordHasher.ts
+      - src/Contexts/Security/Domain/Auth/Ports/ISignedTokens.ts
+    example: >-
+      [`IPasswordHasher.ts`](src/Contexts/Security/Domain/Auth/Ports/IPasswordHasher.ts),
+      [`ISignedTokens.ts`](src/Contexts/Security/Domain/Auth/Ports/ISignedTokens.ts)
+  lifecycle-as-an-enum:
+    canonical:
+      - src/Contexts/Notes/Domain/Note/NoteStatus.ts
+      - src/Contexts/Security/Domain/Account/AccountStatus.ts
+    example: >-
+      [`NoteStatus.ts`](src/Contexts/Notes/Domain/Note/NoteStatus.ts),
+      [`AccountStatus.ts`](src/Contexts/Security/Domain/Account/AccountStatus.ts)
+  command:
+    canonical:
+      - src/Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandEvent.ts
+    example: '[`ShareNoteCommandEvent.ts`](src/Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandEvent.ts)'
+    examples:
+      - src/Architecture/Domain/EventTypes.ts
+    notes: 'the three kinds of message: [`EventTypes.ts`](src/Architecture/Domain/EventTypes.ts)'
+  command-handler:
+    canonical:
+      - src/Contexts/Notes/Application/Commands/EditNote/EditNoteCommandHandler.ts
+    example: '[`EditNoteCommandHandler.ts`](src/Contexts/Notes/Application/Commands/EditNote/EditNoteCommandHandler.ts)'
+  guard:
+    canonical:
+      - src/SharedKernel/Application/Guards.ts
+      - src/Contexts/Security/Application/Commands/RegisterAdmin/RegisterAdminCommandHandler.ts
+    example: >-
+      `requireSignedIn()` in [`Guards.ts`](src/SharedKernel/Application/Guards.ts), called once at the top of
+      `execute()`; `guard()` in
+      [`RegisterAdminCommandHandler.ts`](src/Contexts/Security/Application/Commands/RegisterAdmin/RegisterAdminCommandHandler.ts)
+      for role-only rules
+  application-service:
+    canonical:
+      - src/Contexts/Notifications/Application/Services/NotificationDelivery.ts
+    example: '[`NotificationDelivery.ts`](src/Contexts/Notifications/Application/Services/NotificationDelivery.ts)'
+  base-handler:
+    canonical:
+      - src/Architecture/Application/CommandHandler.ts
+    example: '[`CommandHandler.ts`](src/Architecture/Application/CommandHandler.ts)'
+  query-handler:
+    canonical:
+      - src/Contexts/Notes/Application/Queries/GetNote/GetNoteQueryHandler.ts
+    example: '[`GetNoteQueryHandler.ts`](src/Contexts/Notes/Application/Queries/GetNote/GetNoteQueryHandler.ts)'
+  execution-context:
+    canonical:
+      - src/Architecture/Application/ExecutionContext.ts
+    example: '[`ExecutionContext.ts`](src/Architecture/Application/ExecutionContext.ts)'
+  publish-after-commit:
+    canonical:
+      - src/Architecture/Application/CommandHandler.ts
+    example: '`publishDomainEvents()` in [`CommandHandler.ts`](src/Architecture/Application/CommandHandler.ts)'
+  domain-event-handler:
+    canonical:
+      - src/Contexts/Notes/Application/Events/NoteSharedHandler.ts
+    example: '[`NoteSharedHandler.ts`](src/Contexts/Notes/Application/Events/NoteSharedHandler.ts)'
+  integration-event:
+    canonical:
+      - src/SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts
+    example: '[`NoteIntegrationEvents.ts`](src/SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts)'
+  anti-corruption-layer:
+    canonical:
+      - src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts
+    example: '[`NoteSharedIntegrationEventHandler.ts`](src/Contexts/Notifications/Application/Events/NoteSharedIntegrationEventHandler.ts)'
+  projection-read-model:
+    canonical:
+      - src/Contexts/Tracker/Application/Projections/OperationProjection.ts
+      - src/Contexts/Tracker/Application/ReadModel/OperationRecord.ts
+    example: >-
+      [`OperationProjection.ts`](src/Contexts/Tracker/Application/Projections/OperationProjection.ts),
+      [`OperationRecord.ts`](src/Contexts/Tracker/Application/ReadModel/OperationRecord.ts)
+  non-determinism-as-a-value:
+    canonical:
+      - src/Contexts/Notes/Application/Suggestions/INoteTitleSuggestions.ts
+      - src/Contexts/Notes/Application/Commands/SuggestNoteTitle/SuggestNoteTitleCommandHandler.ts
+      - src/Contexts/Notes/Infrastructure/Suggestions/FirstLineTitleSuggestions.ts
+    example: >-
+      [`INoteTitleSuggestions.ts`](src/Contexts/Notes/Application/Suggestions/INoteTitleSuggestions.ts) →
+      [`SuggestNoteTitleCommandHandler.ts`](src/Contexts/Notes/Application/Commands/SuggestNoteTitle/SuggestNoteTitleCommandHandler.ts),
+      answered locally by
+      [`FirstLineTitleSuggestions.ts`](src/Contexts/Notes/Infrastructure/Suggestions/FirstLineTitleSuggestions.ts)
+  module:
+    canonical:
+      - src/Architecture/Application/Module.ts
+      - src/Contexts/Notes/module.local.ts
+    example: >-
+      [`Module.ts`](src/Architecture/Application/Module.ts), used in
+      [`Notes/module.local.ts`](src/Contexts/Notes/module.local.ts)
+  repository-implementation:
+    canonical:
+      - src/Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository.ts
+    example: '[`InMemoryNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository.ts)'
+  queries-implementation:
+    canonical:
+      - src/Contexts/Notes/Infrastructure/Queries/InMemoryNoteQueries.ts
+    example: '[`InMemoryNoteQueries.ts`](src/Contexts/Notes/Infrastructure/Queries/InMemoryNoteQueries.ts)'
+  second-adapter-of-the-same-port:
+    canonical:
+      - src/Contexts/Notes/Infrastructure/Repositories/SqliteNoteRepository.ts
+      - src/Contexts/Notes/Infrastructure/Queries/SqliteNoteQueries.ts
+    example: >-
+      [`SqliteNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/SqliteNoteRepository.ts),
+      [`SqliteNoteQueries.ts`](src/Contexts/Notes/Infrastructure/Queries/SqliteNoteQueries.ts) on Node's
+      built-in `node:sqlite`
+    examples:
+      - src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts
+    notes: 'the contract spec: [`NotePersistence.contract.spec.ts`](src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts)'
+  port-implementations:
+    canonical:
+      - src/Contexts/Security/Infrastructure/Services/JoseSignedTokens.ts
+      - src/Contexts/Security/Infrastructure/Services/BcryptPasswordHasher.ts
+    example: >-
+      [`JoseSignedTokens.ts`](src/Contexts/Security/Infrastructure/Services/JoseSignedTokens.ts) (`jose`),
+      [`BcryptPasswordHasher.ts`](src/Contexts/Security/Infrastructure/Services/BcryptPasswordHasher.ts)
+  event-bus:
+    canonical:
+      - src/Architecture/Infrastructure/EventBus/InMemoryEventBus.ts
+    example: '[`InMemoryEventBus.ts`](src/Architecture/Infrastructure/EventBus/InMemoryEventBus.ts)'
+  decorator:
+    canonical:
+      - src/Contexts/Tracker/Infrastructure/TrackedEventBus.ts
+    example: '[`TrackedEventBus.ts`](src/Contexts/Tracker/Infrastructure/TrackedEventBus.ts)'
+  unit-of-work:
+    canonical:
+      - src/Architecture/Infrastructure/UnitOfWork/InMemoryUnitOfWork.ts
+    example: '[`InMemoryUnitOfWork.ts`](src/Architecture/Infrastructure/UnitOfWork/InMemoryUnitOfWork.ts)'
+  the-database:
+    canonical:
+      - src/Architecture/Infrastructure/DataSources/InMemoryDataSource.ts
+    example: '[`InMemoryDataSource.ts`](src/Architecture/Infrastructure/DataSources/InMemoryDataSource.ts)'
+  controller:
+    canonical:
+      - src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts
+    example: >-
+      [`FastifyNoteController.ts`](src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts);
+      every other controller has the same shape
+  routes-and-json-schemas:
+    canonical:
+      - src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts
+      - src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.schema.ts
+    example: >-
+      [`note.routes.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.ts),
+      [`note.routes.schema.ts`](src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.schema.ts)
+  authentication-middleware:
+    canonical:
+      - src/Contexts/Security/Presentation/API/REST/Middlewares/FastifyJWTAuthenticationMiddleware.ts
+    example: >-
+      [`FastifyJWTAuthenticationMiddleware.ts`](src/Contexts/Security/Presentation/API/REST/Middlewares/FastifyJWTAuthenticationMiddleware.ts)
+      — never blocks, makes the caller `GUEST` unless the token verifies
+  presenters:
+    canonical:
+      - src/Contexts/Security/Presentation/Presenters/Auth
+      - src/Architecture/Presentation/Format.ts
+    example: >-
+      [`Security/Presentation/Presenters/Auth`](src/Contexts/Security/Presentation/Presenters/Auth), picked
+      per request by [`Format.ts`](src/Architecture/Presentation/Format.ts) — a plain object per controller,
+      no registry
+  composition-root:
+    canonical:
+      - src/Bootstrap/Fastify/createApplication.ts
+      - src/Architecture/Application/Application.ts
+      - src/Bootstrap/Fastify/application.ts
+    example: >-
+      [`createApplication.ts`](src/Bootstrap/Fastify/createApplication.ts) on
+      [`Application.ts`](src/Architecture/Application/Application.ts): wires, starts the modules, seeds the
+      administrator through the same bus as any command, then listens;
+      [`application.ts`](src/Bootstrap/Fastify/application.ts) is the process entry point

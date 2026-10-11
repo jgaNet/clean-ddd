@@ -8,10 +8,10 @@ A screen wants a list of notes with their titles and statuses; an API wants a no
 
 Two ports per aggregate, with different return types:
 
-- the **repository** ([`INoteRepository.ts`](../../src/Contexts/Notes/Domain/Note/Ports/INoteRepository.ts)) loads and saves the aggregate. It is the write side. It has no "search" method.
-- the **queries** ([`INoteQueries.ts`](../../src/Contexts/Notes/Domain/Note/Ports/INoteQueries.ts)) return **read models**: plain shapes tailored to a use case (`NoteListItem`, `NoteDetail`, `SharedNoteListItem`). They never return an aggregate and nothing they return goes back into the domain.
+- the **repository** ([`INoteRepository.ts`](../../typescript/src/Contexts/Notes/Domain/Note/Ports/INoteRepository.ts)) loads and saves the aggregate. It is the write side. It has no "search" method.
+- the **queries** ([`INoteQueries.ts`](../../typescript/src/Contexts/Notes/Domain/Note/Ports/INoteQueries.ts)) return **read models**: plain shapes tailored to a use case (`NoteListItem`, `NoteDetail`, `SharedNoteListItem`). They never return an aggregate and nothing they return goes back into the domain.
 
-Query handlers depend on the queries port; command handlers depend on the repository. A read model deliberately leaves things out — the account read model has no credentials ([`IAccountQueries.ts`](../../src/Contexts/Security/Domain/Account/Ports/IAccountQueries.ts)).
+Query handlers depend on the queries port; command handlers depend on the repository. A read model deliberately leaves things out — the account read model has no credentials ([`IAccountQueries.ts`](../../typescript/src/Contexts/Security/Domain/Account/Ports/IAccountQueries.ts)).
 
 Tracker takes this to its conclusion: it has **only** a read model, fed by a projection of the event stream, and no aggregate at all.
 

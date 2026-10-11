@@ -13,6 +13,9 @@ import { getChecklist, getConcept, getRule, getVerbs } from './query';
  *
  * The plan is useful twice: before the work, as a pre-flight check that the shape is legal; and
  * after it, because `new: true` on a part that already exists (or the reverse) is reported.
+ *
+ * A plan is written for one language — its `language` names the binding whose checklists say
+ * where each part goes; when it says nothing, the tooling's own language is meant.
  */
 
 export interface PlannedChange {
@@ -32,6 +35,8 @@ export interface PlannedChange {
 export interface FeaturePlan {
   schemaVersion: number;
   feature: string;
+  /** The binding the plan is written against; the tooling's own language when absent. */
+  language?: string;
   context: string;
   intent: string;
   changes: PlannedChange[];
@@ -76,6 +81,7 @@ export function loadFeaturePlan(file: string, root: string): FeaturePlan {
   return {
     schemaVersion: plan.schemaVersion,
     feature: plan.feature as string,
+    language: typeof plan.language === 'string' ? plan.language : undefined,
     context: plan.context as string,
     intent: plan.intent as string,
     changes: plan.changes,
@@ -102,9 +108,14 @@ export function validatePlan(plan: FeaturePlan, contract: ArchitectureContract, 
   const problems: string[] = [];
   const where = `${plan.feature}`;
 
+  if (plan.language && plan.language !== contract.language.id) {
+    problems.push(
+      `${where}: the plan is written for ${plan.language}, and is being checked against the ${contract.language.id} binding`,
+    );
+  }
   if (!contract.contexts.includes(plan.context) && !plan.changes.some(change => change.kind === 'context')) {
     problems.push(
-      `${where}: the context ${plan.context} is not declared in ${contract.sources.architecture}; a new context is a change of kind "context" and needs architectureChanges: true (ARCH-CONTEXT-DECLARED)`,
+      `${where}: the context ${plan.context} is not declared in ${contract.sources.binding}; a new context is a change of kind "context" and needs architectureChanges: true (ARCH-CONTEXT-DECLARED)`,
     );
   }
 
@@ -209,6 +220,7 @@ export interface ExplainedChange {
 
 export interface ExplainedPlan {
   feature: string;
+  language: string;
   context: string;
   intent: string;
   changes: ExplainedChange[];
@@ -255,6 +267,7 @@ export function explainPlan(plan: FeaturePlan, contract: ArchitectureContract): 
 
   return {
     feature: plan.feature,
+    language: contract.language.id,
     context: plan.context,
     intent: plan.intent,
     changes,
@@ -262,13 +275,6 @@ export function explainPlan(plan: FeaturePlan, contract: ArchitectureContract): 
       .map(id => getRule(contract, id))
       .filter((rule): rule is Rule => rule !== undefined)
       .map(({ id, statement, remediation }) => ({ id, statement, remediation })),
-    checks: [
-      'yarn check:conventions',
-      'yarn format:check',
-      'yarn lint',
-      'yarn typecheck',
-      'yarn test:units',
-      'yarn test:e2e',
-    ],
+    checks: contract.checks,
   };
 }

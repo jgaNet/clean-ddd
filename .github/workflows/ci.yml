@@ -1,5 +1,9 @@
 name: ci
 
+# One job per language, each run from its own directory with its own toolchain. There is no
+# path filter on purpose: a change to the contract, to a decision or to a shared document must
+# run every language's checks, since every language's documents are rendered from them.
+
 on:
   push:
     branches:
@@ -7,8 +11,11 @@ on:
   pull_request:
 
 jobs:
-  check:
+  typescript:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: typescript
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -16,8 +23,9 @@ jobs:
       - name: Use Node
         uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
+          node-version-file: typescript/.nvmrc
           cache: yarn
+          cache-dependency-path: typescript/yarn.lock
 
       - name: Install
         run: yarn install --frozen-lockfile

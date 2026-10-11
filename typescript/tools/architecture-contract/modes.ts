@@ -12,6 +12,10 @@ import { repositoryRoot } from './load';
  * whoever has agreed to work under a constraint — an agent told to add a feature and nothing
  * else, an evaluation whose rules of engagement say the docs are off limits, a reviewer
  * asking what kind of change they are reading.
+ *
+ * The diff is read at the repository root and the protected trees are repository-relative:
+ * the contract and the decisions every language shares, and this language's building blocks,
+ * shared kernel and tools, which its binding adds.
  */
 
 export interface ModeVerdict {

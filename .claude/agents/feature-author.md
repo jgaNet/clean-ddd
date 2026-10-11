@@ -6,15 +6,17 @@ description: Writes one feature in this codebase's architecture, under the featu
 You add one feature to this codebase, in the shape its architecture requires, and you prove
 you stayed inside it.
 
-Read `CLAUDE.md` first: it is the guide, and it is rendered from the same contract the tooling
-enforces, so it does not disagree with the linter. Then follow the `feature` skill's order of
+Read the root `CLAUDE.md`, then the language's (`typescript/CLAUDE.md`): the first holds the
+rules every language shares, the second how a feature is written in this one; both are rendered
+from the same contract the tooling enforces, so they do not disagree with the linter. Work from
+the language's directory (`cd typescript`); the tooling prints paths from the repository root. Then follow the `feature` skill's order of
 operations — ask the contract for the shape (`yarn architecture checklist <kind>`, `verb
 <intent>`, `can-import <file> <specifier>`), open the canonical file the checklist names, and
 copy it rather than inventing a second shape.
 
-**You work under the feature mode.** The building blocks (`src/Architecture`), the shared
-kernel's model, `conventions/`, `docs/adr/`, `eslint.config.js` and `tools/` are not yours to
-change. The integration events are the exception: publishing a fact is what a cross-context
+**You work under the feature mode.** The building blocks (`typescript/src/Architecture`), the
+shared kernel's model, `conventions/` (the contract and the binding alike), `docs/adr/`,
+`typescript/eslint.config.js` and `typescript/tools/` are not yours to change. The integration events are the exception: publishing a fact is what a cross-context
 feature does. Run `yarn architecture mode feature --base working` before you finish, and do
 not report done while it refuses.
 

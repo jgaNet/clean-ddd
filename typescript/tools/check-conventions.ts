@@ -1,0 +1,285 @@
+#!/usr/bin/env tsx
+/**
+ * Checks that the conventions and the code agree. Runs in CI as `yarn check:conventions`.
+ *
+ * 1. The architecture contract is sound: schema version understood, unique rule ids, every
+ *    reference and canonical file exists, every concept names rules that exist, and no binding
+ *    carries a rule of its own (ARCH-MAP-IS-REAL, ARCH-ONE-CONTRACT). Every language's binding is
+ *    checked, not only this one's: the root README's map is rendered from all of them.
+ * 2. The tree matches it: every directory under the contexts tree is a declared context with its
+ *    wiring file and nothing but layers; the two trees beside the contexts hold only layers
+ *    (ARCH-CONTEXT-DECLARED).
+ * 3. The documents show what the contract renders, between their markers (`--write` regenerates):
+ *    this language's README, the repository's CLAUDE.md, and — when the repository holds more than
+ *    this language — the root README's map across languages.
+ * 4. Every relative link in the documentation resolves.
+ * 5. No `eslint-disable` anywhere in src/, except `no-console` in the console logger.
+ * 6. Every feature plan under conventions/plans is legal against the contract, so the examples
+ *    cannot rot.
+ * 7. The import rules generated from the contract behave: a table of probes says which imports each
+ *    layer must refuse and which it must allow, and ESLint is asked about each.
+ *
+ * A client of tools/architecture-contract, like the CLI; it parses no YAML itself. Two roots: the
+ * repository's, where the contract and the shared documents live, and this language's, where the
+ * code is; every path the contract carries is relative to the first.
+ */
+
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'fs';
+import { dirname, join, posix, resolve } from 'path';
+
+import {
+  END_MARKER,
+  RULES_MARKER,
+  SECTION_MARKER,
+  canImportAll,
+  generateProbes,
+  explainPlan,
+  loadFeaturePlan,
+  validatePlan,
+  languageRoot,
+  loadArchitectureContract,
+  renderConceptLayer,
+  renderConceptMatrix,
+  renderDependencyTable,
+  renderLanguages,
+  renderRulesList,
+  renderRulesTable,
+  renderTests,
+  renderVocabulary,
+  repositoryRoot,
+  validateContract,
+} from './architecture-contract';
+import type { ArchitectureContract } from './architecture-contract';
+
+const root = repositoryRoot();
+const write = process.argv.includes('--write');
+const problems: string[] = [];
+const problem = (message: string) => problems.push(message);
+
+// 1. The contract is sound, for this language and for every other the map shows
+
+const contract = loadArchitectureContract(root);
+problems.push(...validateContract(contract, root));
+if (resolve(root, contract.language.root) !== languageRoot()) {
+  problem(
+    `${contract.sources.binding}: "root" says ${contract.language.root}, but this tooling runs from ${languageRoot()}`,
+  );
+}
+const others: ArchitectureContract[] = [];
+for (const language of contract.languages.filter(language => language !== contract.language.id)) {
+  try {
+    const other = loadArchitectureContract(root, language);
+    problems.push(...validateContract(other, root));
+    others.push(other);
+  } catch (error) {
+    problem(`conventions/${language}.yaml: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+const contracts = [contract, ...others];
+/** The directory of this language's documents, relative to the repository root. */
+const at = contract.language.root;
+/** More than one language, or one that is not the repository itself: the root has documents of its own. */
+const multi = at !== '.';
+
+// 2. The tree matches the contract
+
+const layers = contract.layers;
+const contextsDir = join(root, contract.contextsTree.path);
+for (const entry of readdirSync(contextsDir, { withFileTypes: true })) {
+  if (entry.isDirectory() && !contract.contexts.includes(entry.name)) {
+    problem(
+      `ARCH-CONTEXT-DECLARED: ${contract.contextsTree.path}/${entry.name} is not declared in ${contract.sources.binding}, so no import rule applies to it`,
+    );
+  }
+}
+for (const context of contract.contexts) {
+  const dir = join(contextsDir, context);
+  if (!existsSync(dir)) {
+    problem(`ARCH-CONTEXT-DECLARED: ${contract.sources.binding} declares the context ${context}, which does not exist`);
+    continue;
+  }
+  if (!existsSync(join(dir, contract.wiring)))
+    problem(`ARCH-CONTEXT-DECLARED: ${contract.contextsTree.path}/${context} has no ${contract.wiring}`);
+  for (const entry of readdirSync(dir)) {
+    if (entry !== contract.wiring && !layers.includes(entry)) {
+      problem(
+        `ARCH-CONTEXT-DECLARED: ${contract.contextsTree.path}/${context}/${entry} is neither a layer (${layers.join(', ')}) nor ${contract.wiring}`,
+      );
+    }
+  }
+}
+for (const tree of [contract.architecture, contract.kernel]) {
+  if (!existsSync(join(root, tree.path))) {
+    problem(`ARCH-TREES: ${tree.path} (${tree.alias}) does not exist`);
+    continue;
+  }
+  for (const entry of readdirSync(join(root, tree.path))) {
+    if (!layers.includes(entry))
+      problem(`ARCH-TREES: ${tree.path}/${entry} is not a layer: ${tree.alias} holds layers and nothing else`);
+  }
+}
+
+// 3. The documents show what the contract renders
+
+const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function renderInto(file: string, blocks: [string, string][]): void {
+  let text = readFileSync(join(root, file), 'utf8');
+  for (const [open, rendered] of blocks) {
+    // A block may be empty (a marker just written, its end right under it); `\n?` allows that.
+    const pattern = new RegExp(`${escape(open)}\\n([\\s\\S]*?)\\n?${escape(END_MARKER)}`);
+    const match = text.match(pattern);
+    if (!match) {
+      problem(`${file} has no generated block for "${open}"`);
+      continue;
+    }
+    if (match[1] !== rendered) {
+      if (write) text = text.replace(pattern, `${open}\n${rendered}\n${END_MARKER}`);
+      else problem(`${file}: the block "${open}" differs from what the contract renders; run yarn conventions:write`);
+    }
+  }
+  if (write) writeFileSync(join(root, file), text);
+}
+
+/** A section with nothing in it yet (a new application has no vocabulary) needs no block. */
+const nonEmpty = (blocks: [string, string, boolean][]): [string, string][] =>
+  blocks.filter(([, , has]) => has).map(([marker, rendered]) => [marker, rendered]);
+
+const LAYERS = ['domain', 'application', 'infrastructure', 'presentation'] as const;
+const layerHas = (layer: (typeof LAYERS)[number]) =>
+  contract.concepts.some(concept => concept.layer === layer && concept.canonical.length > 0);
+
+renderInto(
+  posix.join(at, 'README.md'),
+  nonEmpty([
+    ...LAYERS.map((layer): [string, string, boolean] => [
+      SECTION_MARKER(layer),
+      renderConceptLayer(contract, layer, at),
+      layerHas(layer),
+    ]),
+    [SECTION_MARKER('tests'), renderTests(contract, at), contract.tests.length > 0],
+    // The words are the contract's; a language whose binding shows none of them yet has no table to render.
+    [SECTION_MARKER('vocabulary'), renderVocabulary(contract, at), contract.vocabulary.some(row => row.see)],
+    [RULES_MARKER('rules'), renderRulesTable(contract, at), true],
+    [RULES_MARKER('dependencies'), renderDependencyTable(contract), contract.contexts.length > 0],
+  ]),
+);
+renderInto('CLAUDE.md', [[RULES_MARKER('rules'), renderRulesList(contract)]]);
+if (multi) {
+  const title = (layer: string) => `${layer[0].toUpperCase()}${layer.slice(1)} layer`;
+  renderInto('README.md', [
+    [SECTION_MARKER('languages'), renderLanguages(contracts)],
+    [
+      SECTION_MARKER('map'),
+      LAYERS.map(layer => `#### ${title(layer)}\n\n${renderConceptMatrix(contracts, layer)}`).join('\n\n'),
+    ],
+    [RULES_MARKER('rules'), renderRulesTable(contract, '.', false)],
+  ]);
+}
+
+// 4. Every relative link in the documentation resolves
+
+const linksIn = (text: string) =>
+  [...text.matchAll(/\]\(([^)\s]+)\)/g)].map(match => match[1]).filter(link => !/^[a-z]+:/.test(link));
+const walk = (dir: string, ext: string): string[] =>
+  existsSync(join(root, dir))
+    ? readdirSync(join(root, dir), { withFileTypes: true }).flatMap(entry =>
+        entry.isDirectory()
+          ? entry.name === 'node_modules'
+            ? []
+            : walk(`${dir}/${entry.name}`, ext)
+          : entry.name.endsWith(ext)
+            ? [`${dir}/${entry.name}`]
+            : [],
+      )
+    : [];
+// `.claude` is documentation too: a skill or an agent definition that points at a file which
+// is not there sends an agent looking for it.
+const docs = new Set([
+  'README.md',
+  'CLAUDE.md',
+  ...walk('conventions', '.md'),
+  ...walk('docs', '.md'),
+  ...walk('.claude', '.md'),
+  ...contracts.flatMap(each => [
+    posix.join(each.language.root, 'README.md'),
+    posix.join(each.language.root, 'CLAUDE.md'),
+    ...walk(posix.join(each.language.root, 'src'), '.md'),
+  ]),
+]);
+for (const file of docs) {
+  if (!existsSync(join(root, file))) {
+    problem(`ARCH-MAP-IS-REAL: ${file} does not exist`);
+    continue;
+  }
+  const base = dirname(join(root, file));
+  for (const link of linksIn(readFileSync(join(root, file), 'utf8'))) {
+    const [path] = link.split('#');
+    if (path && !existsSync(resolve(base, path)))
+      problem(`ARCH-MAP-IS-REAL: ${file} links to ${path}, which does not exist`);
+  }
+}
+
+// 5. No eslint-disable, except the console logger's
+
+const allowedDisables: Record<string, string> = {
+  [posix.join(contract.architecture.path, 'Infrastructure/Logging/ConsoleLogger.ts')]: 'no-console',
+};
+for (const file of walk(posix.join(at, 'src'), '.ts')) {
+  for (const line of readFileSync(join(root, file), 'utf8').split('\n')) {
+    const disable = line.match(/eslint-disable(?:-next-line|-line)?\s*([\w@/-]*)/);
+    if (!disable || allowedDisables[file] === disable[1]) continue;
+    problem(
+      `ARCH-MAP-IS-REAL: ${file} silences ESLint with "${disable[0].trim()}"; fix the cause (a port, a move) instead`,
+    );
+  }
+}
+
+// 6. Every feature plan is legal, against the binding it is written for
+
+const plansDir = join(root, 'conventions/plans');
+if (existsSync(plansDir)) {
+  for (const entry of readdirSync(plansDir).filter(name => name.endsWith('.yaml'))) {
+    const file = `conventions/plans/${entry}`;
+    try {
+      const plan = loadFeaturePlan(file, root);
+      const bound = contracts.find(each => each.language.id === (plan.language ?? contract.language.id));
+      if (!bound) {
+        problem(`${file}: is written for ${plan.language}, which is not one of ${contract.languages.join(', ')}`);
+        continue;
+      }
+      for (const wrong of validatePlan(plan, bound, root)) problem(`${file}: ${wrong}`);
+      explainPlan(plan, bound); // it must expand without throwing
+    } catch (error) {
+      problem(`${file}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+}
+
+// 7. The generated import rules refuse and allow what the table says
+
+const probes = generateProbes(contract);
+const verdicts = await canImportAll(
+  probes.map(probe => [probe.file, probe.specifier] as [string, string]),
+  contract,
+  root,
+);
+probes.forEach((probe, index) => {
+  const verdict = verdicts[index];
+  const actual = verdict.allowed ? 'allowed' : 'refused';
+  if (actual !== probe.expected) {
+    problem(`${probe.rule}: ${probe.file} importing '${probe.specifier}' is ${actual}, expected ${probe.expected}`);
+  }
+  if (!verdict.allowed && !verdict.rule) {
+    problem(`${probe.rule}: the refusal of '${probe.specifier}' from ${probe.file} names no rule id`);
+  }
+});
+
+// Verdict
+
+if (problems.length) {
+  for (const message of problems) process.stderr.write(`✗ ${message}\n`);
+  process.exit(1);
+}
+process.stdout.write(
+  `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts match the tree; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; no eslint-disable; ${probes.length} import probes behave and name their rule.\n`,
+);

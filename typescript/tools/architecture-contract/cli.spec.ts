@@ -1,16 +1,19 @@
 import { spawnSync } from 'child_process';
 import { join } from 'path';
 
-import { repositoryRoot } from './load';
+import { languageRoot } from './load';
 
 /** The CLI as a tool would call it: a process, its stdout, its exit status. JSON must be JSON. */
 const architecture = (...args: string[]) => {
+  // The CLI reads a typed path from where the command was typed (INIT_CWD, which yarn sets);
+  // here that is the language's directory, as for `cd typescript && yarn architecture …`.
   const result = spawnSync(
-    join(repositoryRoot(), 'node_modules/.bin/tsx'),
+    join(languageRoot(), 'node_modules/.bin/tsx'),
     ['tools/architecture-contract/cli.ts', ...args],
     {
-      cwd: repositoryRoot(),
+      cwd: languageRoot(),
       encoding: 'utf8',
+      env: { ...process.env, INIT_CWD: languageRoot() },
     },
   );
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
@@ -43,7 +46,7 @@ describe('yarn architecture', () => {
     const { status, stdout } = architecture('concept', 'aggregate-root', '--json');
     expect(status).toBe(0);
     const parsed = JSON.parse(stdout);
-    expect(parsed.canonical).toContain('src/Architecture/Domain/AggregateRoot.ts');
+    expect(parsed.canonical).toContain('typescript/src/Architecture/Domain/AggregateRoot.ts');
     expect(parsed.rules.map((rule: { id: string }) => rule.id)).toContain('CONC-OPTIMISTIC');
   });
 
@@ -68,7 +71,7 @@ describe('yarn architecture', () => {
   it('checklist <kind> lists the parts, place <kind> answers the path alone', () => {
     expect(architecture('checklist', 'command').stdout).toMatch(/publishDomainEvents/);
     expect(architecture('place', 'domain-service').stdout.trim()).toBe(
-      'src/Contexts/<Context>/Domain/<Aggregate>/<Rule>.ts',
+      'typescript/src/Contexts/<Context>/Domain/<Aggregate>/<Rule>.ts',
     );
     const { status, stdout } = architecture('checklist', 'aggregate', '--json');
     expect(status).toBe(0);
@@ -77,19 +80,22 @@ describe('yarn architecture', () => {
   });
 
   it('plan validate says whether an intended change is legal, and exits non-zero when it is not', () => {
-    const ok = architecture('plan', 'validate', 'conventions/plans/share-a-note.yaml', '--json');
+    const ok = architecture('plan', 'validate', '../conventions/plans/share-a-note.yaml', '--json');
     expect(ok.status).toBe(0);
     expect(JSON.parse(ok.stdout)).toMatchObject({ feature: 'share-a-note', valid: true, problems: [] });
-    const missing = architecture('plan', 'validate', 'conventions/plans/nope.yaml', '--json');
+    const missing = architecture('plan', 'validate', '../conventions/plans/nope.yaml', '--json');
     expect(missing.status).toBe(1);
     expect(JSON.parse(missing.stdout)).toMatchObject({ error: { code: 'malformed' } });
   });
 
   it('plan explain expands a plan into files, rules and examples', () => {
-    const { status, stdout } = architecture('plan', 'explain', 'conventions/plans/share-a-note.yaml', '--json');
+    const { status, stdout } = architecture('plan', 'explain', '../conventions/plans/share-a-note.yaml', '--json');
     expect(status).toBe(0);
     const explained = JSON.parse(stdout);
-    expect(explained.changes[0]).toMatchObject({ kind: 'aggregate', place: 'src/Contexts/Notes/Domain/Note/Note.ts' });
+    expect(explained.changes[0]).toMatchObject({
+      kind: 'aggregate',
+      place: 'typescript/src/Contexts/Notes/Domain/Note/Note.ts',
+    });
     expect(explained.rules.map((rule: { id: string }) => rule.id)).toContain('CTX-CONTRACTS');
     expect(architecture('plan', 'explain').status).toBe(1);
   });
@@ -102,7 +108,10 @@ describe('yarn architecture', () => {
       '--json',
     );
     expect(allowed.status).toBe(0);
-    expect(JSON.parse(allowed.stdout)).toMatchObject({ allowed: true });
+    expect(JSON.parse(allowed.stdout)).toMatchObject({
+      allowed: true,
+      file: 'typescript/src/Contexts/Notes/Domain/Note/Probe.ts',
+    });
     const refused = architecture('can-import', 'src/Contexts/Notes/Domain/Note/Probe.ts', 'fastify', '--json');
     expect(refused.status).toBe(1);
     expect(JSON.parse(refused.stdout)).toMatchObject({ allowed: false, rule: 'ARCH-DOMAIN' });

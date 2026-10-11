@@ -11,6 +11,7 @@ import {
   renderConceptLayer,
   renderRulesList,
   renderRulesTable,
+  shown,
 } from './render';
 
 /**
@@ -29,19 +30,19 @@ import {
  * and no routes, because those are the business, and copying someone else's business is how a
  * reference implementation becomes a framework. The generated CLAUDE.md says what to write
  * first and `yarn architecture checklist context` says what it is made of.
+ *
+ * The new application is a repository of one language: its contract, its binding and its code
+ * sit in the same directory, which is the shape this tooling takes when the binding's `root`
+ * is `.`.
  */
 
-/** Copied as they are: the architecture, the shared kernel's model, the tooling, the configuration. */
+/** Copied as they are, from this language's directory: the architecture, the shared kernel's model, the tooling, the configuration. */
 const COPY_VERBATIM = [
   'src/Architecture',
   'src/SharedKernel/Domain',
   'src/SharedKernel/Application/Guards.ts',
   'tools/architecture-contract',
   'tools/check-conventions.ts',
-  // The loop, for whoever works here with an agent: the skill asks the contract for the shape
-  // before writing, the agent definition is bound to the feature mode. Both name commands
-  // rather than files, so they are as true in a new project as they are here.
-  '.claude',
   'tsconfig.json',
   'tsconfig.test.json',
   'tsconfig.tools.json',
@@ -49,8 +50,16 @@ const COPY_VERBATIM = [
   'eslint.config.js',
   '.prettierrc.json',
   '.prettierignore',
-  '.editorconfig',
   '.nvmrc',
+];
+
+/** Copied as they are, from the repository root, which every language shares. */
+const COPY_FROM_ROOT = [
+  // The loop, for whoever works here with an agent: the skill asks the contract for the shape
+  // before writing, the agent definition is bound to the feature mode. Both name commands
+  // rather than files, so they are as true in a new project as they are here.
+  '.claude',
+  '.editorconfig',
 ];
 
 /** Copied without their specs: those assert on this repository's own contract. */
@@ -90,6 +99,19 @@ const DEV_DEPENDENCIES = [
 const exists = (root: string, path: string) => existsSync(join(root, path));
 
 /**
+ * A path as the new application knows it. The reference's contract speaks repository-relative
+ * paths (`typescript/src/…`); the new application is a repository of one language, where the
+ * same file is at `src/…`. What was never under the language's directory (a decision, the
+ * conventions) keeps its path.
+ */
+const inApplication =
+  (contract: ArchitectureContract) =>
+  (path: string): string => {
+    const prefix = `${contract.language.root}/`;
+    return contract.language.root !== '.' && path.startsWith(prefix) ? path.slice(prefix.length) : path;
+  };
+
+/**
  * The prose keeps its words and loses its dead links: a Markdown link to a file this
  * application does not have becomes the label alone, so the sentence still reads and the
  * link check still passes.
@@ -100,23 +122,15 @@ const delinkify = (text: string, target: string): string =>
   );
 
 /** Only what the new project actually has: a rule's reference to a file nobody copied is dropped. */
-const keepExisting = <T extends { references: string[] }>(item: T, target: string): T => ({
-  ...item,
-  references: item.references.filter(reference => exists(target, reference)),
-});
-
-const leanRule = (rule: Rule, target: string): Rule => ({
-  ...keepExisting(rule, target),
+const leanRule = (rule: Rule, target: string, local: (path: string) => string): Rule => ({
+  ...rule,
+  references: rule.references.map(local).filter(reference => exists(target, reference)),
+  examples: rule.examples.map(local).filter(example => exists(target, example)),
   statement: delinkify(rule.statement, target),
   why: delinkify(rule.why, target),
   remediation: delinkify(rule.remediation, target),
 });
 
-/**
- * Walks the parsed table and drops what this application cannot have yet: a reference or an
- * example pointing at a file nobody copied. A rule keeps its statement, its reason and its
- * remediation — those are the architecture — and loses only its pointers.
- */
 /**
  * The same URL shape with this repository's nouns replaced by placeholders: `GET /notes/:id`
  * becomes `GET /<things>/:id`, `POST /notes/:id/share` becomes `POST /<things>/:id/<action>`.
@@ -143,6 +157,7 @@ function neutralShape(shape: string, intent: string): string {
   return `${verb} /${segments.join('/')}${query ? `?${query}` : ''}`;
 }
 
+/** Walks a parsed table and drops every reference that points at a file nobody copied. */
 function prune(node: unknown, target: string): void {
   if (Array.isArray(node)) return node.forEach(child => prune(child, target));
   if (typeof node !== 'object' || node === null) return;
@@ -150,25 +165,26 @@ function prune(node: unknown, target: string): void {
   if (Array.isArray(record.references)) {
     record.references = (record.references as string[]).filter(reference => exists(target, reference));
   }
-  if (typeof record.example === 'string' && !exists(target, record.example)) delete record.example;
   for (const value of Object.values(record)) prune(value, target);
 }
 
 /**
- * A concept survives if at least one file that shows it was copied — `aggregate-root` keeps
- * `AggregateRoot.ts` and loses `Note.ts`, which is the reference's business. Its lists are
- * narrowed to what is really there.
+ * A concept survives in the binding if at least one file that shows it was copied —
+ * `aggregate-root` keeps `AggregateRoot.ts` and loses `Note.ts`, which is the reference's
+ * business. Its lists are narrowed to what is really there; the README cell is rebuilt from
+ * what survived, and the language's note, which pointed at this repository's files, goes.
  */
-const surviving = (concept: Concept, target: string): Concept | undefined => {
-  const canonical = concept.canonical.filter(file => exists(target, file));
+const surviving = (concept: Concept, target: string, local: (path: string) => string): Concept | undefined => {
+  const canonical = concept.canonical.map(local).filter(file => exists(target, file));
   if (!canonical.length) return undefined;
   return {
     ...concept,
     canonical,
-    examples: concept.examples.filter(file => exists(target, file)),
-    // The cell is rebuilt from what survived; the note keeps its words without its dead links.
+    examples: concept.examples.map(local).filter(file => exists(target, file)),
     example: undefined,
+    notes: undefined,
     description: delinkify(concept.description, target),
+    references: concept.references.map(local).filter(reference => exists(target, reference)),
   };
 };
 
@@ -176,6 +192,7 @@ export interface CreatedApplication {
   directory: string;
   name: string;
   files: number;
+  /** The concepts the new application's binding shows a file for. */
   concepts: number;
   rules: number;
 }
@@ -189,6 +206,7 @@ export function createApplication(
     throw new Error(`${directory} is not empty; a new application is created in an empty directory`);
   }
   const contract = loadArchitectureContract(source);
+  const language = join(source, contract.language.root);
 
   // 1. Copy the architecture, the shared kernel, the tooling and the configuration. The
   //    building blocks come with their specs — they are the best description of what a
@@ -197,12 +215,14 @@ export function createApplication(
   //    plan validates), so elsewhere they would fail while saying nothing about the project.
   //    What the tools do for the new application is proved by `yarn check:conventions`,
   //    which runs them against its own contract.
-  for (const path of COPY_VERBATIM) {
+  const copy = (from: string, path: string) => {
     const to = join(directory, path);
     mkdirSync(dirname(to), { recursive: true });
     const withoutSpecs = WITHOUT_SPECS.includes(path);
-    cpSync(join(source, path), to, { recursive: true, filter: from => !(withoutSpecs && from.endsWith('.spec.ts')) });
-  }
+    cpSync(join(from, path), to, { recursive: true, filter: file => !(withoutSpecs && file.endsWith('.spec.ts')) });
+  };
+  for (const path of COPY_VERBATIM) copy(language, path);
+  for (const path of COPY_FROM_ROOT) copy(source, path);
 
   // 2. The places a new application fills in. The integration events folder is where its
   //    contexts will publish; src/Contexts is where they will live.
@@ -228,7 +248,7 @@ export function createApplication(
       '# Contexts',
       '',
       'One folder per bounded context, each with `Domain`, `Application`, `Infrastructure`,',
-      '`Presentation` and a `module.local.ts`, and each declared in `conventions/architecture.yaml`',
+      '`Presentation` and a `module.local.ts`, and each declared in `conventions/typescript.yaml`',
       'so that the import rules apply to it.',
       '',
       'Nothing here yet. `yarn architecture checklist context` says what a context is made of, and',
@@ -237,21 +257,27 @@ export function createApplication(
     ].join('\n'),
   );
 
-  // 3. The contract, kept whole but emptied of this repository's business.
-  const rules: Rule[] = contract.rules.map(rule => leanRule(rule, directory));
+  // 3. The contract, kept whole, and the binding emptied of this repository's business.
+  const local = inApplication(contract);
+  const rules: Rule[] = contract.rules.map(rule => leanRule(rule, directory, local));
   const concepts = contract.concepts
-    .map(concept => surviving(concept, directory))
-    .filter((concept): concept is Concept => concept !== undefined)
-    .map(concept => keepExisting(concept, directory));
+    .map(concept => surviving(concept, directory, local))
+    .filter((concept): concept is Concept => concept !== undefined);
   writeContract(directory, source, contract, concepts);
 
   // 4. The documents, rendered from that contract exactly as this repository renders its own.
-  const lean: ArchitectureContract = { ...contract, rules, concepts, contexts: [] };
+  const lean: ArchitectureContract = {
+    ...contract,
+    rules,
+    concepts,
+    contexts: [],
+    language: { ...contract.language, root: '.' },
+  };
   writeFileSync(join(directory, 'README.md'), readme(lean, name));
   writeFileSync(join(directory, 'CLAUDE.md'), claude(lean, name));
   mkdirSync(join(directory, 'docs/adr'), { recursive: true });
   writeFileSync(join(directory, 'docs/adr/README.md'), adrIndex());
-  writeFileSync(join(directory, 'package.json'), packageJson(source, name));
+  writeFileSync(join(directory, 'package.json'), packageJson(language, name));
   writeFileSync(join(directory, '.gitignore'), 'node_modules\ndist\ncoverage\n*.tsbuildinfo\n');
 
   return {
@@ -267,52 +293,89 @@ function count(directory: string): number {
   return readdirSync(directory, { withFileTypes: true, recursive: true }).filter(entry => entry.isFile()).length;
 }
 
-/** The same architecture, with no contexts of its own yet and no reference to a file that was not copied. */
+/** The same contract and the same binding, with no contexts of their own yet and no reference to a file that was not copied. */
 function writeContract(directory: string, source: string, contract: ArchitectureContract, concepts: Concept[]): void {
   mkdirSync(join(directory, 'conventions/plans'), { recursive: true });
-  // The same table, as data: its contexts emptied, and every reference or example that points at
-  // a file this application does not have removed. The header comment — the vocabulary the table
-  // is read with — is carried over; the rest is rewritten from the parsed document.
-  const rawText = readFileSync(join(source, contract.sources.architecture), 'utf8');
-  const header = rawText.slice(0, rawText.indexOf('schemaVersion:'));
-  const table = load(rawText) as Record<string, unknown>;
-  table.contexts = [];
+  const yaml = { lineWidth: 110, noRefs: true };
+  const headerOf = (text: string) => text.slice(0, text.indexOf('schemaVersion:'));
+
+  // The contract, as data: the same table, with every reference that points at a file this
+  // application does not have removed. The header comment — the vocabulary the table is read
+  // with — is carried over; the rest is rewritten from the parsed document.
+  const contractText = readFileSync(join(source, contract.sources.architecture), 'utf8');
+  const table = load(contractText) as Record<string, unknown>;
+  table.languages = [contract.language.id];
   prune(table, directory);
   // The verb table keeps its grammar and loses this repository's nouns.
   for (const verb of (table.http as { verbs?: { intent: string; shape: string }[] })?.verbs ?? []) {
     verb.shape = neutralShape(verb.shape, verb.intent);
   }
-  // A checklist points at the concept that shows it; if no file shows it here yet, the pointer goes.
-  const known = new Set(concepts.map(concept => concept.id));
-  for (const checklist of Object.values((table.checklists as Record<string, { concept?: string }>) ?? {})) {
-    if (checklist.concept && !known.has(checklist.concept)) delete checklist.concept;
-  }
   const note = [
-    '# Created by `yarn architecture create` from the clean-ddd reference. `contexts` is empty:',
-    '# declare your first one there, or no import rule applies to its files. The URL shapes in',
+    '# Created by `yarn architecture create` from the clean-ddd reference. The URL shapes in',
     '# `http.verbs` are written with placeholders (`GET /<things>/:id`), because what that table',
     '# teaches is the grammar — which verb a use case takes, and what the URL names. Fill them in',
     '# with your own nouns as your first routes appear.',
     '',
     '',
   ].join('\n');
-  writeFileSync(
-    join(directory, contract.sources.architecture),
-    `${header}${note}${dump(table, { lineWidth: 110, noRefs: true })}`,
-  );
+  writeFileSync(join(directory, contract.sources.architecture), `${headerOf(contractText)}${note}${dump(table, yaml)}`);
 
+  // The concepts: every one of them, in the contract's words, with the decisions it cannot
+  // link to any more turned back into plain text. Which ones this application shows is the
+  // binding's business.
+  const conceptsText = readFileSync(join(source, contract.sources.concepts), 'utf8');
+  const vocabulary = load(conceptsText) as { vocabulary?: unknown };
   writeFileSync(
     join(directory, contract.sources.concepts),
-    [
-      '# The architectural vocabulary of this application: every concept, with the file that shows it.',
-      '# The README’s map tables are rendered from here (`yarn conventions:write`), and',
-      '# `yarn architecture concept <id>` answers from it. A concept whose canonical file this',
-      '# application does not have yet was dropped when it was created; add the row back with the',
-      '# file when you write it.',
-      '',
-      dump({ schemaVersion: 1, concepts, tests: [], vocabulary: [] }, { lineWidth: 110, noRefs: true }),
-    ].join('\n'),
+    `${headerOf(conceptsText)}${dump(
+      {
+        schemaVersion: 1,
+        concepts: contract.concepts.map(({ id, name, layer, description, rules }) => ({
+          id,
+          name,
+          layer,
+          description: delinkify(description, directory),
+          rules,
+        })),
+        vocabulary: vocabulary.vocabulary ?? [],
+      },
+      yaml,
+    )}`,
   );
+
+  // The binding: this application is a repository of one language, so its root is `.`; its
+  // contexts are its own to declare; and it points only at files it has. The checklists and
+  // the enforcers are kept whole: they are the language's idiom, not the reference's business.
+  const bindingText = readFileSync(join(source, contract.sources.binding), 'utf8');
+  const binding = load(bindingText) as Record<string, unknown>;
+  binding.root = '.';
+  binding.contexts = [];
+  prune(binding, directory);
+  const bindingRules = (binding.rules ?? {}) as Record<string, { references?: string[] }>;
+  for (const [id, entry] of Object.entries(bindingRules)) if (!entry.references?.length) delete bindingRules[id];
+  const bindingVerbs = (binding.verbs ?? {}) as Record<string, string>;
+  for (const [intent, file] of Object.entries(bindingVerbs)) if (!exists(directory, file)) delete bindingVerbs[intent];
+  binding.concepts = Object.fromEntries(
+    concepts.map(concept => [
+      concept.id,
+      { canonical: concept.canonical, ...(concept.examples.length && { examples: concept.examples }) },
+    ]),
+  );
+  binding.tests = [];
+  binding.vocabulary = {};
+  const bindingNote = [
+    '# Created by `yarn architecture create` from the clean-ddd reference. `contexts` is empty:',
+    '# declare your first one there, or no import rule applies to its files. A concept whose',
+    '# canonical file this application does not have yet is not listed under `concepts`; add it',
+    '# back with the file when you write it.',
+    '',
+    '',
+  ].join('\n');
+  writeFileSync(
+    join(directory, contract.sources.binding),
+    `${headerOf(bindingText)}${bindingNote}${dump(binding, yaml)}`,
+  );
+
   writeFileSync(
     join(directory, 'conventions/README.md'),
     [
@@ -322,8 +385,9 @@ function writeContract(directory: string, source: string, contract: Architecture
       '',
       '| File | What it holds |',
       '|---|---|',
-      '| [`architecture.yaml`](architecture.yaml) | the contexts, the layers, which layer may import from which, the rules, the HTTP verbs, the checklists and the two modes |',
-      '| [`concepts.yaml`](concepts.yaml) | every concept, with the canonical file that shows it |',
+      '| [`architecture.yaml`](architecture.yaml) | the layers, which layer may import from which, the rules, the HTTP verbs, the kinds of thing a feature is made of, and the two modes |',
+      `| [\`${contract.language.id}.yaml\`](${contract.language.id}.yaml) | this language's binding: the contexts, the trees and their aliases, the libraries, the file that shows each concept, what a new thing of each kind is made of |`,
+      '| [`concepts.yaml`](concepts.yaml) | every concept, in the contract’s words |',
       '| [`plans/`](plans) | feature plans: what a change intends, checked before it is written |',
       '',
       '```bash',
@@ -332,7 +396,7 @@ function writeContract(directory: string, source: string, contract: Architecture
       'yarn architecture …       # ask the contract: inspect, rules, concepts, verbs, checklists, plan, mode, can-import',
       '```',
       '',
-      'Adding a context means adding it to `contexts` in `architecture.yaml`, or no import rule applies to it.',
+      `Adding a context means adding it to \`contexts\` in \`${contract.language.id}.yaml\`, or no import rule applies to it.`,
       '',
     ].join('\n'),
   );
@@ -355,7 +419,7 @@ const generated = (marker: string, body: string) => `${marker}\n${body}\n${END_M
 
 function readme(contract: ArchitectureContract, name: string): string {
   const layers = (['domain', 'application', 'infrastructure', 'presentation'] as const).filter(layer =>
-    contract.concepts.some(concept => concept.layer === layer),
+    contract.concepts.some(concept => concept.layer === layer && shown(concept)),
   );
   return [
     `# ${name}`,
@@ -386,7 +450,7 @@ function readme(contract: ArchitectureContract, name: string): string {
     'yarn architecture checklist context   # what your first context is made of',
     '```',
     '',
-    'Then: name your first context in `conventions/architecture.yaml`, create it under `src/Contexts`,',
+    `Then: name your first context in \`conventions/${contract.language.id}.yaml\`, create it under \`src/Contexts\`,`,
     'and write your composition root in `src/Bootstrap`. `yarn architecture checklist aggregate` says',
     'what goes in its Domain, and `yarn architecture can-import <file> <specifier>` answers, before you',
     'write an import, whether the rules allow it.',
@@ -399,7 +463,7 @@ function readme(contract: ArchitectureContract, name: string): string {
     '',
     '## The map: concept → file',
     '',
-    'One canonical example per concept, rendered from `conventions/concepts.yaml`.',
+    `One canonical example per concept, rendered from \`conventions/concepts.yaml\` and \`conventions/${contract.language.id}.yaml\`.`,
     '',
     ...layers.flatMap(layer => [
       `### ${layer[0].toUpperCase()}${layer.slice(1)} layer`,
@@ -421,7 +485,7 @@ function claude(contract: ArchitectureContract, name: string): string {
     '',
     'This application is built on the [clean-ddd](https://github.com/jgaNet/clean-ddd) architecture:',
     'the rules below are generated from [`conventions/architecture.yaml`](conventions/architecture.yaml),',
-    'and the same file generates the import rules ESLint enforces. Ask the contract before guessing.',
+    `and that file with [\`conventions/${contract.language.id}.yaml\`](conventions/${contract.language.id}.yaml) generates the import rules ESLint enforces. Ask the contract before guessing.`,
     '',
     '## Commands',
     '',
@@ -473,8 +537,8 @@ const adrIndex = () =>
     '',
   ].join('\n');
 
-function packageJson(source: string, name: string): string {
-  const reference = JSON.parse(readFileSync(join(source, 'package.json'), 'utf8')) as {
+function packageJson(language: string, name: string): string {
+  const reference = JSON.parse(readFileSync(join(language, 'package.json'), 'utf8')) as {
     scripts: Record<string, string>;
     dependencies: Record<string, string>;
     devDependencies: Record<string, string>;

@@ -14,5 +14,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0008](0008-optimistic-concurrency-on-the-aggregate.md) | Optimistic concurrency on the aggregate |
 | [0009](0009-work-is-done-in-one-of-two-modes.md) | Work is done in one of two modes |
 | [0010](0010-a-new-application-is-copied-not-templated.md) | A new application is copied from the reference, not templated |
+| [0011](0011-one-reference-several-languages.md) | One reference, several languages: a shared contract, a binding per language |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

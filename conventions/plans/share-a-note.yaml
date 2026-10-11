@@ -12,6 +12,7 @@
 schemaVersion: 1
 
 feature: share-a-note
+language: typescript
 context: Notes
 
 intent: >-
