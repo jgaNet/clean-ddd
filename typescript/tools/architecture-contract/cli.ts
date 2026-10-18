@@ -20,6 +20,10 @@
  * Every command takes --json: valid JSON only on stdout, nothing decorative, exit 1 on an
  * unknown id with a structured error. That output is the stable interface for coding agents.
  *
+ * Every command answers for one language's binding: the one the command was typed in (from
+ * `rust/`, `yarn --cwd ../typescript architecture checklist command` answers in Rust), or the
+ * one `--language <id>` names, or TypeScript's.
+ *
  * Paths are printed relative to the repository root, which is where the contract and the
  * decisions live; a path given on the command line is read relative to where the command was
  * typed (`yarn` records it as INIT_CWD), so `src/…` from this directory and `typescript/src/…`
@@ -38,10 +42,22 @@ import type { ModeName } from './types';
 
 const args = process.argv.slice(2);
 const json = args.includes('--json');
-const [command, ...rest] = args.filter(arg => arg !== '--json');
+const languageFlag = args.includes('--language') ? args[args.indexOf('--language') + 1] : undefined;
+const [command, ...rest] = args.filter(
+  (arg, index) => arg !== '--json' && arg !== '--language' && args[index - 1] !== '--language',
+);
 
 const root = repositoryRoot();
 const typedFrom = process.env.INIT_CWD ?? process.cwd();
+
+/** The language whose directory the command was typed in, if it is one of the reference's. */
+function languageTypedIn(languages: string[]): string | undefined {
+  const here = resolve(typedFrom);
+  return languages.find(language => {
+    const languageDir = resolve(root, loadArchitectureContract(root, language).language.root);
+    return here === languageDir || here.startsWith(`${languageDir}/`);
+  });
+}
 /** A path as typed, made repository-relative. */
 const fromHere = (path: string) => relative(root, resolve(typedFrom, path)).split('\\').join('/');
 
@@ -60,6 +76,11 @@ async function main(): Promise<void> {
   let contract;
   try {
     contract = loadArchitectureContract(root);
+    const language = languageFlag ?? languageTypedIn(contract.languages);
+    if (language && !contract.languages.includes(language)) {
+      return fail('unknown-language', `No binding for "${language}". Languages: ${contract.languages.join(', ')}`);
+    }
+    if (language && language !== contract.language.id) contract = loadArchitectureContract(root, language);
   } catch (error) {
     if (error instanceof ContractError) return fail(error.code, error.message);
     throw error;

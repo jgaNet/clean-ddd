@@ -60,6 +60,8 @@ mod tests {
     fn fixture() -> Fixture {
         let store = Arc::new(InMemoryDataSource::new());
         let bus = Arc::new(InMemoryEventBus::new());
+        // Subscribed per channel: a new fact's name goes in this list, or `published()` stays
+        // empty whatever the handler did, and an `is_empty()` assertion passes for nothing.
         let published = Arc::new(EventSubscriber(Published::default()));
         for channel in ["NoteCreated", "NoteShared"] {
             pollster::block_on(bus.subscribe(channel, published.clone()));
