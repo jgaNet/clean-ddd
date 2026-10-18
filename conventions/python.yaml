@@ -1,0 +1,245 @@
+# The Python binding of the architecture contract: where this language keeps the trees that
+# architecture.yaml reasons about, which file shows each concept of concepts.yaml, which tool holds
+# each rule, and what a new thing of each kind is made of in this language's idiom. It adds no
+# rule: a rule lives in architecture.yaml, under one id for every language (ARCH-ONE-CONTRACT).
+#
+# In Python a tree is a package under src/, imported by its absolute path (`architecture.domain`,
+# `contexts.notes.domain.note`), and a layer is a sub-package named after the contract's layer in
+# lowercase. Nothing in the language holds a boundary, so `python -m tools.conventions` is both
+# the import linter and the check: it reads every import with `ast` and holds it to the table.
+#
+# Paths are relative to `root`, the directory of this language; the loader turns them into
+# repository-relative paths, so every tool, document and diff speaks the same ones. What this
+# language does not show yet is simply not named here, and the root README's map shows the gap.
+
+schemaVersion: 1
+language: python
+name: Python
+root: python
+
+contexts: [Notes]
+
+# The trees. `alias` is the top-level package a tree is imported as; a context's is
+# `contexts.<context>`.
+contexts_tree: { alias: contexts, path: src/contexts }
+architecture: { alias: architecture, path: src/architecture }
+kernel: { alias: shared_kernel, path: src/shared_kernel }
+bootstrap: { alias: bootstrap, path: src/bootstrap }
+# A context's wiring is one module beside its layer packages.
+wiring: module_local.py
+
+# Libraries only an adapter may depend on: the domain and the use cases never see them. The
+# standard library's sqlite3 is one of them: a database driver, whoever ships it.
+libraries: [fastapi, starlette, pydantic, uvicorn, httpx, websockets, sqlite3, bcrypt, jwt]
+
+# What stands behind each enforcement word of architecture.yaml, in this language.
+enforcers:
+  linter: '`uv run python -m tools.conventions`, an `ast` walk holding every import of every module to its row of the table'
+  check: '`uv run python -m tools.conventions`'
+  types: '`uv run mypy` (strict)'
+  tests: '`uv run pytest`'
+  review: review (stated here, not yet mechanical)
+  evaluations: fresh-agent evaluations
+
+# The checks a change must pass before it is done; CI runs them in this order.
+checks:
+  - uv run python -m tools.conventions
+  - uv run ruff format --check .
+  - uv run ruff check .
+  - uv run mypy
+  - uv run pytest
+
+# What the two modes protect and decide in this language, on top of the contract and the
+# decisions, which architecture.yaml protects for every language.
+modes:
+  feature:
+    protected: [src/architecture, src/shared_kernel, tools]
+    # Publishing a fact is what a cross-context feature does: the contracts package is not protected.
+    allowed: [src/shared_kernel/application/integration_events]
+  architecture:
+    decides: [src/architecture, src/shared_kernel/domain]
+
+# The files that show a rule, by id. The rule itself is in architecture.yaml.
+rules:
+  ARCH-RELATIVE:
+    references: [tools/conventions.py]
+  ARCH-TREES:
+    references: [src/architecture, src/shared_kernel]
+  ARCH-INWARD:
+    references: [tools/conventions.py, src/contexts/notes/domain/__init__.py]
+  DOMAIN-RESULT:
+    references: [src/architecture/domain/result.py]
+  DOMAIN-RECORDS-EVENTS:
+    references: [src/architecture/domain/aggregate_root.py]
+  DOMAIN-CREATE-VS-RECONSTITUTE:
+    references: [src/contexts/notes/domain/note/note.py]
+  ARCH-MAP-IS-REAL:
+    references: [tools/conventions.py]
+
+# What a new thing of each kind is made of in Python, and where each part goes. The kinds are
+# architecture.yaml's. Lowercase placeholders (`<context>`, `<aggregate>`) are filled in
+# snake_case, which is what a Python path wants; `yarn architecture checklist <kind>` prints one.
+checklists:
+  aggregate:
+    place: src/contexts/<context>/domain/<aggregate>/<aggregate>.py
+    parts:
+      - 'The aggregate itself: a class extending `AggregateRoot`, its state in private attributes behind properties, `create()` (validates, generates the Id, records the creation event) returning a `Result`, `from_snapshot()` (records nothing, raises on corrupted data), `to_snapshot()`.'
+      - '`dtos.py` beside it: the snapshot dataclass, `version` included, and the `New<Aggregate>` input.'
+      - '`<aggregate>_exceptions.py`: a `SERVICE` constant and one `DomainException` subclass per rule, its `type` in PascalCase.'
+      - '`events.py`: one frozen dataclass per fact its behaviours record, extending `DomainEvent`, named in the past tense, its fields the payload.'
+      - '`ports/<aggregate>_repository.py`: a `Protocol` with `find_by_id` and `save` returning a `Result`, plus the facts a rule needs about the collection.'
+      - '`ports/<aggregate>_queries.py` and its read models, when a screen reads it.'
+      - '`test_<aggregate>.py` beside it: every rule, and the round-trip through the snapshot.'
+      - 'An in-memory adapter per port in the `infrastructure` package, and a contract test once a port promises an order or a filter.'
+      - 'Wiring in `module_local.py`: the store, the adapters, the handlers.'
+  value-object:
+    place: src/contexts/<context>/domain/<aggregate>/<name>.py
+    parts:
+      - 'A frozen dataclass extending `ValueObject[T]`, `create()` returning a `Result`, the rule as a class constant when there is a number.'
+      - 'One exception per rule the user could act on differently, in the aggregate''s exceptions file.'
+      - 'A structured value is a frozen dataclass over a frozen dataclass: the dataclass equality compares every field.'
+      - 'A `test_<name>.py` beside it: what it accepts, what it refuses, and equality.'
+  domain-service:
+    place: src/contexts/<context>/domain/<aggregate>/<rule>.py
+    parts:
+      - 'Named after the rule it holds (`NoteSharing`), not after a layer.'
+      - 'Takes the ports it needs in `__init__`; returns a `Result`; holds no logging, no transaction, no publishing.'
+      - 'Used when a rule spans several aggregates or needs a fact about the collection; a rule about one aggregate stays a behaviour.'
+      - 'A `test_<rule>.py` beside it, with a small class implementing each port.'
+  command:
+    place: src/contexts/<context>/application/commands/<use_case>.py
+    parts:
+      - 'The command: a frozen dataclass extending `CommandEvent`, its fields the payload and nothing more.'
+      - 'The handler in the same file: a class extending `CommandHandler`, the ports it takes in `__init__`, `execute()` — the signed-in guard at the top, load, ask the aggregate or the domain service, save (return the `Failure` as is), `publish_domain_events`.'
+      - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
+      - 'A test with at least a happy path and one refusal, in `test_commands.py` beside the commands; through `handle()` when the rule is in `guard()`.'
+      - 'A route answering `202 { operationId }`, and the handler listed in `module_local.py`.'
+  query:
+    place: src/contexts/<context>/application/queries/<use_case>.py
+    parts:
+      - 'A read model and a method on the queries port, with the order and the unknown-id answer in its docstring.'
+      - 'The handler: a class extending `QueryHandler`, holding the queries port, `execute()`; it reads the port and nothing else: no sorting, no second port, no aggregate.'
+      - 'A test beside it when the handler holds a visibility or role rule.'
+      - 'A route answering synchronously, refusals through the controller''s `refuse()`, and the handler listed in `module_local.py`.'
+  integration-event:
+    place: src/shared_kernel/application/integration_events/<aggregate>_integration_events.py
+    parts:
+      - 'A frozen dataclass extending `IntegrationEvent` per fact the publishing context tells the others, in its public words, in that context''s file.'
+      - 'A payload carrying everything a consumer needs, so it never queries back.'
+      - 'A domain event handler in the publishing context that translates the domain event into it — that is where a fact leaves its context.'
+      - 'An anti-corruption handler in each consuming context, registered in its `module_local.py`.'
+      - 'Adding one is not an architecture change: the package is where a context publishes, and a feature may publish.'
+  event-handler:
+    place: src/contexts/<context>/application/events/<name>_handler.py
+    parts:
+      - 'A class extending `EventHandler`, `execute()` taking the event and the context, returning a `Result`; no guard — the fact was already allowed.'
+      - 'A reaction inside its own context, or the translation of a domain event into an integration event, or an anti-corruption layer over another context''s contract.'
+      - 'Listed in `module_local.py` under the domain events or the integration events, on the event''s class.'
+      - 'A `test_<name>_handler.py` beside it.'
+  context:
+    place: src/contexts/<context>/
+    parts:
+      - 'Declared in `contexts` in this file, or no row of the table applies to its modules.'
+      - 'One package per layer (`domain`, `application`, `infrastructure`, `presentation`) and the wiring file `module_local.py`, nothing else.'
+      - 'Its own vocabulary: a word that means something else here is a sign the context is right.'
+      - 'It asks other contexts through ports it owns, and tells them through integration events; never both sides of a dependency.'
+      - 'Registered in the composition root, with its routes under its own prefix.'
+
+# One test style per layer, for the README; the rows the language has so far.
+tests:
+  - layer: Domain
+    example: '[`test_note.py`](src/contexts/notes/domain/note/test_note.py)'
+    doubles: none
+  - layer: Domain service
+    example: '[`test_note_sharing.py`](src/contexts/notes/domain/note/test_note_sharing.py)'
+    doubles: a five-line class implementing the port
+
+# Where each word of concepts.yaml's vocabulary is shown, by word; the words the language has so far.
+vocabulary:
+  Building blocks: '[`src/architecture`](src/architecture)'
+  Shared kernel: '[`src/shared_kernel`](src/shared_kernel)'
+  Bounded context: '[`src/contexts`](src/contexts)'
+  Aggregate (root): '[`note.py`](src/contexts/notes/domain/note/note.py)'
+  Entity: '[`entity.py`](src/architecture/domain/entity.py)'
+  Value object: '[`note_title.py`](src/contexts/notes/domain/note/note_title.py)'
+  Invariant: '`share_with()` in [`note.py`](src/contexts/notes/domain/note/note.py)'
+  Domain event: '[`events.py`](src/contexts/notes/domain/note/events.py)'
+  Port: >-
+    [`note_repository.py`](src/contexts/notes/domain/note/ports/note_repository.py),
+    [`account_directory.py`](src/contexts/notes/domain/note/ports/account_directory.py)
+  Repository: '[`note_repository.py`](src/contexts/notes/domain/note/ports/note_repository.py)'
+  Domain service: '[`note_sharing.py`](src/contexts/notes/domain/note/note_sharing.py)'
+  Snapshot: '[`dtos.py`](src/contexts/notes/domain/note/dtos.py)'
+  Read model: '[`note_queries.py`](src/contexts/notes/domain/note/ports/note_queries.py)'
+
+# The file that shows each concept of concepts.yaml, by id; a concept not listed here is one
+# this language does not show yet, and the map says so.
+concepts:
+  entity:
+    canonical: [src/architecture/domain/entity.py]
+    notes: 'a class with its state in private attributes; no `__eq__`, so two entities compare through `equals()` or their snapshots'
+  aggregate-root:
+    canonical:
+      - src/contexts/notes/domain/note/note.py
+      - src/architecture/domain/aggregate_root.py
+    example: >-
+      [`note.py`](src/contexts/notes/domain/note/note.py) extending
+      [`AggregateRoot`](src/architecture/domain/aggregate_root.py)
+    notes: '`_record()` is protected by convention: a behaviour calls it, a handler never does'
+  value-object:
+    canonical:
+      - src/contexts/notes/domain/note/note_title.py
+      - src/shared_kernel/domain/email.py
+    example: >-
+      [`note_title.py`](src/contexts/notes/domain/note/note_title.py),
+      [`email.py`](src/shared_kernel/domain/email.py)
+    notes: 'a frozen dataclass over `value`; [`value_object.py`](src/architecture/domain/value_object.py) names the shape, and the dataclass gives the equality'
+    examples: [src/architecture/domain/value_object.py]
+  identity:
+    canonical: [src/architecture/domain/id.py]
+  factory:
+    canonical: [src/contexts/notes/domain/note/note.py]
+    example: '`Note.create()` in [`note.py`](src/contexts/notes/domain/note/note.py)'
+    notes: 'the domain-service factory (an account''s registration) is not written yet'
+  invariant:
+    canonical: [src/contexts/notes/domain/note/note.py]
+    example: '`share_with()` in [`note.py`](src/contexts/notes/domain/note/note.py)'
+  creation-vs-reconstitution:
+    canonical: [src/contexts/notes/domain/note/note.py]
+    example: '`Note.create()` vs `Note.from_snapshot()` in [`note.py`](src/contexts/notes/domain/note/note.py)'
+    notes: 'corrupted storage raises a `ValueError`, which is what a throw is here'
+  domain-event:
+    canonical: [src/contexts/notes/domain/note/events.py]
+    notes: 'a frozen dataclass per fact, named after its class; [`event.py`](src/architecture/domain/event.py) has the three kinds'
+    examples: [src/architecture/domain/event.py]
+  domain-exception:
+    canonical: [src/contexts/notes/domain/note/note_exceptions.py]
+    notes: 'a [`DomainException`](src/architecture/domain/exception.py) subclass per rule — a value carried by a `Failure`, never raised; named so because `Exception` is Python''s own'
+    examples: [src/architecture/domain/exception.py]
+  result:
+    canonical: [src/architecture/domain/result.py]
+    notes: '`Success[T] | Failure`, narrowed by `isinstance(result, Failure)`, which is what TypeScript wrote as `if (r.isFailure()) return r`'
+  optimistic-concurrency:
+    canonical: [src/architecture/domain/aggregate_root.py]
+    example: '`AggregateRoot.version` in [`aggregate_root.py`](src/architecture/domain/aggregate_root.py)'
+    notes: 'the repository adapter that checks it is not written yet'
+  repository-port:
+    canonical: [src/contexts/notes/domain/note/ports/note_repository.py]
+    notes: 'a `Protocol` with `async` methods, so an adapter may be in-memory or a database'
+  queries-port-read-models:
+    canonical: [src/contexts/notes/domain/note/ports/note_queries.py]
+  snapshot-dto:
+    canonical: [src/contexts/notes/domain/note/dtos.py]
+  domain-service:
+    canonical: [src/contexts/notes/domain/note/note_sharing.py]
+    notes: 'takes its port in `__init__`, so a test hands it a five-line class'
+  port-to-another-context:
+    canonical:
+      - src/contexts/notes/domain/note/ports/account_directory.py
+      - src/contexts/notes/domain/note/note_sharing.py
+    example: >-
+      [`account_directory.py`](src/contexts/notes/domain/note/ports/account_directory.py), used by
+      [`note_sharing.py`](src/contexts/notes/domain/note/note_sharing.py)
+    notes: 'the adapter over Security''s read model is not written yet'
+  lifecycle-as-an-enum:
+    canonical: [src/contexts/notes/domain/note/note_status.py]

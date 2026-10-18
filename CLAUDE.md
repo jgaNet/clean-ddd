@@ -4,7 +4,7 @@ This is a **reference implementation** of Clean Architecture + Domain-Driven Des
 
 ## Which guide to read
 
-A change to **code** happens in one language's directory, under that language's guide: [`typescript/CLAUDE.md`](typescript/CLAUDE.md) for TypeScript, [`rust/CLAUDE.md`](rust/CLAUDE.md) for Rust. Its commands run from that directory (`cd typescript`, or `yarn --cwd typescript …` from here; `cd rust`). The TypeScript tooling also answers questions about the contract itself, for any language: `yarn architecture rule <ID>`, `yarn architecture concept <id>`.
+A change to **code** happens in one language's directory, under that language's guide: [`typescript/CLAUDE.md`](typescript/CLAUDE.md) for TypeScript, [`rust/CLAUDE.md`](rust/CLAUDE.md) for Rust, [`python/CLAUDE.md`](python/CLAUDE.md) for Python. Its commands run from that directory (`cd typescript`, or `yarn --cwd typescript …` from here; `cd rust`; `cd python`). The TypeScript tooling also answers questions about the contract itself, for any language: `yarn architecture rule <ID>`, `yarn architecture concept <id>`.
 
 A change to the **architecture** — a rule, a layer, a decision, a binding, a new language — happens here, at the root, and is an architecture change in the sense of [ADR 9](docs/adr/0009-work-is-done-in-one-of-two-modes.md): `yarn architecture mode architecture` asks for the ADR that explains it.
 
@@ -14,13 +14,14 @@ A change to the **architecture** — a rule, a layer, a decision, a binding, a n
 conventions/architecture.yaml   the contract: layers, who may import whom, every rule under its id, the HTTP
                                 grammar, the kinds of thing a feature is made of, the two modes. Names no file.
 conventions/concepts.yaml       the vocabulary: every concept, its rules, its decisions. Names no file.
-conventions/<language>.yaml     a binding (typescript.yaml, rust.yaml): that language's trees and aliases, its
+conventions/<language>.yaml     a binding (typescript.yaml, rust.yaml, python.yaml): that language's trees and aliases, its
                                 contexts, what holds each rule there, the file that shows each concept and each
                                 rule, its checklists.
 conventions/plans/              feature plans, each written for one language, validated on every build
 docs/adr/                       the decisions; docs/evaluations/ the fresh-agent evaluations
 typescript/                     the TypeScript implementation and its tooling (src/, tools/, the configs)
 rust/                           the Rust implementation (a crate per layer under src/, tools/conventions)
+python/                         the Python implementation (a package per layer under src/, tools/conventions.py)
 .claude/                        the feature skill and the feature-author agent
 ```
 
@@ -59,7 +60,7 @@ Each rule has a stable id; `yarn architecture rule <ID>` explains it, `--json` f
 - **A binding's paths are relative to its own directory**; the loader makes them repository-relative. Links in the Markdown fields of a binding (`example`, `notes`, `see`) follow the same rule.
 - **The shared documents name no language's file directly.** The root README's map is rendered; the ADRs may link into a language's tree when they discuss a concrete file, with a path from `docs/adr/` (`../../typescript/src/…`), and `yarn check:conventions` checks that every such link resolves.
 - **Adding a language** is the recipe in the [README](README.md#adding-a-language): a directory, a binding listed under `languages`, a linter and a check generated from the table, a README and a CLAUDE.md with the generated blocks. The map shows what the language still owes; it is not required to show everything on its first day.
-- **Changing the contract or a binding** regenerates every language's documents: run `yarn --cwd typescript conventions:write` (it renders every language's README), then the conventions check of each language (`yarn --cwd typescript check:conventions`, `cargo run -p conventions` in `rust/`), before the change is done.
+- **Changing the contract or a binding** regenerates every language's documents: run `yarn --cwd typescript conventions:write` (it renders every language's README), then the conventions check of each language (`yarn --cwd typescript check:conventions`, `cargo run -p conventions` in `rust/`, `uv run python -m tools.conventions` in `python/`), before the change is done.
 
 ## Things to avoid
 

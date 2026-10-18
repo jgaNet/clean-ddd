@@ -46,7 +46,7 @@ describe('the architecture contract', () => {
 
   it('loads architecture.yaml, concepts.yaml and the binding into one contract', () => {
     expect(contract.schemaVersion).toBe(1);
-    expect(contract.languages).toEqual(['typescript', 'rust']);
+    expect(contract.languages).toEqual(['typescript', 'rust', 'python']);
     expect(contract.language).toEqual({ id: 'typescript', name: 'TypeScript', root: 'typescript' });
     expect(contract.contexts).toEqual(['Notes', 'Security', 'Notifications', 'Tracker']);
     expect(contract.layers).toEqual(['Domain', 'Application', 'Infrastructure', 'Presentation']);
