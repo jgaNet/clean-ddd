@@ -34,12 +34,13 @@ src = ["src", "tools"]
 
 [tool.ruff.lint]
 # The architecture is held by tools/conventions.py, not by a lint rule: these are the language's own.
-select = ["E", "F", "I", "N", "UP", "B", "A", "SIM", "RUF", "ANN", "T20", "PL"]
+select = ["E", "F", "I", "N", "UP", "B", "A", "SIM", "RUF", "ANN", "T20", "PL", "BLE"]
 ignore = [
   "PLR2004", # a magic number in a test is the point of the test
   "PLR0913", # a factory takes every field of the snapshot
   "PLR0917", # and so does an aggregate's private constructor
   "ANN401",  # the event bus is type-erased by design (ADR 13)
+  "BLE001",  # the base handlers catch everything on purpose: a stray raise becomes a failed operation
 ]
 
 [tool.ruff.lint.per-file-ignores]

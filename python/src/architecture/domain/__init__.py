@@ -14,7 +14,7 @@ from architecture.domain.common_exceptions import (
     UnknownException,
 )
 from architecture.domain.entity import Entity
-from architecture.domain.event import CommandEvent, DomainEvent, Event, IntegrationEvent
+from architecture.domain.event import CommandEvent, DomainEvent, Event, IntegrationEvent, name_of
 from architecture.domain.exception import DomainException
 from architecture.domain.id import Id
 from architecture.domain.result import Failure, Result, Success
@@ -37,4 +37,5 @@ __all__ = [
     "Success",
     "UnknownException",
     "ValueObject",
+    "name_of",
 ]

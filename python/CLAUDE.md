@@ -23,12 +23,16 @@ All five checks must pass before a change is done; CI runs them on every PR, fro
 
 ```
 src/architecture/<layer>/         the building blocks, one package per layer: domain (Entity, AggregateRoot, ValueObject, Id,
-                                  the three kinds of Event, DomainException, Result)
-src/shared_kernel/<layer>/        domain (Email, Role)
+                                  the three kinds of Event, DomainException, Result), application (the base handlers,
+                                  ExecutionContext, Operation, the EventBus port, Module), infrastructure (the in-memory pieces)
+src/shared_kernel/<layer>/        domain (Email, Role), application (require_signed_in, integration_events/)
 src/contexts/<context>/           one package per layer (domain/, application/, infrastructure/, presentation/) and the
                                   wiring file module_local.py beside them
   domain/<aggregate>/<aggregate>.py   the aggregate; beside it <name>.py value objects, events.py, <aggregate>_exceptions.py,
                                   dtos.py (the snapshot), <rule>.py domain services, ports/, and test_<x>.py for each
+  application/commands/<use_case>.py  the command and its handler; queries/<use_case>.py a query handler;
+                                  events/<fact>_handler.py a reaction; test_commands.py beside the commands
+  infrastructure/<ports>.py       repositories.py, queries.py, suggestions.py: the adapters; test_persistence_contract.py
 tools/conventions.py              the import linter and conventions check, in one
 ../conventions/python.yaml        this language's binding of the contract: contexts, trees, enforcers, checklists, canonical files
 ```
@@ -46,11 +50,11 @@ The rules are the contract's, the same in every language, and listed in the root
 Ask the contract first: `yarn --cwd ../typescript architecture checklist <kind>` lists what a new one is made of in Python and where it goes, with the placeholders filled in snake_case (typed from this directory it answers in Python; `--language python` says it explicitly). A plan is optional: `plan validate|explain` works on one that says `language: python`, and is worth writing when a feature crosses a context or raises a modelling question.
 
 1. **Domain first.** Add a behaviour to the aggregate that enforces the rule and records an event ([`note.py`](src/contexts/notes/domain/note/note.py)): check the rules with the private `_ensure_*` helpers (return their `Failure` as is), change the state, `self._record(SomethingHappenedEvent(...))`, return `OK`. A pure read skips the aggregate: its first step is a read model and a method on the queries port ([`note_queries.py`](src/contexts/notes/domain/note/ports/note_queries.py)). New concept with validation? A value object ([`note_title.py`](src/contexts/notes/domain/note/note_title.py)): a frozen dataclass extending `ValueObject[T]`, `create()` returning a `Result`, one exception per rule the user could act on differently in [`note_exceptions.py`](src/contexts/notes/domain/note/note_exceptions.py) (a `DomainException` subclass with a PascalCase `type`); a behaviour an archived note refuses reuses `_ensure_active()` and its `NoteArchived`, since the remedy is the same (restore first). New rule about the whole collection, or a fact another context owns? A domain service taking its port in `__init__` ([`note_sharing.py`](src/contexts/notes/domain/note/note_sharing.py)). A new fact is a new frozen dataclass in [`events.py`](src/contexts/notes/domain/note/events.py), extending `DomainEvent`, named in the past tense, its fields the payload. Tests in `test_<aggregate>.py` beside it.
-2. **Command + handler**: not here yet; the TypeScript guide's step applies when the Application package exists.
-3. **Infrastructure** only if a port changed: not here yet.
-4. **Route + controller**: not here yet.
-5. **List it in the wiring** (`module_local.py`): not here yet.
-6. Cross-context reaction? Publish an integration event from a domain event handler: the contract is a frozen dataclass in the shared kernel's `integration_events/`; not here yet.
+2. **Command + handler**, in one file copied from [`edit_note.py`](src/contexts/notes/application/commands/edit_note.py): the command, a frozen dataclass extending `CommandEvent` with its fields the payload, and the handler, a class extending `CommandHandler[TheCommand]` taking its ports in `__init__`, with `execute()` — `require_signed_in(context, SERVICE)` → load → ask the aggregate → `save()` → `self.publish_domain_events(note, context)` → `OK`; every step that can refuse returns its `Failure` as is. Or a query handler from [`get_note.py`](src/contexts/notes/application/queries/get_note.py): `QueryHandler[NoteQueries, <parameters>, <read model>]`, `execute()` reads the port and nothing else. The tests of the handlers of one aggregate share the fixture of [`test_commands.py`](src/contexts/notes/application/commands/test_commands.py): the in-memory repository is the double, and its `RecordingBus` says what was published; every command handler has at least its happy path and one refusal there, through `execute()` (a rule in a `guard()` override is tested through `handle()`, with an `Operation(command, context)` built by hand).
+3. **Infrastructure** only if a port changed. A new adapter of an existing port is one more entry in `adapters` of [`test_persistence_contract.py`](src/contexts/notes/infrastructure/test_persistence_contract.py) and must pass it unchanged; that is the whole review.
+4. **Route + controller**: not here yet; the Presentation package is the next increment.
+5. **List it in the wiring** ([`module_local.py`](src/contexts/notes/module_local.py)): `Subscription(TheCommand, [TheHandler(ports)])` under `commands`, the handler instance under `queries`, `Subscription(TheFact, [TheReaction()])` under `domain_events`.
+6. Cross-context reaction? Publish an integration event from a domain event handler ([`note_shared_handler.py`](src/contexts/notes/application/events/note_shared_handler.py)): the contract is a frozen dataclass extending `IntegrationEvent` in the shared kernel's [`integration_events/`](src/shared_kernel/application/integration_events/note_integration_events.py), in the publishing context's public words. The consuming context reacts with an anti-corruption handler in its own `events/`, listed in its wiring under `integration_events`; the first consumer (Notifications) is a later increment.
 7. **The map.** A new file worth pointing at goes under `concepts` in [`conventions/python.yaml`](../conventions/python.yaml); then `yarn --cwd ../typescript conventions:write` and `uv run python -m tools.conventions`. A second use of a kind the map already shows (another command on an aggregate) is not a new example: the map stays as it is, and a feature does not edit the binding.
 
 ## Code style
@@ -59,6 +63,8 @@ Ask the contract first: `yarn --cwd ../typescript architecture checklist <kind>`
 - Private attributes everywhere in the domain (`self._title`), reached through properties; the only way into an aggregate is `create()` or `from_snapshot()`, the only way into a value object is `create()`. Accessors return copies of lists, never the list.
 - `Result[T]` in every signature that can refuse; a `Failure` is returned as is; `raise` only for corrupted state, with the id in the message. No `assert` outside tests as a check of business state.
 - A handler takes its ports in `__init__`, shared with the other handlers of the aggregate; the only state it holds is those ports (ARCH-EXECUTION-CONTEXT: a clock, a mailer, a model client is such a port, never a member of the context).
+- An event's channel is its class name, read with `name_of(event)` or `name_of(TheEvent)`; a payload field may be called `name`. A handler publishes with `context.event_bus.publish(event, context)` and never awaits it: the dispatch is a task, and a test that wants to see it awaits the in-memory bus's `settle()`.
+- A port is a `Protocol`; an adapter implements it without naming it, and so does a test double (`class Directory:` with one `async def exists`). Keep `Any` out of the use cases: the base handlers are the one place the bus is type-erased.
 - `snake_case` modules named after what they hold (`note_title.py`, `note_sharing.py`); `PascalCase` classes; an exception's `type` in PascalCase (`NotNoteOwner`); an enum's value is its name (`NoteStatus.ACTIVE == "ACTIVE"`).
 - A docstring at the top of a module explains *why* the file exists and what rule it protects, in a few lines. No commented-out code, no `print()` outside `tools/` (the lint refuses it).
 - Conventional commits (`feat:`, `fix:`, `refactor:`, `chore:`, `docs:`), one concern per PR, and the PR body states how it was verified.

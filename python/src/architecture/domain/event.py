@@ -11,7 +11,8 @@ handler, a bus decorator or a test can tell them apart with ``isinstance``.
                     shared_kernel/application/integration_events. ``NoteSharedIntegrationEvent``.
 
 An event is a frozen dataclass whose fields are its payload; its name is its class name, which
-is the channel the bus routes on::
+is the channel the bus routes on, and ``name_of()`` reads it from a class or an instance, so a
+payload may have a field called ``name``::
 
     @dataclass(frozen=True)
     class NoteSharedEvent(DomainEvent):
@@ -28,10 +29,12 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Event:
-    @property
-    def name(self) -> str:
-        """The name the bus routes on: the class's."""
-        return type(self).__name__
+    pass
+
+
+def name_of(event: Event | type[Event]) -> str:
+    """The name the bus routes on: the event's class name, from the class or from an instance."""
+    return event.__name__ if isinstance(event, type) else type(event).__name__
 
 
 @dataclass(frozen=True)
