@@ -2,7 +2,7 @@
 
 The Rust rendering of the [reference](../README.md): the same application, the same architecture ([`conventions/`](../conventions/README.md)), the same decisions ([`docs/adr`](../docs/adr)), under the same rules and the same ids. This page is about this directory, and every command on it runs from here.
 
-**What is here today**: the whole application. The building blocks in their four layers, the shared kernel, the four contexts — Notes from its Domain to its routes, Security (accounts, sign-up, login, validation, the authentication layer), Notifications (an inbox fed by the other contexts' facts, delivered over a websocket or by email) and Tracker (every operation the bus carries, recorded and followed) — and the composition root in `src/bootstrap`, which builds the bus, the stores, the modules and the HTTP transport (axum), and whose end-to-end tests boot the whole application on a free port and speak HTTP to it. There is no HTMX front end: the [map in the root README](../README.md#the-map-concept--language) shows the two concepts this language does not show as a dash, and nothing on this page claims otherwise.
+**What is here today**: the whole application, every concept of the [map](../README.md#the-map-concept--language) included. The building blocks in their four layers, the shared kernel, the four contexts — Notes from its Domain to its routes, with an in-memory and a SQLite adapter behind the same ports; Security (accounts, sign-up, login, validation, the authentication layer, its answers in JSON or HTMX); Notifications (an inbox fed by the other contexts' facts, delivered over a websocket or by email); Tracker (every operation the bus carries, recorded and followed) — and the composition root in `src/bootstrap`, which builds the bus, the stores, the modules, the HTTP transport (axum) and the static HTMX front end, and whose end-to-end tests boot the whole application on a free port and speak HTTP to it.
 
 - [Where the decisions land in Rust](#where-the-decisions-land-in-rust)
 - [The map: concept → file](#the-map-concept--file)
@@ -26,10 +26,12 @@ The decisions are the architecture's, so they hold here; the idiom changes how s
 - **A panic is caught, not propagated**: the safety net is `catch_unwind` around `execute()`, so a panic in a use case becomes a failed operation with the panic's message, and the transaction rolls back (DOMAIN-RESULT, second half).
 - **The transport answers before the handling, and finds handlers by their message** ([ADR 14](../docs/adr/0014-in-rust-the-transport-spawns-the-dispatch-and-finds-handlers-by-their-message.md)). `publish()` builds the operation and hands it to `dispatch()`; a route does the same by hand through [`accept()`](src/architecture/presentation/src/lib.rs) — the operation's id goes out as `202`, the dispatch runs on the runtime after the answer. A command says what it answers with (`type Output` on the command), a query is a struct too, and a controller asks the module for a handler by the message's type (`module.query::<GetNote>()`, `module.command::<Login>().run(…)`), never by the handler's, which would name the adapter behind it. The runtime (`tokio`) is a library of the binding: it appears in the Presentation and the bootstrap, nowhere below.
 - **The Tracker is a decorator of the bus** ([`tracked_event_bus.rs`](src/contexts/tracker/infrastructure/src/tracked_event_bus.rs)): a record before the dispatch, a record after, and the completion notice when the operation is a command's — which the bus knows because every message says its `EventKind`.
+- **A port is the seam, proved twice**: the SQLite pair of Notes ([`repositories.rs`](src/contexts/notes/infrastructure/src/repositories.rs), [`queries.rs`](src/contexts/notes/infrastructure/src/queries.rs), over the one table of [`notes_table.rs`](src/contexts/notes/infrastructure/src/notes_table.rs)) implements the same two traits as the in-memory pair, with the optimistic check as one `UPDATE … WHERE version = ?`, and the [contract test](src/contexts/notes/infrastructure/src/persistence_contract.rs) holds both to the same expectations; not one line of the Domain or the Application changed for it.
+- **One use case, several formats**: a controller keeps a `const ByFormat` per answer — a JSON [`Presenter`](src/architecture/presentation/src/format.rs) and an HTMX one — and picks per request from the `HX-Request` header ([`security/presentation/presenters.rs`](src/contexts/security/presentation/src/presenters.rs)). The static front end of the TypeScript bootstrap is served as is from [`src/bootstrap/public`](src/bootstrap/public), `index.html` answering any path the API does not.
 
 ## The map: concept → file
 
-One canonical example per concept, rendered from [`conventions/concepts.yaml`](../conventions/concepts.yaml) — the concepts, shared with every language — and [`conventions/rust.yaml`](../conventions/rust.yaml), this language's binding, which names the file that shows each; CI checks that every file they name exists. A concept with no file is one the HTMX front end or a second adapter of a port would bring.
+One canonical example per concept, rendered from [`conventions/concepts.yaml`](../conventions/concepts.yaml) — the concepts, shared with every language — and [`conventions/rust.yaml`](../conventions/rust.yaml), this language's binding, which names the file that shows each; CI checks that every file they name exists.
 
 ### Domain layer
 
@@ -85,6 +87,7 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 | --- | --- | --- |
 | Repository implementation | [`repositories.rs`](src/contexts/notes/infrastructure/src/repositories.rs) | snapshot in, snapshot out |
 | Queries implementation | [`queries.rs`](src/contexts/notes/infrastructure/src/queries.rs) | builds read models from the same store, here |
+| **Second adapter of the same port** | `SqliteNoteRepository` in [`repositories.rs`](src/contexts/notes/infrastructure/src/repositories.rs) and `SqliteNoteQueries` in [`queries.rs`](src/contexts/notes/infrastructure/src/queries.rs), over the one table of [`notes_table.rs`](src/contexts/notes/infrastructure/src/notes_table.rs) (`rusqlite`, bundled) | the proof that the port is the seam: a real database behind the same interfaces, not one line changed in Domain or Application. The local wiring keeps the in-memory pair; both are held to the same contract spec; the contract test: [`persistence_contract.rs`](src/contexts/notes/infrastructure/src/persistence_contract.rs); the optimistic check is one `UPDATE … WHERE version = ?` |
 | Port implementations | [`signed_tokens.rs`](src/contexts/security/infrastructure/src/signed_tokens.rs) (`jsonwebtoken`), [`password_hasher.rs`](src/contexts/security/infrastructure/src/password_hasher.rs) (`bcrypt`), [`channels/websocket.rs`](src/contexts/notifications/infrastructure/src/channels/websocket.rs) (axum's `ws`) |  |
 | Event bus | [`event_bus.rs`](src/architecture/infrastructure/src/event_bus.rs) | the only bus implementation; routes by name, awaits the handlers inline; the port is [`event_bus.rs`](src/architecture/application/src/event_bus.rs) |
 | Decorator (cross-cutting concern) | [`tracked_event_bus.rs`](src/contexts/tracker/infrastructure/src/tracked_event_bus.rs) | tracking layered on any bus; neither the bus nor the handlers know; wraps `dispatch`: a record before, a record after, the completion notice when it is a command's |
@@ -100,6 +103,7 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 | Controller (commands → `202 { operationId }`, queries → sync; one `refuse()` per controller: `403` not allowed, `404` not found, `400` otherwise, always `{ message }`) | [`notes/presentation`](src/contexts/notes/presentation/src/lib.rs); every other context's has the same shape |
 | Routes and JSON schemas | the `Router` and the request bodies and views of [`notes/presentation`](src/contexts/notes/presentation/src/lib.rs), on [`architecture/presentation`](src/architecture/presentation/src/lib.rs) (`Accepted`, the refusals) |
 | Authentication middleware | [`authentication.rs`](src/contexts/security/presentation/src/authentication.rs) — never blocks, leaves the caller anonymous unless the token verifies; a layer over every route |
+| Presenters (one use case, several formats) | [`security/presentation/presenters.rs`](src/contexts/security/presentation/src/presenters.rs), picked per request by [`format.rs`](src/architecture/presentation/src/format.rs) — a `const ByFormat` per answer in the controller, no registry |
 | Composition root | [`create_application.rs`](src/bootstrap/src/create_application.rs) on [`application.rs`](src/architecture/application/src/application.rs): wires, starts the modules, seeds the administrator through the same handler as any command, then listens; [`main.rs`](src/bootstrap/src/main.rs) is the process entry point |
 <!-- end generated -->
 
@@ -112,7 +116,7 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 | Domain service | `mod tests` in [`note_sharing.rs`](src/contexts/notes/domain/src/note/note_sharing.rs) | a five-line struct implementing the port |
 | Application | `mod tests` in [`commands/mod.rs`](src/contexts/notes/application/src/commands/mod.rs), [`delivery.rs`](src/contexts/notifications/application/src/delivery.rs) | the in-memory repository *is* the double; the in-memory bus, with a recording handler, says what was published; a fake channel remembers what it received |
 | Infrastructure | `mod tests` in [`tracked_event_bus.rs`](src/contexts/tracker/infrastructure/src/tracked_event_bus.rs), [`signed_tokens.rs`](src/contexts/security/infrastructure/src/signed_tokens.rs) | real in-memory pieces |
-| **Contract** (one port, every adapter) | [`persistence_contract.rs`](src/contexts/notes/infrastructure/src/persistence_contract.rs) | none — every case runs over each entry of `adapters()`, same expectations |
+| **Contract** (one port, every adapter) | [`persistence_contract.rs`](src/contexts/notes/infrastructure/src/persistence_contract.rs) | none — every case runs over each entry of `adapters()`, the in-memory and the SQLite pair, same expectations |
 | End to end | [`notes_routes.rs`](src/bootstrap/tests/notes_routes.rs) | the whole application, booted in-process on a free port by [`tests/support/mod.rs`](src/bootstrap/tests/support/mod.rs), spoken to over HTTP; a `202` is followed through the Tracker to its outcome |
 <!-- end generated -->
 
@@ -171,7 +175,7 @@ src/architecture/
   infrastructure/                 crate architecture-infrastructure: InMemoryDataSource, InMemoryEventBus,
                                   InMemoryUnitOfWork, ConsoleLogger
   presentation/                   crate architecture-presentation: accept() — the 202 and the spawned dispatch —
-                                  and the refusals (status_of, refused)
+                                  the refusals (status_of, refused), and format.rs (Format, Presenter, ByFormat)
 src/shared_kernel/
   domain/                         crate shared-kernel-domain: Email, Role
   application/                    crate shared-kernel-application: require_signed_in, integration_events/ (notes,
@@ -187,9 +191,11 @@ src/contexts/notes/
     src/commands/<use_case>.rs    the command and its handler; the tests of them all at the bottom of commands/mod.rs
     src/queries/<use_case>.rs     the query and its handler                src/events/   reactions
     src/suggestions.rs            the port for a decision the domain cannot make (ADR 7)
-  infrastructure/                 crate notes-infrastructure: repositories.rs, queries.rs, suggestions.rs,
-                                  directories.rs (over Security's read model), persistence_contract.rs
-  presentation/                   crate notes-presentation: note_routes(), the routes, their bodies and views
+  infrastructure/                 crate notes-infrastructure: repositories.rs and queries.rs (the in-memory and the
+                                  SQLite adapters), notes_table.rs, suggestions.rs, directories.rs (over Security's
+                                  read model), persistence_contract.rs (one port, every adapter)
+  presentation/                   crate notes-presentation: note_routes(), the routes, their bodies and views, the
+                                  new-note form
   wiring/                         crate notes-wiring: local_notes_module(), the Module as data
 src/contexts/security/            the same five crates: account/ (aggregate, registration, credentials, ports),
                                   auth/ (the token and hasher ports), the four commands, the query, the two
@@ -203,7 +209,8 @@ src/contexts/notifications/       the five crates: notification/ (the aggregate,
 src/contexts/tracker/             no Domain: application/ (read_model, ports, projection, the two queries),
                                   infrastructure/ (the records, TrackedEventBus), presentation/, wiring/
 src/bootstrap/                    crate bootstrap: settings.rs, create_application.rs (the composition root),
-                                  main.rs (cargo run -p bootstrap), tests/ (the end-to-end suites, over HTTP)
+                                  home.rs (the API's home, in two formats), main.rs (cargo run -p bootstrap),
+                                  public/ (the HTMX front end), tests/ (the end-to-end suites, over HTTP)
 tools/conventions/                cargo run -p conventions: the graph is the table, the tree is the contract's
 ```
 
@@ -220,7 +227,7 @@ cargo test                                  # every #[test] in every crate, the 
 cargo run -p bootstrap                      # serves on http://127.0.0.1:10000/v1 (PORT, API_PREFIX, JWT_SECRET, ADMIN_IDENTIFIER, ADMIN_PASSWORD)
 ```
 
-Then, as a client would: `POST /v1/auth/login` with `{ "identifier": "admin@admin.fr", "password": "admin" }` answers a token; `POST /v1/notes` with it answers `202 { operationId }`; `GET /v1/tracker/operations/<operationId>` says how it went; `GET /v1/notes` lists the note. The documents of this directory are rendered from the contract by the TypeScript tooling, which reads every binding: after editing `conventions/rust.yaml`, run `yarn --cwd ../typescript conventions:write`.
+Then, as a client would: `POST /v1/auth/login` with `{ "identifier": "admin@admin.fr", "password": "admin" }` answers a token; `POST /v1/notes` with it answers `202 { operationId }`; `GET /v1/tracker/operations/<operationId>` says how it went; `GET /v1/notes` lists the note. Or as a browser would: open `http://127.0.0.1:10000/`, log in, write a note, and watch the outcome arrive over the websocket. The documents of this directory are rendered from the contract by the TypeScript tooling, which reads every binding: after editing `conventions/rust.yaml`, run `yarn --cwd ../typescript conventions:write`.
 
 ## Vocabulary
 
@@ -255,7 +262,6 @@ The words the reference uses, with the file that shows them here; a word with no
 
 ## Known gaps
 
-- **JSON only.** There is no HTMX front end and no presenter picking a format per request; a route answers one shape, the view struct beside it, and the websocket writes the delivery as JSON. The static front end of the TypeScript bootstrap has no counterpart.
-- **One adapter per port.** The SQLite adapters of Notes are not written; the contract test is ready for a second entry in `adapters()`.
+- **The SQLite adapters are not wired.** The local wiring keeps the in-memory pair, as in TypeScript; the unit of work snapshots the in-memory stores only, so a SQLite deployment would bring its own unit of work over the connection's transactions, behind the same port.
 - **The bus awaits the handlers inline**, so a command is handled before `publish` answers; `accept()` answers the `202` first and spawns the dispatch (ADR 14). A client that reads right after a `202` may be early: the end-to-end tests follow the operation through the Tracker, as a client should.
 - **The in-memory unit of work takes the stores it guards as a list**, which the composition root builds; there is no registry of every store of the process as in TypeScript. Its honest limit is the same: a transaction boundary, not isolation.

@@ -2,7 +2,7 @@
 //! read (`PATCH /notifications/{id}/read`: a command that changes part of a thing's state
 //! without replacing it — the `change-part` verb of the HTTP grammar), and a notification sent
 //! by hand. Also what a live notification looks like on the wire ([`render`]), which the wiring
-//! hands to the websocket channel: the one presenter of this language.
+//! hands to the websocket channel: an HTML fragment the HTMX front end swaps out of band.
 
 use std::sync::Arc;
 
@@ -33,16 +33,11 @@ pub fn notification_routes(module: Arc<Module>) -> Router {
         .with_state(module)
 }
 
-/// A live notification as the websocket writes it: JSON, the delivery as it is.
+/// A live notification as the websocket writes it: an out-of-band swap into `#notifications`.
+/// The content is the notification's own markup (a link to validate, a sentence), as the
+/// anti-corruption handlers wrote it.
 pub fn render(delivery: &Delivery) -> String {
-    serde_json::json!({
-        "notificationId": delivery.notification_id,
-        "recipientId": delivery.recipient_id,
-        "title": delivery.title,
-        "content": delivery.content,
-        "metadata": delivery.metadata,
-    })
-    .to_string()
+    format!(r##"<div id="notifications" hx-swap-oob="innerHTML">{}</div>"##, delivery.content)
 }
 
 #[derive(Debug, Deserialize)]

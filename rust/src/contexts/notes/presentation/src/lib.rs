@@ -6,6 +6,7 @@
 //!
 //! The JSON shapes are this layer's: a request body is deserialized into what the command
 //! needs, a read model is serialized through a view, so the Domain never learns about JSON.
+//! `GET /notes/new` is the one HTMX answer of the context: the form the front end swaps in.
 
 use std::sync::Arc;
 
@@ -15,7 +16,7 @@ use architecture_presentation::{accept, refused, status_of};
 use axum::Router;
 use axum::extract::{Extension, Path, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Json, Response};
+use axum::response::{Html, IntoResponse, Json, Response};
 use axum::routing::{get, post};
 use notes_application::commands::archive_note::ArchiveNote;
 use notes_application::commands::create_note::CreateNote;
@@ -35,6 +36,7 @@ pub fn note_routes(module: Arc<Module>) -> Router {
     Router::new()
         .route("/", post(create_note).get(get_my_notes))
         .route("/shared", get(get_notes_shared_with_me))
+        .route("/new", get(new_note))
         .route("/{id}", get(get_note).put(edit_note))
         .route("/{id}/archive", post(archive_note))
         .route("/{id}/restore", post(restore_note))
@@ -144,6 +146,27 @@ async fn share_note(
 
 async fn suggest_note_title(Extension(context): Extension<ExecutionContext>, Path(id): Path<String>) -> Response {
     accept(&context, SuggestNoteTitle { note_id: id }).into_response()
+}
+
+/// The form the HTMX front end swaps in to write a note; it posts to the same `POST /notes`.
+async fn new_note() -> Response {
+    Html(
+        r##"<form hx-post="/v1/notes" hx-ext="json-enc" hx-swap="none" hx-on::after-request="if(event.detail.successful) this.reset()">
+  <h2>Create a new Note</h2>
+  <p>
+    <label for="title">Title</label>
+    <br />
+    <input type="text" name="title" id="title" />
+  </p>
+  <p>
+    <label for="content">Body</label>
+    <br />
+    <textarea rows="5" cols="50" name="content" id="content"></textarea>
+  </p>
+  <input type="submit" value="Submit" />
+</form>"##,
+    )
+    .into_response()
 }
 
 async fn get_my_notes(State(module): State<Arc<Module>>, Extension(context): Extension<ExecutionContext>) -> Response {

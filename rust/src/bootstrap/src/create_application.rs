@@ -3,7 +3,9 @@
 //! over them, the modules from each context's wiring, the routes under the API prefix, and the
 //! two layers that give each request its identity (Security's authentication) and its
 //! `ExecutionContext`. Then it starts the modules, seeds the administrator through the same
-//! handler as any command, and only then listens.
+//! handler as any command, and only then listens. The static front end (`public/`: the page
+//! and the HTMX scripts) is served beside the API, `index.html` answering any path the API
+//! does not, so the front end's own routes (`/me`) load the page.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -14,9 +16,9 @@ use architecture_infrastructure::data_sources::Snapshottable;
 use architecture_infrastructure::{InMemoryEventBus, InMemoryUnitOfWork};
 use axum::Router;
 use axum::extract::{Request, State};
-use axum::http::{HeaderName, HeaderValue, StatusCode};
+use axum::http::{HeaderName, HeaderValue};
 use axum::middleware::{self, Next};
-use axum::response::{IntoResponse, Json, Response};
+use axum::response::Response;
 use notes_infrastructure::directories::SecurityAccountDirectory;
 use notes_presentation::note_routes;
 use notes_wiring::{local_notes_module, note_store};
@@ -24,13 +26,14 @@ use notifications_presentation::notification_routes;
 use notifications_wiring::{local_notifications_module, notification_store};
 use security_presentation::{auth_routes, authenticate};
 use security_wiring::{account_store, local_security_module};
-use serde::Serialize;
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
+use tower_http::services::{ServeDir, ServeFile};
 use tracker_presentation::operation_routes;
 use tracker_wiring::{local_tracker_module, operation_records, operation_store, tracked_event_bus};
 
+use crate::home::{HomeViewModel, home_routes};
 use crate::settings::Settings;
 
 const TRACE_HEADER: HeaderName = HeaderName::from_static("x-trace-id");
@@ -83,8 +86,12 @@ pub async fn create_application(settings: Settings, logger: Arc<dyn Logger>) -> 
         .register_module(notifications.module.clone());
     application.start_modules().await;
 
-    // The routes, under the API prefix, each context's under its own; the websocket at the root.
+    // The routes, under the API prefix, each context's under its own; the websocket and the
+    // static front end at the root.
+    let home = Arc::new(HomeViewModel { name: settings.name.clone(), version: settings.version.clone() });
+    let public = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("public");
     let api = Router::new()
+        .merge(home_routes(home))
         .nest("/notes", note_routes(notes))
         .nest("/tracker/operations", operation_routes(tracker))
         .nest("/notifications", notification_routes(notifications.module.clone()))
@@ -93,7 +100,7 @@ pub async fn create_application(settings: Settings, logger: Arc<dyn Logger>) -> 
     let router = Router::new()
         .nest(&format!("/{}", settings.api_prefix), api)
         .merge(notifications.websocket.clone().routes())
-        .fallback(not_found)
+        .fallback_service(ServeDir::new(&public).fallback(ServeFile::new(public.join("index.html"))))
         // Layers run from the last added to the first: the caller is identified, then the context is built.
         .layer(middleware::from_fn_with_state(per_request, with_execution_context))
         .layer(middleware::from_fn_with_state(security.authentication.clone(), authenticate));
@@ -135,15 +142,6 @@ async fn with_execution_context(State(shared): State<Arc<PerRequest>>, mut reque
         response.headers_mut().insert(TRACE_HEADER, value);
     }
     response
-}
-
-#[derive(Serialize)]
-struct Message {
-    message: &'static str,
-}
-
-async fn not_found() -> Response {
-    (StatusCode::NOT_FOUND, Json(Message { message: "Not found" })).into_response()
 }
 
 impl App {

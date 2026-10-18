@@ -1,7 +1,12 @@
-//! The repository port on the in-memory store: a snapshot in, a snapshot out. It knows nothing
-//! of the aggregate's rules (`from_snapshot` and `to_snapshot` are the aggregate's), and offers
-//! only what a use case needs to change one aggregate: find it by id, save it. Searching and
-//! listing are the queries' job (`InMemoryNoteQueries`), on the same store.
+//! The repository port, twice: on the in-memory store, and on SQLite. A snapshot in, a snapshot
+//! out; neither knows the aggregate's rules (`from_snapshot` and `to_snapshot` are the
+//! aggregate's), and each offers only what a use case needs to change one aggregate: find it by
+//! id, save it. Searching and listing are the queries' job, on the same store.
+//!
+//! The SQLite one exists to prove the claim the ports make: the domain and the use cases did not
+//! change by one line to get here, and the contract test holds both adapters to the same
+//! expectations. The local wiring keeps the in-memory one; hand the wiring a `Database` instead
+//! of a store to persist to a file.
 
 use std::sync::Arc;
 
@@ -10,6 +15,9 @@ use architecture_infrastructure::InMemoryDataSource;
 use notes_domain::note::note_exceptions::SERVICE;
 use notes_domain::note::ports::note_repository::NoteRepository;
 use notes_domain::note::{Note, NoteSnapshot};
+use rusqlite::{OptionalExtension, params};
+
+use crate::notes_table::{Database, lock, shared_with_column, to_snapshot};
 
 pub struct InMemoryNoteRepository {
     store: Arc<InMemoryDataSource<NoteSnapshot>>,
@@ -46,4 +54,75 @@ pub fn stale_note(note_id: &str, read: u64, stored: u64) -> Exception {
         .with("noteId", note_id)
         .with("read", read)
         .with("stored", stored)
+}
+
+pub struct SqliteNoteRepository {
+    database: Database,
+}
+
+impl SqliteNoteRepository {
+    pub fn new(database: Database) -> Self {
+        Self { database }
+    }
+}
+
+impl NoteRepository for SqliteNoteRepository {
+    async fn find_by_id(&self, id: &str) -> Option<Note> {
+        lock(&self.database)
+            .query_row("SELECT * FROM notes WHERE id = ?1", [id], to_snapshot)
+            .optional()
+            .expect("the notes table answers")
+            .map(Note::from_snapshot)
+    }
+
+    /// The optimistic check the way SQL makes it atomic: update only the row still at the
+    /// version the aggregate was read at; no row changed means someone else wrote first (ADR 8).
+    async fn save(&self, note: &Note) -> DomainResult {
+        let snapshot = note.to_snapshot();
+        let shared_with = shared_with_column(&snapshot.shared_with);
+        let connection = lock(&self.database);
+        // An update never moves a note to another owner.
+        let updated = connection
+            .execute(
+                "UPDATE notes SET title = ?1, content = ?2, status = ?3, shared_with = ?4, version = ?5 + 1
+                 WHERE id = ?6 AND version = ?5",
+                params![
+                    snapshot.title,
+                    snapshot.content,
+                    snapshot.status.as_str(),
+                    shared_with,
+                    snapshot.version,
+                    snapshot.id
+                ],
+            )
+            .expect("the notes table answers");
+        if updated > 0 {
+            return Ok(());
+        }
+
+        let stored: Option<i64> = connection
+            .query_row("SELECT version FROM notes WHERE id = ?1", [&snapshot.id], |row| row.get(0))
+            .optional()
+            .expect("the notes table answers");
+        if let Some(stored) = stored {
+            return Err(stale_note(&snapshot.id, snapshot.version, u64::try_from(stored).unwrap_or_default()));
+        }
+
+        connection
+            .execute(
+                "INSERT INTO notes (id, owner_id, title, content, status, shared_with, version)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7 + 1)",
+                params![
+                    snapshot.id,
+                    snapshot.owner_id,
+                    snapshot.title,
+                    snapshot.content,
+                    snapshot.status.as_str(),
+                    shared_with,
+                    snapshot.version
+                ],
+            )
+            .expect("the notes table answers");
+        Ok(())
+    }
 }

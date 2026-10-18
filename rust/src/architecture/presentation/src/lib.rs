@@ -10,9 +10,16 @@
 //!   body carries its message ([`refused`]). A context maps its own kinds first (a `NoteNotFound`
 //!   is a 404) and falls back on this.
 //!
+//! - A use case may answer in **several formats**: JSON for API clients, HTML fragments for the
+//!   HTMX front end. [`format_of`] reads which one a request wants, and a controller keeps one
+//!   [`Presenter`] per format in a [`ByFormat`] — JSON mandatory, HTMX optional, falling back on
+//!   JSON — a plain value the controller owns, nothing registered or looked up by name.
+//!
 //! The per-request [`ExecutionContext`] reaches a controller as an axum `Extension`, which the
 //! composition root inserts: a controller never builds one, never builds an adapter, and gets
 //! its `Module` from the state the composition root passes (ARCH-PRESENTATION).
+
+pub mod format;
 
 use std::sync::Arc;
 
@@ -23,6 +30,8 @@ use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
+
+pub use format::{ByFormat, Format, Presenter, format_of};
 
 /// `202 { operationId }`: the command is being processed; poll the operation to know its outcome.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

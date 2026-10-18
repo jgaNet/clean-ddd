@@ -17,6 +17,7 @@ security-application = { path = "../application" }
 axum.workspace = true
 chrono.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true

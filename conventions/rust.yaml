@@ -30,7 +30,7 @@ wiring: wiring
 
 # Libraries only an adapter may depend on: the domain and the use cases never see them. The
 # runtime is one of them (ADR 14): `tokio` appears in the Presentation and the bootstrap, nowhere below.
-libraries: [axum, hyper, tower, tokio, reqwest, sqlx, rusqlite, jsonwebtoken, bcrypt]
+libraries: [axum, hyper, tower, tower-http, tokio, reqwest, sqlx, rusqlite, jsonwebtoken, bcrypt]
 
 # What stands behind each enforcement word of architecture.yaml, in this language.
 enforcers:
@@ -162,7 +162,7 @@ checklists:
       - 'The query: a struct with its parameters (or a unit struct), `impl Query` naming its `Output`; the handler in the same file: a struct holding the queries port, `impl QueryHandler` with `execute()`; it reads the port and nothing else: no sorting, no second port, no aggregate.'
       - 'One `pub mod` line in `queries/mod.rs`.'
       - 'A test in `queries/mod.rs` when the handler holds a visibility or role rule.'
-      - 'A route answering synchronously — `module.query::<TheQuery>().handle(…)`, a view struct for the JSON, refusals through the file''s `refuse()` — and the handler listed in the wiring crate with `query()`.'
+      - 'A route answering synchronously — `module.query::<TheQuery>().handle(…)`, a view struct for the JSON, refusals through the file''s `refuse()` — and the handler listed in the wiring crate with `query()`. A second format (HTMX) is a second `Presenter` in a `ByFormat`, picked by `format_of(&headers)`.'
   integration-event:
     place: src/shared_kernel/application/src/integration_events/<aggregate>_integration_events.rs
     parts:
@@ -207,7 +207,7 @@ tests:
     doubles: real in-memory pieces
   - layer: '**Contract** (one port, every adapter)'
     example: '[`persistence_contract.rs`](src/contexts/notes/infrastructure/src/persistence_contract.rs)'
-    doubles: none — every case runs over each entry of `adapters()`, same expectations
+    doubles: none — every case runs over each entry of `adapters()`, the in-memory and the SQLite pair, same expectations
   - layer: End to end
     example: '[`notes_routes.rs`](src/bootstrap/tests/notes_routes.rs)'
     doubles: >-
@@ -415,6 +415,17 @@ concepts:
     canonical: [src/contexts/notes/infrastructure/src/repositories.rs]
   queries-implementation:
     canonical: [src/contexts/notes/infrastructure/src/queries.rs]
+  second-adapter-of-the-same-port:
+    canonical:
+      - src/contexts/notes/infrastructure/src/repositories.rs
+      - src/contexts/notes/infrastructure/src/queries.rs
+      - src/contexts/notes/infrastructure/src/notes_table.rs
+    example: >-
+      `SqliteNoteRepository` in [`repositories.rs`](src/contexts/notes/infrastructure/src/repositories.rs) and
+      `SqliteNoteQueries` in [`queries.rs`](src/contexts/notes/infrastructure/src/queries.rs), over the one table of
+      [`notes_table.rs`](src/contexts/notes/infrastructure/src/notes_table.rs) (`rusqlite`, bundled)
+    examples: [src/contexts/notes/infrastructure/src/persistence_contract.rs]
+    notes: 'the contract test: [`persistence_contract.rs`](src/contexts/notes/infrastructure/src/persistence_contract.rs); the optimistic check is one `UPDATE … WHERE version = ?`'
   port-implementations:
     canonical:
       - src/contexts/security/infrastructure/src/signed_tokens.rs
@@ -449,6 +460,14 @@ concepts:
       the `Router` and the request bodies and views of [`notes/presentation`](src/contexts/notes/presentation/src/lib.rs),
       on [`architecture/presentation`](src/architecture/presentation/src/lib.rs) (`Accepted`, the refusals)
     notes: 'the schema is a serde struct beside the route: axum refuses a body that does not fit it, a view says what a read model looks like outside'
+  presenters:
+    canonical:
+      - src/contexts/security/presentation/src/presenters.rs
+      - src/architecture/presentation/src/format.rs
+    example: >-
+      [`security/presentation/presenters.rs`](src/contexts/security/presentation/src/presenters.rs), picked per
+      request by [`format.rs`](src/architecture/presentation/src/format.rs) — a `const ByFormat` per answer in the
+      controller, no registry
   authentication-middleware:
     canonical: [src/contexts/security/presentation/src/authentication.rs]
     example: >-

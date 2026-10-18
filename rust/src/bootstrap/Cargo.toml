@@ -19,6 +19,7 @@ path = "src/main.rs"
 architecture-domain = { path = "../architecture/domain" }
 architecture-application = { path = "../architecture/application" }
 architecture-infrastructure = { path = "../architecture/infrastructure" }
+architecture-presentation = { path = "../architecture/presentation" }
 notes-infrastructure = { path = "../contexts/notes/infrastructure" }
 notes-presentation = { path = "../contexts/notes/presentation" }
 notes-wiring = { path = "../contexts/notes/wiring" }
@@ -29,8 +30,11 @@ security-wiring = { path = "../contexts/security/wiring" }
 tracker-presentation = { path = "../contexts/tracker/presentation" }
 tracker-wiring = { path = "../contexts/tracker/wiring" }
 axum.workspace = true
+chrono.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
+tower-http.workspace = true
 
 [dev-dependencies]
 reqwest.workspace = true

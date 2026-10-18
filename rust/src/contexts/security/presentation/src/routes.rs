@@ -1,27 +1,30 @@
 //! The REST routes of authentication and accounts. Sign-up and validation are commands:
 //! accepted (202) and followed through the operation. Login answers synchronously, with the
 //! token the client needs, by running the command through the module rather than publishing
-//! it. `me` and the account by id are queries.
+//! it, in JSON or HTMX depending on the request (see the presenters). `me` and the account by
+//! id are queries.
 
 use std::sync::Arc;
 
 use architecture_application::{ExecutionContext, Module};
 use architecture_domain::Exception;
 use architecture_domain::common_exceptions::NOT_ALLOWED;
-use architecture_presentation::{accept, refused, status_of};
+use architecture_presentation::{Format, accept, format_of, refused, status_of};
 use axum::Router;
 use axum::extract::{Extension, Path, Query, State};
-use axum::http::StatusCode;
 use axum::http::header::SET_COOKIE;
+use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Json, Response};
 use axum::routing::{get, post};
-use chrono::{DateTime, Utc};
 use security_application::commands::login::Login;
 use security_application::commands::sign_up::SignUp;
 use security_application::commands::validate_account::ValidateAccount;
 use security_application::queries::get_account::GetAccount;
-use security_domain::account::ports::account_queries::AccountDetail;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+
+use crate::presenters::{
+    AccountViewModel, ERROR, ErrorViewModel, LOGGED_IN, LOGGED_OUT, LoginViewModel, LogoutViewModel, ME, SIGN_IN_AGAIN,
+};
 
 /// `/auth/…`: sign-up, validation, login, logout, the caller's own account, an account by id.
 pub fn auth_routes(module: Arc<Module>) -> Router {
@@ -48,41 +51,6 @@ struct ValidationQuery {
     validation_token: String,
 }
 
-/// An account as the API shows it; never the credentials.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct AccountView {
-    id: String,
-    email: String,
-    role: &'static str,
-    status: &'static str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    last_authenticated_at: Option<DateTime<Utc>>,
-}
-
-impl From<AccountDetail> for AccountView {
-    fn from(account: AccountDetail) -> Self {
-        Self {
-            id: account.id,
-            email: account.email,
-            role: account.role.as_str(),
-            status: account.status.as_str(),
-            last_authenticated_at: account.last_authenticated_at.map(DateTime::<Utc>::from),
-        }
-    }
-}
-
-#[derive(Debug, Serialize)]
-struct Message {
-    message: &'static str,
-}
-
-/// `{ error }`: how the auth routes word a refusal, as the TypeScript presenters do.
-#[derive(Debug, Serialize)]
-struct Error {
-    error: String,
-}
-
 async fn sign_up(Extension(context): Extension<ExecutionContext>, Json(body): Json<CredentialsBody>) -> Response {
     if let Some(logger) = context.logger() {
         logger.info(context.trace_id(), &format!("Creating new account {}", body.identifier));
@@ -100,33 +68,61 @@ async fn validate(Extension(context): Extension<ExecutionContext>, Query(query):
 async fn login(
     State(module): State<Arc<Module>>,
     Extension(context): Extension<ExecutionContext>,
+    headers: HeaderMap,
     Json(body): Json<CredentialsBody>,
 ) -> Response {
+    let format = format_of(&headers);
     let login = Login { identifier: body.identifier, password: body.password };
     match module.command::<Login>().run(login, &context).await {
         Ok(logged_in) => {
             let cookie = format!("token={}; Path=/; HttpOnly; Secure; SameSite=Strict", logged_in.token);
-            ([(SET_COOKIE, cookie)], Json(logged_in)).into_response()
+            with_cookie(LOGGED_IN.present(format, &LoginViewModel { token: logged_in.token }), &cookie)
         }
-        Err(error) => (StatusCode::UNAUTHORIZED, Json(Error { error: error.message().to_string() })).into_response(),
+        Err(error) => with_status(
+            ERROR.present(format, &ErrorViewModel { message: error.message().to_string() }),
+            StatusCode::UNAUTHORIZED,
+        ),
     }
 }
 
-async fn me(State(module): State<Arc<Module>>, Extension(context): Extension<ExecutionContext>) -> Response {
+async fn me(
+    State(module): State<Arc<Module>>,
+    Extension(context): Extension<ExecutionContext>,
+    headers: HeaderMap,
+) -> Response {
+    let format = format_of(&headers);
     let id = context.auth().subject_id.clone().unwrap_or_default();
     match module.query::<GetAccount>().handle(GetAccount { id }, &context).await {
-        Ok(account) => Json(AccountView::from(account)).into_response(),
+        Ok(account) => ME.present(format, &AccountViewModel::from(account)),
         Err(error) => {
-            // An API client that is not signed in gets a 401.
-            let status = if error.is(NOT_ALLOWED) { StatusCode::UNAUTHORIZED } else { StatusCode::BAD_REQUEST };
-            (status, Json(Error { error: error.message().to_string() })).into_response()
+            let message = ErrorViewModel { message: error.message().to_string() };
+            if error.is(NOT_ALLOWED) {
+                // HTMX swaps the login form back in; an API client gets a 401.
+                return match format {
+                    Format::Htmx => SIGN_IN_AGAIN.present(format, &message),
+                    Format::Json => with_status(SIGN_IN_AGAIN.present(format, &message), StatusCode::UNAUTHORIZED),
+                };
+            }
+            with_status(ERROR.present(format, &message), StatusCode::BAD_REQUEST)
         }
     }
 }
 
-async fn logout() -> Response {
+async fn logout(headers: HeaderMap) -> Response {
     let cookie = "token=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0";
-    ([(SET_COOKIE, cookie)], Json(Message { message: "Logout successful" })).into_response()
+    with_cookie(LOGGED_OUT.present(format_of(&headers), &LogoutViewModel { message: "Logout successful" }), cookie)
+}
+
+fn with_status(mut response: Response, status: StatusCode) -> Response {
+    *response.status_mut() = status;
+    response
+}
+
+fn with_cookie(mut response: Response, cookie: &str) -> Response {
+    if let Ok(value) = HeaderValue::from_str(cookie) {
+        response.headers_mut().insert(SET_COOKIE, value);
+    }
+    response
 }
 
 async fn get_account(
@@ -135,7 +131,7 @@ async fn get_account(
     Path(id): Path<String>,
 ) -> Response {
     match module.query::<GetAccount>().handle(GetAccount { id }, &context).await {
-        Ok(account) => Json(AccountView::from(account)).into_response(),
+        Ok(account) => Json(AccountViewModel::from(account)).into_response(),
         Err(error) => refuse(error),
     }
 }

@@ -16,6 +16,7 @@ notes-domain = { path = "../domain" }
 notes-application = { path = "../application" }
 # Another context's Domain: its read-model port, which the directory adapts (others.Domain).
 security-domain = { path = "../../security/domain" }
+rusqlite.workspace = true
 chrono.workspace = true
 
 [dev-dependencies]

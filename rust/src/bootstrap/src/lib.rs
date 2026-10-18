@@ -6,6 +6,7 @@
 //! `tests/` boot the same application on a free port and speak HTTP to it.
 
 pub mod create_application;
+pub mod home;
 pub mod settings;
 
 pub use create_application::{App, Running, create_application};

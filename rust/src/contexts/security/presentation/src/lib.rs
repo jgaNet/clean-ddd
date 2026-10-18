@@ -2,6 +2,7 @@
 //! accounts, and the layer that identifies the caller of every request of the application.
 
 pub mod authentication;
+pub mod presenters;
 pub mod routes;
 
 pub use authentication::{Authentication, Identify, authenticate};
