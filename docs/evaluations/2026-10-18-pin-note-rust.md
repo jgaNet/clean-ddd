@@ -1,6 +1,6 @@
 # 2026-10-18 — "Pin a note", in Rust
 
-**Base:** the Rust implementation complete, at `82cc2c8` (PR #59, every concept of the map shown). **Agent:** Claude, fresh session, isolated worktree, nothing but the repository, told not to read `docs/evaluations/` and to read the guides from disk. **Language:** Rust, the first run on [`rust/CLAUDE.md`](../../rust/CLAUDE.md). **Result:** commit `6ee895a` on `eval/pin-note-rust`, 15 files, +537/−21; not merged — it is an exercise, and archive/restore already teach that shape.
+**Base:** the Rust implementation complete, at `82cc2c8` (PR #59, every concept of the map shown). **Agent:** Claude, fresh session, isolated worktree, nothing but the repository, told not to read `docs/evaluations/` and to read the guides from disk. **Language:** Rust, the first run on [`rust/CLAUDE.md`](../../rust/CLAUDE.md). **Result branch:** [`eval/pin-note-rust`](https://github.com/jgaNet/clean-ddd/tree/eval/pin-note-rust) (commit `6ee895a`, 15 files, +537/−21; not merged — it is an exercise, and archive/restore already teach that shape.
 
 ## The request
 
