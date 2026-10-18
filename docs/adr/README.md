@@ -18,5 +18,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0012](0012-in-rust-a-layer-is-a-crate.md) | In Rust, a layer is a crate, and the dependency table is its dependencies |
 | [0013](0013-in-rust-the-bus-routes-by-name-and-a-handler-is-a-trait.md) | In Rust, the bus routes type-erased events by name, and a handler is a trait with a provided `handle()` |
 | [0014](0014-in-rust-the-transport-spawns-the-dispatch-and-finds-handlers-by-their-message.md) | In Rust, the transport spawns the dispatch, and a handler is found by its message |
+| [0015](0015-in-python-a-layer-is-a-package-and-an-ast-walk-holds-the-table.md) | In Python, a layer is a package, and an `ast` walk holds the dependency table |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.
