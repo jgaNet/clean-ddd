@@ -1,0 +1,21 @@
+# The Security context's wiring: its module, and what it exports to the composition root and to
+# the other contexts' adapters — the account read model, the authentication layer, the seed.
+[package]
+name = "security-wiring"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-domain = { path = "../../../architecture/domain" }
+architecture-application = { path = "../../../architecture/application" }
+architecture-infrastructure = { path = "../../../architecture/infrastructure" }
+shared-kernel-domain = { path = "../../../shared_kernel/domain" }
+security-domain = { path = "../domain" }
+security-application = { path = "../application" }
+security-infrastructure = { path = "../infrastructure" }
+security-presentation = { path = "../presentation" }
+
+[lints]
+workspace = true

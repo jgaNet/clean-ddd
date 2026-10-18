@@ -1,0 +1,20 @@
+# The Notifications context's Presentation: the inbox routes (ARCH-PRESENTATION; the libraries).
+[package]
+name = "notifications-presentation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-domain = { path = "../../../architecture/domain" }
+architecture-application = { path = "../../../architecture/application" }
+architecture-presentation = { path = "../../../architecture/presentation" }
+notifications-domain = { path = "../domain" }
+notifications-application = { path = "../application" }
+axum.workspace = true
+chrono.workspace = true
+serde.workspace = true
+
+[lints]
+workspace = true

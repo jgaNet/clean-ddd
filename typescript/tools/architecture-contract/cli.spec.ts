@@ -1,19 +1,22 @@
 import { spawnSync } from 'child_process';
 import { join } from 'path';
 
-import { languageRoot } from './load';
+import { languageRoot, repositoryRoot } from './load';
 
 /** The CLI as a tool would call it: a process, its stdout, its exit status. JSON must be JSON. */
-const architecture = (...args: string[]) => {
+const architecture = (...args: string[]) => architectureTypedIn(languageRoot(), ...args);
+
+/** The CLI as typed from `typedFrom`: a process, its stdout, its exit status. JSON must be JSON. */
+const architectureTypedIn = (typedFrom: string, ...args: string[]) => {
   // The CLI reads a typed path from where the command was typed (INIT_CWD, which yarn sets);
-  // here that is the language's directory, as for `cd typescript && yarn architecture …`.
+  // by default that is the language's directory, as for `cd typescript && yarn architecture …`.
   const result = spawnSync(
     join(languageRoot(), 'node_modules/.bin/tsx'),
     ['tools/architecture-contract/cli.ts', ...args],
     {
       cwd: languageRoot(),
       encoding: 'utf8',
-      env: { ...process.env, INIT_CWD: languageRoot() },
+      env: { ...process.env, INIT_CWD: typedFrom },
     },
   );
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
@@ -77,6 +80,20 @@ describe('yarn architecture', () => {
     expect(status).toBe(0);
     expect(JSON.parse(stdout)).toMatchObject({ kind: 'aggregate', concept: 'aggregate-root' });
     expect(architecture('place', 'saga', '--json').status).toBe(1);
+  });
+
+  it('answers for the language the command was typed in, or the one --language names', () => {
+    const fromRust = architectureTypedIn(join(repositoryRoot(), 'rust'), 'checklist', 'command');
+    expect(fromRust.status).toBe(0);
+    expect(fromRust.stdout).toContain('rust/src/contexts/<context>/application/src/commands/<use_case>.rs');
+
+    const byFlag = architecture('place', 'command', '--language', 'rust', '--json');
+    expect(JSON.parse(byFlag.stdout).place).toBe('rust/src/contexts/<context>/application/src/commands/<use_case>.rs');
+    expect(architecture('place', 'command', '--json').stdout).toContain('typescript/src/Contexts/');
+
+    const unknown = architecture('place', 'command', '--language', 'cobol', '--json');
+    expect(unknown.status).toBe(1);
+    expect(JSON.parse(unknown.stdout).error.code).toBe('unknown-language');
   });
 
   it('plan validate says whether an intended change is legal, and exits non-zero when it is not', () => {

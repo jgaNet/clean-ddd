@@ -3,4 +3,6 @@
 //! (ADR 6). A contract appears when a first consumer needs a fact; adding one is a feature's
 //! business, not an architecture change.
 
+pub mod account_integration_events;
 pub mod note_integration_events;
+pub mod tracker_integration_events;

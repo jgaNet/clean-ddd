@@ -10,14 +10,18 @@
 //! 4. safety net   — a panic becomes a failed operation instead of a crash
 //!
 //! The handler is subscribed to its command on the event bus by the Module, wrapped in a
-//! [`CommandSubscriber`] that gives it its command back from the type-erased operation. See
-//! the Notes context's `EditNoteCommandHandler` for the canonical example.
+//! [`CommandSubscriber`] that gives it its command back from the type-erased operation. The
+//! rare command a caller needs the answer of at once (a login, whose token must not travel
+//! through the bus and its records) is found in the module by its command's type and run
+//! through `run()`: the same guard, transaction and safety net, the typed answer in return.
+//! See the Notes context's `EditNoteCommandHandler` for the canonical example.
 
 use std::any::{Any, type_name};
 use std::future::Future;
 use std::sync::Arc;
 
 use architecture_domain::{CommandEvent, DomainResult};
+use serde::Serialize;
 
 use crate::BoxFuture;
 use crate::event_bus::AnyHandler;
@@ -25,9 +29,9 @@ use crate::execution_context::ExecutionContext;
 use crate::operation::Operation;
 
 pub trait CommandHandler: Send + Sync + 'static {
-    type Command: CommandEvent + Send + Sync + 'static;
-    /// What the command answers with (the id of what it created, the suggestion it applied); `()` when nothing.
-    type Output: Send + Sync + 'static;
+    /// The command it handles; what it answers with is the command's `Output`, serializable
+    /// because the Tracker shows it to the client who asked.
+    type Command: CommandEvent<Output: Serialize> + Send + Sync + 'static;
 
     /// Authorization hook. Override it to refuse callers who may not run this command. Business
     /// rules about *what* they may do to *which* object belong in the aggregate.
@@ -44,7 +48,32 @@ pub trait CommandHandler: Send + Sync + 'static {
         &self,
         command: Self::Command,
         context: &ExecutionContext,
-    ) -> impl Future<Output = DomainResult<Self::Output>> + Send;
+    ) -> impl Future<Output = DomainResult<<Self::Command as CommandEvent>::Output>> + Send;
+
+    /// The command, run to its typed answer: the guard, the log, the transaction, the safety
+    /// net. What `handle()` does for the bus, and what a controller calls for a command it
+    /// needs the answer of at once. Not meant to be overridden.
+    fn run(
+        &self,
+        command: Self::Command,
+        context: &ExecutionContext,
+    ) -> impl Future<Output = DomainResult<<Self::Command as CommandEvent>::Output>> + Send {
+        async move {
+            let name = Self::Command::NAME;
+            if let Err(refusal) = self.guard(&command, context).await {
+                log_warn(context, &format!("{name} refused: {}", refusal.message()));
+                return Err(refusal);
+            }
+            if let Some(logger) = context.logger() {
+                logger.info(context.trace_id(), &format!("Executing {name}"));
+            }
+            let result = context.with_transaction(|| self.execute(command, context)).await;
+            if let Err(failure) = &result {
+                log_warn(context, &format!("{name} failed: {}", failure.message()));
+            }
+            result
+        }
+    }
 
     /// What the bus calls: the guard, the log, the transaction around `execute()`, the outcome
     /// on the operation. Not meant to be overridden.
@@ -60,23 +89,27 @@ pub trait CommandHandler: Send + Sync + 'static {
             };
             let context = operation.context().clone();
 
-            if let Err(refusal) = self.guard(&command, &context).await {
-                log_warn(&context, &format!("{name} refused: {}", refusal.message()));
-                return operation.failed(refusal);
-            }
-
-            if let Some(logger) = context.logger() {
-                logger.info(context.trace_id(), &format!("Executing {name}"));
-            }
-
-            match context.with_transaction(|| self.execute(command, &context)).await {
+            match self.run(command, &context).await {
                 Ok(value) => operation.success(Arc::new(value)),
-                Err(failure) => {
-                    log_warn(&context, &format!("{name} failed: {}", failure.message()));
-                    operation.failed(failure)
-                }
+                Err(failure) => operation.failed(failure),
             }
         }
+    }
+}
+
+/// A command handler as the module holds it for a synchronous caller: whoever has a `C` gets
+/// its answer, without knowing which handler, over which adapters, answers it.
+pub trait AnyCommand<C: CommandEvent>: Send + Sync {
+    fn run<'a>(&'a self, command: C, context: &'a ExecutionContext) -> BoxFuture<'a, DomainResult<C::Output>>;
+}
+
+impl<H: CommandHandler> AnyCommand<H::Command> for H {
+    fn run<'a>(
+        &'a self,
+        command: H::Command,
+        context: &'a ExecutionContext,
+    ) -> BoxFuture<'a, DomainResult<<H::Command as CommandEvent>::Output>> {
+        Box::pin(CommandHandler::run(self, command, context))
     }
 }
 
@@ -87,7 +120,7 @@ fn log_warn(context: &ExecutionContext, message: &str) {
 }
 
 /// A command handler as the bus holds it: the one place the type-erased operation meets the typed handler.
-pub struct CommandSubscriber<H: CommandHandler>(pub H);
+pub struct CommandSubscriber<H: CommandHandler>(pub Arc<H>);
 
 impl<H: CommandHandler> AnyHandler for CommandSubscriber<H> {
     fn handle(&self, operation: Operation) -> BoxFuture<'_, Operation> {
@@ -103,11 +136,11 @@ impl<H: CommandHandler> AnyHandler for CommandSubscriber<H> {
 mod tests {
     use std::sync::Mutex;
 
-    use architecture_domain::{Aggregate, AggregateRoot, DomainEvent, Entity, Event, Exception, Id};
+    use architecture_domain::{Aggregate, AggregateRoot, DomainEvent, Entity, Event, EventKind, Exception, Id};
 
     use super::*;
     use crate::domain_events::publish_domain_events;
-    use crate::event_bus::{AnyEvent, EventBus};
+    use crate::event_bus::EventBus;
     use crate::execution_context::{Auth, ExecutionContextOptions, UnitOfWork};
     use crate::operation::OperationStatus;
 
@@ -120,9 +153,13 @@ mod tests {
         fn name(&self) -> &'static str {
             Self::NAME
         }
+        fn kind(&self) -> EventKind {
+            EventKind::Command
+        }
     }
     impl CommandEvent for Greet {
         const NAME: &'static str = "Greet";
+        type Output = String;
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -132,6 +169,9 @@ mod tests {
     impl Event for Greeting {
         fn name(&self) -> &'static str {
             "Greeted"
+        }
+        fn kind(&self) -> EventKind {
+            EventKind::Domain
         }
     }
     impl DomainEvent for Greeting {}
@@ -158,7 +198,6 @@ mod tests {
     struct GreetHandler;
     impl CommandHandler for GreetHandler {
         type Command = Greet;
-        type Output = String;
 
         async fn guard(&self, _command: &Greet, context: &ExecutionContext) -> DomainResult {
             match context.auth().role.as_deref() {
@@ -190,9 +229,9 @@ mod tests {
         fn connect(&self) -> BoxFuture<'_, ()> {
             Box::pin(async {})
         }
-        fn publish(&self, event: Arc<dyn AnyEvent>, context: ExecutionContext) -> BoxFuture<'_, Operation> {
-            self.log.lock().unwrap().push(format!("publish {:?}", event));
-            Box::pin(async move { Operation::new(event, context) })
+        fn dispatch(&self, operation: Operation) -> BoxFuture<'_, Operation> {
+            self.log.lock().unwrap().push(format!("publish {:?}", operation.event()));
+            Box::pin(async move { operation })
         }
         fn subscribe(&self, _channel: &'static str, _handler: Arc<dyn AnyHandler>) -> BoxFuture<'_, ()> {
             Box::pin(async {})

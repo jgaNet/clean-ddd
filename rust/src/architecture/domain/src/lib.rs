@@ -22,7 +22,7 @@ pub mod value_object;
 
 pub use aggregate_root::{Aggregate, AggregateRoot};
 pub use entity::Entity;
-pub use event::{CommandEvent, DomainEvent, Event, IntegrationEvent};
+pub use event::{CommandEvent, DomainEvent, Event, EventKind, IntegrationEvent};
 pub use exception::Exception;
 pub use id::Id;
 pub use result::DomainResult;

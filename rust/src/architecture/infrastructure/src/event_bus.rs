@@ -1,7 +1,7 @@
 //! A process-local bus: a map from a channel — an event's name — to the handlers subscribed to
-//! it. Publishing builds a pending operation and hands it to each handler in turn, awaited, so
-//! what comes back is the operation as the handlers left it; an event nobody listens to stays
-//! pending. The Tracker context's decorator will record those operations.
+//! it. Dispatching hands the pending operation to each handler in turn, awaited, so what comes
+//! back is the operation as the handlers left it; an event nobody listens to stays pending.
+//! The Tracker context's decorator records those operations.
 //!
 //! Handlers run inline, on the publisher's task. A transport that wants to answer before the
 //! handling is done spawns the publication on its runtime; the bus does not know the runtime.
@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-use architecture_application::{AnyEvent, AnyHandler, BoxFuture, EventBus, ExecutionContext, Operation};
+use architecture_application::{AnyHandler, BoxFuture, EventBus, Operation};
 
 #[derive(Default)]
 pub struct InMemoryEventBus {
@@ -32,11 +32,9 @@ impl EventBus for InMemoryEventBus {
         Box::pin(async {})
     }
 
-    fn publish(&self, event: Arc<dyn AnyEvent>, context: ExecutionContext) -> BoxFuture<'_, Operation> {
+    fn dispatch(&self, mut operation: Operation) -> BoxFuture<'_, Operation> {
         Box::pin(async move {
-            let handlers = self.handlers_of(event.name());
-            let mut operation = Operation::new(event, context);
-            for handler in handlers {
+            for handler in self.handlers_of(operation.event().name()) {
                 operation = handler.handle(operation).await;
             }
             operation
@@ -58,8 +56,10 @@ impl EventBus for InMemoryEventBus {
 mod tests {
     use std::sync::Mutex;
 
-    use architecture_application::{Auth, EventHandler, EventSubscriber, ExecutionContextOptions, OperationStatus};
-    use architecture_domain::{DomainEvent, DomainResult, Event};
+    use architecture_application::{
+        Auth, EventHandler, EventSubscriber, ExecutionContext, ExecutionContextOptions, OperationStatus,
+    };
+    use architecture_domain::{DomainEvent, DomainResult, Event, EventKind};
 
     use super::*;
 
@@ -74,6 +74,9 @@ mod tests {
                 Greeting::Greeted { .. } => "Greeted",
                 Greeting::Waved => "Waved",
             }
+        }
+        fn kind(&self) -> EventKind {
+            EventKind::Domain
         }
     }
     impl DomainEvent for Greeting {}

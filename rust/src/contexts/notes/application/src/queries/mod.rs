@@ -18,7 +18,7 @@ mod tests {
     use notes_infrastructure::queries::InMemoryNoteQueries;
     use notes_infrastructure::repositories::InMemoryNoteRepository;
 
-    use super::get_note::GetNoteQueryHandler;
+    use super::get_note::{GetNote, GetNoteQueryHandler};
 
     fn context_for(subject_id: &str) -> ExecutionContext {
         ExecutionContext::new(ExecutionContextOptions {
@@ -47,7 +47,8 @@ mod tests {
         let (note_id, handler) = a_shared_note();
 
         for reader in ["alice", "bob"] {
-            let detail = pollster::block_on(handler.handle(note_id.clone(), &context_for(reader))).expect(reader);
+            let detail = pollster::block_on(handler.handle(GetNote { note_id: note_id.clone() }, &context_for(reader)))
+                .expect(reader);
             assert_eq!(detail.title, "Groceries");
         }
     }
@@ -56,7 +57,7 @@ mod tests {
     fn a_note_someone_else_owns_and_did_not_share_does_not_exist_as_far_as_you_know() {
         let (note_id, handler) = a_shared_note();
 
-        let result = pollster::block_on(handler.handle(note_id, &context_for("carol")));
+        let result = pollster::block_on(handler.handle(GetNote { note_id }, &context_for("carol")));
 
         assert!(result.expect_err("invisible").is(NOTE_NOT_FOUND));
     }

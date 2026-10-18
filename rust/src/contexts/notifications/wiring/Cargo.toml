@@ -1,0 +1,20 @@
+# The Notifications context's wiring: its channels, its delivery service, its module, and the
+# websocket channel it exports for the composition root to serve.
+[package]
+name = "notifications-wiring"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-application = { path = "../../../architecture/application" }
+architecture-infrastructure = { path = "../../../architecture/infrastructure" }
+shared-kernel-application = { path = "../../../shared_kernel/application" }
+notifications-domain = { path = "../domain" }
+notifications-application = { path = "../application" }
+notifications-infrastructure = { path = "../infrastructure" }
+notifications-presentation = { path = "../presentation" }
+
+[lints]
+workspace = true

@@ -5,7 +5,7 @@
 //! and evolves with care. Notes translates one into the other (`NoteSharedHandler`); the
 //! receiving context reads only this.
 
-use architecture_domain::{Event, IntegrationEvent};
+use architecture_domain::{Event, EventKind, IntegrationEvent};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NoteIntegrationEvent {
@@ -21,6 +21,10 @@ impl Event for NoteIntegrationEvent {
         match self {
             NoteIntegrationEvent::Shared { .. } => Self::SHARED,
         }
+    }
+
+    fn kind(&self) -> EventKind {
+        EventKind::Integration
     }
 }
 

@@ -73,6 +73,7 @@ impl<E: DomainEvent> AggregateRoot<E> {
 mod tests {
     use super::*;
     use crate::event::Event;
+    use crate::event::EventKind;
 
     #[derive(Debug, Clone, PartialEq)]
     enum Happened {
@@ -81,6 +82,9 @@ mod tests {
     impl Event for Happened {
         fn name(&self) -> &'static str {
             "Something"
+        }
+        fn kind(&self) -> EventKind {
+            EventKind::Domain
         }
     }
     impl DomainEvent for Happened {}

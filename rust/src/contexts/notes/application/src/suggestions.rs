@@ -4,20 +4,23 @@
 //! aggregate validates and may refuse. Named for what it decides, not for the technology (ADR 7).
 
 use std::future::Future;
-use std::time::SystemTime;
+
+use chrono::{DateTime, Utc};
+use serde::Serialize;
 
 /// Where a title suggestion came from, kept with the suggestion so that an accepted one can be
 /// traced back: which source, which version of it, when. An LLM adapter would put the model and
 /// the prompt version here; the rule-based adapter puts its rule.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SuggestionProvenance {
     pub source: String,
     pub version: String,
-    pub at: SystemTime,
+    pub at: DateTime<Utc>,
 }
 
-/// What the source proposes. Whether the note accepts it is the aggregate's decision (`NoteTitle`'s rules).
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// What the source proposes. Whether the note accepts it is the aggregate's decision (`NoteTitle`'s
+/// rules). It is the operation's result, so a client reads it as JSON.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct TitleSuggestion {
     pub title: String,
     pub provenance: SuggestionProvenance,

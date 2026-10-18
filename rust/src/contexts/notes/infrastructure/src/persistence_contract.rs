@@ -1,8 +1,8 @@
 //! A contract test: the expectations belong to the ports, so every adapter of a port runs the
-//! same ones. Add an adapter (a SQLite one, say) by adding an entry to `adapters()`; if it
+//! same ones. Add an adapter (a Postgres one, say) by adding an entry to `adapters()`; if it
 //! passes here, the use cases will not notice the change. The repository and the queries are
 //! tested together because they are two views of one store: what the repository saves is what
-//! the queries must show.
+//! the queries must show. Two adapters today: the in-memory pair and the SQLite pair.
 
 use std::sync::Arc;
 
@@ -12,8 +12,9 @@ use notes_domain::note::ports::note_queries::{NoteDetail, NoteListItem, NoteQuer
 use notes_domain::note::ports::note_repository::NoteRepository;
 use notes_domain::note::{NewNote, Note, NoteStatus};
 
-use crate::queries::InMemoryNoteQueries;
-use crate::repositories::InMemoryNoteRepository;
+use crate::notes_table::in_memory_database;
+use crate::queries::{InMemoryNoteQueries, SqliteNoteQueries};
+use crate::repositories::{InMemoryNoteRepository, SqliteNoteRepository};
 
 /// Opens one adapter of the two ports, fresh for each case.
 type Open = Box<dyn Fn() -> (Box<dyn Persistence>, Box<dyn Reads>)>;
@@ -55,13 +56,22 @@ impl<Q: NoteQueries> Reads for Q {
 }
 
 fn adapters() -> Vec<Adapter> {
-    vec![Adapter {
-        name: "in memory",
-        repository: Box::new(|| {
-            let store = Arc::new(InMemoryDataSource::new());
-            (Box::new(InMemoryNoteRepository::new(store.clone())), Box::new(InMemoryNoteQueries::new(store)))
-        }),
-    }]
+    vec![
+        Adapter {
+            name: "in memory",
+            repository: Box::new(|| {
+                let store = Arc::new(InMemoryDataSource::new());
+                (Box::new(InMemoryNoteRepository::new(store.clone())), Box::new(InMemoryNoteQueries::new(store)))
+            }),
+        },
+        Adapter {
+            name: "SQLite",
+            repository: Box::new(|| {
+                let database = in_memory_database();
+                (Box::new(SqliteNoteRepository::new(database.clone())), Box::new(SqliteNoteQueries::new(database)))
+            }),
+        },
+    ]
 }
 
 fn a_note(owner_id: &str, title: &str, content: &str) -> Note {

@@ -1,11 +1,17 @@
-//! The queries port on the in-memory store: read models built from the snapshots, in the order
-//! they were saved, which is the order the port promises.
+//! The queries port, twice: on the in-memory store, read models built from the snapshots in the
+//! order they were saved, which is the order the port promises; and on SQLite, where each query
+//! is one SQL statement shaped for its read model, which is the point of separating the queries
+//! from the repository. The contract test says what both must answer.
 
 use std::sync::Arc;
 
 use architecture_infrastructure::InMemoryDataSource;
 use notes_domain::note::NoteSnapshot;
+use notes_domain::note::NoteStatus;
 use notes_domain::note::ports::note_queries::{NoteDetail, NoteListItem, NoteQueries, SharedNoteListItem};
+use rusqlite::OptionalExtension;
+
+use crate::notes_table::{Database, lock, to_snapshot};
 
 pub struct InMemoryNoteQueries {
     store: Arc<InMemoryDataSource<NoteSnapshot>>,
@@ -50,5 +56,72 @@ impl NoteQueries for InMemoryNoteQueries {
                 owner_id: note.owner_id,
             })
             .collect()
+    }
+}
+
+pub struct SqliteNoteQueries {
+    database: Database,
+}
+
+impl SqliteNoteQueries {
+    pub fn new(database: Database) -> Self {
+        Self { database }
+    }
+}
+
+impl NoteQueries for SqliteNoteQueries {
+    async fn find_by_id(&self, note_id: &str) -> Option<NoteDetail> {
+        lock(&self.database)
+            .query_row("SELECT * FROM notes WHERE id = ?1", [note_id], to_snapshot)
+            .optional()
+            .expect("the notes table answers")
+            .map(|note| NoteDetail {
+                id: note.id,
+                title: note.title,
+                status: note.status,
+                owner_id: note.owner_id,
+                content: note.content,
+                shared_with: note.shared_with,
+            })
+    }
+
+    async fn find_by_owner(&self, owner_id: &str) -> Vec<NoteListItem> {
+        let connection = lock(&self.database);
+        let mut statement = connection
+            .prepare("SELECT id, title, status FROM notes WHERE owner_id = ?1 ORDER BY rowid")
+            .expect("a valid statement");
+        let rows = statement
+            .query_map([owner_id], |row| {
+                let status: String = row.get("status")?;
+                Ok(NoteListItem {
+                    id: row.get("id")?,
+                    title: row.get("title")?,
+                    status: NoteStatus::parse(&status).unwrap_or_else(|| panic!("Corrupted note row: status {status}")),
+                })
+            })
+            .expect("the notes table answers");
+        rows.collect::<Result<Vec<_>, _>>().expect("the notes table answers")
+    }
+
+    async fn find_shared_with(&self, account_id: &str) -> Vec<SharedNoteListItem> {
+        let connection = lock(&self.database);
+        let mut statement = connection
+            .prepare(
+                "SELECT id, title, content, owner_id FROM notes
+                 WHERE EXISTS (SELECT 1 FROM json_each(notes.shared_with) WHERE value = ?1)
+                 ORDER BY rowid",
+            )
+            .expect("a valid statement");
+        let rows = statement
+            .query_map([account_id], |row| {
+                Ok(SharedNoteListItem {
+                    id: row.get("id")?,
+                    title: row.get("title")?,
+                    content: row.get("content")?,
+                    owner_id: row.get("owner_id")?,
+                })
+            })
+            .expect("the notes table answers");
+        rows.collect::<Result<Vec<_>, _>>().expect("the notes table answers")
     }
 }

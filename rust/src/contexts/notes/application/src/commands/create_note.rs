@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use architecture_application::{CommandHandler, ExecutionContext, publish_domain_events};
-use architecture_domain::{CommandEvent, DomainResult, Entity, Event};
+use architecture_domain::{CommandEvent, DomainResult, Entity, Event, EventKind};
 use notes_domain::note::ports::note_repository::NoteRepository;
 use notes_domain::note::{NewNote, Note};
 use shared_kernel_application::require_signed_in;
@@ -20,10 +20,15 @@ impl Event for CreateNote {
     fn name(&self) -> &'static str {
         Self::NAME
     }
+
+    fn kind(&self) -> EventKind {
+        EventKind::Command
+    }
 }
 
 impl CommandEvent for CreateNote {
     const NAME: &'static str = "CreateNote";
+    type Output = String;
 }
 
 pub struct CreateNoteCommandHandler<R> {
@@ -38,8 +43,6 @@ impl<R> CreateNoteCommandHandler<R> {
 
 impl<R: NoteRepository + Send + Sync + 'static> CommandHandler for CreateNoteCommandHandler<R> {
     type Command = CreateNote;
-    /// The id of the note, which the aggregate chose.
-    type Output = String;
 
     async fn execute(&self, command: CreateNote, context: &ExecutionContext) -> DomainResult<String> {
         let owner = require_signed_in(context, SERVICE)?;

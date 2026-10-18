@@ -1,0 +1,22 @@
+# The Notifications context's Infrastructure: the in-memory persistence and the two channels —
+# email (logged, this reference has no mail server) and websocket (axum, a library).
+[package]
+name = "notifications-infrastructure"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-domain = { path = "../../../architecture/domain" }
+architecture-application = { path = "../../../architecture/application" }
+architecture-infrastructure = { path = "../../../architecture/infrastructure" }
+notifications-domain = { path = "../domain" }
+axum.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+pollster.workspace = true
+
+[lints]
+workspace = true

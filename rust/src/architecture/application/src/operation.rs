@@ -1,7 +1,9 @@
 //! `Operation`: the handle a client gets for a message on the bus — its status and its outcome.
-//! The bus creates one `Pending` when an event is published; the handler marks it `Success`
-//! (a command, with its value), `Sent` (a reaction) or `Error` (a refusal, or a panic the
-//! safety net caught). The Tracker records one for every message, events included.
+//! `publish()` creates one `Pending` and dispatches it; the handler marks it `Success` (a
+//! command, with its value), `Sent` (a reaction) or `Error` (a refusal, or a panic the safety
+//! net caught). The Tracker records one for every message, events included, and shows a client
+//! the value as JSON: that is why a command's answer is [`AnyValue`], a value that can be both
+//! downcast by the code that knows its type and serialized by the code that does not.
 
 use std::any::Any;
 use std::fmt;
@@ -9,6 +11,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use architecture_domain::{Exception, Id};
+use serde::Serialize;
 
 use crate::event_bus::AnyEvent;
 use crate::execution_context::ExecutionContext;
@@ -32,8 +35,25 @@ impl OperationStatus {
     }
 }
 
-/// What a command answers with: any value, which a reader downcasts (`operation.value::<String>()`).
-pub type OperationValue = Arc<dyn Any + Send + Sync>;
+/// A command's answer as the operation holds it: downcast by whoever knows the type
+/// (`operation.value::<String>()`), serialized by whoever does not (the Tracker's record).
+pub trait AnyValue: Any + Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+    fn to_json(&self) -> serde_json::Value;
+}
+
+impl<T: Serialize + Any + Send + Sync> AnyValue for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn to_json(&self) -> serde_json::Value {
+        serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
+    }
+}
+
+/// What a command answers with.
+pub type OperationValue = Arc<dyn AnyValue>;
 
 #[derive(Clone)]
 pub struct Operation {
@@ -104,7 +124,15 @@ impl Operation {
     /// The command's answer, as the type it answered with.
     pub fn value<T: 'static>(&self) -> Option<&T> {
         match &self.result {
-            Some(Ok(value)) => value.downcast_ref::<T>(),
+            Some(Ok(value)) => value.as_any().downcast_ref::<T>(),
+            _ => None,
+        }
+    }
+
+    /// The command's answer as a client may see it; `None` while pending or failed.
+    pub fn value_as_json(&self) -> Option<serde_json::Value> {
+        match &self.result {
+            Some(Ok(value)) => Some(value.to_json()),
             _ => None,
         }
     }

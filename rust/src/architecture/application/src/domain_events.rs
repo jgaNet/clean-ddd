@@ -30,11 +30,11 @@ where
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use architecture_domain::{AggregateRoot, DomainEvent, DomainResult, Entity, Event, Exception, Id};
+    use architecture_domain::{AggregateRoot, DomainEvent, DomainResult, Entity, Event, EventKind, Exception, Id};
 
     use super::*;
     use crate::BoxFuture;
-    use crate::event_bus::{AnyEvent, AnyHandler, EventBus};
+    use crate::event_bus::{AnyHandler, EventBus};
     use crate::execution_context::{Auth, ExecutionContextOptions};
     use crate::operation::Operation;
 
@@ -45,6 +45,9 @@ mod tests {
     impl Event for Greeting {
         fn name(&self) -> &'static str {
             "Greeted"
+        }
+        fn kind(&self) -> EventKind {
+            EventKind::Domain
         }
     }
     impl DomainEvent for Greeting {}
@@ -73,9 +76,9 @@ mod tests {
         fn connect(&self) -> BoxFuture<'_, ()> {
             Box::pin(async {})
         }
-        fn publish(&self, event: Arc<dyn AnyEvent>, context: ExecutionContext) -> BoxFuture<'_, Operation> {
-            self.0.lock().unwrap().push(format!("{event:?}"));
-            Box::pin(async move { Operation::new(event, context) })
+        fn dispatch(&self, operation: Operation) -> BoxFuture<'_, Operation> {
+            self.0.lock().unwrap().push(format!("{:?}", operation.event()));
+            Box::pin(async move { operation })
         }
         fn subscribe(&self, _channel: &'static str, _handler: Arc<dyn AnyHandler>) -> BoxFuture<'_, ()> {
             Box::pin(async {})
