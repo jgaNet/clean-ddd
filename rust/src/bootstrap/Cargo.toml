@@ -22,6 +22,8 @@ architecture-infrastructure = { path = "../architecture/infrastructure" }
 notes-infrastructure = { path = "../contexts/notes/infrastructure" }
 notes-presentation = { path = "../contexts/notes/presentation" }
 notes-wiring = { path = "../contexts/notes/wiring" }
+notifications-presentation = { path = "../contexts/notifications/presentation" }
+notifications-wiring = { path = "../contexts/notifications/wiring" }
 security-presentation = { path = "../contexts/security/presentation" }
 security-wiring = { path = "../contexts/security/wiring" }
 tracker-presentation = { path = "../contexts/tracker/presentation" }

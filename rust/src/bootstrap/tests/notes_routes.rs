@@ -151,6 +151,25 @@ async fn sharing_a_note_lets_the_recipient_read_it_and_is_refused_for_an_unknown
     let note = bob.get(format!("{api}/notes/{note_id}")).send().await.expect("answers");
     assert_eq!(note.status(), 200);
 
+    // ... and was notified (next to the welcome notifications his account creation and validation produced)
+    let inbox: Value = bob
+        .get(format!("{api}/notifications/account/{bob_id}"))
+        .send()
+        .await
+        .expect("answers")
+        .json()
+        .await
+        .expect("JSON");
+    let notice = inbox["notifications"]
+        .as_array()
+        .expect("a list")
+        .iter()
+        .find(|n| n["title"] == "A note was shared with you: Roadmap")
+        .expect("notified");
+    assert_eq!(notice["recipientId"], bob_id);
+    assert_eq!(notice["metadata"]["noteId"], note_id);
+    assert_eq!(notice["metadata"]["source"], "Notes.NoteShared");
+
     // Sharing with an unknown account is refused by the domain, through the port to Security
     let share = admin
         .post(format!("{api}/notes/{note_id}/share"))

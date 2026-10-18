@@ -44,7 +44,10 @@ async fn following_an_operation() {
         .expect("answers");
     assert_eq!(by_trace.status(), 200);
     let records: Vec<Value> = by_trace.json().await.expect("JSON");
+    // The trace holds the command and everything it set off: here the notification telling the
+    // caller how it went, whose own domain events are recorded too (never announced).
     assert!(records.iter().any(|r| r["name"] == "ShareNote" && r["status"] == "ERROR"));
+    assert!(records.iter().any(|r| r["name"] == "NotificationFailed"));
     assert!(records.iter().all(|r| r["traceId"] == trace_id));
 
     // Not for a user, and not someone else's operation

@@ -17,7 +17,7 @@ language: rust
 name: Rust
 root: rust
 
-contexts: [Notes, Security, Tracker]
+contexts: [Notes, Security, Notifications, Tracker]
 
 # The trees. `alias` is how a tree is named in a crate name: a context's crates are named after
 # the context (`notes-domain`), the two trees after themselves.
@@ -97,6 +97,7 @@ rules:
     references:
       - src/contexts/notes/infrastructure/src/directories.rs
       - src/contexts/notes/application/src/events/note_shared_handler.rs
+      - src/contexts/notifications/application/src/events/note_shared_handler.rs
   CONC-OPTIMISTIC:
     references: [src/contexts/notes/infrastructure/src/repositories.rs]
   ARCH-MAP-IS-REAL:
@@ -111,7 +112,7 @@ verbs:
   create-under: src/contexts/notes/presentation/src/lib.rs
   replace: src/contexts/notes/presentation/src/lib.rs
   replace-part: src/contexts/notes/presentation/src/lib.rs
-  change-part: src/contexts/notes/presentation/src/lib.rs
+  change-part: src/contexts/notifications/presentation/src/lib.rs
   remove: src/contexts/notes/presentation/src/lib.rs
   link-in-an-email: src/contexts/security/presentation/src/routes.rs
 
@@ -168,7 +169,7 @@ checklists:
       - 'An enum of the facts the publishing context tells the others, in its public words, `impl Event` with the published name and `impl IntegrationEvent`, in that context''s file.'
       - 'A payload carrying everything a consumer needs, so it never queries back.'
       - 'A domain event handler in the publishing context that translates the domain event into it — that is where a fact leaves its context.'
-      - 'An anti-corruption handler in each consuming context, registered in its wiring crate.'
+      - 'An anti-corruption handler in each consuming context (`events/<name>_handler.rs`, like [`notifications/.../note_shared_handler.rs`](src/contexts/notifications/application/src/events/note_shared_handler.rs)), listed in its wiring crate under `integration_events`, on the contract''s published name.'
       - 'Adding one is not an architecture change: the module is where a context publishes, and a feature may publish.'
   event-handler:
     place: src/contexts/<context>/application/src/events/<name>_handler.rs
@@ -195,8 +196,10 @@ tests:
     example: '`mod tests` in [`note_sharing.rs`](src/contexts/notes/domain/src/note/note_sharing.rs)'
     doubles: a five-line struct implementing the port
   - layer: Application
-    example: '`mod tests` in [`commands/mod.rs`](src/contexts/notes/application/src/commands/mod.rs)'
-    doubles: the in-memory repository *is* the double; the in-memory bus, with a recording handler, says what was published
+    example: >-
+      `mod tests` in [`commands/mod.rs`](src/contexts/notes/application/src/commands/mod.rs),
+      [`delivery.rs`](src/contexts/notifications/application/src/delivery.rs)
+    doubles: the in-memory repository *is* the double; the in-memory bus, with a recording handler, says what was published; a fake channel remembers what it received
   - layer: Infrastructure
     example: >-
       `mod tests` in [`tracked_event_bus.rs`](src/contexts/tracker/infrastructure/src/tracked_event_bus.rs),
@@ -236,6 +239,8 @@ vocabulary:
     [`directories.rs`](src/contexts/notes/infrastructure/src/directories.rs)
   Repository: '[`note_repository.rs`](src/contexts/notes/domain/src/note/ports/note_repository.rs)'
   Domain service: '[`note_sharing.rs`](src/contexts/notes/domain/src/note/note_sharing.rs)'
+  Application service: '[`delivery.rs`](src/contexts/notifications/application/src/delivery.rs)'
+  Anti-corruption layer: '[`note_shared_handler.rs`](src/contexts/notifications/application/src/events/note_shared_handler.rs)'
   Snapshot: '[`dtos.rs`](src/contexts/notes/domain/src/note/dtos.rs)'
   Operation: '[`operation.rs`](src/architecture/application/src/operation.rs)'
   Composition root: '[`create_application.rs`](src/bootstrap/src/create_application.rs)'
@@ -254,6 +259,9 @@ concepts:
       [`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs) holding an
       [`AggregateRoot`](src/architecture/domain/src/aggregate_root.rs)
     notes: 'no inheritance: the aggregate holds the root in a private field and delegates'
+  entity-inside-an-aggregate:
+    canonical: [src/contexts/notifications/domain/src/notification/delivery_attempt.rs]
+    notes: 'created and reached through `Notification` only (`pub(super)`), persisted in its snapshot'
   value-object:
     canonical:
       - src/contexts/notes/domain/src/note/note_title.rs
@@ -346,6 +354,9 @@ concepts:
     canonical: [src/contexts/notes/application/src/commands/edit_note.rs]
     example: '`EditNoteCommandHandler` in [`edit_note.rs`](src/contexts/notes/application/src/commands/edit_note.rs)'
     notes: 'generic over its ports, `Arc`-shared with the other handlers of the aggregate'
+  application-service:
+    canonical: [src/contexts/notifications/application/src/delivery.rs]
+    notes: 'holds the channels through `dyn`, since a strategy walks a list of adapters of different types'
   guard:
     canonical:
       - src/shared_kernel/application/src/guards.rs
@@ -371,6 +382,9 @@ concepts:
     canonical: [src/contexts/notes/application/src/events/note_shared_handler.rs]
   integration-event:
     canonical: [src/shared_kernel/application/src/integration_events/note_integration_events.rs]
+  anti-corruption-layer:
+    canonical: [src/contexts/notifications/application/src/events/note_shared_handler.rs]
+    notes: 'one handler per consumed contract, in [`events/`](src/contexts/notifications/application/src/events/mod.rs); each knows the contract and nothing else of the other context'
   projection-read-model:
     canonical:
       - src/contexts/tracker/application/src/projection.rs
@@ -405,9 +419,11 @@ concepts:
     canonical:
       - src/contexts/security/infrastructure/src/signed_tokens.rs
       - src/contexts/security/infrastructure/src/password_hasher.rs
+      - src/contexts/notifications/infrastructure/src/channels/websocket.rs
     example: >-
       [`signed_tokens.rs`](src/contexts/security/infrastructure/src/signed_tokens.rs) (`jsonwebtoken`),
-      [`password_hasher.rs`](src/contexts/security/infrastructure/src/password_hasher.rs) (`bcrypt`)
+      [`password_hasher.rs`](src/contexts/security/infrastructure/src/password_hasher.rs) (`bcrypt`),
+      [`channels/websocket.rs`](src/contexts/notifications/infrastructure/src/channels/websocket.rs) (axum's `ws`)
   event-bus:
     canonical: [src/architecture/infrastructure/src/event_bus.rs]
     notes: 'routes by name, awaits the handlers inline; the port is [`event_bus.rs`](src/architecture/application/src/event_bus.rs)'

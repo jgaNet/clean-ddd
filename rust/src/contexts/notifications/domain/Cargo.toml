@@ -1,0 +1,18 @@
+# The Notifications context's Domain: its row of the table is `own.Domain, architecture.Domain,
+# kernel.Domain` (ARCH-DOMAIN), and these dependencies are that row, held by the compiler.
+[package]
+name = "notifications-domain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-domain = { path = "../../../architecture/domain" }
+shared-kernel-domain = { path = "../../../shared_kernel/domain" }
+
+[dev-dependencies]
+pollster.workspace = true
+
+[lints]
+workspace = true

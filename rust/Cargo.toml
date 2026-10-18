@@ -28,7 +28,7 @@ serde_yaml = "0.9"
 toml = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 # The transport and what only an adapter may see (the binding's `libraries`): HTTP, the runtime, tokens, hashing.
-axum = "0.8"
+axum = { version = "0.8", features = ["ws"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "sync", "time"] }
 tower = "0.5"
 reqwest = { version = "0.12", default-features = false, features = ["json"] }

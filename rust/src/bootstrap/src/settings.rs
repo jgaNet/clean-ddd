@@ -5,6 +5,7 @@
 use std::env;
 use std::time::Duration;
 
+use notifications_wiring::NotificationsSettings;
 use security_wiring::SecuritySettings;
 
 pub struct AdminAccount {
@@ -16,6 +17,7 @@ pub struct Settings {
     pub port: u16,
     pub api_prefix: String,
     pub security: SecuritySettings,
+    pub notifications: NotificationsSettings,
     /// The administrator account created before the first request; none when absent.
     pub admin_account: Option<AdminAccount>,
     pub debug: bool,
@@ -24,9 +26,16 @@ pub struct Settings {
 impl Settings {
     pub fn from_env() -> Self {
         let var = |name: &str| env::var(name).ok().filter(|value| !value.is_empty());
+        let port = var("PORT").and_then(|port| port.parse().ok()).unwrap_or(10000);
+        let api_prefix = var("API_PREFIX").unwrap_or_else(|| "v1".into());
+        let base_url = var("BASE_URL").unwrap_or_else(|| "localhost".into());
         Self {
-            port: var("PORT").and_then(|port| port.parse().ok()).unwrap_or(10000),
-            api_prefix: var("API_PREFIX").unwrap_or_else(|| "v1".into()),
+            port,
+            notifications: NotificationsSettings {
+                url: format!("{}://{base_url}:{port}/{api_prefix}", var("PROTOCOL").unwrap_or_else(|| "http".into())),
+                from_email: var("FROM_EMAIL").unwrap_or_else(|| "noreply@example.com".into()),
+            },
+            api_prefix,
             security: SecuritySettings {
                 jwt_secret: var("JWT_SECRET")
                     .unwrap_or_else(|| "default-development-secret-do-not-use-in-production".into()),
@@ -48,6 +57,10 @@ impl Settings {
         Self {
             port: 0,
             api_prefix: "v1".into(),
+            notifications: NotificationsSettings {
+                url: "http://localhost/v1".into(),
+                from_email: "noreply@example.com".into(),
+            },
             security: SecuritySettings {
                 jwt_secret: "test-secret".into(),
                 jwt_expires_in: Duration::from_secs(3600),

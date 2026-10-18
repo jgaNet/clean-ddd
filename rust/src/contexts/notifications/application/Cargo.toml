@@ -1,0 +1,24 @@
+# The Notifications context's Application: its use cases, and the anti-corruption handlers that
+# translate the other contexts' published contracts into its own words (ARCH-APPLICATION).
+[package]
+name = "notifications-application"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-domain = { path = "../../../architecture/domain" }
+architecture-application = { path = "../../../architecture/application" }
+shared-kernel-domain = { path = "../../../shared_kernel/domain" }
+shared-kernel-application = { path = "../../../shared_kernel/application" }
+notifications-domain = { path = "../domain" }
+serde.workspace = true
+
+[dev-dependencies]
+architecture-infrastructure = { path = "../../../architecture/infrastructure" }
+notifications-infrastructure = { path = "../infrastructure" }
+pollster.workspace = true
+
+[lints]
+workspace = true

@@ -2,8 +2,7 @@
 # the binding whose checklists say where each part goes, and the check validates it against the
 # Rust tree. The parts the Rust implementation has so far are listed, each `new: false`, so that
 # the check confirms they are where the binding's checklists say — `<aggregate>` and `<use_case>`
-# filled in snake_case, as a Rust path wants. The cross-context reaction joins this plan when
-# Notifications does.
+# filled in snake_case, as a Rust path wants.
 
 schemaVersion: 1
 
@@ -12,9 +11,9 @@ language: rust
 context: Notes
 
 intent: >-
-  The owner of a note shares it with another account, which can then read it. In Rust, the part
-  of the path that exists today: from the route to the domain event and to the published
-  contract, with no consumer behind yet.
+  The owner of a note shares it with another account, which can then read it. The people a note
+  is shared with are told about it. The canonical path from HTTP to a domain event and across a
+  context boundary, as Rust writes it.
 
 changes:
   - kind: aggregate
@@ -50,5 +49,12 @@ invariants:
 
 events:
   - NoteSharedEvent
+
+crossContext:
+  context: Notifications
+  strategy: integration-event
+  why: >-
+    The recipient is told that a note was shared with them. Notifications learns the fact from
+    the published contract and restates it in its own words; Notes knows nothing of it.
 
 architectureChanges: false

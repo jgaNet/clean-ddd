@@ -20,6 +20,8 @@ use axum::response::{IntoResponse, Json, Response};
 use notes_infrastructure::directories::SecurityAccountDirectory;
 use notes_presentation::note_routes;
 use notes_wiring::{local_notes_module, note_store};
+use notifications_presentation::notification_routes;
+use notifications_wiring::{local_notifications_module, notification_store};
 use security_presentation::{auth_routes, authenticate};
 use security_wiring::{account_store, local_security_module};
 use serde::Serialize;
@@ -55,8 +57,13 @@ pub async fn create_application(settings: Settings, logger: Arc<dyn Logger>) -> 
     let notes = note_store();
     let accounts = account_store();
     let operations = operation_store();
-    let stores: Vec<Arc<dyn Snapshottable>> =
-        vec![Arc::new(notes.clone()), Arc::new(accounts.clone()), Arc::new(operations.clone())];
+    let notifications = notification_store();
+    let stores: Vec<Arc<dyn Snapshottable>> = vec![
+        Arc::new(notes.clone()),
+        Arc::new(accounts.clone()),
+        Arc::new(operations.clone()),
+        Arc::new(notifications.clone()),
+    ];
 
     // The application's bus: the in-memory bus, decorated so that every operation is recorded.
     let records = operation_records(&operations);
@@ -67,21 +74,25 @@ pub async fn create_application(settings: Settings, logger: Arc<dyn Logger>) -> 
     let security = local_security_module(&accounts, &settings.security);
     let tracker = Arc::new(local_tracker_module(records));
     let notes = Arc::new(local_notes_module(&notes, SecurityAccountDirectory::new(security.account_queries.clone())));
+    let notifications = local_notifications_module(&notifications, &settings.notifications, logger.clone());
 
     let application = Application::new(event_bus.clone())
         .register_module(tracker.clone())
         .register_module(notes.clone())
-        .register_module(security.module.clone());
+        .register_module(security.module.clone())
+        .register_module(notifications.module.clone());
     application.start_modules().await;
 
-    // The routes, under the API prefix, each context's under its own.
+    // The routes, under the API prefix, each context's under its own; the websocket at the root.
     let api = Router::new()
         .nest("/notes", note_routes(notes))
         .nest("/tracker/operations", operation_routes(tracker))
+        .nest("/notifications", notification_routes(notifications.module.clone()))
         .merge(auth_routes(security.module.clone()));
     let per_request = Arc::new(PerRequest { application, logger: logger.clone(), stores });
     let router = Router::new()
         .nest(&format!("/{}", settings.api_prefix), api)
+        .merge(notifications.websocket.clone().routes())
         .fallback(not_found)
         // Layers run from the last added to the first: the caller is identified, then the context is built.
         .layer(middleware::from_fn_with_state(per_request, with_execution_context))
