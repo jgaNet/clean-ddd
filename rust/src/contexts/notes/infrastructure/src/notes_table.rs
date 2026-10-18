@@ -34,6 +34,7 @@ pub fn create_notes_table(connection: &Connection) {
                 title       TEXT NOT NULL,
                 content     TEXT NOT NULL,
                 status      TEXT NOT NULL,
+                pinned      INTEGER NOT NULL,
                 shared_with TEXT NOT NULL,
                 version     INTEGER NOT NULL
             )",
@@ -71,6 +72,7 @@ pub fn to_snapshot(row: &Row<'_>) -> rusqlite::Result<NoteSnapshot> {
         title: row.get("title")?,
         content: row.get("content")?,
         status: NoteStatus::parse(&status).unwrap_or_else(|| panic!("Corrupted note row: status {status}")),
+        pinned: row.get("pinned")?,
         shared_with: shared_with_from_column(&shared_with),
         version: u64::try_from(version).unwrap_or_default(),
     })

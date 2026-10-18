@@ -32,7 +32,7 @@ async fn notes_as_a_client_sees_them() {
     let note_id = operation["result"].as_str().expect("the note's id").to_string();
 
     let mine: Value = admin.get(format!("{api}/notes")).send().await.expect("answers").json().await.expect("JSON");
-    assert_eq!(mine, json!([{ "id": note_id, "title": "title", "status": "ACTIVE" }]));
+    assert_eq!(mine, json!([{ "id": note_id, "title": "title", "status": "ACTIVE", "pinned": false }]));
 
     let note = admin.get(format!("{api}/notes/{note_id}")).send().await.expect("answers");
     assert_eq!(note.status(), 200);
@@ -40,6 +40,7 @@ async fn notes_as_a_client_sees_them() {
     assert_eq!(note["title"], "title");
     assert_eq!(note["content"], "content");
     assert_eq!(note["status"], "ACTIVE");
+    assert_eq!(note["pinned"], false);
     assert_eq!(note["sharedWith"], json!([]));
     assert!(note["ownerId"].is_string());
 
@@ -109,6 +110,68 @@ async fn a_suggestion_enters_the_domain_as_a_value_the_note_may_refuse() {
     let note: Value =
         admin.get(format!("{api}/notes/{note_id}")).send().await.expect("answers").json().await.expect("JSON");
     assert_eq!(note["title"], "Long first line");
+
+    app.stop().await;
+}
+
+#[tokio::test]
+async fn pinning_a_note_puts_it_first_in_my_notes_until_it_is_unpinned_and_is_refused_on_an_archived_one() {
+    let app = start_test_application().await;
+    let api = app.api.clone();
+    let admin = app.admin().await;
+    let create =
+        |title: &str| admin.post(format!("{api}/notes")).json(&json!({ "title": title, "content": "" })).send();
+    let titles = |mine: Value| -> Vec<String> {
+        mine.as_array().expect("a list").iter().map(|note| note["title"].as_str().expect("a title").into()).collect()
+    };
+
+    // Two notes, saved in this order
+    let created = create("First").await.expect("answers");
+    let first_id = app.accepted(&admin, created).await["result"].as_str().expect("id").to_string();
+    let created = create("Second").await.expect("answers");
+    let second_id = app.accepted(&admin, created).await["result"].as_str().expect("id").to_string();
+
+    // POST /notes/:id/pin: the second comes first
+    let pinned = admin.post(format!("{api}/notes/{second_id}/pin")).send().await.expect("answers");
+    assert_eq!(pinned.status(), 202);
+    assert_eq!(app.accepted(&admin, pinned).await["status"], "SUCCESS");
+    let mine: Value = admin.get(format!("{api}/notes")).send().await.expect("answers").json().await.expect("JSON");
+    assert_eq!(titles(mine.clone()), ["Second", "First"]);
+    assert_eq!(mine[0]["pinned"], true);
+    assert_eq!(mine[1]["pinned"], false);
+    let note: Value =
+        admin.get(format!("{api}/notes/{second_id}")).send().await.expect("answers").json().await.expect("JSON");
+    assert_eq!(note["pinned"], true);
+
+    // Pinning it again is refused by the note's rules
+    let again = admin.post(format!("{api}/notes/{second_id}/pin")).send().await.expect("answers");
+    let operation = app.accepted(&admin, again).await;
+    assert_eq!(operation["status"], "ERROR");
+    assert_eq!(operation["error"]["type"], "NoteAlreadyPinned");
+
+    // POST /notes/:id/unpin: back to the order they were saved in
+    let unpinned = admin.post(format!("{api}/notes/{second_id}/unpin")).send().await.expect("answers");
+    assert_eq!(unpinned.status(), 202);
+    assert_eq!(app.accepted(&admin, unpinned).await["status"], "SUCCESS");
+    let mine: Value = admin.get(format!("{api}/notes")).send().await.expect("answers").json().await.expect("JSON");
+    assert_eq!(titles(mine), ["First", "Second"]);
+
+    // An archived note cannot be pinned
+    let archived = admin.post(format!("{api}/notes/{first_id}/archive")).send().await.expect("answers");
+    app.accepted(&admin, archived).await;
+    let refused = admin.post(format!("{api}/notes/{first_id}/pin")).send().await.expect("answers");
+    assert_eq!(refused.status(), 202);
+    let operation = app.accepted(&admin, refused).await;
+    assert_eq!(operation["status"], "ERROR");
+    assert_eq!(operation["error"]["type"], "NoteArchived");
+
+    // Only the owner pins: bob, who is not, is refused
+    app.sign_up_validated("bob@pins.fr", "bob").await;
+    let bob = app.agent_as("bob@pins.fr", "bob").await;
+    let refused = bob.post(format!("{api}/notes/{second_id}/pin")).send().await.expect("answers");
+    let operation = app.accepted(&bob, refused).await;
+    assert_eq!(operation["status"], "ERROR");
+    assert_eq!(operation["error"]["type"], "NotNoteOwner");
 
     app.stop().await;
 }

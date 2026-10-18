@@ -84,12 +84,13 @@ impl NoteRepository for SqliteNoteRepository {
         // An update never moves a note to another owner.
         let updated = connection
             .execute(
-                "UPDATE notes SET title = ?1, content = ?2, status = ?3, shared_with = ?4, version = ?5 + 1
-                 WHERE id = ?6 AND version = ?5",
+                "UPDATE notes SET title = ?1, content = ?2, status = ?3, pinned = ?4, shared_with = ?5, version = ?6 + 1
+                 WHERE id = ?7 AND version = ?6",
                 params![
                     snapshot.title,
                     snapshot.content,
                     snapshot.status.as_str(),
+                    snapshot.pinned,
                     shared_with,
                     snapshot.version,
                     snapshot.id
@@ -110,14 +111,15 @@ impl NoteRepository for SqliteNoteRepository {
 
         connection
             .execute(
-                "INSERT INTO notes (id, owner_id, title, content, status, shared_with, version)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7 + 1)",
+                "INSERT INTO notes (id, owner_id, title, content, status, pinned, shared_with, version)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8 + 1)",
                 params![
                     snapshot.id,
                     snapshot.owner_id,
                     snapshot.title,
                     snapshot.content,
                     snapshot.status.as_str(),
+                    snapshot.pinned,
                     shared_with,
                     snapshot.version
                 ],

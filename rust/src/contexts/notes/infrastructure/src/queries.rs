@@ -1,7 +1,8 @@
 //! The queries port, twice: on the in-memory store, read models built from the snapshots in the
-//! order they were saved, which is the order the port promises; and on SQLite, where each query
-//! is one SQL statement shaped for its read model, which is the point of separating the queries
-//! from the repository. The contract test says what both must answer.
+//! order they were saved, which is the order the port promises (an owner's list puts the pinned
+//! ones first, a stable sort over that order); and on SQLite, where each query is one SQL
+//! statement shaped for its read model, which is the point of separating the queries from the
+//! repository. The contract test says what both must answer.
 
 use std::sync::Arc;
 
@@ -29,6 +30,7 @@ impl NoteQueries for InMemoryNoteQueries {
             id: note.id,
             title: note.title,
             status: note.status,
+            pinned: note.pinned,
             owner_id: note.owner_id,
             content: note.content,
             shared_with: note.shared_with,
@@ -36,12 +38,16 @@ impl NoteQueries for InMemoryNoteQueries {
     }
 
     async fn find_by_owner(&self, owner_id: &str) -> Vec<NoteListItem> {
-        self.store
+        let mut notes: Vec<NoteListItem> = self
+            .store
             .all()
             .into_iter()
             .filter(|note| note.owner_id == owner_id)
-            .map(|note| NoteListItem { id: note.id, title: note.title, status: note.status })
-            .collect()
+            .map(|note| NoteListItem { id: note.id, title: note.title, status: note.status, pinned: note.pinned })
+            .collect();
+        // Pinned first; the sort is stable, so each group keeps the order the notes were saved in.
+        notes.sort_by_key(|note| !note.pinned);
+        notes
     }
 
     async fn find_shared_with(&self, account_id: &str) -> Vec<SharedNoteListItem> {
@@ -79,6 +85,7 @@ impl NoteQueries for SqliteNoteQueries {
                 id: note.id,
                 title: note.title,
                 status: note.status,
+                pinned: note.pinned,
                 owner_id: note.owner_id,
                 content: note.content,
                 shared_with: note.shared_with,
@@ -88,7 +95,7 @@ impl NoteQueries for SqliteNoteQueries {
     async fn find_by_owner(&self, owner_id: &str) -> Vec<NoteListItem> {
         let connection = lock(&self.database);
         let mut statement = connection
-            .prepare("SELECT id, title, status FROM notes WHERE owner_id = ?1 ORDER BY rowid")
+            .prepare("SELECT id, title, status, pinned FROM notes WHERE owner_id = ?1 ORDER BY pinned DESC, rowid")
             .expect("a valid statement");
         let rows = statement
             .query_map([owner_id], |row| {
@@ -97,6 +104,7 @@ impl NoteQueries for SqliteNoteQueries {
                     id: row.get("id")?,
                     title: row.get("title")?,
                     status: NoteStatus::parse(&status).unwrap_or_else(|| panic!("Corrupted note row: status {status}")),
+                    pinned: row.get("pinned")?,
                 })
             })
             .expect("the notes table answers");

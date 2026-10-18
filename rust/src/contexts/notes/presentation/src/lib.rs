@@ -2,7 +2,8 @@
 //! are accepted (202) and processed through the event bus; the client follows the returned
 //! operation. Queries answer synchronously. The verb follows what the request does to what the
 //! URL names (the HTTP grammar of the contract): `POST /notes` creates, `PUT /notes/{id}`
-//! replaces, `POST /notes/{id}/share` acts, `GET` reads.
+//! replaces, `POST /notes/{id}/share` acts (so do `/pin` and `/unpin`, a pair like
+//! `/archive` and `/restore`), `GET` reads.
 //!
 //! The JSON shapes are this layer's: a request body is deserialized into what the command
 //! needs, a read model is serialized through a view, so the Domain never learns about JSON.
@@ -21,9 +22,11 @@ use axum::routing::{get, post};
 use notes_application::commands::archive_note::ArchiveNote;
 use notes_application::commands::create_note::CreateNote;
 use notes_application::commands::edit_note::EditNote;
+use notes_application::commands::pin_note::PinNote;
 use notes_application::commands::restore_note::RestoreNote;
 use notes_application::commands::share_note::ShareNote;
 use notes_application::commands::suggest_note_title::SuggestNoteTitle;
+use notes_application::commands::unpin_note::UnpinNote;
 use notes_application::queries::get_my_notes::GetMyNotes;
 use notes_application::queries::get_note::GetNote;
 use notes_application::queries::get_notes_shared_with_me::GetNotesSharedWithMe;
@@ -40,6 +43,8 @@ pub fn note_routes(module: Arc<Module>) -> Router {
         .route("/{id}", get(get_note).put(edit_note))
         .route("/{id}/archive", post(archive_note))
         .route("/{id}/restore", post(restore_note))
+        .route("/{id}/pin", post(pin_note))
+        .route("/{id}/unpin", post(unpin_note))
         .route("/{id}/share", post(share_note))
         .route("/{id}/suggest-title", post(suggest_note_title))
         .with_state(module)
@@ -69,6 +74,7 @@ struct NoteListItemView {
     id: String,
     title: String,
     status: &'static str,
+    pinned: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -77,6 +83,7 @@ struct NoteDetailView {
     id: String,
     title: String,
     status: &'static str,
+    pinned: bool,
     owner_id: String,
     content: String,
     shared_with: Vec<String>,
@@ -93,7 +100,7 @@ struct SharedNoteListItemView {
 
 impl From<NoteListItem> for NoteListItemView {
     fn from(note: NoteListItem) -> Self {
-        Self { id: note.id, title: note.title, status: note.status.as_str() }
+        Self { id: note.id, title: note.title, status: note.status.as_str(), pinned: note.pinned }
     }
 }
 
@@ -103,6 +110,7 @@ impl From<NoteDetail> for NoteDetailView {
             id: note.id,
             title: note.title,
             status: note.status.as_str(),
+            pinned: note.pinned,
             owner_id: note.owner_id,
             content: note.content,
             shared_with: note.shared_with,
@@ -134,6 +142,14 @@ async fn archive_note(Extension(context): Extension<ExecutionContext>, Path(id):
 
 async fn restore_note(Extension(context): Extension<ExecutionContext>, Path(id): Path<String>) -> Response {
     accept(&context, RestoreNote { note_id: id }).into_response()
+}
+
+async fn pin_note(Extension(context): Extension<ExecutionContext>, Path(id): Path<String>) -> Response {
+    accept(&context, PinNote { note_id: id }).into_response()
+}
+
+async fn unpin_note(Extension(context): Extension<ExecutionContext>, Path(id): Path<String>) -> Response {
+    accept(&context, UnpinNote { note_id: id }).into_response()
 }
 
 async fn share_note(

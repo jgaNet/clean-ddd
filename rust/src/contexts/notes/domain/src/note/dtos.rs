@@ -12,6 +12,7 @@ pub struct NoteSnapshot {
     pub title: String,
     pub content: String,
     pub status: NoteStatus,
+    pub pinned: bool,
     pub shared_with: Vec<String>,
     /// The version this snapshot was read at; the repository stores version + 1 (ADR 8).
     pub version: u64,

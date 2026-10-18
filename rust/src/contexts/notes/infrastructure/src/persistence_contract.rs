@@ -93,6 +93,7 @@ fn gives_back_an_equal_aggregate() {
     for_each_adapter(|repository, _| {
         let mut note = a_note("alice", "Groceries", "milk");
         note.share_with(&Id::new("alice"), &Id::new("bob")).expect("shared");
+        note.pin(&Id::new("alice")).expect("pinned");
         repository.save(&note).expect("saved");
 
         let found = repository.find_by_id(note.id().value()).expect("found");
@@ -177,6 +178,7 @@ fn shows_the_detail_of_a_saved_note() {
                 id: note.id().value().to_string(),
                 title: "Groceries".into(),
                 status: NoteStatus::Active,
+                pinned: false,
                 owner_id: "alice".into(),
                 content: "milk".into(),
                 shared_with: vec!["bob".into()],
@@ -197,15 +199,43 @@ fn lists_an_owners_notes_and_only_theirs_in_the_order_they_were_saved() {
         assert_eq!(
             queries.find_by_owner("alice"),
             [
-                NoteListItem { id: first.id().value().to_string(), title: "First".into(), status: NoteStatus::Active },
+                NoteListItem {
+                    id: first.id().value().to_string(),
+                    title: "First".into(),
+                    status: NoteStatus::Active,
+                    pinned: false
+                },
                 NoteListItem {
                     id: second.id().value().to_string(),
                     title: "Second".into(),
-                    status: NoteStatus::Active
+                    status: NoteStatus::Active,
+                    pinned: false
                 },
             ]
         );
         assert!(queries.find_by_owner("nobody").is_empty());
+    });
+}
+
+#[test]
+fn lists_an_owners_pinned_notes_first_then_the_others_each_group_in_the_order_they_were_saved() {
+    for_each_adapter(|repository, queries| {
+        let first = a_note("alice", "First", "");
+        let second = a_note("alice", "Second", "");
+        let third = a_note("alice", "Third", "");
+        for note in [&first, &second, &third] {
+            repository.save(note).expect("saved");
+        }
+        // As a handler does: read it back, pin it, save it. The third first, then the second.
+        for note in [&third, &second] {
+            let mut reread = repository.find_by_id(note.id().value()).expect("reread");
+            reread.pin(&Id::new("alice")).expect("pinned");
+            repository.save(&reread).expect("saved again");
+        }
+
+        let listed: Vec<(String, bool)> =
+            queries.find_by_owner("alice").into_iter().map(|note| (note.title, note.pinned)).collect();
+        assert_eq!(listed, [("Second".to_string(), true), ("Third".to_string(), true), ("First".to_string(), false)]);
     });
 }
 

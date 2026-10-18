@@ -13,9 +13,11 @@ use architecture_infrastructure::InMemoryDataSource;
 use notes_application::commands::archive_note::ArchiveNoteCommandHandler;
 use notes_application::commands::create_note::CreateNoteCommandHandler;
 use notes_application::commands::edit_note::EditNoteCommandHandler;
+use notes_application::commands::pin_note::PinNoteCommandHandler;
 use notes_application::commands::restore_note::RestoreNoteCommandHandler;
 use notes_application::commands::share_note::ShareNoteCommandHandler;
 use notes_application::commands::suggest_note_title::SuggestNoteTitleCommandHandler;
+use notes_application::commands::unpin_note::UnpinNoteCommandHandler;
 use notes_application::events::{NoteCreatedHandler, NoteSharedHandler};
 use notes_application::queries::get_my_notes::GetMyNotesQueryHandler;
 use notes_application::queries::get_note::GetNoteQueryHandler;
@@ -46,6 +48,8 @@ pub fn local_notes_module<D: AccountDirectory + Send + Sync + 'static>(store: &N
             Subscription::command(EditNoteCommandHandler::new(repository.clone())),
             Subscription::command(ArchiveNoteCommandHandler::new(repository.clone())),
             Subscription::command(RestoreNoteCommandHandler::new(repository.clone())),
+            Subscription::command(PinNoteCommandHandler::new(repository.clone())),
+            Subscription::command(UnpinNoteCommandHandler::new(repository.clone())),
             Subscription::command(ShareNoteCommandHandler::new(repository.clone(), NoteSharing::new(accounts))),
             // The one non-deterministic source of the context, behind a port (ADR 7); a model would go here.
             Subscription::command(SuggestNoteTitleCommandHandler::new(repository, FirstLineTitleSuggestions)),

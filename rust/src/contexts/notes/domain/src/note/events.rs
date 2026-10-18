@@ -13,6 +13,8 @@ pub enum NoteEvent {
     Edited { note_id: String, title: String },
     Archived { note_id: String },
     Restored { note_id: String },
+    Pinned { note_id: String },
+    Unpinned { note_id: String },
     Shared { note_id: String, title: String, owner_id: String, recipient_id: String },
 }
 
@@ -23,6 +25,8 @@ impl Event for NoteEvent {
             NoteEvent::Edited { .. } => "NoteEdited",
             NoteEvent::Archived { .. } => "NoteArchived",
             NoteEvent::Restored { .. } => "NoteRestored",
+            NoteEvent::Pinned { .. } => "NotePinned",
+            NoteEvent::Unpinned { .. } => "NoteUnpinned",
             NoteEvent::Shared { .. } => "NoteShared",
         }
     }

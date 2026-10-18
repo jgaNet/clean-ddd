@@ -14,6 +14,7 @@ pub struct NoteListItem {
     pub id: String,
     pub title: String,
     pub status: NoteStatus,
+    pub pinned: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,6 +22,7 @@ pub struct NoteDetail {
     pub id: String,
     pub title: String,
     pub status: NoteStatus,
+    pub pinned: bool,
     pub owner_id: String,
     pub content: String,
     pub shared_with: Vec<String>,
@@ -36,7 +38,8 @@ pub struct SharedNoteListItem {
 
 pub trait NoteQueries {
     fn find_by_id(&self, note_id: &str) -> impl Future<Output = Option<NoteDetail>> + Send;
-    /// In the order they were saved. Ordering is part of this contract: the contract test asserts it for every adapter.
+    /// Pinned notes first, then the others; within each group, in the order they were saved.
+    /// Ordering is part of this contract: the contract test asserts it for every adapter.
     fn find_by_owner(&self, owner_id: &str) -> impl Future<Output = Vec<NoteListItem>> + Send;
     /// In the order they were saved.
     fn find_shared_with(&self, account_id: &str) -> impl Future<Output = Vec<SharedNoteListItem>> + Send;

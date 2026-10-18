@@ -17,6 +17,8 @@ pub const NOT_NOTE_OWNER: &str = "NotNoteOwner";
 pub const NOTE_ARCHIVED: &str = "NoteArchived";
 pub const NOTE_ALREADY_ARCHIVED: &str = "NoteAlreadyArchived";
 pub const NOTE_NOT_ARCHIVED: &str = "NoteNotArchived";
+pub const NOTE_ALREADY_PINNED: &str = "NoteAlreadyPinned";
+pub const NOTE_NOT_PINNED: &str = "NoteNotPinned";
 pub const CANNOT_SHARE_WITH_SELF: &str = "CannotShareWithSelf";
 pub const NOTE_ALREADY_SHARED: &str = "NoteAlreadyShared";
 pub const RECIPIENT_NOT_FOUND: &str = "RecipientNotFound";
@@ -53,6 +55,14 @@ pub fn note_already_archived(note_id: &str) -> Exception {
 
 pub fn note_not_archived(note_id: &str) -> Exception {
     refusal(NOTE_NOT_ARCHIVED, "Only an archived note can be restored").with("noteId", note_id)
+}
+
+pub fn note_already_pinned(note_id: &str) -> Exception {
+    refusal(NOTE_ALREADY_PINNED, "This note is already pinned").with("noteId", note_id)
+}
+
+pub fn note_not_pinned(note_id: &str) -> Exception {
+    refusal(NOTE_NOT_PINNED, "Only a pinned note can be unpinned").with("noteId", note_id)
 }
 
 pub fn cannot_share_with_self(note_id: &str) -> Exception {

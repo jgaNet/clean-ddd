@@ -8,6 +8,9 @@
 //! - an archived note is read-only until it is restored: it can be neither edited nor shared
 //!   (`ensure_active()`); archiving, restoring and reading it are not gated by that rule
 //! - a note cannot be shared twice with the same account, nor with its owner
+//! - only the owner pins or unpins a note; an archived note cannot be pinned (`ensure_active()`),
+//!   not twice, and only a pinned note is unpinned; archiving leaves the pin as it is, and
+//!   unpinning is not gated by the status, like restoring
 //!
 //! The aggregate never touches persistence, logging or HTTP. It only knows business. It holds
 //! its [`AggregateRoot`] in a private field, so its identity, its version and the facts it
@@ -30,8 +33,8 @@ pub use note_status::NoteStatus;
 pub use note_title::NoteTitle;
 
 use note_exceptions::{
-    cannot_share_with_self, not_note_owner, note_already_archived, note_already_shared, note_archived,
-    note_not_archived,
+    cannot_share_with_self, not_note_owner, note_already_archived, note_already_pinned, note_already_shared,
+    note_archived, note_not_archived, note_not_pinned,
 };
 
 #[derive(Debug)]
@@ -41,6 +44,7 @@ pub struct Note {
     title: NoteTitle,
     content: String,
     status: NoteStatus,
+    pinned: bool,
     shared_with: Vec<String>, // raw ids, in the order they were added; the accessors speak Id
 }
 
@@ -71,6 +75,7 @@ impl Note {
             title: title.clone(),
             content: props.content,
             status: NoteStatus::Active,
+            pinned: false,
             shared_with: Vec::new(),
         };
         note.root.record(NoteEvent::Created {
@@ -101,6 +106,7 @@ impl Note {
             title,
             content: snapshot.content,
             status: snapshot.status,
+            pinned: snapshot.pinned,
             shared_with: snapshot.shared_with,
         }
     }
@@ -141,6 +147,33 @@ impl Note {
         Ok(())
     }
 
+    /// Pins the note, so that it comes first in its owner's list. An archived note is read-only
+    /// and cannot be pinned; a pinned note is not pinned again.
+    pub fn pin(&mut self, actor_id: &Id) -> DomainResult {
+        self.ensure_owner(actor_id)?;
+        self.ensure_active()?;
+        if self.pinned {
+            return Err(note_already_pinned(self.id().value()));
+        }
+
+        self.pinned = true;
+        self.root.record(NoteEvent::Pinned { note_id: self.id().value().to_string() });
+        Ok(())
+    }
+
+    /// Unpins the note. Not gated by the status: a note pinned before it was archived can still
+    /// be unpinned, as it can be restored.
+    pub fn unpin(&mut self, actor_id: &Id) -> DomainResult {
+        self.ensure_owner(actor_id)?;
+        if !self.pinned {
+            return Err(note_not_pinned(self.id().value()));
+        }
+
+        self.pinned = false;
+        self.root.record(NoteEvent::Unpinned { note_id: self.id().value().to_string() });
+        Ok(())
+    }
+
     pub fn share_with(&mut self, actor_id: &Id, recipient_id: &Id) -> DomainResult {
         self.ensure_owner(actor_id)?;
         self.ensure_active()?;
@@ -173,6 +206,7 @@ impl Note {
             title: self.title.value().to_string(),
             content: self.content.clone(),
             status: self.status,
+            pinned: self.pinned,
             shared_with: self.shared_with.clone(),
             version: self.root.version(),
         }
@@ -213,6 +247,10 @@ impl Note {
         self.status
     }
 
+    pub fn is_pinned(&self) -> bool {
+        self.pinned
+    }
+
     pub fn shared_with(&self) -> &[String] {
         &self.shared_with
     }
@@ -245,6 +283,13 @@ mod tests {
         note
     }
 
+    fn a_pinned_note() -> Note {
+        let mut note = a_note();
+        note.pin(&owner()).expect("pinnable");
+        note.pull_domain_events();
+        note
+    }
+
     mod writing_a_note {
         use super::*;
 
@@ -256,6 +301,7 @@ mod tests {
 
             assert!(!note.id().value().is_empty());
             assert_eq!(note.status(), NoteStatus::Active);
+            assert!(!note.is_pinned());
             assert!(note.shared_with().is_empty());
             assert_eq!(
                 note.pull_domain_events(),
@@ -375,6 +421,76 @@ mod tests {
         }
     }
 
+    mod pinning_and_unpinning {
+        use super::*;
+
+        #[test]
+        fn pins_an_active_note_and_records_note_pinned() {
+            let mut note = a_note();
+
+            note.pin(&owner()).expect("pinnable");
+
+            assert!(note.is_pinned());
+            assert_eq!(note.pull_domain_events(), vec![NoteEvent::Pinned { note_id: note.id().value().to_string() }]);
+        }
+
+        #[test]
+        fn cannot_pin_twice() {
+            let mut note = a_pinned_note();
+
+            assert!(note.pin(&owner()).expect_err("twice").is(NOTE_ALREADY_PINNED));
+            assert!(note.pull_domain_events().is_empty());
+        }
+
+        #[test]
+        fn cannot_pin_an_archived_note() {
+            let mut note = an_archived_note();
+
+            assert!(note.pin(&owner()).expect_err("archived").is(NOTE_ARCHIVED));
+            assert!(!note.is_pinned());
+        }
+
+        #[test]
+        fn unpins_a_pinned_note_and_records_note_unpinned() {
+            let mut note = a_pinned_note();
+
+            note.unpin(&owner()).expect("unpinnable");
+
+            assert!(!note.is_pinned());
+            assert_eq!(note.pull_domain_events(), vec![NoteEvent::Unpinned { note_id: note.id().value().to_string() }]);
+        }
+
+        #[test]
+        fn cannot_unpin_a_note_that_is_not_pinned() {
+            let mut note = a_note();
+
+            assert!(note.unpin(&owner()).expect_err("not pinned").is(NOTE_NOT_PINNED));
+        }
+
+        #[test]
+        fn archiving_keeps_the_pin_and_an_archived_note_can_still_be_unpinned() {
+            let mut note = a_pinned_note();
+            note.archive(&owner()).expect("archivable");
+            assert!(note.is_pinned());
+
+            note.unpin(&owner()).expect("unpinnable even when archived");
+
+            assert!(!note.is_pinned());
+        }
+
+        #[test]
+        fn is_reserved_to_the_owner() {
+            let mut note = a_note();
+
+            assert!(note.pin(&stranger()).expect_err("not the owner").is(NOT_NOTE_OWNER));
+            assert!(!note.is_pinned());
+
+            let mut pinned = a_pinned_note();
+            assert!(pinned.unpin(&stranger()).expect_err("not the owner").is(NOT_NOTE_OWNER));
+            assert!(pinned.is_pinned());
+        }
+    }
+
     mod sharing {
         use super::*;
 
@@ -439,12 +555,14 @@ mod tests {
                 title: "Old".into(),
                 content: "Text".into(),
                 status: NoteStatus::Archived,
+                pinned: true,
                 shared_with: vec!["bob".into()],
                 version: 7,
             });
 
             assert_eq!(note.id().value(), "note-9");
             assert_eq!(note.status(), NoteStatus::Archived);
+            assert!(note.is_pinned());
             assert_eq!(note.shared_with(), ["bob"]);
             assert_eq!(note.version(), 7);
             assert_eq!(note.pull_domain_events(), vec![]);
@@ -454,6 +572,7 @@ mod tests {
         fn gives_back_an_equal_note_after_to_snapshot_from_snapshot() {
             let mut note = a_note();
             note.share_with(&owner(), &stranger()).expect("shareable");
+            note.pin(&owner()).expect("pinnable");
 
             let rebuilt = Note::from_snapshot(note.to_snapshot());
 
@@ -470,6 +589,7 @@ mod tests {
                 title: "".into(),
                 content: "".into(),
                 status: NoteStatus::Active,
+                pinned: false,
                 shared_with: vec![],
                 version: 3,
             });

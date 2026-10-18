@@ -5,9 +5,11 @@
 pub mod archive_note;
 pub mod create_note;
 pub mod edit_note;
+pub mod pin_note;
 pub mod restore_note;
 pub mod share_note;
 pub mod suggest_note_title;
+pub mod unpin_note;
 
 #[cfg(test)]
 mod tests {
@@ -19,7 +21,7 @@ mod tests {
     use architecture_domain::{DomainResult, common_exceptions::NOT_ALLOWED};
     use architecture_infrastructure::{InMemoryDataSource, InMemoryEventBus};
     use notes_domain::note::note_exceptions::{
-        BLANK_NOTE_TITLE, NOT_NOTE_OWNER, NOTE_ARCHIVED, NOTE_NOT_ARCHIVED, NOTE_NOT_FOUND,
+        BLANK_NOTE_TITLE, NOT_NOTE_OWNER, NOTE_ARCHIVED, NOTE_NOT_ARCHIVED, NOTE_NOT_FOUND, NOTE_NOT_PINNED,
     };
     use notes_domain::note::ports::account_directory::AccountDirectory;
     use notes_domain::note::{NoteEvent, NoteSharing, NoteSnapshot, NoteStatus};
@@ -28,8 +30,10 @@ mod tests {
     use super::archive_note::{ArchiveNote, ArchiveNoteCommandHandler};
     use super::create_note::{CreateNote, CreateNoteCommandHandler};
     use super::edit_note::{EditNote, EditNoteCommandHandler};
+    use super::pin_note::{PinNote, PinNoteCommandHandler};
     use super::restore_note::{RestoreNote, RestoreNoteCommandHandler};
     use super::share_note::{ShareNote, ShareNoteCommandHandler};
+    use super::unpin_note::{UnpinNote, UnpinNoteCommandHandler};
 
     /// Every account the tests talk about exists; the directory itself is covered by the domain service's tests.
     struct Everyone;
@@ -61,7 +65,7 @@ mod tests {
         let store = Arc::new(InMemoryDataSource::new());
         let bus = Arc::new(InMemoryEventBus::new());
         let published = Arc::new(EventSubscriber(Published::default()));
-        for channel in ["NoteCreated", "NoteShared"] {
+        for channel in ["NoteCreated", "NoteShared", "NotePinned", "NoteUnpinned"] {
             pollster::block_on(bus.subscribe(channel, published.clone()));
         }
         Fixture { repository: Arc::new(InMemoryNoteRepository::new(store.clone())), store, bus, published }
@@ -118,6 +122,7 @@ mod tests {
                     title: "Groceries".into(),
                     content: "Milk".into(),
                     status: NoteStatus::Active,
+                    pinned: false,
                     shared_with: vec![],
                     version: 1,
                 }
@@ -243,6 +248,133 @@ mod tests {
 
             assert!(result.expect_err("not the owner").is(NOT_NOTE_OWNER));
             assert_eq!(f.stored(&note_id).status, NoteStatus::Active);
+        }
+    }
+
+    mod pin_note {
+        use super::*;
+
+        fn archive(f: &Fixture, note_id: &str) {
+            pollster::block_on(
+                ArchiveNoteCommandHandler::new(f.repository.clone())
+                    .execute(ArchiveNote { note_id: note_id.into() }, &f.context_for(Some("alice"), "USER")),
+            )
+            .expect("archived");
+        }
+
+        #[test]
+        fn lets_the_owner_pin_a_note_and_publishes_note_pinned() {
+            let f = fixture();
+            let note_id = f.a_note_owned_by("alice");
+
+            pollster::block_on(
+                PinNoteCommandHandler::new(f.repository.clone())
+                    .execute(PinNote { note_id: note_id.clone() }, &f.context_for(Some("alice"), "USER")),
+            )
+            .expect("pinned");
+
+            assert!(f.stored(&note_id).pinned);
+            assert_eq!(f.published(), [NoteEvent::Pinned { note_id }]);
+        }
+
+        #[test]
+        fn refuses_to_pin_an_archived_note() {
+            let f = fixture();
+            let note_id = f.a_note_owned_by("alice");
+            archive(&f, &note_id);
+
+            let result = pollster::block_on(
+                PinNoteCommandHandler::new(f.repository.clone())
+                    .execute(PinNote { note_id: note_id.clone() }, &f.context_for(Some("alice"), "USER")),
+            );
+
+            assert!(result.expect_err("archived").is(NOTE_ARCHIVED));
+            assert!(!f.stored(&note_id).pinned);
+            assert!(f.published().is_empty());
+        }
+
+        #[test]
+        fn refuses_a_caller_who_does_not_own_the_note() {
+            let f = fixture();
+            let note_id = f.a_note_owned_by("alice");
+
+            let result = pollster::block_on(
+                PinNoteCommandHandler::new(f.repository.clone())
+                    .execute(PinNote { note_id: note_id.clone() }, &f.context_for(Some("bob"), "USER")),
+            );
+
+            assert!(result.expect_err("not the owner").is(NOT_NOTE_OWNER));
+            assert!(!f.stored(&note_id).pinned);
+        }
+
+        #[test]
+        fn fails_on_an_unknown_note() {
+            let f = fixture();
+
+            let result = pollster::block_on(
+                PinNoteCommandHandler::new(f.repository.clone())
+                    .execute(PinNote { note_id: "nope".into() }, &f.context_for(Some("alice"), "USER")),
+            );
+
+            assert!(result.expect_err("unknown").is(NOTE_NOT_FOUND));
+        }
+    }
+
+    mod unpin_note {
+        use super::*;
+
+        fn pin(f: &Fixture, note_id: &str) {
+            pollster::block_on(
+                PinNoteCommandHandler::new(f.repository.clone())
+                    .execute(PinNote { note_id: note_id.into() }, &f.context_for(Some("alice"), "USER")),
+            )
+            .expect("pinned");
+            f.published.0.0.lock().unwrap().clear();
+        }
+
+        #[test]
+        fn lets_the_owner_unpin_a_pinned_note_and_publishes_note_unpinned() {
+            let f = fixture();
+            let note_id = f.a_note_owned_by("alice");
+            pin(&f, &note_id);
+
+            pollster::block_on(
+                UnpinNoteCommandHandler::new(f.repository.clone())
+                    .execute(UnpinNote { note_id: note_id.clone() }, &f.context_for(Some("alice"), "USER")),
+            )
+            .expect("unpinned");
+
+            assert!(!f.stored(&note_id).pinned);
+            assert_eq!(f.published(), [NoteEvent::Unpinned { note_id }]);
+        }
+
+        #[test]
+        fn refuses_to_unpin_a_note_that_is_not_pinned() {
+            let f = fixture();
+            let note_id = f.a_note_owned_by("alice");
+
+            let result = pollster::block_on(
+                UnpinNoteCommandHandler::new(f.repository.clone())
+                    .execute(UnpinNote { note_id }, &f.context_for(Some("alice"), "USER")),
+            );
+
+            assert!(result.expect_err("not pinned").is(NOTE_NOT_PINNED));
+            assert!(f.published().is_empty());
+        }
+
+        #[test]
+        fn refuses_a_caller_who_does_not_own_the_note() {
+            let f = fixture();
+            let note_id = f.a_note_owned_by("alice");
+            pin(&f, &note_id);
+
+            let result = pollster::block_on(
+                UnpinNoteCommandHandler::new(f.repository.clone())
+                    .execute(UnpinNote { note_id: note_id.clone() }, &f.context_for(Some("bob"), "USER")),
+            );
+
+            assert!(result.expect_err("not the owner").is(NOT_NOTE_OWNER));
+            assert!(f.stored(&note_id).pinned);
         }
     }
 
