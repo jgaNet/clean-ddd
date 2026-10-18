@@ -1,0 +1,18 @@
+# The building blocks' Application: the mechanics of a use case. Its row of the table is
+# `own.Domain, own.Application` and no vocabulary (ARCH-APPLICATION, ARCH-TREES).
+[package]
+name = "architecture-application"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-domain = { path = "../domain" }
+futures.workspace = true
+
+[dev-dependencies]
+pollster.workspace = true
+
+[lints]
+workspace = true

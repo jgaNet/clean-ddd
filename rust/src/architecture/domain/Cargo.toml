@@ -1,0 +1,17 @@
+# The building blocks' Domain: the mechanics every domain is written with. It depends on nothing
+# of this repository (ARCH-DOMAIN, ARCH-TREES): not the shared kernel, not a context.
+[package]
+name = "architecture-domain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+uuid.workspace = true
+
+[lints]
+workspace = true
