@@ -1,0 +1,22 @@
+# The Security context's Infrastructure: the adapters of its ports — the in-memory store, bcrypt
+# for the hasher, JSON Web Tokens for the signed tokens (ARCH-INFRASTRUCTURE; the libraries).
+[package]
+name = "security-infrastructure"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-domain = { path = "../../../architecture/domain" }
+architecture-infrastructure = { path = "../../../architecture/infrastructure" }
+security-domain = { path = "../domain" }
+bcrypt.workspace = true
+jsonwebtoken.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+pollster.workspace = true
+
+[lints]
+workspace = true

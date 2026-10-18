@@ -1,0 +1,22 @@
+# The building blocks' Presentation: how a controller answers, in HTTP. Its row of the table is
+# `own.Domain, own.Application, own.Presentation` and the libraries (ARCH-PRESENTATION): axum for
+# the responses, tokio for the runtime the dispatch of a command is spawned on.
+[package]
+name = "architecture-presentation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-domain = { path = "../domain" }
+architecture-application = { path = "../application" }
+axum.workspace = true
+serde.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

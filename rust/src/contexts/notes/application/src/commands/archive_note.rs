@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use architecture_application::{CommandHandler, ExecutionContext, publish_domain_events};
-use architecture_domain::{CommandEvent, DomainResult, Event};
+use architecture_domain::{CommandEvent, DomainResult, Event, EventKind};
 use notes_domain::note::note_exceptions::note_not_found;
 use notes_domain::note::ports::note_repository::NoteRepository;
 use shared_kernel_application::require_signed_in;
@@ -19,10 +19,15 @@ impl Event for ArchiveNote {
     fn name(&self) -> &'static str {
         Self::NAME
     }
+
+    fn kind(&self) -> EventKind {
+        EventKind::Command
+    }
 }
 
 impl CommandEvent for ArchiveNote {
     const NAME: &'static str = "ArchiveNote";
+    type Output = ();
 }
 
 pub struct ArchiveNoteCommandHandler<R> {
@@ -37,7 +42,6 @@ impl<R> ArchiveNoteCommandHandler<R> {
 
 impl<R: NoteRepository + Send + Sync + 'static> CommandHandler for ArchiveNoteCommandHandler<R> {
     type Command = ArchiveNote;
-    type Output = ();
 
     async fn execute(&self, command: ArchiveNote, context: &ExecutionContext) -> DomainResult {
         let actor = require_signed_in(context, SERVICE)?;

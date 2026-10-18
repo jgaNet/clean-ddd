@@ -10,6 +10,8 @@ publish.workspace = true
 [dependencies]
 architecture-domain = { path = "../domain" }
 futures.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
 pollster.workspace = true

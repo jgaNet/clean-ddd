@@ -14,6 +14,9 @@ architecture-application = { path = "../../../architecture/application" }
 architecture-infrastructure = { path = "../../../architecture/infrastructure" }
 notes-domain = { path = "../domain" }
 notes-application = { path = "../application" }
+# Another context's Domain: its read-model port, which the directory adapts (others.Domain).
+security-domain = { path = "../../security/domain" }
+chrono.workspace = true
 
 [dev-dependencies]
 pollster.workspace = true

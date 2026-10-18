@@ -5,7 +5,7 @@
 //! translates them into an integration event. One enum, one variant per fact: the payload is
 //! the variant's fields, and a test compares the whole value.
 
-use architecture_domain::{DomainEvent, Event};
+use architecture_domain::{DomainEvent, Event, EventKind};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NoteEvent {
@@ -25,6 +25,10 @@ impl Event for NoteEvent {
             NoteEvent::Restored { .. } => "NoteRestored",
             NoteEvent::Shared { .. } => "NoteShared",
         }
+    }
+
+    fn kind(&self) -> EventKind {
+        EventKind::Domain
     }
 }
 

@@ -12,6 +12,7 @@ publish.workspace = true
 architecture-domain = { path = "../../architecture/domain" }
 architecture-application = { path = "../../architecture/application" }
 shared-kernel-domain = { path = "../domain" }
+serde_json.workspace = true
 
 [lints]
 workspace = true

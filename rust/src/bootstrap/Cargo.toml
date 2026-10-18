@@ -1,0 +1,39 @@
+# The composition root: the one place that knows every context, every route and the transport.
+# It may depend on anything; its end-to-end tests, under `tests/`, depend on it and on the
+# libraries only (ARCH-E2E): they speak HTTP to the application they booted.
+[package]
+name = "bootstrap"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "application"
+path = "src/main.rs"
+
+[dependencies]
+architecture-domain = { path = "../architecture/domain" }
+architecture-application = { path = "../architecture/application" }
+architecture-infrastructure = { path = "../architecture/infrastructure" }
+notes-infrastructure = { path = "../contexts/notes/infrastructure" }
+notes-presentation = { path = "../contexts/notes/presentation" }
+notes-wiring = { path = "../contexts/notes/wiring" }
+security-presentation = { path = "../contexts/security/presentation" }
+security-wiring = { path = "../contexts/security/wiring" }
+tracker-presentation = { path = "../contexts/tracker/presentation" }
+tracker-wiring = { path = "../contexts/tracker/wiring" }
+axum.workspace = true
+serde.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+reqwest.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

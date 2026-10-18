@@ -225,7 +225,7 @@ pub fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::event_bus::{AnyEvent, AnyHandler};
+    use crate::event_bus::AnyHandler;
 
     /// A bus nothing is published on here: the tests are about the context.
     struct NoBus;
@@ -233,7 +233,7 @@ mod tests {
         fn connect(&self) -> BoxFuture<'_, ()> {
             Box::pin(async {})
         }
-        fn publish(&self, _event: Arc<dyn AnyEvent>, _context: ExecutionContext) -> BoxFuture<'_, Operation> {
+        fn dispatch(&self, _operation: Operation) -> BoxFuture<'_, Operation> {
             unreachable!("not used")
         }
         fn subscribe(&self, _channel: &'static str, _handler: Arc<dyn AnyHandler>) -> BoxFuture<'_, ()> {

@@ -1,0 +1,22 @@
+# The Tracker context's Infrastructure: the in-memory records, and the bus decorator that
+# projects every operation into them (ARCH-INFRASTRUCTURE).
+[package]
+name = "tracker-infrastructure"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-domain = { path = "../../../architecture/domain" }
+architecture-application = { path = "../../../architecture/application" }
+architecture-infrastructure = { path = "../../../architecture/infrastructure" }
+shared-kernel-application = { path = "../../../shared_kernel/application" }
+tracker-application = { path = "../application" }
+
+[dev-dependencies]
+pollster.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

@@ -3,7 +3,7 @@
 # compiler holds the boundary, and `cargo run -p conventions` proves the graph is the table.
 [workspace]
 resolver = "3"
-members = ["src/architecture/*", "src/shared_kernel/*", "src/contexts/*/*", "tools/*"]
+members = ["src/architecture/*", "src/shared_kernel/*", "src/contexts/*/*", "src/bootstrap", "tools/*"]
 
 [workspace.package]
 version = "3.1.0"
@@ -23,5 +23,14 @@ futures = "0.3"
 indexmap = "2"
 pollster = "0.4"
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 serde_yaml = "0.9"
 toml = "0.8"
+chrono = { version = "0.4", features = ["serde"] }
+# The transport and what only an adapter may see (the binding's `libraries`): HTTP, the runtime, tokens, hashing.
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "sync", "time"] }
+tower = "0.5"
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
+jsonwebtoken = "9"
+bcrypt = "0.17"

@@ -10,7 +10,7 @@ use crate::event_bus::EventBus;
 use crate::module::Module;
 
 pub struct Application {
-    modules: BTreeMap<&'static str, Module>,
+    modules: BTreeMap<&'static str, Arc<Module>>,
     event_bus: Arc<dyn EventBus>,
 }
 
@@ -19,7 +19,8 @@ impl Application {
         Self { modules: BTreeMap::new(), event_bus }
     }
 
-    pub fn register_module(mut self, module: Module) -> Self {
+    /// Registers a module; the same `Arc` is what its routes are built over.
+    pub fn register_module(mut self, module: Arc<Module>) -> Self {
         self.modules.insert(module.name(), module);
         self
     }
@@ -38,7 +39,7 @@ impl Application {
     /// # Panics
     ///
     /// When no module of that name was registered: a wiring mistake.
-    pub fn module(&self, name: &str) -> &Module {
+    pub fn module(&self, name: &str) -> &Arc<Module> {
         self.modules.get(name).unwrap_or_else(|| panic!("Module {name} not found"))
     }
 }

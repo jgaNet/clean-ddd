@@ -1,0 +1,22 @@
+# The Security context's Presentation: the auth routes, and the authentication layer that
+# identifies the caller of every request (ARCH-PRESENTATION; the libraries).
+[package]
+name = "security-presentation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-domain = { path = "../../../architecture/domain" }
+architecture-application = { path = "../../../architecture/application" }
+architecture-presentation = { path = "../../../architecture/presentation" }
+shared-kernel-domain = { path = "../../../shared_kernel/domain" }
+security-domain = { path = "../domain" }
+security-application = { path = "../application" }
+axum.workspace = true
+chrono.workspace = true
+serde.workspace = true
+
+[lints]
+workspace = true

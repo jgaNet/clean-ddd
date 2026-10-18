@@ -10,7 +10,7 @@
 use std::sync::Arc;
 
 use architecture_application::{CommandHandler, ExecutionContext, publish_domain_events};
-use architecture_domain::{CommandEvent, DomainResult, Event};
+use architecture_domain::{CommandEvent, DomainResult, Event, EventKind};
 use notes_domain::note::note_exceptions::note_not_found;
 use notes_domain::note::ports::note_repository::NoteRepository;
 use shared_kernel_application::require_signed_in;
@@ -28,10 +28,15 @@ impl Event for SuggestNoteTitle {
     fn name(&self) -> &'static str {
         Self::NAME
     }
+
+    fn kind(&self) -> EventKind {
+        EventKind::Command
+    }
 }
 
 impl CommandEvent for SuggestNoteTitle {
     const NAME: &'static str = "SuggestNoteTitle";
+    type Output = TitleSuggestion;
 }
 
 pub struct SuggestNoteTitleCommandHandler<R, S> {
@@ -51,7 +56,6 @@ where
     S: NoteTitleSuggestions + Send + Sync + 'static,
 {
     type Command = SuggestNoteTitle;
-    type Output = TitleSuggestion;
 
     async fn execute(&self, command: SuggestNoteTitle, context: &ExecutionContext) -> DomainResult<TitleSuggestion> {
         let actor = require_signed_in(context, SERVICE)?;
@@ -75,7 +79,6 @@ where
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
-    use std::time::SystemTime;
 
     use architecture_application::{Auth, ExecutionContextOptions};
     use architecture_infrastructure::{InMemoryDataSource, InMemoryEventBus};
@@ -105,7 +108,7 @@ mod tests {
                 provenance: SuggestionProvenance {
                     source: "test".into(),
                     version: "1".into(),
-                    at: SystemTime::UNIX_EPOCH,
+                    at: chrono::DateTime::UNIX_EPOCH,
                 },
             }
         }

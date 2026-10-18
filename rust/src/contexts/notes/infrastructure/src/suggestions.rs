@@ -4,8 +4,6 @@
 //! first line or a very long one is proposed as such, and the aggregate refuses it, which is the
 //! point of ADR 7.
 
-use std::time::SystemTime;
-
 use notes_application::suggestions::{NoteTitleSuggestions, SuggestionProvenance, TitleSuggestion};
 
 pub struct FirstLineTitleSuggestions;
@@ -21,7 +19,7 @@ impl NoteTitleSuggestions for FirstLineTitleSuggestions {
             provenance: SuggestionProvenance {
                 source: "heuristic".into(),
                 version: Self::VERSION.into(),
-                at: SystemTime::now(),
+                at: chrono::Utc::now(),
             },
         }
     }

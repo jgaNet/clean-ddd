@@ -17,7 +17,7 @@ language: rust
 name: Rust
 root: rust
 
-contexts: [Notes]
+contexts: [Notes, Security, Tracker]
 
 # The trees. `alias` is how a tree is named in a crate name: a context's crates are named after
 # the context (`notes-domain`), the two trees after themselves.
@@ -28,8 +28,9 @@ bootstrap: { alias: bootstrap, path: src/bootstrap }
 # A context's wiring is a crate of its own, `<context>-wiring`, beside its layer crates.
 wiring: wiring
 
-# Libraries only an adapter may depend on: the domain and the use cases never see them.
-libraries: [axum, hyper, tower, sqlx, rusqlite]
+# Libraries only an adapter may depend on: the domain and the use cases never see them. The
+# runtime is one of them (ADR 14): `tokio` appears in the Presentation and the bootstrap, nowhere below.
+libraries: [axum, hyper, tower, tokio, reqwest, sqlx, rusqlite, jsonwebtoken, bcrypt]
 
 # What stands behind each enforcement word of architecture.yaml, in this language.
 enforcers:
@@ -64,13 +65,20 @@ rules:
   ARCH-TREES:
     references: [src/architecture, src/shared_kernel]
   ARCH-INWARD:
-    references: [src/contexts/notes/domain/Cargo.toml, src/contexts/notes/application/Cargo.toml]
+    references:
+      - src/contexts/notes/domain/Cargo.toml
+      - src/contexts/notes/application/Cargo.toml
+      - src/contexts/notes/presentation/Cargo.toml
   ARCH-APPLICATION-SPECS:
     references: [src/contexts/notes/application/src/commands/mod.rs]
   ARCH-INFRASTRUCTURE:
     references: [src/contexts/notes/infrastructure/Cargo.toml]
+  ARCH-PRESENTATION:
+    references: [src/contexts/notes/presentation/src/lib.rs]
   ARCH-WIRING:
     references: [src/contexts/notes/wiring/src/lib.rs]
+  ARCH-E2E:
+    references: [src/bootstrap/tests/support/mod.rs]
   ARCH-MODULES-DATA:
     references: [src/contexts/notes/wiring/src/lib.rs]
   ARCH-EXECUTION-CONTEXT:
@@ -85,10 +93,27 @@ rules:
     references: [src/contexts/notes/application/src/commands/suggest_note_title.rs]
   EVENT-AFTER-COMMIT:
     references: [src/architecture/application/src/domain_events.rs]
+  CTX-CONTRACTS:
+    references:
+      - src/contexts/notes/infrastructure/src/directories.rs
+      - src/contexts/notes/application/src/events/note_shared_handler.rs
   CONC-OPTIMISTIC:
     references: [src/contexts/notes/infrastructure/src/repositories.rs]
   ARCH-MAP-IS-REAL:
     references: [tools/conventions/src/main.rs]
+
+# The file that shows each verb of the HTTP grammar: the Notes routes for the grammar, the auth
+# routes for the one exception.
+verbs:
+  read: src/contexts/notes/presentation/src/lib.rs
+  create: src/contexts/notes/presentation/src/lib.rs
+  act: src/contexts/notes/presentation/src/lib.rs
+  create-under: src/contexts/notes/presentation/src/lib.rs
+  replace: src/contexts/notes/presentation/src/lib.rs
+  replace-part: src/contexts/notes/presentation/src/lib.rs
+  change-part: src/contexts/notes/presentation/src/lib.rs
+  remove: src/contexts/notes/presentation/src/lib.rs
+  link-in-an-email: src/contexts/security/presentation/src/routes.rs
 
 # What a new thing of each kind is made of in Rust, and where each part goes. The kinds are
 # architecture.yaml's. Lowercase placeholders (`<context>`, `<aggregate>`) are filled in
@@ -128,15 +153,15 @@ checklists:
       - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
       - 'One `pub mod` line in `commands/mod.rs`; the handlers of one aggregate share the tests at the bottom of that file.'
       - 'At least a happy path and one refusal in the tests; through `handle()` when the rule is in `guard()`.'
-      - 'A route answering `202 { operationId }`, and the handler listed in the wiring crate with `Subscription::command`.'
+      - 'A route in the context''s `presentation` crate: a function taking the request''s `Extension<ExecutionContext>` and `accept(&context, Command { … })`, answering `202 { operationId }`; the handler listed in the wiring crate with `Subscription::command`.'
   query:
     place: src/contexts/<context>/application/src/queries/<use_case>.rs
     parts:
       - 'A read model and a method on the queries port, with the order and the unknown-id answer in its doc comment.'
-      - 'The handler: a struct holding the queries port, `impl QueryHandler` with `execute()`; it reads the port and nothing else: no sorting, no second port, no aggregate.'
+      - 'The query: a struct with its parameters (or a unit struct), `impl Query` naming its `Output`; the handler in the same file: a struct holding the queries port, `impl QueryHandler` with `execute()`; it reads the port and nothing else: no sorting, no second port, no aggregate.'
       - 'One `pub mod` line in `queries/mod.rs`.'
       - 'A test in `queries/mod.rs` when the handler holds a visibility or role rule.'
-      - 'A route answering synchronously, refusals through the controller''s `refuse()`, and the handler listed in the wiring crate with `query()`.'
+      - 'A route answering synchronously — `module.query::<TheQuery>().handle(…)`, a view struct for the JSON, refusals through the file''s `refuse()` — and the handler listed in the wiring crate with `query()`.'
   integration-event:
     place: src/shared_kernel/application/src/integration_events/<aggregate>_integration_events.rs
     parts:
@@ -159,7 +184,7 @@ checklists:
       - 'One crate per layer (`domain`, `application`, `infrastructure`, `presentation`) and the `wiring` crate, nothing else; each crate''s `[dependencies]` are its row of the table.'
       - 'Its own vocabulary: a word that means something else here is a sign the context is right.'
       - 'It asks other contexts through ports it owns, and tells them through integration events; never both sides of a dependency.'
-      - 'Registered in the composition root, with its routes under its own prefix.'
+      - 'Registered in the composition root (`src/bootstrap/src/create_application.rs`), with its routes under its own prefix.'
 
 # One test style per layer, for the README; the rows the language has so far.
 tests:
@@ -173,11 +198,19 @@ tests:
     example: '`mod tests` in [`commands/mod.rs`](src/contexts/notes/application/src/commands/mod.rs)'
     doubles: the in-memory repository *is* the double; the in-memory bus, with a recording handler, says what was published
   - layer: Infrastructure
-    example: '`mod tests` in [`in_memory_unit_of_work`](src/architecture/infrastructure/src/unit_of_work.rs)'
+    example: >-
+      `mod tests` in [`tracked_event_bus.rs`](src/contexts/tracker/infrastructure/src/tracked_event_bus.rs),
+      [`signed_tokens.rs`](src/contexts/security/infrastructure/src/signed_tokens.rs)
     doubles: real in-memory pieces
   - layer: '**Contract** (one port, every adapter)'
     example: '[`persistence_contract.rs`](src/contexts/notes/infrastructure/src/persistence_contract.rs)'
     doubles: none — every case runs over each entry of `adapters()`, same expectations
+  - layer: End to end
+    example: '[`notes_routes.rs`](src/bootstrap/tests/notes_routes.rs)'
+    doubles: >-
+      the whole application, booted in-process on a free port by
+      [`tests/support/mod.rs`](src/bootstrap/tests/support/mod.rs), spoken to over HTTP; a `202` is followed
+      through the Tracker to its outcome
 
 # Where each word of concepts.yaml's vocabulary is shown, by word; the words the language has so far.
 vocabulary:
@@ -193,16 +226,19 @@ vocabulary:
   Command: '`ShareNote` in [`share_note.rs`](src/contexts/notes/application/src/commands/share_note.rs)'
   Query: '[`get_note.rs`](src/contexts/notes/application/src/queries/get_note.rs)'
   Read model: '[`note_queries.rs`](src/contexts/notes/domain/src/note/ports/note_queries.rs)'
+  Projection: '[`projection.rs`](src/contexts/tracker/application/src/projection.rs)'
   Port: >-
     [`note_repository.rs`](src/contexts/notes/domain/src/note/ports/note_repository.rs),
     [`account_directory.rs`](src/contexts/notes/domain/src/note/ports/account_directory.rs)
   Adapter: >-
     [`repositories.rs`](src/contexts/notes/infrastructure/src/repositories.rs),
-    [`suggestions.rs`](src/contexts/notes/infrastructure/src/suggestions.rs)
+    [`suggestions.rs`](src/contexts/notes/infrastructure/src/suggestions.rs),
+    [`directories.rs`](src/contexts/notes/infrastructure/src/directories.rs)
   Repository: '[`note_repository.rs`](src/contexts/notes/domain/src/note/ports/note_repository.rs)'
   Domain service: '[`note_sharing.rs`](src/contexts/notes/domain/src/note/note_sharing.rs)'
   Snapshot: '[`dtos.rs`](src/contexts/notes/domain/src/note/dtos.rs)'
   Operation: '[`operation.rs`](src/architecture/application/src/operation.rs)'
+  Composition root: '[`create_application.rs`](src/bootstrap/src/create_application.rs)'
 
 # The file that shows each concept of concepts.yaml, by id; a concept not listed here is one
 # this language does not show yet, and the map says so.
@@ -222,17 +258,22 @@ concepts:
     canonical:
       - src/contexts/notes/domain/src/note/note_title.rs
       - src/shared_kernel/domain/src/email.rs
+      - src/contexts/security/domain/src/account/credentials.rs
     example: >-
       [`note_title.rs`](src/contexts/notes/domain/src/note/note_title.rs),
-      [`email.rs`](src/shared_kernel/domain/src/email.rs)
+      [`email.rs`](src/shared_kernel/domain/src/email.rs),
+      [`credentials.rs`](src/contexts/security/domain/src/account/credentials.rs)
     notes: 'a newtype with a private field deriving `PartialEq`; [`value_object.rs`](src/architecture/domain/src/value_object.rs) names the shape'
     examples: [src/architecture/domain/src/value_object.rs]
   identity:
     canonical: [src/architecture/domain/src/id.rs]
   factory:
-    canonical: [src/contexts/notes/domain/src/note/mod.rs]
-    example: '`Note::create()` in [`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs)'
-    notes: 'the domain-service factory (an account''s registration) is not written yet'
+    canonical:
+      - src/contexts/notes/domain/src/note/mod.rs
+      - src/contexts/security/domain/src/account/account_registration.rs
+    example: >-
+      `Note::create()` in [`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs); when creation needs a
+      port, [`account_registration.rs`](src/contexts/security/domain/src/account/account_registration.rs)
   invariant:
     canonical: [src/contexts/notes/domain/src/note/mod.rs]
     example: '`share_with()` in [`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs)'
@@ -266,36 +307,59 @@ concepts:
   snapshot-dto:
     canonical: [src/contexts/notes/domain/src/note/dtos.rs]
   domain-service:
-    canonical: [src/contexts/notes/domain/src/note/note_sharing.rs]
+    canonical:
+      - src/contexts/security/domain/src/account/account_registration.rs
+      - src/contexts/notes/domain/src/note/note_sharing.rs
+    example: >-
+      [`account_registration.rs`](src/contexts/security/domain/src/account/account_registration.rs),
+      [`note_sharing.rs`](src/contexts/notes/domain/src/note/note_sharing.rs)
     notes: 'generic over its port, so a test hands it a five-line struct'
   port-to-another-context:
     canonical:
       - src/contexts/notes/domain/src/note/ports/account_directory.rs
       - src/contexts/notes/domain/src/note/note_sharing.rs
+      - src/contexts/notes/infrastructure/src/directories.rs
     example: >-
       [`account_directory.rs`](src/contexts/notes/domain/src/note/ports/account_directory.rs), used by
-      [`note_sharing.rs`](src/contexts/notes/domain/src/note/note_sharing.rs)
-    notes: 'the adapter over Security''s read model is not written yet'
+      [`note_sharing.rs`](src/contexts/notes/domain/src/note/note_sharing.rs), answered over Security's read
+      model by [`directories.rs`](src/contexts/notes/infrastructure/src/directories.rs)
+  ports-for-technical-concerns:
+    canonical:
+      - src/contexts/security/domain/src/auth/ports/password_hasher.rs
+      - src/contexts/security/domain/src/auth/ports/signed_tokens.rs
+    example: >-
+      [`password_hasher.rs`](src/contexts/security/domain/src/auth/ports/password_hasher.rs),
+      [`signed_tokens.rs`](src/contexts/security/domain/src/auth/ports/signed_tokens.rs)
   lifecycle-as-an-enum:
-    canonical: [src/contexts/notes/domain/src/note/note_status.rs]
+    canonical:
+      - src/contexts/notes/domain/src/note/note_status.rs
+      - src/contexts/security/domain/src/account/account_status.rs
+    example: >-
+      [`note_status.rs`](src/contexts/notes/domain/src/note/note_status.rs),
+      [`account_status.rs`](src/contexts/security/domain/src/account/account_status.rs)
   command:
     canonical: [src/contexts/notes/application/src/commands/share_note.rs]
     example: '`ShareNote` in [`share_note.rs`](src/contexts/notes/application/src/commands/share_note.rs)'
-    notes: 'a struct with a `NAME`, which is the channel its handler listens on; the three kinds of message are three traits in [`event.rs`](src/architecture/domain/src/event.rs)'
+    notes: 'a struct with a `NAME`, which is the channel its handler listens on, and an `Output`, what its handler answers with; the three kinds of message are three traits in [`event.rs`](src/architecture/domain/src/event.rs)'
     examples: [src/architecture/domain/src/event.rs]
   command-handler:
     canonical: [src/contexts/notes/application/src/commands/edit_note.rs]
     example: '`EditNoteCommandHandler` in [`edit_note.rs`](src/contexts/notes/application/src/commands/edit_note.rs)'
     notes: 'generic over its ports, `Arc`-shared with the other handlers of the aggregate'
   guard:
-    canonical: [src/shared_kernel/application/src/guards.rs]
-    example: '`require_signed_in()` in [`guards.rs`](src/shared_kernel/application/src/guards.rs), called once at the top of `execute()`'
-    notes: 'a `guard()` override for a role-only rule is not written yet'
+    canonical:
+      - src/shared_kernel/application/src/guards.rs
+      - src/contexts/security/application/src/commands/register_admin.rs
+    example: >-
+      `require_signed_in()` in [`guards.rs`](src/shared_kernel/application/src/guards.rs), called once at the
+      top of `execute()`; `guard()` in
+      [`register_admin.rs`](src/contexts/security/application/src/commands/register_admin.rs)
   base-handler:
     canonical: [src/architecture/application/src/command_handler.rs]
     notes: 'a trait whose provided `handle()` is the template method; a concrete handler writes `execute()`'
   query-handler:
     canonical: [src/contexts/notes/application/src/queries/get_note.rs]
+    notes: 'a query is a struct, like a command, and the module finds its handler by the query''s type (`module.query::<GetNote>()`), never by the handler''s, which would name the adapter'
   execution-context:
     canonical: [src/architecture/application/src/execution_context.rs]
     notes: 'shared by `Arc`, so a clone is the same context; `after_commit` takes a future'
@@ -307,6 +371,13 @@ concepts:
     canonical: [src/contexts/notes/application/src/events/note_shared_handler.rs]
   integration-event:
     canonical: [src/shared_kernel/application/src/integration_events/note_integration_events.rs]
+  projection-read-model:
+    canonical:
+      - src/contexts/tracker/application/src/projection.rs
+      - src/contexts/tracker/application/src/read_model.rs
+    example: >-
+      [`projection.rs`](src/contexts/tracker/application/src/projection.rs),
+      [`read_model.rs`](src/contexts/tracker/application/src/read_model.rs)
   non-determinism-as-a-value:
     canonical:
       - src/contexts/notes/application/src/suggestions.rs
@@ -322,19 +393,58 @@ concepts:
       - src/contexts/notes/wiring/src/lib.rs
     example: >-
       [`module.rs`](src/architecture/application/src/module.rs), used in
-      [`notes/wiring`](src/contexts/notes/wiring/src/lib.rs)
+      [`notes/wiring`](src/contexts/notes/wiring/src/lib.rs); what a context exports besides its module is a
+      public item of the same crate ([`security/wiring`](src/contexts/security/wiring/src/lib.rs))
     notes: 'the wiring is a crate; a handler is listed with `Subscription::command`, a query with `query()`'
+    examples: [src/contexts/security/wiring/src/lib.rs, src/contexts/tracker/wiring/src/lib.rs]
   repository-implementation:
     canonical: [src/contexts/notes/infrastructure/src/repositories.rs]
   queries-implementation:
     canonical: [src/contexts/notes/infrastructure/src/queries.rs]
+  port-implementations:
+    canonical:
+      - src/contexts/security/infrastructure/src/signed_tokens.rs
+      - src/contexts/security/infrastructure/src/password_hasher.rs
+    example: >-
+      [`signed_tokens.rs`](src/contexts/security/infrastructure/src/signed_tokens.rs) (`jsonwebtoken`),
+      [`password_hasher.rs`](src/contexts/security/infrastructure/src/password_hasher.rs) (`bcrypt`)
   event-bus:
     canonical: [src/architecture/infrastructure/src/event_bus.rs]
     notes: 'routes by name, awaits the handlers inline; the port is [`event_bus.rs`](src/architecture/application/src/event_bus.rs)'
     examples: [src/architecture/application/src/event_bus.rs]
+  decorator:
+    canonical: [src/contexts/tracker/infrastructure/src/tracked_event_bus.rs]
+    notes: 'wraps `dispatch`: a record before, a record after, the completion notice when it is a command''s'
   unit-of-work:
     canonical: [src/architecture/infrastructure/src/unit_of_work.rs]
     notes: 'over the stores the composition root lists, rather than every store of the process'
   the-database:
     canonical: [src/architecture/infrastructure/src/data_sources.rs]
     notes: 'an insertion-ordered map behind a mutex'
+  controller:
+    canonical: [src/contexts/notes/presentation/src/lib.rs]
+    example: '[`notes/presentation`](src/contexts/notes/presentation/src/lib.rs); every other context''s has the same shape'
+    notes: 'the routes and their controller are one file: a function per route, `accept()` for a command, `module.query::<Q>()` for a query, `refuse()` for a refusal'
+  routes-and-json-schemas:
+    canonical:
+      - src/contexts/notes/presentation/src/lib.rs
+      - src/architecture/presentation/src/lib.rs
+    example: >-
+      the `Router` and the request bodies and views of [`notes/presentation`](src/contexts/notes/presentation/src/lib.rs),
+      on [`architecture/presentation`](src/architecture/presentation/src/lib.rs) (`Accepted`, the refusals)
+    notes: 'the schema is a serde struct beside the route: axum refuses a body that does not fit it, a view says what a read model looks like outside'
+  authentication-middleware:
+    canonical: [src/contexts/security/presentation/src/authentication.rs]
+    example: >-
+      [`authentication.rs`](src/contexts/security/presentation/src/authentication.rs) — never blocks, leaves the
+      caller anonymous unless the token verifies; a layer over every route
+  composition-root:
+    canonical:
+      - src/bootstrap/src/create_application.rs
+      - src/architecture/application/src/application.rs
+      - src/bootstrap/src/main.rs
+    example: >-
+      [`create_application.rs`](src/bootstrap/src/create_application.rs) on
+      [`application.rs`](src/architecture/application/src/application.rs): wires, starts the modules, seeds the
+      administrator through the same handler as any command, then listens;
+      [`main.rs`](src/bootstrap/src/main.rs) is the process entry point

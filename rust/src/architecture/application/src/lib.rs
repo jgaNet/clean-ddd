@@ -25,11 +25,11 @@ use std::pin::Pin;
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 pub use application::Application;
-pub use command_handler::{CommandHandler, CommandSubscriber};
+pub use command_handler::{AnyCommand, CommandHandler, CommandSubscriber};
 pub use domain_events::publish_domain_events;
 pub use event_bus::{AnyEvent, AnyHandler, EventBus};
 pub use event_handler::{EventHandler, EventSubscriber};
 pub use execution_context::{Auth, ExecutionContext, ExecutionContextOptions, Logger, UnitOfWork};
-pub use module::{Module, ModuleDefinition, Subscription, query};
-pub use operation::{Operation, OperationStatus, OperationValue};
-pub use query_handler::QueryHandler;
+pub use module::{Module, ModuleDefinition, QueryEntry, Subscription, query};
+pub use operation::{AnyValue, Operation, OperationStatus, OperationValue};
+pub use query_handler::{AnyQuery, Query, QueryHandler};

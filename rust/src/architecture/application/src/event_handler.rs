@@ -81,10 +81,10 @@ impl<H: EventHandler> AnyHandler for EventSubscriber<H> {
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use architecture_domain::DomainEvent;
+    use architecture_domain::{DomainEvent, EventKind};
 
     use super::*;
-    use crate::event_bus::{AnyEvent, EventBus};
+    use crate::event_bus::EventBus;
     use crate::execution_context::{Auth, ExecutionContextOptions};
     use crate::operation::OperationStatus;
 
@@ -95,6 +95,9 @@ mod tests {
     impl Event for Greeted {
         fn name(&self) -> &'static str {
             "Greeted"
+        }
+        fn kind(&self) -> EventKind {
+            EventKind::Domain
         }
     }
     impl DomainEvent for Greeted {}
@@ -122,7 +125,7 @@ mod tests {
         fn connect(&self) -> BoxFuture<'_, ()> {
             Box::pin(async {})
         }
-        fn publish(&self, _event: Arc<dyn AnyEvent>, _context: ExecutionContext) -> BoxFuture<'_, Operation> {
+        fn dispatch(&self, _operation: Operation) -> BoxFuture<'_, Operation> {
             unreachable!("not used")
         }
         fn subscribe(&self, _channel: &'static str, _handler: Arc<dyn AnyHandler>) -> BoxFuture<'_, ()> {

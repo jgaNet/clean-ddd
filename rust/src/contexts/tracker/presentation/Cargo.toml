@@ -1,0 +1,20 @@
+# The Tracker context's Presentation: the routes a client follows an operation with. Its row of
+# the table is its own Application, the building blocks, the shared kernel and the libraries
+# (ARCH-PRESENTATION); never its Infrastructure, its wiring or the bootstrap.
+[package]
+name = "tracker-presentation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-domain = { path = "../../../architecture/domain" }
+architecture-application = { path = "../../../architecture/application" }
+architecture-presentation = { path = "../../../architecture/presentation" }
+tracker-application = { path = "../application" }
+axum.workspace = true
+serde.workspace = true
+
+[lints]
+workspace = true

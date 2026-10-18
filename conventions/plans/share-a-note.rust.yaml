@@ -2,8 +2,8 @@
 # the binding whose checklists say where each part goes, and the check validates it against the
 # Rust tree. The parts the Rust implementation has so far are listed, each `new: false`, so that
 # the check confirms they are where the binding's checklists say — `<aggregate>` and `<use_case>`
-# filled in snake_case, as a Rust path wants. The route joins this plan when the Presentation does;
-# the cross-context reaction, when Notifications does.
+# filled in snake_case, as a Rust path wants. The cross-context reaction joins this plan when
+# Notifications does.
 
 schemaVersion: 1
 
@@ -13,8 +13,8 @@ context: Notes
 
 intent: >-
   The owner of a note shares it with another account, which can then read it. In Rust, the part
-  of the path that exists today: from the command to the domain event and to the published
-  contract, with no route in front and no consumer behind yet.
+  of the path that exists today: from the route to the domain event and to the published
+  contract, with no consumer behind yet.
 
 changes:
   - kind: aggregate

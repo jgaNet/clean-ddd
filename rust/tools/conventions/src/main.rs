@@ -14,6 +14,8 @@
 //!    row allows — `own.<Layer>`, `architecture.<Layer>`, `kernel.<Layer>`, `others.<Layer>`,
 //!    the wiring, the bootstrap — a dev-dependency may add what the layer's `specs` row allows,
 //!    and a library the binding lists is seen only where `libraries` is allowed (ARCH-INWARD).
+//!    The bootstrap may depend on anything, but its tests — the end-to-end tests — on the
+//!    bootstrap and the libraries only: no layer crate in its `[dev-dependencies]` (ARCH-E2E).
 //! 4. Every file the binding names exists (ARCH-MAP-IS-REAL). The rendered documents and the
 //!    links are checked by the TypeScript tooling, which reads every binding.
 //!
@@ -296,11 +298,13 @@ fn expand(allowed: &[String], layers: &[String]) -> BTreeSet<String> {
 }
 
 /// The row of the table a crate is held to, and its id; the specs row is added for dev-dependencies.
+/// The bootstrap has no row of its own, and its tests have the end-to-end one.
 fn row_of(contract: &Yaml, krate: &Crate, dev: bool) -> Option<(String, Vec<String>)> {
-    let entry = match &krate.part {
-        Part::Layer(layer) => &contract["layers"][layer.as_str()],
-        Part::Wiring => &contract["wiring_file"],
-        Part::Whole => return None,
+    let entry = match (&krate.part, dev) {
+        (Part::Layer(layer), _) => &contract["layers"][layer.as_str()],
+        (Part::Wiring, _) => &contract["wiring_file"],
+        (Part::Whole, true) => &contract["e2e_specs"],
+        (Part::Whole, false) => return None,
     };
     let mut allowed = strings(&entry["may_import"]);
     if dev {
