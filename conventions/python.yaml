@@ -17,7 +17,7 @@ language: python
 name: Python
 root: python
 
-contexts: [Notes, Security, Tracker]
+contexts: [Notes, Security, Tracker, Notifications]
 
 # The trees. `alias` is the top-level package a tree is imported as; a context's is
 # `contexts.<context>`.
@@ -40,7 +40,7 @@ verbs:
   create-under: src/contexts/notes/presentation/routes.py
   replace: src/contexts/notes/presentation/routes.py
   replace-part: src/contexts/notes/presentation/routes.py
-  change-part: src/contexts/notes/presentation/routes.py
+  change-part: src/contexts/notifications/presentation/routes.py
   remove: src/contexts/notes/presentation/routes.py
   link-in-an-email: src/contexts/security/presentation/routes.py
 
@@ -91,6 +91,7 @@ rules:
     references:
       - src/contexts/notes/infrastructure/directories.py
       - src/contexts/notes/application/events/note_shared_handler.py
+      - src/contexts/notifications/application/events/note_shared_handler.py
   DOMAIN-IDENTITY:
     references: [src/contexts/notes/domain/note/note.py, src/contexts/notes/domain/note/ports/note_repository.py]
   ARCH-EXECUTION-CONTEXT:
@@ -192,8 +193,8 @@ tests:
   - layer: Application
     example: >-
       [`test_commands.py`](src/contexts/notes/application/commands/test_commands.py),
-      [`test_get_note.py`](src/contexts/notes/application/queries/test_get_note.py)
-    doubles: the in-memory repository *is* the double; a recording bus of ten lines says what was published
+      [`test_delivery.py`](src/contexts/notifications/application/test_delivery.py)
+    doubles: the in-memory repository *is* the double; a recording bus of ten lines says what was published; a fake channel remembers what it received
   - layer: Infrastructure
     example: >-
       [`test_tracked_event_bus.py`](src/contexts/tracker/infrastructure/test_tracked_event_bus.py),
@@ -232,6 +233,8 @@ vocabulary:
     [`directories.py`](src/contexts/notes/infrastructure/directories.py)
   Repository: '[`note_repository.py`](src/contexts/notes/domain/note/ports/note_repository.py)'
   Domain service: '[`note_sharing.py`](src/contexts/notes/domain/note/note_sharing.py)'
+  Application service: '[`delivery.py`](src/contexts/notifications/application/delivery.py)'
+  Anti-corruption layer: '[`note_shared_handler.py`](src/contexts/notifications/application/events/note_shared_handler.py)'
   Snapshot: '[`dtos.py`](src/contexts/notes/domain/note/dtos.py)'
   Operation: '[`operation.py`](src/architecture/application/operation.py)'
   Composition root: '[`create_application.py`](src/bootstrap/create_application.py)'
@@ -250,15 +253,18 @@ concepts:
       [`note.py`](src/contexts/notes/domain/note/note.py) extending
       [`AggregateRoot`](src/architecture/domain/aggregate_root.py)
     notes: '`_record()` is protected by convention: a behaviour calls it, a handler never does'
+  entity-inside-an-aggregate:
+    canonical: [src/contexts/notifications/domain/notification/delivery_attempt.py]
+    notes: 'created and reached through `Notification` only, persisted in its snapshot'
   value-object:
     canonical:
       - src/contexts/notes/domain/note/note_title.py
       - src/shared_kernel/domain/email.py
-      - src/contexts/security/domain/account/credentials.py
+      - src/contexts/notifications/domain/notification/delivery_strategy.py
     example: >-
       [`note_title.py`](src/contexts/notes/domain/note/note_title.py),
       [`email.py`](src/shared_kernel/domain/email.py),
-      [`credentials.py`](src/contexts/security/domain/account/credentials.py)
+      [`delivery_strategy.py`](src/contexts/notifications/domain/notification/delivery_strategy.py)
     notes: 'a frozen dataclass over `value`; [`value_object.py`](src/architecture/domain/value_object.py) names the shape, and the dataclass gives the equality'
     examples: [src/architecture/domain/value_object.py]
   identity:
@@ -343,6 +349,9 @@ concepts:
     canonical: [src/contexts/notes/application/commands/edit_note.py]
     example: '`EditNoteCommandHandler` in [`edit_note.py`](src/contexts/notes/application/commands/edit_note.py)'
     notes: 'takes its ports in `__init__`; `execute()` returns a `Result` and returns a `Failure` as is'
+  application-service:
+    canonical: [src/contexts/notifications/application/delivery.py]
+    notes: 'holds the channels in a dict by `Channel`, each behind the port, since a strategy walks a list of adapters of different kinds'
   guard:
     canonical:
       - src/shared_kernel/application/guards.py
@@ -368,6 +377,9 @@ concepts:
     canonical: [src/contexts/notes/application/events/note_shared_handler.py]
   integration-event:
     canonical: [src/shared_kernel/application/integration_events/note_integration_events.py]
+  anti-corruption-layer:
+    canonical: [src/contexts/notifications/application/events/note_shared_handler.py]
+    notes: 'one handler per consumed contract, in [`events/`](src/contexts/notifications/application/events/__init__.py); each knows the contract and nothing else of the other context'
   projection-read-model:
     canonical:
       - src/contexts/tracker/application/projection.py
@@ -401,9 +413,11 @@ concepts:
     canonical:
       - src/contexts/security/infrastructure/signed_tokens.py
       - src/contexts/security/infrastructure/password_hasher.py
+      - src/contexts/notifications/infrastructure/channels/websocket.py
     example: >-
       [`signed_tokens.py`](src/contexts/security/infrastructure/signed_tokens.py) (PyJWT),
-      [`password_hasher.py`](src/contexts/security/infrastructure/password_hasher.py) (bcrypt, in a thread)
+      [`password_hasher.py`](src/contexts/security/infrastructure/password_hasher.py) (bcrypt, in a thread),
+      [`channels/websocket.py`](src/contexts/notifications/infrastructure/channels/websocket.py) (FastAPI's `WebSocket`)
   event-bus:
     canonical: [src/architecture/infrastructure/event_bus.py]
     notes: '`publish()` schedules the dispatch as a task on the running loop and answers at once; `settle()` awaits what is in flight; the port is [`event_bus.py`](src/architecture/application/event_bus.py)'
@@ -441,7 +455,7 @@ concepts:
     canonical: [src/contexts/security/presentation/authentication.py]
     example: >-
       [`authentication.py`](src/contexts/security/presentation/authentication.py) — never blocks, leaves the
-      caller anonymous unless the token verifies; a middleware over every route
+      caller anonymous unless the token verifies; an ASGI middleware over every request and websocket connection
   composition-root:
     canonical:
       - src/bootstrap/create_application.py

@@ -103,6 +103,13 @@ async def test_sharing_a_note_lets_the_recipient_read_it_and_is_refused_for_an_u
     shared = (await bob.get(f"{api}/notes/shared")).json()
     assert shared == [{"id": note_id, "title": "Roadmap", "content": "Q4 plans", "ownerId": shared[0]["ownerId"]}]
     assert (await bob.get(f"{api}/notes/{note_id}")).status_code == 200
+
+    # And he was notified (next to the welcome notifications his account creation and validation produced)
+    inbox = (await bob.get(f"{api}/notifications/account/{bob_id}")).json()
+    shared_notice = next(n for n in inbox["notifications"] if n["title"] == "A note was shared with you: Roadmap")
+    assert shared_notice["recipientId"] == bob_id
+    assert shared_notice["metadata"]["noteId"] == note_id and shared_notice["metadata"]["source"] == "Notes.NoteShared"
+
     await app.sign_up_validated("carol@notes.fr", "carol")
     carol = await app.agent_as("carol@notes.fr", "carol")
     assert (await carol.get(f"{api}/notes/{note_id}")).status_code == 404

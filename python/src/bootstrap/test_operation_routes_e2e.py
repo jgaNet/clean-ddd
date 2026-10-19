@@ -32,8 +32,11 @@ async def test_following_an_operation() -> None:
     # Listed for an administrator, by trace when asked
     by_trace = await admin.get(f"{api}/tracker/operations", params={"traceId": trace_id})
     assert by_trace.status_code == 200
+    # The trace holds the command and everything it set off: here the notification telling the
+    # caller how it went, whose own domain events are recorded too (never announced).
     records = by_trace.json()
-    assert [(r["name"], r["status"]) for r in records] == [("ShareNoteCommandEvent", "ERROR")]
+    assert ("ShareNoteCommandEvent", "ERROR") in [(r["name"], r["status"]) for r in records]
+    assert "NotificationFailedEvent" in [r["name"] for r in records]
     assert all(r["traceId"] == trace_id for r in records)
 
     # Not for a user, and not someone else's operation

@@ -3,16 +3,16 @@ the request anonymous (GUEST), and each handler's guard decides what a guest may
 accepted only if its signature and expiry check out (SignedTokens.verify), the account still
 exists and is active, and the role it claims is the account's current role.
 
-The composition root installs ``authenticating(authentication)`` as a middleware over every
-route; the ``Auth`` it establishes travels on ``request.state`` to the middleware that builds
-the execution context.
+The composition root installs ``AuthenticationMiddleware`` over every route; the ``Auth`` it
+establishes travels on the connection's state (``request.state.auth``, ``websocket.state.auth``)
+to the middleware that builds the execution context, and to the websocket channel. It is a
+plain ASGI middleware, so a websocket connection is identified the same way as a request.
 """
 
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Mapping
 
-from starlette.middleware.base import RequestResponseEndpoint
-from starlette.requests import Request
-from starlette.responses import Response
+from starlette.requests import HTTPConnection
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from architecture.application.execution_context import Auth
 from contexts.security.domain.account.account_status import AccountStatus
@@ -46,17 +46,20 @@ class Authentication:
         return Auth(subject_id=account.id, role=role)
 
 
-Middleware = Callable[[Request, RequestResponseEndpoint], Awaitable[Response]]
+class AuthenticationMiddleware:
+    """``app.add_middleware(AuthenticationMiddleware, authentication=...)``: who is calling, on every
+    HTTP request and every websocket connection, before anything else runs."""
 
+    def __init__(self, app: ASGIApp, authentication: Authentication) -> None:
+        self._app = app
+        self._authentication = authentication
 
-def authenticating(authentication: Authentication) -> Middleware:
-    """The middleware: ``app.middleware("http")(authenticating(authentication))``."""
-
-    async def authenticate(request: Request, call_next: RequestResponseEndpoint) -> Response:
-        request.state.auth = await authentication.identify(request.headers, request.query_params.get("token"))
-        return await call_next(request)
-
-    return authenticate
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] in ("http", "websocket"):
+            connection = HTTPConnection(scope)
+            auth = await self._authentication.identify(connection.headers, connection.query_params.get("token"))
+            scope.setdefault("state", {})["auth"] = auth
+        await self._app(scope, receive, send)
 
 
 def token_from_header(headers: Mapping[str, str]) -> str | None:

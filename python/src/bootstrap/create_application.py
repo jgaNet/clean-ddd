@@ -3,9 +3,9 @@ It builds the bus (the in-memory one, tracked), the stores and the unit of work 
 modules from each context's wiring, the routes under the API prefix, and the two middlewares
 that give each request its identity (Security's authentication) and its ``ExecutionContext``.
 Then it starts the modules, seeds the administrator through the same handler as any command,
-and only then listens. The static front end (``public/``: the page and the HTMX scripts) is
-served beside the API, ``index.html`` answering any path the API does not, so the front end's
-own routes (``/me``) load the page.
+and only then listens. The websocket and the static front end (``public/``: the page and the
+HTMX scripts) are served beside the API, ``index.html`` answering any path the API does not, so
+the front end's own routes (``/me``) load the page.
 """
 
 import asyncio
@@ -30,8 +30,10 @@ from bootstrap.settings import Settings
 from contexts.notes.infrastructure.directories import SecurityAccountDirectory
 from contexts.notes.module_local import local_notes_module, note_store
 from contexts.notes.presentation.routes import note_routes
+from contexts.notifications.module_local import local_notifications_module, notification_store
+from contexts.notifications.presentation.routes import notification_routes
 from contexts.security.module_local import account_store, local_security_module
-from contexts.security.presentation.authentication import authenticating
+from contexts.security.presentation.authentication import AuthenticationMiddleware
 from contexts.security.presentation.routes import auth_routes
 from contexts.tracker.infrastructure.tracked_event_bus import TrackedEventBus
 from contexts.tracker.module_local import local_tracker_module, operation_records, operation_store, tracked_event_bus
@@ -103,7 +105,8 @@ async def create_application(settings: Settings, logger: Logger | None = None) -
     notes = note_store()
     accounts = account_store()
     operations = operation_store()
-    stores: list[Any] = [notes, accounts, operations]
+    notifications_ = notification_store()
+    stores: list[Any] = [notes, accounts, operations, notifications_]
 
     # The application's bus: the in-memory bus, decorated so that every operation is recorded.
     records = operation_records(operations)
@@ -114,9 +117,10 @@ async def create_application(settings: Settings, logger: Logger | None = None) -
     security = local_security_module(accounts, settings.security)
     tracker = local_tracker_module(records)
     notes_module = local_notes_module(notes, SecurityAccountDirectory(security.account_queries))
+    notifications = local_notifications_module(notifications_, settings.notifications, logger)
 
     application = Application(event_bus).register_module(tracker).register_module(notes_module)
-    application.register_module(security.module)
+    application.register_module(security.module).register_module(notifications.module)
     await application.start_modules()
 
     # The routes, under the API prefix, each context's under its own; the static front end at the root.
@@ -127,6 +131,8 @@ async def create_application(settings: Settings, logger: Logger | None = None) -
     fastapi.include_router(note_routes(notes_module), prefix=prefix)
     fastapi.include_router(operation_routes(tracker), prefix=prefix)
     fastapi.include_router(auth_routes(security.module), prefix=prefix)
+    fastapi.include_router(notification_routes(notifications.module), prefix=prefix)
+    fastapi.include_router(notifications.websocket.routes())
     fastapi.mount("/js", StaticFiles(directory=PUBLIC / "js"), name="js")
 
     @fastapi.get("/{path:path}", include_in_schema=False)
@@ -136,7 +142,8 @@ async def create_application(settings: Settings, logger: Logger | None = None) -
     # One execution context per request: its trace, its caller, and its own unit of work. A unit
     # of work is a request-scoped thing; sharing one instance across requests would make
     # concurrent commands join each other's transaction. Middlewares run from the last added to
-    # the first: the caller is identified, then the context is built.
+    # the first: the caller is identified (on requests and websocket connections alike), then
+    # the context is built.
     @fastapi.middleware("http")
     async def with_execution_context(request: Request, call_next: RequestResponseEndpoint) -> Response:
         trace_id = request.headers.get(TRACE_HEADER) or Id.generate().value
@@ -152,7 +159,7 @@ async def create_application(settings: Settings, logger: Logger | None = None) -
         response.headers[TRACE_HEADER] = trace_id
         return response
 
-    fastapi.middleware("http")(authenticating(security.authentication))
+    fastapi.add_middleware(AuthenticationMiddleware, authentication=security.authentication)
 
     # The administrator account the settings describe, created before the first request.
     if settings.admin_account is not None:

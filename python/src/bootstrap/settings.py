@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from importlib.metadata import PackageNotFoundError, version
 
+from contexts.notifications.module_local import NotificationsSettings
 from contexts.security.module_local import SecuritySettings
 
 NAME = "clean-ddd"
@@ -32,6 +33,7 @@ class Settings:
     port: int
     api_prefix: str
     security: SecuritySettings
+    notifications: NotificationsSettings
     #: The administrator account created before the first request; none when absent.
     admin_account: AdminAccount | None
     debug: bool
@@ -39,11 +41,17 @@ class Settings:
     @staticmethod
     def from_env() -> "Settings":
         var = os.environ.get
+        port = int(var("PORT") or 10000)
+        api_prefix = var("API_PREFIX") or "v1"
         return Settings(
             name=NAME,
             version=package_version(),
-            port=int(var("PORT") or 10000),
-            api_prefix=var("API_PREFIX") or "v1",
+            port=port,
+            api_prefix=api_prefix,
+            notifications=NotificationsSettings(
+                url=f"{var('PROTOCOL') or 'http'}://{var('BASE_URL') or 'localhost'}:{port}/{api_prefix}",
+                from_email=var("FROM_EMAIL") or "noreply@example.com",
+            ),
             security=SecuritySettings(
                 jwt_secret=var("JWT_SECRET") or "default-development-secret-do-not-use-in-production",
                 jwt_expires_in=timedelta(seconds=int(var("JWT_EXPIRES_IN_SECONDS") or 24 * 3600)),
@@ -66,6 +74,7 @@ class Settings:
             security=SecuritySettings(
                 jwt_secret="test-secret-of-at-least-thirty-two-bytes", jwt_expires_in=timedelta(hours=1), bcrypt_cost=4
             ),
+            notifications=NotificationsSettings(url="http://localhost/v1", from_email="noreply@example.com"),
             admin_account=AdminAccount(identifier="admin@admin.fr", password="admin"),
             debug=False,
         )
