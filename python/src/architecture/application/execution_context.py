@@ -119,8 +119,7 @@ class ExecutionContext:
             if unit_of_work is not None and not joined:
                 await unit_of_work.rollback_transaction()
             if self._logger:
-                # The Logger port, not the standard library's: the lint mistakes its signature for a format string.
-                self._logger.error(  # noqa: PLE1205
+                self._logger.error(
                     "Transaction failed", error, {"traceId": self._trace_id, "userId": self._auth.subject_id}
                 )
             return Failure(UnknownException(str(error) or type(error).__name__))

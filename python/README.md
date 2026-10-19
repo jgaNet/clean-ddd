@@ -2,7 +2,7 @@
 
 The Python rendering of the [reference](../README.md): the same application, the same architecture ([`conventions/`](../conventions/README.md)), the same decisions ([`docs/adr`](../docs/adr)), under the same rules and the same ids. This page is about this directory, and every command on it runs from here.
 
-**What is here today**: the Domain, Application and Infrastructure layers of the Notes context, on the building blocks of each — the `Note` aggregate with everything around it; the six commands and their handlers, the three queries, the two reactions, the port for the one decision the domain cannot make from its own state; the in-memory repository and queries over one store, held to the ports by a contract test; the wiring that lists it all as data — the shared kernel's Domain and Application (the roles, the e-mail, the signed-in guard, the published contract of Notes), and the tool that holds this language to the contract: an import linter and a conventions check in one, generated from the dependency table. The Presentation layer (FastAPI), the composition root and the other three contexts are the next increments; the [map in the root README](../README.md#the-map-concept--language) shows each concept this language still owes as a dash, and nothing on this page claims otherwise.
+**What is here today**: three of the four contexts, every layer of each, the composition root that serves them, and the tool that holds this language to the contract. **Notes**: the `Note` aggregate with everything around it, its six commands, three queries and two reactions, the in-memory repository and queries over one store held to the ports by a contract test, the REST routes. **Security**: the `Account` aggregate, sign-up, login, validation and the administrator's registration, bcrypt and JSON Web Tokens behind their ports, the middleware that identifies the caller of every request, the routes in JSON and HTMX. **Tracker**: a projection of every operation the bus carries, through a decorator of the bus, and the routes a client polls after a `202`. **The bootstrap**: the settings, the composition root (FastAPI, one execution context per request, the static HTMX front end beside the API), the entry point, and the end-to-end suites that boot it on a free port. The Notifications context and the SQLite adapters are the next increments; the [map in the root README](../README.md#the-map-concept--language) shows each concept this language still owes as a dash, and nothing on this page claims otherwise.
 
 - [Where the decisions land in Python](#where-the-decisions-land-in-python)
 - [The map: concept → file](#the-map-concept--file)
@@ -22,10 +22,11 @@ The decisions are the architecture's, so they hold here; the idiom changes how s
 - **Ports are `Protocol`s with `async` methods** ([`note_repository.py`](src/contexts/notes/domain/note/ports/note_repository.py)), so an adapter may be an in-memory store or a database behind the same interface, and a test hands a domain service a five-line class. Strict `mypy` is the type check the contract's `types` enforcement word stands for.
 - **Publishing schedules a task; the dispatch is awaited** ([ADR 14](../docs/adr/0014-in-rust-the-transport-spawns-the-dispatch-and-finds-handlers-by-their-message.md), which holds here as it does in Rust): `publish()` builds the operation and schedules its `dispatch()` on the running loop, so a route answers `202 { operationId }` before the handling; the in-memory bus's `settle()` awaits what is in flight, which is what a test calls to see what the handlers did. A handler is found by its class (`module.get_query(GetNoteQueryHandler)`), as in TypeScript: a Python handler is not generic over its adapter, so naming it names nothing of the infrastructure.
 - **An event's name is its class name, read by `name_of()`** ([`event.py`](src/architecture/domain/event.py)), from a class or an instance: the channel the bus routes on, with no property that a payload field called `name` would collide with.
+- **The transport is FastAPI on uvicorn; a route is an `async def` in an `APIRouter`** the context's `routes.py` builds from its module ([`notes/presentation/routes.py`](src/contexts/notes/presentation/routes.py)). A command route is `accept(context_of(request), TheCommand(...))`; a query route asks `module.get_query(TheHandler)` and answers through a view function (camelCase, what the API promises) or `refuse()`. A request body is a pydantic model beside the route, and FastAPI refuses what does not fit it. The per-request `ExecutionContext` is built by a middleware of the composition root and read with `context_of(request)`; Security's authentication is a middleware over every route that never blocks. The end-to-end tests boot the real application on a free port ([`testing.py`](src/bootstrap/testing.py)) and speak HTTP with `httpx`; a `202` is followed through the Tracker to its outcome, as a client would.
 
 ## The map: concept → file
 
-One canonical example per concept, rendered from [`conventions/concepts.yaml`](../conventions/concepts.yaml) — the concepts, shared with every language — and [`conventions/python.yaml`](../conventions/python.yaml), this language's binding, which names the file that shows each; CI checks that every file they name exists. The Presentation layer has no files yet.
+One canonical example per concept, rendered from [`conventions/concepts.yaml`](../conventions/concepts.yaml) — the concepts, shared with every language — and [`conventions/python.yaml`](../conventions/python.yaml), this language's binding, which names the file that shows each; CI checks that every file they name exists.
 
 ### Domain layer
 
@@ -34,9 +35,9 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 | --- | --- | --- |
 | Entity | [`entity.py`](src/architecture/domain/entity.py) | identity, `equals()`; a class with its state in private attributes; no `__eq__`, so two entities compare through `equals()` or their snapshots |
 | Aggregate root | [`note.py`](src/contexts/notes/domain/note/note.py) extending [`AggregateRoot`](src/architecture/domain/aggregate_root.py) | behaviours enforce invariants and `record()` events; `_record()` is protected by convention: a behaviour calls it, a handler never does |
-| Value object | [`note_title.py`](src/contexts/notes/domain/note/note_title.py), [`email.py`](src/shared_kernel/domain/email.py) | built through `create()` → `Result`; never invalid once you hold one; a frozen dataclass over `value`; [`value_object.py`](src/architecture/domain/value_object.py) names the shape, and the dataclass gives the equality |
+| Value object | [`note_title.py`](src/contexts/notes/domain/note/note_title.py), [`email.py`](src/shared_kernel/domain/email.py), [`credentials.py`](src/contexts/security/domain/account/credentials.py) | built through `create()` → `Result`; never invalid once you hold one; a frozen dataclass over `value`; [`value_object.py`](src/architecture/domain/value_object.py) names the shape, and the dataclass gives the equality |
 | Identity | [`id.py`](src/architecture/domain/id.py) | generated by the domain (`Id.generate()`), not by the database — [ADR 2](../docs/adr/0002-identity-is-generated-by-the-domain.md) |
-| Factory | `Note.create()` in [`note.py`](src/contexts/notes/domain/note/note.py) | the aggregate is its own factory: a static `create()` that validates, generates the identity and records the creation event; the constructor is private. When creation needs a collaborator (a port), the factory is a domain service. No `Factory` class; the domain-service factory (an account's registration) is not written yet |
+| Factory | `Note.create()` in [`note.py`](src/contexts/notes/domain/note/note.py); when creation needs a port, [`account_registration.py`](src/contexts/security/domain/account/account_registration.py) | the aggregate is its own factory: a static `create()` that validates, generates the identity and records the creation event; the constructor is private. When creation needs a collaborator (a port), the factory is a domain service. No `Factory` class |
 | Invariant | `share_with()` in [`note.py`](src/contexts/notes/domain/note/note.py) | a rule that must hold after every change (only the owner, not archived, not twice, not with yourself): checked inside the behaviour, before the state changes and the event is recorded. There is no `validate()` to forget, and no way to reach the state but through the behaviour |
 | Creation vs reconstitution | `Note.create()` vs `Note.from_snapshot()` in [`note.py`](src/contexts/notes/domain/note/note.py) | creation records an event; rebuilding from persistence records nothing — [ADR 4](../docs/adr/0004-reconstitution-throws-on-corrupted-data.md); corrupted storage raises a `ValueError`, which is what a throw is here |
 | Domain event | [`events.py`](src/contexts/notes/domain/note/events.py) | past tense, minimal payload, internal to the context; a frozen dataclass per fact, named after its class; [`event.py`](src/architecture/domain/event.py) has the three kinds |
@@ -46,9 +47,10 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 | Repository port | [`note_repository.py`](src/contexts/notes/domain/note/ports/note_repository.py) | load / save an aggregate; nothing else; a `Protocol` with `async` methods, so an adapter may be in-memory or a database |
 | Queries port & read models | [`note_queries.py`](src/contexts/notes/domain/note/ports/note_queries.py) | returns view shapes, never aggregates — [ADR 5](../docs/adr/0005-queries-return-read-models-not-aggregates.md) |
 | Snapshot DTO | [`dtos.py`](src/contexts/notes/domain/note/dtos.py) | the plain shape that crosses to the infrastructure |
-| **Domain service** | [`note_sharing.py`](src/contexts/notes/domain/note/note_sharing.py) | a rule about the whole collection ("one account per email") — needs the port, still pure domain; takes its port in `__init__`, so a test hands it a five-line class |
-| **Port to another context** (read side) | [`account_directory.py`](src/contexts/notes/domain/note/ports/account_directory.py), used by [`note_sharing.py`](src/contexts/notes/domain/note/note_sharing.py) | Notes asks "does this account exist?" in its own words; only its infrastructure knows Security is next door. The read-side counterpart of the anti-corruption layer for events; the adapter over Security's read model comes with the Security context; the wiring takes the directory as a parameter |
-| Lifecycle as an enum | [`note_status.py`](src/contexts/notes/domain/note/note_status.py) | the transitions live in the aggregate, not in the enum |
+| **Domain service** | [`account_registration.py`](src/contexts/security/domain/account/account_registration.py), [`note_sharing.py`](src/contexts/notes/domain/note/note_sharing.py) | a rule about the whole collection ("one account per email") — needs the port, still pure domain; takes its port in `__init__`, so a test hands it a five-line class |
+| **Port to another context** (read side) | [`account_directory.py`](src/contexts/notes/domain/note/ports/account_directory.py), used by [`note_sharing.py`](src/contexts/notes/domain/note/note_sharing.py), answered over Security's read model by [`directories.py`](src/contexts/notes/infrastructure/directories.py) | Notes asks "does this account exist?" in its own words; only its infrastructure knows Security is next door. The read-side counterpart of the anti-corruption layer for events; the wiring takes the directory as a parameter; the composition root builds it, where the two contexts meet |
+| Ports for technical concerns | [`password_hasher.py`](src/contexts/security/domain/auth/ports/password_hasher.py), [`signed_tokens.py`](src/contexts/security/domain/auth/ports/signed_tokens.py) | hashing has a business meaning; the algorithm does not belong here |
+| Lifecycle as an enum | [`note_status.py`](src/contexts/notes/domain/note/note_status.py), [`account_status.py`](src/contexts/security/domain/account/account_status.py) | the transitions live in the aggregate, not in the enum |
 <!-- end generated -->
 
 ### Application layer
@@ -58,13 +60,14 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 | --- | --- | --- |
 | Command | `ShareNoteCommandEvent` in [`share_note.py`](src/contexts/notes/application/commands/share_note.py) | a named payload, nothing more. It extends `CommandEvent`, one of the three kinds of message the building blocks define: a command travels on the same bus as the events and is tracked as an operation, so it has their shape; the class says its intent (one handler, may be refused); a frozen dataclass extending `CommandEvent`, its fields the payload; its handler is in the same file, and the channel is the class name (`name_of()`) |
 | Command handler | `EditNoteCommandHandler` in [`edit_note.py`](src/contexts/notes/application/commands/edit_note.py) | the shape every "change an existing thing" use case follows; takes its ports in `__init__`; `execute()` returns a `Result` and returns a `Failure` as is |
-| Guard (authorization) | `require_signed_in()` in [`guards.py`](src/shared_kernel/application/guards.py), called once at the top of `execute()` | *who may call* is answered here; *what they may do to which object* is the aggregate's business; the `guard()` override for an administrators-only command comes with the Security context |
+| Guard (authorization) | `require_signed_in()` in [`guards.py`](src/shared_kernel/application/guards.py), called once at the top of `execute()`; `guard()` in [`register_admin.py`](src/contexts/security/application/commands/register_admin.py) | *who may call* is answered here; *what they may do to which object* is the aggregate's business |
 | Base handler (guard, transaction, safety net) | [`command_handler.py`](src/architecture/application/command_handler.py) | a concrete handler only writes `execute()`; `handle()` is the template method, `run()` its typed half for a command run synchronously; a concrete handler writes `execute()` |
 | Query handler | [`get_note.py`](src/contexts/notes/application/queries/get_note.py) | reads through the queries port; a refused query is a failed `Result`, not a throw; `QueryHandler[Q, P, R]`: the queries port, the parameters, the read model; the module finds it by its class |
 | Execution context | [`execution_context.py`](src/architecture/application/execution_context.py) | who is calling, with which logger, bus and unit of work; `withTransaction`, `afterCommit`; `with_transaction()` takes a coroutine function, `after_commit()` a plain callable |
 | Publish after commit | `publish_domain_events()` in [`domain_events.py`](src/architecture/application/domain_events.py) | [ADR 3](../docs/adr/0003-publish-domain-events-after-commit.md); the handler hands the aggregate over, and the events are pulled at the commit |
 | Domain event handler | [`note_shared_handler.py`](src/contexts/notes/application/events/note_shared_handler.py) | where a fact leaves its context |
 | Integration event (published contract) | [`note_integration_events.py`](src/shared_kernel/application/integration_events/note_integration_events.py) | the only thing one context may know about another — [ADR 6](../docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md) |
+| **Projection / read model** | [`projection.py`](src/contexts/tracker/application/projection.py), [`read_model.py`](src/contexts/tracker/application/read_model.py) | a context with no aggregate at all |
 | **Non-determinism as a value** (ADR 7) | [`suggestions.py`](src/contexts/notes/application/suggestions.py) → [`suggest_note_title.py`](src/contexts/notes/application/commands/suggest_note_title.py), answered locally by [`infrastructure/suggestions.py`](src/contexts/notes/infrastructure/suggestions.py) | a decision the domain cannot make from its own state (a model, a heuristic, a person) enters it as a value the aggregate validates and may refuse; the provenance travels with it and ends on the operation — [ADR 7](../docs/adr/0007-non-determinism-enters-the-domain-as-a-value.md) |
 | Module (wiring) | [`module.py`](src/architecture/application/module.py), used in [`module_local.py`](src/contexts/notes/module_local.py) | plain data: which handler answers which command, query, event; a `Subscription` per command and per reaction, on the event's class; the directory another context answers comes in as a parameter |
 <!-- end generated -->
@@ -76,7 +79,9 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 | --- | --- | --- |
 | Repository implementation | [`repositories.py`](src/contexts/notes/infrastructure/repositories.py) | snapshot in, snapshot out |
 | Queries implementation | [`queries.py`](src/contexts/notes/infrastructure/queries.py) | builds read models from the same store, here |
+| Port implementations | [`signed_tokens.py`](src/contexts/security/infrastructure/signed_tokens.py) (PyJWT), [`password_hasher.py`](src/contexts/security/infrastructure/password_hasher.py) (bcrypt, in a thread) |  |
 | Event bus | [`event_bus.py`](src/architecture/infrastructure/event_bus.py) | the only bus implementation; `publish()` schedules the dispatch as a task on the running loop and answers at once; `settle()` awaits what is in flight; the port is [`event_bus.py`](src/architecture/application/event_bus.py) |
+| Decorator (cross-cutting concern) | [`tracked_event_bus.py`](src/contexts/tracker/infrastructure/tracked_event_bus.py) | tracking layered on any bus; neither the bus nor the handlers know; wraps `dispatch`: a record before, a record after, the completion notice when it is a command's |
 | Unit of work | [`unit_of_work.py`](src/architecture/infrastructure/unit_of_work.py) | over the stores the composition root lists, or every store of the process |
 | The "database" | [`data_sources.py`](src/architecture/infrastructure/data_sources.py) | a `Map`; the ports are what a real adapter would implement; a dict, which keeps insertion order |
 <!-- end generated -->
@@ -84,6 +89,13 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 ### Presentation and bootstrap
 
 <!-- generated from conventions/concepts.yaml (presentation); edit the YAML, then run yarn conventions:write -->
+| Concept | Canonical example |
+| --- | --- |
+| Controller (commands → `202 { operationId }`, queries → sync; one `refuse()` per controller: `403` not allowed, `404` not found, `400` otherwise, always `{ message }`) | [`notes/presentation/routes.py`](src/contexts/notes/presentation/routes.py); every other context's has the same shape |
+| Routes and JSON schemas | the `APIRouter`, the request bodies and the views of [`notes/presentation/routes.py`](src/contexts/notes/presentation/routes.py), on [`architecture/presentation/http.py`](src/architecture/presentation/http.py) (`accept()`, the refusals) |
+| Authentication middleware | [`authentication.py`](src/contexts/security/presentation/authentication.py) — never blocks, leaves the caller anonymous unless the token verifies; a middleware over every route |
+| Presenters (one use case, several formats) | [`security/presentation/presenters.py`](src/contexts/security/presentation/presenters.py), picked per request by [`format.py`](src/architecture/presentation/format.py) — a `ByFormat` constant per answer beside the controller, no registry |
+| Composition root | [`create_application.py`](src/bootstrap/create_application.py) on [`application.py`](src/architecture/application/application.py): wires, starts the modules, seeds the administrator through the same handler as any command, then listens; [`__main__.py`](src/bootstrap/__main__.py) is the process entry point |
 <!-- end generated -->
 
 ### Tests, one style per layer
@@ -94,7 +106,9 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 | Domain | [`test_note.py`](src/contexts/notes/domain/note/test_note.py) | none |
 | Domain service | [`test_note_sharing.py`](src/contexts/notes/domain/note/test_note_sharing.py) | a five-line class implementing the port |
 | Application | [`test_commands.py`](src/contexts/notes/application/commands/test_commands.py), [`test_get_note.py`](src/contexts/notes/application/queries/test_get_note.py) | the in-memory repository *is* the double; a recording bus of ten lines says what was published |
+| Infrastructure | [`test_tracked_event_bus.py`](src/contexts/tracker/infrastructure/test_tracked_event_bus.py), [`test_signed_tokens.py`](src/contexts/security/infrastructure/test_signed_tokens.py) | real in-memory pieces |
 | **Contract** (one port, every adapter) | [`test_persistence_contract.py`](src/contexts/notes/infrastructure/test_persistence_contract.py) | none — every case runs over each entry of `adapters`, same expectations; a second adapter is one more entry |
+| End to end | [`test_notes_routes_e2e.py`](src/bootstrap/test_notes_routes_e2e.py) | the whole application, booted in-process on a free port by [`testing.py`](src/bootstrap/testing.py), spoken to over HTTP with `httpx`; a `202` is followed through the Tracker to its outcome |
 <!-- end generated -->
 
 ## The rules, and how they are enforced
@@ -113,11 +127,11 @@ The rules are the contract's, listed with their ids in the root [CLAUDE.md](../C
 | **DOMAIN-RESULT** — A refused command or query is a failed Result value, never a thrown exception; throwing (or panicking) is for programming errors and corrupted state only. | `uv run pytest` · [0001-result-instead-of-exceptions.md](../docs/adr/0001-result-instead-of-exceptions.md), [result.py](src/architecture/domain/result.py) |
 | **DOMAIN-RECORDS-EVENTS** — Only an aggregate root records domain events (`record(...)` inside a behaviour); handlers never construct one, they call `publishDomainEvents(aggregate, context)` after saving. | `uv run mypy` (strict) · [aggregate_root.py](src/architecture/domain/aggregate_root.py), [domain_events.py](src/architecture/application/domain_events.py) |
 | **DOMAIN-CREATE-VS-RECONSTITUTE** — `create()` / `register()` validates and records a creation event; `fromSnapshot()` records nothing and throws on corrupted data. | `uv run pytest` · [0004-reconstitution-throws-on-corrupted-data.md](../docs/adr/0004-reconstitution-throws-on-corrupted-data.md), [note.py](src/contexts/notes/domain/note/note.py) |
-| **DOMAIN-IDENTITY** — An aggregate generates its own identity (`Id.generate()` in `create()`). A repository loads and saves aggregates, and answers the facts a domain rule needs about the collection (`findByEmail`, `countByOwner`); it never hands out identities and never searches for a screen. | review (stated here, not yet mechanical) · [0002-identity-is-generated-by-the-domain.md](../docs/adr/0002-identity-is-generated-by-the-domain.md) |
+| **DOMAIN-IDENTITY** — An aggregate generates its own identity (`Id.generate()` in `create()`). A repository loads and saves aggregates, and answers the facts a domain rule needs about the collection (`findByEmail`, `countByOwner`); it never hands out identities and never searches for a screen. | review (stated here, not yet mechanical) · [0002-identity-is-generated-by-the-domain.md](../docs/adr/0002-identity-is-generated-by-the-domain.md), [note.py](src/contexts/notes/domain/note/note.py), [note_repository.py](src/contexts/notes/domain/note/ports/note_repository.py) |
 | **DOMAIN-NON-DETERMINISM** — Time is a parameter with a default; identity is generated by the domain; anything else that is not a function of the business state (randomness, a model, a person, another system) lives behind a port named for what it decides, and its result is a plain value the aggregate validates and may refuse. | review (stated here, not yet mechanical) · [0007-non-determinism-enters-the-domain-as-a-value.md](../docs/adr/0007-non-determinism-enters-the-domain-as-a-value.md), [suggestions.py](src/contexts/notes/application/suggestions.py), [suggest_note_title.py](src/contexts/notes/application/commands/suggest_note_title.py) |
 | **EVENT-AFTER-COMMIT** — Domain events are published after the transaction commits, never before; a rolled-back transaction publishes nothing and leaves the events on the aggregate. | `uv run pytest` · [0003-publish-domain-events-after-commit.md](../docs/adr/0003-publish-domain-events-after-commit.md), [execution_context.py](src/architecture/application/execution_context.py), [domain_events.py](src/architecture/application/domain_events.py) |
 | **QUERY-READ-MODELS** — Queries return read models, repositories return aggregates; never the other way. | `uv run mypy` (strict) · [0005-queries-return-read-models-not-aggregates.md](../docs/adr/0005-queries-return-read-models-not-aggregates.md), [note_queries.py](src/contexts/notes/domain/note/ports/note_queries.py), [queries.py](src/contexts/notes/infrastructure/queries.py) |
-| **CTX-CONTRACTS** — Contexts talk in two ways only — integration events published in the shared kernel, and ports the asking side owns, answered by an adapter over the other context's read model; a context's Domain never imports another context. | `uv run python -m tools.conventions`, an `ast` walk holding every import of every module to its row of the table · [0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md](../docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md) |
+| **CTX-CONTRACTS** — Contexts talk in two ways only — integration events published in the shared kernel, and ports the asking side owns, answered by an adapter over the other context's read model; a context's Domain never imports another context. | `uv run python -m tools.conventions`, an `ast` walk holding every import of every module to its row of the table · [0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md](../docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md), [directories.py](src/contexts/notes/infrastructure/directories.py), [note_shared_handler.py](src/contexts/notes/application/events/note_shared_handler.py) |
 | **CONC-OPTIMISTIC** — An aggregate carries the version it was read at and never changes it; `save()` stores version + 1 and refuses an aggregate that is no longer at the stored version with a ConcurrencyConflictException. | `uv run pytest` · [0008-optimistic-concurrency-on-the-aggregate.md](../docs/adr/0008-optimistic-concurrency-on-the-aggregate.md), [repositories.py](src/contexts/notes/infrastructure/repositories.py), [test_persistence_contract.py](src/contexts/notes/infrastructure/test_persistence_contract.py) |
 | **ARCH-MAP-IS-REAL** — Every file the concept map names exists, every documentation link resolves, nothing silences the linter, and the generated import rules refuse and allow what the probes say. | `uv run python -m tools.conventions` · [concepts.yaml](../conventions/concepts.yaml), [conventions.py](tools/conventions.py) |
 | **ARCH-LEARNABLE** — A newcomer, or an agent, can add a feature in the right shape from the documentation alone. | fresh-agent evaluations · [README.md](../docs/evaluations/README.md) |
@@ -148,6 +162,7 @@ src/architecture/
   application/                    CommandHandler, QueryHandler, EventHandler, ExecutionContext, Operation, the EventBus
                                   port, Module, publish_domain_events()
   infrastructure/                 InMemoryDataSource, InMemoryEventBus, InMemoryUnitOfWork, ConsoleLogger
+  presentation/                   accept(), refuse(), status_of(), context_of(); Format, Presenter, ByFormat, html()
 src/shared_kernel/
   domain/                         Email, Role
   application/                    guards.py (require_signed_in), integration_events/ (the published contracts)
@@ -165,14 +180,26 @@ src/contexts/notes/
     suggestions.py                the port for a title suggestion (ADR 7)
   infrastructure/
     repositories.py queries.py    the in-memory adapters over one store      suggestions.py   the first-line heuristic
+    directories.py                Notes' directory of accounts, over Security's read model
     test_persistence_contract.py  one port, every adapter
+  presentation/
+    routes.py                     the REST routes and their views; presenters.py the HTMX form
   module_local.py                 the wiring: the store, the adapters, the handlers listed in a Module
+src/contexts/security/            the same shape: domain/account (Account, Credentials, AccountRegistration, the ports),
+                                  domain/auth (the token and hashing ports), application/, infrastructure/
+                                  (bcrypt, PyJWT), presentation/ (routes, presenters, authentication.py), module_local.py
+src/contexts/tracker/             no domain: application/ (the read model, the projection, the queries),
+                                  infrastructure/ (the records, tracked_event_bus.py), presentation/, module_local.py
+src/bootstrap/
+  create_application.py           the composition root: the bus, the stores, the modules, the routes, the middlewares
+  settings.py home.py __main__.py what the environment decides; the home in two formats; python -m bootstrap
+  testing.py                      boots the application on a free port for the end-to-end suites beside it
+  test_*_e2e.py                   the end-to-end suites, speaking HTTP
+  public/                         the HTMX front end, served beside the API
   test_*.py                       everywhere: the tests, beside what they test
 tools/conventions.py              uv run python -m tools.conventions: every import is the table, the tree is the contract's
 tools/test_conventions.py         the check tried against the violations it must refuse
 ```
-
-A context's Presentation layer to come is a package beside the others; the composition root goes in `src/bootstrap`.
 
 ## Running it
 
@@ -185,10 +212,11 @@ uv run python -m tools.conventions          # every import is the table, the tre
 uv run ruff format --check .                # the formatter, as CI runs it (ruff format . to apply)
 uv run ruff check .                         # the lints
 uv run mypy                                 # strict typing, src/ and tools/
-uv run pytest                               # every test_*.py
+uv run pytest                               # every test_*.py, the end-to-end suites included
+uv run python -m bootstrap                  # serves http://localhost:10000 (PORT, ADMIN_IDENTIFIER, ADMIN_PASSWORD, JWT_SECRET)
 ```
 
-There is no server to start yet: `uv run pytest` is the way to see the use cases run, through the handlers and the in-memory adapters. The documents of this directory are rendered from the contract by the TypeScript tooling, which reads every binding: after editing `conventions/python.yaml`, run `yarn --cwd ../typescript conventions:write`.
+Once it serves: `GET /v1` is the home, `/v1/docs` the OpenAPI page, `/` the HTMX front end; `POST /v1/auth/login` with `{ "identifier": "admin@admin.fr", "password": "admin" }` answers the token the other routes take as `Authorization: Bearer`, and a `202` is followed at `GET /v1/tracker/operations/{operationId}`. The documents of this directory are rendered from the contract by the TypeScript tooling, which reads every binding: after editing `conventions/python.yaml`, run `yarn --cwd ../typescript conventions:write`.
 
 ## Vocabulary
 
@@ -209,21 +237,22 @@ The words the reference uses, with the file that shows them here; a word with no
 | Command | a request that something happen; one handler; may be refused | `ShareNoteCommandEvent` in [`share_note.py`](src/contexts/notes/application/commands/share_note.py) |
 | Query | a question; answered from a read model; changes nothing | [`get_note.py`](src/contexts/notes/application/queries/get_note.py) |
 | Read model | a shape built for reading, not an aggregate | [`note_queries.py`](src/contexts/notes/domain/note/ports/note_queries.py) |
-| Projection | a read model fed by events |  |
+| Projection | a read model fed by events | [`projection.py`](src/contexts/tracker/application/projection.py) |
 | Port | an interface the domain or the application declares in its own words, for something outside | [`note_repository.py`](src/contexts/notes/domain/note/ports/note_repository.py), [`account_directory.py`](src/contexts/notes/domain/note/ports/account_directory.py) |
-| Adapter | the implementation of a port, in the infrastructure | [`repositories.py`](src/contexts/notes/infrastructure/repositories.py), [`suggestions.py`](src/contexts/notes/infrastructure/suggestions.py) |
+| Adapter | the implementation of a port, in the infrastructure | [`repositories.py`](src/contexts/notes/infrastructure/repositories.py), [`suggestions.py`](src/contexts/notes/infrastructure/suggestions.py), [`directories.py`](src/contexts/notes/infrastructure/directories.py) |
 | Repository | the port that loads and saves one aggregate by identity | [`note_repository.py`](src/contexts/notes/domain/note/ports/note_repository.py) |
 | Domain service | a business rule that spans several aggregates or needs a port | [`note_sharing.py`](src/contexts/notes/domain/note/note_sharing.py) |
 | Application service | orchestration shared by several entry points; no rule of its own |  |
 | Anti-corruption layer | the handler that translates a foreign contract into local terms |  |
 | Snapshot | the plain shape of an aggregate that crosses to the infrastructure | [`dtos.py`](src/contexts/notes/domain/note/dtos.py) |
 | Operation | the handle a client gets for a command: its status and outcome. The Tracker records one for every message on the bus, events included, so a trace shows what a command set off | [`operation.py`](src/architecture/application/operation.py) |
-| Composition root | the one file that knows every context and builds the application |  |
+| Composition root | the one file that knows every context and builds the application | [`create_application.py`](src/bootstrap/create_application.py) |
 <!-- end generated -->
 
 ## Known gaps
 
-- **No Presentation and no composition root yet.** The routes (FastAPI), the authentication layer, the presenters and the bootstrap are the next increments, in the order the Rust implementation took. Until then the wiring is a function the composition root will call, with the account directory Security answers as a parameter.
-- **One adapter per port.** The SQLite pair comes with the front end; the contract test is written against the ports, with one entry in `adapters`, so a second adapter is one more entry.
+- **No Notifications context yet.** The fourth context, its channels and the websocket are the next increment; until then the integration events Notes and Security publish have no consumer, and the completion notices the Tracker announces reach nobody.
+- **One adapter per port.** The SQLite pair is a later increment; the contract test is written against the ports, with one entry in `adapters`, so a second adapter is one more entry.
+- **The in-memory unit of work is a boundary, not isolation** (the same honest limit as the other languages): a rollback puts every store back, another request's writes included.
 - **The boundary is held by a tool, not by the language.** Python has no compiler to refuse an import and no linter that reads the table; `tools/conventions.py` is both, and a test module (`test_*.py`) gets its layer's `specs` row the way the ESLint overrides give it to a `.spec.ts`. A refusal names its rule; what it cannot see is an import done at run time (`importlib`), which this reference never does.
 - **Three contexts of the reference are not here** (Security, Notifications, Tracker): the binding declares the one that is.
