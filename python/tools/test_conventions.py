@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.conventions import run
+from tools.conventions import can_import, run
 
 HERE = Path(__file__).resolve().parent.parent
 
@@ -83,3 +83,18 @@ def test_refuses_a_binding_that_names_a_file_which_does_not_exist(copy: Path) ->
     binding.write_text(binding.read_text() + "\n  nowhere:\n    canonical: [src/nowhere.py]\n")
     found = refusals(copy)
     assert any(problem.startswith("ARCH-MAP-IS-REAL:") and "src/nowhere.py" in problem for problem in found)
+
+
+def test_can_import_answers_before_the_import_is_written_and_names_the_rule_that_refuses() -> None:
+    verdicts = can_import(
+        HERE,
+        [
+            ("src/contexts/notes/application/commands/pin_note.py", "contexts.notes.domain.note.note"),
+            ("src/contexts/notes/domain/note/note.py", "contexts.notes.infrastructure.repositories"),
+            ("src/contexts/notes/domain/note/note.py", "contexts.security.domain.account.account"),
+            ("src/contexts/notes/infrastructure/queries.py", "sqlite3"),
+        ],
+    )
+    assert [refusal is None for _, _, refusal in verdicts] == [True, False, False, True]
+    assert verdicts[1][2] is not None and verdicts[1][2].startswith("ARCH-DOMAIN:")
+    assert verdicts[2][2] is not None and verdicts[2][2].startswith("ARCH-DOMAIN:")

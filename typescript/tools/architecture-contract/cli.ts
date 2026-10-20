@@ -177,7 +177,10 @@ async function main(): Promise<void> {
     case 'checklist':
     case 'place': {
       const [kind] = rest;
-      if (!kind) return fail('usage', `usage: yarn architecture ${command} <kind>`);
+      if (!kind) {
+        const kinds = contract.checklists.map(checklist => checklist.kind).join(' | ');
+        return fail('usage', `usage: yarn architecture ${command} <${kinds}>`);
+      }
       const checklist = getChecklist(contract, kind);
       if (!checklist) return fail('unknown-kind', `No checklist for "${kind}". Try: yarn architecture checklists`);
       if (command === 'place') {

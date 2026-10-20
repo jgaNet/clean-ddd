@@ -6,13 +6,16 @@ description: Add a feature to this codebase in the shape the architecture requir
 # Adding a feature
 
 This repository's architecture is data, not prose: `conventions/architecture.yaml` (the contract,
-shared by every language), `conventions/concepts.yaml` (the vocabulary) and the language's binding
-(`conventions/typescript.yaml`) are the source of truth, and `yarn architecture` answers from them.
-**Ask it instead of guessing.** The commands run from the language's directory (`cd typescript`, or
-`yarn --cwd typescript …` from the root); the tooling prints paths from the repository root. Every command takes `--json` (a `schemaVersion`, a structured
-error, a non-zero exit on an unknown id), so the answers can be parsed.
+shared by every language), `conventions/concepts.yaml` (the vocabulary) and the binding of the
+language you are working in (`conventions/typescript.yaml`, `rust.yaml`, `python.yaml`) are the
+source of truth, and `yarn architecture` answers from them. **Ask it instead of guessing.** The
+tooling lives in `typescript/`: run it from the language's directory (`cd typescript`; from `rust/`
+or `python/`, `yarn --cwd ../typescript architecture …`, which then answers for that language, or
+`--language <id>` says which) and it prints paths from the repository root. Every command takes
+`--json` (a `schemaVersion`, a structured error, a non-zero exit on an unknown id), so the answers
+can be parsed.
 
-Nothing here replaces `CLAUDE.md` — read it first. This is the order of operations.
+Nothing here replaces the language's `CLAUDE.md` — read it first. This is the order of operations.
 
 ## 1. Find out what exists
 
@@ -21,9 +24,8 @@ yarn architecture inspect          # contexts, trees, layers, how much of everyt
 yarn architecture concepts         # every concept, with the file that shows it
 ```
 
-A project with no contexts yet needs its first one declared in its binding (`conventions/typescript.yaml`)
-before any import rule applies to it: `yarn architecture checklist context` says what it is
-made of.
+A project with no contexts yet needs its first one declared in its binding before any import
+rule applies to it: `yarn architecture checklist context` says what it is made of.
 
 ## 2. Ask for the shape before writing it
 
@@ -40,11 +42,14 @@ canonical example, the right move is to copy it, not to improve on it.
 Before writing any import that crosses a boundary, ask:
 
 ```bash
-yarn architecture can-import <file> <specifier> [<file> <specifier> …]
+yarn architecture can-import <file> <specifier> [<file> <specifier> …]        # TypeScript (ESLint)
+uv run python -m tools.conventions can-import <file> <module> [<file> <module> …]   # Python, from python/
 ```
 
 It asks the real linter and names the rule that refuses. Several pairs in one call check a
-whole planned layout at once; it exits non-zero if any pair is refused.
+whole planned layout at once; it exits non-zero if any pair is refused. In Rust the compiler is
+the linter: a crate's `[dependencies]` are its row of the table, and `cargo run -p conventions`
+compares them to the contract.
 
 ## 3. Write a plan when the change is worth stating first
 
@@ -80,11 +85,17 @@ This refuses any change to the building blocks, the shared kernel, the conventio
 decisions or the tools. The integration events are the exception — publishing a fact is what a
 cross-context feature does.
 
-Then the six checks, all of which must pass:
+Then the language's checks, all of which must pass:
 
 ```bash
+# typescript/
 yarn check:conventions && yarn format:check && yarn lint && yarn typecheck \
   && yarn test:units && yarn test:e2e
+# rust/
+cargo run -p conventions && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
+# python/
+uv run python -m tools.conventions && uv run ruff format --check . && uv run ruff check . \
+  && uv run mypy && uv run pytest
 ```
 
 ## If you need to change a protected tree, stop
@@ -94,5 +105,6 @@ changed, **that is the finding, and it is worth more than the workaround.** Say 
 needed and why, and stop. It is not a feature any more: it is an architecture change, which
 runs under `yarn architecture mode architecture` and owes a decision record in `docs/adr`.
 
-Never fix a boundary violation with an `eslint-disable` — the conventions check refuses one
-anyway. Fix it with a port, an integration event, or a move.
+Never fix a boundary violation by silencing the linter (an `eslint-disable`, an `#[allow]`, a
+`noqa`) — the conventions check refuses one anyway. Fix it with a port, an integration event, or
+a move.
