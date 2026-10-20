@@ -17,7 +17,7 @@ language: python
 name: Python
 root: python
 
-contexts: [Notes]
+contexts: [Notes, Security, Tracker, Notifications]
 
 # The trees. `alias` is the top-level package a tree is imported as; a context's is
 # `contexts.<context>`.
@@ -31,6 +31,18 @@ wiring: module_local.py
 # Libraries only an adapter may depend on: the domain and the use cases never see them. The
 # standard library's sqlite3 is one of them: a database driver, whoever ships it.
 libraries: [fastapi, starlette, pydantic, uvicorn, httpx, websockets, sqlite3, bcrypt, jwt]
+
+# The file that shows each verb of the HTTP grammar, by intent.
+verbs:
+  read: src/contexts/notes/presentation/routes.py
+  create: src/contexts/notes/presentation/routes.py
+  act: src/contexts/notes/presentation/routes.py
+  create-under: src/contexts/notes/presentation/routes.py
+  replace: src/contexts/notes/presentation/routes.py
+  replace-part: src/contexts/notes/presentation/routes.py
+  change-part: src/contexts/notifications/presentation/routes.py
+  remove: src/contexts/notes/presentation/routes.py
+  link-in-an-email: src/contexts/security/presentation/routes.py
 
 # What stands behind each enforcement word of architecture.yaml, in this language.
 enforcers:
@@ -67,12 +79,39 @@ rules:
     references: [src/architecture, src/shared_kernel]
   ARCH-INWARD:
     references: [tools/conventions.py, src/contexts/notes/domain/__init__.py]
+  ARCH-PRESENTATION:
+    references: [src/contexts/notes/presentation/routes.py, src/architecture/presentation/http.py]
+  ARCH-WIRING:
+    references: [src/contexts/notes/module_local.py]
+  ARCH-E2E:
+    references: [src/bootstrap/testing.py]
+  ARCH-MODULES-DATA:
+    references: [src/contexts/notes/module_local.py, src/architecture/application/module.py]
+  CTX-CONTRACTS:
+    references:
+      - src/contexts/notes/infrastructure/directories.py
+      - src/contexts/notes/application/events/note_shared_handler.py
+      - src/contexts/notifications/application/events/note_shared_handler.py
+  DOMAIN-IDENTITY:
+    references: [src/contexts/notes/domain/note/note.py, src/contexts/notes/domain/note/ports/note_repository.py]
+  ARCH-EXECUTION-CONTEXT:
+    references: [src/architecture/application/execution_context.py]
   DOMAIN-RESULT:
     references: [src/architecture/domain/result.py]
   DOMAIN-RECORDS-EVENTS:
-    references: [src/architecture/domain/aggregate_root.py]
+    references: [src/architecture/domain/aggregate_root.py, src/architecture/application/domain_events.py]
   DOMAIN-CREATE-VS-RECONSTITUTE:
     references: [src/contexts/notes/domain/note/note.py]
+  DOMAIN-NON-DETERMINISM:
+    references: [src/contexts/notes/application/suggestions.py, src/contexts/notes/application/commands/suggest_note_title.py]
+  EVENT-AFTER-COMMIT:
+    references: [src/architecture/application/execution_context.py, src/architecture/application/domain_events.py]
+  QUERY-READ-MODELS:
+    references: [src/contexts/notes/domain/note/ports/note_queries.py, src/contexts/notes/infrastructure/queries.py]
+  CONC-OPTIMISTIC:
+    references: [src/contexts/notes/infrastructure/repositories.py, src/contexts/notes/infrastructure/test_persistence_contract.py]
+  ARCH-INFRASTRUCTURE:
+    references: [src/contexts/notes/infrastructure/notes_table.py]
   ARCH-MAP-IS-REAL:
     references: [tools/conventions.py]
 
@@ -113,14 +152,14 @@ checklists:
       - 'The handler in the same file: a class extending `CommandHandler`, the ports it takes in `__init__`, `execute()` — the signed-in guard at the top, load, ask the aggregate or the domain service, save (return the `Failure` as is), `publish_domain_events`.'
       - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
       - 'A test with at least a happy path and one refusal, in `test_commands.py` beside the commands; through `handle()` when the rule is in `guard()`.'
-      - 'A route answering `202 { operationId }`, and the handler listed in `module_local.py`.'
+      - 'A route in the context''s `presentation/routes.py`: an `async def` taking the `Request`, `accept(context_of(request), TheCommand(...))`, answering `202 { operationId }`; the handler listed in `module_local.py`.'
   query:
     place: src/contexts/<context>/application/queries/<use_case>.py
     parts:
       - 'A read model and a method on the queries port, with the order and the unknown-id answer in its docstring.'
       - 'The handler: a class extending `QueryHandler`, holding the queries port, `execute()`; it reads the port and nothing else: no sorting, no second port, no aggregate.'
       - 'A test beside it when the handler holds a visibility or role rule.'
-      - 'A route answering synchronously, refusals through the controller''s `refuse()`, and the handler listed in `module_local.py`.'
+      - 'A route answering synchronously — `module.get_query(TheHandler).handle(…)`, a view function for the JSON, refusals through the file''s `refuse_*()` — and the handler listed in `module_local.py`. A second format (HTMX) is a second presenter in a `ByFormat`, picked by `format_of(request.headers)`.'
   integration-event:
     place: src/shared_kernel/application/integration_events/<aggregate>_integration_events.py
     parts:
@@ -143,7 +182,7 @@ checklists:
       - 'One package per layer (`domain`, `application`, `infrastructure`, `presentation`) and the wiring file `module_local.py`, nothing else.'
       - 'Its own vocabulary: a word that means something else here is a sign the context is right.'
       - 'It asks other contexts through ports it owns, and tells them through integration events; never both sides of a dependency.'
-      - 'Registered in the composition root, with its routes under its own prefix.'
+      - 'Registered in the composition root (`src/bootstrap/create_application.py`), with its routes under its own prefix.'
 
 # One test style per layer, for the README; the rows the language has so far.
 tests:
@@ -153,6 +192,24 @@ tests:
   - layer: Domain service
     example: '[`test_note_sharing.py`](src/contexts/notes/domain/note/test_note_sharing.py)'
     doubles: a five-line class implementing the port
+  - layer: Application
+    example: >-
+      [`test_commands.py`](src/contexts/notes/application/commands/test_commands.py),
+      [`test_delivery.py`](src/contexts/notifications/application/test_delivery.py)
+    doubles: the in-memory repository *is* the double; a recording bus of ten lines says what was published; a fake channel remembers what it received
+  - layer: Infrastructure
+    example: >-
+      [`test_tracked_event_bus.py`](src/contexts/tracker/infrastructure/test_tracked_event_bus.py),
+      [`test_signed_tokens.py`](src/contexts/security/infrastructure/test_signed_tokens.py)
+    doubles: real in-memory pieces
+  - layer: '**Contract** (one port, every adapter)'
+    example: '[`test_persistence_contract.py`](src/contexts/notes/infrastructure/test_persistence_contract.py)'
+    doubles: none — every case runs over each entry of `adapters`, the in-memory and the SQLite pair, same expectations
+  - layer: End to end
+    example: '[`test_notes_routes_e2e.py`](src/bootstrap/test_notes_routes_e2e.py)'
+    doubles: >-
+      the whole application, booted in-process on a free port by [`testing.py`](src/bootstrap/testing.py), spoken
+      to over HTTP with `httpx`; a `202` is followed through the Tracker to its outcome
 
 # Where each word of concepts.yaml's vocabulary is shown, by word; the words the language has so far.
 vocabulary:
@@ -164,13 +221,25 @@ vocabulary:
   Value object: '[`note_title.py`](src/contexts/notes/domain/note/note_title.py)'
   Invariant: '`share_with()` in [`note.py`](src/contexts/notes/domain/note/note.py)'
   Domain event: '[`events.py`](src/contexts/notes/domain/note/events.py)'
+  Integration event: '[`note_integration_events.py`](src/shared_kernel/application/integration_events/note_integration_events.py)'
+  Command: '`ShareNoteCommandEvent` in [`share_note.py`](src/contexts/notes/application/commands/share_note.py)'
+  Query: '[`get_note.py`](src/contexts/notes/application/queries/get_note.py)'
+  Read model: '[`note_queries.py`](src/contexts/notes/domain/note/ports/note_queries.py)'
+  Projection: '[`projection.py`](src/contexts/tracker/application/projection.py)'
   Port: >-
     [`note_repository.py`](src/contexts/notes/domain/note/ports/note_repository.py),
     [`account_directory.py`](src/contexts/notes/domain/note/ports/account_directory.py)
+  Adapter: >-
+    [`repositories.py`](src/contexts/notes/infrastructure/repositories.py),
+    [`suggestions.py`](src/contexts/notes/infrastructure/suggestions.py),
+    [`directories.py`](src/contexts/notes/infrastructure/directories.py)
   Repository: '[`note_repository.py`](src/contexts/notes/domain/note/ports/note_repository.py)'
   Domain service: '[`note_sharing.py`](src/contexts/notes/domain/note/note_sharing.py)'
+  Application service: '[`delivery.py`](src/contexts/notifications/application/delivery.py)'
+  Anti-corruption layer: '[`note_shared_handler.py`](src/contexts/notifications/application/events/note_shared_handler.py)'
   Snapshot: '[`dtos.py`](src/contexts/notes/domain/note/dtos.py)'
-  Read model: '[`note_queries.py`](src/contexts/notes/domain/note/ports/note_queries.py)'
+  Operation: '[`operation.py`](src/architecture/application/operation.py)'
+  Composition root: '[`create_application.py`](src/bootstrap/create_application.py)'
 
 # The file that shows each concept of concepts.yaml, by id; a concept not listed here is one
 # this language does not show yet, and the map says so.
@@ -186,21 +255,29 @@ concepts:
       [`note.py`](src/contexts/notes/domain/note/note.py) extending
       [`AggregateRoot`](src/architecture/domain/aggregate_root.py)
     notes: '`_record()` is protected by convention: a behaviour calls it, a handler never does'
+  entity-inside-an-aggregate:
+    canonical: [src/contexts/notifications/domain/notification/delivery_attempt.py]
+    notes: 'created and reached through `Notification` only, persisted in its snapshot'
   value-object:
     canonical:
       - src/contexts/notes/domain/note/note_title.py
       - src/shared_kernel/domain/email.py
+      - src/contexts/notifications/domain/notification/delivery_strategy.py
     example: >-
       [`note_title.py`](src/contexts/notes/domain/note/note_title.py),
-      [`email.py`](src/shared_kernel/domain/email.py)
+      [`email.py`](src/shared_kernel/domain/email.py),
+      [`delivery_strategy.py`](src/contexts/notifications/domain/notification/delivery_strategy.py)
     notes: 'a frozen dataclass over `value`; [`value_object.py`](src/architecture/domain/value_object.py) names the shape, and the dataclass gives the equality'
     examples: [src/architecture/domain/value_object.py]
   identity:
     canonical: [src/architecture/domain/id.py]
   factory:
-    canonical: [src/contexts/notes/domain/note/note.py]
-    example: '`Note.create()` in [`note.py`](src/contexts/notes/domain/note/note.py)'
-    notes: 'the domain-service factory (an account''s registration) is not written yet'
+    canonical:
+      - src/contexts/notes/domain/note/note.py
+      - src/contexts/security/domain/account/account_registration.py
+    example: >-
+      `Note.create()` in [`note.py`](src/contexts/notes/domain/note/note.py); when creation needs a port,
+      [`account_registration.py`](src/contexts/security/domain/account/account_registration.py)
   invariant:
     canonical: [src/contexts/notes/domain/note/note.py]
     example: '`share_with()` in [`note.py`](src/contexts/notes/domain/note/note.py)'
@@ -220,9 +297,13 @@ concepts:
     canonical: [src/architecture/domain/result.py]
     notes: '`Success[T] | Failure`, narrowed by `isinstance(result, Failure)`, which is what TypeScript wrote as `if (r.isFailure()) return r`'
   optimistic-concurrency:
-    canonical: [src/architecture/domain/aggregate_root.py]
-    example: '`AggregateRoot.version` in [`aggregate_root.py`](src/architecture/domain/aggregate_root.py)'
-    notes: 'the repository adapter that checks it is not written yet'
+    canonical:
+      - src/architecture/domain/aggregate_root.py
+      - src/contexts/notes/infrastructure/repositories.py
+    example: >-
+      `AggregateRoot.version` in [`aggregate_root.py`](src/architecture/domain/aggregate_root.py), checked by
+      `save()` in [`repositories.py`](src/contexts/notes/infrastructure/repositories.py)
+    notes: 'the contract test asserts it for every adapter'
   repository-port:
     canonical: [src/contexts/notes/domain/note/ports/note_repository.py]
     notes: 'a `Protocol` with `async` methods, so an adapter may be in-memory or a database'
@@ -231,15 +312,170 @@ concepts:
   snapshot-dto:
     canonical: [src/contexts/notes/domain/note/dtos.py]
   domain-service:
-    canonical: [src/contexts/notes/domain/note/note_sharing.py]
+    canonical:
+      - src/contexts/security/domain/account/account_registration.py
+      - src/contexts/notes/domain/note/note_sharing.py
+    example: >-
+      [`account_registration.py`](src/contexts/security/domain/account/account_registration.py),
+      [`note_sharing.py`](src/contexts/notes/domain/note/note_sharing.py)
     notes: 'takes its port in `__init__`, so a test hands it a five-line class'
   port-to-another-context:
     canonical:
       - src/contexts/notes/domain/note/ports/account_directory.py
       - src/contexts/notes/domain/note/note_sharing.py
+      - src/contexts/notes/infrastructure/directories.py
     example: >-
       [`account_directory.py`](src/contexts/notes/domain/note/ports/account_directory.py), used by
-      [`note_sharing.py`](src/contexts/notes/domain/note/note_sharing.py)
-    notes: 'the adapter over Security''s read model is not written yet'
+      [`note_sharing.py`](src/contexts/notes/domain/note/note_sharing.py), answered over Security's read
+      model by [`directories.py`](src/contexts/notes/infrastructure/directories.py)
+    notes: 'the wiring takes the directory as a parameter; the composition root builds it, where the two contexts meet'
+  ports-for-technical-concerns:
+    canonical:
+      - src/contexts/security/domain/auth/ports/password_hasher.py
+      - src/contexts/security/domain/auth/ports/signed_tokens.py
+    example: >-
+      [`password_hasher.py`](src/contexts/security/domain/auth/ports/password_hasher.py),
+      [`signed_tokens.py`](src/contexts/security/domain/auth/ports/signed_tokens.py)
   lifecycle-as-an-enum:
-    canonical: [src/contexts/notes/domain/note/note_status.py]
+    canonical:
+      - src/contexts/notes/domain/note/note_status.py
+      - src/contexts/security/domain/account/account_status.py
+    example: >-
+      [`note_status.py`](src/contexts/notes/domain/note/note_status.py),
+      [`account_status.py`](src/contexts/security/domain/account/account_status.py)
+  command:
+    canonical: [src/contexts/notes/application/commands/share_note.py]
+    example: '`ShareNoteCommandEvent` in [`share_note.py`](src/contexts/notes/application/commands/share_note.py)'
+    notes: 'a frozen dataclass extending `CommandEvent`, its fields the payload; its handler is in the same file, and the channel is the class name (`name_of()`)'
+  command-handler:
+    canonical: [src/contexts/notes/application/commands/edit_note.py]
+    example: '`EditNoteCommandHandler` in [`edit_note.py`](src/contexts/notes/application/commands/edit_note.py)'
+    notes: 'takes its ports in `__init__`; `execute()` returns a `Result` and returns a `Failure` as is'
+  application-service:
+    canonical: [src/contexts/notifications/application/delivery.py]
+    notes: 'holds the channels in a dict by `Channel`, each behind the port, since a strategy walks a list of adapters of different kinds'
+  guard:
+    canonical:
+      - src/shared_kernel/application/guards.py
+      - src/contexts/security/application/commands/register_admin.py
+    example: >-
+      `require_signed_in()` in [`guards.py`](src/shared_kernel/application/guards.py), called once at the top
+      of `execute()`; `guard()` in
+      [`register_admin.py`](src/contexts/security/application/commands/register_admin.py)
+  base-handler:
+    canonical: [src/architecture/application/command_handler.py]
+    notes: '`handle()` is the template method, `run()` its typed half for a command run synchronously; a concrete handler writes `execute()`'
+  query-handler:
+    canonical: [src/contexts/notes/application/queries/get_note.py]
+    notes: '`QueryHandler[Q, P, R]`: the queries port, the parameters, the read model; the module finds it by its class'
+  execution-context:
+    canonical: [src/architecture/application/execution_context.py]
+    notes: '`with_transaction()` takes a coroutine function, `after_commit()` a plain callable'
+  publish-after-commit:
+    canonical: [src/architecture/application/domain_events.py]
+    example: '`publish_domain_events()` in [`domain_events.py`](src/architecture/application/domain_events.py)'
+    notes: 'the handler hands the aggregate over, and the events are pulled at the commit'
+  domain-event-handler:
+    canonical: [src/contexts/notes/application/events/note_shared_handler.py]
+  integration-event:
+    canonical: [src/shared_kernel/application/integration_events/note_integration_events.py]
+  anti-corruption-layer:
+    canonical: [src/contexts/notifications/application/events/note_shared_handler.py]
+    notes: 'one handler per consumed contract, in [`events/`](src/contexts/notifications/application/events/__init__.py); each knows the contract and nothing else of the other context'
+  projection-read-model:
+    canonical:
+      - src/contexts/tracker/application/projection.py
+      - src/contexts/tracker/application/read_model.py
+    example: >-
+      [`projection.py`](src/contexts/tracker/application/projection.py),
+      [`read_model.py`](src/contexts/tracker/application/read_model.py)
+  non-determinism-as-a-value:
+    canonical:
+      - src/contexts/notes/application/suggestions.py
+      - src/contexts/notes/application/commands/suggest_note_title.py
+      - src/contexts/notes/infrastructure/suggestions.py
+    example: >-
+      [`suggestions.py`](src/contexts/notes/application/suggestions.py) →
+      [`suggest_note_title.py`](src/contexts/notes/application/commands/suggest_note_title.py), answered
+      locally by [`infrastructure/suggestions.py`](src/contexts/notes/infrastructure/suggestions.py)
+  module:
+    canonical:
+      - src/architecture/application/module.py
+      - src/contexts/notes/module_local.py
+    example: >-
+      [`module.py`](src/architecture/application/module.py), used in
+      [`module_local.py`](src/contexts/notes/module_local.py)
+    notes: 'a `Subscription` per command and per reaction, on the event''s class; the directory another context answers comes in as a parameter'
+    examples: [src/contexts/security/module_local.py, src/contexts/tracker/module_local.py]
+  repository-implementation:
+    canonical: [src/contexts/notes/infrastructure/repositories.py]
+  queries-implementation:
+    canonical: [src/contexts/notes/infrastructure/queries.py]
+  second-adapter-of-the-same-port:
+    canonical:
+      - src/contexts/notes/infrastructure/repositories.py
+      - src/contexts/notes/infrastructure/queries.py
+      - src/contexts/notes/infrastructure/notes_table.py
+    example: >-
+      `SqliteNoteRepository` in [`repositories.py`](src/contexts/notes/infrastructure/repositories.py) and
+      `SqliteNoteQueries` in [`queries.py`](src/contexts/notes/infrastructure/queries.py), over the one table of
+      [`notes_table.py`](src/contexts/notes/infrastructure/notes_table.py) (the standard library's `sqlite3`)
+    examples: [src/contexts/notes/infrastructure/test_persistence_contract.py]
+    notes: 'the contract test: [`test_persistence_contract.py`](src/contexts/notes/infrastructure/test_persistence_contract.py); the optimistic check is one `UPDATE … WHERE version = ?`'
+  port-implementations:
+    canonical:
+      - src/contexts/security/infrastructure/signed_tokens.py
+      - src/contexts/security/infrastructure/password_hasher.py
+      - src/contexts/notifications/infrastructure/channels/websocket.py
+    example: >-
+      [`signed_tokens.py`](src/contexts/security/infrastructure/signed_tokens.py) (PyJWT),
+      [`password_hasher.py`](src/contexts/security/infrastructure/password_hasher.py) (bcrypt, in a thread),
+      [`channels/websocket.py`](src/contexts/notifications/infrastructure/channels/websocket.py) (FastAPI's `WebSocket`)
+  event-bus:
+    canonical: [src/architecture/infrastructure/event_bus.py]
+    notes: '`publish()` schedules the dispatch as a task on the running loop and answers at once; `settle()` awaits what is in flight; the port is [`event_bus.py`](src/architecture/application/event_bus.py)'
+    examples: [src/architecture/application/event_bus.py]
+  decorator:
+    canonical: [src/contexts/tracker/infrastructure/tracked_event_bus.py]
+    notes: 'wraps `dispatch`: a record before, a record after, the completion notice when it is a command''s'
+  unit-of-work:
+    canonical: [src/architecture/infrastructure/unit_of_work.py]
+    notes: 'over the stores the composition root lists, or every store of the process'
+  the-database:
+    canonical: [src/architecture/infrastructure/data_sources.py]
+    notes: 'a dict, which keeps insertion order'
+  controller:
+    canonical: [src/contexts/notes/presentation/routes.py]
+    example: '[`notes/presentation/routes.py`](src/contexts/notes/presentation/routes.py); every other context''s has the same shape'
+    notes: 'the routes and their controller are one file: an `async def` per route, `accept()` for a command, `module.get_query()` for a query, `refuse_*()` for a refusal'
+  routes-and-json-schemas:
+    canonical:
+      - src/contexts/notes/presentation/routes.py
+      - src/architecture/presentation/http.py
+    example: >-
+      the `APIRouter`, the request bodies and the views of [`notes/presentation/routes.py`](src/contexts/notes/presentation/routes.py),
+      on [`architecture/presentation/http.py`](src/architecture/presentation/http.py) (`accept()`, the refusals)
+    notes: 'the schema is a pydantic model beside the route: FastAPI refuses a body that does not fit it (422); a view function says what a read model looks like outside, in camelCase'
+  presenters:
+    canonical:
+      - src/contexts/security/presentation/presenters.py
+      - src/architecture/presentation/format.py
+    example: >-
+      [`security/presentation/presenters.py`](src/contexts/security/presentation/presenters.py), picked per
+      request by [`format.py`](src/architecture/presentation/format.py) — a `ByFormat` constant per answer beside
+      the controller, no registry
+  authentication-middleware:
+    canonical: [src/contexts/security/presentation/authentication.py]
+    example: >-
+      [`authentication.py`](src/contexts/security/presentation/authentication.py) — never blocks, leaves the
+      caller anonymous unless the token verifies; an ASGI middleware over every request and websocket connection
+  composition-root:
+    canonical:
+      - src/bootstrap/create_application.py
+      - src/architecture/application/application.py
+      - src/bootstrap/__main__.py
+    example: >-
+      [`create_application.py`](src/bootstrap/create_application.py) on
+      [`application.py`](src/architecture/application/application.py): wires, starts the modules, seeds the
+      administrator through the same handler as any command, then listens;
+      [`__main__.py`](src/bootstrap/__main__.py) is the process entry point

@@ -67,8 +67,6 @@ def test_refuses_an_undeclared_context_and_a_stray_file(copy: Path) -> None:
 
 
 def test_a_test_module_may_use_its_own_infrastructure_but_a_domain_test_may_not(copy: Path) -> None:
-    (copy / "src/contexts/notes/application").mkdir()
-    (copy / "src/contexts/notes/application/__init__.py").write_text("")
     (copy / "src/contexts/notes/application/test_x.py").write_text(
         "from contexts.notes.infrastructure.repositories import InMemoryNoteRepository\n"
     )
