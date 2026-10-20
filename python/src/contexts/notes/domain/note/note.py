@@ -8,6 +8,9 @@ business rules before changing state:
 - an archived note is read-only until it is restored: it can be neither edited nor shared
   (``_ensure_active()``); archiving, restoring and reading it are not gated by that rule
 - a note cannot be shared twice with the same account, nor with its owner
+- only the owner pins a note, an archived note cannot be pinned, and a note is not pinned (or
+  unpinned) twice; unpinning is not gated by the archived rule, like restoring, so an owner can
+  always tidy up
 
 The aggregate never touches persistence, logging or HTTP. It only knows business.
 """
@@ -20,15 +23,19 @@ from contexts.notes.domain.note.events import (
     NoteArchivedEvent,
     NoteCreatedEvent,
     NoteEditedEvent,
+    NotePinnedEvent,
     NoteRestoredEvent,
     NoteSharedEvent,
+    NoteUnpinnedEvent,
 )
 from contexts.notes.domain.note.note_exceptions import (
     CannotShareWithSelfException,
     NoteAlreadyArchivedException,
+    NoteAlreadyPinnedException,
     NoteAlreadySharedException,
     NoteArchivedException,
     NoteNotArchivedException,
+    NoteNotPinnedException,
     NotNoteOwnerException,
 )
 from contexts.notes.domain.note.note_status import NoteStatus
@@ -38,7 +45,7 @@ OK: Result[None] = Success(None)
 
 
 class Note(AggregateRoot):
-    __slots__ = ("_content", "_owner_id", "_shared_with", "_status", "_title")
+    __slots__ = ("_content", "_owner_id", "_pinned", "_shared_with", "_status", "_title")
 
     def __init__(
         self,
@@ -47,6 +54,7 @@ class Note(AggregateRoot):
         title: NoteTitle,
         content: str,
         status: NoteStatus,
+        pinned: bool,
         shared_with: list[str],
         version: int = 0,
     ) -> None:
@@ -56,6 +64,7 @@ class Note(AggregateRoot):
         self._title = title
         self._content = content
         self._status = status
+        self._pinned = pinned
         self._shared_with: list[str] = list(shared_with)  # raw ids, in the order they were added
 
     @staticmethod
@@ -66,7 +75,7 @@ class Note(AggregateRoot):
         if isinstance(title, Failure):
             return title
         id = Id.generate()  # noqa: A001
-        note = Note(id, Id(props.owner_id), title.data, props.content, NoteStatus.ACTIVE, [])
+        note = Note(id, Id(props.owner_id), title.data, props.content, NoteStatus.ACTIVE, False, [])
         note._record(NoteCreatedEvent(note_id=id.value, owner_id=props.owner_id, title=title.data.value))
         return Success(note)
 
@@ -88,6 +97,7 @@ class Note(AggregateRoot):
             title.data,
             snapshot.content,
             snapshot.status,
+            snapshot.pinned,
             snapshot.shared_with,
             snapshot.version,
         )
@@ -153,6 +163,31 @@ class Note(AggregateRoot):
         )
         return OK
 
+    def pin(self, actor_id: Id) -> Result[None]:
+        allowed = self._ensure_owner(actor_id)
+        if isinstance(allowed, Failure):
+            return allowed
+        writable = self._ensure_active()
+        if isinstance(writable, Failure):
+            return writable
+        if self._pinned:
+            return Failure(NoteAlreadyPinnedException(self.id.value))
+
+        self._pinned = True
+        self._record(NotePinnedEvent(note_id=self.id.value))
+        return OK
+
+    def unpin(self, actor_id: Id) -> Result[None]:
+        allowed = self._ensure_owner(actor_id)
+        if isinstance(allowed, Failure):
+            return allowed
+        if not self._pinned:
+            return Failure(NoteNotPinnedException(self.id.value))
+
+        self._pinned = False
+        self._record(NoteUnpinnedEvent(note_id=self.id.value))
+        return OK
+
     def is_visible_to(self, account_id: Id) -> bool:
         return self._owner_id == account_id or account_id.value in self._shared_with
 
@@ -164,6 +199,7 @@ class Note(AggregateRoot):
             title=self._title.value,
             content=self._content,
             status=self._status,
+            pinned=self._pinned,
             shared_with=list(self._shared_with),
             version=self.version,
         )
@@ -193,6 +229,10 @@ class Note(AggregateRoot):
     @property
     def status(self) -> NoteStatus:
         return self._status
+
+    @property
+    def pinned(self) -> bool:
+        return self._pinned
 
     @property
     def shared_with(self) -> list[str]:

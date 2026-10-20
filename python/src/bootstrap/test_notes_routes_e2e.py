@@ -20,7 +20,9 @@ async def test_notes_as_a_client_sees_them() -> None:
     assert operation["status"] == "SUCCESS"
     note_id = operation["result"]
 
-    assert (await admin.get(f"{api}/notes")).json() == [{"id": note_id, "title": "title", "status": "ACTIVE"}]
+    assert (await admin.get(f"{api}/notes")).json() == [
+        {"id": note_id, "title": "title", "status": "ACTIVE", "pinned": False}
+    ]
     note = await admin.get(f"{api}/notes/{note_id}")
     assert note.status_code == 200
     assert note.json() == {
@@ -29,6 +31,7 @@ async def test_notes_as_a_client_sees_them() -> None:
         "status": "ACTIVE",
         "ownerId": note.json()["ownerId"],
         "content": "content",
+        "pinned": False,
         "sharedWith": [],
     }
 
@@ -52,7 +55,52 @@ async def test_notes_as_a_client_sees_them() -> None:
     await app.stop()
 
 
+async def test_pinning_a_note_brings_it_first_in_my_notes_and_is_refused_on_an_archived_one() -> None:
+    app = await start_test_application()
+    api = app.api
+    admin = await app.admin()
+
+    async def a_note(title: str) -> str:
+        created = await admin.post(f"{api}/notes", json={"title": title, "content": "content"})
+        note_id: str = (await app.accepted(admin, created))["result"]
+        return note_id
+
+    first, second = await a_note("First"), await a_note("Second")
+
+    # POST /notes/:id/pin: accepted, then the note is first in my notes and flagged
+    pinned = await admin.post(f"{api}/notes/{second}/pin")
+    assert pinned.status_code == 202
+    assert (await app.accepted(admin, pinned))["status"] == "SUCCESS"
+    assert [(n["id"], n["pinned"]) for n in (await admin.get(f"{api}/notes")).json()] == [
+        (second, True),
+        (first, False),
+    ]
+    assert (await admin.get(f"{api}/notes/{second}")).json()["pinned"] is True
+
+    # Twice: refused by the note, on the operation
+    operation = await app.accepted(admin, await admin.post(f"{api}/notes/{second}/pin"))
+    assert operation["status"] == "ERROR" and operation["error"]["type"] == "NoteAlreadyPinned"
+
+    # POST /notes/:id/unpin undoes it
+    assert (await app.accepted(admin, await admin.post(f"{api}/notes/{second}/unpin")))["status"] == "SUCCESS"
+    assert [n["id"] for n in (await admin.get(f"{api}/notes")).json()] == [first, second]
+
+    # An archived note cannot be pinned
+    await app.accepted(admin, await admin.post(f"{api}/notes/{first}/archive"))
+    operation = await app.accepted(admin, await admin.post(f"{api}/notes/{first}/pin"))
+    assert operation["status"] == "ERROR" and operation["error"]["type"] == "NoteArchived"
+
+    # Someone else's note cannot be pinned
+    await app.sign_up_validated("dave@notes.fr", "dave")
+    dave = await app.agent_as("dave@notes.fr", "dave")
+    operation = await app.accepted(dave, await dave.post(f"{api}/notes/{second}/pin"))
+    assert operation["status"] == "ERROR" and operation["error"]["type"] == "NotNoteOwner"
+
+    await app.stop()
+
+
 async def test_a_suggestion_enters_the_domain_as_a_value_the_note_may_refuse() -> None:
+
     app = await start_test_application()
     api = app.api
     admin = await app.admin()

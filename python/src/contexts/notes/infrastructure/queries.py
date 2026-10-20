@@ -1,7 +1,8 @@
 """The read side, twice: over the in-memory store, where each method shapes a read model from
 the snapshots, and over SQLite, where each query is one SQL statement shaped for its read model;
 that is the point of separating queries from the repository (ADR 5, QUERY-READ-MODELS). The
-dict keeps insertion order and the table its rowid, which is the order the port promises;
+dict keeps insertion order and the table its rowid, which is the order the port promises, with
+the pinned notes of an owner brought first (a stable sort here, an ORDER BY there);
 test_persistence_contract.py holds every adapter to it."""
 
 import sqlite3
@@ -27,14 +28,16 @@ class InMemoryNoteQueries:
             status=note.status,
             owner_id=note.owner_id,
             content=note.content,
+            pinned=note.pinned,
             shared_with=list(note.shared_with),
         )
 
     async def find_by_owner(self, owner_id: str) -> list[NoteListItem]:
+        mine = [note for note in self._all() if note.owner_id == owner_id]
+        # sorted() is stable: within the pinned and the unpinned, the order they were saved holds.
         return [
-            NoteListItem(id=note.id, title=note.title, status=note.status)
-            for note in self._all()
-            if note.owner_id == owner_id
+            NoteListItem(id=note.id, title=note.title, status=note.status, pinned=note.pinned)
+            for note in sorted(mine, key=lambda note: not note.pinned)
         ]
 
     async def find_shared_with(self, account_id: str) -> list[SharedNoteListItem]:
@@ -64,14 +67,19 @@ class SqliteNoteQueries:
             status=note.status,
             owner_id=note.owner_id,
             content=note.content,
+            pinned=note.pinned,
             shared_with=note.shared_with,
         )
 
     async def find_by_owner(self, owner_id: str) -> list[NoteListItem]:
         rows = self._db.execute(
-            "SELECT id, title, status FROM notes WHERE owner_id = ? ORDER BY rowid", (owner_id,)
+            "SELECT id, title, status, pinned FROM notes WHERE owner_id = ? ORDER BY pinned DESC, rowid",
+            (owner_id,),
         ).fetchall()
-        return [NoteListItem(id=row["id"], title=row["title"], status=NoteStatus(row["status"])) for row in rows]
+        return [
+            NoteListItem(id=row["id"], title=row["title"], status=NoteStatus(row["status"]), pinned=bool(row["pinned"]))
+            for row in rows
+        ]
 
     async def find_shared_with(self, account_id: str) -> list[SharedNoteListItem]:
         rows = self._db.execute(

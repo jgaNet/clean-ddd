@@ -37,6 +37,7 @@ def create_notes_table(connection: sqlite3.Connection) -> None:
           title       TEXT NOT NULL,
           content     TEXT NOT NULL,
           status      TEXT NOT NULL,
+          pinned      INTEGER NOT NULL,
           shared_with TEXT NOT NULL,
           version     INTEGER NOT NULL
         )
@@ -51,6 +52,7 @@ def to_row(note: NoteSnapshot) -> dict[str, str | int]:
         "title": note.title,
         "content": note.content,
         "status": note.status.value,
+        "pinned": int(note.pinned),
         "shared_with": json.dumps(note.shared_with),
         "version": note.version,
     }
@@ -65,6 +67,7 @@ def to_snapshot(row: sqlite3.Row) -> NoteSnapshot:
         title=row["title"],
         content=row["content"],
         status=status,
+        pinned=bool(row["pinned"]),
         shared_with=list(json.loads(row["shared_with"])),
         version=int(row["version"]),
     )

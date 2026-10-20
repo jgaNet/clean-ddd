@@ -15,7 +15,10 @@ class NoteSnapshot:
     title: str
     content: str
     status: NoteStatus
+    #: Pinned by its owner, so that it comes first in their list; a note starts unpinned.
+    pinned: bool = False
     shared_with: list[str] = field(default_factory=list)
+
     #: The version this snapshot was read at; the repository stores version + 1 (ADR 8).
     version: int = 0
 

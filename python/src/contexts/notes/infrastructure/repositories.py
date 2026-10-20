@@ -64,7 +64,7 @@ class SqliteNoteRepository:
             updated = self._db.execute(
                 """
                 UPDATE notes SET title = :title, content = :content, status = :status,
-                  shared_with = :shared_with, version = :version + 1
+                  pinned = :pinned, shared_with = :shared_with, version = :version + 1
                 WHERE id = :id AND version = :version
                 """,
                 row,
@@ -78,8 +78,9 @@ class SqliteNoteRepository:
 
             self._db.execute(
                 """
-                INSERT INTO notes (id, owner_id, title, content, status, shared_with, version)
-                VALUES (:id, :owner_id, :title, :content, :status, :shared_with, :version + 1)
+                INSERT INTO notes (id, owner_id, title, content, status, pinned, shared_with, version)
+                VALUES (:id, :owner_id, :title, :content, :status, :pinned, :shared_with, :version + 1)
+
                 """,
                 row,
             )

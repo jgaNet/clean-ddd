@@ -16,6 +16,7 @@ class NoteListItem:
     id: str
     title: str
     status: NoteStatus
+    pinned: bool
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,7 @@ class NoteDetail:
     status: NoteStatus
     owner_id: str
     content: str
+    pinned: bool
     shared_with: list[str] = field(default_factory=list)
 
 
@@ -40,8 +42,9 @@ class NoteQueries(Protocol):
     async def find_by_id(self, note_id: str) -> NoteDetail | None: ...
 
     async def find_by_owner(self, owner_id: str) -> list[NoteListItem]:
-        """In the order they were saved. Ordering is part of this contract: the contract test
-        asserts it for every adapter."""
+        """Pinned notes first, then the others, each group in the order they were saved. Ordering
+        is part of this contract: the contract test asserts it for every adapter. An unknown
+        owner gets an empty list."""
         ...
 
     async def find_shared_with(self, account_id: str) -> list[SharedNoteListItem]:

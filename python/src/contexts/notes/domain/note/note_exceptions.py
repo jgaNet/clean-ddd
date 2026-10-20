@@ -58,6 +58,16 @@ class NoteNotArchivedException(NoteDomainException):
         super().__init__("NoteNotArchived", "Only an archived note can be restored", {"noteId": note_id})
 
 
+class NoteAlreadyPinnedException(NoteDomainException):
+    def __init__(self, note_id: str) -> None:
+        super().__init__("NoteAlreadyPinned", "This note is already pinned", {"noteId": note_id})
+
+
+class NoteNotPinnedException(NoteDomainException):
+    def __init__(self, note_id: str) -> None:
+        super().__init__("NoteNotPinned", "Only a pinned note can be unpinned", {"noteId": note_id})
+
+
 class CannotShareWithSelfException(NoteDomainException):
     def __init__(self, note_id: str) -> None:
         super().__init__("CannotShareWithSelf", "You already own this note", {"noteId": note_id})

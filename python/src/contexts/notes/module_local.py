@@ -12,12 +12,14 @@ from architecture.infrastructure.data_sources import InMemoryDataSource
 from contexts.notes.application.commands.archive_note import ArchiveNoteCommandEvent, ArchiveNoteCommandHandler
 from contexts.notes.application.commands.create_note import CreateNoteCommandEvent, CreateNoteCommandHandler
 from contexts.notes.application.commands.edit_note import EditNoteCommandEvent, EditNoteCommandHandler
+from contexts.notes.application.commands.pin_note import PinNoteCommandEvent, PinNoteCommandHandler
 from contexts.notes.application.commands.restore_note import RestoreNoteCommandEvent, RestoreNoteCommandHandler
 from contexts.notes.application.commands.share_note import ShareNoteCommandEvent, ShareNoteCommandHandler
 from contexts.notes.application.commands.suggest_note_title import (
     SuggestNoteTitleCommandEvent,
     SuggestNoteTitleCommandHandler,
 )
+from contexts.notes.application.commands.unpin_note import UnpinNoteCommandEvent, UnpinNoteCommandHandler
 from contexts.notes.application.events.note_created_handler import NoteCreatedHandler
 from contexts.notes.application.events.note_shared_handler import NoteSharedHandler
 from contexts.notes.application.queries.get_my_notes import GetMyNotesQueryHandler
@@ -52,6 +54,8 @@ def local_notes_module(store: NoteStore, accounts: AccountDirectory) -> Module:
             Subscription(EditNoteCommandEvent, [EditNoteCommandHandler(repository)]),
             Subscription(ArchiveNoteCommandEvent, [ArchiveNoteCommandHandler(repository)]),
             Subscription(RestoreNoteCommandEvent, [RestoreNoteCommandHandler(repository)]),
+            Subscription(PinNoteCommandEvent, [PinNoteCommandHandler(repository)]),
+            Subscription(UnpinNoteCommandEvent, [UnpinNoteCommandHandler(repository)]),
             Subscription(ShareNoteCommandEvent, [ShareNoteCommandHandler(repository, NoteSharing(accounts))]),
             # The one non-deterministic source of the context, behind a port (ADR 7); a model would go here.
             Subscription(

@@ -21,9 +21,11 @@ from architecture.presentation.http import accept, context_of, refuse, status_of
 from contexts.notes.application.commands.archive_note import ArchiveNoteCommandEvent
 from contexts.notes.application.commands.create_note import CreateNoteCommandEvent
 from contexts.notes.application.commands.edit_note import EditNoteCommandEvent
+from contexts.notes.application.commands.pin_note import PinNoteCommandEvent
 from contexts.notes.application.commands.restore_note import RestoreNoteCommandEvent
 from contexts.notes.application.commands.share_note import ShareNoteCommandEvent
 from contexts.notes.application.commands.suggest_note_title import SuggestNoteTitleCommandEvent
+from contexts.notes.application.commands.unpin_note import UnpinNoteCommandEvent
 from contexts.notes.application.queries.get_my_notes import GetMyNotesQueryHandler
 from contexts.notes.application.queries.get_note import GetNoteQueryHandler
 from contexts.notes.application.queries.get_notes_shared_with_me import GetNotesSharedWithMeQueryHandler
@@ -48,7 +50,7 @@ class ShareNoteBody(BaseModel):
 
 
 def list_item_view(note: NoteListItem) -> dict[str, Any]:
-    return {"id": note.id, "title": note.title, "status": note.status.value}
+    return {"id": note.id, "title": note.title, "status": note.status.value, "pinned": note.pinned}
 
 
 def detail_view(note: NoteDetail) -> dict[str, Any]:
@@ -58,6 +60,7 @@ def detail_view(note: NoteDetail) -> dict[str, Any]:
         "status": note.status.value,
         "ownerId": note.owner_id,
         "content": note.content,
+        "pinned": note.pinned,
         "sharedWith": list(note.shared_with),
     }
 
@@ -118,6 +121,14 @@ def note_routes(module: Module) -> APIRouter:
     @router.post("/{note_id}/restore", status_code=202)
     async def restore_note(request: Request, note_id: str) -> Response:
         return accept(context_of(request), RestoreNoteCommandEvent(note_id=note_id))
+
+    @router.post("/{note_id}/pin", status_code=202)
+    async def pin_note(request: Request, note_id: str) -> Response:
+        return accept(context_of(request), PinNoteCommandEvent(note_id=note_id))
+
+    @router.post("/{note_id}/unpin", status_code=202)
+    async def unpin_note(request: Request, note_id: str) -> Response:
+        return accept(context_of(request), UnpinNoteCommandEvent(note_id=note_id))
 
     @router.post("/{note_id}/share", status_code=202)
     async def share_note(request: Request, note_id: str, body: ShareNoteBody) -> Response:

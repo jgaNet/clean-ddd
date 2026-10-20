@@ -7,8 +7,10 @@ from contexts.notes.domain.note.events import (
     NoteArchivedEvent,
     NoteCreatedEvent,
     NoteEditedEvent,
+    NotePinnedEvent,
     NoteRestoredEvent,
     NoteSharedEvent,
+    NoteUnpinnedEvent,
 )
 from contexts.notes.domain.note.note import Note
 from contexts.notes.domain.note.note_status import NoteStatus
@@ -31,6 +33,13 @@ def an_archived_note() -> Note:
     return note
 
 
+def a_pinned_note() -> Note:
+    note = a_note()
+    assert note.pin(owner).is_success()
+    note.pull_domain_events()
+    return note
+
+
 def refusal_type(result: object) -> str:
     assert isinstance(result, Failure)
     return result.error.type
@@ -45,6 +54,7 @@ class TestWritingANote:
         assert note.id.value
         assert note.status is NoteStatus.ACTIVE
         assert note.shared_with == []
+        assert not note.pinned
         assert note.title == "Groceries"
         assert note.version == 0
         assert note.pull_domain_events() == [
@@ -107,6 +117,43 @@ class TestArchivingAndRestoring:
         assert refusal_type(an_archived_note().restore(stranger)) == "NotNoteOwner"
 
 
+class TestPinningAndUnpinning:
+    def test_pins_an_active_note_and_records_note_pinned(self) -> None:
+        note = a_note()
+        assert note.pin(owner).is_success()
+        assert note.pinned
+        assert note.pull_domain_events() == [NotePinnedEvent(note_id=note.id.value)]
+
+    def test_cannot_pin_twice(self) -> None:
+        assert refusal_type(a_pinned_note().pin(owner)) == "NoteAlreadyPinned"
+
+    def test_cannot_pin_an_archived_note(self) -> None:
+        note = an_archived_note()
+        assert refusal_type(note.pin(owner)) == "NoteArchived"
+        assert not note.pinned
+        assert note.pull_domain_events() == []
+
+    def test_unpins_a_pinned_note_and_records_note_unpinned(self) -> None:
+        note = a_pinned_note()
+        assert note.unpin(owner).is_success()
+        assert not note.pinned
+        assert note.pull_domain_events() == [NoteUnpinnedEvent(note_id=note.id.value)]
+
+    def test_cannot_unpin_a_note_that_is_not_pinned(self) -> None:
+        assert refusal_type(a_note().unpin(owner)) == "NoteNotPinned"
+
+    def test_archiving_keeps_the_pin_and_the_owner_may_still_unpin(self) -> None:
+        note = a_pinned_note()
+        assert note.archive(owner).is_success()
+        assert note.pinned
+        assert note.unpin(owner).is_success()
+        assert not note.pinned
+
+    def test_is_reserved_to_the_owner(self) -> None:
+        assert refusal_type(a_note().pin(stranger)) == "NotNoteOwner"
+        assert refusal_type(a_pinned_note().unpin(stranger)) == "NotNoteOwner"
+
+
 class TestSharing:
     def test_shares_with_another_account_and_records_note_shared(self) -> None:
         note = a_note()
@@ -141,6 +188,7 @@ class TestPersistenceRoundTrip:
             title="Groceries",
             content="Milk",
             status=NoteStatus.ARCHIVED,
+            pinned=True,
             shared_with=["bob"],
             version=4,
         )

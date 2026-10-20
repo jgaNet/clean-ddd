@@ -14,10 +14,12 @@ from architecture.infrastructure.data_sources import InMemoryDataSource
 from contexts.notes.application.commands.archive_note import ArchiveNoteCommandEvent, ArchiveNoteCommandHandler
 from contexts.notes.application.commands.create_note import CreateNoteCommandEvent, CreateNoteCommandHandler
 from contexts.notes.application.commands.edit_note import EditNoteCommandEvent, EditNoteCommandHandler
+from contexts.notes.application.commands.pin_note import PinNoteCommandEvent, PinNoteCommandHandler
 from contexts.notes.application.commands.restore_note import RestoreNoteCommandEvent, RestoreNoteCommandHandler
 from contexts.notes.application.commands.share_note import ShareNoteCommandEvent, ShareNoteCommandHandler
+from contexts.notes.application.commands.unpin_note import UnpinNoteCommandEvent, UnpinNoteCommandHandler
 from contexts.notes.domain.note.dtos import NoteSnapshot
-from contexts.notes.domain.note.events import NoteCreatedEvent, NoteSharedEvent
+from contexts.notes.domain.note.events import NoteCreatedEvent, NotePinnedEvent, NoteSharedEvent, NoteUnpinnedEvent
 from contexts.notes.domain.note.note_sharing import NoteSharing
 from contexts.notes.domain.note.note_status import NoteStatus
 from contexts.notes.infrastructure.repositories import InMemoryNoteRepository
@@ -90,6 +92,7 @@ class TestCreateNote:
             title="Groceries",
             content="Milk",
             status=NoteStatus.ACTIVE,
+            pinned=False,
             shared_with=[],
             version=1,
         )
@@ -166,6 +169,77 @@ class TestArchiveNote:
 
         assert isinstance(result, Failure) and result.error.type == "NotNoteOwner"
         assert notes.stored(note_id).status is NoteStatus.ACTIVE
+
+
+class TestPinNote:
+    async def test_pins_the_note_and_publishes_note_pinned(self, notes: Fixture) -> None:
+        note_id = await notes.a_note_owned_by("alice")
+
+        result = await PinNoteCommandHandler(notes.repository).execute(
+            PinNoteCommandEvent(note_id=note_id), notes.context_for("alice")
+        )
+
+        assert isinstance(result, Success)
+        assert notes.stored(note_id).pinned
+        assert notes.bus.published == [NotePinnedEvent(note_id=note_id)]
+
+    async def test_refuses_a_caller_who_does_not_own_the_note(self, notes: Fixture) -> None:
+        note_id = await notes.a_note_owned_by("alice")
+
+        result = await PinNoteCommandHandler(notes.repository).execute(
+            PinNoteCommandEvent(note_id=note_id), notes.context_for("bob")
+        )
+
+        assert isinstance(result, Failure) and result.error.type == "NotNoteOwner"
+        assert not notes.stored(note_id).pinned
+        assert notes.bus.published == []
+
+    async def test_refuses_to_pin_an_archived_note(self, notes: Fixture) -> None:
+        note_id = await notes.a_note_owned_by("alice")
+        await ArchiveNoteCommandHandler(notes.repository).execute(
+            ArchiveNoteCommandEvent(note_id=note_id), notes.context_for("alice")
+        )
+
+        result = await PinNoteCommandHandler(notes.repository).execute(
+            PinNoteCommandEvent(note_id=note_id), notes.context_for("alice")
+        )
+
+        assert isinstance(result, Failure) and result.error.type == "NoteArchived"
+        assert not notes.stored(note_id).pinned
+
+    async def test_fails_on_an_unknown_note(self, notes: Fixture) -> None:
+        result = await PinNoteCommandHandler(notes.repository).execute(
+            PinNoteCommandEvent(note_id="nope"), notes.context_for("alice")
+        )
+
+        assert isinstance(result, Failure) and result.error.type == "NoteNotFound"
+
+
+class TestUnpinNote:
+    async def test_unpins_a_pinned_note_and_publishes_note_unpinned(self, notes: Fixture) -> None:
+        note_id = await notes.a_note_owned_by("alice")
+        await PinNoteCommandHandler(notes.repository).execute(
+            PinNoteCommandEvent(note_id=note_id), notes.context_for("alice")
+        )
+        notes.bus.published.clear()
+
+        result = await UnpinNoteCommandHandler(notes.repository).execute(
+            UnpinNoteCommandEvent(note_id=note_id), notes.context_for("alice")
+        )
+
+        assert isinstance(result, Success)
+        assert not notes.stored(note_id).pinned
+        assert notes.bus.published == [NoteUnpinnedEvent(note_id=note_id)]
+
+    async def test_refuses_to_unpin_a_note_that_is_not_pinned(self, notes: Fixture) -> None:
+        note_id = await notes.a_note_owned_by("alice")
+
+        result = await UnpinNoteCommandHandler(notes.repository).execute(
+            UnpinNoteCommandEvent(note_id=note_id), notes.context_for("alice")
+        )
+
+        assert isinstance(result, Failure) and result.error.type == "NoteNotPinned"
+        assert notes.bus.published == []
 
 
 class TestEditNote:

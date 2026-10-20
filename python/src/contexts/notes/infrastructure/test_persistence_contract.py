@@ -56,6 +56,7 @@ class TestNoteRepository:
         repository, _ = persistence
         note = a_note(alice, "Groceries")
         note.share_with(alice, bob)
+        note.pin(alice)
         await repository.save(note)
 
         found = await repository.find_by_id(note.id.value)
@@ -66,6 +67,7 @@ class TestNoteRepository:
             title="Groceries",
             content="content of Groceries",
             status=NoteStatus.ACTIVE,
+            pinned=True,
             shared_with=["bob"],
             version=note.version + 1,
         )
@@ -138,6 +140,7 @@ class TestNoteQueries:
             content="milk",
             status=NoteStatus.ACTIVE,
             owner_id="alice",
+            pinned=False,
             shared_with=["bob"],
         )
         assert await queries.find_by_id("nobody") is None
@@ -153,10 +156,30 @@ class TestNoteQueries:
         await repository.save(second)
 
         assert await queries.find_by_owner(alice.value) == [
-            NoteListItem(id=first.id.value, title="First", status=NoteStatus.ACTIVE),
-            NoteListItem(id=second.id.value, title="Second", status=NoteStatus.ACTIVE),
+            NoteListItem(id=first.id.value, title="First", status=NoteStatus.ACTIVE, pinned=False),
+            NoteListItem(id=second.id.value, title="Second", status=NoteStatus.ACTIVE, pinned=False),
         ]
         assert await queries.find_by_owner("nobody") == []
+
+    async def test_lists_an_owners_pinned_notes_first_each_group_in_the_order_they_were_saved(
+        self, persistence: Persistence
+    ) -> None:
+        repository, queries = persistence
+        first, second, third = a_note(alice, "First"), a_note(alice, "Second"), a_note(alice, "Third")
+        third.pin(alice)
+        for note in (first, second, third):
+            await repository.save(note)
+        # Pinned after the fact, through the write side, as a handler would do it.
+        reread = await repository.find_by_id(first.id.value)
+        assert reread is not None
+        reread.pin(alice)
+        await repository.save(reread)
+
+        assert [(item.title, item.pinned) for item in await queries.find_by_owner(alice.value)] == [
+            ("First", True),
+            ("Third", True),
+            ("Second", False),
+        ]
 
     async def test_lists_the_notes_shared_with_an_account_whoever_owns_them(self, persistence: Persistence) -> None:
         repository, queries = persistence

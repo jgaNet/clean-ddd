@@ -38,3 +38,13 @@ class NoteSharedEvent(DomainEvent):
     title: str
     owner_id: str
     recipient_id: str
+
+
+@dataclass(frozen=True)
+class NotePinnedEvent(DomainEvent):
+    note_id: str
+
+
+@dataclass(frozen=True)
+class NoteUnpinnedEvent(DomainEvent):
+    note_id: str
