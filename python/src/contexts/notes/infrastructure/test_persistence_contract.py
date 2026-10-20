@@ -1,6 +1,7 @@
 """A contract test: the expectations belong to the ports, so every adapter of a port runs the
-same ones. Add an adapter (a SQLite one, say) by adding an entry to ``adapters``; if it passes
-here, the use cases will not notice the change. The repository and the queries are tested
+same ones. Add an adapter (a Postgres one, say) by adding an entry to ``adapters``; if it passes
+here, the use cases will not notice the change. Two adapters today: the in-memory pair and the
+SQLite pair. The repository and the queries are tested
 together because they are two views of one store: what the repository saves is what the queries
 must show."""
 
@@ -16,8 +17,9 @@ from contexts.notes.domain.note.note import Note
 from contexts.notes.domain.note.note_status import NoteStatus
 from contexts.notes.domain.note.ports.note_queries import NoteDetail, NoteListItem, NoteQueries, SharedNoteListItem
 from contexts.notes.domain.note.ports.note_repository import NoteRepository
-from contexts.notes.infrastructure.queries import InMemoryNoteQueries
-from contexts.notes.infrastructure.repositories import InMemoryNoteRepository
+from contexts.notes.infrastructure.notes_table import in_memory_database
+from contexts.notes.infrastructure.queries import InMemoryNoteQueries, SqliteNoteQueries
+from contexts.notes.infrastructure.repositories import InMemoryNoteRepository, SqliteNoteRepository
 
 Persistence = tuple[NoteRepository, NoteQueries]
 
@@ -27,7 +29,12 @@ def in_memory() -> Persistence:
     return InMemoryNoteRepository(data_source), InMemoryNoteQueries(data_source)
 
 
-adapters: list[Callable[[], Persistence]] = [in_memory]
+def sqlite() -> Persistence:
+    database = in_memory_database()
+    return SqliteNoteRepository(database), SqliteNoteQueries(database)
+
+
+adapters: list[Callable[[], Persistence]] = [in_memory, sqlite]
 
 alice, bob = Id("alice"), Id("bob")
 

@@ -110,6 +110,8 @@ rules:
     references: [src/contexts/notes/domain/note/ports/note_queries.py, src/contexts/notes/infrastructure/queries.py]
   CONC-OPTIMISTIC:
     references: [src/contexts/notes/infrastructure/repositories.py, src/contexts/notes/infrastructure/test_persistence_contract.py]
+  ARCH-INFRASTRUCTURE:
+    references: [src/contexts/notes/infrastructure/notes_table.py]
   ARCH-MAP-IS-REAL:
     references: [tools/conventions.py]
 
@@ -202,7 +204,7 @@ tests:
     doubles: real in-memory pieces
   - layer: '**Contract** (one port, every adapter)'
     example: '[`test_persistence_contract.py`](src/contexts/notes/infrastructure/test_persistence_contract.py)'
-    doubles: none — every case runs over each entry of `adapters`, same expectations; a second adapter is one more entry
+    doubles: none — every case runs over each entry of `adapters`, the in-memory and the SQLite pair, same expectations
   - layer: End to end
     example: '[`test_notes_routes_e2e.py`](src/bootstrap/test_notes_routes_e2e.py)'
     doubles: >-
@@ -409,6 +411,17 @@ concepts:
     canonical: [src/contexts/notes/infrastructure/repositories.py]
   queries-implementation:
     canonical: [src/contexts/notes/infrastructure/queries.py]
+  second-adapter-of-the-same-port:
+    canonical:
+      - src/contexts/notes/infrastructure/repositories.py
+      - src/contexts/notes/infrastructure/queries.py
+      - src/contexts/notes/infrastructure/notes_table.py
+    example: >-
+      `SqliteNoteRepository` in [`repositories.py`](src/contexts/notes/infrastructure/repositories.py) and
+      `SqliteNoteQueries` in [`queries.py`](src/contexts/notes/infrastructure/queries.py), over the one table of
+      [`notes_table.py`](src/contexts/notes/infrastructure/notes_table.py) (the standard library's `sqlite3`)
+    examples: [src/contexts/notes/infrastructure/test_persistence_contract.py]
+    notes: 'the contract test: [`test_persistence_contract.py`](src/contexts/notes/infrastructure/test_persistence_contract.py); the optimistic check is one `UPDATE … WHERE version = ?`'
   port-implementations:
     canonical:
       - src/contexts/security/infrastructure/signed_tokens.py
