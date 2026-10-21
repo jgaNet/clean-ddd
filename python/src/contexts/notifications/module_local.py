@@ -1,5 +1,5 @@
 """The wiring of the Notifications context: the store, the channels, the delivery service every
-entry point ends in, and the module listing the commands, the inbox query and the four
+entry point ends in, and the module listing the commands, the inbox query and the
 anti-corruption handlers on the contracts they consume. The websocket channel is exposed: the
 composition root mounts its ``/ws`` route beside the API."""
 

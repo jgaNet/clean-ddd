@@ -33,6 +33,7 @@ The README and CLAUDE.md claim that a developer (or an agent) who has never seen
 | 2026-09-30 | React to a note, written plan-first | every item PASS; the plan changed two decisions before any code, and the run found that event assertions compared nothing | [`2026-09-30-react-to-a-note.md`](2026-09-30-react-to-a-note.md) |
 | 2026-10-18 | Pin a note, **in Rust** — the first run on the Rust guide, the request of the first TypeScript run verbatim | every item PASS; the CLI answered in the wrong language (fixed), six sentences added to the Rust guide | [`2026-10-18-pin-note-rust.md`](2026-10-18-pin-note-rust.md) |
 | 2026-10-20 | Pin a note, **in Python** — the first run on the Python guide, the same request verbatim | every item PASS; two incomplete sentences completed, a Python *Questions* list, `can-import` added to the Python tool, the feature skill made language-aware | [`2026-10-20-pin-note-python.md`](2026-10-20-pin-note-python.md) |
+| 2026-10-21 | Notify recipients when a shared note is archived, **in Python** (cross-context), the request of the TypeScript run verbatim | every item PASS; two answers brought into the Python list, a fan-out sentence; `plan validate` could not plan a second contract of a context and `plan explain` showed half of a cross-context feature (both fixed) | [`2026-10-21-archived-note-notification-python.md`](2026-10-21-archived-note-notification-python.md) |
 
 ## When to run one
 
