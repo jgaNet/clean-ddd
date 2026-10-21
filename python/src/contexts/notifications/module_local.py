@@ -1,5 +1,5 @@
 """The wiring of the Notifications context: the store, the channels, the delivery service every
-entry point ends in, and the module listing the commands, the inbox query and the four
+entry point ends in, and the module listing the commands, the inbox query and the five
 anti-corruption handlers on the contracts they consume. The websocket channel is exposed: the
 composition root mounts its ``/ws`` route beside the API."""
 
@@ -21,6 +21,7 @@ from contexts.notifications.application.events.account_created_handler import Ac
 from contexts.notifications.application.events.account_validated_handler import (
     AccountValidatedIntegrationEventHandler,
 )
+from contexts.notifications.application.events.note_archived_handler import NoteArchivedIntegrationEventHandler
 from contexts.notifications.application.events.note_shared_handler import NoteSharedIntegrationEventHandler
 from contexts.notifications.application.events.operation_complete_handler import (
     OperationCompleteIntegrationEventHandler,
@@ -36,7 +37,10 @@ from shared_kernel.application.integration_events.account_integration_events imp
     AccountCreatedIntegrationEvent,
     AccountValidatedIntegrationEvent,
 )
-from shared_kernel.application.integration_events.note_integration_events import NoteSharedIntegrationEvent
+from shared_kernel.application.integration_events.note_integration_events import (
+    NoteArchivedIntegrationEvent,
+    NoteSharedIntegrationEvent,
+)
 from shared_kernel.application.integration_events.tracker_integration_events import (
     OperationCompleteIntegrationEvent,
 )
@@ -81,6 +85,7 @@ class NotificationsWiring:
                 Subscription(AccountValidatedIntegrationEvent, [AccountValidatedIntegrationEventHandler(delivery)]),
                 Subscription(OperationCompleteIntegrationEvent, [OperationCompleteIntegrationEventHandler(delivery)]),
                 Subscription(NoteSharedIntegrationEvent, [NoteSharedIntegrationEventHandler(delivery)]),
+                Subscription(NoteArchivedIntegrationEvent, [NoteArchivedIntegrationEventHandler(delivery)]),
             ],
         )
 

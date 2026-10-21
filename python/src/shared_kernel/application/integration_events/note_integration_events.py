@@ -17,3 +17,15 @@ class NoteSharedIntegrationEvent(IntegrationEvent):
     title: str
     owner_id: str
     recipient_id: str
+
+
+@dataclass(frozen=True)
+class NoteArchivedIntegrationEvent(IntegrationEvent):
+    """A note is no longer available to the people it was shared with. One fact, one message:
+    ``recipient_ids`` lists them all, empty when it was shared with nobody, and the fan-out is the
+    consumer's business."""
+
+    note_id: str
+    title: str
+    owner_id: str
+    recipient_ids: list[str]

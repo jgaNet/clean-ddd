@@ -116,7 +116,14 @@ class Note(AggregateRoot):
             return Failure(NoteAlreadyArchivedException(self.id.value))
 
         self._status = NoteStatus.ARCHIVED
-        self._record(NoteArchivedEvent(note_id=self.id.value))
+        self._record(
+            NoteArchivedEvent(
+                note_id=self.id.value,
+                title=self._title.value,
+                owner_id=self._owner_id.value,
+                shared_with=list(self._shared_with),
+            )
+        )
         return OK
 
     def restore(self, actor_id: Id) -> Result[None]:

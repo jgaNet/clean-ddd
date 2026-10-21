@@ -122,4 +122,16 @@ async def test_sharing_a_note_lets_the_recipient_read_it_and_is_refused_for_an_u
     assert operation["status"] == "ERROR" and operation["error"]["type"] == "RecipientNotFound"
     assert (await admin.get(f"{api}/notes/{note_id}")).json()["sharedWith"] == [bob_id]
 
+    # The admin archives the note: bob, who it was shared with, is told it is no longer available
+    archived = await admin.post(f"{api}/notes/{note_id}/archive")
+    assert (await app.accepted(admin, archived))["status"] == "SUCCESS"
+    inbox = (await bob.get(f"{api}/notifications/account/{bob_id}")).json()
+    archived_notice = next(n for n in inbox["notifications"] if n["title"] == "A note is no longer available: Roadmap")
+    assert archived_notice["recipientId"] == bob_id
+    assert archived_notice["metadata"] == {
+        "noteId": note_id,
+        "archivedBy": shared[0]["ownerId"],
+        "source": "Notes.NoteArchived",
+    }
+
     await app.stop()

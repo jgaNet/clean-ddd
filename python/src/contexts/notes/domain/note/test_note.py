@@ -88,7 +88,20 @@ class TestArchivingAndRestoring:
         note = a_note()
         assert note.archive(owner).is_success()
         assert note.status is NoteStatus.ARCHIVED
-        assert note.pull_domain_events() == [NoteArchivedEvent(note_id=note.id.value)]
+        assert note.pull_domain_events() == [
+            NoteArchivedEvent(note_id=note.id.value, title="Groceries", owner_id="alice", shared_with=[])
+        ]
+
+    def test_records_who_the_note_was_shared_with_when_archived(self) -> None:
+        note = a_note()
+        assert note.share_with(owner, stranger).is_success()
+        note.pull_domain_events()
+
+        assert note.archive(owner).is_success()
+
+        assert note.pull_domain_events() == [
+            NoteArchivedEvent(note_id=note.id.value, title="Groceries", owner_id="alice", shared_with=["bob"])
+        ]
 
     def test_cannot_archive_twice(self) -> None:
         assert refusal_type(an_archived_note().archive(owner)) == "NoteAlreadyArchived"

@@ -17,7 +17,7 @@ from contexts.notes.application.commands.edit_note import EditNoteCommandEvent, 
 from contexts.notes.application.commands.restore_note import RestoreNoteCommandEvent, RestoreNoteCommandHandler
 from contexts.notes.application.commands.share_note import ShareNoteCommandEvent, ShareNoteCommandHandler
 from contexts.notes.domain.note.dtos import NoteSnapshot
-from contexts.notes.domain.note.events import NoteCreatedEvent, NoteSharedEvent
+from contexts.notes.domain.note.events import NoteArchivedEvent, NoteCreatedEvent, NoteSharedEvent
 from contexts.notes.domain.note.note_sharing import NoteSharing
 from contexts.notes.domain.note.note_status import NoteStatus
 from contexts.notes.infrastructure.repositories import InMemoryNoteRepository
@@ -147,8 +147,14 @@ class TestShareNote:
 
 
 class TestArchiveNote:
-    async def test_archives_the_note(self, notes: Fixture) -> None:
+    async def test_archives_the_note_and_publishes_note_archived_with_who_it_was_shared_with(
+        self, notes: Fixture
+    ) -> None:
         note_id = await notes.a_note_owned_by("alice")
+        await ShareNoteCommandHandler(notes.repository, notes.sharing).execute(
+            ShareNoteCommandEvent(note_id=note_id, recipient_id="bob"), notes.context_for("alice")
+        )
+        notes.bus.published.clear()
 
         result = await ArchiveNoteCommandHandler(notes.repository).execute(
             ArchiveNoteCommandEvent(note_id=note_id), notes.context_for("alice")
@@ -156,6 +162,9 @@ class TestArchiveNote:
 
         assert isinstance(result, Success)
         assert notes.stored(note_id).status is NoteStatus.ARCHIVED
+        assert notes.bus.published == [
+            NoteArchivedEvent(note_id=note_id, title="Groceries", owner_id="alice", shared_with=["bob"])
+        ]
 
     async def test_refuses_a_caller_who_does_not_own_the_note(self, notes: Fixture) -> None:
         note_id = await notes.a_note_owned_by("alice")

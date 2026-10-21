@@ -24,7 +24,13 @@ class NoteEditedEvent(DomainEvent):
 
 @dataclass(frozen=True)
 class NoteArchivedEvent(DomainEvent):
+    """Carries who the note was shared with: one fact, one message; the people to tell are the
+    listener's business, not a second event per person."""
+
     note_id: str
+    title: str
+    owner_id: str
+    shared_with: list[str]
 
 
 @dataclass(frozen=True)

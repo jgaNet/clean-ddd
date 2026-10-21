@@ -18,13 +18,14 @@ from contexts.notes.application.commands.suggest_note_title import (
     SuggestNoteTitleCommandEvent,
     SuggestNoteTitleCommandHandler,
 )
+from contexts.notes.application.events.note_archived_handler import NoteArchivedHandler
 from contexts.notes.application.events.note_created_handler import NoteCreatedHandler
 from contexts.notes.application.events.note_shared_handler import NoteSharedHandler
 from contexts.notes.application.queries.get_my_notes import GetMyNotesQueryHandler
 from contexts.notes.application.queries.get_note import GetNoteQueryHandler
 from contexts.notes.application.queries.get_notes_shared_with_me import GetNotesSharedWithMeQueryHandler
 from contexts.notes.domain.note.dtos import NoteSnapshot
-from contexts.notes.domain.note.events import NoteCreatedEvent, NoteSharedEvent
+from contexts.notes.domain.note.events import NoteArchivedEvent, NoteCreatedEvent, NoteSharedEvent
 from contexts.notes.domain.note.note_sharing import NoteSharing
 from contexts.notes.domain.note.ports.account_directory import AccountDirectory
 from contexts.notes.infrastructure.queries import InMemoryNoteQueries
@@ -66,5 +67,6 @@ def local_notes_module(store: NoteStore, accounts: AccountDirectory) -> Module:
         domain_events=[
             Subscription(NoteCreatedEvent, [NoteCreatedHandler()]),
             Subscription(NoteSharedEvent, [NoteSharedHandler()]),
+            Subscription(NoteArchivedEvent, [NoteArchivedHandler()]),
         ],
     )
