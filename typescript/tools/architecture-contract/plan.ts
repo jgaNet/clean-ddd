@@ -117,6 +117,22 @@ const fill = (text: string, plan: FeaturePlan, change: PlannedChange): string =>
 export const placeOf = (checklist: Checklist, plan: FeaturePlan, change: PlannedChange): string =>
   fill(checklist.place, plan, change);
 
+/**
+ * Whether the planned part is already there. A place is usually the part's own file or directory;
+ * a context's integration-events file holds every contract of the context, so there the part is
+ * the class named inside it, and a second contract of a context can be planned as new.
+ */
+const partExists = (root: string, place: string, change: PlannedChange): boolean => {
+  const path = join(root, place);
+  if (!existsSync(path)) return false;
+  if (change.kind !== 'integration-event' || !change.name) return true;
+  try {
+    return readFileSync(path, 'utf8').includes(change.name);
+  } catch {
+    return true;
+  }
+};
+
 /** Everything the plan gets wrong against the contract, one line each; empty means it is legal. */
 export function validatePlan(plan: FeaturePlan, contract: ArchitectureContract, root: string): string[] {
   const problems: string[] = [];
@@ -152,7 +168,7 @@ export function validatePlan(plan: FeaturePlan, contract: ArchitectureContract, 
     }
 
     const place = placeOf(checklist, plan, change);
-    const exists = existsSync(join(root, place));
+    const exists = partExists(root, place, change);
     if (change.new === false && !exists)
       problems.push(`${where}: "${change.name}" is not new, but ${place} does not exist`);
     if (change.new !== false && exists)
@@ -265,6 +281,26 @@ export function explainPlan(plan: FeaturePlan, contract: ArchitectureContract): 
       route: change.route,
       verb: verb && { verb: verb.verb, shape: verb.shape, when: verb.when },
     });
+  }
+
+  // A contract published into another context is consumed there by an anti-corruption handler:
+  // the plan's context names only one side, so the other side's handler is added here.
+  const handlerChecklist = getChecklist(contract, 'event-handler');
+  if (plan.crossContext?.strategy === 'integration-event' && handlerChecklist) {
+    const consuming = { ...plan, context: plan.crossContext.context };
+    const concept = getConcept(contract, handlerChecklist.concept);
+    for (const contractChange of plan.changes.filter(change => change.kind === 'integration-event')) {
+      const change = { kind: 'event-handler', name: contractChange.name.replace(/IntegrationEvent$/, '') };
+      changes.push({
+        kind: 'event-handler',
+        name: `${change.name}: the anti-corruption handler in ${plan.crossContext.context}`,
+        place: placeOf(handlerChecklist, consuming, change),
+        new: true,
+        parts: handlerChecklist.parts.map(part => fill(part, consuming, change)),
+        canonical: concept?.canonical ?? [],
+        rules: concept?.rules ?? [],
+      });
+    }
   }
 
   if (plan.events.length) {
