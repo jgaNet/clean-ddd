@@ -1,5 +1,5 @@
 //! The wiring of the Notifications context: the channels, the one delivery service every entry
-//! point ends in, the module — its commands, its query, and the four anti-corruption handlers
+//! point ends in, the module — its commands, its query, and the five anti-corruption handlers
 //! under the integration events they consume. The websocket channel is exported: the
 //! composition root serves its `/ws` route.
 
@@ -11,7 +11,7 @@ use notifications_application::commands::mark_as_read::MarkAsReadCommandHandler;
 use notifications_application::commands::send_notification::SendNotificationCommandHandler;
 use notifications_application::delivery::NotificationDelivery;
 use notifications_application::events::{
-    AccountCreatedHandler, AccountValidatedHandler, NoteSharedHandler, OperationCompleteHandler,
+    AccountCreatedHandler, AccountValidatedHandler, NoteArchivedHandler, NoteSharedHandler, OperationCompleteHandler,
 };
 use notifications_application::queries::get_notifications::GetNotificationsQueryHandler;
 use notifications_domain::notification::NotificationSnapshot;
@@ -74,7 +74,8 @@ pub fn local_notifications_module(
                 OperationCompleteIntegrationEvent::NAME,
                 OperationCompleteHandler::new(delivery.clone()),
             ),
-            Subscription::reaction(NoteIntegrationEvent::SHARED, NoteSharedHandler::new(delivery)),
+            Subscription::reaction(NoteIntegrationEvent::SHARED, NoteSharedHandler::new(delivery.clone())),
+            Subscription::reaction(NoteIntegrationEvent::ARCHIVED, NoteArchivedHandler::new(delivery)),
         ],
     });
 

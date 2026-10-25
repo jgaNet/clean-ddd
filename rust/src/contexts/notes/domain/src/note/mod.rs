@@ -126,7 +126,12 @@ impl Note {
         }
 
         self.status = NoteStatus::Archived;
-        self.root.record(NoteEvent::Archived { note_id: self.id().value().to_string() });
+        self.root.record(NoteEvent::Archived {
+            note_id: self.id().value().to_string(),
+            title: self.title.value().to_string(),
+            owner_id: self.owner_id.value().to_string(),
+            recipient_ids: self.shared_with.clone(),
+        });
         Ok(())
     }
 
@@ -333,13 +338,24 @@ mod tests {
         use super::*;
 
         #[test]
-        fn archives_an_active_note_and_records_note_archived() {
+        fn archives_an_active_note_and_records_note_archived_with_who_had_access() {
             let mut note = a_note();
+            note.share_with(&owner(), &stranger()).expect("shareable");
+            note.pull_domain_events();
 
             note.archive(&owner()).expect("archivable");
 
             assert_eq!(note.status(), NoteStatus::Archived);
-            assert_eq!(note.pull_domain_events(), vec![NoteEvent::Archived { note_id: note.id().value().to_string() }]);
+            assert_eq!(note.shared_with(), ["bob"]); // archiving changes nothing else: a restore gives the access back
+            assert_eq!(
+                note.pull_domain_events(),
+                vec![NoteEvent::Archived {
+                    note_id: note.id().value().to_string(),
+                    title: "Groceries".into(),
+                    owner_id: "alice".into(),
+                    recipient_ids: vec!["bob".into()],
+                }]
+            );
         }
 
         #[test]

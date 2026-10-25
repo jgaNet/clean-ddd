@@ -6,10 +6,12 @@
 
 pub mod account_created_handler;
 pub mod account_validated_handler;
+pub mod note_archived_handler;
 pub mod note_shared_handler;
 pub mod operation_complete_handler;
 
 pub use account_created_handler::AccountCreatedHandler;
 pub use account_validated_handler::AccountValidatedHandler;
+pub use note_archived_handler::NoteArchivedHandler;
 pub use note_shared_handler::NoteSharedHandler;
 pub use operation_complete_handler::OperationCompleteHandler;

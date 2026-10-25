@@ -185,5 +185,31 @@ async fn sharing_a_note_lets_the_recipient_read_it_and_is_refused_for_an_unknown
         admin.get(format!("{api}/notes/{note_id}")).send().await.expect("answers").json().await.expect("JSON");
     assert_eq!(note["sharedWith"], json!([bob_id]));
 
+    // The owner archives it: bob is told the note is no longer available, and nothing else changes
+    let archived = admin.post(format!("{api}/notes/{note_id}/archive")).send().await.expect("answers");
+    assert_eq!(archived.status(), 202);
+    assert_eq!(app.accepted(&admin, archived).await["status"], "SUCCESS");
+    let inbox: Value = bob
+        .get(format!("{api}/notifications/account/{bob_id}"))
+        .send()
+        .await
+        .expect("answers")
+        .json()
+        .await
+        .expect("JSON");
+    let notice = inbox["notifications"]
+        .as_array()
+        .expect("a list")
+        .iter()
+        .find(|n| n["title"] == "A note shared with you is no longer available: Roadmap")
+        .expect("notified");
+    assert_eq!(notice["recipientId"], bob_id);
+    assert_eq!(notice["metadata"]["noteId"], note_id);
+    assert_eq!(notice["metadata"]["source"], "Notes.NoteArchived");
+    let note: Value =
+        admin.get(format!("{api}/notes/{note_id}")).send().await.expect("answers").json().await.expect("JSON");
+    assert_eq!(note["status"], "ARCHIVED");
+    assert_eq!(note["sharedWith"], json!([bob_id]));
+
     app.stop().await;
 }

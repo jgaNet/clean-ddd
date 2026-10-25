@@ -24,7 +24,7 @@ impl<R: NotificationRepository + Send + Sync + 'static> EventHandler for NoteSha
     type Event = NoteIntegrationEvent;
 
     async fn execute(&self, event: NoteIntegrationEvent, context: &ExecutionContext) -> DomainResult {
-        let NoteIntegrationEvent::Shared { note_id, title, owner_id, recipient_id } = event;
+        let NoteIntegrationEvent::Shared { note_id, title, owner_id, recipient_id } = event else { return Ok(()) };
         let metadata = Metadata::from([
             ("noteId".to_string(), note_id),
             ("sharedBy".to_string(), owner_id),

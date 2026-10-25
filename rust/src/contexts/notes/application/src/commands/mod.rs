@@ -63,7 +63,7 @@ mod tests {
         // Subscribed per channel: a new fact's name goes in this list, or `published()` stays
         // empty whatever the handler did, and an `is_empty()` assertion passes for nothing.
         let published = Arc::new(EventSubscriber(Published::default()));
-        for channel in ["NoteCreated", "NoteShared"] {
+        for channel in ["NoteCreated", "NoteShared", "NoteArchived"] {
             pollster::block_on(bus.subscribe(channel, published.clone()));
         }
         Fixture { repository: Arc::new(InMemoryNoteRepository::new(store.clone())), store, bus, published }
@@ -220,9 +220,15 @@ mod tests {
         use super::*;
 
         #[test]
-        fn archives_the_note() {
+        fn archives_the_note_and_publishes_note_archived_with_who_had_access() {
             let f = fixture();
             let note_id = f.a_note_owned_by("alice");
+            pollster::block_on(ShareNoteCommandHandler::new(f.repository.clone(), NoteSharing::new(Everyone)).execute(
+                ShareNote { note_id: note_id.clone(), recipient_id: "bob".into() },
+                &f.context_for(Some("alice"), "USER"),
+            ))
+            .expect("shared");
+            f.published.0.0.lock().unwrap().clear();
 
             pollster::block_on(
                 ArchiveNoteCommandHandler::new(f.repository.clone())
@@ -231,6 +237,16 @@ mod tests {
             .expect("archived");
 
             assert_eq!(f.stored(&note_id).status, NoteStatus::Archived);
+            assert_eq!(f.stored(&note_id).shared_with, ["bob"]);
+            assert_eq!(
+                f.published(),
+                [NoteEvent::Archived {
+                    note_id,
+                    title: "Groceries".into(),
+                    owner_id: "alice".into(),
+                    recipient_ids: vec!["bob".into()],
+                }]
+            );
         }
 
         #[test]
@@ -245,6 +261,7 @@ mod tests {
 
             assert!(result.expect_err("not the owner").is(NOT_NOTE_OWNER));
             assert_eq!(f.stored(&note_id).status, NoteStatus::Active);
+            assert!(f.published().is_empty());
         }
     }
 

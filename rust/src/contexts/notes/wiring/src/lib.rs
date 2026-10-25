@@ -16,7 +16,7 @@ use notes_application::commands::edit_note::EditNoteCommandHandler;
 use notes_application::commands::restore_note::RestoreNoteCommandHandler;
 use notes_application::commands::share_note::ShareNoteCommandHandler;
 use notes_application::commands::suggest_note_title::SuggestNoteTitleCommandHandler;
-use notes_application::events::{NoteCreatedHandler, NoteSharedHandler};
+use notes_application::events::{NoteArchivedHandler, NoteCreatedHandler, NoteSharedHandler};
 use notes_application::queries::get_my_notes::GetMyNotesQueryHandler;
 use notes_application::queries::get_note::GetNoteQueryHandler;
 use notes_application::queries::get_notes_shared_with_me::GetNotesSharedWithMeQueryHandler;
@@ -58,6 +58,7 @@ pub fn local_notes_module<D: AccountDirectory + Send + Sync + 'static>(store: &N
         domain_events: vec![
             Subscription::reaction("NoteCreated", NoteCreatedHandler),
             Subscription::reaction("NoteShared", NoteSharedHandler),
+            Subscription::reaction("NoteArchived", NoteArchivedHandler),
         ],
         integration_events: vec![],
     })

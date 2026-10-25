@@ -9,11 +9,31 @@ use architecture_domain::{DomainEvent, Event, EventKind};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NoteEvent {
-    Created { note_id: String, owner_id: String, title: String },
-    Edited { note_id: String, title: String },
-    Archived { note_id: String },
-    Restored { note_id: String },
-    Shared { note_id: String, title: String, owner_id: String, recipient_id: String },
+    Created {
+        note_id: String,
+        owner_id: String,
+        title: String,
+    },
+    Edited {
+        note_id: String,
+        title: String,
+    },
+    /// Carries who had access, so the people a note was shared with can be told it is gone.
+    Archived {
+        note_id: String,
+        title: String,
+        owner_id: String,
+        recipient_ids: Vec<String>,
+    },
+    Restored {
+        note_id: String,
+    },
+    Shared {
+        note_id: String,
+        title: String,
+        owner_id: String,
+        recipient_id: String,
+    },
 }
 
 impl Event for NoteEvent {
