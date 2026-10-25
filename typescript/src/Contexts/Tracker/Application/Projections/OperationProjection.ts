@@ -1,4 +1,4 @@
-import { Event } from '@Architecture/Domain';
+import { Event, publicName } from '@Architecture/Domain';
 import { IOperation } from '@Architecture/Application';
 
 import { OperationRecord } from '@Contexts/Tracker/Application/ReadModel/OperationRecord';
@@ -14,7 +14,7 @@ export function toOperationRecord(operation: IOperation<Event<unknown>>): Operat
 
   return {
     id: operation.id,
-    name: operation.event.name,
+    name: publicName(operation.event),
     status: operation.status,
     traceId: operation.context.traceId,
     subjectId: operation.context.auth.subjectId || undefined,

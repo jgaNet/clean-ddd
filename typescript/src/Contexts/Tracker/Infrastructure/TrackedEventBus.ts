@@ -1,4 +1,4 @@
-import { CommandEvent, Event, IResult } from '@Architecture/Domain';
+import { CommandEvent, Event, IResult, publicName } from '@Architecture/Domain';
 import { EventBus, EventHandler, ExecutionContext, IOperation, OperationStatus } from '@Architecture/Application';
 import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
 
@@ -62,7 +62,7 @@ export class TrackedEventBus implements EventBus {
         operationId: operation.id,
         userId: context.auth.subjectId as string,
         status: operation.status,
-        type: operation.event.name,
+        type: publicName(operation.event),
         result: result?.isSuccess() ? result.data : undefined,
         error: result?.isFailure() ? result.error.message : undefined,
       }),

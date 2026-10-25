@@ -14,7 +14,7 @@ from contexts.notifications.domain.notification.dtos import DeliveryAttemptSnaps
 class DeliveryAttempt(Entity):
     __slots__ = ("_at", "_channel", "_succeeded")
 
-    def __init__(self, id: Id, channel: Channel, at: datetime, succeeded: bool) -> None:  # noqa: A002
+    def __init__(self, id: Id, channel: Channel, at: datetime, succeeded: bool) -> None:
         super().__init__(id)
         self._channel = channel
         self._at = at

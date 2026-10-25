@@ -55,7 +55,7 @@ class Notification(AggregateRoot):
 
     def __init__(
         self,
-        id: Id,  # noqa: A002
+        id: Id,
         recipient_id: Id,
         title: str,
         content: str,

@@ -170,6 +170,7 @@ Every rule has a stable id, a reason, a remediation and says how it is held — 
 | **ARCH-MAP-IS-REAL** — Every file the concept map names exists, every documentation link resolves, nothing silences the linter, and the generated import rules refuse and allow what the probes say. | `yarn check:conventions` · [concepts.yaml](../conventions/concepts.yaml), [check-conventions.ts](tools/check-conventions.ts) |
 | **ARCH-LEARNABLE** — A newcomer, or an agent, can add a feature in the right shape from the documentation alone. | fresh-agent evaluations · [README.md](../docs/evaluations/README.md) |
 | **ARCH-ONE-CONTRACT** — Every language the reference is written in is held to this file — the same layers, the same rules under the same ids, the same HTTP grammar — through a binding that says where its trees are and which file shows each concept; a language never carries a rule of its own. | `yarn check:conventions` · [0011-one-reference-several-languages.md](../docs/adr/0011-one-reference-several-languages.md), [README.md](../conventions/README.md) |
+| **API-ONE-SURFACE** — Every language answers the same HTTP API — the same routes, status codes, body shapes and public names — so one black-box scenario, run against each server, passes unchanged; the public name of an operation is its intent or its fact without the suffix of its kind (`ShareNote`, `NoteShared`). | a spec · [0016-one-api-for-every-language.md](../docs/adr/0016-one-api-for-every-language.md), [OperationProjection.ts](src/Contexts/Tracker/Application/Projections/OperationProjection.ts), [operation.routes.e2e.spec.ts](src/Contexts/Tracker/Presentation/API/REST/Routes/operation.routes.e2e.spec.ts) |
 <!-- end generated -->
 
 ### Who may import whom
@@ -261,6 +262,7 @@ yarn lint               # eslint, including the layer-boundary rules
 yarn test:units         # every *.spec.ts except the e2e ones
 yarn test:e2e           # each suite boots its own application on a free port, with fresh stores; no server to start
 yarn test               # both
+node ../api/scenario.mjs http://127.0.0.1:10000   # the API every language answers, walked against a running server
 ```
 
 `yarn build` bundles the server with [`deployments/build.js`](deployments/build.js); the Docker and Kubernetes files next to it are described in [`deployments/README.md`](deployments/README.md). They are not part of the reference architecture.

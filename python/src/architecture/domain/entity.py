@@ -23,7 +23,7 @@ from architecture.domain.id import Id
 class Entity:
     __slots__ = ("_id",)
 
-    def __init__(self, id: Id) -> None:  # noqa: A002 — the identity is what an entity is named by
+    def __init__(self, id: Id) -> None:
         self._id = id
 
     @property

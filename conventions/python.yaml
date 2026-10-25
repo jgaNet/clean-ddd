@@ -112,6 +112,8 @@ rules:
     references: [src/contexts/notes/infrastructure/repositories.py, src/contexts/notes/infrastructure/test_persistence_contract.py]
   ARCH-INFRASTRUCTURE:
     references: [src/contexts/notes/infrastructure/notes_table.py]
+  API-ONE-SURFACE:
+    references: [src/contexts/tracker/application/projection.py, src/bootstrap/test_operation_routes_e2e.py]
   ARCH-MAP-IS-REAL:
     references: [tools/conventions.py]
 

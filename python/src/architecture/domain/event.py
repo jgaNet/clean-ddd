@@ -24,6 +24,7 @@ Being a dataclass, an event compares by value: a test that asserts
 every field.
 """
 
+import re
 from dataclasses import dataclass
 
 
@@ -35,6 +36,14 @@ class Event:
 def name_of(event: Event | type[Event]) -> str:
     """The name the bus routes on: the event's class name, from the class or from an instance."""
     return event.__name__ if isinstance(event, type) else type(event).__name__
+
+
+def public_name_of(event: Event | type[Event]) -> str:
+    """The name a message has outside the process, on an operation record or in a completion
+    notice: its intent or its fact, without the suffix that names its kind here (``ShareNote``,
+    ``NoteShared``, ``OperationComplete``). The bus keeps routing on the full name; the suffix is
+    this codebase's naming convention, and every language answers the same API (API-ONE-SURFACE)."""
+    return re.sub(r"(CommandEvent|IntegrationEvent|Event)$", "", name_of(event))
 
 
 @dataclass(frozen=True)

@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-import { dirname, join } from 'path';
+import { dirname, join, resolve } from 'path';
+import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { AddressInfo } from 'net';
 
@@ -24,10 +25,31 @@ import { authRoutes } from '@Contexts/Security/Presentation/API/REST/Routes/auth
 import { notificationRoutes } from '@Contexts/Notifications/Presentation/API/REST/Routes';
 
 import { Application, ExecutionContext, Logger } from '@Architecture/Application';
+import { formatOf } from '@Architecture/Presentation/Format';
 import { ConsoleLogger } from '@Architecture/Infrastructure/Logging/ConsoleLogger';
 import { InMemoryUnitOfWork } from '@Architecture/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * The HTMX front end is shared by every language and lives at the repository root (`web/`),
+ * beside the language directories; it is found by walking up from this file, so the sources
+ * (`src/Bootstrap/Fastify/`), the bundle (`dist/`) and a Docker image laid out the same way all
+ * reach it. `WEB_ROOT` overrides the lookup when the deployment lays things out differently.
+ */
+function webRoot(from: string): string {
+  if (process.env.WEB_ROOT) return process.env.WEB_ROOT;
+  let dir = from;
+  for (;;) {
+    const candidate = join(dir, 'web', 'index.html');
+    if (existsSync(candidate)) return dirname(candidate);
+    const parent = resolve(dir, '..');
+    if (parent === dir) throw new Error(`No web/ directory found above ${from}; set WEB_ROOT`);
+    dir = parent;
+  }
+}
+
+const WEB = webRoot(__dirname);
 
 /**
  * The composition root: the one place that knows every context, every route and the
@@ -63,8 +85,16 @@ export class FastifyApplication extends Application {
       done();
     });
 
+    // An HTMX answer is an HTML fragment; Fastify would label a string text/plain.
+    this.fastify.addHook('onSend', async (request, reply, payload) => {
+      const contentType = String(reply.getHeader('content-type') ?? '');
+      if (formatOf(request) === 'htmx' && typeof payload === 'string' && contentType.startsWith('text/plain')) {
+        reply.type('text/html; charset=utf-8');
+      }
+      return payload;
+    });
     this.fastify.register(fastifyCookie);
-    this.fastify.register(fastifyStatic, { root: join(__dirname, 'public'), index: 'index.html' });
+    this.fastify.register(fastifyStatic, { root: WEB, index: 'index.html' });
     this.fastify.setNotFoundHandler((_, reply) => {
       reply.sendFile('index.html');
     });

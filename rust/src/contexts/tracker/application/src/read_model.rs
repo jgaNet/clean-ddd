@@ -8,7 +8,7 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct OperationRecord {
     pub id: String,
-    /// The command or event name, e.g. `"CreateNote"`.
+    /// The public name of the command or event, e.g. `"CreateNote"`: its intent, without the suffix of its kind.
     pub name: String,
     /// `PENDING`, `SUCCESS`, `SENT` or `ERROR`.
     pub status: String,

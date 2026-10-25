@@ -6,7 +6,7 @@ no place in a read model) and the payload (it may carry a secret), and flattens 
 from typing import Any
 
 from architecture.application.operation import Operation
-from architecture.domain.event import name_of
+from architecture.domain.event import public_name_of
 from architecture.domain.result import Failure, Success
 from contexts.tracker.application.read_model import OperationError, OperationRecord
 
@@ -15,7 +15,7 @@ def to_operation_record(operation: Operation[Any]) -> OperationRecord:
     result = operation.result
     return OperationRecord(
         id=operation.id,
-        name=name_of(operation.event),
+        name=public_name_of(operation.event),
         status=operation.status,
         trace_id=operation.context.trace_id,
         subject_id=operation.context.auth.subject_id or None,

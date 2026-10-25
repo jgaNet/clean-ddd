@@ -8,7 +8,7 @@ from contexts.security.domain.account.account import Account
 
 
 class AccountRepository(Protocol):
-    async def find_by_id(self, id: str) -> Account | None: ...  # noqa: A002
+    async def find_by_id(self, id: str) -> Account | None: ...
 
     async def find_by_email(self, email: str) -> Account | None: ...
 

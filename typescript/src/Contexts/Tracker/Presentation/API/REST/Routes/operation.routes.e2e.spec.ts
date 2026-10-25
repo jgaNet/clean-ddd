@@ -29,7 +29,7 @@ describe('Tracker: following an operation', () => {
     expect(operation.status).toBe(200);
     expect(operation.body).toEqual({
       id: accepted.body.operationId,
-      name: 'ShareNoteCommandEvent',
+      name: 'ShareNote',
       status: 'ERROR',
       traceId: accepted.headers['x-trace-id'],
       subjectId: expect.any(String),
@@ -49,8 +49,8 @@ describe('Tracker: following an operation', () => {
     // The trace holds the command and everything it set off: here the notifications telling
     // the caller how it went, whose own domain events are recorded too (never announced).
     const records: { name: string; status: string; traceId: string }[] = byTrace.body;
-    expect(records.map(r => [r.name, r.status])).toContainEqual(['ShareNoteCommandEvent', 'ERROR']);
-    expect(records.map(r => r.name)).toEqual(expect.arrayContaining(['NotificationFailedEvent']));
+    expect(records.map(r => [r.name, r.status])).toContainEqual(['ShareNote', 'ERROR']);
+    expect(records.map(r => r.name)).toEqual(expect.arrayContaining(['NotificationFailed']));
     expect(new Set(records.map(r => r.traceId))).toEqual(new Set([accepted.headers['x-trace-id']]));
   });
 });

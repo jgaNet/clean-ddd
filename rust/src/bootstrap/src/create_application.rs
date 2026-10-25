@@ -3,9 +3,10 @@
 //! over them, the modules from each context's wiring, the routes under the API prefix, and the
 //! two layers that give each request its identity (Security's authentication) and its
 //! `ExecutionContext`. Then it starts the modules, seeds the administrator through the same
-//! handler as any command, and only then listens. The static front end (`public/`: the page
-//! and the HTMX scripts) is served beside the API, `index.html` answering any path the API
-//! does not, so the front end's own routes (`/me`) load the page.
+//! handler as any command, and only then listens. The static front end (`web/` at the repository
+//! root, shared by every language: the page and the HTMX scripts) is served beside the API,
+//! `index.html` answering any path the API does not, so the front end's own routes (`/me`) load
+//! the page.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -89,7 +90,7 @@ pub async fn create_application(settings: Settings, logger: Arc<dyn Logger>) -> 
     // The routes, under the API prefix, each context's under its own; the websocket and the
     // static front end at the root.
     let home = Arc::new(HomeViewModel { name: settings.name.clone(), version: settings.version.clone() });
-    let public = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("public");
+    let public = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../web");
     let api = Router::new()
         .merge(home_routes(home))
         .nest("/notes", note_routes(notes))

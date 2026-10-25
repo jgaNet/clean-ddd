@@ -37,3 +37,13 @@ export class Event<PayloadDTO> {
     return new this({ payload });
   }
 }
+
+/**
+ * The name a message has outside the process — on an operation record, in a completion notice:
+ * its intent or its fact, without the suffix that names its kind here (`ShareNote`, `NoteShared`,
+ * `OperationComplete`). The bus keeps routing on the full name; the suffix is this codebase's
+ * naming convention, and every language of the reference answers the same API (API-ONE-SURFACE).
+ */
+export function publicName(event: { name: string }): string {
+  return event.name.replace(/(CommandEvent|IntegrationEvent|Event)$/, '');
+}

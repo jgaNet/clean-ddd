@@ -3,9 +3,10 @@ It builds the bus (the in-memory one, tracked), the stores and the unit of work 
 modules from each context's wiring, the routes under the API prefix, and the two middlewares
 that give each request its identity (Security's authentication) and its ``ExecutionContext``.
 Then it starts the modules, seeds the administrator through the same handler as any command,
-and only then listens. The websocket and the static front end (``public/``: the page and the
-HTMX scripts) are served beside the API, ``index.html`` answering any path the API does not, so
-the front end's own routes (``/me``) load the page.
+and only then listens. The websocket and the static front end (``web/`` at the repository
+root, shared by every language: the page and the HTMX scripts) are served beside the API,
+``index.html`` answering any path the API does not, so the front end's own routes (``/me``) load
+the page.
 """
 
 import asyncio
@@ -39,7 +40,7 @@ from contexts.tracker.infrastructure.tracked_event_bus import TrackedEventBus
 from contexts.tracker.module_local import local_tracker_module, operation_records, operation_store, tracked_event_bus
 from contexts.tracker.presentation.routes import operation_routes
 
-PUBLIC = Path(__file__).parent / "public"
+PUBLIC = Path(__file__).parents[3] / "web"
 TRACE_HEADER = "x-trace-id"
 
 

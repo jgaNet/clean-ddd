@@ -333,8 +333,49 @@ def run(here: Path) -> tuple[Problems, str]:
     return problems, summary
 
 
-def main() -> int:
+def can_import(here: Path, pairs: list[tuple[str, str]]) -> list[tuple[str, str, str | None]]:
+    """For each (file, module) pair, None when the import would be allowed, else the refusal naming
+    its rule: the same table the check holds every import to, asked before the import is written."""
+    root = repository_root(here)
+    if root is None:
+        raise SystemExit(f"✗ {CONTRACT} not found at or above {here}")
+    contract = load_yaml(root / CONTRACT)
+    binding = load_yaml(root / BINDING)
+    verdicts: list[tuple[str, str, str | None]] = []
+    for file, target in pairs:
+        path = (here / file).resolve() if not Path(file).is_absolute() else Path(file)
+        module = classify(path, binding, contract, here) if path.is_relative_to(here / "src") else None
+        if module is None:
+            verdicts.append((file, target, "ARCH-CONTEXT-DECLARED: the file is outside every tree the binding names"))
+            continue
+        row = row_of(module, contract)
+        unit = unit_of(module, target, binding, contract)
+        if row is None or unit is None:
+            verdicts.append((file, target, None))
+            continue
+        rule_id, allowed = row
+        if unit in expand(allowed, contract):
+            verdicts.append((file, target, None))
+        else:
+            verdicts.append((file, target, f"{rule_id}: {unit} is not in the row of {module.layer or 'the wiring'}"))
+    return verdicts
+
+
+def main(argv: list[str] | None = None) -> int:
     here = Path(__file__).resolve().parent.parent
+    args = sys.argv[1:] if argv is None else argv
+    if args[:1] == ["can-import"]:
+        pairs = list(zip(args[1::2], args[2::2], strict=True))
+        if not pairs:
+            print(
+                "usage: python -m tools.conventions can-import <file> <module> [<file> <module> ...]", file=sys.stderr
+            )
+            return 2
+        refused = False
+        for file, target, refusal in can_import(here, pairs):
+            refused = refused or refusal is not None
+            print(f"{'✗' if refusal else '✓'} {file} -> {target}" + (f": {refusal}" if refusal else ""))
+        return 1 if refused else 0
     problems, summary = run(here)
     if problems.found:
         for problem in problems.found:

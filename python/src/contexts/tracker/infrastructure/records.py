@@ -9,7 +9,7 @@ class InMemoryOperationRecords:
     async def save(self, record: OperationRecord) -> None:
         self._data_source.collection[record.id] = record
 
-    async def find_by_id(self, id: str) -> OperationRecord | None:  # noqa: A002
+    async def find_by_id(self, id: str) -> OperationRecord | None:
         return self._data_source.collection.get(id)
 
     async def find_all(self) -> list[OperationRecord]:

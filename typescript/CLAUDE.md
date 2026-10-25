@@ -20,6 +20,7 @@ yarn typecheck          # tsc --noEmit
 yarn lint               # eslint, including the layer-boundary rules
 yarn test:units         # unit tests
 yarn test:e2e           # each suite boots its own application on a free port; no server to start
+node ../api/scenario.mjs http://127.0.0.1:10000   # the API every language answers, against a running server (yarn start:dev)
 yarn test -- -t "name"  # one test
 yarn format             # prettier (format:check is what CI runs)
 ```
@@ -29,7 +30,8 @@ Node ≥ 24 (`.nvmrc` = 24). All of `yarn check:conventions`, `yarn format:check
 ## Where things are
 
 ```
-src/Bootstrap/Fastify/            composition root (createApplication.ts); application.ts is the entry point
+src/Bootstrap/Fastify/            composition root (createApplication.ts); application.ts is the entry point;
+                                  it serves the shared front end ../web/
 src/Architecture/                 the building blocks: mechanics, no vocabulary (they do not even know the roles)
   Domain/                         Entity, AggregateRoot, ValueObject, Id, Event(+kinds), Exception, Result — depends on nothing
   Application/                    CommandHandler, QueryHandler, EventHandler, ExecutionContext, EventBus, Module, Application

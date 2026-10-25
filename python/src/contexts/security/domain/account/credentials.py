@@ -16,7 +16,7 @@ class Credentials(ValueObject[str]):
     TYPE = "password"
 
     @staticmethod
-    def create(hash: str) -> Result["Credentials"]:  # noqa: A002
+    def create(hash: str) -> Result["Credentials"]:
         if not hash:
             return Failure(InvalidCredentialsException())
         return Success(Credentials(hash))

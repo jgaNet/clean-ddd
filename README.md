@@ -13,7 +13,7 @@ The reference is written in several programming languages from **one architectur
 
 ## The languages
 
-Each language's README is where to start reading it: the request followed end to end, the map of its files, how to run it. Its CLAUDE.md is the guide for working in it, by hand or with an agent.
+Each language's README is where to start reading it: the request followed end to end, the map of its files, how to run it. Its CLAUDE.md is the guide for working in it, by hand or with an agent. The three answer one API: [`api/scenario.mjs`](api/scenario.mjs), a black-box client, walks whichever server is up and passes against each ([ADR 16](docs/adr/0016-one-api-for-every-language.md)); the front end they serve is one folder, [`web/`](web).
 
 <!-- generated from conventions/concepts.yaml (languages); edit the YAML, then run yarn conventions:write -->
 | Language | Where | Contexts | Concepts shown | Read |
@@ -120,6 +120,7 @@ Every rule has a stable id, a reason, a remediation and says how it is held: by 
 | **ARCH-MAP-IS-REAL** — Every file the concept map names exists, every documentation link resolves, nothing silences the linter, and the generated import rules refuse and allow what the probes say. | check · [concepts.yaml](conventions/concepts.yaml) |
 | **ARCH-LEARNABLE** — A newcomer, or an agent, can add a feature in the right shape from the documentation alone. | evaluations · [README.md](docs/evaluations/README.md) |
 | **ARCH-ONE-CONTRACT** — Every language the reference is written in is held to this file — the same layers, the same rules under the same ids, the same HTTP grammar — through a binding that says where its trees are and which file shows each concept; a language never carries a rule of its own. | check · [0011-one-reference-several-languages.md](docs/adr/0011-one-reference-several-languages.md), [README.md](conventions/README.md) |
+| **API-ONE-SURFACE** — Every language answers the same HTTP API — the same routes, status codes, body shapes and public names — so one black-box scenario, run against each server, passes unchanged; the public name of an operation is its intent or its fact without the suffix of its kind (`ShareNote`, `NoteShared`). | tests · [0016-one-api-for-every-language.md](docs/adr/0016-one-api-for-every-language.md) |
 <!-- end generated -->
 
 The dependency table — which layer may import from which — is in [`conventions/architecture.yaml`](conventions/architecture.yaml) and rendered in each language's README, where the import rules are generated from it.
@@ -133,7 +134,9 @@ docs/adr/                   the decisions, shared by every language
 docs/evaluations/           can a newcomer add a feature from the documentation alone? Protocol and records
 typescript/                 the TypeScript implementation: its code, its toolchain, its README and CLAUDE.md
 rust/                       the Rust implementation: the same application, a crate per layer, its check, its README and CLAUDE.md
-python/                     the Python implementation, Domain layer first: a package per layer, its import linter, its README and CLAUDE.md
+python/                     the Python implementation: the same application, a package per layer, its import linter, its README and CLAUDE.md
+web/                        the HTMX front end, one copy served by every language's bootstrap
+api/                        the API every language answers, as one black-box scenario run against each server
 .claude/                    the feature skill and the feature-author agent, for working here with an agent
 ```
 
@@ -147,6 +150,7 @@ A new language is a new rendering of the same architecture, not a fork of it.
 2. **A binding**, `conventions/<language>.yaml`, listed under `languages` in [`conventions/architecture.yaml`](conventions/architecture.yaml). It says where the trees are and how they are imported, which contexts exist, which tool holds each enforcement word, which checks a change must pass, what the two modes protect, what a new thing of each kind is made of in that language, and which file shows each concept and each rule. [`conventions/typescript.yaml`](conventions/typescript.yaml) is the example; its header says what each section is for.
 3. **An import linter and a conventions check** of its own, generated from the dependency table the way `typescript/eslint.config.js` and `typescript/tools/check-conventions.ts` are. In a language whose compilation units carry their dependencies the table may become those dependencies, and the check compares them to the contract: that is what `rust/` does, one crate per layer and `cargo run -p conventions`. In a language with neither, the check reads every import itself: that is what `python/` does, an `ast` walk in `tools/conventions.py`.
 4. **A README and a CLAUDE.md** in the directory, rendered from the contract between the same markers, so that the documents cannot drift from the data.
+5. **The same API.** [`api/scenario.mjs`](api/scenario.mjs) run against the new server passes unchanged, and CI runs it (API-ONE-SURFACE, [ADR 16](docs/adr/0016-one-api-for-every-language.md)); until it does, the failing steps are the list of what the language still owes its clients.
 
 The map then shows which concepts the new language already has, and which it still owes. A concept the language genuinely cannot express the same way is still the same concept: the binding points at the file that plays the role, and the language's README says how the idiom differs. A rule it cannot hold is reported in its binding's `enforcers` as `review`, never dropped.
 

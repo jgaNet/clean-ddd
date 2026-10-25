@@ -22,7 +22,7 @@ class OperationError:
 @dataclass(frozen=True)
 class OperationRecord:
     id: str
-    #: The command or event name, e.g. "CreateNoteCommandEvent".
+    #: The public name of the command or event, e.g. "CreateNote": its intent, without the suffix of its kind.
     name: str
     status: OperationStatus
     trace_id: str

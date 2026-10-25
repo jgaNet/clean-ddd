@@ -50,6 +50,12 @@ ignore = [
   "PLE1205", # the Logger port takes (message, error, meta); the lint mistakes it for the standard library's
 ]
 
+[tool.ruff.lint.flake8-builtins]
+# `id` is the identity of an entity, `type` the kind of a domain exception, `hash` a hashed password,
+# `format` the answer's format: the architecture's words, used in signatures and factories on
+# purpose; shadowing the builtin there is the domain speaking, not a mistake.
+builtins-ignorelist = ["id", "type", "hash", "format"]
+
 [tool.ruff.lint.per-file-ignores]
 "**/test_*.py" = ["PLR2004", "ANN", "T20"]
 "tools/*" = ["T20"]  # a tool talks on the console

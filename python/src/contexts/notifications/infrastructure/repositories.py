@@ -7,7 +7,7 @@ class InMemoryNotificationRepository:
     def __init__(self, data_source: InMemoryDataSource[NotificationSnapshot]) -> None:
         self._data_source = data_source
 
-    async def find_by_id(self, id: str) -> Notification | None:  # noqa: A002
+    async def find_by_id(self, id: str) -> Notification | None:
         snapshot = self._data_source.collection.get(id)
         return Notification.from_snapshot(snapshot) if snapshot else None
 

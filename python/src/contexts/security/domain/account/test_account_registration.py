@@ -13,7 +13,7 @@ class FakeAccountRepository:
     def __init__(self) -> None:
         self._accounts: dict[str, Account] = {}
 
-    async def find_by_id(self, id: str) -> Account | None:  # noqa: A002
+    async def find_by_id(self, id: str) -> Account | None:
         return self._accounts.get(id)
 
     async def find_by_email(self, email: str) -> Account | None:

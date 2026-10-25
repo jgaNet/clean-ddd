@@ -351,3 +351,11 @@ rules:
     remediation: Put the rule here and point the binding at the file that shows it; what a language cannot hold, it reports as a gap in its binding, not as a rule it lacks.
     enforcement: check
     references: [docs/adr/0011-one-reference-several-languages.md, conventions/README.md]
+
+  - id: API-ONE-SURFACE
+    name: every-language-answers-the-same-api
+    statement: Every language answers the same HTTP API — the same routes, status codes, body shapes and public names — so one black-box scenario, run against each server, passes unchanged; the public name of an operation is its intent or its fact without the suffix of its kind (`ShareNote`, `NoteShared`).
+    why: A reference in several languages teaches one application, not three; a client, a front end or a test that works against one server must work against the others, and the API is where that is visible.
+    remediation: Fix the server that differs, never the scenario; a name that leaks a class suffix is stripped where the record is projected, not renamed on the bus.
+    enforcement: tests
+    references: [docs/adr/0016-one-api-for-every-language.md]

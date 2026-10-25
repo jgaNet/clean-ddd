@@ -162,7 +162,7 @@ describe('a feature plan', () => {
       aPlan({
         changes: [
           { kind: 'aggregate', name: 'Bookmark' },
-          { kind: 'integration-event', name: 'NoteBookmarkedIntegrationEvent', aggregate: 'Note', new: false },
+          { kind: 'integration-event', name: 'NoteBookmarkedIntegrationEvent', aggregate: 'Note' },
         ],
         crossContext: { context: 'Notifications', strategy: 'integration-event' },
       }),
@@ -172,12 +172,31 @@ describe('a feature plan', () => {
     expect(withContract).toEqual([]);
   });
 
+  it('lets a second contract of a context be planned as new, since the file holds every contract', () => {
+    const plan = aPlan({
+      changes: [
+        { kind: 'integration-event', name: 'NoteArchivedIntegrationEvent', aggregate: 'Note' },
+        { kind: 'integration-event', name: 'NoteSharedIntegrationEvent', aggregate: 'Note', new: false },
+      ],
+      crossContext: { context: 'Notifications', strategy: 'integration-event' },
+    });
+    expect(validatePlan(plan, contract, root)).toEqual([]);
+
+    const [existing] = validatePlan(
+      aPlan({
+        changes: [{ kind: 'integration-event', name: 'NoteSharedIntegrationEvent', aggregate: 'Note' }],
+        crossContext: { context: 'Notifications', strategy: 'integration-event' },
+      }),
+      contract,
+      root,
+    );
+    expect(existing).toContain('"NoteSharedIntegrationEvent" is planned as new');
+  });
+
   it('treats the integration events as publishable: adding a contract is not an architecture change', () => {
     const problems = validatePlan(
       aPlan({
-        changes: [
-          { kind: 'integration-event', name: 'SomethingHappenedIntegrationEvent', aggregate: 'Note', new: false },
-        ],
+        changes: [{ kind: 'integration-event', name: 'SomethingHappenedIntegrationEvent', aggregate: 'Note' }],
         crossContext: { context: 'Notifications', strategy: 'integration-event' },
       }),
       contract,
@@ -209,6 +228,7 @@ describe('a feature plan', () => {
 
     const [aggregate, command] = explained.changes;
     expect(aggregate.place).toBe('typescript/src/Contexts/Notes/Domain/Bookmark/Bookmark.ts');
+    expect(explained.changes.filter(change => change.kind === 'event-handler')).toEqual([]); // no contract listed
     expect(aggregate.parts.join(' ')).toContain('BookmarkExceptions.ts'); // the placeholders are filled in
     expect(aggregate.canonical).toContain('typescript/src/Architecture/Domain/AggregateRoot.ts');
     expect(command.place).toBe('typescript/src/Contexts/Notes/Application/Commands/BookmarkNote/');
@@ -226,5 +246,19 @@ describe('a feature plan', () => {
       ]),
     );
     expect(explained.checks).toContain('yarn check:conventions');
+  });
+
+  it('adds the consuming side of a published contract: an anti-corruption handler in the other context', () => {
+    const explained = explainPlan(
+      aPlan({
+        changes: [{ kind: 'integration-event', name: 'NoteArchivedIntegrationEvent', aggregate: 'Note' }],
+        crossContext: { context: 'Notifications', strategy: 'integration-event' },
+      }),
+      contract,
+    );
+
+    const handler = explained.changes.find(change => change.kind === 'event-handler');
+    expect(handler?.place).toBe('typescript/src/Contexts/Notifications/Application/Events/NoteArchivedHandler.ts');
+    expect(handler?.name).toContain('the anti-corruption handler in Notifications');
   });
 });

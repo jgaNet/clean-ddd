@@ -98,6 +98,6 @@ async def test_what_a_reference_must_not_do() -> None:
 
     # Never record a login: the token is not an operation's result
     operations = (await admin.get(f"{api}/tracker/operations")).json()
-    assert all(record["name"] != "LoginCommandEvent" for record in operations)
+    assert all(record["name"] != "Login" for record in operations)
 
     await app.stop()

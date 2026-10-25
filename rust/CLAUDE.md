@@ -12,6 +12,7 @@ cargo fmt --check                           # rustfmt (cargo fmt to apply)
 cargo clippy --all-targets -- -D warnings   # the lints, warnings refused
 cargo test                                  # every #[test], the end-to-end suites included; cargo test -p notes-domain for one crate, cargo test <name> for one test
 cargo run -p bootstrap                      # serves the application on http://127.0.0.1:10000/v1
+node ../api/scenario.mjs http://127.0.0.1:10000   # the API every language answers, against that server
 yarn --cwd ../typescript architecture rule <ID> | concept <id> | checklist <kind> | verb <intent>   # the contract, asked; from here it answers in Rust (`--language rust` says it explicitly)
 yarn --cwd ../typescript architecture mode feature --base <ref>   # did this change leave the architecture alone (`--base working` for uncommitted changes; the default base is origin/main)
 yarn --cwd ../typescript conventions:write  # re-render README.md after editing conventions/rust.yaml
