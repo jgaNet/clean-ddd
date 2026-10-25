@@ -1,7 +1,8 @@
 name: ci
 
 # One job per language, each run from its own directory with its own toolchain, and one `check`
-# job that fans them in, which is what the branch protection requires. There is no
+# job that fans them in, which is what the branch protection requires. Each language's job ends
+# by starting its server and running the one API scenario against it (api/scenario.mjs). There is no
 # path filter on purpose: a change to the contract, to a decision or to a shared document must
 # run every language's checks, since every language's documents are rendered from them.
 
@@ -49,6 +50,13 @@ jobs:
       - name: End-to-end tests
         run: yarn test:e2e
 
+      - name: The API every language answers
+        run: |
+          yarn build
+          PORT=10000 node dist/application.js > server.log 2>&1 &
+          ../.github/wait-for-health.sh http://127.0.0.1:10000 || (cat server.log; exit 1)
+          node ../api/scenario.mjs http://127.0.0.1:10000 || (cat server.log; exit 1)
+
   rust:
     runs-on: ubuntu-latest
     defaults:
@@ -79,6 +87,18 @@ jobs:
 
       - name: Tests
         run: cargo test
+
+      - name: Use Node (for the shared API scenario)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: typescript/.nvmrc
+
+      - name: The API every language answers
+        run: |
+          cargo build -q -p bootstrap
+          PORT=10000 ./target/debug/application > server.log 2>&1 &
+          ../.github/wait-for-health.sh http://127.0.0.1:10000 || (cat server.log; exit 1)
+          node ../api/scenario.mjs http://127.0.0.1:10000 || (cat server.log; exit 1)
 
   python:
     runs-on: ubuntu-latest
@@ -112,6 +132,17 @@ jobs:
 
       - name: Tests
         run: uv run pytest
+
+      - name: Use Node (for the shared API scenario)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: typescript/.nvmrc
+
+      - name: The API every language answers
+        run: |
+          PORT=10000 uv run python -m bootstrap > server.log 2>&1 &
+          ../.github/wait-for-health.sh http://127.0.0.1:10000 || (cat server.log; exit 1)
+          node ../api/scenario.mjs http://127.0.0.1:10000 || (cat server.log; exit 1)
 
   # The one check the branch protection requires: green when every language's job is. A new
   # language is added to `needs`, and nothing else changes.

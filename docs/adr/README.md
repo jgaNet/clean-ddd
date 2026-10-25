@@ -19,5 +19,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0013](0013-in-rust-the-bus-routes-by-name-and-a-handler-is-a-trait.md) | In Rust, the bus routes type-erased events by name, and a handler is a trait with a provided `handle()` |
 | [0014](0014-in-rust-the-transport-spawns-the-dispatch-and-finds-handlers-by-their-message.md) | In Rust, the transport spawns the dispatch, and a handler is found by its message |
 | [0015](0015-in-python-a-layer-is-a-package-and-an-ast-walk-holds-the-table.md) | In Python, a layer is a package, and an `ast` walk holds the dependency table |
+| [0016](0016-one-api-for-every-language.md) | One API for every language: a shared black-box scenario is the executable contract |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

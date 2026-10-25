@@ -4,6 +4,7 @@
 //! result into `result` / `error`.
 
 use architecture_application::Operation;
+use architecture_domain::public_name;
 use chrono::{DateTime, Utc};
 
 use crate::read_model::{OperationError, OperationRecord};
@@ -11,7 +12,7 @@ use crate::read_model::{OperationError, OperationRecord};
 pub fn to_operation_record(operation: &Operation) -> OperationRecord {
     OperationRecord {
         id: operation.id().to_string(),
-        name: operation.event().name().to_string(),
+        name: public_name(operation.event().name()).to_string(),
         status: operation.status().as_str().to_string(),
         trace_id: operation.context().trace_id().to_string(),
         subject_id: operation.context().auth().subject_id.clone(),

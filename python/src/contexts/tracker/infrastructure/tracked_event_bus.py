@@ -16,7 +16,7 @@ from typing import Any
 from architecture.application.event_bus import EventBus, Subscriber
 from architecture.application.execution_context import ExecutionContext
 from architecture.application.operation import Operation, OperationStatus
-from architecture.domain.event import CommandEvent, Event, name_of
+from architecture.domain.event import CommandEvent, Event, public_name_of
 from architecture.domain.result import Failure, Success
 from contexts.tracker.application.ports import OperationRecords
 from contexts.tracker.application.projection import to_operation_record
@@ -79,7 +79,7 @@ class TrackedEventBus:
                 operation_id=operation.id,
                 user_id=user_id,
                 status=operation.status.value,
-                type=name_of(operation.event),
+                type=public_name_of(operation.event),
                 result=result.data if isinstance(result, Success) else None,
                 error=result.error.message if isinstance(result, Failure) else None,
             ),

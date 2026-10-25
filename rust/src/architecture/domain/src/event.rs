@@ -42,6 +42,14 @@ pub trait Event: fmt::Debug + Clone + PartialEq {
     fn kind(&self) -> EventKind;
 }
 
+/// The name a message has outside the process — on an operation record, in a completion notice:
+/// its intent or its fact, without the suffix that names its kind here (`ShareNote`, `NoteShared`,
+/// `OperationComplete`). The bus keeps routing on the full name; the suffix is this codebase's
+/// naming convention, and every language of the reference answers the same API (API-ONE-SURFACE).
+pub fn public_name(name: &str) -> &str {
+    ["CommandEvent", "IntegrationEvent", "Event"].iter().find_map(|suffix| name.strip_suffix(suffix)).unwrap_or(name)
+}
+
 /// A request that something happen; one handler, may be refused. A command is a struct with
 /// one name, which is the channel its handler is subscribed on, and says what its handler
 /// answers with (the id of what it created, a suggestion; `()` when nothing).

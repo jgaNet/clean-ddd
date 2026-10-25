@@ -25,6 +25,7 @@ import { authRoutes } from '@Contexts/Security/Presentation/API/REST/Routes/auth
 import { notificationRoutes } from '@Contexts/Notifications/Presentation/API/REST/Routes';
 
 import { Application, ExecutionContext, Logger } from '@Architecture/Application';
+import { formatOf } from '@Architecture/Presentation/Format';
 import { ConsoleLogger } from '@Architecture/Infrastructure/Logging/ConsoleLogger';
 import { InMemoryUnitOfWork } from '@Architecture/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
 
@@ -84,6 +85,14 @@ export class FastifyApplication extends Application {
       done();
     });
 
+    // An HTMX answer is an HTML fragment; Fastify would label a string text/plain.
+    this.fastify.addHook('onSend', async (request, reply, payload) => {
+      const contentType = String(reply.getHeader('content-type') ?? '');
+      if (formatOf(request) === 'htmx' && typeof payload === 'string' && contentType.startsWith('text/plain')) {
+        reply.type('text/html; charset=utf-8');
+      }
+      return payload;
+    });
     this.fastify.register(fastifyCookie);
     this.fastify.register(fastifyStatic, { root: WEB, index: 'index.html' });
     this.fastify.setNotFoundHandler((_, reply) => {

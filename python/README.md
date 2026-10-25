@@ -141,6 +141,7 @@ The rules are the contract's, listed with their ids in the root [CLAUDE.md](../C
 | **ARCH-MAP-IS-REAL** — Every file the concept map names exists, every documentation link resolves, nothing silences the linter, and the generated import rules refuse and allow what the probes say. | `uv run python -m tools.conventions` · [concepts.yaml](../conventions/concepts.yaml), [conventions.py](tools/conventions.py) |
 | **ARCH-LEARNABLE** — A newcomer, or an agent, can add a feature in the right shape from the documentation alone. | fresh-agent evaluations · [README.md](../docs/evaluations/README.md) |
 | **ARCH-ONE-CONTRACT** — Every language the reference is written in is held to this file — the same layers, the same rules under the same ids, the same HTTP grammar — through a binding that says where its trees are and which file shows each concept; a language never carries a rule of its own. | `uv run python -m tools.conventions` · [0011-one-reference-several-languages.md](../docs/adr/0011-one-reference-several-languages.md), [README.md](../conventions/README.md) |
+| **API-ONE-SURFACE** — Every language answers the same HTTP API — the same routes, status codes, body shapes and public names — so one black-box scenario, run against each server, passes unchanged; the public name of an operation is its intent or its fact without the suffix of its kind (`ShareNote`, `NoteShared`). | `uv run pytest` · [0016-one-api-for-every-language.md](../docs/adr/0016-one-api-for-every-language.md), [projection.py](src/contexts/tracker/application/projection.py), [test_operation_routes_e2e.py](src/bootstrap/test_operation_routes_e2e.py) |
 <!-- end generated -->
 
 ### Who may import whom
@@ -221,6 +222,7 @@ uv run ruff check .                         # the lints
 uv run mypy                                 # strict typing, src/ and tools/
 uv run pytest                               # every test_*.py, the end-to-end suites included
 uv run python -m bootstrap                  # serves http://localhost:10000 (PORT, ADMIN_IDENTIFIER, ADMIN_PASSWORD, JWT_SECRET)
+node ../api/scenario.mjs http://127.0.0.1:10000   # the API every language answers, walked against that server
 ```
 
 Once it serves: `GET /v1` is the home, `/v1/docs` the OpenAPI page, `/` the HTMX front end; `POST /v1/auth/login` with `{ "identifier": "admin@admin.fr", "password": "admin" }` answers the token the other routes take as `Authorization: Bearer`, and a `202` is followed at `GET /v1/tracker/operations/{operationId}`. The documents of this directory are rendered from the contract by the TypeScript tooling, which reads every binding: after editing `conventions/python.yaml`, run `yarn --cwd ../typescript conventions:write`.

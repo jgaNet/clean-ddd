@@ -85,6 +85,8 @@ rules:
     references: [src/Architecture/Application/DomainEvents.spec.ts]
   CONC-OPTIMISTIC:
     references: [src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts]
+  API-ONE-SURFACE:
+    references: [src/Contexts/Tracker/Application/Projections/OperationProjection.ts, src/Contexts/Tracker/Presentation/API/REST/Routes/operation.routes.e2e.spec.ts]
   ARCH-MAP-IS-REAL:
     references: [tools/check-conventions.ts]
 

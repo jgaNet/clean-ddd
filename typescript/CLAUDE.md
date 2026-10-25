@@ -20,6 +20,7 @@ yarn typecheck          # tsc --noEmit
 yarn lint               # eslint, including the layer-boundary rules
 yarn test:units         # unit tests
 yarn test:e2e           # each suite boots its own application on a free port; no server to start
+node ../api/scenario.mjs http://127.0.0.1:10000   # the API every language answers, against a running server (yarn start:dev)
 yarn test -- -t "name"  # one test
 yarn format             # prettier (format:check is what CI runs)
 ```

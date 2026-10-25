@@ -7,7 +7,7 @@ import { OperationStatus } from '@Architecture/Application';
  */
 export interface OperationRecord {
   id: string;
-  /** The command or event name, e.g. "CreateNoteCommandEvent". */
+  /** The public name of the command or event, e.g. "CreateNote": its intent, without the suffix of its kind. */
   name: string;
   status: OperationStatus;
   traceId: string;

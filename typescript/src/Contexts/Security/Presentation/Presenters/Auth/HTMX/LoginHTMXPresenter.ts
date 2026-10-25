@@ -8,7 +8,7 @@ export class LoginHTMXPresenter implements Presenter<ErrorViewModel, string> {
       <div>
         <form
           hx-push-url="/me"
-          hx-post="v1/auth/login"
+          hx-post="/v1/auth/login"
           hx-ext="json-enc"
           hx-target="#app"
           hx-target-error="#errors"

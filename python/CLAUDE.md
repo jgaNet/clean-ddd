@@ -12,6 +12,7 @@ uv run ruff format --check .                # the formatter (uv run ruff format 
 uv run ruff check .                         # the lints
 uv run mypy                                 # strict typing, src/ and tools/
 uv run pytest                               # every test_*.py; uv run pytest src/contexts/notes for one context, -k <name> for one test
+node ../api/scenario.mjs http://127.0.0.1:10000   # the API every language answers, against a running server (uv run python -m bootstrap)
 yarn --cwd ../typescript architecture rule <ID> | concept <id> | checklist <kind> | verb <intent>   # the contract, asked; from here it answers in Python (`--language python` says it explicitly)
                                             # the kinds: aggregate, value-object, domain-service, command, query, integration-event, event-handler, context
 uv run python -m tools.conventions can-import <file> <module> [<file> <module> …]   # would this import be allowed? names the rule that refuses it

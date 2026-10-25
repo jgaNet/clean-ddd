@@ -12,7 +12,7 @@
 use std::sync::Arc;
 
 use architecture_application::{AnyHandler, BoxFuture, EventBus, Operation, OperationStatus};
-use architecture_domain::EventKind;
+use architecture_domain::{EventKind, public_name};
 use shared_kernel_application::integration_events::tracker_integration_events::OperationCompleteIntegrationEvent;
 use tracker_application::ports::OperationRecords;
 use tracker_application::projection::to_operation_record;
@@ -32,7 +32,7 @@ impl<R: OperationRecords + Send + Sync + 'static> TrackedEventBus<R> {
             operation_id: operation.id().to_string(),
             user_id,
             status: operation.status().as_str().to_string(),
-            kind: operation.event().name().to_string(),
+            kind: public_name(operation.event().name()).to_string(),
             result: operation.value_as_json(),
             error: operation.error().map(|error| error.message().to_string()),
         };
