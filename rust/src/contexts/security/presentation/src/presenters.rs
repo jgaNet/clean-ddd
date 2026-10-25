@@ -77,12 +77,16 @@ impl Presenter<ErrorViewModel> for ErrorJsonPresenter {
 
 // HTMX
 
-/// Logged in: the page loads the account.
+/// Logged in: the page loads the account. The fragment carries the token, so a page served from
+/// another origin, where the cookie does not reach, can keep it and send it as a bearer.
 pub struct LoggedInHtmxPresenter;
 impl Presenter<LoginViewModel> for LoggedInHtmxPresenter {
-    fn present(&self, _: &LoginViewModel) -> Response {
-        Html(r##"<div hx-get="/v1/auth/me" hx-trigger="load" hx-swap="innerHTML" hx-target="#app"></div>"##)
-            .into_response()
+    fn present(&self, data: &LoginViewModel) -> Response {
+        Html(format!(
+            r##"<div hx-get="/v1/auth/me" hx-trigger="load" hx-swap="innerHTML" hx-target="#app" data-token="{}"></div>"##,
+            data.token
+        ))
+        .into_response()
     }
 }
 

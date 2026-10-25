@@ -10,12 +10,10 @@ services:
       - ../../package.json:/app/package.json
       - ../../yarn.lock:/app/yarn.lock
       - ../../tsconfig.json:/app/tsconfig.json
-      - ../../../web:/web
     command: bash -c "yarn install && yarn start:dev"
     ports:
       - "10000:10000"
     environment:
-      - WEB_ROOT=/web
       - PORT=10000
       - ENV=development
       - PROTOCOL=http

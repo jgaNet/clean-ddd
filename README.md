@@ -13,7 +13,7 @@ The reference is written in several programming languages from **one architectur
 
 ## The languages
 
-Each language's README is where to start reading it: the request followed end to end, the map of its files, how to run it. Its CLAUDE.md is the guide for working in it, by hand or with an agent. The three answer one API: [`api/scenario.mjs`](api/scenario.mjs), a black-box client, walks whichever server is up and passes against each ([ADR 16](docs/adr/0016-one-api-for-every-language.md)); the front end they serve is one folder, [`web/`](web).
+Each language's README is where to start reading it: the request followed end to end, the map of its files, how to run it. Its CLAUDE.md is the guide for working in it, by hand or with an agent. The three answer one API: [`api/scenario.mjs`](api/scenario.mjs), a black-box client, walks whichever server is up and passes against each ([ADR 16](docs/adr/0016-one-api-for-every-language.md)); the front end is a client like any other, served from [`web/`](web) by any static server ([ADR 17](docs/adr/0017-the-front-end-is-a-client-served-elsewhere.md)).
 
 <!-- generated from conventions/concepts.yaml (languages); edit the YAML, then run yarn conventions:write -->
 | Language | Where | Contexts | Concepts shown | Read |
@@ -135,7 +135,7 @@ docs/evaluations/           can a newcomer add a feature from the documentation 
 typescript/                 the TypeScript implementation: its code, its toolchain, its README and CLAUDE.md
 rust/                       the Rust implementation: the same application, a crate per layer, its check, its README and CLAUDE.md
 python/                     the Python implementation: the same application, a package per layer, its import linter, its README and CLAUDE.md
-web/                        the HTMX front end, one copy served by every language's bootstrap
+web/                        the front ends, one folder each (htmx/), clients of the API served by any static server
 api/                        the API every language answers, as one black-box scenario run against each server
 .claude/                    the feature skill and the feature-author agent, for working here with an agent
 ```

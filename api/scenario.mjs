@@ -13,7 +13,7 @@
 
 const [baseArg, ...rest] = process.argv.slice(2);
 if (!baseArg || baseArg.startsWith('-')) {
-  console.error('usage: node api/scenario.mjs <base-url> [--admin <identifier>:<password>]');
+  console.error('usage: node api/scenario.mjs <base-url> [--admin <identifier>:<password>] [--origin <web-origin>]');
   process.exit(2);
 }
 const base = baseArg.replace(/\/$/, '');
@@ -21,6 +21,9 @@ const api = `${base}/v1`;
 const adminFlag = rest.indexOf('--admin');
 const [adminIdentifier, adminPassword] =
   adminFlag >= 0 ? rest[adminFlag + 1].split(':') : ['admin@admin.fr', 'admin'];
+// The origin a front end is served from, when the server was told about one (WEB_ORIGINS).
+const originFlag = rest.indexOf('--origin');
+const webOrigin = originFlag >= 0 ? rest[originFlag + 1] : undefined;
 const run = Date.now().toString(36);
 
 // --- a small client ------------------------------------------------------------------------
@@ -149,11 +152,14 @@ const describe = (name) => {
 const state = {};
 
 describe('Home and health');
-await step('GET /v1 answers { name, version } to an API client', async () => {
+await step('GET /v1 answers { name, version } to an API client, with or without the trailing slash', async () => {
   const home = await anonymous.get('');
   eq(home.status, 200, 'home');
   eq(keysOf(home.json), ['name', 'version'], 'home body');
   ok(isString(home.json.name) && isString(home.json.version), 'name and version are strings', home.json);
+  // The page asks for `/v1/`: the same answer.
+  const slash = await anonymous.get('/');
+  eq([slash.status, slash.json], [200, home.json], 'GET /v1/');
 });
 await step('GET /v1 answers the page shell to HTMX', async () => {
   const shell = await anonymous.get('', HTMX);
@@ -167,15 +173,29 @@ await step('GET /v1/health says ok', async () => {
   eq(health.json.status, 'ok', 'health body');
 });
 
-describe('The front end, served beside the API');
-await step('the page answers / and the front end routes', async () => {
-  for (const path of ['/', '/me']) {
-    const page = await anonymous.get(`${base}${path}`);
-    eq(page.status, 200, `GET ${path}`);
-    ok(page.text.includes('<script src="/js/htmx.min.js"></script>'), `${path} loads HTMX`);
-  }
-  eq((await anonymous.get(`${base}/js/htmx.min.js`)).status, 200, 'the HTMX script is served');
+describe('A front end on another origin');
+await step('the API has no page: an unknown path is a 404, not a front end', async () => {
+  eq((await anonymous.get(`${base}/me`)).status, 404, 'GET /me');
+  eq((await anonymous.get(`${base}/js/htmx.min.js`)).status, 404, 'GET /js/htmx.min.js');
 });
+if (webOrigin) {
+  await step(`a front end served from ${webOrigin} may call the API (CORS)`, async () => {
+    const preflight = await fetch(`${api}/auth/login`, {
+      method: 'OPTIONS',
+      headers: { origin: webOrigin, 'access-control-request-method': 'POST', 'access-control-request-headers': 'authorization,content-type,hx-request' },
+    });
+    ok([200, 204].includes(preflight.status), 'preflight answered', preflight.status);
+    eq(preflight.headers.get('access-control-allow-origin'), webOrigin, 'the origin is allowed');
+    // Either every header (`*`, valid without credentials) or a list naming the ones the page sends.
+    const allowed = (preflight.headers.get('access-control-allow-headers') ?? '').toLowerCase();
+    ok(allowed === '*' || (allowed.includes('authorization') && allowed.includes('hx-request')), 'authorization and hx-* headers allowed', allowed);
+    const answer = await fetch(`${api}/health`, { headers: { origin: webOrigin } });
+    eq(answer.headers.get('access-control-allow-origin'), webOrigin, 'an answer carries the origin');
+    ok((answer.headers.get('access-control-expose-headers') ?? '').toLowerCase().includes('x-trace-id'), 'x-trace-id is exposed');
+    const other = await fetch(`${api}/health`, { headers: { origin: 'http://evil.example' } });
+    ok(other.headers.get('access-control-allow-origin') !== 'http://evil.example', 'an unknown origin is not allowed');
+  });
+}
 
 describe('Authentication');
 await step('a wrong password or an unknown account is a 401', async () => {
@@ -434,6 +454,7 @@ await step('not signed in: the login form; signed in through the form: the accou
   eq(loggedIn.status, 200, 'login through the form');
   ok(loggedIn.headers.get('set-cookie')?.startsWith('token='), 'cookie');
   ok(loggedIn.text.includes('hx-get="/v1/auth/me"'), 'the fragment that loads the account');
+  ok(/data-token="[A-Za-z0-9._-]+"/.test(loggedIn.text), 'the fragment carries the token, for a page on another origin');
   const refused = await anonymous.post('/auth/login', { identifier: adminIdentifier, password: 'nope' }, HTMX);
   eq(refused.status, 401, 'refused');
   ok(refused.text.includes('alert'), 'an alert');

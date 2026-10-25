@@ -1,13 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
-import { dirname, join, resolve } from 'path';
-import { existsSync } from 'fs';
-import { fileURLToPath } from 'url';
 import { AddressInfo } from 'net';
 
 import Fastify, { FastifyError, FastifyInstance, FastifyPluginCallback, FastifyPluginOptions } from 'fastify';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
-import fastifyStatic from '@fastify/static';
+import fastifyCors from '@fastify/cors';
 import fastifyCookie from '@fastify/cookie';
 
 import { SETTINGS } from './application.settings';
@@ -29,28 +26,6 @@ import { formatOf } from '@Architecture/Presentation/Format';
 import { ConsoleLogger } from '@Architecture/Infrastructure/Logging/ConsoleLogger';
 import { InMemoryUnitOfWork } from '@Architecture/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-/**
- * The HTMX front end is shared by every language and lives at the repository root (`web/`),
- * beside the language directories; it is found by walking up from this file, so the sources
- * (`src/Bootstrap/Fastify/`), the bundle (`dist/`) and a Docker image laid out the same way all
- * reach it. `WEB_ROOT` overrides the lookup when the deployment lays things out differently.
- */
-function webRoot(from: string): string {
-  if (process.env.WEB_ROOT) return process.env.WEB_ROOT;
-  let dir = from;
-  for (;;) {
-    const candidate = join(dir, 'web', 'index.html');
-    if (existsSync(candidate)) return dirname(candidate);
-    const parent = resolve(dir, '..');
-    if (parent === dir) throw new Error(`No web/ directory found above ${from}; set WEB_ROOT`);
-    dir = parent;
-  }
-}
-
-const WEB = webRoot(__dirname);
-
 /**
  * The composition root: the one place that knows every context, every route and the
  * transport. Nothing here is business; it is wiring, plus the two Fastify hooks that give
@@ -60,7 +35,7 @@ export class FastifyApplication extends Application {
   readonly fastify: FastifyInstance;
   readonly logger: Logger;
 
-  constructor(logger: Logger) {
+  constructor(logger: Logger, webOrigins: string[]) {
     super();
     this.logger = logger;
     this.fastify = Fastify({ logger: false });
@@ -94,10 +69,26 @@ export class FastifyApplication extends Application {
       return payload;
     });
     this.fastify.register(fastifyCookie);
-    this.fastify.register(fastifyStatic, { root: WEB, index: 'index.html' });
-    this.fastify.setNotFoundHandler((_, reply) => {
-      reply.sendFile('index.html');
-    });
+    // The front end is a client like any other, served from wherever (`web/`): a page on another
+    // origin calls the API with a bearer token, never a cookie, and CORS lets it, for the
+    // origins the settings allow (none: same-origin clients only).
+    if (webOrigins.length > 0) {
+      this.fastify.register(fastifyCors, {
+        origin: webOrigins,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: [
+          'authorization',
+          'content-type',
+          'hx-request',
+          'hx-target',
+          'hx-trigger',
+          'hx-current-url',
+          'hx-boosted',
+          'hx-push-url',
+        ],
+        exposedHeaders: ['x-trace-id'],
+      });
+    }
     // Only programming errors and schema violations get here: expected failures are Results.
     this.fastify.setErrorHandler((error: FastifyError, req, reply) => {
       const format = req.headers['hx-request'] ? 'htmx' : 'json';
@@ -163,10 +154,11 @@ export class FastifyApplication extends Application {
  * Builds the whole application: wired, its modules listening on the bus, seeded; not yet
  * serving. The modules start before the seed so that the seed's events reach their handlers.
  */
-export async function createApplication(
-  logger: Logger = new ConsoleLogger({ debug: SETTINGS.logger.debug }),
-): Promise<FastifyApplication> {
-  const app = new FastifyApplication(logger)
+export async function createApplication({
+  logger = new ConsoleLogger({ debug: SETTINGS.logger.debug }),
+  webOrigins = SETTINGS.webOrigins,
+}: { logger?: Logger; webOrigins?: string[] } = {}): Promise<FastifyApplication> {
+  const app = new FastifyApplication(logger, webOrigins)
     .setEventBus(trackedEventBus)
     .registerModule(localTrackerModule)
     .registerModule(localNotesModule)

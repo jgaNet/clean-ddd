@@ -26,6 +26,8 @@ pub struct Settings {
     pub notifications: NotificationsSettings,
     /// The administrator account created before the first request; none when absent.
     pub admin_account: Option<AdminAccount>,
+    /// The origins a front end may call the API from (CORS); none: same-origin clients only.
+    pub web_origins: Vec<String>,
     pub debug: bool,
 }
 
@@ -56,6 +58,9 @@ impl Settings {
                 identifier: var("ADMIN_IDENTIFIER").unwrap_or_else(|| "admin@admin.fr".into()),
                 password: var("ADMIN_PASSWORD").unwrap_or_else(|| "admin".into()),
             }),
+            web_origins: var("WEB_ORIGINS")
+                .map(|origins| origins.split(',').filter(|o| !o.is_empty()).map(String::from).collect())
+                .unwrap_or_default(),
             debug: var("DEBUG").is_some_and(|debug| debug == "true"),
         }
     }
@@ -77,6 +82,7 @@ impl Settings {
                 bcrypt_cost: 4,
             },
             admin_account: Some(AdminAccount { identifier: "admin@admin.fr".into(), password: "admin".into() }),
+            web_origins: vec!["http://web.test".into()],
             debug: false,
         }
     }

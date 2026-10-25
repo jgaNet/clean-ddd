@@ -29,19 +29,15 @@ async fn the_home_answers_json_to_a_client_and_the_page_shell_to_htmx() {
 }
 
 #[tokio::test]
-async fn the_front_end_is_served_beside_the_api_and_speaks_htmx() {
+async fn the_api_speaks_htmx_to_the_front_end_and_serves_no_page() {
     let app = start_test_application().await;
     let api = app.api.clone();
     let root = api.trim_end_matches("/v1").to_string();
     let client = app.anonymous();
 
-    // The page, and the page again for a route of the front end
-    for path in ["/", "/me"] {
-        let page = client.get(format!("{root}{path}")).send().await.expect("answers");
-        assert_eq!(page.status(), 200);
-        assert!(page.text().await.expect("text").contains(r#"<script src="/js/htmx.min.js"></script>"#));
-    }
-    assert_eq!(client.get(format!("{root}/js/htmx.min.js")).send().await.expect("answers").status(), 200);
+    // The front end is served elsewhere: the API has no page and no scripts
+    assert_eq!(client.get(format!("{root}/me")).send().await.expect("answers").status(), 404);
+    assert_eq!(client.get(format!("{root}/js/htmx.min.js")).send().await.expect("answers").status(), 404);
 
     // Not signed in: HTMX gets the login form, an API client a 401
     let form = client.get(format!("{api}/auth/me")).header("HX-Request", "true").send().await.expect("answers");
@@ -59,7 +55,8 @@ async fn the_front_end_is_served_beside_the_api_and_speaks_htmx() {
         .expect("answers");
     assert_eq!(logged_in.status(), 200);
     assert!(logged_in.headers().get("set-cookie").is_some());
-    assert!(logged_in.text().await.expect("text").contains(r#"hx-get="/v1/auth/me""#));
+    let fragment = logged_in.text().await.expect("text");
+    assert!(fragment.contains(r#"hx-get="/v1/auth/me""#) && fragment.contains(r#"data-token=""#));
     let refused = client
         .post(format!("{api}/auth/login"))
         .header("HX-Request", "true")
@@ -80,4 +77,32 @@ async fn the_front_end_is_served_beside_the_api_and_speaks_htmx() {
     assert!(logout.text().await.expect("text").contains("Login"));
 
     app.stop().await;
+}
+
+#[tokio::test]
+async fn a_front_end_on_an_allowed_origin_may_call_the_api() {
+    let app = start_test_application().await;
+    let api = app.api.clone();
+    let client = app.anonymous();
+
+    let preflight = client
+        .request(reqwest::Method::OPTIONS, format!("{api}/auth/login"))
+        .header("origin", "http://web.test")
+        .header("access-control-request-method", "POST")
+        .header("access-control-request-headers", "authorization,content-type,hx-request")
+        .send()
+        .await
+        .expect("answers");
+    assert!(preflight.status() == 200 || preflight.status() == 204);
+    assert_eq!(preflight.headers()["access-control-allow-origin"], "http://web.test");
+    let allowed = preflight.headers()["access-control-allow-headers"].to_str().unwrap().to_lowercase();
+    assert!(allowed.contains("authorization") || allowed == "*");
+
+    let answer = client.get(format!("{api}/health")).header("origin", "http://web.test").send().await.expect("answers");
+    assert_eq!(answer.headers()["access-control-allow-origin"], "http://web.test");
+    assert!(answer.headers()["access-control-expose-headers"].to_str().unwrap().to_lowercase().contains("x-trace-id"));
+
+    let other =
+        client.get(format!("{api}/health")).header("origin", "http://evil.example").send().await.expect("answers");
+    assert!(other.headers().get("access-control-allow-origin").is_none());
 }

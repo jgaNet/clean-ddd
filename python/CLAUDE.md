@@ -38,7 +38,7 @@ src/contexts/<context>/           one package per layer (domain/, application/, 
   infrastructure/<ports>.py       repositories.py, queries.py, suggestions.py: the adapters; test_persistence_contract.py
   presentation/routes.py          the routes and their views, one APIRouter per context; presenters.py beside it
 src/bootstrap/                    the composition root (create_application.py), the settings, the entry point, testing.py
-                                  and the end-to-end suites test_*_e2e.py; it serves the shared front end ../web/
+                                  and the end-to-end suites test_*_e2e.py
 tools/conventions.py              the import linter and conventions check, in one
 ../conventions/python.yaml        this language's binding of the contract: contexts, trees, enforcers, checklists, canonical files
 ```

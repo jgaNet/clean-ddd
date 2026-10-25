@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>htmx + Fastify</title>
+  <!-- Where the API is. Empty: the same origin as this page. A deployment sets it (or serve.mjs --api does). -->
+  <meta name="api-base" content="" />
+  <title>clean-ddd</title>
 </head>
 <body
     hx-boost="true"
@@ -13,6 +15,7 @@
 
 
   <script src="/js/htmx.min.js"></script>
+  <script src="/js/api.js"></script>
   <script src="/js/ws.js"></script>
   <script src="/js/json-enc.js"></script>
   <script src="/js/response-targets.js"></script>

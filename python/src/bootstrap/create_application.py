@@ -3,22 +3,20 @@ It builds the bus (the in-memory one, tracked), the stores and the unit of work 
 modules from each context's wiring, the routes under the API prefix, and the two middlewares
 that give each request its identity (Security's authentication) and its ``ExecutionContext``.
 Then it starts the modules, seeds the administrator through the same handler as any command,
-and only then listens. The websocket and the static front end (``web/`` at the repository
-root, shared by every language: the page and the HTMX scripts) are served beside the API,
-``index.html`` answering any path the API does not, so the front end's own routes (``/me``) load
-the page.
+and only then listens. The websocket is served beside the API. The front end is not: it is a
+client like any other (``web/``, served by any static server), so the API answers it as it
+answers an API client, with CORS for the origins the settings allow.
 """
 
 import asyncio
-from pathlib import Path
 from typing import Any
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import FileResponse, Response
-from starlette.staticfiles import StaticFiles
+from starlette.responses import Response
 
 from architecture.application.application import Application
 from architecture.application.execution_context import Auth, ExecutionContext, Logger
@@ -40,7 +38,6 @@ from contexts.tracker.infrastructure.tracked_event_bus import TrackedEventBus
 from contexts.tracker.module_local import local_tracker_module, operation_records, operation_store, tracked_event_bus
 from contexts.tracker.presentation.routes import operation_routes
 
-PUBLIC = Path(__file__).parents[3] / "web"
 TRACE_HEADER = "x-trace-id"
 
 
@@ -124,7 +121,7 @@ async def create_application(settings: Settings, logger: Logger | None = None) -
     application.register_module(security.module).register_module(notifications.module)
     await application.start_modules()
 
-    # The routes, under the API prefix, each context's under its own; the static front end at the root.
+    # The routes, under the API prefix, each context's under its own; the websocket at the root.
     fastapi = FastAPI(title=settings.name, version=settings.version, docs_url=f"/{settings.api_prefix}/docs")
     home = HomeViewModel(name=settings.name, version=settings.version)
     prefix = f"/{settings.api_prefix}"
@@ -134,11 +131,6 @@ async def create_application(settings: Settings, logger: Logger | None = None) -
     fastapi.include_router(auth_routes(security.module), prefix=prefix)
     fastapi.include_router(notification_routes(notifications.module), prefix=prefix)
     fastapi.include_router(notifications.websocket.routes())
-    fastapi.mount("/js", StaticFiles(directory=PUBLIC / "js"), name="js")
-
-    @fastapi.get("/{path:path}", include_in_schema=False)
-    async def front_end(path: str) -> Response:
-        return FileResponse(PUBLIC / "index.html")
 
     # One execution context per request: its trace, its caller, and its own unit of work. A unit
     # of work is a request-scoped thing; sharing one instance across requests would make
@@ -161,6 +153,15 @@ async def create_application(settings: Settings, logger: Logger | None = None) -
         return response
 
     fastapi.add_middleware(AuthenticationMiddleware, authentication=security.authentication)
+    # A front end served from another origin calls the API with a bearer token, never a cookie.
+    if settings.web_origins:
+        fastapi.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(settings.web_origins),
+            allow_methods=["*"],
+            allow_headers=["*"],
+            expose_headers=[TRACE_HEADER],
+        )
 
     # The administrator account the settings describe, created before the first request.
     if settings.admin_account is not None:

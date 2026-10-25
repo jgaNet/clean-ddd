@@ -21,7 +21,7 @@ Located in `/deployments/Dockerfile`
 To build a production Docker image:
 
 ```bash
-docker build -t clean-ddd-api:latest -f typescript/deployments/Dockerfile .   # from the repository root
+docker build -t clean-ddd-api:latest -f deployments/Dockerfile .
 ```
 
 Then run it:

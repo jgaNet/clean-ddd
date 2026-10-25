@@ -14,7 +14,7 @@ The front end was the same story in miniature: three identical copies of the HTM
 
 **The public name of an operation is its intent or its fact, without the suffix of its kind.** A client reads `ShareNote` and `NoteShared`, never `ShareNoteCommandEvent`: the suffix is this codebase's way of naming its building blocks, and it has no meaning outside the process. The bus keeps routing on the full name; the stripping happens where the record is projected for a client (the Tracker's projection, the completion notice), in a helper beside `Event` (`publicName()` in TypeScript, `public_name_of()` in Python; Rust names its messages that way to begin with).
 
-**The front end is one folder at the repository root** (`web/`), served by every bootstrap. It is the scenario's live client: if the page works against one server, it works against the others.
+**The front end is one folder at the repository root** (`web/`). It is the scenario's live client: if the page works against one server, it works against the others. (It was first served by every bootstrap; [ADR 17](0017-the-front-end-is-a-client-served-elsewhere.md) makes it a client served elsewhere.)
 
 The rule is **API-ONE-SURFACE**, enforced by tests — the scenario — and shown in each binding by the Tracker's projection and the end-to-end suite that asserts the public names.
 

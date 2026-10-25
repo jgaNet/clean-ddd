@@ -53,9 +53,9 @@ jobs:
       - name: The API every language answers
         run: |
           yarn build
-          PORT=10000 node dist/application.js > server.log 2>&1 &
+          PORT=10000 WEB_ORIGINS=http://127.0.0.1:8080 node dist/application.js > server.log 2>&1 &
           ../.github/wait-for-health.sh http://127.0.0.1:10000 || (cat server.log; exit 1)
-          node ../api/scenario.mjs http://127.0.0.1:10000 || (cat server.log; exit 1)
+          node ../api/scenario.mjs http://127.0.0.1:10000 --origin http://127.0.0.1:8080 || (cat server.log; exit 1)
 
   rust:
     runs-on: ubuntu-latest
@@ -96,9 +96,9 @@ jobs:
       - name: The API every language answers
         run: |
           cargo build -q -p bootstrap
-          PORT=10000 ./target/debug/application > server.log 2>&1 &
+          PORT=10000 WEB_ORIGINS=http://127.0.0.1:8080 ./target/debug/application > server.log 2>&1 &
           ../.github/wait-for-health.sh http://127.0.0.1:10000 || (cat server.log; exit 1)
-          node ../api/scenario.mjs http://127.0.0.1:10000 || (cat server.log; exit 1)
+          node ../api/scenario.mjs http://127.0.0.1:10000 --origin http://127.0.0.1:8080 || (cat server.log; exit 1)
 
   python:
     runs-on: ubuntu-latest
@@ -140,15 +140,35 @@ jobs:
 
       - name: The API every language answers
         run: |
-          PORT=10000 uv run python -m bootstrap > server.log 2>&1 &
+          PORT=10000 WEB_ORIGINS=http://127.0.0.1:8080 uv run python -m bootstrap > server.log 2>&1 &
           ../.github/wait-for-health.sh http://127.0.0.1:10000 || (cat server.log; exit 1)
-          node ../api/scenario.mjs http://127.0.0.1:10000 || (cat server.log; exit 1)
+          node ../api/scenario.mjs http://127.0.0.1:10000 --origin http://127.0.0.1:8080 || (cat server.log; exit 1)
+
+  # The front end stands alone: served by the dependency-free static server, with no API behind.
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: typescript/.nvmrc
+
+      - name: The HTMX front end is served as a static folder
+        run: |
+          node web/serve.mjs web/htmx --port 8080 --api http://127.0.0.1:10000 > web.log 2>&1 &
+          for i in $(seq 1 40); do curl -sf http://127.0.0.1:8080/ > /dev/null && break; sleep 0.5; done
+          curl -sf http://127.0.0.1:8080/ | grep -q '<meta name="api-base" content="http://127.0.0.1:10000" />'
+          curl -sf http://127.0.0.1:8080/me | grep -q '<script src="/js/htmx.min.js"></script>'
+          curl -sf http://127.0.0.1:8080/js/api.js | grep -q 'htmx.createWebSocket'
 
   # The one check the branch protection requires: green when every language's job is. A new
   # language is added to `needs`, and nothing else changes.
   check:
     runs-on: ubuntu-latest
-    needs: [typescript, rust, python]
+    needs: [typescript, rust, python, web]
     if: always()
     steps:
       - name: Every language is green
@@ -156,6 +176,8 @@ jobs:
           echo "typescript: ${{ needs.typescript.result }}"
           echo "rust: ${{ needs.rust.result }}"
           echo "python: ${{ needs.python.result }}"
+          echo "web: ${{ needs.web.result }}"
           test "${{ needs.typescript.result }}" = "success"
           test "${{ needs.rust.result }}" = "success"
           test "${{ needs.python.result }}" = "success"
+          test "${{ needs.web.result }}" = "success"
