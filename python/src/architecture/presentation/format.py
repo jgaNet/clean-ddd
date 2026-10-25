@@ -33,7 +33,7 @@ class ByFormat[T]:
     json: Presenter[T]
     htmx: Presenter[T] | None = None
 
-    def present(self, format: Format, data: T) -> Response:  # noqa: A002
+    def present(self, format: Format, data: T) -> Response:
         presenter = self.htmx if format is Format.HTMX and self.htmx is not None else self.json
         return presenter.present(data)
 

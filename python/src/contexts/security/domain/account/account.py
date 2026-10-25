@@ -37,7 +37,7 @@ class Account(AggregateRoot):
 
     def __init__(
         self,
-        id: Id,  # noqa: A002
+        id: Id,
         email: Email,
         role: Role,
         credentials: Credentials,
@@ -63,7 +63,7 @@ class Account(AggregateRoot):
         if isinstance(credentials, Failure):
             return credentials
 
-        id = Id.generate()  # noqa: A001
+        id = Id.generate()
         status = AccountStatus.ACTIVE if props.activated else AccountStatus.PENDING
         account = Account(id, email.data, props.role, credentials.data, status)
         account._record(

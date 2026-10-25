@@ -153,7 +153,7 @@ const ARCHITECTURE = binding.architecture;
 const KERNEL = binding.kernel;
 
 export default tseslint.config(
-  { ignores: ['dist/', 'coverage/', 'src/Bootstrap/Fastify/public/', '**/*.d.ts', '**/*.min.js'] },
+  { ignores: ['dist/', 'coverage/', '**/*.d.ts', '**/*.min.js'] },
   ...tseslint.configs.recommended,
   {
     rules: {

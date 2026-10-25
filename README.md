@@ -133,7 +133,8 @@ docs/adr/                   the decisions, shared by every language
 docs/evaluations/           can a newcomer add a feature from the documentation alone? Protocol and records
 typescript/                 the TypeScript implementation: its code, its toolchain, its README and CLAUDE.md
 rust/                       the Rust implementation: the same application, a crate per layer, its check, its README and CLAUDE.md
-python/                     the Python implementation, Domain layer first: a package per layer, its import linter, its README and CLAUDE.md
+python/                     the Python implementation: the same application, a package per layer, its import linter, its README and CLAUDE.md
+web/                        the HTMX front end, one copy served by every language's bootstrap
 .claude/                    the feature skill and the feature-author agent, for working here with an agent
 ```
 

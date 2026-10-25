@@ -30,7 +30,7 @@ class InMemoryNoteRepository:
     def __init__(self, data_source: InMemoryDataSource[NoteSnapshot]) -> None:
         self._data_source = data_source
 
-    async def find_by_id(self, id: str) -> Note | None:  # noqa: A002
+    async def find_by_id(self, id: str) -> Note | None:
         snapshot = self._data_source.collection.get(id)
         return Note.from_snapshot(snapshot) if snapshot else None
 
@@ -52,7 +52,7 @@ class SqliteNoteRepository:
         self._db = database
         create_notes_table(database)
 
-    async def find_by_id(self, id: str) -> Note | None:  # noqa: A002
+    async def find_by_id(self, id: str) -> Note | None:
         row = self._db.execute("SELECT * FROM notes WHERE id = ?", (id,)).fetchone()
         return Note.from_snapshot(to_snapshot(row)) if row else None
 

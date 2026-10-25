@@ -29,7 +29,8 @@ Node ≥ 24 (`.nvmrc` = 24). All of `yarn check:conventions`, `yarn format:check
 ## Where things are
 
 ```
-src/Bootstrap/Fastify/            composition root (createApplication.ts); application.ts is the entry point
+src/Bootstrap/Fastify/            composition root (createApplication.ts); application.ts is the entry point;
+                                  it serves the shared front end ../web/
 src/Architecture/                 the building blocks: mechanics, no vocabulary (they do not even know the roles)
   Domain/                         Entity, AggregateRoot, ValueObject, Id, Event(+kinds), Exception, Result — depends on nothing
   Application/                    CommandHandler, QueryHandler, EventHandler, ExecutionContext, EventBus, Module, Application

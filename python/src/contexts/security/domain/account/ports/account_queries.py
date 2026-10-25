@@ -18,4 +18,4 @@ class AccountDetail:
 
 
 class AccountQueries(Protocol):
-    async def find_by_id(self, id: str) -> AccountDetail | None: ...  # noqa: A002
+    async def find_by_id(self, id: str) -> AccountDetail | None: ...

@@ -7,7 +7,7 @@ class InMemoryAccountQueries:
     def __init__(self, data_source: InMemoryDataSource[AccountSnapshot]) -> None:
         self._data_source = data_source
 
-    async def find_by_id(self, id: str) -> AccountDetail | None:  # noqa: A002
+    async def find_by_id(self, id: str) -> AccountDetail | None:
         account = self._data_source.collection.get(id)
         if account is None:
             return None

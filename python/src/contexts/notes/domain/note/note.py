@@ -42,7 +42,7 @@ class Note(AggregateRoot):
 
     def __init__(
         self,
-        id: Id,  # noqa: A002
+        id: Id,
         owner_id: Id,
         title: NoteTitle,
         content: str,
@@ -65,7 +65,7 @@ class Note(AggregateRoot):
         title = NoteTitle.create(props.title)
         if isinstance(title, Failure):
             return title
-        id = Id.generate()  # noqa: A001
+        id = Id.generate()
         note = Note(id, Id(props.owner_id), title.data, props.content, NoteStatus.ACTIVE, [])
         note._record(NoteCreatedEvent(note_id=id.value, owner_id=props.owner_id, title=title.data.value))
         return Success(note)

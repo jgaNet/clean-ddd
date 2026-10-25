@@ -12,7 +12,7 @@ from contexts.notes.domain.note.note import Note
 
 
 class NoteRepository(Protocol):
-    async def find_by_id(self, id: str) -> Note | None: ...  # noqa: A002
+    async def find_by_id(self, id: str) -> Note | None: ...
 
     async def save(self, note: Note) -> Result[None]:
         """Stores the aggregate at version + 1, or refuses it with a ConcurrencyConflictException

@@ -10,7 +10,7 @@ SERVICE = "Security"
 
 
 class AccountDomainException(DomainException):
-    def __init__(self, type: str, message: str, context: dict[str, Any] | None = None) -> None:  # noqa: A002
+    def __init__(self, type: str, message: str, context: dict[str, Any] | None = None) -> None:
         super().__init__(service=SERVICE, type=type, message=message, context=context or {})
 
 

@@ -35,7 +35,7 @@ class FakeHasher:
     async def hash(self, plain: str) -> str:
         return f"hashed({plain})"
 
-    async def compare(self, plain: str, hash: str) -> bool:  # noqa: A002
+    async def compare(self, plain: str, hash: str) -> bool:
         return hash == f"hashed({plain})"
 
 

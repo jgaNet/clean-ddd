@@ -25,7 +25,7 @@ from architecture.domain.id import Id
 class AggregateRoot(Entity):
     __slots__ = ("_domain_events", "_version")
 
-    def __init__(self, id: Id, version: int = 0) -> None:  # noqa: A002
+    def __init__(self, id: Id, version: int = 0) -> None:
         super().__init__(id)
         self._version = version
         self._domain_events: list[DomainEvent] = []

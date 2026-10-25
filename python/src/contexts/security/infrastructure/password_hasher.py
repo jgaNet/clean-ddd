@@ -13,5 +13,5 @@ class BcryptPasswordHasher:
     async def hash(self, plain: str) -> str:
         return await asyncio.to_thread(lambda: bcrypt.hashpw(plain.encode(), bcrypt.gensalt(self._rounds)).decode())
 
-    async def compare(self, plain: str, hash: str) -> bool:  # noqa: A002
+    async def compare(self, plain: str, hash: str) -> bool:
         return await asyncio.to_thread(lambda: bcrypt.checkpw(plain.encode(), hash.encode()))
