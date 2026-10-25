@@ -561,6 +561,14 @@
     cookie "^2.0.0"
     fastify-plugin "^6.0.0"
 
+"@fastify/cors@^11":
+  version "11.3.1"
+  resolved "https://registry.yarnpkg.com/@fastify/cors/-/cors-11.3.1.tgz#4897642f6b1d343497209447ec84e97d5dfc7a05"
+  integrity sha512-gZXNzd6FLHzOIfvoK4+Az3Wko2V6Y0MIsLxpyo4AEYl7a9q1JBPwPaxLea4nkr++8FCiJiPpYYo6E02uZW0dqw==
+  dependencies:
+    fastify-plugin "^6.0.0"
+    toad-cache "^3.7.0"
+
 "@fastify/error@^4.0.0":
   version "4.1.0"
   resolved "https://registry.yarnpkg.com/@fastify/error/-/error-4.1.0.tgz#a6a3a8d2309bd8d3441512dff9a7c739d0c35fe2"
@@ -604,7 +612,7 @@
     http-errors "^2.0.0"
     mime "^3"
 
-"@fastify/static@^10.1.0", "@fastify/static@^10.1.5":
+"@fastify/static@^10.1.0":
   version "10.1.5"
   resolved "https://registry.yarnpkg.com/@fastify/static/-/static-10.1.5.tgz#bfc418020088a51bbb93478d4fa0365be152d5ff"
   integrity sha512-3r0ZFXo82nKlPzySOUYhwWVfPZStfiwjmyevkX7cJWL2yXmEzl0Rpxv+L6L1R4OxqvlDGqf3g8OdBzILKgqe6w==

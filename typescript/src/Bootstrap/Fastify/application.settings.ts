@@ -30,6 +30,10 @@ export const SETTINGS = {
       password: process.env.ADMIN_PASSWORD || 'admin',
     },
   },
+  /** The origins a front end may call the API from (CORS); none: same-origin clients only. */
+  webOrigins: String(process.env.WEB_ORIGINS || '')
+    .split(',')
+    .filter(Boolean),
   logger: {
     debug: false,
   },

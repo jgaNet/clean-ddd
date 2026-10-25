@@ -22,7 +22,7 @@ export interface TestApplication {
  * still talk HTTP: what they prove is what a client would see.
  */
 export async function startTestApplication(): Promise<TestApplication> {
-  const app = await createApplication();
+  const app = await createApplication({ webOrigins: ['http://web.test'] });
   await app.start(0);
 
   const api = `${app.address}/${SETTINGS.apiPrefix}`;

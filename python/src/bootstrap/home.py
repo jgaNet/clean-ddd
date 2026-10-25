@@ -42,6 +42,7 @@ def home_routes(home: HomeViewModel) -> APIRouter:
     router = APIRouter(tags=["home"])
 
     @router.get("")
+    @router.get("/", include_in_schema=False)  # the page asks for `/v1/`: the same answer, not a redirect
     async def get_home(request: Request) -> Response:
         return HOME.present(format_of(request.headers), home)
 

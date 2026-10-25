@@ -12,7 +12,7 @@ import { createApplication } from './createApplication';
 const logger = new ConsoleLogger({ debug: SETTINGS.logger.debug });
 
 try {
-  const app = await createApplication(logger);
+  const app = await createApplication({ logger });
   await app.start();
 } catch (error) {
   logger.error('The application could not start', error);

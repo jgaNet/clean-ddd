@@ -36,6 +36,8 @@ class Settings:
     notifications: NotificationsSettings
     #: The administrator account created before the first request; none when absent.
     admin_account: AdminAccount | None
+    #: The origins a front end may call the API from (CORS); none: same-origin clients only.
+    web_origins: tuple[str, ...]
     debug: bool
 
     @staticmethod
@@ -60,6 +62,7 @@ class Settings:
             admin_account=AdminAccount(
                 identifier=var("ADMIN_IDENTIFIER") or "admin@admin.fr", password=var("ADMIN_PASSWORD") or "admin"
             ),
+            web_origins=tuple(origin for origin in (var("WEB_ORIGINS") or "").split(",") if origin),
             debug=var("DEBUG") == "true",
         )
 
@@ -76,5 +79,6 @@ class Settings:
             ),
             notifications=NotificationsSettings(url="http://localhost/v1", from_email="noreply@example.com"),
             admin_account=AdminAccount(identifier="admin@admin.fr", password="admin"),
+            web_origins=("http://web.test",),
             debug=False,
         )

@@ -25,7 +25,7 @@ This directory contains the Kubernetes configuration files needed to deploy the 
 
 ```bash
 # From the project root
-docker build -t clean-ddd-api:latest -f typescript/deployments/Dockerfile .   # from the repository root
+docker build -t clean-ddd-api:latest -f deployments/Dockerfile .
 docker tag clean-ddd-api:latest your-registry/clean-ddd-api:v1.0.0
 docker push your-registry/clean-ddd-api:v1.0.0
 ```

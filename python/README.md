@@ -203,7 +203,7 @@ src/bootstrap/
   create_application.py           the composition root: the bus, the stores, the modules, the routes, the middlewares
   settings.py home.py __main__.py what the environment decides; the home in two formats; python -m bootstrap
   testing.py                      boots the application on a free port for the end-to-end suites beside it
-  test_*_e2e.py                   the end-to-end suites, speaking HTTP; the HTMX front end it serves is ../web/
+  test_*_e2e.py                   the end-to-end suites, speaking HTTP
   test_*.py                       everywhere: the tests, beside what they test
 tools/conventions.py              uv run python -m tools.conventions: every import is the table, the tree is the contract's
 tools/test_conventions.py         the check tried against the violations it must refuse

@@ -20,8 +20,14 @@ class LoggedInJsonPresenter:
 
 
 class LoggedInHtmxPresenter:
+    """Logged in: the page loads the account. The fragment carries the token, so a page served from
+    another origin, where the cookie does not reach, can keep it and send it as a bearer."""
+
     def present(self, token: str) -> Response:
-        return html('<div hx-get="/v1/auth/me" hx-trigger="load" hx-swap="innerHTML" hx-target="#app"></div>')
+        return html(
+            '<div hx-get="/v1/auth/me" hx-trigger="load" hx-swap="innerHTML" hx-target="#app"'
+            f' data-token="{token}"></div>'
+        )
 
 
 class MeJsonPresenter:
