@@ -11,8 +11,8 @@ schemaVersion: 1
 feature: remind-a-note
 intent: >-
   The owner of a note schedules one reminder on it, at a date in the future; when the moment
-  comes, the owner is told. Scheduling again replaces the reminder; archiving the note cancels
-  it. Notes holds the reminder and says so; Notifications plans the telling and does it when a
+  comes, the owner is told. Scheduling again cancels the reminder and schedules the new one;
+  archiving the note cancels it. Notes holds the reminder and says so; Notifications plans the telling and does it when a
   scheduler says the time has come.
 
 done: false
@@ -35,6 +35,7 @@ hotSpots:
   - question: What does a screen need to know?
     decision: The reminder's date on the detail of the note, nothing more; a field on an existing read model, which the shared scenario then holds the four languages to. No new query.
   - question: Scheduling again replaces the reminder in Notes; what does Notifications do with the notification it had already planned for the earlier date?
+    decision: Notes says it twice — "a reminder was cancelled" for the earlier one, then "a reminder was scheduled" for the new one — and Notifications does what it already knows, cancel then plan. Two facts for one gesture, nothing new to learn on either side.
 
 contexts:
   - id: Notes
@@ -43,7 +44,7 @@ contexts:
         actor: a signed-in account
         route: POST /notes/{param}/reminders
         aggregate: Note
-        events: [ReminderScheduled]
+        events: [ReminderCancelled, ReminderScheduled]
       - name: ArchiveNote
         actor: a signed-in account
         route: POST /notes/{param}/archive
