@@ -101,6 +101,12 @@ uv run python -m tools.conventions && uv run ruff format --check . && uv run ruf
 go run ./tools/conventions && test -z "$(gofmt -l .)" && go vet ./... && golangci-lint run ./... && go test ./...
 ```
 
+The languages answer one API, and `api/scenario.mjs` holds every server to the same shapes, field
+count included (ADR 16). A feature that changes what a client sees in one language fails the scenario
+against that server until the other languages carry it: the feature is done in its language when its
+end-to-end suite proves it; say in the PR what the other languages now owe, and never edit the scenario
+to make one server pass.
+
 ## If you need to change a protected tree, stop
 
 If the work seems to need a building block, the shared kernel's model or the dependency table
