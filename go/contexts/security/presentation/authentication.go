@@ -1,0 +1,103 @@
+package presentation
+
+import (
+	"context"
+	"net/http"
+	"strings"
+
+	"clean-ddd/architecture/application"
+	"clean-ddd/contexts/security/domain/account"
+	"clean-ddd/contexts/security/domain/auth"
+	kernel "clean-ddd/sharedkernel/domain"
+)
+
+// Authentication identifies the caller of every request. It never blocks: a missing or bad
+// token simply makes the request anonymous (GUEST), and each handler's guard decides what a
+// guest may do. A token is accepted only if its signature and expiry check out
+// (SignedTokens.Verify), the account still exists and is active, and the role it claims is
+// the account's current role.
+//
+// The composition root installs Middleware outermost, over every route and the websocket
+// upgrade alike; the Auth it establishes travels on the request (AuthOf) to the middleware
+// that builds the execution context.
+type Authentication struct {
+	accounts account.Queries
+	tokens   auth.SignedTokens
+}
+
+func NewAuthentication(accounts account.Queries, tokens auth.SignedTokens) *Authentication {
+	return &Authentication{accounts: accounts, tokens: tokens}
+}
+
+// Guest is who an unidentified caller is.
+var Guest = application.Auth{Role: string(kernel.RoleGuest)}
+
+// Identify answers who is behind a request, from its headers and its query string: the
+// account its token names, or nobody. The cookie is read first, then the bearer, then the
+// query token (a websocket client cannot send a header).
+func (a *Authentication) Identify(headers http.Header, queryToken string) application.Auth {
+	token := tokenFromCookie(headers)
+	if token == "" {
+		token = tokenFromHeader(headers)
+	}
+	if token == "" {
+		token = queryToken
+	}
+	if token == "" {
+		return Guest
+	}
+	claims, ok := a.tokens.Verify(token)
+	if !ok {
+		return Guest
+	}
+	role, known := kernel.ParseRole(claims.SubjectType)
+	if !known { // a validation token does not sign anyone in
+		return Guest
+	}
+	detail, err := a.accounts.FindByID(claims.SubjectID)
+	if err != nil || detail == nil || detail.Status != account.StatusActive || detail.Role != role {
+		return Guest
+	}
+	return application.Auth{SubjectID: detail.ID, Role: string(role)}
+}
+
+// Middleware identifies the caller of every request, before anything else runs, and attaches
+// the Auth to the request for the composition root to read with AuthOf.
+func (a *Authentication) Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, WithAuth(r, a.Identify(r.Header, r.URL.Query().Get("token"))))
+	})
+}
+
+type authKey struct{}
+
+// WithAuth attaches who is calling to the request.
+func WithAuth(r *http.Request, auth application.Auth) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), authKey{}, auth))
+}
+
+// AuthOf is who is calling, as the middleware established it; GUEST when it did not run.
+func AuthOf(r *http.Request) application.Auth {
+	if auth, ok := r.Context().Value(authKey{}).(application.Auth); ok {
+		return auth
+	}
+	return Guest
+}
+
+func tokenFromHeader(headers http.Header) string {
+	header := headers.Get("Authorization")
+	if token, ok := strings.CutPrefix(header, "Bearer "); ok {
+		return token
+	}
+	return ""
+}
+
+func tokenFromCookie(headers http.Header) string {
+	for _, part := range strings.Split(headers.Get("Cookie"), ";") {
+		name, value, _ := strings.Cut(strings.TrimSpace(part), "=")
+		if name == "token" && value != "" {
+			return value
+		}
+	}
+	return ""
+}

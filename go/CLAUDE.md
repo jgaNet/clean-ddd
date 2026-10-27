@@ -1,0 +1,103 @@
+# Working on this repository (guide for AI assistance)
+
+This is the **Go implementation** of the Clean Architecture + Domain-Driven Design reference. The rules themselves, and what every language of the reference shares, are in the root [CLAUDE.md](../CLAUDE.md); this guide is Go's: its commands, where its things are, how a feature is added here. Before changing anything, read the [README](README.md): it says how the decisions land in Go and maps every concept to the file that shows it. The TypeScript guide ([`typescript/CLAUDE.md`](../typescript/CLAUDE.md)) is the fuller one: the shape of a feature is the same, and the questions it answers under [*Questions you will have*](../typescript/CLAUDE.md#how-to-add-a-feature-follow-an-existing-one-do-not-invent-a-shape) — which verb, where a test goes, whether an event needs a handler, what an archived thing refuses — are answered the same way here; the list below gives them in Go words.
+
+Every command below runs from this directory (`cd go`).
+
+## Commands
+
+```bash
+go run ./tools/conventions                  # every import is the table, the tree matches the binding, every named file exists
+test -z "$(gofmt -l .)"                     # the formatter (gofmt -w . to apply)
+go vet ./...                                # the compiler's second look
+golangci-lint run ./...                     # the lints (errcheck included: a dropped refusal is refused)
+go test ./...                               # every _test.go; go test ./contexts/notes/... for one context, -run <Name> for one test
+go run ./bootstrap/cmd/application          # serves http://127.0.0.1:10000/v1 (PORT, API_PREFIX, JWT_SECRET, ADMIN_IDENTIFIER, ADMIN_PASSWORD, WEB_ORIGINS)
+node ../api/scenario.mjs http://127.0.0.1:10000   # the API every language answers, against that server
+yarn --cwd ../typescript architecture rule <ID> | concept <id> | checklist <kind> | verb <intent>   # the contract, asked; from here it answers in Go (`--language go` says it explicitly)
+                                            # the kinds: aggregate, value-object, domain-service, command, query, integration-event, event-handler, context
+go run ./tools/conventions can-import <file> <import-path> [<file> <import-path> …]   # would this import be allowed? names the rule that refuses it
+yarn --cwd ../typescript architecture mode feature --base <ref>   # did this change leave the architecture alone (`--base working` for uncommitted changes; the default base is origin/main)
+yarn --cwd ../typescript conventions:write  # re-render README.md after editing conventions/go.yaml
+```
+
+All five checks must pass before a change is done; CI runs them on every PR, from this directory.
+
+## Where things are
+
+```
+architecture/<layer>/             the building blocks, one package per layer: domain (Entity, AggregateRoot, ID, the three
+                                  kinds of Event, Exception, the (T, error) result), application (Run, Query, Command,
+                                  Reaction, ExecutionContext, Operation, the EventBus port, Module), infrastructure (the
+                                  in-memory pieces), presentation (Accept, Refuse, ContextOf, ByFormat)
+sharedkernel/<layer>/             domain (Email, Role), application (RequireSignedIn, integrationevents/)
+contexts/<context>/               one package directory per layer (domain/, application/, infrastructure/, presentation/)
+                                  and the wiring file module.go (package <context>) beside them
+  domain/<aggregate>/<aggregate>.go   the aggregate (package <aggregate>); beside it <name>.go value objects, events.go,
+                                  exceptions.go, dtos.go (the snapshot), <rule>.go domain services, repository.go and
+                                  queries.go (the ports), and <x>_test.go for each
+  application/commands/<use_case>.go  the command and its handler; queries/<use_case>.go a query handler;
+                                  events/<fact>_handler.go a reaction; commands_test.go beside the commands
+  infrastructure/<ports>.go       repositories.go, queries.go, suggestions.go: the adapters; persistence_contract_test.go
+  presentation/routes.go          the routes and their views, on the http.ServeMux; presenters.go beside it
+bootstrap/                        the composition root (create_application.go), the settings, cmd/application (the entry
+                                  point), testing.go and the end-to-end suites *_e2e_test.go
+tools/conventions/                the import linter and conventions check, in one
+../conventions/go.yaml            this language's binding of the contract: contexts, trees, enforcers, checklists, canonical files
+```
+
+**A package is imported by its module path** (`clean-ddd/contexts/notes/domain/note`), which is the path the import linter matches on; a Go import is always absolute, so there is no relative import to refuse (ARCH-RELATIVE). A tree is a directory of the module: `architecture`, `sharedkernel`, `contexts/<context>`, `bootstrap`; a layer is the contract's name in lowercase. A package whose name collides with another is aliased at the import (`kernel "clean-ddd/sharedkernel/application"`, `archinfra "clean-ddd/architecture/infrastructure"`).
+
+## The rules (enforced)
+
+The rules are the contract's, the same in every language, and listed in the root [CLAUDE.md](../CLAUDE.md). What is Go's is in [`conventions/go.yaml`](../conventions/go.yaml), this language's **binding**: the contexts, the trees, the libraries only an adapter may import, which tool holds each rule here (`tools/conventions` for the dependency table and the tree, `go vet` and the compiler, a `_test.go`, review), what a new thing of each kind is made of (`yarn --cwd ../typescript architecture checklist <kind>`), and the file that shows each concept and each rule.
+
+- **The architecture is data.** A new context goes in `contexts` of the binding, with one package directory per layer; a new file worth pointing at goes under `concepts` of the binding; a new rule goes in the contract, and in no binding. Neither is edited to make a violation pass.
+
+## How to add a feature (follow an existing one, do not invent a shape)
+
+Ask the contract first: `yarn --cwd ../typescript architecture checklist <kind>` lists what a new one is made of in Go and where it goes, with the placeholders filled in (typed from this directory it answers in Go; `--language go` says it explicitly). A plan is optional: `plan validate|explain` works on one that says `language: go`, and is worth writing when a feature crosses a context or raises a modelling question.
+
+1. **Domain first.** Add a behaviour to the aggregate that enforces the rule and records an event ([`note.go`](contexts/notes/domain/note/note.go)): check the rules with the unexported `ensure*` helpers (`if err := n.ensureOwner(actor); err != nil { return err }`), change the state, `n.Record(SomethingHappenedEvent{...})`, return `nil`. A pure read skips the aggregate: its first step is a read model and a method on the queries port ([`queries.go`](contexts/notes/domain/note/queries.go)). New concept with validation? A value object ([`note_title.go`](contexts/notes/domain/note/note_title.go)): a struct with one unexported field, `New<Name>()` returning `(<Name>, error)`, one exception per rule the user could act on differently in [`exceptions.go`](contexts/notes/domain/note/exceptions.go) (a constructor returning `*domain.Exception` with a PascalCase `Type`); a behaviour an archived note refuses reuses `ensureActive()` and its `NoteArchived`, since the remedy is the same (restore first). New rule about the whole collection, or a fact another context owns? A domain service taking its port in its constructor ([`note_sharing.go`](contexts/notes/domain/note/note_sharing.go)). A new fact is a new struct in [`events.go`](contexts/notes/domain/note/events.go), embedding `domain.DomainEvent`, named in the past tense with the `Event` suffix, its exported fields the payload. A behaviour that needs a **new attribute** (`pinned`) adds it to the struct, to `Create()` with its default, to `FromSnapshot()` / `ToSnapshot()` and to the snapshot in [`dtos.go`](contexts/notes/domain/note/dtos.go), and exposes it through a method; the snapshot round-trip test tells you if you forgot one. An act undone (restore, unpin) is not gated by `ensureActive()`, like `Restore()`: an owner can always tidy up. Tests in `<aggregate>_test.go` beside it.
+2. **Command + handler**, in one file copied from [`edit_note.go`](contexts/notes/application/commands/edit_note.go): the command, a struct embedding `domain.CommandEvent` named `<UseCase>CommandEvent` with its exported fields the payload, and the handler, a struct `<UseCase>Handler` taking its ports in `New<UseCase>Handler()`, with `Execute(command, ctx) (R, error)` — `kernel.RequireSignedIn(ctx, note.Service)` → load → ask the aggregate → `Save()` → `application.PublishDomainEvents(n, ctx)` → `return application.Nothing{}, nil`; every step that can refuse returns its error as is. `R` is what the operation records as its result: a `string` for a created id, a struct for a suggestion, `application.Nothing` when there is nothing to say. Or a query handler from [`get_note.go`](contexts/notes/application/queries/get_note.go): `Execute(params, ctx) (R, error)`, `application.NoParams` when there are none; `Execute()` reads the port and nothing else. The tests of the handlers of one aggregate share the fixture of [`commands_test.go`](contexts/notes/application/commands/commands_test.go): the in-memory repository is the double, and a recording bus says what was published; every command handler has at least its happy path and one refusal there, through `Execute()` (a rule in a `Guard()` method is tested through `application.Run()`).
+3. **Infrastructure** only if a port changed. A new adapter of an existing port is one more entry in the adapters table of [`persistence_contract_test.go`](contexts/notes/infrastructure/persistence_contract_test.go) and must pass it unchanged; that is the whole review — the SQLite pair in [`repositories.go`](contexts/notes/infrastructure/repositories.go) and [`queries.go`](contexts/notes/infrastructure/queries.go) got in that way, over the table of [`notes_table.go`](contexts/notes/infrastructure/notes_table.go). A new column is a line in the table, a field in `toRow()` / `scanNote()`, a column in the `UPDATE` and the `INSERT` of `SqliteNoteRepository.Save()`, and a field in every read model the SQLite queries build; the contract test's round-trip case tells you if you forgot one, provided it exercises the new field. A new read-model field is a field on the struct in `queries.go`, built by both adapters, and a field with a camelCase JSON tag on the view struct of the routes.
+4. **Route + controller** in the context's [`presentation/routes.go`](contexts/notes/presentation/routes.go): a handler func per route on the `http.ServeMux` (`mux.HandleFunc("POST "+prefix+"/{id}/share", …)`), taking the body through `presentation.DecodeBody(w, r, &body)` into a struct declared beside the route. A command is `presentation.Accept(w, presentation.ContextOf(r), TheCommand{...})` — the `202` goes out, the dispatch runs in the background; a query is `application.Query(h, params, ctx)` with `h := application.QueryOf[*TheHandler]` applied to the module, answered through a view struct (camelCase JSON tags: what the API promises) or refused through the file's `refuse<Context>()`, which maps the context's own kinds before `presentation.StatusOf()`. An answer the HTMX front end also wants is a `presentation.ByFormat` of two presenters, picked by `presentation.FormatOf(r.Header)` ([`security/presentation/presenters.go`](contexts/security/presentation/presenters.go)); JSON is mandatory, HTMX optional. The verb follows the HTTP grammar (`yarn --cwd ../typescript architecture verbs`): `POST /notes` creates, `PUT /notes/{id}` replaces, `POST /notes/{id}/share` acts; an action undone is a second act named after the undoing (`/archive` and `/restore`), never a `DELETE`. The HTMX front end is the presenters' example, not a second client to keep in parity: a new command does not oblige a new form control. Prove it end to end in [`bootstrap/<context>_routes_e2e_test.go`](bootstrap/notes_routes_e2e_test.go): follow a `202` with `app.Accepted(t, client, response)`, which polls the operation to its outcome; each case boots its own application with `StartTestApplication(t)`.
+5. **List it in the wiring** ([`module.go`](contexts/notes/module.go)): `application.Command(NewTheHandler(ports))` under `Commands`, the handler under `Queries`, `application.Reaction(TheReaction{})` under `DomainEvents`.
+6. Cross-context reaction? Publish an integration event from a domain event handler ([`notes/.../note_shared_handler.go`](contexts/notes/application/events/note_shared_handler.go)): the contract is a struct embedding `domain.IntegrationEvent` in the shared kernel's [`integrationevents/`](sharedkernel/application/integrationevents/note_integration_events.go), in the publishing context's public words. The consuming context reacts with an anti-corruption handler in its own `events/` ([`notifications/.../note_shared_handler.go`](contexts/notifications/application/events/note_shared_handler.go)): it knows the contract and nothing else of the other context, restates the fact in its own words, and calls its own use case; listed in its wiring under `IntegrationEvents`, on the contract's type.
+7. **The map.** A new file worth pointing at goes under `concepts` in [`conventions/go.yaml`](../conventions/go.yaml); then `yarn --cwd ../typescript conventions:write` and `go run ./tools/conventions`. A second use of a kind the map already shows (another command on an aggregate) is not a new example: the map stays as it is, and a feature does not edit the binding.
+
+## Questions you will have, in Go words
+
+The TypeScript list linked above is the full one; these are the answers a Go reader reaches for most, in this language's vocabulary.
+
+- **Does every domain event need a handler?** No. The aggregate records the fact because it happened (`NoteEditedEvent` has no handler); subscribe one in `module.go` only when something reacts. An integration event exists only once a first consumer needs the fact.
+- **Does the read side's order matter?** Yes, and it belongs to the queries port: the order a method returns is in its doc comment ([`queries.go`](contexts/notes/domain/note/queries.go)) and asserted for every adapter by the contract test. A query handler never sorts; an adapter does (the store's insertion order in memory, an `ORDER BY` in SQL).
+- **Does a new exception need a line in `refuse<Context>()`?** No. It maps *kinds* (`domain.IsNotAllowed` → 403, the aggregate's not-found type → 404, anything else → 400); a refused command never reaches it, it is on the operation.
+- **Which HTTP verb?** `yarn --cwd ../typescript architecture verb <intent>`: `GET` for a query, `POST` to create and for an action on a thing, `PUT` to replace, `PATCH` for a partial state change, `DELETE` for a thing truly gone. A toggle is two acts (`/pin` and `/unpin`), never a `DELETE`.
+- **Where does the test go?** Beside what it tests, as `<x>_test.go` in the same package: the aggregate's in `note_test.go`, the handlers of one aggregate in `commands_test.go`, one case per adapter in the contract test, the user-visible flow in `bootstrap/<context>_routes_e2e_test.go`. A rule in a `Guard()` method is tested through `application.Run()`.
+- **How do I compare things in a test?** An event, a snapshot and a read model are plain structs: `reflect.DeepEqual` compares every field, `==` when there is no slice. An aggregate keeps its state private: compare with `Equals()` (the same thing?) or through `ToSnapshot()` (the same state?). A refusal is read with `domain.Refusal(err)` and its `Type` compared; `domain.IsNotFound(err)` and its siblings for the common kinds.
+- **An existing event needs more data for a new consumer?** Widen the struct in `events.go` and the `Record()` call in the behaviour, which holds the state; do not add a second struct for the same fact. One fact is one message: a fact with several interested parties is one event carrying the list (`SharedWith`), and the fan-out is the consumer's business. The contract names it in Notes' public words (`RecipientIDs`), and is published whenever the fact happens, the list empty or not.
+- **Do event handlers need a guard?** No. A domain or integration event handler reacts to a fact that was already allowed, in the publisher's context; `EventHandler` has no `Guard`. An anti-corruption handler that fans out calls the local use case once per recipient, returns the first error as is, and answers `nil`.
+- **Packages and names?** A package per directory, named after it; a file imports a package by its module path and aliases it when the name collides (`kernel`, `archinfra`, `notesinfra`). No barrel, no re-export: the module file names the package of each handler it lists. `Record()` is exported because an aggregate lives in its own package — that a handler never calls it is the rule (DOMAIN-RECORDS-EVENTS), not something the compiler holds.
+- **A dropped error?** `_ = note.Archive(actor)` compiles; `golangci-lint`'s `errcheck` refuses it, which is why the lint is one of the five checks. A refusal is returned, never logged and swallowed.
+
+## Code style
+
+- Go ≥ 1.24; `gofmt` applied, `go vet` clean, `golangci-lint run` clean with the default linters (no `//nolint`).
+- Unexported fields everywhere in the domain, reached through methods; the only way into an aggregate is `Create()` or `FromSnapshot()`, the only way into a value object is `New<Name>()`. Methods return copies of slices (`slices.Clone`), never the slice.
+- `(T, error)` in every signature that can refuse; a refusal is a `*domain.Exception` returned as is; `panic` only for corrupted state, with the id in the message. No `recover` outside the base handlers.
+- A handler takes its ports in its constructor, shared with the other handlers of the aggregate; the only state it holds is those ports (ARCH-EXECUTION-CONTEXT: a clock, a mailer, a model client is such a port, never a member of the context).
+- An event's channel is its type name, read with `domain.NameOf(event)` or `domain.NameOfType[TheEvent]()`; a payload field may be called `Name`. A handler publishes with `ctx.Publish(event)` and never waits for it: the dispatch is a goroutine, and a test that wants to see it calls the in-memory bus's `Settle()`.
+- A port is an interface in the aggregate package; an adapter implements it without naming it, and so does a test double (a `type directory struct{}` with one `Exists` method). Keep `any` out of the use cases: the base handlers and the module are the one place the bus is type-erased.
+- A route never builds a handler, an adapter or a context: it gets its `Module` from the composition root and the request's context from `presentation.ContextOf(r)`. A library (`net/http`, `database/sql`, `encoding/json`, `modernc.org/sqlite`, `golang-jwt`, `x/crypto`, `coder/websocket`) appears in a `presentation` or `infrastructure` package, in the bootstrap, or in an end-to-end test, and the import linter refuses it anywhere else.
+- `snake_case` files named after what they hold (`note_title.go`, `note_sharing.go`); `PascalCase` exported types; an exception's `Type` in PascalCase (`NotNoteOwner`); a status or role is a typed string whose value is its name (`note.StatusActive == "ACTIVE"`).
+- A doc comment at the top of a file explains *why* the file exists and what rule it protects, in a few lines. No commented-out code, no `fmt.Println` outside the console logger and the tools.
+- Conventional commits (`feat:`, `fix:`, `refactor:`, `chore:`, `docs:`), one concern per PR, and the PR body states how it was verified.
+
+## Things to avoid
+
+- An import of another context's internals, or of the bootstrap from a context: `tools/conventions` says no and names the rule; the fix is a port, an integration event or a move — never an edit to the binding.
+- A rule in `conventions/go.yaml`: a binding points at files and holds no rule (ARCH-ONE-CONTRACT).
+- A `Result[T]` type of our own, a `Mapper`, a generic `Repository[T]`, a service locator or a DI container.
+- Panicking on a refusal, or recovering one into a log line: a refusal is returned.
+- A struct embedding a base handler to inherit a template method: the template is `application.Run()` / `application.Query()`, and a handler is the struct with `Execute()` it takes.

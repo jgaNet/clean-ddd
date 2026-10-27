@@ -7,10 +7,10 @@ description: Add a feature to this codebase in the shape the architecture requir
 
 This repository's architecture is data, not prose: `conventions/architecture.yaml` (the contract,
 shared by every language), `conventions/concepts.yaml` (the vocabulary) and the binding of the
-language you are working in (`conventions/typescript.yaml`, `rust.yaml`, `python.yaml`) are the
+language you are working in (`conventions/typescript.yaml`, `rust.yaml`, `python.yaml`, `go.yaml`) are the
 source of truth, and `yarn architecture` answers from them. **Ask it instead of guessing.** The
 tooling lives in `typescript/`: run it from the language's directory (`cd typescript`; from `rust/`
-or `python/`, `yarn --cwd ../typescript architecture …`, which then answers for that language, or
+`python/` or `go/`, `yarn --cwd ../typescript architecture …`, which then answers for that language, or
 `--language <id>` says which) and it prints paths from the repository root. Every command takes
 `--json` (a `schemaVersion`, a structured error, a non-zero exit on an unknown id), so the answers
 can be parsed.
@@ -44,6 +44,7 @@ Before writing any import that crosses a boundary, ask:
 ```bash
 yarn architecture can-import <file> <specifier> [<file> <specifier> …]        # TypeScript (ESLint)
 uv run python -m tools.conventions can-import <file> <module> [<file> <module> …]   # Python, from python/
+go run ./tools/conventions can-import <file> <import-path> [<file> <import-path> …]  # Go, from go/
 ```
 
 It asks the real linter and names the rule that refuses. Several pairs in one call check a
@@ -96,6 +97,8 @@ cargo run -p conventions && cargo fmt --check && cargo clippy --all-targets -- -
 # python/
 uv run python -m tools.conventions && uv run ruff format --check . && uv run ruff check . \
   && uv run mypy && uv run pytest
+# go/
+go run ./tools/conventions && test -z "$(gofmt -l .)" && go vet ./... && golangci-lint run ./... && go test ./...
 ```
 
 ## If you need to change a protected tree, stop
