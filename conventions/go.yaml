@@ -363,6 +363,14 @@ concepts:
     canonical: [contexts/notes/application/commands/edit_note.go]
     example: '`EditNoteHandler` in [`edit_note.go`](contexts/notes/application/commands/edit_note.go)'
     notes: 'takes its ports in its constructor; `Execute()` returns `(R, error)` and returns a refusal as is'
+  guard:
+    canonical:
+      - sharedkernel/application/guards.go
+      - contexts/security/application/commands/register_admin.go
+    example: >-
+      `RequireSignedIn()` in [`guards.go`](sharedkernel/application/guards.go), called once at the top
+      of `Execute()`; `Guard()` in
+      [`register_admin.go`](contexts/security/application/commands/register_admin.go)
   application-service:
     canonical: [contexts/notifications/application/delivery.go]
     notes: 'holds the channels by `Channel`, each behind the port, since a strategy walks a list of adapters of different kinds'
