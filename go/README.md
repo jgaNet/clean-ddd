@@ -143,6 +143,7 @@ The rules are the contract's, listed with their ids in the root [CLAUDE.md](../C
 | **ARCH-ONE-CONTRACT** — Every language the reference is written in is held to this file — the same layers, the same rules under the same ids, the same HTTP grammar — through a binding that says where its trees are and which file shows each concept; a language never carries a rule of its own. | `go run ./tools/conventions` · [0011-one-reference-several-languages.md](../docs/adr/0011-one-reference-several-languages.md), [README.md](../conventions/README.md) |
 | **API-ONE-SURFACE** — Every language answers the same HTTP API — the same routes, status codes, body shapes and public names — so one black-box scenario, run against each server, passes unchanged; the public name of an operation is its intent or its fact without the suffix of its kind (`ShareNote`, `NoteShared`). | `go test ./...` · [0016-one-api-for-every-language.md](../docs/adr/0016-one-api-for-every-language.md), [projection.go](contexts/tracker/application/projection.go), [operation_routes_e2e_test.go](bootstrap/operation_routes_e2e_test.go) |
 | **CTX-MAP-DECLARED** — Every relationship between two contexts is declared once in the context map, with the strategic pattern it follows, the mechanism that carries it and why; the contracts it carries are read from the code, and the check refuses a link in the code the map does not declare and a declared relationship nothing in the code carries. | `go run ./tools/conventions` · [0019-the-domain-is-data.md](../docs/adr/0019-the-domain-is-data.md), [README.md](../conventions/README.md) |
+| **ARCH-ONE-APPLICATION** — Every language's tree says the same application, in words every language shares — the commands of each context with who may call them, their route, the aggregate they reach and the events it records; the queries; the domain events; the policies and what they publish or reach; the links between contexts; each language's tool writes that inventory from its own tree, and the check holds the inventories equal. | `go run ./tools/conventions` · [0021-one-application-every-language-writes-the-same-inventory.md](../docs/adr/0021-one-application-every-language-writes-the-same-inventory.md), [README.md](../conventions/README.md), [inventory.go](tools/conventions/inventory.go) |
 <!-- end generated -->
 
 ### Who may import whom
@@ -216,7 +217,9 @@ Requires Go ≥ 1.24 and [golangci-lint](https://golangci-lint.run/) v2. Everyth
 
 ```bash
 cd go
-go run ./tools/conventions                  # every import is the table, the tree matches the binding, every named file exists
+go run ./tools/conventions                  # every import is the table, the tree matches the binding, every named file exists, the inventory is current
+go run ./tools/conventions inventory        # what this tree says the application is, in words every language shares (docs/inventory/go.json)
+go run ./tools/conventions inventory --write   # write it there, after a feature; the check refuses a stale one and the TypeScript check holds the languages equal
 test -z "$(gofmt -l .)"                     # the formatter, as CI runs it (gofmt -w . to apply)
 go vet ./...                                # the compiler's second look
 golangci-lint run ./...                     # the lints

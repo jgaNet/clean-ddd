@@ -116,6 +116,8 @@ rules:
     references: [src/contexts/tracker/application/projection.py, src/bootstrap/test_operation_routes_e2e.py]
   ARCH-MAP-IS-REAL:
     references: [tools/conventions.py]
+  ARCH-ONE-APPLICATION:
+    references: [tools/conventions.py]
 
 # What a new thing of each kind is made of in Python, and where each part goes. The kinds are
 # architecture.yaml's. Lowercase placeholders (`<context>`, `<aggregate>`) are filled in

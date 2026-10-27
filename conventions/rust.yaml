@@ -104,6 +104,8 @@ rules:
     references: [src/contexts/tracker/application/src/projection.rs, src/bootstrap/tests/operation_routes.rs]
   ARCH-MAP-IS-REAL:
     references: [tools/conventions/src/main.rs]
+  ARCH-ONE-APPLICATION:
+    references: [tools/conventions/src/inventory.rs]
 
 # The file that shows each verb of the HTTP grammar: the Notes routes for the grammar, the auth
 # routes for the one exception.
