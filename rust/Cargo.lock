@@ -258,6 +258,7 @@ name = "conventions"
 version = "3.1.0"
 dependencies = [
  "serde",
+ "serde_json",
  "serde_yaml",
  "toml",
 ]

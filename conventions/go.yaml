@@ -126,6 +126,8 @@ rules:
     references: [contexts/tracker/application/projection.go, bootstrap/operation_routes_e2e_test.go]
   ARCH-MAP-IS-REAL:
     references: [tools/conventions/main.go]
+  ARCH-ONE-APPLICATION:
+    references: [tools/conventions/inventory.go]
 
 # What a new thing of each kind is made of in Go, and where each part goes. The kinds are
 # architecture.yaml's. Lowercase placeholders (`<context>`, `<aggregate>`) are filled in

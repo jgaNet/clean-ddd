@@ -18,9 +18,16 @@
 //     A Go import path is always absolute, so ARCH-RELATIVE has nothing to refuse here.
 //  4. Every file the binding names exists (ARCH-MAP-IS-REAL). The rendered documents and
 //     the links are checked by the TypeScript tooling, which reads every binding.
+//  5. The committed inventory (docs/inventory/go.json) is what the tree says the application
+//     is — the commands of each context with who may call them, their route, the aggregate
+//     they reach and the events it records; the queries; the domain events; the policies and
+//     what they publish or reach; the links between contexts — read from the canonical shapes
+//     with go/ast (inventory.go), so that the TypeScript check can hold the four inventories
+//     equal (ARCH-ONE-APPLICATION).
 //
 // `can-import <file> <import-path> …` answers whether an import would be allowed, naming the
-// rule that refuses it. Every refusal names its rule id first, so a reader or
+// rule that refuses it. `inventory` prints the inventory as canonical JSON; `inventory --write`
+// writes it to docs/inventory/go.json. Every refusal names its rule id first, so a reader or
 // `yarn architecture rule <id>` can look it up.
 package main
 
@@ -46,6 +53,9 @@ func main() {
 
 	if len(os.Args) > 1 && os.Args[1] == "can-import" {
 		os.Exit(canImport(root, contract, os.Args[2:]))
+	}
+	if len(os.Args) > 1 && os.Args[1] == "inventory" {
+		os.Exit(inventoryCommand(root, contract, os.Args[2:]))
 	}
 
 	problems := check(root, contract)
@@ -93,6 +103,7 @@ func check(root string, contract *Contract) []string {
 		}
 	}
 	problems = append(problems, checkNamedFiles(root, contract)...)
+	problems = append(problems, checkInventory(root, contract)...)
 	return problems
 }
 
@@ -102,7 +113,7 @@ func summary(root string, contract *Contract) string {
 	for _, file := range files {
 		imports += len(file.imports)
 	}
-	return fmt.Sprintf("✓ contract v%d, Go binding: %d files and %d imports are the table, %d contexts match the tree, every file the binding names exists.",
+	return fmt.Sprintf("✓ contract v%d, Go binding: %d files and %d imports are the table, %d contexts match the tree, every file the binding names exists; the inventory is current.",
 		contract.SchemaVersion, len(files), imports, len(contract.Contexts))
 }
 

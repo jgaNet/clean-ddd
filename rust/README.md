@@ -147,6 +147,7 @@ Every rule has a stable id, a reason, a remediation and says how it is held — 
 | **ARCH-ONE-CONTRACT** — Every language the reference is written in is held to this file — the same layers, the same rules under the same ids, the same HTTP grammar — through a binding that says where its trees are and which file shows each concept; a language never carries a rule of its own. | `cargo run -p conventions` · [0011-one-reference-several-languages.md](../docs/adr/0011-one-reference-several-languages.md), [README.md](../conventions/README.md) |
 | **API-ONE-SURFACE** — Every language answers the same HTTP API — the same routes, status codes, body shapes and public names — so one black-box scenario, run against each server, passes unchanged; the public name of an operation is its intent or its fact without the suffix of its kind (`ShareNote`, `NoteShared`). | a `#[test]` · [0016-one-api-for-every-language.md](../docs/adr/0016-one-api-for-every-language.md), [projection.rs](src/contexts/tracker/application/src/projection.rs), [operation_routes.rs](src/bootstrap/tests/operation_routes.rs) |
 | **CTX-MAP-DECLARED** — Every relationship between two contexts is declared once in the context map, with the strategic pattern it follows, the mechanism that carries it and why; the contracts it carries are read from the code, and the check refuses a link in the code the map does not declare and a declared relationship nothing in the code carries. | `cargo run -p conventions` · [0019-the-domain-is-data.md](../docs/adr/0019-the-domain-is-data.md), [README.md](../conventions/README.md) |
+| **ARCH-ONE-APPLICATION** — Every language's tree says the same application, in words every language shares — the commands of each context with who may call them, their route, the aggregate they reach and the events it records; the queries; the domain events; the policies and what they publish or reach; the links between contexts; each language's tool writes that inventory from its own tree, and the check holds the inventories equal. | `cargo run -p conventions` · [0021-one-application-every-language-writes-the-same-inventory.md](../docs/adr/0021-one-application-every-language-writes-the-same-inventory.md), [README.md](../conventions/README.md), [inventory.rs](tools/conventions/src/inventory.rs) |
 <!-- end generated -->
 
 ### Who may import whom
@@ -222,7 +223,9 @@ Requires a stable Rust toolchain with `rustfmt` and `clippy` (edition 2024, Rust
 
 ```bash
 cd rust
-cargo run -p conventions                    # the crate graph is the table, the tree matches the binding, every named file exists
+cargo run -p conventions                    # the crate graph is the table, the tree matches the binding, every named file exists, the inventory is current
+cargo run -p conventions -- inventory       # the inventory read from this tree (docs/inventory/rust.json), in the words every language shares
+cargo run -p conventions -- inventory --write   # writes it; the check refuses a committed inventory the tree no longer renders
 cargo fmt --check                           # rustfmt, as CI runs it
 cargo clippy --all-targets -- -D warnings   # the lints, warnings refused
 cargo test                                  # every #[test] in every crate, the end-to-end suites of src/bootstrap/tests included

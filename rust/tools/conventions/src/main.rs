@@ -18,12 +18,17 @@
 //!    bootstrap and the libraries only: no layer crate in its `[dev-dependencies]` (ARCH-E2E).
 //! 4. Every file the binding names exists (ARCH-MAP-IS-REAL). The rendered documents and the
 //!    links are checked by the TypeScript tooling, which reads every binding.
+//! 5. The committed inventory (`docs/inventory/rust.json`) is what the tree renders now
+//!    (ARCH-ONE-APPLICATION): `cargo run -p conventions -- inventory` prints it, `--write`
+//!    writes it, and the TypeScript check holds every language's inventory equal.
 //!
 //! Layer names are the contract's (`Domain`); a crate directory is the same word in lowercase
 //! (`domain`), which is Rust's convention for a path.
 
 // A tool talks on the console: the workspace denies it to everything but the logger and the tools.
 #![allow(clippy::print_stdout, clippy::print_stderr)]
+
+mod inventory;
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -48,16 +53,43 @@ fn main() -> ExitCode {
     let contract = yaml(&repository_root.join(CONTRACT));
     let binding = yaml(&repository_root.join(BINDING));
 
+    let arguments: Vec<String> = std::env::args().skip(1).collect();
+    match arguments.iter().map(String::as_str).collect::<Vec<_>>().as_slice() {
+        [] => check(&contract, &binding, &repository_root, &language_root),
+        ["inventory"] => {
+            print!("{}", inventory::render(&inventory::inspect(&binding, &language_root)));
+            ExitCode::SUCCESS
+        }
+        ["inventory", "--write"] => {
+            let path = repository_root.join(inventory::INVENTORY_FILE);
+            if let Some(dir) = path.parent() {
+                fs::create_dir_all(dir).unwrap_or_else(|error| panic!("cannot create {}: {error}", dir.display()));
+            }
+            fs::write(&path, inventory::render(&inventory::inspect(&binding, &language_root)))
+                .unwrap_or_else(|error| panic!("cannot write {}: {error}", path.display()));
+            println!("✓ wrote {}", inventory::INVENTORY_FILE);
+            ExitCode::SUCCESS
+        }
+        _ => {
+            eprintln!("usage: cargo run -p conventions [-- inventory [--write]]");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// The check: the four proofs above, and the inventory current.
+fn check(contract: &Yaml, binding: &Yaml, repository_root: &Path, language_root: &Path) -> ExitCode {
     let mut problems: Vec<String> = Vec::new();
-    check_binding(&contract, &binding, &repository_root, &language_root, &mut problems);
+    check_binding(contract, binding, repository_root, language_root, &mut problems);
     let layers = keys(&contract["layers"]);
-    check_tree(&binding, &layers, &language_root, &mut problems);
-    let crates = check_graph(&contract, &binding, &layers, &language_root, &mut problems);
-    check_files(&binding, &language_root, &mut problems);
+    check_tree(binding, &layers, language_root, &mut problems);
+    let crates = check_graph(contract, binding, &layers, language_root, &mut problems);
+    check_files(binding, language_root, &mut problems);
+    inventory::check(repository_root, &inventory::render(&inventory::inspect(binding, language_root)), &mut problems);
 
     if problems.is_empty() {
         println!(
-            "✓ contract v{}, Rust binding: {} crates are the table, {} contexts match the tree, every file the binding names exists.",
+            "✓ contract v{}, Rust binding: {} crates are the table, {} contexts match the tree, every file the binding names exists; the inventory is current.",
             contract["schemaVersion"].as_u64().unwrap_or(0),
             crates,
             strings(&binding["contexts"]).len()

@@ -7,7 +7,9 @@ Every command below runs from this directory (`cd go`).
 ## Commands
 
 ```bash
-go run ./tools/conventions                  # every import is the table, the tree matches the binding, every named file exists
+go run ./tools/conventions                  # every import is the table, the tree matches the binding, every named file exists, the inventory is current
+go run ./tools/conventions inventory        # what this tree says the application is, in words every language shares (docs/inventory/go.json)
+go run ./tools/conventions inventory --write   # write it there, after a feature; the check refuses a stale one and the TypeScript check holds the languages equal
 test -z "$(gofmt -l .)"                     # the formatter (gofmt -w . to apply)
 go vet ./...                                # the compiler's second look
 golangci-lint run ./...                     # the lints (errcheck included: a dropped refusal is refused)

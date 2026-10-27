@@ -23,13 +23,15 @@
  *    declared (CTX-MAP-DECLARED); the root README's strategic view is rendered from it.
  * 9. The event storm the documents show is the one read from the code: docs/event-storm.md between
  *    its markers and the docs/event-storm.svg board, when the repository has them.
+ * 10. One application: this language's inventory under docs/inventory is what its tree says, and every
+ *    other language's committed inventory says the same (ARCH-ONE-APPLICATION).
  *
  * A client of tools/architecture-contract, like the CLI; it parses no YAML itself. Two roots: the
  * repository's, where the contract and the shared documents live, and this language's, where the
  * code is; every path the contract carries is relative to the first.
  */
 
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join, posix, resolve } from 'path';
 
 import {
@@ -64,6 +66,11 @@ import {
   inspectEventStorm,
   renderEventStorm,
   renderEventStormSvg,
+  INVENTORY_DIR,
+  compareInventories,
+  inspectInventory,
+  loadInventories,
+  serializeInventory,
 } from './architecture-contract';
 import type { ArchitectureContract } from './architecture-contract';
 
@@ -225,6 +232,30 @@ if (storm) {
   }
 }
 
+// 10. One application: this language's inventory is current, and every committed inventory says the same
+
+const inventories = multi ? loadInventories(root) : new Map();
+if (multi) {
+  const inventory = inspectInventory(contract, root);
+  const inventoryFile = posix.join(INVENTORY_DIR, `${contract.language.id}.json`);
+  const rendered = serializeInventory(inventory);
+  const committed = existsSync(join(root, inventoryFile)) ? readFileSync(join(root, inventoryFile), 'utf8') : '';
+  if (committed !== rendered) {
+    if (write) {
+      mkdirSync(join(root, INVENTORY_DIR), { recursive: true });
+      writeFileSync(join(root, inventoryFile), rendered);
+    } else {
+      problem(
+        `ARCH-ONE-APPLICATION: ${inventoryFile} differs from what the ${contract.language.name} tree says; run yarn conventions:write`,
+      );
+    }
+  }
+  for (const [language, other] of inventories) {
+    if (language === contract.language.id) continue;
+    for (const difference of compareInventories(inventory, other)) problem(`ARCH-ONE-APPLICATION: ${difference}`);
+  }
+}
+
 // 4. Every relative link in the documentation resolves
 
 const linksIn = (text: string) =>
@@ -330,5 +361,5 @@ if (problems.length) {
   process.exit(1);
 }
 process.stdout.write(
-  `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts match the tree; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; no eslint-disable; ${probes.length} import probes behave and name their rule${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}${storm ? `; the event storm is read from the code (${storm.contexts.reduce((sum, each) => sum + each.commands.length, 0)} commands, ${storm.contexts.reduce((sum, each) => sum + each.policies.length, 0)} policies)` : ''}.\n`,
+  `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts match the tree; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; no eslint-disable; ${probes.length} import probes behave and name their rule${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}${storm ? `; the event storm is read from the code (${storm.contexts.reduce((sum, each) => sum + each.commands.length, 0)} commands, ${storm.contexts.reduce((sum, each) => sum + each.policies.length, 0)} policies)` : ''}${multi ? `; one application in ${inventories.size} inventor${inventories.size === 1 ? 'y' : 'ies'}` : ''}.\n`,
 );

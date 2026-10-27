@@ -19,6 +19,15 @@ linter and the check, generated from the data the way ``typescript/eslint.config
    module and nothing else (ARCH-RELATIVE).
 4. Every file the binding names exists (ARCH-MAP-IS-REAL). The rendered documents and the links
    are checked by the TypeScript tooling, which reads every binding.
+5. The committed inventory (``docs/inventory/python.json``) is what the tree says the application
+   is (ARCH-ONE-APPLICATION): the commands of each context with who may call them, their route,
+   the aggregate they reach and the events it records; the queries; the domain events; the
+   policies and what they publish or reach; the links between contexts — read from the canonical
+   shapes with ``ast`` (the wiring listed as data, a behaviour that ``_record()``s its events, a
+   handler that guards with ``require_signed_in()`` or a ``guard()`` on a role, a route whose
+   function builds the command) and written in words every language shares, so the TypeScript
+   check can hold the four inventories equal. ``python -m tools.conventions inventory`` prints
+   it, ``--write`` writes it.
 
 Every refusal names its rule id first, so a reader or ``yarn architecture rule <id>`` can look
 it up. Layer names are the contract's (``Domain``); a package is the same word in lowercase.
@@ -27,6 +36,8 @@ it up. Layer names are the contract's (``Domain``); a package is the same word i
 from __future__ import annotations
 
 import ast
+import json
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -306,6 +317,546 @@ def check_files(binding: dict[str, Any], here: Path, problems: Problems) -> None
             problems.add("ARCH-MAP-IS-REAL", f"{BINDING} {what} names {file}, which does not exist")
 
 
+# 5. The inventory: what the tree says the application is, in words every language shares
+
+
+INVENTORY = f"docs/inventory/{LANGUAGE}.json"
+INVENTORY_SCHEMA_VERSION = 1
+INVENTORY_WRITE = "uv run python -m tools.conventions inventory --write"
+INVENTORY_RULE = "ARCH-ONE-APPLICATION"
+
+SUFFIXES = re.compile(r"(CommandEvent|IntegrationEvent|CommandHandler|QueryHandler|EventHandler|Handler|Event)$")
+#: The building blocks a service is not: a class extending one of these holds state or a fact, not an orchestration.
+NOT_A_SERVICE = {
+    "AggregateRoot",
+    "Entity",
+    "ValueObject",
+    "DomainEvent",
+    "CommandEvent",
+    "IntegrationEvent",
+    "Protocol",
+    "StrEnum",
+    "Enum",
+    "BaseModel",
+}
+RECORDS = {"_record", "record"}
+
+type Json = dict[str, Any]
+
+
+def public_name(class_name: str) -> str:
+    """The public name of a class: its intent or its fact, without the suffix of its kind (API-ONE-SURFACE)."""
+    return SUFFIXES.sub("", class_name)
+
+
+def canonical_route(verb: str, prefix: str, path: str) -> str:
+    """`VERB /path`, every path parameter spelled `{param}`; an empty path on a prefixed router is the prefix."""
+    joined = re.sub(r"/{2,}", "/", f"{prefix}/{path}").rstrip("/") or "/"
+    return f"{verb.upper()} {re.sub(r'\{\w+\}', '{param}', joined)}"
+
+
+def sorted_names(values: list[str]) -> list[str]:
+    """Alphabetical the way every language's tool sorts: letters before case, then the exact spelling."""
+    return sorted(set(values), key=lambda value: (value.casefold(), value))
+
+
+def unique(values: list[str]) -> list[str]:
+    return list(dict.fromkeys(values))
+
+
+@dataclass(frozen=True)
+class Source:
+    """A parsed module of a context: its path, its tree and the classes it declares, by name."""
+
+    path: Path
+    module: ast.Module
+    classes: dict[str, ast.ClassDef]
+    layer: str  # the package under the context (domain, application, ...) or "" for the wiring
+
+
+def parse_sources(directory: Path) -> list[Source]:
+    """Every non-test module of a context, read with ``ast`` and never executed."""
+    sources: list[Source] = []
+    for path in sorted(directory.rglob("*.py")):
+        if path.name.startswith("test_"):
+            continue
+        module = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        classes = {node.name: node for node in module.body if isinstance(node, ast.ClassDef)}
+        relative = path.relative_to(directory).parts
+        sources.append(Source(path, module, classes, relative[0] if len(relative) > 1 else ""))
+    return sources
+
+
+def name_of(node: ast.expr) -> str:
+    """The name a call or a base names: ``Note`` for ``Note``, ``create`` for ``Note.create``."""
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    return ""
+
+
+def bases_of(cls: ast.ClassDef) -> set[str]:
+    return {name_of(base) for base in cls.bases} | {
+        name_of(base.value) for base in cls.bases if isinstance(base, ast.Subscript)
+    }
+
+
+def calls_in(node: ast.AST) -> list[ast.Call]:
+    return [found for found in ast.walk(node) if isinstance(found, ast.Call)]
+
+
+def names_in(node: ast.AST) -> set[str]:
+    """Every name a module mentions, the imported ones included: what a handler refers to."""
+    found: set[str] = set()
+    for each in ast.walk(node):
+        if isinstance(each, ast.Name):
+            found.add(each.id)
+        elif isinstance(each, ast.Attribute):
+            found.add(each.attr)
+        elif isinstance(each, ast.ImportFrom | ast.Import):
+            found.update(alias.asname or alias.name.split(".")[-1] for alias in each.names)
+    return found
+
+
+def methods_of(cls: ast.ClassDef) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
+    return [node for node in cls.body if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)]
+
+
+def recorded_events(method: ast.AST) -> list[str]:
+    """The domain events a behaviour records: ``self._record(XEvent(...))``, as public names."""
+    return unique(
+        [
+            public_name(name_of(call.args[0].func))
+            for call in calls_in(method)
+            if isinstance(call.func, ast.Attribute)
+            and call.func.attr in RECORDS
+            and call.args
+            and isinstance(call.args[0], ast.Call)
+            and name_of(call.args[0].func).endswith("Event")
+        ]
+    )
+
+
+def published_integration_events(node: ast.AST) -> list[str]:
+    """The integration events a node publishes: ``bus.publish(XIntegrationEvent(...), context)``, as public names."""
+    return unique(
+        [
+            public_name(name_of(call.args[0].func))
+            for call in calls_in(node)
+            if name_of(call.func) == "publish"
+            and call.args
+            and isinstance(call.args[0], ast.Call)
+            and name_of(call.args[0].func).endswith("IntegrationEvent")
+        ]
+    )
+
+
+def actor_of(handler: ast.ClassDef | None, module: ast.Module) -> str:
+    """Who may call: ``require_signed_in()`` says a signed-in account (an administrator may see more, the
+    handler says so itself); a ``guard()`` that admits the administrator role alone says an administrator;
+    a guard on any other role says a signed-in account; nothing says anyone."""
+    if any(name_of(call.func) == "require_signed_in" for call in calls_in(module)):
+        return "a signed-in account"
+    scope: ast.AST = handler if handler is not None else module
+    guards = [node for node in ast.walk(scope) if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)]
+    roles = {
+        node.attr
+        for guard in guards
+        if guard.name == "guard"
+        for node in ast.walk(guard)
+        if isinstance(node, ast.Attribute) and name_of(node.value) == "Role"
+    }
+    if "ADMIN" in roles and "USER" not in roles:
+        return "an administrator"
+    if roles:
+        return "a signed-in account"
+    return "anyone"
+
+
+@dataclass(frozen=True)
+class ServiceMethod:
+    service: str
+    method: str
+    behaviours: list[str]
+
+
+@dataclass
+class ContextShapes:
+    """The canonical shapes of one context, read once: its aggregates' behaviours and the events they
+    record, its services' methods and the behaviours they reach, where to find a class."""
+
+    id: str
+    sources: list[Source]
+    behaviours: dict[str, dict[str, list[str]]] = field(default_factory=dict)  # aggregate -> behaviour -> events
+    services: list[ServiceMethod] = field(default_factory=list)
+
+    def find(self, class_name: str) -> tuple[ast.ClassDef, ast.Module] | None:
+        for source in self.sources:
+            if class_name in source.classes:
+                return source.classes[class_name], source.module
+        return None
+
+    def behaviours_reached(self, node: ast.AST) -> list[str]:
+        """An aggregate's behaviour called on an instance or on the class, as ``Aggregate.behaviour``."""
+        called = {call.func.attr for call in calls_in(node) if isinstance(call.func, ast.Attribute)}
+        return [
+            f"{aggregate}.{behaviour}"
+            for aggregate, behaviours in self.behaviours.items()
+            for behaviour in behaviours
+            if behaviour in called
+        ]
+
+    def analyse(self, node: ast.AST) -> tuple[str | None, list[str], list[str]]:
+        """What a handler's module reaches: the aggregate, the behaviours (directly or through a service),
+        the events those behaviours record."""
+        names = names_in(node)
+        called = {call.func.attr for call in calls_in(node) if isinstance(call.func, ast.Attribute)}
+        through = [each for each in self.services if each.service in names and each.method in called]
+        behaviours = unique(self.behaviours_reached(node) + [b for each in through for b in each.behaviours])
+        events = unique([event for full in behaviours for event in self.events_of(full)])
+        aggregate = behaviours[0].split(".")[0] if behaviours else None
+        if aggregate is None:
+            aggregate = next((name for name in self.behaviours if name in names), None)
+        return aggregate, behaviours, events
+
+    def events_of(self, full: str) -> list[str]:
+        aggregate, behaviour = full.split(".")
+        return self.behaviours.get(aggregate, {}).get(behaviour, [])
+
+
+def read_shapes(context: str, sources: list[Source]) -> ContextShapes:
+    shapes = ContextShapes(context, sources)
+    for source in sources:
+        if source.layer != "domain":
+            continue
+        for cls in source.classes.values():
+            if "AggregateRoot" not in bases_of(cls):
+                continue
+            shapes.behaviours[cls.name] = {
+                method.name: events
+                for method in methods_of(cls)
+                if method.name != "from_snapshot" and (events := recorded_events(method))
+            }
+    for source in sources:
+        if source.layer not in ("domain", "application"):
+            continue
+        for cls in source.classes.values():
+            bases = bases_of(cls)
+            if cls.name in shapes.behaviours or bases & NOT_A_SERVICE:
+                continue
+            if any(base.endswith(("Exception", "Handler")) for base in bases):
+                continue
+            for method in methods_of(cls):
+                if reached := shapes.behaviours_reached(method):
+                    shapes.services.append(ServiceMethod(cls.name, method.name, reached))
+    return shapes
+
+
+def domain_events_of(sources: list[Source]) -> list[str]:
+    return sorted_names(
+        [
+            public_name(cls.name)
+            for source in sources
+            if source.layer == "domain"
+            for cls in source.classes.values()
+            if "DomainEvent" in bases_of(cls)
+        ]
+    )
+
+
+def wiring_of(sources: list[Source], wiring: str) -> dict[str, list[tuple[str, list[str]]]]:
+    """The sections of the Module built as data: ``commands`` and the two event sections as
+    (event, [handlers]), ``queries`` as (handler, [])."""
+    sections: dict[str, list[tuple[str, list[str]]]] = {
+        "commands": [],
+        "queries": [],
+        "domain_events": [],
+        "integration_events": [],
+    }
+    module = next((source.module for source in sources if source.path.name == wiring), None)
+    if module is None:
+        return sections
+    for call in calls_in(module):
+        if name_of(call.func) != "Module":
+            continue
+        for keyword in call.keywords:
+            if keyword.arg not in sections or not isinstance(keyword.value, ast.List):
+                continue
+            for entry in keyword.value.elts:
+                if not isinstance(entry, ast.Call):
+                    continue
+                if keyword.arg == "queries":
+                    sections["queries"].append((name_of(entry.func), []))
+                elif name_of(entry.func) == "Subscription" and len(entry.args) == 2:
+                    handlers = entry.args[1]
+                    listed = handlers.elts if isinstance(handlers, ast.List) else []
+                    sections[keyword.arg].append(
+                        (name_of(entry.args[0]), [name_of(h.func) for h in listed if isinstance(h, ast.Call)])
+                    )
+    return sections
+
+
+def constant_str(node: ast.expr | None) -> str:
+    return node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else ""
+
+
+def router_prefixes(module: ast.Module) -> dict[str, str]:
+    """Router name -> its ``prefix``, for every ``name = APIRouter(prefix=...)`` of a routes module."""
+    prefixes: dict[str, str] = {}
+    for node in ast.walk(module):
+        if (
+            isinstance(node, ast.Assign)
+            and isinstance(node.value, ast.Call)
+            and name_of(node.value.func) == "APIRouter"
+        ):
+            prefix = next((k.value for k in node.value.keywords if k.arg == "prefix"), None)
+            for target in node.targets:
+                prefixes[name_of(target)] = constant_str(prefix)
+    return prefixes
+
+
+def route_of(decorator: ast.expr, prefixes: dict[str, str]) -> str | None:
+    """The ``VERB /path`` a ``@router.<verb>(path)`` decorator declares, under its router's prefix."""
+    if not (isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute)):
+        return None
+    router = name_of(decorator.func.value)
+    if router not in prefixes:
+        return None
+    path = decorator.args[0] if decorator.args else next((k.value for k in decorator.keywords if k.arg == "path"), None)
+    return canonical_route(decorator.func.attr, prefixes[router], constant_str(path))
+
+
+def routes_of(sources: list[Source]) -> dict[str, str]:
+    """Public name -> ``VERB /path`` for every command a route's function builds and every query it asks,
+    read from the decorators of the presentation routes and the ``prefix`` of their router; when several
+    routes carry the same one, the first declared is the route."""
+    routes: dict[str, str] = {}
+    for source in sources:
+        if source.layer != "presentation":
+            continue
+        prefixes = router_prefixes(source.module)
+        for function in ast.walk(source.module):
+            if not isinstance(function, ast.FunctionDef | ast.AsyncFunctionDef):
+                continue
+            for route in filter(None, (route_of(decorator, prefixes) for decorator in function.decorator_list)):
+                for call in calls_in(function):
+                    built = name_of(call.func)
+                    if built.endswith("CommandEvent"):
+                        routes.setdefault(public_name(built), route)
+                    if built == "get_query" and call.args:
+                        routes.setdefault(public_name(name_of(call.args[0])), route)
+    return routes
+
+
+def inventory_command(name: str, handler: str, shapes: ContextShapes, routes: dict[str, str]) -> Json:
+    found = shapes.find(handler)
+    cls, module = found if found else (None, ast.Module(body=[], type_ignores=[]))
+    aggregate, _, events = shapes.analyse(module)
+    command: Json = {"name": name, "actor": actor_of(cls, module)}
+    if name in routes:
+        command["route"] = routes[name]
+    if aggregate:
+        command["aggregate"] = aggregate
+    command["events"] = sorted_names(events)
+    return command
+
+
+def inventory_query(handler: str, shapes: ContextShapes, routes: dict[str, str]) -> Json:
+    found = shapes.find(handler)
+    cls, module = found if found else (None, ast.Module(body=[], type_ignores=[]))
+    name = public_name(handler)
+    query: Json = {"name": name, "actor": actor_of(cls, module)}
+    if name in routes:
+        query["route"] = routes[name]
+    return query
+
+
+def inventory_policy(on: str, kind: str, node: ast.AST, shapes: ContextShapes) -> Json:
+    _, _, events = shapes.analyse(node)
+    return {
+        "on": on,
+        "kind": kind,
+        "publishes": sorted_names(published_integration_events(node)),
+        "events": sorted_names(events),
+    }
+
+
+def inventory_policies(shapes: ContextShapes, wiring: dict[str, list[tuple[str, list[str]]]]) -> list[Json]:
+    policies: list[Json] = []
+    subscribed: set[str] = set()
+    for section, kind in (("domain_events", "domain-event"), ("integration_events", "integration-event")):
+        for event, handlers in wiring[section]:
+            for handler in handlers:
+                subscribed.add(handler)
+                found = shapes.find(handler)
+                node: ast.AST = found[1] if found else ast.Module(body=[], type_ignores=[])
+                policies.append(inventory_policy(public_name(event), kind, node, shapes))
+    # A publisher that is not a subscribed handler reacts to every operation: the Tracker's decorated bus.
+    command_handlers = {handler for _, handlers in wiring["commands"] for handler in handlers}
+    for source in shapes.sources:
+        for cls in source.classes.values():
+            if cls.name in subscribed or cls.name in command_handlers or not published_integration_events(cls):
+                continue
+            policies.append(inventory_policy("every operation", "every-operation", cls, shapes))
+    return sorted(
+        policies,
+        key=lambda policy: ((policy["kind"].casefold(), policy["kind"]), (policy["on"].casefold(), policy["on"])),
+    )
+
+
+def inventory_context(context: str, sources: list[Source], wiring_file: str) -> Json:
+    shapes = read_shapes(context, sources)
+    wiring = wiring_of(sources, wiring_file)
+    routes = routes_of(sources)
+    commands = [
+        inventory_command(public_name(event), handler, shapes, routes)
+        for event, handlers in wiring["commands"]
+        for handler in handlers
+    ]
+    queries = [inventory_query(handler, shapes, routes) for handler, _ in wiring["queries"]]
+    by_name = lambda item: (str(item["name"]).casefold(), str(item["name"]))  # noqa: E731
+    return {
+        "id": context,
+        "commands": sorted(commands, key=by_name),
+        "queries": sorted(queries, key=by_name),
+        "events": domain_events_of(sources),
+        "policies": inventory_policies(shapes, wiring),
+    }
+
+
+def port_implemented(cls: ast.ClassDef, ports: dict[str, set[str]]) -> str:
+    """The port a class implements without naming it: the Protocol whose every method the class defines,
+    the one its name ends with when several do."""
+    defined = {method.name for method in methods_of(cls)}
+    candidates = [port for port, methods in ports.items() if methods and methods <= defined]
+    return next((port for port in candidates if cls.name.endswith(port)), candidates[0] if candidates else "")
+
+
+def inventory_links(
+    contexts: dict[str, list[Source]], binding: dict[str, Any], wiring_file: str, here: Path
+) -> list[Json]:
+    """The relationships the code carries: an integration event of the shared kernel, from each context
+    that builds it to each context whose wiring subscribes to it; a port the asking side owns, from the
+    context whose package an adapter imports to the context of that adapter."""
+    links: dict[tuple[str, str, str], list[str]] = {}
+
+    def link(mechanism: str, upstream: str, downstream: str, contract: str) -> None:
+        contracts = links.setdefault((upstream, downstream, mechanism), [])
+        if contract and contract not in contracts:
+            contracts.append(contract)
+
+    kernel_events = here / binding["kernel"]["path"] / "application" / "integration_events"
+    events = [
+        cls.name
+        for source in parse_sources(kernel_events)
+        for cls in source.classes.values()
+        if cls.name.endswith("IntegrationEvent")
+    ]
+    for event in events:
+        publishers = [
+            context
+            for context, sources in contexts.items()
+            if any(name_of(call.func) == event for source in sources for call in calls_in(source.module))
+        ]
+        consumers = [
+            context
+            for context, sources in contexts.items()
+            if any(event in names_in(source.module) for source in sources if source.path.name == wiring_file)
+        ]
+        for upstream in publishers:
+            for downstream in consumers:
+                if upstream != downstream:
+                    link("integration-event", upstream, downstream, public_name(event))
+
+    alias = str(binding["contexts_tree"]["alias"])
+    by_package = {context.lower(): context for context in contexts}
+    for context, sources in contexts.items():
+        ports = {
+            cls.name: {method.name for method in methods_of(cls)}
+            for source in sources
+            for cls in source.classes.values()
+            if "Protocol" in bases_of(cls)
+        }
+        for source in sources:
+            others = {
+                by_package[target.split(".")[1]]
+                for target, level, _ in imports_of(source.path)
+                if target is not None
+                and level == 0
+                and target.startswith(f"{alias}.")
+                and target.split(".")[1] in by_package
+            }
+            for other in others - {context}:
+                port = next((port_implemented(cls, ports) for cls in source.classes.values()), "")
+                link("owned-port", other, context, port)
+    return sorted(
+        [
+            {
+                "mechanism": mechanism,
+                "upstream": upstream,
+                "downstream": downstream,
+                "contracts": sorted_names(contracts),
+            }
+            for (upstream, downstream, mechanism), contracts in links.items()
+        ],
+        key=lambda each: (f"{each['upstream']}→{each['downstream']}:{each['mechanism']}".casefold(),),
+    )
+
+
+def inspect_inventory(here: Path) -> Json:
+    """The inventory of this language's tree, read with ``ast``: the commands of each context with who may
+    call them, their route, the aggregate they reach and the events it records; the queries; the domain
+    events; the policies and what they publish or reach; the links between contexts. Nothing Python owns
+    is in it: no file, no class name, no idiom (ARCH-ONE-APPLICATION)."""
+    root = repository_root(here)
+    if root is None:
+        raise SystemExit(f"✗ {CONTRACT} not found at or above {here}")
+    binding = load_yaml(root / BINDING)
+    wiring_file = str(binding["wiring"])
+    contexts_dir = here / binding["contexts_tree"]["path"]
+    sources = {context: parse_sources(contexts_dir / context.lower()) for context in binding["contexts"]}
+    return {
+        "schemaVersion": INVENTORY_SCHEMA_VERSION,
+        "language": LANGUAGE,
+        # In the order of the ids, not of the binding: the bindings list their contexts as they please.
+        "contexts": [inventory_context(context, sources[context], wiring_file) for context in sorted(sources)],
+        "links": inventory_links(sources, binding, wiring_file, here),
+    }
+
+
+def serialize_inventory(inventory: Json) -> str:
+    """Canonical JSON: two-space indentation, the keys in the order they were inserted, a trailing newline.
+    The same bytes from every language's tool."""
+    return json.dumps(inventory, indent=2, ensure_ascii=False) + "\n"
+
+
+def check_inventory(here: Path, problems: Problems) -> None:
+    root = repository_root(here)
+    if root is None:
+        return
+    committed = root / INVENTORY
+    rendered = serialize_inventory(inspect_inventory(here))
+    if not committed.is_file():
+        problems.add(INVENTORY_RULE, f"{INVENTORY} is missing; run `{INVENTORY_WRITE}` and commit it")
+    elif committed.read_text(encoding="utf-8") != rendered:
+        problems.add(
+            INVENTORY_RULE,
+            f"{INVENTORY} differs from what the Python tree says; run `{INVENTORY_WRITE}` and commit it "
+            "(fix the tree that differs from the other languages, never the inventory)",
+        )
+
+
+def write_inventory(here: Path) -> Path:
+    root = repository_root(here)
+    if root is None:
+        raise SystemExit(f"✗ {CONTRACT} not found at or above {here}")
+    target = root / INVENTORY
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(serialize_inventory(inspect_inventory(here)), encoding="utf-8")
+    return target
+
+
 def run(here: Path) -> tuple[Problems, str]:
     root = repository_root(here)
     if root is None:
@@ -326,9 +877,11 @@ def run(here: Path) -> tuple[Problems, str]:
             modules.append(module)
     imports = check_imports(modules, binding, contract, here, problems)
     check_files(binding, here, problems)
+    check_inventory(here, problems)
     summary = (
         f"✓ contract v{contract.get('schemaVersion')}, Python binding: {len(modules)} modules and {imports} imports "
-        f"are the table, {len(binding['contexts'])} contexts match the tree, every file the binding names exists."
+        f"are the table, {len(binding['contexts'])} contexts match the tree, every file the binding names exists; "
+        "the inventory is current."
     )
     return problems, summary
 
@@ -361,9 +914,25 @@ def can_import(here: Path, pairs: list[tuple[str, str]]) -> list[tuple[str, str,
     return verdicts
 
 
+def inventory_main(here: Path, options: list[str]) -> int:
+    """``inventory`` prints the inventory as canonical JSON; ``inventory --write`` writes it where the
+    check reads it."""
+    if options == ["--write"]:
+        written = write_inventory(here)
+        print(f"✓ wrote {written.relative_to(repository_root(here) or here)}")
+        return 0
+    if options:
+        print("usage: python -m tools.conventions inventory [--write]", file=sys.stderr)
+        return 2
+    sys.stdout.write(serialize_inventory(inspect_inventory(here)))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     here = Path(__file__).resolve().parent.parent
     args = sys.argv[1:] if argv is None else argv
+    if args[:1] == ["inventory"]:
+        return inventory_main(here, args[1:])
     if args[:1] == ["can-import"]:
         pairs = list(zip(args[1::2], args[2::2], strict=True))
         if not pairs:

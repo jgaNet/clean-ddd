@@ -127,7 +127,7 @@ flowchart LR
 | Shared kernel | `sharedKernel` of [`domain.yaml`](conventions/domain.yaml) | what every context agrees on and changes together: vocabulary, not mechanics; declared once, not as a relationship between pairs |
 <!-- end generated -->
 
-What happens inside each context — who may ask for what, which command reaches which aggregate, which fact that records, who reacts — is the **event storm**, read from the code rather than drawn by hand: [`docs/event-storm.md`](docs/event-storm.md), with the board as one picture ([ADR 20](docs/adr/0020-the-event-storm-is-read-from-the-code.md)); `yarn architecture storm` from a terminal.
+What happens inside each context — who may ask for what, which command reaches which aggregate, which fact that records, who reacts — is the **event storm**, read from the code rather than drawn by hand: [`docs/event-storm.md`](docs/event-storm.md), with the board as one picture ([ADR 20](docs/adr/0020-the-event-storm-is-read-from-the-code.md)); `yarn architecture storm` from a terminal. The same reading, in words every language shares, is the **inventory** each language's tool writes from its own tree ([`docs/inventory/`](docs/inventory/README.md)): the check holds the four equal, so the languages are one application from the inside as the scenario makes them one API from the outside (ARCH-ONE-APPLICATION, [ADR 21](docs/adr/0021-one-application-every-language-writes-the-same-inventory.md)).
 
 ## The languages
 
@@ -241,6 +241,7 @@ Every rule has a stable id, a reason, a remediation and says how it is held: by 
 | **ARCH-ONE-CONTRACT** — Every language the reference is written in is held to this file — the same layers, the same rules under the same ids, the same HTTP grammar — through a binding that says where its trees are and which file shows each concept; a language never carries a rule of its own. | check · [0011-one-reference-several-languages.md](docs/adr/0011-one-reference-several-languages.md), [README.md](conventions/README.md) |
 | **API-ONE-SURFACE** — Every language answers the same HTTP API — the same routes, status codes, body shapes and public names — so one black-box scenario, run against each server, passes unchanged; the public name of an operation is its intent or its fact without the suffix of its kind (`ShareNote`, `NoteShared`). | tests · [0016-one-api-for-every-language.md](docs/adr/0016-one-api-for-every-language.md) |
 | **CTX-MAP-DECLARED** — Every relationship between two contexts is declared once in the context map, with the strategic pattern it follows, the mechanism that carries it and why; the contracts it carries are read from the code, and the check refuses a link in the code the map does not declare and a declared relationship nothing in the code carries. | check · [0019-the-domain-is-data.md](docs/adr/0019-the-domain-is-data.md), [README.md](conventions/README.md) |
+| **ARCH-ONE-APPLICATION** — Every language's tree says the same application, in words every language shares — the commands of each context with who may call them, their route, the aggregate they reach and the events it records; the queries; the domain events; the policies and what they publish or reach; the links between contexts; each language's tool writes that inventory from its own tree, and the check holds the inventories equal. | check · [0021-one-application-every-language-writes-the-same-inventory.md](docs/adr/0021-one-application-every-language-writes-the-same-inventory.md), [README.md](conventions/README.md) |
 <!-- end generated -->
 
 The dependency table — which layer may import from which — is in [`conventions/architecture.yaml`](conventions/architecture.yaml) and rendered in each language's README, where the import rules are generated from it.
@@ -253,6 +254,7 @@ conventions/                the architecture as data: architecture.yaml (the con
                             one binding per language (typescript.yaml, rust.yaml, python.yaml, go.yaml), plans/ (feature plans)
 docs/adr/                   the decisions, shared by every language
 docs/event-storm.md         the event storm, read from the code and rendered (with the board, event-storm.svg)
+docs/inventory/             what each language's tree says the application is, one JSON per language, held equal by the check
 docs/evaluations/           can a newcomer add a feature from the documentation alone? Protocol and records
 typescript/                 the TypeScript implementation: its code, its toolchain, its README and CLAUDE.md
 rust/                       the Rust implementation: the same application, a crate per layer, its check, its README and CLAUDE.md

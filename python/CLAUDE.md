@@ -8,6 +8,8 @@ Every command below runs from this directory (`cd python`), after `uv sync` once
 
 ```bash
 uv run python -m tools.conventions          # every import is the table, the tree matches the binding, every named file exists
+uv run python -m tools.conventions inventory          # what the tree says the application is, as canonical JSON (ARCH-ONE-APPLICATION)
+uv run python -m tools.conventions inventory --write  # writes it to docs/inventory/python.json, which the check holds current
 uv run ruff format --check .                # the formatter (uv run ruff format . to apply)
 uv run ruff check .                         # the lints
 uv run mypy                                 # strict typing, src/ and tools/

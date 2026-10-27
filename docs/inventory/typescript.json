@@ -1,0 +1,303 @@
+{
+  "schemaVersion": 1,
+  "language": "typescript",
+  "contexts": [
+    {
+      "id": "Notes",
+      "commands": [
+        {
+          "name": "ArchiveNote",
+          "actor": "a signed-in account",
+          "route": "POST /notes/{param}/archive",
+          "aggregate": "Note",
+          "events": [
+            "NoteArchived"
+          ]
+        },
+        {
+          "name": "CreateNote",
+          "actor": "a signed-in account",
+          "route": "POST /notes",
+          "aggregate": "Note",
+          "events": [
+            "NoteCreated"
+          ]
+        },
+        {
+          "name": "EditNote",
+          "actor": "a signed-in account",
+          "route": "PUT /notes/{param}",
+          "aggregate": "Note",
+          "events": [
+            "NoteEdited"
+          ]
+        },
+        {
+          "name": "RestoreNote",
+          "actor": "a signed-in account",
+          "route": "POST /notes/{param}/restore",
+          "aggregate": "Note",
+          "events": [
+            "NoteRestored"
+          ]
+        },
+        {
+          "name": "ShareNote",
+          "actor": "a signed-in account",
+          "route": "POST /notes/{param}/share",
+          "aggregate": "Note",
+          "events": [
+            "NoteShared"
+          ]
+        },
+        {
+          "name": "SuggestNoteTitle",
+          "actor": "a signed-in account",
+          "route": "POST /notes/{param}/suggest-title",
+          "aggregate": "Note",
+          "events": [
+            "NoteEdited"
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "name": "GetMyNotes",
+          "actor": "a signed-in account",
+          "route": "GET /notes"
+        },
+        {
+          "name": "GetNote",
+          "actor": "a signed-in account",
+          "route": "GET /notes/{param}"
+        },
+        {
+          "name": "GetNotesSharedWithMe",
+          "actor": "a signed-in account",
+          "route": "GET /notes/shared"
+        }
+      ],
+      "events": [
+        "NoteArchived",
+        "NoteCreated",
+        "NoteEdited",
+        "NoteRestored",
+        "NoteShared"
+      ],
+      "policies": [
+        {
+          "on": "NoteCreated",
+          "kind": "domain-event",
+          "publishes": [],
+          "events": []
+        },
+        {
+          "on": "NoteShared",
+          "kind": "domain-event",
+          "publishes": [
+            "NoteShared"
+          ],
+          "events": []
+        }
+      ]
+    },
+    {
+      "id": "Notifications",
+      "commands": [
+        {
+          "name": "MarkAsReadNotification",
+          "actor": "a signed-in account",
+          "route": "PATCH /notifications/{param}/read",
+          "aggregate": "Notification",
+          "events": [
+            "NotificationRead"
+          ]
+        },
+        {
+          "name": "SendNotification",
+          "actor": "an administrator",
+          "route": "POST /notifications",
+          "aggregate": "Notification",
+          "events": [
+            "NotificationFailed",
+            "NotificationSent"
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "name": "GetNotifications",
+          "actor": "a signed-in account",
+          "route": "GET /notifications/account/{param}"
+        }
+      ],
+      "events": [
+        "NotificationFailed",
+        "NotificationRead",
+        "NotificationSent"
+      ],
+      "policies": [
+        {
+          "on": "AccountCreated",
+          "kind": "integration-event",
+          "publishes": [],
+          "events": [
+            "NotificationFailed",
+            "NotificationSent"
+          ]
+        },
+        {
+          "on": "AccountValidated",
+          "kind": "integration-event",
+          "publishes": [],
+          "events": [
+            "NotificationFailed",
+            "NotificationSent"
+          ]
+        },
+        {
+          "on": "NoteShared",
+          "kind": "integration-event",
+          "publishes": [],
+          "events": [
+            "NotificationFailed",
+            "NotificationSent"
+          ]
+        },
+        {
+          "on": "OperationComplete",
+          "kind": "integration-event",
+          "publishes": [],
+          "events": [
+            "NotificationFailed",
+            "NotificationSent"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Security",
+      "commands": [
+        {
+          "name": "Login",
+          "actor": "anyone",
+          "route": "POST /auth/login",
+          "aggregate": "Account",
+          "events": [
+            "AccountAuthenticated"
+          ]
+        },
+        {
+          "name": "SignUp",
+          "actor": "anyone",
+          "route": "POST /auth/signup",
+          "aggregate": "Account",
+          "events": [
+            "AccountCreated"
+          ]
+        },
+        {
+          "name": "ValidateAccount",
+          "actor": "anyone",
+          "route": "GET /auth/validate",
+          "aggregate": "Account",
+          "events": [
+            "AccountValidated"
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "name": "GetAccount",
+          "actor": "a signed-in account",
+          "route": "GET /auth/me"
+        }
+      ],
+      "events": [
+        "AccountAuthenticated",
+        "AccountCreated",
+        "AccountValidated"
+      ],
+      "policies": [
+        {
+          "on": "AccountCreated",
+          "kind": "domain-event",
+          "publishes": [
+            "AccountCreated"
+          ],
+          "events": []
+        },
+        {
+          "on": "AccountValidated",
+          "kind": "domain-event",
+          "publishes": [
+            "AccountValidated"
+          ],
+          "events": []
+        }
+      ]
+    },
+    {
+      "id": "Tracker",
+      "commands": [],
+      "queries": [
+        {
+          "name": "GetOperation",
+          "actor": "a signed-in account",
+          "route": "GET /tracker/operations/{param}"
+        },
+        {
+          "name": "GetOperations",
+          "actor": "an administrator",
+          "route": "GET /tracker/operations"
+        }
+      ],
+      "events": [],
+      "policies": [
+        {
+          "on": "every operation",
+          "kind": "every-operation",
+          "publishes": [
+            "OperationComplete"
+          ],
+          "events": []
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "mechanism": "integration-event",
+      "upstream": "Notes",
+      "downstream": "Notifications",
+      "contracts": [
+        "NoteShared"
+      ]
+    },
+    {
+      "mechanism": "owned-port",
+      "upstream": "Security",
+      "downstream": "Notes",
+      "contracts": [
+        "AccountDirectory"
+      ]
+    },
+    {
+      "mechanism": "integration-event",
+      "upstream": "Security",
+      "downstream": "Notifications",
+      "contracts": [
+        "AccountCreated",
+        "AccountValidated"
+      ]
+    },
+    {
+      "mechanism": "integration-event",
+      "upstream": "Tracker",
+      "downstream": "Notifications",
+      "contracts": [
+        "OperationComplete"
+      ]
+    }
+  ]
+}
