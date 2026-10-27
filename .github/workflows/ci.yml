@@ -144,6 +144,51 @@ jobs:
           ../.github/wait-for-health.sh http://127.0.0.1:10000 || (cat server.log; exit 1)
           node ../api/scenario.mjs http://127.0.0.1:10000 --origin http://127.0.0.1:8080 || (cat server.log; exit 1)
 
+  go:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: go
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go/go.mod
+          cache-dependency-path: go/go.sum
+
+      - name: Conventions
+        run: go run ./tools/conventions
+
+      - name: Format
+        run: test -z "$(gofmt -l .)"
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.5
+          working-directory: go
+
+      - name: Tests
+        run: go test ./...
+
+      - name: Use Node (for the shared API scenario)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: typescript/.nvmrc
+
+      - name: The API every language answers
+        run: |
+          go build -o /tmp/application ./bootstrap/cmd/application
+          PORT=10000 WEB_ORIGINS=http://127.0.0.1:8080 /tmp/application > server.log 2>&1 &
+          ../.github/wait-for-health.sh http://127.0.0.1:10000 || (cat server.log; exit 1)
+          node ../api/scenario.mjs http://127.0.0.1:10000 --origin http://127.0.0.1:8080 || (cat server.log; exit 1)
+
   # The front end stands alone: served by the dependency-free static server, with no API behind.
   web:
     runs-on: ubuntu-latest
@@ -168,7 +213,7 @@ jobs:
   # language is added to `needs`, and nothing else changes.
   check:
     runs-on: ubuntu-latest
-    needs: [typescript, rust, python, web]
+    needs: [typescript, rust, python, go, web]
     if: always()
     steps:
       - name: Every language is green
@@ -176,8 +221,10 @@ jobs:
           echo "typescript: ${{ needs.typescript.result }}"
           echo "rust: ${{ needs.rust.result }}"
           echo "python: ${{ needs.python.result }}"
+          echo "go: ${{ needs.go.result }}"
           echo "web: ${{ needs.web.result }}"
           test "${{ needs.typescript.result }}" = "success"
           test "${{ needs.rust.result }}" = "success"
           test "${{ needs.python.result }}" = "success"
+          test "${{ needs.go.result }}" = "success"
           test "${{ needs.web.result }}" = "success"

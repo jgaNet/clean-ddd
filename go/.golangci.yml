@@ -1,0 +1,5 @@
+# The lints, with golangci-lint's default set (errcheck, govet, ineffassign, staticcheck, unused):
+# a dropped refusal is what errcheck refuses, which is why the lint is one of the five checks.
+version: "2"
+run:
+  tests: true

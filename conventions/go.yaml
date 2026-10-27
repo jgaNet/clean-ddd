@@ -1,0 +1,493 @@
+# The Go binding of the architecture contract: where this language keeps the trees that
+# architecture.yaml reasons about, which file shows each concept of concepts.yaml, which tool holds
+# each rule, and what a new thing of each kind is made of in this language's idiom. It adds no
+# rule: a rule lives in architecture.yaml, under one id for every language (ARCH-ONE-CONTRACT).
+#
+# In Go a tree is a directory of the module (`clean-ddd/architecture`, `clean-ddd/contexts/notes`),
+# a layer a package directory named after the contract's layer in lowercase, and a file imports
+# a package by its module path. The compiler holds no boundary between the packages of one
+# module, so `go run ./tools/conventions` is both the import linter and the check: it reads
+# every import with go/parser and holds it to the table.
+#
+# Paths are relative to `root`, the directory of this language; the loader turns them into
+# repository-relative paths, so every tool, document and diff speaks the same ones.
+
+schemaVersion: 1
+language: go
+name: Go
+root: go
+
+contexts: [Notes, Security, Tracker, Notifications]
+
+# The trees. `alias` is the import path of a tree under the module; a context's is
+# `clean-ddd/contexts/<context>`.
+contexts_tree: { alias: clean-ddd/contexts, path: contexts }
+architecture: { alias: clean-ddd/architecture, path: architecture }
+kernel: { alias: clean-ddd/sharedkernel, path: sharedkernel }
+bootstrap: { alias: clean-ddd/bootstrap, path: bootstrap }
+# A context's wiring is one package file beside its layer packages.
+wiring: module.go
+# The module path every import under it starts with (go.mod).
+module: clean-ddd
+
+# Libraries only an adapter may depend on: the domain and the use cases never see them. The
+# standard library's net/http, database/sql and encoding/json are among them: a transport, a
+# database driver, a wire format, whoever ships them.
+libraries:
+  - net/http
+  - database/sql
+  - encoding/json
+  - modernc.org/sqlite
+  - github.com/golang-jwt/jwt
+  - golang.org/x/crypto
+  - github.com/coder/websocket
+
+# The file that shows each verb of the HTTP grammar, by intent.
+verbs:
+  read: contexts/notes/presentation/routes.go
+  create: contexts/notes/presentation/routes.go
+  act: contexts/notes/presentation/routes.go
+  create-under: contexts/notes/presentation/routes.go
+  replace: contexts/notes/presentation/routes.go
+  replace-part: contexts/notes/presentation/routes.go
+  change-part: contexts/notifications/presentation/routes.go
+  remove: contexts/notes/presentation/routes.go
+  link-in-an-email: contexts/security/presentation/routes.go
+
+# What stands behind each enforcement word of architecture.yaml, in this language.
+enforcers:
+  linter: '`go run ./tools/conventions`, a go/parser walk holding every import of every file to its row of the table'
+  check: '`go run ./tools/conventions`'
+  types: '`go vet ./...` and the compiler'
+  tests: '`go test ./...`'
+  review: review (stated here, not yet mechanical)
+  evaluations: fresh-agent evaluations
+
+# The checks a change must pass before it is done; CI runs them in this order.
+checks:
+  - go run ./tools/conventions
+  - test -z "$(gofmt -l .)"
+  - go vet ./...
+  - golangci-lint run ./...
+  - go test ./...
+
+# What the two modes protect and decide in this language, on top of the contract and the
+# decisions, which architecture.yaml protects for every language.
+modes:
+  feature:
+    protected: [architecture, sharedkernel, tools]
+    # Publishing a fact is what a cross-context feature does: the contracts package is not protected.
+    allowed: [sharedkernel/application/integrationevents]
+  architecture:
+    decides: [architecture, sharedkernel/domain]
+
+# The files that show a rule, by id. The rule itself is in architecture.yaml.
+rules:
+  ARCH-RELATIVE:
+    references: [tools/conventions/linter.go]
+  ARCH-TREES:
+    references: [architecture, sharedkernel]
+  ARCH-INWARD:
+    references: [tools/conventions/linter.go, contexts/notes/domain/note/doc.go]
+  ARCH-PRESENTATION:
+    references: [contexts/notes/presentation/routes.go, architecture/presentation/http.go]
+  ARCH-WIRING:
+    references: [contexts/notes/module.go]
+  ARCH-E2E:
+    references: [bootstrap/testing.go]
+  ARCH-MODULES-DATA:
+    references: [contexts/notes/module.go, architecture/application/module.go]
+  CTX-CONTRACTS:
+    references:
+      - contexts/notes/infrastructure/directories.go
+      - contexts/notes/application/events/note_shared_handler.go
+      - contexts/notifications/application/events/note_shared_handler.go
+  DOMAIN-IDENTITY:
+    references: [contexts/notes/domain/note/note.go, contexts/notes/domain/note/repository.go]
+  ARCH-EXECUTION-CONTEXT:
+    references: [architecture/application/execution_context.go]
+  DOMAIN-RESULT:
+    references: [architecture/domain/result.go]
+  DOMAIN-RECORDS-EVENTS:
+    references: [architecture/domain/aggregate_root.go, architecture/application/domain_events.go]
+  DOMAIN-CREATE-VS-RECONSTITUTE:
+    references: [contexts/notes/domain/note/note.go]
+  DOMAIN-NON-DETERMINISM:
+    references: [contexts/notes/application/suggestions/suggestions.go, contexts/notes/application/commands/suggest_note_title.go]
+  EVENT-AFTER-COMMIT:
+    references: [architecture/application/execution_context.go, architecture/application/domain_events.go]
+  QUERY-READ-MODELS:
+    references: [contexts/notes/domain/note/queries.go, contexts/notes/infrastructure/queries.go]
+  CONC-OPTIMISTIC:
+    references: [contexts/notes/infrastructure/repositories.go, contexts/notes/infrastructure/persistence_contract_test.go]
+  ARCH-INFRASTRUCTURE:
+    references: [contexts/notes/infrastructure/notes_table.go]
+  API-ONE-SURFACE:
+    references: [contexts/tracker/application/projection.go, bootstrap/operation_routes_e2e_test.go]
+  ARCH-MAP-IS-REAL:
+    references: [tools/conventions/main.go]
+
+# What a new thing of each kind is made of in Go, and where each part goes. The kinds are
+# architecture.yaml's. Lowercase placeholders (`<context>`, `<aggregate>`) are filled in
+# snake_case for a file and lowercase for a package, which is what a Go path wants;
+# `yarn architecture checklist <kind>` prints one.
+checklists:
+  aggregate:
+    place: contexts/<context>/domain/<aggregate>/<aggregate>.go
+    parts:
+      - 'The aggregate itself: a struct embedding `domain.AggregateRoot`, its state in unexported fields behind methods, `Create()` (validates, generates the ID, records the creation event) returning `(*T, error)`, `FromSnapshot()` (records nothing, panics on corrupted data), `ToSnapshot()`.'
+      - '`dtos.go` beside it: the `Snapshot` struct, `Version` included, and the `New<Aggregate>` input.'
+      - '`exceptions.go`: a `Service` constant and one constructor per rule returning `*domain.Exception`, its `Type` in PascalCase.'
+      - '`events.go`: one struct per fact its behaviours record, embedding `domain.DomainEvent`, named in the past tense with the `Event` suffix, its exported fields the payload.'
+      - '`repository.go`: an interface with `FindByID` (nil, nil when absent) and `Save` returning an error, plus the facts a rule needs about the collection.'
+      - '`queries.go` and its read models, when a screen reads it.'
+      - '`<aggregate>_test.go` beside it: every rule, and the round-trip through the snapshot.'
+      - 'An in-memory adapter per port in the `infrastructure` package, and a contract test once a port promises an order or a filter.'
+      - 'Wiring in `module.go`: the store, the adapters, the handlers.'
+  value-object:
+    place: contexts/<context>/domain/<aggregate>/<name>.go
+    parts:
+      - 'A struct with one unexported field, `New<Name>()` returning `(<Name>, error)`, the rule as a package constant when there is a number.'
+      - 'One exception per rule the user could act on differently, in the aggregate''s exceptions file.'
+      - 'A structured value is a struct of unexported fields: the struct''s `==` compares every field.'
+      - 'A `<name>_test.go` beside it: what it accepts, what it refuses, and equality.'
+  domain-service:
+    place: contexts/<context>/domain/<aggregate>/<rule>.go
+    parts:
+      - 'Named after the rule it holds (`Sharing`), not after a layer.'
+      - 'Takes the ports it needs in `New<Rule>()`; returns an error; holds no logging, no transaction, no publishing.'
+      - 'Used when a rule spans several aggregates or needs a fact about the collection; a rule about one aggregate stays a behaviour.'
+      - 'A `<rule>_test.go` beside it, with a small type implementing each port.'
+  command:
+    place: contexts/<context>/application/commands/<use_case>.go
+    parts:
+      - 'The command: a struct embedding `domain.CommandEvent`, named `<UseCase>CommandEvent`, its exported fields the payload and nothing more.'
+      - 'The handler in the same file: a struct named `<UseCase>Handler` taking its ports in `New<UseCase>Handler()`, with `Execute(command, ctx) (R, error)` — the signed-in guard at the top, load, ask the aggregate or the domain service, save (return the error as is), `application.PublishDomainEvents`; `R` is `application.Nothing` when there is nothing to answer.'
+      - 'A `Guard(ctx) error` method only for a rule that needs no caller id, such as administrators only.'
+      - 'A test with at least a happy path and one refusal, in `commands_test.go` beside the commands; through `application.Run` when the rule is in `Guard`.'
+      - 'A route in the context''s `presentation/routes.go`: a handler func on the mux, `presentation.Accept(w, presentation.ContextOf(r), TheCommand{...})`, answering `202 { operationId }`; the handler listed in `module.go` with `application.Command()`.'
+  query:
+    place: contexts/<context>/application/queries/<use_case>.go
+    parts:
+      - 'A read model and a method on the queries port, with the order and the unknown-id answer in its doc comment.'
+      - 'The handler: a struct named `<UseCase>Handler` holding the queries port, `Execute(params, ctx) (R, error)` with `application.NoParams` when there are none; it reads the port and nothing else: no sorting, no second port, no aggregate.'
+      - 'A test beside it when the handler holds a visibility or role rule.'
+      - 'A route answering synchronously — `application.Query(application.QueryOf[*TheHandler](module), params, ctx)`, a view struct with camelCase JSON tags, refusals through the file''s `refuse<Context>()` — and the handler listed in `module.go` under `Queries`. A second format (HTMX) is a second presenter in a `presentation.ByFormat`, picked by `presentation.FormatOf(r.Header)`.'
+  integration-event:
+    place: sharedkernel/application/integrationevents/<aggregate>_integration_events.go
+    parts:
+      - 'A struct embedding `domain.IntegrationEvent` per fact the publishing context tells the others, named `<Fact>IntegrationEvent`, in its public words, in that context''s file.'
+      - 'A payload carrying everything a consumer needs, so it never queries back.'
+      - 'A domain event handler in the publishing context that translates the domain event into it — that is where a fact leaves its context.'
+      - 'An anti-corruption handler in each consuming context, registered in its `module.go` with `application.Reaction()`.'
+      - 'Adding one is not an architecture change: the package is where a context publishes, and a feature may publish.'
+  event-handler:
+    place: contexts/<context>/application/events/<name>_handler.go
+    parts:
+      - 'A struct with `Execute(event, ctx) error`; no guard — the fact was already allowed.'
+      - 'A reaction inside its own context, or the translation of a domain event into an integration event, or an anti-corruption layer over another context''s contract.'
+      - 'Listed in `module.go` under `DomainEvents` or `IntegrationEvents` with `application.Reaction()`, which subscribes it on the event''s type name.'
+      - 'A `<name>_handler_test.go` beside it.'
+  context:
+    place: contexts/<context>/
+    parts:
+      - 'Declared in `contexts` in this file, or no row of the table applies to its packages.'
+      - 'One package directory per layer (`domain`, `application`, `infrastructure`, `presentation`) and the wiring file `module.go` (package `<context>`), nothing else.'
+      - 'Its own vocabulary: a word that means something else here is a sign the context is right.'
+      - 'It asks other contexts through ports it owns, and tells them through integration events; never both sides of a dependency.'
+      - 'Registered in the composition root (`bootstrap/create_application.go`), with its routes under its own prefix.'
+
+# One test style per layer, for the README.
+tests:
+  - layer: Domain
+    example: '[`note_test.go`](contexts/notes/domain/note/note_test.go)'
+    doubles: none
+  - layer: Domain service
+    example: '[`note_sharing_test.go`](contexts/notes/domain/note/note_sharing_test.go)'
+    doubles: a five-line type implementing the port
+  - layer: Application
+    example: >-
+      [`commands_test.go`](contexts/notes/application/commands/commands_test.go),
+      [`delivery_test.go`](contexts/notifications/application/delivery_test.go)
+    doubles: the in-memory repository *is* the double; a recording bus of ten lines says what was published; a fake channel remembers what it received
+  - layer: Infrastructure
+    example: >-
+      [`tracked_event_bus_test.go`](contexts/tracker/infrastructure/tracked_event_bus_test.go),
+      [`signed_tokens_test.go`](contexts/security/infrastructure/signed_tokens_test.go)
+    doubles: real in-memory pieces
+  - layer: '**Contract** (one port, every adapter)'
+    example: '[`persistence_contract_test.go`](contexts/notes/infrastructure/persistence_contract_test.go)'
+    doubles: none — every case runs over each entry of the adapters table, the in-memory and the SQLite pair, same expectations
+  - layer: End to end
+    example: '[`notes_routes_e2e_test.go`](bootstrap/notes_routes_e2e_test.go)'
+    doubles: >-
+      the whole application, booted in-process on a free port by [`testing.go`](bootstrap/testing.go), spoken
+      to over HTTP with `net/http`; a `202` is followed through the Tracker to its outcome
+
+# Where each word of concepts.yaml's vocabulary is shown, by word.
+vocabulary:
+  Building blocks: '[`architecture`](architecture)'
+  Shared kernel: '[`sharedkernel`](sharedkernel)'
+  Bounded context: '[`contexts`](contexts)'
+  Aggregate (root): '[`note.go`](contexts/notes/domain/note/note.go)'
+  Entity: '[`entity.go`](architecture/domain/entity.go)'
+  Value object: '[`note_title.go`](contexts/notes/domain/note/note_title.go)'
+  Invariant: '`ShareWith()` in [`note.go`](contexts/notes/domain/note/note.go)'
+  Domain event: '[`events.go`](contexts/notes/domain/note/events.go)'
+  Integration event: '[`note_integration_events.go`](sharedkernel/application/integrationevents/note_integration_events.go)'
+  Command: '`ShareNoteCommandEvent` in [`share_note.go`](contexts/notes/application/commands/share_note.go)'
+  Query: '[`get_note.go`](contexts/notes/application/queries/get_note.go)'
+  Read model: '[`queries.go`](contexts/notes/domain/note/queries.go)'
+  Projection: '[`projection.go`](contexts/tracker/application/projection.go)'
+  Port: >-
+    [`repository.go`](contexts/notes/domain/note/repository.go),
+    [`account_directory.go`](contexts/notes/domain/note/account_directory.go)
+  Adapter: >-
+    [`repositories.go`](contexts/notes/infrastructure/repositories.go),
+    [`suggestions.go`](contexts/notes/infrastructure/suggestions.go),
+    [`directories.go`](contexts/notes/infrastructure/directories.go)
+  Repository: '[`repository.go`](contexts/notes/domain/note/repository.go)'
+  Domain service: '[`note_sharing.go`](contexts/notes/domain/note/note_sharing.go)'
+  Application service: '[`delivery.go`](contexts/notifications/application/delivery.go)'
+  Anti-corruption layer: '[`note_shared_handler.go`](contexts/notifications/application/events/note_shared_handler.go)'
+  Snapshot: '[`dtos.go`](contexts/notes/domain/note/dtos.go)'
+  Operation: '[`operation.go`](architecture/application/operation.go)'
+  Composition root: '[`create_application.go`](bootstrap/create_application.go)'
+
+# The file that shows each concept of concepts.yaml, by id.
+concepts:
+  entity:
+    canonical: [architecture/domain/entity.go]
+    notes: 'a struct with its state in unexported fields; two entities compare through `Equals()` or their snapshots'
+  aggregate-root:
+    canonical:
+      - contexts/notes/domain/note/note.go
+      - architecture/domain/aggregate_root.go
+    example: >-
+      [`note.go`](contexts/notes/domain/note/note.go) embedding
+      [`AggregateRoot`](architecture/domain/aggregate_root.go)
+    notes: '`Record()` is exported because an aggregate lives in its own package; a behaviour calls it, a handler never does'
+  entity-inside-an-aggregate:
+    canonical: [contexts/notifications/domain/notification/delivery_attempt.go]
+    notes: 'created and reached through `Notification` only, persisted in its snapshot'
+  value-object:
+    canonical:
+      - contexts/notes/domain/note/note_title.go
+      - sharedkernel/domain/email.go
+      - contexts/notifications/domain/notification/delivery_strategy.go
+    example: >-
+      [`note_title.go`](contexts/notes/domain/note/note_title.go),
+      [`email.go`](sharedkernel/domain/email.go),
+      [`delivery_strategy.go`](contexts/notifications/domain/notification/delivery_strategy.go)
+    notes: 'a struct with one unexported field and a constructor returning `(T, error)`; [`value_object.go`](architecture/domain/value_object.go) names the shape, and the struct''s `==` gives the equality'
+    examples: [architecture/domain/value_object.go]
+  identity:
+    canonical: [architecture/domain/id.go]
+  factory:
+    canonical:
+      - contexts/notes/domain/note/note.go
+      - contexts/security/domain/account/account_registration.go
+    example: >-
+      `note.Create()` in [`note.go`](contexts/notes/domain/note/note.go); when creation needs a port,
+      [`account_registration.go`](contexts/security/domain/account/account_registration.go)
+  invariant:
+    canonical: [contexts/notes/domain/note/note.go]
+    example: '`ShareWith()` in [`note.go`](contexts/notes/domain/note/note.go)'
+  creation-vs-reconstitution:
+    canonical: [contexts/notes/domain/note/note.go]
+    example: '`note.Create()` vs `note.FromSnapshot()` in [`note.go`](contexts/notes/domain/note/note.go)'
+    notes: 'corrupted storage panics, which is what a throw is here'
+  domain-event:
+    canonical: [contexts/notes/domain/note/events.go]
+    notes: 'a struct per fact embedding `domain.DomainEvent`, named by its type; [`event.go`](architecture/domain/event.go) has the three kinds'
+    examples: [architecture/domain/event.go]
+  domain-exception:
+    canonical: [contexts/notes/domain/note/exceptions.go]
+    notes: 'a constructor per rule returning a [`*domain.Exception`](architecture/domain/exception.go) — an error value returned, never panicked'
+    examples: [architecture/domain/exception.go]
+  result:
+    canonical: [architecture/domain/result.go]
+    notes: 'the `(T, error)` pair, the error a `*domain.Exception` read with `domain.Refusal(err)`, which is what TypeScript wrote as `if (r.isFailure()) return r`'
+  optimistic-concurrency:
+    canonical:
+      - architecture/domain/aggregate_root.go
+      - contexts/notes/infrastructure/repositories.go
+    example: >-
+      `AggregateRoot.Version()` in [`aggregate_root.go`](architecture/domain/aggregate_root.go), checked by
+      `Save()` in [`repositories.go`](contexts/notes/infrastructure/repositories.go)
+    notes: 'the contract test asserts it for every adapter'
+  repository-port:
+    canonical: [contexts/notes/domain/note/repository.go]
+    notes: 'an interface in the aggregate package, so an adapter may be in-memory or a database'
+  queries-port-read-models:
+    canonical: [contexts/notes/domain/note/queries.go]
+  snapshot-dto:
+    canonical: [contexts/notes/domain/note/dtos.go]
+  domain-service:
+    canonical:
+      - contexts/security/domain/account/account_registration.go
+      - contexts/notes/domain/note/note_sharing.go
+    example: >-
+      [`account_registration.go`](contexts/security/domain/account/account_registration.go),
+      [`note_sharing.go`](contexts/notes/domain/note/note_sharing.go)
+    notes: 'takes its port in its constructor, so a test hands it a five-line type'
+  port-to-another-context:
+    canonical:
+      - contexts/notes/domain/note/account_directory.go
+      - contexts/notes/domain/note/note_sharing.go
+      - contexts/notes/infrastructure/directories.go
+    example: >-
+      [`account_directory.go`](contexts/notes/domain/note/account_directory.go), used by
+      [`note_sharing.go`](contexts/notes/domain/note/note_sharing.go), answered over Security's read
+      model by [`directories.go`](contexts/notes/infrastructure/directories.go)
+    notes: 'the wiring takes the directory as a parameter; the composition root builds it, where the two contexts meet'
+  ports-for-technical-concerns:
+    canonical:
+      - contexts/security/domain/auth/password_hasher.go
+      - contexts/security/domain/auth/signed_tokens.go
+    example: >-
+      [`password_hasher.go`](contexts/security/domain/auth/password_hasher.go),
+      [`signed_tokens.go`](contexts/security/domain/auth/signed_tokens.go)
+  lifecycle-as-an-enum:
+    canonical:
+      - contexts/notes/domain/note/note_status.go
+      - contexts/security/domain/account/account_status.go
+    example: >-
+      [`note_status.go`](contexts/notes/domain/note/note_status.go),
+      [`account_status.go`](contexts/security/domain/account/account_status.go)
+  command:
+    canonical: [contexts/notes/application/commands/share_note.go]
+    example: '`ShareNoteCommandEvent` in [`share_note.go`](contexts/notes/application/commands/share_note.go)'
+    notes: 'a struct embedding `domain.CommandEvent`, its fields the payload; its handler is in the same file, and the channel is the type name (`domain.NameOf()`)'
+  command-handler:
+    canonical: [contexts/notes/application/commands/edit_note.go]
+    example: '`EditNoteHandler` in [`edit_note.go`](contexts/notes/application/commands/edit_note.go)'
+    notes: 'takes its ports in its constructor; `Execute()` returns `(R, error)` and returns a refusal as is'
+  guard:
+    canonical:
+      - sharedkernel/application/guards.go
+      - contexts/security/application/commands/register_admin.go
+    example: >-
+      `RequireSignedIn()` in [`guards.go`](sharedkernel/application/guards.go), called once at the top
+      of `Execute()`; `Guard()` in
+      [`register_admin.go`](contexts/security/application/commands/register_admin.go)
+  application-service:
+    canonical: [contexts/notifications/application/delivery.go]
+    notes: 'holds the channels by `Channel`, each behind the port, since a strategy walks a list of adapters of different kinds'
+  base-handler:
+    canonical: [architecture/application/command_handler.go]
+    notes: '`application.Run()` is the template, generic over the handler: guard, log, transaction, safety net; `application.Command()` wraps it for the bus; a concrete handler writes `Execute()`'
+  query-handler:
+    canonical: [contexts/notes/application/queries/get_note.go]
+    notes: '`application.Query()` runs a `QueryHandler[P, R]`: the parameters, the read model; the module finds it by its type with `application.QueryOf[*H]()`'
+  execution-context:
+    canonical: [architecture/application/execution_context.go]
+    notes: '`application.Transaction()` takes a function returning `(T, error)`, `AfterCommit()` a plain func'
+  publish-after-commit:
+    canonical: [architecture/application/domain_events.go]
+    example: '`application.PublishDomainEvents()` in [`domain_events.go`](architecture/application/domain_events.go)'
+    notes: 'the handler hands the aggregate over, and the events are pulled at the commit'
+  domain-event-handler:
+    canonical: [contexts/notes/application/events/note_shared_handler.go]
+  integration-event:
+    canonical: [sharedkernel/application/integrationevents/note_integration_events.go]
+  anti-corruption-layer:
+    canonical: [contexts/notifications/application/events/note_shared_handler.go]
+    notes: 'one handler per consumed contract, in [`events/`](contexts/notifications/application/events/doc.go); each knows the contract and nothing else of the other context'
+  projection-read-model:
+    canonical:
+      - contexts/tracker/application/projection.go
+      - contexts/tracker/application/read_model.go
+    example: >-
+      [`projection.go`](contexts/tracker/application/projection.go),
+      [`read_model.go`](contexts/tracker/application/read_model.go)
+  non-determinism-as-a-value:
+    canonical:
+      - contexts/notes/application/suggestions/suggestions.go
+      - contexts/notes/application/commands/suggest_note_title.go
+      - contexts/notes/infrastructure/suggestions.go
+    example: >-
+      [`suggestions.go`](contexts/notes/application/suggestions/suggestions.go) →
+      [`suggest_note_title.go`](contexts/notes/application/commands/suggest_note_title.go), answered
+      locally by [`infrastructure/suggestions.go`](contexts/notes/infrastructure/suggestions.go)
+  module:
+    canonical:
+      - architecture/application/module.go
+      - contexts/notes/module.go
+    example: >-
+      [`module.go`](architecture/application/module.go), used in
+      [`notes/module.go`](contexts/notes/module.go)
+    notes: 'an `application.Command()` per command and an `application.Reaction()` per reaction, on the event''s type; the directory another context answers comes in as a parameter'
+    examples: [contexts/security/module.go, contexts/tracker/module.go]
+  repository-implementation:
+    canonical: [contexts/notes/infrastructure/repositories.go]
+  queries-implementation:
+    canonical: [contexts/notes/infrastructure/queries.go]
+  second-adapter-of-the-same-port:
+    canonical:
+      - contexts/notes/infrastructure/repositories.go
+      - contexts/notes/infrastructure/queries.go
+      - contexts/notes/infrastructure/notes_table.go
+    example: >-
+      `SqliteNoteRepository` in [`repositories.go`](contexts/notes/infrastructure/repositories.go) and
+      `SqliteNoteQueries` in [`queries.go`](contexts/notes/infrastructure/queries.go), over the one table of
+      [`notes_table.go`](contexts/notes/infrastructure/notes_table.go) (database/sql on modernc.org/sqlite)
+    examples: [contexts/notes/infrastructure/persistence_contract_test.go]
+    notes: 'the contract test: [`persistence_contract_test.go`](contexts/notes/infrastructure/persistence_contract_test.go); the optimistic check is one `UPDATE … WHERE version = ?`'
+  port-implementations:
+    canonical:
+      - contexts/security/infrastructure/signed_tokens.go
+      - contexts/security/infrastructure/password_hasher.go
+      - contexts/notifications/infrastructure/channels/websocket.go
+    example: >-
+      [`signed_tokens.go`](contexts/security/infrastructure/signed_tokens.go) (golang-jwt),
+      [`password_hasher.go`](contexts/security/infrastructure/password_hasher.go) (x/crypto/bcrypt),
+      [`channels/websocket.go`](contexts/notifications/infrastructure/channels/websocket.go) (coder/websocket)
+  event-bus:
+    canonical: [architecture/infrastructure/event_bus.go]
+    notes: '`Publish()` starts the dispatch in a goroutine and answers at once; `Settle()` waits for what is in flight; the port is [`event_bus.go`](architecture/application/event_bus.go)'
+    examples: [architecture/application/event_bus.go]
+  decorator:
+    canonical: [contexts/tracker/infrastructure/tracked_event_bus.go]
+    notes: 'wraps `Publish` and `Dispatch`: a record before, a record after, the completion notice when it is a command''s'
+  unit-of-work:
+    canonical: [architecture/infrastructure/unit_of_work.go]
+    notes: 'over the stores the composition root lists, or every store of the process'
+  the-database:
+    canonical: [architecture/infrastructure/data_source.go]
+    notes: 'a map and the keys in insertion order, behind a mutex'
+  controller:
+    canonical: [contexts/notes/presentation/routes.go]
+    example: '[`notes/presentation/routes.go`](contexts/notes/presentation/routes.go); every other context''s has the same shape'
+    notes: 'the routes and their controller are one file: a handler func per route on the `http.ServeMux`, `presentation.Accept()` for a command, `application.Query()` for a query, `refuse<Context>()` for a refusal'
+  routes-and-json-schemas:
+    canonical:
+      - contexts/notes/presentation/routes.go
+      - architecture/presentation/http.go
+    example: >-
+      the mux patterns, the request bodies and the views of [`notes/presentation/routes.go`](contexts/notes/presentation/routes.go),
+      on [`architecture/presentation/http.go`](architecture/presentation/http.go) (`Accept()`, the refusals, `DecodeBody()`)
+    notes: 'the schema is a struct beside the route with JSON tags: `DecodeBody()` refuses a body that does not parse (400); a view struct says what a read model looks like outside, in camelCase'
+  presenters:
+    canonical:
+      - contexts/security/presentation/presenters.go
+      - architecture/presentation/format.go
+    example: >-
+      [`security/presentation/presenters.go`](contexts/security/presentation/presenters.go), picked per
+      request by [`format.go`](architecture/presentation/format.go) — a `ByFormat` value per answer beside
+      the controller, no registry
+  authentication-middleware:
+    canonical: [contexts/security/presentation/authentication.go]
+    example: >-
+      [`authentication.go`](contexts/security/presentation/authentication.go) — never blocks, leaves the
+      caller anonymous unless the token verifies; an `http.Handler` middleware over every request, the websocket upgrade included
+  composition-root:
+    canonical:
+      - bootstrap/create_application.go
+      - architecture/application/application.go
+      - bootstrap/cmd/application/main.go
+    example: >-
+      [`create_application.go`](bootstrap/create_application.go) on
+      [`application.go`](architecture/application/application.go): wires, starts the modules, seeds the
+      administrator through the same handler as any command, then listens;
+      [`cmd/application/main.go`](bootstrap/cmd/application/main.go) is the process entry point

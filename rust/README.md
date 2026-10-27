@@ -204,7 +204,7 @@ src/contexts/security/            the same five crates: account/ (aggregate, reg
                                   local_security_module() exporting the read model, the layer and the seed
 src/contexts/notifications/       the five crates: notification/ (the aggregate, the delivery attempt inside it, the
                                   strategy, the channel and queries ports), delivery.rs (the application service),
-                                  the two commands, the inbox query, events/ (the four anti-corruption handlers),
+                                  the two commands, the inbox query, events/ (the anti-corruption handlers),
                                   the email and websocket channels, notification_routes() and render(), the wiring
                                   exporting the websocket channel whose /ws route the bootstrap serves
 src/contexts/tracker/             no Domain: application/ (read_model, ports, projection, the two queries),

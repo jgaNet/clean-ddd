@@ -1,5 +1,5 @@
 //! The wiring of the Notifications context: the channels, the one delivery service every entry
-//! point ends in, the module — its commands, its query, and the four anti-corruption handlers
+//! point ends in, the module — its commands, its query, and the anti-corruption handlers
 //! under the integration events they consume. The websocket channel is exported: the
 //! composition root serves its `/ws` route.
 
