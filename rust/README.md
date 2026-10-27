@@ -222,7 +222,9 @@ Requires a stable Rust toolchain with `rustfmt` and `clippy` (edition 2024, Rust
 
 ```bash
 cd rust
-cargo run -p conventions                    # the crate graph is the table, the tree matches the binding, every named file exists
+cargo run -p conventions                    # the crate graph is the table, the tree matches the binding, every named file exists, the inventory is current
+cargo run -p conventions -- inventory       # the inventory read from this tree (docs/inventory/rust.json), in the words every language shares
+cargo run -p conventions -- inventory --write   # writes it; the check refuses a committed inventory the tree no longer renders
 cargo fmt --check                           # rustfmt, as CI runs it
 cargo clippy --all-targets -- -D warnings   # the lints, warnings refused
 cargo test                                  # every #[test] in every crate, the end-to-end suites of src/bootstrap/tests included
