@@ -78,34 +78,37 @@ export function inventoryOf(storm: EventStorm, language: string): Inventory {
   return {
     schemaVersion: INVENTORY_SCHEMA_VERSION,
     language,
-    contexts: storm.contexts.map(context => ({
-      id: context.id,
-      commands: context.commands
-        .map(command => ({
-          name: command.name,
-          actor: command.actor,
-          ...(command.route && { route: canonicalRoute(command.route) }),
-          ...(command.aggregate && { aggregate: command.aggregate }),
-          events: sorted(command.events),
-        }))
-        .sort(byName),
-      queries: context.readModels
-        .map(readModel => ({
-          name: readModel.name,
-          actor: readModel.actor,
-          ...(readModel.route && { route: canonicalRoute(readModel.route) }),
-        }))
-        .sort(byName),
-      events: sorted(context.events.map(event => event.name)),
-      policies: context.policies
-        .map(policy => ({
-          on: policy.on.event,
-          kind: policy.on.kind,
-          publishes: sorted(policy.publishes),
-          events: sorted(policy.events),
-        }))
-        .sort((a, b) => a.kind.localeCompare(b.kind) || a.on.localeCompare(b.on)),
-    })),
+    // In the order of the ids, not of a binding: the bindings list their contexts as they please.
+    contexts: [...storm.contexts]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map(context => ({
+        id: context.id,
+        commands: context.commands
+          .map(command => ({
+            name: command.name,
+            actor: command.actor,
+            ...(command.route && { route: canonicalRoute(command.route) }),
+            ...(command.aggregate && { aggregate: command.aggregate }),
+            events: sorted(command.events),
+          }))
+          .sort(byName),
+        queries: context.readModels
+          .map(readModel => ({
+            name: readModel.name,
+            actor: readModel.actor,
+            ...(readModel.route && { route: canonicalRoute(readModel.route) }),
+          }))
+          .sort(byName),
+        events: sorted(context.events.map(event => event.name)),
+        policies: context.policies
+          .map(policy => ({
+            on: policy.on.event,
+            kind: policy.on.kind,
+            publishes: sorted(policy.publishes),
+            events: sorted(policy.events),
+          }))
+          .sort((a, b) => a.kind.localeCompare(b.kind) || a.on.localeCompare(b.on)),
+      })),
     links: storm.links
       .map(link => ({
         mechanism: link.mechanism,

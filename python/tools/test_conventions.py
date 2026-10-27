@@ -1,12 +1,21 @@
 """The conventions check, tried against the tree as it is and against violations written into a
 copy of it: a refusal must name its rule, as the ESLint probes do in TypeScript."""
 
+import json
 import shutil
 from pathlib import Path
 
 import pytest
 
-from tools.conventions import can_import, run
+from tools.conventions import (
+    INVENTORY,
+    INVENTORY_WRITE,
+    can_import,
+    inspect_inventory,
+    run,
+    serialize_inventory,
+    write_inventory,
+)
 
 HERE = Path(__file__).resolve().parent.parent
 
@@ -24,6 +33,7 @@ def copy(tmp_path: Path) -> Path:
     shutil.copytree(HERE.parent / "conventions", root / "conventions")
     shutil.copytree(HERE / "src", root / "python" / "src")
     shutil.copytree(HERE / "tools", root / "python" / "tools")
+    shutil.copytree(HERE.parent / "docs" / "inventory", root / "docs" / "inventory")
     return root / "python"
 
 
@@ -98,3 +108,33 @@ def test_can_import_answers_before_the_import_is_written_and_names_the_rule_that
     assert [refusal is None for _, _, refusal in verdicts] == [True, False, False, True]
     assert verdicts[1][2] is not None and verdicts[1][2].startswith("ARCH-DOMAIN:")
     assert verdicts[2][2] is not None and verdicts[2][2].startswith("ARCH-DOMAIN:")
+
+
+def test_the_inventory_says_the_same_application_as_the_typescript_tree() -> None:
+    """The words every language must say the same (ARCH-ONE-APPLICATION): read from the Python tree with
+    ``ast``, they are the TypeScript inventory's, context for context and link for link."""
+    inventory = inspect_inventory(HERE)
+    reference = json.loads((HERE.parent / "docs" / "inventory" / "typescript.json").read_text(encoding="utf-8"))
+    assert inventory["language"] == "python"
+    assert inventory["schemaVersion"] == reference["schemaVersion"]
+    assert {context["id"]: context for context in inventory["contexts"]} == {
+        context["id"]: context for context in reference["contexts"]
+    }
+    assert inventory["links"] == reference["links"]
+    # Canonical bytes: what is written is what is read back, the keys in the order they were inserted.
+    assert json.loads(serialize_inventory(inventory)) == inventory
+    assert serialize_inventory(inventory).endswith("}\n")
+
+
+def test_refuses_a_stale_or_missing_inventory_naming_the_command_that_writes_it(copy: Path) -> None:
+    committed = copy.parent / INVENTORY
+    committed.write_text(committed.read_text(encoding="utf-8").replace('"ShareNote"', '"ShareNotes"'), encoding="utf-8")
+    stale = [problem for problem in refusals(copy) if problem.startswith("ARCH-ONE-APPLICATION:")]
+    assert len(stale) == 1 and INVENTORY in stale[0] and INVENTORY_WRITE in stale[0]
+
+    committed.unlink()
+    missing = [problem for problem in refusals(copy) if problem.startswith("ARCH-ONE-APPLICATION:")]
+    assert len(missing) == 1 and "missing" in missing[0] and INVENTORY_WRITE in missing[0]
+
+    assert write_inventory(copy) == committed
+    assert not any(problem.startswith("ARCH-ONE-APPLICATION:") for problem in refusals(copy))

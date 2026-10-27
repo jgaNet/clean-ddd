@@ -102,68 +102,6 @@
       ]
     },
     {
-      "id": "Security",
-      "commands": [
-        {
-          "name": "Login",
-          "actor": "anyone",
-          "route": "POST /auth/login",
-          "aggregate": "Account",
-          "events": [
-            "AccountAuthenticated"
-          ]
-        },
-        {
-          "name": "SignUp",
-          "actor": "anyone",
-          "route": "POST /auth/signup",
-          "aggregate": "Account",
-          "events": [
-            "AccountCreated"
-          ]
-        },
-        {
-          "name": "ValidateAccount",
-          "actor": "anyone",
-          "route": "GET /auth/validate",
-          "aggregate": "Account",
-          "events": [
-            "AccountValidated"
-          ]
-        }
-      ],
-      "queries": [
-        {
-          "name": "GetAccount",
-          "actor": "a signed-in account",
-          "route": "GET /auth/me"
-        }
-      ],
-      "events": [
-        "AccountAuthenticated",
-        "AccountCreated",
-        "AccountValidated"
-      ],
-      "policies": [
-        {
-          "on": "AccountCreated",
-          "kind": "domain-event",
-          "publishes": [
-            "AccountCreated"
-          ],
-          "events": []
-        },
-        {
-          "on": "AccountValidated",
-          "kind": "domain-event",
-          "publishes": [
-            "AccountValidated"
-          ],
-          "events": []
-        }
-      ]
-    },
-    {
       "id": "Notifications",
       "commands": [
         {
@@ -234,6 +172,68 @@
             "NotificationFailed",
             "NotificationSent"
           ]
+        }
+      ]
+    },
+    {
+      "id": "Security",
+      "commands": [
+        {
+          "name": "Login",
+          "actor": "anyone",
+          "route": "POST /auth/login",
+          "aggregate": "Account",
+          "events": [
+            "AccountAuthenticated"
+          ]
+        },
+        {
+          "name": "SignUp",
+          "actor": "anyone",
+          "route": "POST /auth/signup",
+          "aggregate": "Account",
+          "events": [
+            "AccountCreated"
+          ]
+        },
+        {
+          "name": "ValidateAccount",
+          "actor": "anyone",
+          "route": "GET /auth/validate",
+          "aggregate": "Account",
+          "events": [
+            "AccountValidated"
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "name": "GetAccount",
+          "actor": "a signed-in account",
+          "route": "GET /auth/me"
+        }
+      ],
+      "events": [
+        "AccountAuthenticated",
+        "AccountCreated",
+        "AccountValidated"
+      ],
+      "policies": [
+        {
+          "on": "AccountCreated",
+          "kind": "domain-event",
+          "publishes": [
+            "AccountCreated"
+          ],
+          "events": []
+        },
+        {
+          "on": "AccountValidated",
+          "kind": "domain-event",
+          "publishes": [
+            "AccountValidated"
+          ],
+          "events": []
         }
       ]
     },

@@ -22,7 +22,7 @@ describe('the inventory', () => {
   it('is the storm in shared words, in canonical order', () => {
     expect(inventory.schemaVersion).toBe(1);
     expect(inventory.language).toBe('typescript');
-    expect(inventory.contexts.map(context => context.id)).toEqual(['Notes', 'Security', 'Notifications', 'Tracker']);
+    expect(inventory.contexts.map(context => context.id)).toEqual(['Notes', 'Notifications', 'Security', 'Tracker']);
     const notes = inventory.contexts[0];
     expect(notes.commands.map(command => command.name)).toEqual([
       'ArchiveNote',
@@ -40,7 +40,7 @@ describe('the inventory', () => {
       events: ['NoteShared'],
     });
     expect(notes.events).toEqual(['NoteArchived', 'NoteCreated', 'NoteEdited', 'NoteRestored', 'NoteShared']);
-    expect(inventory.contexts[2].policies.map(policy => policy.on)).toEqual([
+    expect(inventory.contexts[1].policies.map(policy => policy.on)).toEqual([
       'AccountCreated',
       'AccountValidated',
       'NoteShared',
@@ -68,7 +68,7 @@ describe('the inventory', () => {
     const notes = other.contexts[0];
     notes.commands = notes.commands.filter(command => command.name !== 'ShareNote');
     notes.queries.push({ name: 'GetArchivedNotes', actor: 'a signed-in account', route: 'GET /notes/archived' });
-    other.contexts[2].policies[2].events = ['NotificationSent'];
+    other.contexts[1].policies[2].events = ['NotificationSent'];
     other.links = other.links.filter(link => link.mechanism !== 'owned-port');
     const problems = compareInventories(inventory, other);
     expect(problems).toEqual([
