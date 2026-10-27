@@ -1,0 +1,35 @@
+# 19. The domain is data: subdomains, a context map and the language of each context, declared once and held to the code
+
+## Context
+
+The reference teaches the tactical half of Domain-Driven Design well, and the architecture around it: every building block has its canonical file, every rule its id, every language its binding. The strategic half was absent. The four contexts were declared in the bindings as directories, nothing said which of them is the business and which is commodity, nothing named the relationship between two of them in the words the discipline has for it (a published language, a customer and its supplier, an anti-corruption layer), and no glossary said what a word means in one context and what the same word means in the next. A reader could find that `SecurityAccountDirectory` adapts Security's read model for Notes, but not that this is a customer-supplier relationship Notes protects with an anti-corruption layer, nor why Notes asks rather than conforms.
+
+The relationships themselves were already in the code, held by the contract: CTX-CONTRACTS allows two mechanisms between contexts and the import linter refuses every other. What the code cannot hold is the intent — the pattern a relationship follows and the reason it exists — and what nobody checked is whether a drawing of the context map, had there been one, matched the code.
+
+Two ways to write that down were weighed. **A hand-written map** (a diagram, a page of prose) is the usual one; it says the intent, and it drifts the day a feature adds a consumer, because nothing reads it. **A map derived from the code alone** cannot drift and says no intent: it is an inventory of imports and subscriptions, which the linter already has.
+
+## Decision
+
+The strategic design is data, in `conventions/domain.yaml`, cut along the same line as the contract: **the map declares what the code cannot say, and nothing the code already says.**
+
+- **Subdomains**, each with a kind (`core`, `supporting`, `generic`), the contexts it holds and why it is of that kind. A context belongs to exactly one.
+- **Contexts**, under the names every binding declares, each with a purpose and its ubiquitous language: the words it speaks and what they mean here. The same word with two meanings in two contexts is the reason there are two contexts, and the map is where that is visible.
+- **The context map**: one entry per relationship between two contexts, upstream first, with the patterns it follows on each side (from a closed vocabulary: published language, open host service, customer-supplier, conformist, anti-corruption layer), the mechanism that carries it (one of the two contracts CTX-CONTRACTS allows: an integration event or an owned port) and why it exists. The patterns a mechanism can carry are a table in the tooling: an integration event is a published language the consumer conforms to or protects itself from, an owned port is a customer's question.
+- **The shared kernel**, declared once as what every context agrees on, not as a relationship between pairs.
+- **The contracts a relationship carries are read from the code**, never written in the map: which integration events a pair talks through, which port. The TypeScript tooling walks its tree for them — a class built and published in one context and subscribed in another's wiring, an import of another context through the contexts alias — and renders them next to the relationship. A feature that adds a consumer to an existing relationship changes nothing in the map; the rendered map changes on its own.
+- **The check holds the map to the code both ways** (CTX-MAP-DECLARED, which this record introduces): a relationship declared that nothing in the code carries fails, and a link in the code between two contexts that no relationship declares fails. The second is the one that matters: a new relationship between two contexts is a decision, and the check makes it one that is written down before it is merged. A feature plan that crosses into a context the map does not relate to its own is refused by `plan validate` for the same reason.
+- **The root README opens with the strategic view**, rendered from the map between the same markers as the rest: the subdomains, the context map as a diagram and as a table, each context's purpose and language, the shared kernel, and where each strategic concept of `concepts.yaml` is shown. `yarn architecture domain` and `yarn architecture context <id>` answer the same from a terminal, `--json` for a tool.
+- Like the contract, the map is true in every language and names no file of any language; the check refuses one. The TypeScript tooling reads it and checks it against the TypeScript tree, as it is the reference tooling for the contract; the other languages' tools will report the same inventory of links, and the check will hold the four inventories equal, the way the shared scenario holds the four APIs equal.
+
+## Consequences
+
+- The strategic concepts have a place: `concepts.yaml` gains a `strategic` list — bounded context, subdomain, ubiquitous language, context map, published language, customer-supplier, anti-corruption layer, shared kernel — each saying where it is shown here, which is the map itself or a decision, never a language's file. They are not rows of the concept × language map, because a language does not show them: the map does.
+- A relationship is declared once and rendered everywhere; what it carries is never stated twice. The cost is a reader of the YAML who wants the contracts must look at the rendered README or ask the CLI, which is where the question is answered anyway.
+- The mechanism names are the contract's two words, so the map cannot describe a relationship the architecture forbids (a shared database, a direct call): `validate` refuses the mechanism before the code could carry it.
+- The kind of a subdomain is a judgement with a reason, and the check requires the reason. A reader who disagrees has a sentence to disagree with.
+- The link inventory is read from canonical shapes the check already imposes (a wiring file that lists its subscriptions, an integration event built with `set()` and published, an adapter that `implements` its port). A shape the inventory does not recognise is a shape the guides do not teach; the remedy is the canonical shape, not a looser regex.
+- The event storm will be derived from the same reading, extended to what happens inside a context (actors, commands, aggregates, events, policies, read models, external systems), and will be the next thing the four languages are held equal on. That is a second record.
+
+## When to revisit
+
+If a relationship ever needs a third mechanism, the question is CTX-CONTRACTS's, not the map's. If the inventory of links in two languages disagrees once every language reports one, the map is right and one implementation is wrong, by construction: the map declares intent, and the scenario already says which server differs on what a client sees. If a context's language grows past a screen, it is two contexts asking to be told apart.

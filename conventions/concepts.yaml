@@ -349,6 +349,67 @@ concepts:
     rules:
       - ARCH-WIRING
       - ARCH-MODULES-DATA
+# The strategic concepts: shown by the domain map (domain.yaml) and by the decisions, not by a file of
+# one language, so they are the root README's strategic view rather than rows of the concept × language
+# map. `where` says where each is in this repository, in Markdown; it names the map or a decision.
+strategic:
+  - id: bounded-context
+    name: Bounded context
+    description: >-
+      a boundary inside which the words have one meaning and one model; here a directory with its four layers
+      and its wiring file, declared in every binding
+    where: '`contexts` of [`domain.yaml`](conventions/domain.yaml): a purpose and a language each'
+    references: [docs/adr/0019-the-domain-is-data.md]
+  - id: subdomain
+    name: Subdomain
+    description: >-
+      a part of the business, core (what the application is for, modelled with care), supporting (what the core
+      needs and nobody competes on) or generic (what every application needs); the kind says where care goes
+    where: '`subdomains` of [`domain.yaml`](conventions/domain.yaml), each with its kind and the reason for it'
+    references: [docs/adr/0019-the-domain-is-data.md]
+  - id: ubiquitous-language
+    name: Ubiquitous language
+    description: >-
+      the words a context speaks, used in its code, its tests, its routes and its conversations alike; the same
+      word in two contexts (an account, a recipient) is two words
+    where: '`language` of each context in [`domain.yaml`](conventions/domain.yaml), rendered above'
+    references: [docs/adr/0019-the-domain-is-data.md]
+  - id: context-map
+    name: Context map
+    description: >-
+      every relationship between two contexts, upstream first, with the pattern on each side and the mechanism
+      that carries it; the contracts it carries are read from the code, and the check holds the two to each other
+    where: '`relationships` of [`domain.yaml`](conventions/domain.yaml), the diagram and the table above'
+    references: [docs/adr/0019-the-domain-is-data.md]
+  - id: published-language
+    name: Published language
+    description: >-
+      the upstream publishes its facts in a contract written in its public words, for any consumer; here an
+      integration event in the shared kernel, named for the fact (`NoteShared`)
+    where: the integration-event relationships of the map; [ADR 6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md)
+    references: [docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md]
+  - id: customer-supplier
+    name: Customer–supplier
+    description: >-
+      the downstream is a customer with a question the upstream serves; here a port the asking context owns, in
+      its own words, answered by an adapter over the other context's read model
+    where: the owned-port relationships of the map; [ADR 6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md)
+    references: [docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md]
+  - id: anti-corruption-layer-strategic
+    name: Anti-corruption layer
+    description: >-
+      the downstream translates the upstream's model into its own at the boundary, so that a change upstream
+      touches one file here; the handler of an integration event, the adapter of an owned port
+    where: the downstream side of every relationship of the map; the application row of the map below names the files
+    references: [docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md]
+  - id: shared-kernel-strategic
+    name: Shared kernel
+    description: >-
+      what every context agrees on and changes together: vocabulary, not mechanics; declared once, not as a
+      relationship between pairs
+    where: '`sharedKernel` of [`domain.yaml`](conventions/domain.yaml)'
+    references: [docs/adr/0019-the-domain-is-data.md]
+
 vocabulary:
   - word: Building blocks
     meaning: >-
@@ -359,7 +420,9 @@ vocabulary:
       the part of the domain model every context agrees on — Email, Role, who counts as signed in, and the
       integration events; not the base classes, which is what the word is often misused for
   - word: Bounded context
-    meaning: a folder with its own vocabulary and wiring, talking to others through integration events only
+    meaning: >-
+      a folder with its own vocabulary and wiring, talking to others through integration events and ports it
+      owns only; its purpose, its language and its relationships are in the domain map
   - word: Aggregate (root)
     meaning: >-
       the object that owns a consistency boundary: every change goes through one of its behaviours, which

@@ -18,6 +18,9 @@
  *    cannot rot.
  * 7. The import rules generated from the contract behave: a table of probes says which imports each
  *    layer must refuse and which it must allow, and ESLint is asked about each.
+ * 8. The domain map, when the repository has one, is sound against every binding and true to the
+ *    code both ways: every relationship it declares is carried, every link the code carries is
+ *    declared (CTX-MAP-DECLARED); the root README's strategic view is rendered from it.
  *
  * A client of tools/architecture-contract, like the CLI; it parses no YAML itself. Two roots: the
  * repository's, where the contract and the shared documents live, and this language's, where the
@@ -28,8 +31,15 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join, posix, resolve } from 'path';
 
 import {
+  DOMAIN_MARKER,
   END_MARKER,
   RULES_MARKER,
+  checkDomainAgainstLinks,
+  inspectContextLinks,
+  loadDomainMap,
+  loadStrategicConcepts,
+  renderDomain,
+  validateDomainMap,
   SECTION_MARKER,
   canImportAll,
   generateProbes,
@@ -80,6 +90,15 @@ const contracts = [contract, ...others];
 const at = contract.language.root;
 /** More than one language, or one that is not the repository itself: the root has documents of its own. */
 const multi = at !== '.';
+
+// 8. The domain map, when there is one: sound against every binding, and true to the code both ways
+
+const domainMap = loadDomainMap(root);
+const links = domainMap ? inspectContextLinks(contract, root) : [];
+if (domainMap) {
+  problems.push(...validateDomainMap(domainMap, contracts, root));
+  problems.push(...checkDomainAgainstLinks(domainMap, links, contract.language.name));
+}
 
 // 2. The tree matches the contract
 
@@ -173,6 +192,9 @@ renderInto('CLAUDE.md', [[RULES_MARKER('rules'), renderRulesList(contract)]]);
 if (multi) {
   const title = (layer: string) => `${layer[0].toUpperCase()}${layer.slice(1)} layer`;
   renderInto('README.md', [
+    ...(domainMap
+      ? [[DOMAIN_MARKER, renderDomain(domainMap, links, loadStrategicConcepts(root))] as [string, string]]
+      : []),
     [SECTION_MARKER('languages'), renderLanguages(contracts)],
     [
       SECTION_MARKER('map'),
@@ -287,5 +309,5 @@ if (problems.length) {
   process.exit(1);
 }
 process.stdout.write(
-  `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts match the tree; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; no eslint-disable; ${probes.length} import probes behave and name their rule.\n`,
+  `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts match the tree; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; no eslint-disable; ${probes.length} import probes behave and name their rule${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}.\n`,
 );

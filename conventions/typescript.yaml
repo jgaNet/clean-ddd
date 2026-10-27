@@ -89,6 +89,8 @@ rules:
     references: [src/Contexts/Tracker/Application/Projections/OperationProjection.ts, src/Contexts/Tracker/Presentation/API/REST/Routes/operation.routes.e2e.spec.ts]
   ARCH-MAP-IS-REAL:
     references: [tools/check-conventions.ts]
+  CTX-MAP-DECLARED:
+    references: [tools/architecture-contract/domain.ts]
 
 # The routes file that shows each verb of the HTTP table, by intent.
 verbs:

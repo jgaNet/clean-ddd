@@ -359,3 +359,11 @@ rules:
     remediation: Fix the server that differs, never the scenario; a name that leaks a class suffix is stripped where the record is projected, not renamed on the bus.
     enforcement: tests
     references: [docs/adr/0016-one-api-for-every-language.md]
+
+  - id: CTX-MAP-DECLARED
+    name: the-context-map-is-declared-and-true
+    statement: Every relationship between two contexts is declared once in the context map, with the strategic pattern it follows, the mechanism that carries it and why; the contracts it carries are read from the code, and the check refuses a link in the code the map does not declare and a declared relationship nothing in the code carries.
+    why: A context map drawn by hand and never checked is a wish; one read from the code alone is an inventory with no intent in it. Declaring the pair, the pattern and the reason, and deriving the contracts, keeps both honest, and makes a new relationship between two contexts a decision written down before it is merged.
+    remediation: Add the relationship to `relationships` in the domain map with its pattern and its reason — or remove the link in the code, if the coupling was not meant; never widen the check.
+    enforcement: check
+    references: [docs/adr/0019-the-domain-is-data.md, conventions/README.md]

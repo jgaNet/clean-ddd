@@ -6,6 +6,7 @@ The architecture of this repository, written as data so that tooling can hold th
 |---|---|---|
 | [`architecture.yaml`](architecture.yaml) | the contract: the layers and which may import from which, every rule under its stable id, the HTTP verbs, the kinds of thing a feature is made of, the two modes, and the list of `languages` | every language's import linter and conventions check; `yarn architecture` |
 | [`concepts.yaml`](concepts.yaml) | the vocabulary: every concept the documentation teaches, with its rules and its decisions; plus the words | the root README's map, each language's map |
+| [`domain.yaml`](domain.yaml) | the domain: the subdomains and their kind, each context's purpose and ubiquitous language, the context map (every relationship between two contexts, upstream first, with its patterns, its mechanism and why) and the shared kernel; names no file, and never the contracts a relationship carries, which are read from the code ([ADR 19](../docs/adr/0019-the-domain-is-data.md)) | the root README's strategic view; `yarn architecture domain`, `context <id>`; `yarn check:conventions`, which holds the map to the code both ways |
 | [`typescript.yaml`](typescript.yaml) | the TypeScript binding: the contexts, the trees and their aliases, the wiring file, the libraries, what holds each enforcement word there, the checks, what the modes protect, what a new thing of each kind is made of, the file that shows each concept and each rule, the test styles, where each word is shown | [`eslint.config.js`](../typescript/eslint.config.js), which turns the contract and the binding into import rules; [`check-conventions.ts`](../typescript/tools/check-conventions.ts), which checks the tree has the shape they describe |
 | [`rust.yaml`](rust.yaml) | the Rust binding: the same sections for Rust — a crate per layer under `src/`, the contexts, the wiring crate, the libraries, what holds each enforcement word, the file that shows each concept and each rule | [`tools/conventions`](../rust/tools/conventions), which checks every `use` against the table and the tree against the contract |
 | [`go.yaml`](go.yaml) | the Go binding: the same sections for Go — a package per layer, the contexts, the wiring file `module.go`, the libraries, what holds each enforcement word, the file that shows each concept and each rule | [`tools/conventions`](../go/tools/conventions), which checks every import against the table with `go/parser` and the tree against the contract |
@@ -48,6 +49,17 @@ Beyond the rules and the concepts, the contract holds two tables that used to li
 - **`checklists`** — the kinds of thing a feature is made of, each pointing at the concept that shows it; the binding says, for each kind, where it goes and what it is made of in its language: `yarn architecture checklist aggregate`, or `yarn architecture place domain-service` for the path alone. The check refuses a checklist naming a concept that does not exist, and a binding checklist for a kind the contract does not have.
 
 `can-import` takes several pairs in one call (`can-import <file> <specifier> <file> <specifier> …`), on one ESLint instance, so a planned layout is checked in a single command; it exits non-zero if any pair is refused. A path typed on the command line is read from where it was typed, so `src/…` from `typescript/` and `typescript/src/…` from the root name the same file.
+
+### The domain map
+
+[`domain.yaml`](domain.yaml) is the strategic design as data, cut along the same line as the contract: it declares what the code cannot say — which subdomain is the core and why, what a context is for and the words it speaks, which pattern a relationship between two contexts follows and why it exists — and nothing the code already says. The mechanism of a relationship is one of the two contracts CTX-CONTRACTS allows (`integration-event`, `owned-port`); its patterns come from a closed vocabulary (`published-language`, `open-host-service`, `customer-supplier`, `conformist`, `anti-corruption-layer`), and the tooling knows which patterns each mechanism can carry. The contracts a relationship carries — which integration events, which port — are read from the TypeScript tree and rendered next to it.
+
+`yarn check:conventions` holds the map to the bindings (the same contexts, each in exactly one subdomain) and to the code both ways (CTX-MAP-DECLARED): a declared relationship nothing carries fails, and a link in the code between two contexts that no relationship declares fails — a new relationship is a decision, and the check makes it one that is written down first. `plan validate` refuses a plan that crosses an undeclared pair for the same reason. A repository without the file (an application just created) has no map yet, and the check and the documents skip it.
+
+```bash
+yarn architecture domain          # the subdomains, the context map with its contracts, the shared kernel
+yarn architecture context Notes   # one context: purpose, language, what it depends on, who depends on it
+```
 
 ### Feature plans
 

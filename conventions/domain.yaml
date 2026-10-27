@@ -1,0 +1,181 @@
+# The domain, as data: the strategic half of Domain-Driven Design. What the application is for,
+# which parts of it are the business and which are commodity (the subdomains), what each bounded
+# context is for and the words it speaks (its ubiquitous language), and how the contexts relate
+# (the context map: every relationship between two contexts, with the strategic pattern it
+# follows, the mechanism that carries it here, and why).
+#
+# Like the contract, this file is true in every language and names no file of any language.
+# It declares what the code cannot say — the kind of a subdomain, the pattern of a relationship,
+# the reason — and nothing the code already says: the contracts a relationship carries (which
+# integration events, which port) are read from the code and rendered next to it, never written
+# here. `yarn check:conventions` (TypeScript) holds the map to the code both ways: a relationship
+# declared here that nothing in the code carries fails, and a link in the code between two
+# contexts that no relationship here declares fails (CTX-MAP-DECLARED). The decision is
+# docs/adr/0019-the-domain-is-data.md.
+#
+# Patterns, in the vocabulary of the strategic design: `published-language` (the upstream
+# publishes its facts in a contract written in its public words), `open-host-service` (the
+# upstream exposes an API designed for any consumer), `customer-supplier` (the downstream is a
+# customer whose needs the upstream serves), `conformist` (the downstream adopts the upstream's
+# model as is), `anti-corruption-layer` (the downstream translates the upstream's model into its
+# own at the boundary). An integration event carries a published language the consumer protects
+# itself from or conforms to; an owned port carries a customer's question, translated by its
+# adapter. The shared kernel — what every context agrees on — is declared once, below, not as a
+# relationship between two contexts.
+
+schemaVersion: 1
+
+name: Notes
+purpose: >-
+  One small application written to be read: notes you can share with other accounts, which
+  tells the people concerned and lets every caller follow what it asked for. The business is
+  small on purpose; the point is the shape.
+
+# The subdomains: the business is the core, what supports it is supporting, what any application
+# needs is generic. The kind says where care goes: the core is modelled, the generic is bought
+# or copied.
+subdomains:
+  - id: notes
+    name: Notes
+    kind: core
+    why: >-
+      Writing, sharing, archiving a note is what the application is for; its rules (who may edit,
+      what an archived note refuses, who a note can be shared with) are the ones worth modelling
+      and the ones a feature is most likely to touch.
+    contexts: [Notes]
+  - id: identity
+    name: Identity
+    kind: generic
+    why: >-
+      Accounts, credentials, roles and signed tokens are what every application needs and no
+      application competes on; the model here is the smallest that keeps the core honest about
+      who is calling.
+    contexts: [Security]
+  - id: communication
+    name: Communication
+    kind: supporting
+    why: >-
+      Telling a person that something happened — a note shared with them, their account to
+      validate, an operation completed — supports the core without being it; the channels are
+      interchangeable and the notification has a lifecycle of its own.
+    contexts: [Notifications]
+  - id: operations
+    name: Operations
+    kind: generic
+    why: >-
+      Every command is accepted first and answered later; recording each operation and letting a
+      client follow it to its outcome is plumbing any asynchronous application needs, and has no
+      domain of its own.
+    contexts: [Tracker]
+
+# The bounded contexts, under the names every binding declares. Each has a purpose and the words
+# it speaks; the same word in two contexts means two things (an account in Security is a recipient
+# in Notifications), which is what makes them two contexts.
+contexts:
+  - id: Notes
+    purpose: >-
+      The notes themselves: an account writes, edits, archives, restores and shares its notes, and
+      reads its own and the ones shared with it.
+    language:
+      - term: Note
+        meaning: the aggregate; a titled text owned by one account, active or archived, shared with zero or more accounts.
+      - term: Owner
+        meaning: the account that wrote the note; the only one who may edit, archive, restore or share it.
+      - term: Title
+        meaning: a value object; never blank, never longer than its maximum, trimmed.
+      - term: Archived
+        meaning: the status of a note set aside; an archived note refuses an edit and a share until it is restored.
+      - term: Sharing
+        meaning: the domain service that shares a note with an account, once it has asked whether that account exists.
+      - term: Recipient
+        meaning: an account a note has been shared with, held by its id; what the note knows of it.
+      - term: Suggestion
+        meaning: a title proposed from the content by a source outside the domain, which the note validates and may refuse.
+  - id: Security
+    purpose: >-
+      Who is calling: accounts and their credentials, sign-up and its validation, login and the
+      signed token every other request carries.
+    language:
+      - term: Account
+        meaning: the aggregate; an email, a hashed password, a role and a status.
+      - term: Pending
+        meaning: the status of an account that has signed up and not yet validated its email; it cannot sign in.
+      - term: Validation
+        meaning: the step that turns a pending account active, through a token sent to its email.
+      - term: Registration
+        meaning: the domain service that registers an account, once it has asked whether the email is free.
+      - term: Credentials
+        meaning: an email and a password, checked against the hash; a wrong pair is one refusal, whichever half is wrong.
+      - term: Signed token
+        meaning: what a signed-in caller carries; issued by Security, read by the authentication middleware on every request.
+  - id: Notifications
+    purpose: >-
+      Telling a person something happened, over the channel that reaches them, and remembering
+      whether it did.
+    language:
+      - term: Notification
+        meaning: the aggregate; a message for one recipient, with the channels it goes out on and the attempts made.
+      - term: Recipient
+        meaning: the account the message is for, known by its id and its email; what Security calls an account.
+      - term: Channel
+        meaning: how a message reaches its recipient — email, or the websocket of a connected browser.
+      - term: Delivery attempt
+        meaning: a child entity; one try on one channel, with its outcome, kept inside the notification.
+      - term: Sent, Read, Failed
+        meaning: the lifecycle of a notification after it is created pending.
+  - id: Tracker
+    purpose: >-
+      What became of each command: every operation the bus dispatches is recorded with its
+      outcome, so that a caller answered 202 can follow it to success or refusal.
+    language:
+      - term: Operation
+        meaning: one dispatch of one command or event, with its public name, its status and its result or error.
+      - term: Outcome
+        meaning: how an operation ended — SUCCESS with its result, or ERROR with the refusal.
+      - term: Trace
+        meaning: the id that ties an operation to the request that asked for it and to the operations it caused.
+
+# The context map: one entry per relationship between two contexts, upstream first (the context
+# whose model the other depends on). The contracts it carries are read from the code.
+relationships:
+  - upstream: Notes
+    downstream: Notifications
+    patterns: [published-language, anti-corruption-layer]
+    mechanism: integration-event
+    why: >-
+      When a note is shared, the people it is shared with should hear of it. Notes publishes the
+      fact in its public words and knows nothing of channels; Notifications restates it as a
+      message for each recipient, which is its own business.
+  - upstream: Security
+    downstream: Notifications
+    patterns: [published-language, anti-corruption-layer]
+    mechanism: integration-event
+    why: >-
+      A new account must receive its validation link, and a validated one a welcome; Security
+      says what happened, Notifications decides what to send and how.
+  - upstream: Tracker
+    downstream: Notifications
+    patterns: [published-language, anti-corruption-layer]
+    mechanism: integration-event
+    why: >-
+      A caller answered 202 wants to know how its command went without polling; Tracker says an
+      operation completed, Notifications pushes the outcome to the browser that asked.
+  - upstream: Security
+    downstream: Notes
+    patterns: [customer-supplier, anti-corruption-layer]
+    mechanism: owned-port
+    why: >-
+      Sharing a note with an account that does not exist must be refused, and only Security knows
+      which accounts exist. Notes asks in its own words, through a port it owns, and the adapter
+      translates Security's read model into the one fact Notes needs.
+
+# What every context agrees on, in the shared kernel: declared once, not as a relationship.
+sharedKernel:
+  holds: >-
+    An email address and the roles (who counts as an administrator, a user, a guest), who counts
+    as signed in, and the integration events — the contracts between contexts, each in the
+    public words of the context that publishes it.
+  why: >-
+    These are the words the whole application shares; a second definition of an email in each
+    context would be four definitions to drift. The kernel holds vocabulary, not mechanics: the
+    building blocks are not it.

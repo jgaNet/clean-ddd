@@ -4,6 +4,7 @@ One small application — notes you can share, accounts, notifications, operatio
 
 The reference is written in several programming languages from **one architecture**. The architecture is data, in [`conventions/`](conventions/README.md): the layers and what each may import, every rule under a stable id, the HTTP grammar, the vocabulary. Each language is a directory with its own toolchain, its own guide, and a **binding** that says where its trees are, which of its files shows each concept and which tool holds each rule. A language never carries a rule of its own; what it cannot show yet, the map below shows as a gap ([ADR 11](docs/adr/0011-one-reference-several-languages.md)).
 
+- [The domain](#the-domain)
 - [The languages](#the-languages)
 - [The map: concept × language](#the-map-concept--language)
 - [The rules, and how they are enforced](#the-rules-and-how-they-are-enforced)
@@ -11,9 +12,124 @@ The reference is written in several programming languages from **one architectur
 - [Adding a language](#adding-a-language)
 - [Decisions](#decisions)
 
+## The domain
+
+Before the layers: what the application is for, which parts of it are the business and which are commodity, and how the contexts talk. That is the strategic half of Domain-Driven Design, and here it is data too: [`conventions/domain.yaml`](conventions/domain.yaml) names the subdomains and their kind, each context's purpose and language, and the context map — every relationship between two contexts, with the pattern it follows, the mechanism that carries it and why. The contracts a relationship carries are read from the code, never written in the map, and `yarn check:conventions` holds the map to the code both ways: a relationship nothing carries, or a link the map does not declare, fails the build ([ADR 19](docs/adr/0019-the-domain-is-data.md)). Ask it from a terminal: `yarn architecture domain`, `yarn architecture context Notes`.
+
+<!-- generated from conventions/domain.yaml (map); edit the YAML, then run yarn conventions:write -->
+**Notes.** One small application written to be read: notes you can share with other accounts, which tells the people concerned and lets every caller follow what it asked for. The business is small on purpose; the point is the shape.
+
+#### Subdomains
+
+| Subdomain | Kind | Contexts | Why |
+| --- | --- | --- | --- |
+| Notes | core | Notes | Writing, sharing, archiving a note is what the application is for; its rules (who may edit, what an archived note refuses, who a note can be shared with) are the ones worth modelling and the ones a feature is most likely to touch. |
+| Identity | generic | Security | Accounts, credentials, roles and signed tokens are what every application needs and no application competes on; the model here is the smallest that keeps the core honest about who is calling. |
+| Communication | supporting | Notifications | Telling a person that something happened — a note shared with them, their account to validate, an operation completed — supports the core without being it; the channels are interchangeable and the notification has a lifecycle of its own. |
+| Operations | generic | Tracker | Every command is accepted first and answered later; recording each operation and letting a client follow it to its outcome is plumbing any asynchronous application needs, and has no domain of its own. |
+
+#### The context map
+
+Upstream on the left, downstream on the right; the label is the pattern on each side, then the contracts the code carries.
+
+```mermaid
+flowchart LR
+  subgraph notes["Notes · core"]
+    Notes
+  end
+  subgraph identity["Identity · generic"]
+    Security
+  end
+  subgraph communication["Communication · supporting"]
+    Notifications
+  end
+  subgraph operations["Operations · generic"]
+    Tracker
+  end
+  Notes -- "published language → anti corruption layer: NoteShared" --> Notifications
+  Security -- "published language → anti corruption layer: AccountCreated, AccountValidated" --> Notifications
+  Tracker -- "published language → anti corruption layer: OperationComplete" --> Notifications
+  Security -- "customer supplier → anti corruption layer: AccountDirectory" --> Notes
+```
+
+| Upstream | Downstream | Patterns | Mechanism | Contracts (from the code) | Why |
+| --- | --- | --- | --- | --- | --- |
+| Notes | Notifications | published language, anti corruption layer | integration event | `NoteShared` | When a note is shared, the people it is shared with should hear of it. Notes publishes the fact in its public words and knows nothing of channels; Notifications restates it as a message for each recipient, which is its own business. |
+| Security | Notifications | published language, anti corruption layer | integration event | `AccountCreated`, `AccountValidated` | A new account must receive its validation link, and a validated one a welcome; Security says what happened, Notifications decides what to send and how. |
+| Tracker | Notifications | published language, anti corruption layer | integration event | `OperationComplete` | A caller answered 202 wants to know how its command went without polling; Tracker says an operation completed, Notifications pushes the outcome to the browser that asked. |
+| Security | Notes | customer supplier, anti corruption layer | owned port | `AccountDirectory` | Sharing a note with an account that does not exist must be refused, and only Security knows which accounts exist. Notes asks in its own words, through a port it owns, and the adapter translates Security's read model into the one fact Notes needs. |
+
+**Shared kernel.** An email address and the roles (who counts as an administrator, a user, a guest), who counts as signed in, and the integration events — the contracts between contexts, each in the public words of the context that publishes it. These are the words the whole application shares; a second definition of an email in each context would be four definitions to drift. The kernel holds vocabulary, not mechanics: the building blocks are not it.
+
+#### The contexts and their language
+
+<details>
+<summary><b>Notes</b> (Notes) — The notes themselves: an account writes, edits, archives, restores and shares its notes, and reads its own and the ones shared with it.</summary>
+
+| Term | Here it means |
+| --- | --- |
+| Note | the aggregate; a titled text owned by one account, active or archived, shared with zero or more accounts. |
+| Owner | the account that wrote the note; the only one who may edit, archive, restore or share it. |
+| Title | a value object; never blank, never longer than its maximum, trimmed. |
+| Archived | the status of a note set aside; an archived note refuses an edit and a share until it is restored. |
+| Sharing | the domain service that shares a note with an account, once it has asked whether that account exists. |
+| Recipient | an account a note has been shared with, held by its id; what the note knows of it. |
+| Suggestion | a title proposed from the content by a source outside the domain, which the note validates and may refuse. |
+
+</details>
+<details>
+<summary><b>Security</b> (Identity) — Who is calling: accounts and their credentials, sign-up and its validation, login and the signed token every other request carries.</summary>
+
+| Term | Here it means |
+| --- | --- |
+| Account | the aggregate; an email, a hashed password, a role and a status. |
+| Pending | the status of an account that has signed up and not yet validated its email; it cannot sign in. |
+| Validation | the step that turns a pending account active, through a token sent to its email. |
+| Registration | the domain service that registers an account, once it has asked whether the email is free. |
+| Credentials | an email and a password, checked against the hash; a wrong pair is one refusal, whichever half is wrong. |
+| Signed token | what a signed-in caller carries; issued by Security, read by the authentication middleware on every request. |
+
+</details>
+<details>
+<summary><b>Notifications</b> (Communication) — Telling a person something happened, over the channel that reaches them, and remembering whether it did.</summary>
+
+| Term | Here it means |
+| --- | --- |
+| Notification | the aggregate; a message for one recipient, with the channels it goes out on and the attempts made. |
+| Recipient | the account the message is for, known by its id and its email; what Security calls an account. |
+| Channel | how a message reaches its recipient — email, or the websocket of a connected browser. |
+| Delivery attempt | a child entity; one try on one channel, with its outcome, kept inside the notification. |
+| Sent, Read, Failed | the lifecycle of a notification after it is created pending. |
+
+</details>
+<details>
+<summary><b>Tracker</b> (Operations) — What became of each command: every operation the bus dispatches is recorded with its outcome, so that a caller answered 202 can follow it to success or refusal.</summary>
+
+| Term | Here it means |
+| --- | --- |
+| Operation | one dispatch of one command or event, with its public name, its status and its result or error. |
+| Outcome | how an operation ended — SUCCESS with its result, or ERROR with the refusal. |
+| Trace | the id that ties an operation to the request that asked for it and to the operations it caused. |
+
+</details>
+
+#### Strategic design, where it is here
+
+| Concept | Here | Notes |
+| --- | --- | --- |
+| Bounded context | `contexts` of [`domain.yaml`](conventions/domain.yaml): a purpose and a language each | a boundary inside which the words have one meaning and one model; here a directory with its four layers and its wiring file, declared in every binding |
+| Subdomain | `subdomains` of [`domain.yaml`](conventions/domain.yaml), each with its kind and the reason for it | a part of the business, core (what the application is for, modelled with care), supporting (what the core needs and nobody competes on) or generic (what every application needs); the kind says where care goes |
+| Ubiquitous language | `language` of each context in [`domain.yaml`](conventions/domain.yaml), rendered above | the words a context speaks, used in its code, its tests, its routes and its conversations alike; the same word in two contexts (an account, a recipient) is two words |
+| Context map | `relationships` of [`domain.yaml`](conventions/domain.yaml), the diagram and the table above | every relationship between two contexts, upstream first, with the pattern on each side and the mechanism that carries it; the contracts it carries are read from the code, and the check holds the two to each other |
+| Published language | the integration-event relationships of the map; [ADR 6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md) | the upstream publishes its facts in a contract written in its public words, for any consumer; here an integration event in the shared kernel, named for the fact (`NoteShared`) |
+| Customer–supplier | the owned-port relationships of the map; [ADR 6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md) | the downstream is a customer with a question the upstream serves; here a port the asking context owns, in its own words, answered by an adapter over the other context's read model |
+| Anti-corruption layer | the downstream side of every relationship of the map; the application row of the map below names the files | the downstream translates the upstream's model into its own at the boundary, so that a change upstream touches one file here; the handler of an integration event, the adapter of an owned port |
+| Shared kernel | `sharedKernel` of [`domain.yaml`](conventions/domain.yaml) | what every context agrees on and changes together: vocabulary, not mechanics; declared once, not as a relationship between pairs |
+<!-- end generated -->
+
 ## The languages
 
-Each language's README is where to start reading it: the request followed end to end, the map of its files, how to run it. Its CLAUDE.md is the guide for working in it, by hand or with an agent. The three answer one API: [`api/scenario.mjs`](api/scenario.mjs), a black-box client, walks whichever server is up and passes against each ([ADR 16](docs/adr/0016-one-api-for-every-language.md)); the front end is a client like any other, served from [`web/`](web) by any static server ([ADR 17](docs/adr/0017-the-front-end-is-a-client-served-elsewhere.md)).
+Each language's README is where to start reading it: the request followed end to end, the map of its files, how to run it. Its CLAUDE.md is the guide for working in it, by hand or with an agent. The four answer one API: [`api/scenario.mjs`](api/scenario.mjs), a black-box client, walks whichever server is up and passes against each ([ADR 16](docs/adr/0016-one-api-for-every-language.md)); the front end is a client like any other, served from [`web/`](web) by any static server ([ADR 17](docs/adr/0017-the-front-end-is-a-client-served-elsewhere.md)).
 
 <!-- generated from conventions/concepts.yaml (languages); edit the YAML, then run yarn conventions:write -->
 | Language | Where | Contexts | Concepts shown | Read |
@@ -122,6 +238,7 @@ Every rule has a stable id, a reason, a remediation and says how it is held: by 
 | **ARCH-LEARNABLE** — A newcomer, or an agent, can add a feature in the right shape from the documentation alone. | evaluations · [README.md](docs/evaluations/README.md) |
 | **ARCH-ONE-CONTRACT** — Every language the reference is written in is held to this file — the same layers, the same rules under the same ids, the same HTTP grammar — through a binding that says where its trees are and which file shows each concept; a language never carries a rule of its own. | check · [0011-one-reference-several-languages.md](docs/adr/0011-one-reference-several-languages.md), [README.md](conventions/README.md) |
 | **API-ONE-SURFACE** — Every language answers the same HTTP API — the same routes, status codes, body shapes and public names — so one black-box scenario, run against each server, passes unchanged; the public name of an operation is its intent or its fact without the suffix of its kind (`ShareNote`, `NoteShared`). | tests · [0016-one-api-for-every-language.md](docs/adr/0016-one-api-for-every-language.md) |
+| **CTX-MAP-DECLARED** — Every relationship between two contexts is declared once in the context map, with the strategic pattern it follows, the mechanism that carries it and why; the contracts it carries are read from the code, and the check refuses a link in the code the map does not declare and a declared relationship nothing in the code carries. | check · [0019-the-domain-is-data.md](docs/adr/0019-the-domain-is-data.md), [README.md](conventions/README.md) |
 <!-- end generated -->
 
 The dependency table — which layer may import from which — is in [`conventions/architecture.yaml`](conventions/architecture.yaml) and rendered in each language's README, where the import rules are generated from it.
@@ -130,7 +247,8 @@ The dependency table — which layer may import from which — is in [`conventio
 
 ```
 conventions/                the architecture as data: architecture.yaml (the contract), concepts.yaml (the
-                            vocabulary), one binding per language (typescript.yaml, rust.yaml, python.yaml), plans/ (feature plans)
+                            vocabulary), domain.yaml (the subdomains, each context's language, the context map),
+                            one binding per language (typescript.yaml, rust.yaml, python.yaml, go.yaml), plans/ (feature plans)
 docs/adr/                   the decisions, shared by every language
 docs/evaluations/           can a newcomer add a feature from the documentation alone? Protocol and records
 typescript/                 the TypeScript implementation: its code, its toolchain, its README and CLAUDE.md

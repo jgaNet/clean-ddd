@@ -22,5 +22,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0016](0016-one-api-for-every-language.md) | One API for every language: a shared black-box scenario is the executable contract |
 | [0017](0017-the-front-end-is-a-client-served-elsewhere.md) | The front end is a client served elsewhere: no page in the API, a bearer token, CORS |
 | [0018](0018-in-go-a-layer-is-a-package-and-a-refusal-is-an-error-value.md) | In Go, a layer is a package, a refusal is an error value, and `go/parser` holds the dependency table |
+| [0019](0019-the-domain-is-data.md) | The domain is data: subdomains, a context map and the language of each context, declared once and held to the code |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

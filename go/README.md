@@ -142,6 +142,7 @@ The rules are the contract's, listed with their ids in the root [CLAUDE.md](../C
 | **ARCH-LEARNABLE** — A newcomer, or an agent, can add a feature in the right shape from the documentation alone. | fresh-agent evaluations · [README.md](../docs/evaluations/README.md) |
 | **ARCH-ONE-CONTRACT** — Every language the reference is written in is held to this file — the same layers, the same rules under the same ids, the same HTTP grammar — through a binding that says where its trees are and which file shows each concept; a language never carries a rule of its own. | `go run ./tools/conventions` · [0011-one-reference-several-languages.md](../docs/adr/0011-one-reference-several-languages.md), [README.md](../conventions/README.md) |
 | **API-ONE-SURFACE** — Every language answers the same HTTP API — the same routes, status codes, body shapes and public names — so one black-box scenario, run against each server, passes unchanged; the public name of an operation is its intent or its fact without the suffix of its kind (`ShareNote`, `NoteShared`). | `go test ./...` · [0016-one-api-for-every-language.md](../docs/adr/0016-one-api-for-every-language.md), [projection.go](contexts/tracker/application/projection.go), [operation_routes_e2e_test.go](bootstrap/operation_routes_e2e_test.go) |
+| **CTX-MAP-DECLARED** — Every relationship between two contexts is declared once in the context map, with the strategic pattern it follows, the mechanism that carries it and why; the contracts it carries are read from the code, and the check refuses a link in the code the map does not declare and a declared relationship nothing in the code carries. | `go run ./tools/conventions` · [0019-the-domain-is-data.md](../docs/adr/0019-the-domain-is-data.md), [README.md](../conventions/README.md) |
 <!-- end generated -->
 
 ### Who may import whom
@@ -235,7 +236,7 @@ The words the reference uses, with the file that shows them here.
 | --- | --- | --- |
 | Building blocks | the mechanics every context is written with (Entity, AggregateRoot, ValueObject, Result, the handlers, the bus); they know no context and no vocabulary, not even the roles | [`architecture`](architecture) |
 | Shared kernel | the part of the domain model every context agrees on — Email, Role, who counts as signed in, and the integration events; not the base classes, which is what the word is often misused for | [`sharedkernel`](sharedkernel) |
-| Bounded context | a folder with its own vocabulary and wiring, talking to others through integration events only | [`contexts`](contexts) |
+| Bounded context | a folder with its own vocabulary and wiring, talking to others through integration events and ports it owns only; its purpose, its language and its relationships are in the domain map | [`contexts`](contexts) |
 | Aggregate (root) | the object that owns a consistency boundary: every change goes through one of its behaviours, which checks the invariants and records an event | [`note.go`](contexts/notes/domain/note/note.go) |
 | Entity | an object with an identity that outlives its attributes | [`entity.go`](architecture/domain/entity.go) |
 | Value object | an object without identity, compared by value, valid from the moment it exists | [`note_title.go`](contexts/notes/domain/note/note_title.go) |

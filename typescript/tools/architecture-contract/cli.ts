@@ -15,6 +15,8 @@
  *   yarn architecture mode architecture [--base <ref>] does it record the decision it makes
  *   yarn architecture plan validate <file>    is this intended change legal, before writing it
  *   yarn architecture plan explain <file>     the files, rules and examples it implies
+ *   yarn architecture domain                  the subdomains and the context map, its contracts read from the code
+ *   yarn architecture context <id>            one bounded context: purpose, language, what it depends on and who depends on it
  *   yarn architecture rules | concepts | verbs | checklists   the lists
  *
  * Every command takes --json: valid JSON only on stdout, nothing decorative, exit 1 on an
@@ -37,6 +39,7 @@ import { loadArchitectureContract, repositoryRoot } from './load';
 import { canImportAll, getChecklist, getConcept, getRule, getVerbs, rulesOf } from './query';
 import { explainPlan, loadFeaturePlan, validatePlan } from './plan';
 import { changedFiles, checkMode } from './modes';
+import { DOMAIN_FILE, describeContext, describeDomain, inspectContextLinks, loadDomainMap } from './domain';
 import { createApplication } from './create';
 import type { ModeName } from './types';
 
@@ -249,6 +252,36 @@ async function main(): Promise<void> {
         ]
           .filter(Boolean)
           .join('\n'),
+      );
+    }
+    case 'domain': {
+      const map = loadDomainMap(root);
+      if (!map) return fail('no-domain-map', `No ${DOMAIN_FILE}: this repository has not described its domain yet`);
+      const links = inspectContextLinks(contract, root);
+      return out({ ...map, schemaVersion, links }, () => describeDomain(map, links));
+    }
+    case 'context': {
+      const [id] = rest;
+      if (!id) return fail('usage', 'usage: yarn architecture context <id>');
+      const map = loadDomainMap(root);
+      if (!map) return fail('no-domain-map', `No ${DOMAIN_FILE}: this repository has not described its domain yet`);
+      const context = map.contexts.find(candidate => candidate.id.toLowerCase() === id.toLowerCase());
+      if (!context) {
+        return fail('unknown-context', `No context "${id}". Contexts: ${map.contexts.map(each => each.id).join(', ')}`);
+      }
+      const links = inspectContextLinks(contract, root);
+      const subdomain = map.subdomains.find(candidate => candidate.contexts.includes(context.id));
+      return out(
+        {
+          schemaVersion,
+          ...context,
+          subdomain: subdomain ? { id: subdomain.id, name: subdomain.name, kind: subdomain.kind } : undefined,
+          directory: `${contract.contextsTree.path}/${context.id}`,
+          dependsOn: map.relationships.filter(relationship => relationship.downstream === context.id),
+          dependedOnBy: map.relationships.filter(relationship => relationship.upstream === context.id),
+          links: links.filter(link => link.upstream === context.id || link.downstream === context.id),
+        },
+        () => describeContext(map, context, links, contract),
       );
     }
     case 'create': {
