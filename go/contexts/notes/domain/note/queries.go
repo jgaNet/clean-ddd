@@ -11,12 +11,14 @@ type ListItem struct {
 	ID     string
 	Title  string
 	Status Status
+	Pinned bool
 }
 
 type Detail struct {
 	ID         string
 	Title      string
 	Status     Status
+	Pinned     bool
 	OwnerID    string
 	Content    string
 	SharedWith []string
@@ -32,8 +34,9 @@ type SharedListItem struct {
 type Queries interface {
 	// FindByID answers nil, nil for an unknown id.
 	FindByID(noteID string) (*Detail, error)
-	// FindByOwner lists in the order they were saved. Ordering is part of this contract: the
-	// contract test asserts it for every adapter.
+	// FindByOwner lists the pinned notes first, then the others, each group in the order they
+	// were saved. Ordering is part of this contract: the contract test asserts it for every
+	// adapter, and a query handler never sorts.
 	FindByOwner(ownerID string) ([]ListItem, error)
 	// FindSharedWith lists in the order they were saved.
 	FindSharedWith(accountID string) ([]SharedListItem, error)

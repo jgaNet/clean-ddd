@@ -12,9 +12,12 @@ import (
 //
 //   - a note always has a valid title (the Title value object)
 //   - only the owner can edit, archive, restore or share a note
-//   - an archived note is read-only until it is restored: it can be neither edited nor shared
-//     (ensureActive); archiving, restoring and reading it are not gated by that rule
+//   - an archived note is read-only until it is restored: it can be neither edited, shared nor
+//     pinned (ensureActive); archiving, restoring, unpinning and reading it are not gated by
+//     that rule, since an owner can always tidy up
 //   - a note cannot be shared twice with the same account, nor with its owner
+//   - a note is pinned once and unpinned once: pinning a pinned note, or unpinning one that is
+//     not, is refused
 //
 // The only ways in are Create and FromSnapshot; the state stays in unexported fields.
 type Note struct {
@@ -23,6 +26,7 @@ type Note struct {
 	title      Title
 	content    string
 	status     Status
+	pinned     bool
 	sharedWith []string // raw ids, in the order they were added
 }
 
@@ -40,6 +44,7 @@ func Create(props NewNote) (*Note, error) {
 		title:         title,
 		content:       props.Content,
 		status:        StatusActive,
+		pinned:        false,
 		sharedWith:    []string{},
 	}
 	note.Record(NoteCreatedEvent{NoteID: id.Value(), OwnerID: props.OwnerID, Title: title.Value()})
@@ -65,6 +70,7 @@ func FromSnapshot(snapshot Snapshot) *Note {
 		title:         title,
 		content:       snapshot.Content,
 		status:        snapshot.Status,
+		pinned:        snapshot.Pinned,
 		sharedWith:    append([]string{}, snapshot.SharedWith...),
 	}
 }
@@ -109,6 +115,37 @@ func (n *Note) Restore(actorID domain.ID) error {
 	return nil
 }
 
+// Pin puts the note first in its owner's list. An archived note cannot be pinned: restore it
+// first, the same remedy as for an edit, so it is the same refusal (NoteArchived).
+func (n *Note) Pin(actorID domain.ID) error {
+	if err := n.ensureOwner(actorID); err != nil {
+		return err
+	}
+	if err := n.ensureActive(); err != nil {
+		return err
+	}
+	if n.pinned {
+		return NoteAlreadyPinned(n.ID().Value())
+	}
+	n.pinned = true
+	n.Record(NotePinnedEvent{NoteID: n.ID().Value()})
+	return nil
+}
+
+// Unpin undoes Pin. Like Restore, it is not gated by ensureActive: an owner can always tidy up,
+// an archived note included.
+func (n *Note) Unpin(actorID domain.ID) error {
+	if err := n.ensureOwner(actorID); err != nil {
+		return err
+	}
+	if !n.pinned {
+		return NoteNotPinned(n.ID().Value())
+	}
+	n.pinned = false
+	n.Record(NoteUnpinnedEvent{NoteID: n.ID().Value()})
+	return nil
+}
+
 func (n *Note) ShareWith(actorID, recipientID domain.ID) error {
 	if err := n.ensureOwner(actorID); err != nil {
 		return err
@@ -139,6 +176,7 @@ func (n *Note) ToSnapshot() Snapshot {
 		Title:      n.title.Value(),
 		Content:    n.content,
 		Status:     n.status,
+		Pinned:     n.pinned,
 		SharedWith: append([]string{}, n.sharedWith...),
 		Version:    n.Version(),
 	}
@@ -162,4 +200,5 @@ func (n *Note) OwnerID() domain.ID   { return n.ownerID }
 func (n *Note) Title() string        { return n.title.Value() }
 func (n *Note) Content() string      { return n.content }
 func (n *Note) Status() Status       { return n.status }
+func (n *Note) Pinned() bool         { return n.pinned }
 func (n *Note) SharedWith() []string { return slices.Clone(n.sharedWith) }

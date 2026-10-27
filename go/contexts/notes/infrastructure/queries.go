@@ -13,7 +13,8 @@ import (
 // the snapshots, and over SQLite, where each query is one SQL statement shaped for its read
 // model; that is the point of separating queries from the repository (ADR 5,
 // QUERY-READ-MODELS). The store keeps insertion order and the table its rowid, which is the
-// order the port promises; persistence_contract_test.go holds every adapter to it.
+// order the port promises; an owner's list puts the pinned notes first (a stable sort in
+// memory, an ORDER BY in SQL), and persistence_contract_test.go holds every adapter to it.
 
 type InMemoryNoteQueries struct {
 	store *infrastructure.InMemoryDataSource[note.Snapshot]
@@ -28,16 +29,27 @@ func (q *InMemoryNoteQueries) FindByID(noteID string) (*note.Detail, error) {
 	if !ok {
 		return nil, nil
 	}
-	return &note.Detail{ID: n.ID, Title: n.Title, Status: n.Status, OwnerID: n.OwnerID, Content: n.Content, SharedWith: slices.Clone(n.SharedWith)}, nil
+	return &note.Detail{ID: n.ID, Title: n.Title, Status: n.Status, Pinned: n.Pinned, OwnerID: n.OwnerID, Content: n.Content, SharedWith: slices.Clone(n.SharedWith)}, nil
 }
 
 func (q *InMemoryNoteQueries) FindByOwner(ownerID string) ([]note.ListItem, error) {
 	items := []note.ListItem{}
 	for _, n := range q.store.All() {
 		if n.OwnerID == ownerID {
-			items = append(items, note.ListItem{ID: n.ID, Title: n.Title, Status: n.Status})
+			items = append(items, note.ListItem{ID: n.ID, Title: n.Title, Status: n.Status, Pinned: n.Pinned})
 		}
 	}
+	// Pinned first; the sort is stable, so each group keeps the order of the store.
+	slices.SortStableFunc(items, func(a, b note.ListItem) int {
+		switch {
+		case a.Pinned == b.Pinned:
+			return 0
+		case a.Pinned:
+			return -1
+		default:
+			return 1
+		}
+	})
 	return items, nil
 }
 
@@ -70,11 +82,11 @@ func (q *SqliteNoteQueries) FindByID(noteID string) (*note.Detail, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &note.Detail{ID: n.ID, Title: n.Title, Status: n.Status, OwnerID: n.OwnerID, Content: n.Content, SharedWith: n.SharedWith}, nil
+	return &note.Detail{ID: n.ID, Title: n.Title, Status: n.Status, Pinned: n.Pinned, OwnerID: n.OwnerID, Content: n.Content, SharedWith: n.SharedWith}, nil
 }
 
 func (q *SqliteNoteQueries) FindByOwner(ownerID string) ([]note.ListItem, error) {
-	rows, err := q.db.Query("SELECT id, title, status FROM notes WHERE owner_id = ? ORDER BY rowid", ownerID)
+	rows, err := q.db.Query("SELECT id, title, status, pinned FROM notes WHERE owner_id = ? ORDER BY pinned DESC, rowid", ownerID)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +95,7 @@ func (q *SqliteNoteQueries) FindByOwner(ownerID string) ([]note.ListItem, error)
 	for rows.Next() {
 		var item note.ListItem
 		var status string
-		if err := rows.Scan(&item.ID, &item.Title, &status); err != nil {
+		if err := rows.Scan(&item.ID, &item.Title, &status, &item.Pinned); err != nil {
 			return nil, err
 		}
 		item.Status = note.Status(status)

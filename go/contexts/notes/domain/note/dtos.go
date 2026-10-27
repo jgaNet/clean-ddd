@@ -9,6 +9,7 @@ type Snapshot struct {
 	Title      string
 	Content    string
 	Status     Status
+	Pinned     bool
 	SharedWith []string
 	// Version is the one this snapshot was read at; the repository stores version + 1 (ADR 8).
 	Version int

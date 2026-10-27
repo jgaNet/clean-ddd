@@ -42,6 +42,14 @@ func NoteNotArchived(noteID string) *domain.Exception {
 	return exception("NoteNotArchived", "Only an archived note can be restored", map[string]any{"noteId": noteID})
 }
 
+func NoteAlreadyPinned(noteID string) *domain.Exception {
+	return exception("NoteAlreadyPinned", "This note is already pinned", map[string]any{"noteId": noteID})
+}
+
+func NoteNotPinned(noteID string) *domain.Exception {
+	return exception("NoteNotPinned", "Only a pinned note can be unpinned", map[string]any{"noteId": noteID})
+}
+
 func CannotShareWithSelf(noteID string) *domain.Exception {
 	return exception("CannotShareWithSelf", "You already own this note", map[string]any{"noteId": noteID})
 }

@@ -88,9 +88,9 @@ func (r *SqliteNoteRepository) Save(n *note.Note) error {
 	defer func() { _ = tx.Rollback() }()
 
 	updated, err := tx.Exec(
-		`UPDATE notes SET title = ?, content = ?, status = ?, shared_with = ?, version = ? + 1
+		`UPDATE notes SET title = ?, content = ?, status = ?, pinned = ?, shared_with = ?, version = ? + 1
 		 WHERE id = ? AND version = ?`,
-		row.title, row.content, row.status, row.sharedWith, row.version, row.id, row.version)
+		row.title, row.content, row.status, row.pinned, row.sharedWith, row.version, row.id, row.version)
 	if err != nil {
 		return err
 	}
@@ -105,8 +105,8 @@ func (r *SqliteNoteRepository) Save(n *note.Note) error {
 		return err
 	}
 	if _, err := tx.Exec(
-		`INSERT INTO notes (id, owner_id, title, content, status, shared_with, version) VALUES (?, ?, ?, ?, ?, ?, ? + 1)`,
-		row.id, row.ownerID, row.title, row.content, row.status, row.sharedWith, row.version); err != nil {
+		`INSERT INTO notes (id, owner_id, title, content, status, pinned, shared_with, version) VALUES (?, ?, ?, ?, ?, ?, ?, ? + 1)`,
+		row.id, row.ownerID, row.title, row.content, row.status, row.pinned, row.sharedWith, row.version); err != nil {
 		return err
 	}
 	return tx.Commit()

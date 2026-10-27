@@ -313,6 +313,106 @@ func TestEditNoteFailsOnAnUnknownNote(t *testing.T) {
 	}
 }
 
+// PinNote
+
+func TestPinNoteLetsTheOwnerPinANoteAndPublishesNotePinned(t *testing.T) {
+	notes := newFixture(t)
+	noteID := notes.aNoteOwnedBy("alice")
+
+	_, err := NewPinNoteHandler(notes.repository).Execute(PinNoteCommandEvent{NoteID: noteID}, notes.contextFor("alice"))
+	if err != nil {
+		t.Fatalf("unexpected refusal: %v", err)
+	}
+
+	if !notes.stored(noteID).Pinned {
+		t.Error("the stored note is pinned")
+	}
+	samePublished(t, notes.bus.published, note.NotePinnedEvent{NoteID: noteID})
+}
+
+func TestPinNoteRefusesACallerWhoDoesNotOwnTheNote(t *testing.T) {
+	notes := newFixture(t)
+	noteID := notes.aNoteOwnedBy("alice")
+
+	_, err := NewPinNoteHandler(notes.repository).Execute(PinNoteCommandEvent{NoteID: noteID}, notes.contextFor("bob"))
+
+	if refusalType(t, err) != "NotNoteOwner" {
+		t.Errorf("got %v", err)
+	}
+	if notes.stored(noteID).Pinned {
+		t.Error("the note should not be pinned")
+	}
+	samePublished(t, notes.bus.published)
+}
+
+func TestPinNoteRefusesToPinAnArchivedNote(t *testing.T) {
+	notes := newFixture(t)
+	noteID := notes.aNoteOwnedBy("alice")
+	if _, err := NewArchiveNoteHandler(notes.repository).Execute(ArchiveNoteCommandEvent{NoteID: noteID}, notes.contextFor("alice")); err != nil {
+		t.Fatalf("archiving: %v", err)
+	}
+	notes.bus.published = nil
+
+	_, err := NewPinNoteHandler(notes.repository).Execute(PinNoteCommandEvent{NoteID: noteID}, notes.contextFor("alice"))
+
+	if refusalType(t, err) != "NoteArchived" {
+		t.Errorf("got %v", err)
+	}
+	if notes.stored(noteID).Pinned {
+		t.Error("the note should not be pinned")
+	}
+	samePublished(t, notes.bus.published)
+}
+
+func TestPinNoteFailsOnAnUnknownNote(t *testing.T) {
+	notes := newFixture(t)
+	_, err := NewPinNoteHandler(notes.repository).Execute(PinNoteCommandEvent{NoteID: "nope"}, notes.contextFor("alice"))
+	if refusalType(t, err) != "NoteNotFound" {
+		t.Errorf("got %v", err)
+	}
+}
+
+// UnpinNote
+
+func TestUnpinNoteUnpinsAPinnedNoteAndPublishesNoteUnpinned(t *testing.T) {
+	notes := newFixture(t)
+	noteID := notes.aNoteOwnedBy("alice")
+	if _, err := NewPinNoteHandler(notes.repository).Execute(PinNoteCommandEvent{NoteID: noteID}, notes.contextFor("alice")); err != nil {
+		t.Fatalf("pinning: %v", err)
+	}
+	notes.bus.published = nil
+
+	_, err := NewUnpinNoteHandler(notes.repository).Execute(UnpinNoteCommandEvent{NoteID: noteID}, notes.contextFor("alice"))
+	if err != nil {
+		t.Fatalf("unexpected refusal: %v", err)
+	}
+
+	if notes.stored(noteID).Pinned {
+		t.Error("the stored note is no longer pinned")
+	}
+	samePublished(t, notes.bus.published, note.NoteUnpinnedEvent{NoteID: noteID})
+}
+
+func TestUnpinNoteRefusesToUnpinANoteThatIsNotPinned(t *testing.T) {
+	notes := newFixture(t)
+	noteID := notes.aNoteOwnedBy("alice")
+
+	_, err := NewUnpinNoteHandler(notes.repository).Execute(UnpinNoteCommandEvent{NoteID: noteID}, notes.contextFor("alice"))
+
+	if refusalType(t, err) != "NoteNotPinned" {
+		t.Errorf("got %v", err)
+	}
+	samePublished(t, notes.bus.published)
+}
+
+func TestUnpinNoteFailsOnAnUnknownNote(t *testing.T) {
+	notes := newFixture(t)
+	_, err := NewUnpinNoteHandler(notes.repository).Execute(UnpinNoteCommandEvent{NoteID: "nope"}, notes.contextFor("alice"))
+	if refusalType(t, err) != "NoteNotFound" {
+		t.Errorf("got %v", err)
+	}
+}
+
 // RestoreNote
 
 func TestRestoreNoteRestoresAnArchivedNote(t *testing.T) {

@@ -30,6 +30,16 @@ type NoteRestoredEvent struct {
 	NoteID string
 }
 
+type NotePinnedEvent struct {
+	domain.DomainEvent
+	NoteID string
+}
+
+type NoteUnpinnedEvent struct {
+	domain.DomainEvent
+	NoteID string
+}
+
 type NoteSharedEvent struct {
 	domain.DomainEvent
 	NoteID      string

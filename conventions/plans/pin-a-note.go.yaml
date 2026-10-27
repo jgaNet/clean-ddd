@@ -1,0 +1,39 @@
+# Pinning a note, written for the Go binding. Every part is `new: false`: the feature is
+# implemented, so the check confirms each named part is where the binding's checklists say.
+
+schemaVersion: 1
+
+feature: pin-a-note
+language: go
+context: Notes
+
+intent: >-
+  The owner of a note pins it, so that it comes first in their notes, and unpins it later. Two
+  acts on the aggregate, no reaction: the fact stays inside Notes.
+
+changes:
+  - kind: aggregate
+    name: Note
+    new: false
+  - kind: command
+    name: PinNote
+    verb: act
+    route: POST /notes/:id/pin
+    new: false
+  - kind: command
+    name: UnpinNote
+    verb: act
+    route: POST /notes/:id/unpin
+    new: false
+
+invariants:
+  - Only the owner of a note pins or unpins it.
+  - An archived note cannot be pinned; it can be unpinned, since an owner can always tidy up.
+  - A note is pinned once and unpinned once.
+  - In the owner's list, the pinned notes come first, each group in the order it was saved — an order the queries port promises and every adapter keeps.
+
+events:
+  - NotePinnedEvent
+  - NoteUnpinnedEvent
+
+architectureChanges: false

@@ -133,12 +133,13 @@ func TestRepositoryGivesBackAnEqualAggregate(t *testing.T) {
 	contract(t, func(t *testing.T, p persistence) {
 		n := aNote(t, alice, "Groceries")
 		mustDo(t, n.ShareWith(alice, bob))
+		mustDo(t, n.Pin(alice))
 		save(t, p.repository, n)
 
 		found := find(t, p.repository, n.ID().Value())
 		want := note.Snapshot{
 			ID: n.ID().Value(), OwnerID: "alice", Title: "Groceries", Content: "content of Groceries",
-			Status: note.StatusActive, SharedWith: []string{"bob"}, Version: n.Version() + 1,
+			Status: note.StatusActive, Pinned: true, SharedWith: []string{"bob"}, Version: n.Version() + 1,
 		}
 		if got := found.ToSnapshot(); !reflect.DeepEqual(got, want) {
 			t.Errorf("got %+v, want %+v", got, want)
@@ -244,9 +245,10 @@ func TestQueriesShowTheDetailOfASavedNote(t *testing.T) {
 	contract(t, func(t *testing.T, p persistence) {
 		n := aNote(t, alice, "Groceries", "milk")
 		mustDo(t, n.ShareWith(alice, bob))
+		mustDo(t, n.Pin(alice))
 		save(t, p.repository, n)
 
-		want := &note.Detail{ID: n.ID().Value(), Title: "Groceries", Content: "milk", Status: note.StatusActive, OwnerID: "alice", SharedWith: []string{"bob"}}
+		want := &note.Detail{ID: n.ID().Value(), Title: "Groceries", Content: "milk", Status: note.StatusActive, Pinned: true, OwnerID: "alice", SharedWith: []string{"bob"}}
 		if got := p.detailOf(t, n.ID().Value()); !reflect.DeepEqual(got, want) {
 			t.Errorf("got %+v, want %+v", got, want)
 		}
@@ -291,6 +293,39 @@ func TestQueriesListTheNotesSharedWithAnAccountWhoeverOwnsThem(t *testing.T) {
 		}
 		if got := p.sharedWith(t, alice.Value()); len(got) != 0 {
 			t.Errorf("alice's shared notes: got %+v, want none", got)
+		}
+	})
+}
+
+func TestQueriesListAnOwnersPinnedNotesFirstEachGroupInTheOrderTheyWereSaved(t *testing.T) {
+	contract(t, func(t *testing.T, p persistence) {
+		first := aNote(t, alice, "First")
+		second := aNote(t, alice, "Second")
+		third := aNote(t, alice, "Third")
+		save(t, p.repository, first)
+		save(t, p.repository, second)
+		save(t, p.repository, third)
+		// Pinning the last one, as a handler does, puts it first; the others keep their order.
+		reread := find(t, p.repository, third.ID().Value())
+		mustDo(t, reread.Pin(alice))
+		save(t, p.repository, reread)
+
+		want := []note.ListItem{
+			{ID: third.ID().Value(), Title: "Third", Status: note.StatusActive, Pinned: true},
+			{ID: first.ID().Value(), Title: "First", Status: note.StatusActive},
+			{ID: second.ID().Value(), Title: "Second", Status: note.StatusActive},
+		}
+		if got := p.notesOf(t, alice.Value()); !reflect.DeepEqual(got, want) {
+			t.Errorf("got %+v, want %+v", got, want)
+		}
+
+		// Unpinning it puts it back where it was saved.
+		reread = find(t, p.repository, third.ID().Value())
+		mustDo(t, reread.Unpin(alice))
+		save(t, p.repository, reread)
+		got := p.notesOf(t, alice.Value())
+		if len(got) != 3 || got[2].ID != third.ID().Value() || got[2].Pinned {
+			t.Errorf("got %+v, want the third note last, unpinned", got)
 		}
 	})
 }

@@ -7,8 +7,9 @@ import (
 )
 
 // The Notes routes, end to end, as a client sees them: a note written, listed, read, edited,
-// archived and restored, titled by a suggestion, shared with another account (which Notifications
-// hears about) and refused for an unknown one. Every 202 is followed through the Tracker.
+// archived and restored, pinned and unpinned, titled by a suggestion, shared with another account
+// (which Notifications hears about) and refused for an unknown one. Every 202 is followed through
+// the Tracker.
 
 func noteTitled(t *testing.T, client *Client, title string) string {
 	t.Helper()
@@ -39,11 +40,11 @@ func TestANoteIsWrittenListedReadEditedArchivedAndRestored(t *testing.T) {
 	}
 	noteID := created["result"].(string)
 	list := admin.Get("/notes").Array()
-	if len(list) != 1 || list[0]["id"] != noteID || list[0]["title"] != "title" || list[0]["status"] != "ACTIVE" || len(list[0]) != 3 {
+	if len(list) != 1 || list[0]["id"] != noteID || list[0]["title"] != "title" || list[0]["status"] != "ACTIVE" || list[0]["pinned"] != false || len(list[0]) != 4 {
 		t.Fatalf("list: %v", list)
 	}
 	detail := admin.Get("/notes/" + noteID).Object()
-	if detail["title"] != "title" || detail["content"] != "content" || detail["status"] != "ACTIVE" || len(detail["sharedWith"].([]any)) != 0 {
+	if detail["title"] != "title" || detail["content"] != "content" || detail["status"] != "ACTIVE" || detail["pinned"] != false || len(detail["sharedWith"].([]any)) != 0 {
 		t.Fatalf("detail: %v", detail)
 	}
 	if _, ok := detail["ownerId"].(string); !ok {
@@ -71,6 +72,63 @@ func TestANoteIsWrittenListedReadEditedArchivedAndRestored(t *testing.T) {
 	unknown := admin.Get("/notes/does-not-exist")
 	if unknown.Status != http.StatusNotFound || unknown.Object()["message"] == "" {
 		t.Fatalf("unknown: %d %s", unknown.Status, unknown.Text)
+	}
+}
+
+func TestAPinnedNoteComesFirstInMyNotesUntilItIsUnpinned(t *testing.T) {
+	app := StartTestApplication(t)
+	admin := app.Admin()
+
+	app.Accepted(admin, admin.Post("/notes", map[string]string{"title": "First", "content": "1"}))
+	app.Accepted(admin, admin.Post("/notes", map[string]string{"title": "Second", "content": "2"}))
+	app.Accepted(admin, admin.Post("/notes", map[string]string{"title": "Archived", "content": "3"}))
+	first, second, archived := noteTitled(t, admin, "First"), noteTitled(t, admin, "Second"), noteTitled(t, admin, "Archived")
+	app.Accepted(admin, admin.Post("/notes/"+archived+"/archive", nil))
+
+	// Pinning the second note puts it first; the detail says so.
+	pinned := app.Accepted(admin, admin.Post("/notes/"+second+"/pin", nil))
+	if pinned["status"] != "SUCCESS" || pinned["name"] != "PinNote" {
+		t.Fatalf("pinned: %v", pinned)
+	}
+	list := admin.Get("/notes").Array()
+	if len(list) != 3 || list[0]["id"] != second || list[0]["pinned"] != true || list[1]["id"] != first || list[1]["pinned"] != false || list[2]["id"] != archived {
+		t.Fatalf("list after pin: %v", list)
+	}
+	if admin.Get("/notes/" + second).Object()["pinned"] != true {
+		t.Fatal("the detail shows the pin")
+	}
+
+	// Twice, an archived note, someone else's note: refused by the domain, on the operation.
+	again := app.Accepted(admin, admin.Post("/notes/"+second+"/pin", nil))
+	if again["status"] != "ERROR" || again["error"].(map[string]any)["type"] != "NoteAlreadyPinned" {
+		t.Fatalf("twice: %v", again)
+	}
+	refused := app.Accepted(admin, admin.Post("/notes/"+archived+"/pin", nil))
+	if refused["status"] != "ERROR" || refused["error"].(map[string]any)["type"] != "NoteArchived" {
+		t.Fatalf("an archived note cannot be pinned: %v", refused)
+	}
+	app.SignUpValidated("bob@notes.fr", "bob")
+	bob := app.AgentAs("bob@notes.fr", "bob")
+	stranger := app.Accepted(bob, bob.Post("/notes/"+first+"/pin", nil))
+	if stranger["status"] != "ERROR" || stranger["error"].(map[string]any)["type"] != "NotNoteOwner" {
+		t.Fatalf("a stranger cannot pin: %v", stranger)
+	}
+	if app.Anonymous().Post("/notes/"+first+"/pin", nil).Status != http.StatusAccepted {
+		t.Fatal("a command is accepted and refused on its operation")
+	}
+
+	// Unpinning puts it back in the order it was written.
+	unpinned := app.Accepted(admin, admin.Post("/notes/"+second+"/unpin", nil))
+	if unpinned["status"] != "SUCCESS" || unpinned["name"] != "UnpinNote" {
+		t.Fatalf("unpinned: %v", unpinned)
+	}
+	list = admin.Get("/notes").Array()
+	if len(list) != 3 || list[0]["id"] != first || list[1]["id"] != second || list[1]["pinned"] != false {
+		t.Fatalf("list after unpin: %v", list)
+	}
+	notPinned := app.Accepted(admin, admin.Post("/notes/"+second+"/unpin", nil))
+	if notPinned["status"] != "ERROR" || notPinned["error"].(map[string]any)["type"] != "NoteNotPinned" {
+		t.Fatalf("unpinning an unpinned note: %v", notPinned)
 	}
 }
 

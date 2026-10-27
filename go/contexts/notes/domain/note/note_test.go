@@ -65,6 +65,9 @@ func TestCreatePicksItsOwnIdentityStartsActiveUnsharedAndRecordsNoteCreated(t *t
 	if n.Status() != StatusActive {
 		t.Errorf("status: got %s, want ACTIVE", n.Status())
 	}
+	if n.Pinned() {
+		t.Error("a new note is not pinned")
+	}
 	if len(n.SharedWith()) != 0 {
 		t.Errorf("shared with: got %v, want nobody", n.SharedWith())
 	}
@@ -178,6 +181,99 @@ func TestArchiveAndRestoreAreReservedToTheOwner(t *testing.T) {
 	}
 }
 
+// Pinning and unpinning
+
+func aPinnedNote(t *testing.T) *Note {
+	t.Helper()
+	n := aNote(t)
+	if err := n.Pin(owner); err != nil {
+		t.Fatalf("Pin: %v", err)
+	}
+	n.PullDomainEvents()
+	return n
+}
+
+func TestPinPinsAnActiveNoteAndRecordsNotePinned(t *testing.T) {
+	n := aNote(t)
+	if err := n.Pin(owner); err != nil {
+		t.Fatalf("Pin: %v", err)
+	}
+	if !n.Pinned() {
+		t.Error("the note is pinned")
+	}
+	sameEvents(t, n.PullDomainEvents(), NotePinnedEvent{NoteID: n.ID().Value()})
+}
+
+func TestPinCannotPinTwice(t *testing.T) {
+	n := aPinnedNote(t)
+	if refusalType(t, n.Pin(owner)) != "NoteAlreadyPinned" {
+		t.Error("pinning twice is refused")
+	}
+	sameEvents(t, n.PullDomainEvents())
+}
+
+func TestPinIsRefusedOnAnArchivedNote(t *testing.T) {
+	n := anArchivedNote(t)
+	if refusalType(t, n.Pin(owner)) != "NoteArchived" {
+		t.Error("an archived note cannot be pinned")
+	}
+	if n.Pinned() {
+		t.Error("nothing should have changed")
+	}
+}
+
+func TestUnpinUnpinsAPinnedNoteAndRecordsNoteUnpinned(t *testing.T) {
+	n := aPinnedNote(t)
+	if err := n.Unpin(owner); err != nil {
+		t.Fatalf("Unpin: %v", err)
+	}
+	if n.Pinned() {
+		t.Error("the note is no longer pinned")
+	}
+	sameEvents(t, n.PullDomainEvents(), NoteUnpinnedEvent{NoteID: n.ID().Value()})
+}
+
+func TestUnpinCannotUnpinANoteThatIsNotPinned(t *testing.T) {
+	if refusalType(t, aNote(t).Unpin(owner)) != "NoteNotPinned" {
+		t.Error("only a pinned note can be unpinned")
+	}
+}
+
+func TestUnpinIsAllowedOnAnArchivedNote(t *testing.T) {
+	// An owner can always tidy up: unpinning, like restoring, is not gated by the archive.
+	n := aPinnedNote(t)
+	if err := n.Archive(owner); err != nil {
+		t.Fatalf("Archive: %v", err)
+	}
+	n.PullDomainEvents()
+	if err := n.Unpin(owner); err != nil {
+		t.Fatalf("Unpin: %v", err)
+	}
+	if n.Pinned() {
+		t.Error("the note is no longer pinned")
+	}
+	sameEvents(t, n.PullDomainEvents(), NoteUnpinnedEvent{NoteID: n.ID().Value()})
+}
+
+func TestArchiveKeepsThePin(t *testing.T) {
+	n := aPinnedNote(t)
+	if err := n.Archive(owner); err != nil {
+		t.Fatalf("Archive: %v", err)
+	}
+	if !n.Pinned() {
+		t.Error("archiving does not unpin; the owner does")
+	}
+}
+
+func TestPinAndUnpinAreReservedToTheOwner(t *testing.T) {
+	if refusalType(t, aNote(t).Pin(stranger)) != "NotNoteOwner" {
+		t.Error("a stranger cannot pin")
+	}
+	if refusalType(t, aPinnedNote(t).Unpin(stranger)) != "NotNoteOwner" {
+		t.Error("a stranger cannot unpin")
+	}
+}
+
 // Sharing
 
 func TestShareWithSharesWithAnotherAccountAndRecordsNoteShared(t *testing.T) {
@@ -230,7 +326,7 @@ func TestShareWithIsReservedToTheOwner(t *testing.T) {
 func TestFromSnapshotRebuildsTheFullStateWithoutRecordingAnyEvent(t *testing.T) {
 	snapshot := Snapshot{
 		ID: "n1", OwnerID: "alice", Title: "Groceries", Content: "Milk",
-		Status: StatusArchived, SharedWith: []string{"bob"}, Version: 4,
+		Status: StatusArchived, Pinned: true, SharedWith: []string{"bob"}, Version: 4,
 	}
 
 	n := FromSnapshot(snapshot)
@@ -248,6 +344,9 @@ func TestToSnapshotFromSnapshotGivesBackAnEqualNote(t *testing.T) {
 	n := aNote(t)
 	if err := n.ShareWith(owner, stranger); err != nil {
 		t.Fatalf("ShareWith: %v", err)
+	}
+	if err := n.Pin(owner); err != nil {
+		t.Fatalf("Pin: %v", err)
 	}
 	rebuilt := FromSnapshot(n.ToSnapshot())
 	if !rebuilt.Equals(n.Entity) {

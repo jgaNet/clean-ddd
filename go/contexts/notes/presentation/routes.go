@@ -13,7 +13,7 @@ import (
 
 // The verb follows the HTTP grammar (yarn architecture verbs): POST /notes creates,
 // PUT /notes/{id} replaces, POST /notes/{id}/share acts; an action undone is a second act
-// named after the undoing (/archive and /restore), never a DELETE.
+// named after the undoing (/archive and /restore, /pin and /unpin), never a DELETE.
 
 type createNoteBody struct {
 	Title   string `json:"title"`
@@ -36,12 +36,14 @@ type listItemView struct {
 	ID     string `json:"id"`
 	Title  string `json:"title"`
 	Status string `json:"status"`
+	Pinned bool   `json:"pinned"`
 }
 
 type detailView struct {
 	ID         string   `json:"id"`
 	Title      string   `json:"title"`
 	Status     string   `json:"status"`
+	Pinned     bool     `json:"pinned"`
 	OwnerID    string   `json:"ownerId"`
 	Content    string   `json:"content"`
 	SharedWith []string `json:"sharedWith"`
@@ -57,7 +59,7 @@ type sharedItemView struct {
 func listItemViews(items []note.ListItem) []listItemView {
 	views := make([]listItemView, 0, len(items))
 	for _, item := range items {
-		views = append(views, listItemView{ID: item.ID, Title: item.Title, Status: string(item.Status)})
+		views = append(views, listItemView{ID: item.ID, Title: item.Title, Status: string(item.Status), Pinned: item.Pinned})
 	}
 	return views
 }
@@ -67,7 +69,7 @@ func detailViewOf(n note.Detail) detailView {
 	if shared == nil {
 		shared = []string{}
 	}
-	return detailView{ID: n.ID, Title: n.Title, Status: string(n.Status), OwnerID: n.OwnerID, Content: n.Content, SharedWith: shared}
+	return detailView{ID: n.ID, Title: n.Title, Status: string(n.Status), Pinned: n.Pinned, OwnerID: n.OwnerID, Content: n.Content, SharedWith: shared}
 }
 
 func sharedItemViews(items []note.SharedListItem) []sharedItemView {
@@ -146,6 +148,14 @@ func Routes(mux *http.ServeMux, prefix string, module *application.Module) {
 
 	mux.HandleFunc("POST "+prefix+"/{id}/restore", func(w http.ResponseWriter, r *http.Request) {
 		presentation.Accept(w, presentation.ContextOf(r), commands.RestoreNoteCommandEvent{NoteID: r.PathValue("id")})
+	})
+
+	mux.HandleFunc("POST "+prefix+"/{id}/pin", func(w http.ResponseWriter, r *http.Request) {
+		presentation.Accept(w, presentation.ContextOf(r), commands.PinNoteCommandEvent{NoteID: r.PathValue("id")})
+	})
+
+	mux.HandleFunc("POST "+prefix+"/{id}/unpin", func(w http.ResponseWriter, r *http.Request) {
+		presentation.Accept(w, presentation.ContextOf(r), commands.UnpinNoteCommandEvent{NoteID: r.PathValue("id")})
 	})
 
 	mux.HandleFunc("POST "+prefix+"/{id}/share", func(w http.ResponseWriter, r *http.Request) {

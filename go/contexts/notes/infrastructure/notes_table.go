@@ -43,16 +43,18 @@ func CreateNotesTable(db *sql.DB) error {
 		  title       TEXT NOT NULL,
 		  content     TEXT NOT NULL,
 		  status      TEXT NOT NULL,
+		  pinned      INTEGER NOT NULL,
 		  shared_with TEXT NOT NULL,
 		  version     INTEGER NOT NULL
 		)`)
 	return err
 }
 
-const noteColumns = "id, owner_id, title, content, status, shared_with, version"
+const noteColumns = "id, owner_id, title, content, status, pinned, shared_with, version"
 
 type noteRow struct {
 	id, ownerID, title, content, status, sharedWith string
+	pinned                                          bool
 	version                                         int
 }
 
@@ -61,13 +63,13 @@ func toRow(n note.Snapshot) noteRow {
 	if n.SharedWith == nil {
 		shared = []byte("[]")
 	}
-	return noteRow{id: n.ID, ownerID: n.OwnerID, title: n.Title, content: n.Content, status: string(n.Status), sharedWith: string(shared), version: n.Version}
+	return noteRow{id: n.ID, ownerID: n.OwnerID, title: n.Title, content: n.Content, status: string(n.Status), pinned: n.Pinned, sharedWith: string(shared), version: n.Version}
 }
 
 // scanNote reads a full row of the table, as the aggregate is rebuilt from it.
 func scanNote(row *sql.Row) (note.Snapshot, error) {
 	var r noteRow
-	if err := row.Scan(&r.id, &r.ownerID, &r.title, &r.content, &r.status, &r.sharedWith, &r.version); err != nil {
+	if err := row.Scan(&r.id, &r.ownerID, &r.title, &r.content, &r.status, &r.pinned, &r.sharedWith, &r.version); err != nil {
 		return note.Snapshot{}, err
 	}
 	status, known := note.ParseStatus(r.status)
@@ -81,5 +83,5 @@ func scanNote(row *sql.Row) (note.Snapshot, error) {
 	if shared == nil {
 		shared = []string{}
 	}
-	return note.Snapshot{ID: r.id, OwnerID: r.ownerID, Title: r.title, Content: r.content, Status: status, SharedWith: shared, Version: r.version}, nil
+	return note.Snapshot{ID: r.id, OwnerID: r.ownerID, Title: r.title, Content: r.content, Status: status, Pinned: r.pinned, SharedWith: shared, Version: r.version}, nil
 }
