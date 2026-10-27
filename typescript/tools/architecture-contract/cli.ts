@@ -17,6 +17,7 @@
  *   yarn architecture plan explain <file>     the files, rules and examples it implies
  *   yarn architecture domain                  the subdomains and the context map, its contracts read from the code
  *   yarn architecture context <id>            one bounded context: purpose, language, what it depends on and who depends on it
+ *   yarn architecture storm [<context>]       the event storm read from the code (--markdown, --svg for the board, --json)
  *   yarn architecture rules | concepts | verbs | checklists   the lists
  *
  * Every command takes --json: valid JSON only on stdout, nothing decorative, exit 1 on an
@@ -40,15 +41,15 @@ import { canImportAll, getChecklist, getConcept, getRule, getVerbs, rulesOf } fr
 import { explainPlan, loadFeaturePlan, validatePlan } from './plan';
 import { changedFiles, checkMode } from './modes';
 import { DOMAIN_FILE, describeContext, describeDomain, inspectContextLinks, loadDomainMap } from './domain';
+import { describeEventStorm, inspectEventStorm, renderEventStorm, renderEventStormSvg, renderProcess } from './storm';
 import { createApplication } from './create';
 import type { ModeName } from './types';
 
 const args = process.argv.slice(2);
 const json = args.includes('--json');
 const languageFlag = args.includes('--language') ? args[args.indexOf('--language') + 1] : undefined;
-const [command, ...rest] = args.filter(
-  (arg, index) => arg !== '--json' && arg !== '--language' && args[index - 1] !== '--language',
-);
+const flags = ['--json', '--language', '--markdown', '--svg'];
+const [command, ...rest] = args.filter((arg, index) => !flags.includes(arg) && args[index - 1] !== '--language');
 
 const root = repositoryRoot();
 const typedFrom = process.env.INIT_CWD ?? process.cwd();
@@ -282,6 +283,31 @@ async function main(): Promise<void> {
           links: links.filter(link => link.upstream === context.id || link.downstream === context.id),
         },
         () => describeContext(map, context, links, contract),
+      );
+    }
+    case 'storm': {
+      const storm = inspectEventStorm(contract, root);
+      const [contextId] = rest;
+      if (args.includes('--svg')) {
+        process.stdout.write(`${renderEventStormSvg(storm)}\n`);
+        return;
+      }
+      if (contextId) {
+        const context = storm.contexts.find(candidate => candidate.id.toLowerCase() === contextId.toLowerCase());
+        if (!context) {
+          return fail(
+            'unknown-context',
+            `No context "${contextId}". Contexts: ${storm.contexts.map(each => each.id).join(', ')}`,
+          );
+        }
+        return out({ schemaVersion, language: storm.language, ...context }, () =>
+          args.includes('--markdown')
+            ? renderProcess(context, storm)
+            : describeEventStorm({ ...storm, contexts: [context] }),
+        );
+      }
+      return out({ schemaVersion, ...storm }, () =>
+        args.includes('--markdown') ? renderEventStorm(storm) : describeEventStorm(storm),
       );
     }
     case 'create': {

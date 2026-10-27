@@ -59,7 +59,10 @@ Beyond the rules and the concepts, the contract holds two tables that used to li
 ```bash
 yarn architecture domain          # the subdomains, the context map with its contracts, the shared kernel
 yarn architecture context Notes   # one context: purpose, language, what it depends on, who depends on it
+yarn architecture storm [Notes]   # the event storm read from the code; --markdown, --svg (the board), --json
 ```
+
+The **event storm** goes one level down, inside each context, and is read from the code rather than declared ([ADR 20](../docs/adr/0020-the-event-storm-is-read-from-the-code.md)): the commands and queries of the wiring, the behaviours a handler asks and the events they record, the policies and what they publish or dispatch, the read models, the external systems behind the ports, the actors from the guards, the routes from the controllers. `yarn conventions:write` renders it into [`docs/event-storm.md`](../docs/event-storm.md) and the board [`docs/event-storm.svg`](../docs/event-storm.svg); the check fails when either differs from the code.
 
 ### Feature plans
 

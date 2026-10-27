@@ -22,6 +22,7 @@ conventions/<language>.yaml     a binding (typescript.yaml, rust.yaml, python.ya
                                 rule, its checklists.
 conventions/plans/              feature plans, each written for one language, validated on every build
 docs/adr/                       the decisions; docs/evaluations/ the fresh-agent evaluations
+docs/event-storm.md             the event storm, read from the TypeScript tree and rendered with its board (never edited)
 typescript/                     the TypeScript implementation and its tooling (src/, tools/, the configs)
 rust/                           the Rust implementation (a crate per layer under src/, tools/conventions)
 python/                         the Python implementation (a package per layer under src/, tools/conventions.py)

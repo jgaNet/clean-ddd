@@ -21,6 +21,8 @@
  * 8. The domain map, when the repository has one, is sound against every binding and true to the
  *    code both ways: every relationship it declares is carried, every link the code carries is
  *    declared (CTX-MAP-DECLARED); the root README's strategic view is rendered from it.
+ * 9. The event storm the documents show is the one read from the code: docs/event-storm.md between
+ *    its markers and the docs/event-storm.svg board, when the repository has them.
  *
  * A client of tools/architecture-contract, like the CLI; it parses no YAML itself. Two roots: the
  * repository's, where the contract and the shared documents live, and this language's, where the
@@ -58,6 +60,10 @@ import {
   renderVocabulary,
   repositoryRoot,
   validateContract,
+  STORM_MARKER,
+  inspectEventStorm,
+  renderEventStorm,
+  renderEventStormSvg,
 } from './architecture-contract';
 import type { ArchitectureContract } from './architecture-contract';
 
@@ -204,6 +210,21 @@ if (multi) {
   ]);
 }
 
+// 9. The event storm the documents show is the one read from the code
+
+const stormDocument = 'docs/event-storm.md';
+const stormBoard = 'docs/event-storm.svg';
+const storm = existsSync(join(root, stormDocument)) ? inspectEventStorm(contract, root) : undefined;
+if (storm) {
+  renderInto(stormDocument, [[STORM_MARKER, renderEventStorm(storm)]]);
+  const board = renderEventStormSvg(storm);
+  const current = existsSync(join(root, stormBoard)) ? readFileSync(join(root, stormBoard), 'utf8') : '';
+  if (current !== board) {
+    if (write) writeFileSync(join(root, stormBoard), board);
+    else problem(`${stormBoard} differs from the board the code renders; run yarn conventions:write`);
+  }
+}
+
 // 4. Every relative link in the documentation resolves
 
 const linksIn = (text: string) =>
@@ -309,5 +330,5 @@ if (problems.length) {
   process.exit(1);
 }
 process.stdout.write(
-  `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts match the tree; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; no eslint-disable; ${probes.length} import probes behave and name their rule${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}.\n`,
+  `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts match the tree; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; no eslint-disable; ${probes.length} import probes behave and name their rule${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}${storm ? `; the event storm is read from the code (${storm.contexts.reduce((sum, each) => sum + each.commands.length, 0)} commands, ${storm.contexts.reduce((sum, each) => sum + each.policies.length, 0)} policies)` : ''}.\n`,
 );
