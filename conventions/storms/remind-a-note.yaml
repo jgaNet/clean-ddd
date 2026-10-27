@@ -1,0 +1,86 @@
+# The storm of "reminders on a note", as the facilitated session left it (the `storm` skill,
+# 2026-10-27). The request, in product words: "The owner of a note asks to be reminded of it at
+# a date; when the moment comes, they are told." What the session decided is in the hot spots;
+# what the code must say is the delta below, in the words every language shares.
+#
+# `yarn architecture storm --expect conventions/storms/remind-a-note.yaml` says what the code
+# still owes it; `done: true` once nothing is owed and every hot spot is decided.
+
+schemaVersion: 1
+
+feature: remind-a-note
+intent: >-
+  The owner of a note schedules one reminder on it, at a date in the future; when the moment
+  comes, the owner is told. Scheduling again replaces the reminder; archiving the note cancels
+  it. Notes holds the reminder and says so; Notifications plans the telling and does it when a
+  scheduler says the time has come.
+
+done: false
+
+hotSpots:
+  - question: Who is told when the moment comes?
+    decision: The owner only; a reminder is personal, the people the note is shared with are not told.
+  - question: Where does the reminder live — in Notes, or in a Reminders context of its own?
+    decision: In Notes; a reminder is a date on a note, with the note's rules. A Reminders context that could remind of anything is not a need anyone has today.
+  - question: Who notices that the time has passed, and in which lane is the fact?
+    decision: Notifications. Notes publishes "a reminder was scheduled" with the date; Notifications, which already knows how to deliver, plans a notification and sends it at the due time. The word "scheduled" enters Notifications' language, as a status before "sent".
+  - question: Who triggers the delivery when the moment is due? Nothing in the application looks at the clock today.
+    decision: An outside scheduler sends a command, as an administrator (DeliverDueNotifications, like a cron knocking at the door); time stays an outside system, and the sticky stays on the wall. The clock the handler compares with is a parameter with a default (DOMAIN-NON-DETERMINISM).
+  - question: How does the owner get rid of a reminder?
+    decision: There is one reminder per note; scheduling another replaces it, archiving the note cancels it. No cancel command.
+  - question: What does the note refuse?
+    decision: A date in the past (the current time enters the decision as a parameter with a default) and an archived note (the same refusal as an edit, restore first). Someone other than the owner, as for every change to a note.
+  - question: Archiving cancels the reminder in Notes; and the notification already planned?
+    decision: Notes also publishes "a reminder was cancelled"; Notifications cancels the planned notification. A second contract on the pivot the map already relates.
+  - question: What does a screen need to know?
+    decision: The reminder's date on the detail of the note, nothing more; a field on an existing read model, which the shared scenario then holds the four languages to. No new query.
+  - question: Scheduling again replaces the reminder in Notes; what does Notifications do with the notification it had already planned for the earlier date?
+
+contexts:
+  - id: Notes
+    commands:
+      - name: ScheduleReminder
+        actor: a signed-in account
+        route: POST /notes/{param}/reminders
+        aggregate: Note
+        events: [ReminderScheduled]
+      - name: ArchiveNote
+        actor: a signed-in account
+        route: POST /notes/{param}/archive
+        aggregate: Note
+        events: [NoteArchived, ReminderCancelled]
+    queries: []
+    events: [ReminderCancelled, ReminderScheduled]
+    policies:
+      - on: ReminderScheduled
+        kind: domain-event
+        publishes: [ReminderScheduled]
+        events: []
+      - on: ReminderCancelled
+        kind: domain-event
+        publishes: [ReminderCancelled]
+        events: []
+  - id: Notifications
+    commands:
+      - name: DeliverDueNotifications
+        actor: an administrator
+        route: POST /notifications/deliveries
+        aggregate: Notification
+        events: [NotificationFailed, NotificationSent]
+    queries: []
+    events: [NotificationCancelled, NotificationScheduled]
+    policies:
+      - on: ReminderScheduled
+        kind: integration-event
+        publishes: []
+        events: [NotificationScheduled]
+      - on: ReminderCancelled
+        kind: integration-event
+        publishes: []
+        events: [NotificationCancelled]
+
+links:
+  - mechanism: integration-event
+    upstream: Notes
+    downstream: Notifications
+    contracts: [ReminderCancelled, ReminderScheduled]
