@@ -167,13 +167,13 @@ export function loadInventories(root: string): Map<string, Inventory> {
   return found;
 }
 
-const describeCommand = (command: InventoryCommand) =>
+export const describeCommand = (command: InventoryCommand) =>
   `${command.name} (${command.actor}${command.route ? `, ${command.route}` : ''}${command.aggregate ? `, ${command.aggregate}` : ''} → ${command.events.join(', ') || 'nothing'})`;
-const describeQuery = (query: InventoryQuery) =>
+export const describeQuery = (query: InventoryQuery) =>
   `${query.name} (${query.actor}${query.route ? `, ${query.route}` : ''})`;
-const describePolicy = (policy: InventoryPolicy) =>
+export const describePolicy = (policy: InventoryPolicy) =>
   `on ${policy.on} (${policy.kind}${policy.publishes.length ? `, publishes ${policy.publishes.join(', ')}` : ''}${policy.events.length ? `, → ${policy.events.join(', ')}` : ''})`;
-const describeLink = (link: InventoryLink) =>
+export const describeLink = (link: InventoryLink) =>
   `${link.upstream} → ${link.downstream} over an ${link.mechanism} (${link.contracts.join(', ')})`;
 
 /**

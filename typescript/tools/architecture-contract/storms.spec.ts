@@ -27,6 +27,7 @@ const contract = loadArchitectureContract(root);
 const actual = inspectInventory(contract, root);
 const pin = loadExpectedStorm('conventions/storms/pin-a-note.yaml', root);
 const share = loadExpectedStorm('conventions/storms/share-a-note.yaml', root);
+const remind = loadExpectedStorm('conventions/storms/remind-a-note.yaml', root);
 
 /** A storm written to a temp file under a conventions/storms of its own, so the loader reads a real file. */
 const stormFile = (storm: unknown): { dir: string; file: string } => {
@@ -148,6 +149,19 @@ describe('the storm against the code', () => {
     expect(words).toContain('Still owed by the code (4):');
     expect(words).toContain('  Notes: the command PinNote');
     expect(describeExpectation(share, actual)).toContain('The code carries the storm');
+  });
+
+  it('names what a storm reshapes rather than adds, without calling it a discovery', () => {
+    const words = describeExpectation(remind, actual);
+    expect(words).toContain('Changed by this storm (the code has the earlier shape):');
+    expect(words).toContain(
+      'Notes: ArchiveNote — ArchiveNote (a signed-in account, POST /notes/{param}/archive, Note → NoteArchived) becomes',
+    );
+    expect(words).toContain(
+      'the link Notes → Notifications gains ReminderCancelled, ReminderScheduled (it carries NoteShared)',
+    );
+    expect(words).not.toContain('not in the storm');
+    expect(checkExpectedStorm(remind, actual)).toEqual([]);
   });
 
   it('lays the planned stickies over the board, dashed', () => {

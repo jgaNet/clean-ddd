@@ -89,10 +89,15 @@ worth stating first. When the work is done:
 yarn architecture storm --expect ../conventions/storms/<feature>.yaml
 ```
 
-An empty "still owed" is the proof. Something the code carries that the storm did not foresee
-(a fact, a policy) is a discovery: bring it back to the session and into the file, do not drop
-it. Then `done: true`, every hot spot decided, and the conventions check holds the storm to the
-code from then on, in every language, since the inventories are held equal.
+An empty "still owed" is the proof. What the code added beyond the storm shows in the diff of
+`docs/inventory/*.json` in the pull request: read it against the storm, and bring a fact nobody
+foresaw back to the session and into the file rather than dropping it. Then `done: true`, every
+hot spot decided, and the conventions check holds the storm to the code from then on, in every
+language, since the inventories are held equal.
+
+A storm may reshape a sticky as well as add one: list an existing command again with its new
+events (archiving a note that now also cancels its reminder), or an existing link with the
+contract it gains; `--expect` shows it under "changed by this storm".
 
 ## What you never do
 

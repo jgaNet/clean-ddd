@@ -81,7 +81,7 @@ An **expected storm** ([`storms/share-a-note.yaml`](storms/share-a-note.yaml) is
 
 ```bash
 yarn architecture storm validate <file>     # the contract, the map and the code: a declared context, a verb of the grammar, an actor of the three, an event brought or existing, a pivot the map relates; done and carried, or not yet
-yarn architecture storm --expect <file>     # what the code still owes the storm (before), nothing (after), what it carries beyond it (a discovery); --markdown, --svg lay the planned stickies on the board, dashed
+yarn architecture storm --expect <file>     # what the code still owes the storm (before), nothing (after), what the storm reshapes; --markdown, --svg lay the planned stickies on the board, dashed
 ```
 
 Every storm under `storms/` is held by `yarn check:conventions`: one `done` must be carried by the code, one not done must not be yet, and a done storm has no open hot spot. A difference is closed in the code or brought back to the session; the storm is never edited to pass. A feature may bring its storm, as it may bring its plan.

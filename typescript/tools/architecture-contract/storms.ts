@@ -14,6 +14,9 @@ import {
   canonicalInventory,
   canonicalRoute,
   compareInventories,
+  describeCommand,
+  describePolicy,
+  describeQuery,
 } from './inventory';
 
 /**
@@ -28,7 +31,8 @@ import {
  * the HTTP grammar, an actor of the three, an event that exists or is brought, a pivot the map
  * relates); `storm --expect <file>` compares the expected inventory (the current one plus the
  * delta) to the one read from the code and names each difference — before the work, that list
- * is what to build; after it, an empty list is the proof. The check holds every storm under
+ * is what to build; after it, an empty list is the proof. What the code adds beyond the storm is not
+ * its question: that shows in the diff of the committed inventories, which the review reads against it. The check holds every storm under
  * conventions/storms: a storm `done` is carried by the code, one not done is not yet.
  */
 
@@ -386,14 +390,47 @@ export function describeExpectation(storm: ExpectedStorm, actual: Inventory): st
   }
   if (present.length) lines.push('Already carried:', ...present.map(what => `  ${what}`), '');
   lines.push(`Still owed by the code (${absent.length}):`, ...absent.map(what => `  ${what}`));
-  const beyond = differences.filter(difference => difference.includes(' has a '));
-  if (beyond.length)
-    lines.push(
-      '',
-      'In the code and not in the storm (a discovery to bring back to the session, or a stale storm):',
-      ...beyond.map(each => `  ${each}`),
-    );
+  const changes = changedByStorm(storm, actual);
+  if (changes.length)
+    lines.push('', 'Changed by this storm (the code has the earlier shape):', ...changes.map(each => `  ${each}`));
   return lines.join('\n');
+}
+
+/** The stickies the storm reshapes rather than adds: a command the code has under another shape, a link it widens. */
+function changedByStorm(storm: ExpectedStorm, actual: Inventory): string[] {
+  const changes: string[] = [];
+  for (const delta of storm.contexts) {
+    const context = actual.contexts.find(candidate => candidate.id === delta.id);
+    if (!context) continue;
+    for (const command of delta.commands) {
+      const before = context.commands.find(each => each.name === command.name);
+      if (before && JSON.stringify(before) !== JSON.stringify(command)) {
+        changes.push(`${delta.id}: ${command.name} — ${describeCommand(before)} becomes ${describeCommand(command)}`);
+      }
+    }
+    for (const query of delta.queries) {
+      const before = context.queries.find(each => each.name === query.name);
+      if (before && JSON.stringify(before) !== JSON.stringify(query))
+        changes.push(`${delta.id}: ${query.name} — ${describeQuery(before)} becomes ${describeQuery(query)}`);
+    }
+    for (const policy of delta.policies) {
+      const before = context.policies.find(each => each.on === policy.on && each.kind === policy.kind);
+      if (before && JSON.stringify(before) !== JSON.stringify(policy))
+        changes.push(`${delta.id}: ${describePolicy(before)} becomes ${describePolicy(policy)}`);
+    }
+  }
+  for (const link of storm.links) {
+    const before = actual.links.find(
+      each =>
+        each.upstream === link.upstream && each.downstream === link.downstream && each.mechanism === link.mechanism,
+    );
+    const added = link.contracts.filter(contract => !before?.contracts.includes(contract));
+    if (before && added.length)
+      changes.push(
+        `the link ${link.upstream} → ${link.downstream} gains ${added.join(', ')} (it carries ${before.contracts.join(', ')})`,
+      );
+  }
+  return changes;
 }
 
 /** The storm read from the code with the expected stickies laid over it, marked `expected`, for the board. */
