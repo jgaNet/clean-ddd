@@ -54,6 +54,11 @@ compares them to the contract.
 
 ## 3. Write a plan when the change is worth stating first
 
+When the *model* is the question — which facts, which commands, what reacts — the plan is too late: hold
+the session first with the `storm` skill, which writes what it decided as `conventions/storms/<feature>.yaml`,
+and come back here with the storm as the brief; `yarn architecture storm --expect <file>` is then the
+proof at the end, beside the checks.
+
 ```bash
 yarn architecture plan validate ../conventions/plans/<name>.yaml
 yarn architecture plan explain  ../conventions/plans/<name>.yaml

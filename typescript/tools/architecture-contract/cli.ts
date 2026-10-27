@@ -18,6 +18,8 @@
  *   yarn architecture domain                  the subdomains and the context map, its contracts read from the code
  *   yarn architecture context <id>            one bounded context: purpose, language, what it depends on and who depends on it
  *   yarn architecture storm [<context>]       the event storm read from the code (--markdown, --svg for the board, --json)
+ *   yarn architecture storm validate <file>   an expected storm (conventions/storms/*.yaml) against the contract, the map and the code
+ *   yarn architecture storm --expect <file>   what the code still owes an expected storm; --markdown, --svg lay its stickies on the board
  *   yarn architecture inventory [<language>]  what the tree says the application is, in words every language shares;
  *                                             with a language, where that language's committed inventory differs
  *   yarn architecture rules | concepts | verbs | checklists   the lists
@@ -45,14 +47,23 @@ import { changedFiles, checkMode } from './modes';
 import { DOMAIN_FILE, describeContext, describeDomain, inspectContextLinks, loadDomainMap } from './domain';
 import { describeEventStorm, inspectEventStorm, renderEventStorm, renderEventStormSvg, renderProcess } from './storm';
 import { compareInventories, describeInventory, inspectInventory, loadInventories } from './inventory';
+import {
+  checkExpectedStorm,
+  describeExpectation,
+  loadExpectedStorm,
+  overlayExpectedStorm,
+  validateExpectedStorm,
+} from './storms';
 import { createApplication } from './create';
 import type { ModeName } from './types';
 
 const args = process.argv.slice(2);
 const json = args.includes('--json');
 const languageFlag = args.includes('--language') ? args[args.indexOf('--language') + 1] : undefined;
-const flags = ['--json', '--language', '--markdown', '--svg'];
-const [command, ...rest] = args.filter((arg, index) => !flags.includes(arg) && args[index - 1] !== '--language');
+const flags = ['--json', '--language', '--markdown', '--svg', '--expect'];
+const valued = ['--language', '--expect'];
+const expectFlag = args.includes('--expect') ? args[args.indexOf('--expect') + 1] : undefined;
+const [command, ...rest] = args.filter((arg, index) => !flags.includes(arg) && !valued.includes(args[index - 1]));
 
 const root = repositoryRoot();
 const typedFrom = process.env.INIT_CWD ?? process.cwd();
@@ -289,7 +300,54 @@ async function main(): Promise<void> {
       );
     }
     case 'storm': {
-      const storm = inspectEventStorm(contract, root);
+      if (rest[0] === 'validate') {
+        const [, file] = rest;
+        if (!file) return fail('usage', 'usage: yarn architecture storm validate <file>');
+        let expected;
+        try {
+          expected = loadExpectedStorm(fromHere(file), root);
+        } catch (error) {
+          if (error instanceof ContractError) return fail(error.code, error.message);
+          throw error;
+        }
+        const actual = inspectInventory(contract, root);
+        const problems = [
+          ...validateExpectedStorm(expected, contract, actual, root),
+          ...checkExpectedStorm(expected, actual),
+        ];
+        const verdict = problems.length
+          ? problems.join('\n')
+          : `${expected.feature}: legal against the contract and the map; ${expected.done ? 'carried by the code' : 'not in the code yet'}`;
+        out(
+          { schemaVersion, feature: expected.feature, done: expected.done, valid: !problems.length, problems },
+          () => verdict,
+        );
+        if (problems.length) process.exit(1);
+        return;
+      }
+      let storm = inspectEventStorm(contract, root);
+      if (expectFlag) {
+        let expected;
+        try {
+          expected = loadExpectedStorm(fromHere(expectFlag), root);
+        } catch (error) {
+          if (error instanceof ContractError) return fail(error.code, error.message);
+          throw error;
+        }
+        const actual = inspectInventory(contract, root);
+        if (!args.includes('--markdown') && !args.includes('--svg')) {
+          return out(
+            {
+              schemaVersion,
+              feature: expected.feature,
+              done: expected.done,
+              problems: checkExpectedStorm(expected, actual),
+            },
+            () => describeExpectation(expected, actual),
+          );
+        }
+        storm = overlayExpectedStorm(storm, expected, actual);
+      }
       const [contextId] = rest;
       if (args.includes('--svg')) {
         process.stdout.write(`${renderEventStormSvg(storm)}\n`);

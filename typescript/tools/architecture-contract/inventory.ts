@@ -122,6 +122,30 @@ export function inventoryOf(storm: EventStorm, language: string): Inventory {
   };
 }
 
+/** The same inventory in canonical order: contexts by id, commands and queries by name, events alphabetically, policies by kind then on, links by pair. */
+export function canonicalInventory(inventory: Inventory): Inventory {
+  return {
+    schemaVersion: inventory.schemaVersion,
+    language: inventory.language,
+    contexts: [...inventory.contexts]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map(context => ({
+        id: context.id,
+        commands: [...context.commands].map(command => ({ ...command, events: sorted(command.events) })).sort(byName),
+        queries: [...context.queries].sort(byName),
+        events: sorted(context.events),
+        policies: [...context.policies]
+          .map(policy => ({ ...policy, publishes: sorted(policy.publishes), events: sorted(policy.events) }))
+          .sort((a, b) => a.kind.localeCompare(b.kind) || a.on.localeCompare(b.on)),
+      })),
+    links: [...inventory.links]
+      .map(link => ({ ...link, contracts: sorted(link.contracts) }))
+      .sort((a, b) =>
+        `${a.upstream}→${a.downstream}:${a.mechanism}`.localeCompare(`${b.upstream}→${b.downstream}:${b.mechanism}`),
+      ),
+  };
+}
+
 /** The inventory read from this language's tree. */
 export const inspectInventory = (contract: ArchitectureContract, root: string): Inventory =>
   inventoryOf(inspectEventStorm(contract, root), contract.language.id);

@@ -21,6 +21,8 @@ conventions/<language>.yaml     a binding (typescript.yaml, rust.yaml, python.ya
                                 contexts, what holds each rule there, the file that shows each concept and each
                                 rule, its checklists.
 conventions/plans/              feature plans, each written for one language, validated on every build
+conventions/storms/             expected storms: what a facilitated session decided a feature adds, in the inventory's
+                                words (one file for every language), held to the code by the check
 docs/adr/                       the decisions; docs/evaluations/ the fresh-agent evaluations
 docs/event-storm.md             the event storm, read from the TypeScript tree and rendered with its board (never edited)
 docs/inventory/<language>.json  what that language's tree says the application is, written by its tool, held equal to
@@ -68,6 +70,7 @@ Each rule has a stable id; `yarn architecture rule <ID>` explains it, `--json` f
 
 - **A rule lives in the contract, under one id for every language**, never in a binding (ARCH-ONE-CONTRACT). A binding may point at the file that shows a rule, and say `review` for one its tooling cannot hold yet; it may not reword one, weaken one or add one.
 - **A relationship between two contexts is declared in the domain map before the code carries it** (CTX-MAP-DECLARED): the pair, the pattern on each side, the mechanism, the reason. The check refuses a link the map does not declare and a declared relationship nothing carries; a new relationship is a decision, and a feature plan that crosses an undeclared pair is refused. A new consumer of an existing relationship changes nothing in the map: the contracts are read from the code.
+- **A feature's model is decided in a storm before the code and held to it after** ([ADR 22](docs/adr/0022-the-storm-is-facilitated-and-the-code-is-held-to-it.md)): the `storm` skill facilitates the session, `conventions/storms/<feature>.yaml` is what it decided, `yarn architecture storm validate|--expect <file>` holds it to the contract and to the code, and the check holds every storm: done and carried, or not yet.
 - **Every language's tree says the same application** (ARCH-ONE-APPLICATION): each tool writes its inventory (`yarn conventions:write`, `cargo run -p conventions -- inventory --write`, `uv run python -m tools.conventions inventory --write`, `go run ./tools/conventions inventory --write`), each check refuses a stale one, and the TypeScript check refuses two that differ. A difference is closed in the tree that differs, never in the inventory.
 - **A binding's paths are relative to its own directory**; the loader makes them repository-relative. Links in the Markdown fields of a binding (`example`, `notes`, `see`) follow the same rule.
 - **The shared documents name no language's file directly.** The root README's map is rendered; the ADRs may link into a language's tree when they discuss a concrete file, with a path from `docs/adr/` (`../../typescript/src/…`), and `yarn check:conventions` checks that every such link resolves.

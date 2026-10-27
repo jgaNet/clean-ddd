@@ -62,7 +62,7 @@ What the CLI prints is also rendered: [the domain](#the-domain) below, [the stor
 ### Change it: a feature, in the right shape
 
 1. **Read the guide of the language**: [`typescript/CLAUDE.md`](typescript/CLAUDE.md), [`rust/CLAUDE.md`](rust/CLAUDE.md), [`python/CLAUDE.md`](python/CLAUDE.md) or [`go/CLAUDE.md`](go/CLAUDE.md), its *How to add a feature* and the questions it answers. Domain first, then the handler, infrastructure only if a port changed, the route, the wiring.
-2. **Ask before writing**: `yarn architecture checklist <kind>` names the canonical file to copy; `can-import` checks a planned import; a cross-context feature runs between contexts the map relates (`yarn architecture domain`). A plan is optional and worth it when a feature crosses a context: [`conventions/plans/share-a-note.rust.yaml`](conventions/plans/share-a-note.rust.yaml) is the example, `yarn architecture plan validate|explain <file>` checks it.
+2. **Ask before writing**: `yarn architecture checklist <kind>` names the canonical file to copy; `can-import` checks a planned import; a cross-context feature runs between contexts the map relates (`yarn architecture domain`). A plan is optional and worth it when a feature crosses a context: [`conventions/plans/share-a-note.rust.yaml`](conventions/plans/share-a-note.rust.yaml) is the example, `yarn architecture plan validate|explain <file>` checks it. When the model itself is the question, hold the session first: the [`storm` skill](.claude/skills/storm/SKILL.md) facilitates it and writes what it decided as [`conventions/storms/<feature>.yaml`](conventions/storms/pin-a-note.yaml), in words every language shares; `yarn architecture storm --expect <file>` then says what the code still owes it, until nothing ([ADR 22](docs/adr/0022-the-storm-is-facilitated-and-the-code-is-held-to-it.md)).
 3. **Prove it stayed inside the architecture**: `yarn architecture mode feature --base working` refuses a change to the building blocks, the shared kernel, the conventions or the decisions; then the language's checks, the same CI runs:
 
    | Language | The checks |
@@ -195,7 +195,7 @@ flowchart LR
 | Shared kernel | `sharedKernel` of [`domain.yaml`](conventions/domain.yaml) | what every context agrees on and changes together: vocabulary, not mechanics; declared once, not as a relationship between pairs |
 <!-- end generated -->
 
-What happens inside each context — who may ask for what, which command reaches which aggregate, which fact that records, who reacts — is the **event storm**, read from the code rather than drawn by hand: [`docs/event-storm.md`](docs/event-storm.md), with the board as one picture ([ADR 20](docs/adr/0020-the-event-storm-is-read-from-the-code.md)); `yarn architecture storm` from a terminal. The same reading, in words every language shares, is the **inventory** each language's tool writes from its own tree ([`docs/inventory/`](docs/inventory/README.md)): the check holds the four equal, so the languages are one application from the inside as the scenario makes them one API from the outside (ARCH-ONE-APPLICATION, [ADR 21](docs/adr/0021-one-application-every-language-writes-the-same-inventory.md)).
+What happens inside each context — who may ask for what, which command reaches which aggregate, which fact that records, who reacts — is the **event storm**, read from the code rather than drawn by hand: [`docs/event-storm.md`](docs/event-storm.md), with the board as one picture ([ADR 20](docs/adr/0020-the-event-storm-is-read-from-the-code.md)); `yarn architecture storm` from a terminal. The same reading, in words every language shares, is the **inventory** each language's tool writes from its own tree ([`docs/inventory/`](docs/inventory/README.md)): the check holds the four equal, so the languages are one application from the inside as the scenario makes them one API from the outside (ARCH-ONE-APPLICATION, [ADR 21](docs/adr/0021-one-application-every-language-writes-the-same-inventory.md)). And the storm runs forwards too: a session facilitated by the [`storm` skill](.claude/skills/storm/SKILL.md) writes what a feature will add as an **expected storm** ([`conventions/storms/`](conventions/storms/share-a-note.yaml)), and the code is held to it ([ADR 22](docs/adr/0022-the-storm-is-facilitated-and-the-code-is-held-to-it.md)).
 
 ## The languages
 
@@ -319,7 +319,8 @@ The dependency table — which layer may import from which — is in [`conventio
 ```
 conventions/                the architecture as data: architecture.yaml (the contract), concepts.yaml (the
                             vocabulary), domain.yaml (the subdomains, each context's language, the context map),
-                            one binding per language (typescript.yaml, rust.yaml, python.yaml, go.yaml), plans/ (feature plans)
+                            one binding per language (typescript.yaml, rust.yaml, python.yaml, go.yaml), plans/ (feature plans),
+                            storms/ (expected storms: what a session decided a feature adds, held to the code)
 docs/adr/                   the decisions, shared by every language
 docs/event-storm.md         the event storm, read from the code and rendered (with the board, event-storm.svg)
 docs/inventory/             what each language's tree says the application is, one JSON per language, held equal by the check
