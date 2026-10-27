@@ -127,6 +127,8 @@ flowchart LR
 | Shared kernel | `sharedKernel` of [`domain.yaml`](conventions/domain.yaml) | what every context agrees on and changes together: vocabulary, not mechanics; declared once, not as a relationship between pairs |
 <!-- end generated -->
 
+What happens inside each context — who may ask for what, which command reaches which aggregate, which fact that records, who reacts — is the **event storm**, read from the code rather than drawn by hand: [`docs/event-storm.md`](docs/event-storm.md), with the board as one picture ([ADR 20](docs/adr/0020-the-event-storm-is-read-from-the-code.md)); `yarn architecture storm` from a terminal.
+
 ## The languages
 
 Each language's README is where to start reading it: the request followed end to end, the map of its files, how to run it. Its CLAUDE.md is the guide for working in it, by hand or with an agent. The four answer one API: [`api/scenario.mjs`](api/scenario.mjs), a black-box client, walks whichever server is up and passes against each ([ADR 16](docs/adr/0016-one-api-for-every-language.md)); the front end is a client like any other, served from [`web/`](web) by any static server ([ADR 17](docs/adr/0017-the-front-end-is-a-client-served-elsewhere.md)).
@@ -250,6 +252,7 @@ conventions/                the architecture as data: architecture.yaml (the con
                             vocabulary), domain.yaml (the subdomains, each context's language, the context map),
                             one binding per language (typescript.yaml, rust.yaml, python.yaml, go.yaml), plans/ (feature plans)
 docs/adr/                   the decisions, shared by every language
+docs/event-storm.md         the event storm, read from the code and rendered (with the board, event-storm.svg)
 docs/evaluations/           can a newcomer add a feature from the documentation alone? Protocol and records
 typescript/                 the TypeScript implementation: its code, its toolchain, its README and CLAUDE.md
 rust/                       the Rust implementation: the same application, a crate per layer, its check, its README and CLAUDE.md

@@ -285,7 +285,7 @@ const walk = (dir: string): string[] =>
     ? readdirSync(dir, { withFileTypes: true }).flatMap(entry =>
         entry.isDirectory()
           ? walk(join(dir, entry.name))
-          : entry.name.endsWith('.ts') && !entry.name.endsWith('.spec.ts')
+          : entry.name.endsWith('.ts') && !/\.spec(-helper)?\.ts$/.test(entry.name)
             ? [join(dir, entry.name)]
             : [],
       )
@@ -299,7 +299,14 @@ const walk = (dir: string): string[] =>
  * importing file implements. The contracts of a link are what the map renders and never
  * declares.
  */
-export function inspectContextLinks(contract: ArchitectureContract, root: string): ContextLink[] {
+/** One source file of this language's tree, repository-relative, with its text. */
+export interface SourceFile {
+  path: string;
+  text: string;
+}
+
+/** Every non-spec source file of each declared context, read once, keyed by context. */
+export function readContextFiles(contract: ArchitectureContract, root: string): Map<string, SourceFile[]> {
   const relativeTo = (path: string) =>
     posix.normalize(
       path
@@ -308,13 +315,18 @@ export function inspectContextLinks(contract: ArchitectureContract, root: string
         .join('/'),
     );
   const contextsDir = join(root, contract.contextsTree.path);
-  const files = new Map<string, { path: string; text: string }[]>();
+  const files = new Map<string, SourceFile[]>();
   for (const context of contract.contexts) {
     files.set(
       context,
       walk(join(contextsDir, context)).map(path => ({ path: relativeTo(path), text: readFileSync(path, 'utf8') })),
     );
   }
+  return files;
+}
+
+export function inspectContextLinks(contract: ArchitectureContract, root: string): ContextLink[] {
+  const files = readContextFiles(contract, root);
 
   const events = new Set<string>();
   for (const path of walk(join(root, contract.kernel.path, 'Application', 'IntegrationEvents'))) {
