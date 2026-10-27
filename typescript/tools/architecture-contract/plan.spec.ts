@@ -148,6 +148,24 @@ describe('a feature plan', () => {
     ).toEqual([]);
   });
 
+  it('refuses a plan that crosses into a context the domain map does not relate to its own', () => {
+    const undeclared = validatePlan(
+      aPlan({
+        crossContext: { context: 'Tracker', strategy: 'owned-port' },
+        changes: [{ kind: 'domain-service', name: 'OperationLookup' }],
+      }),
+      contract,
+      root,
+    );
+    expect(undeclared).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(
+          'crosses between Notes and Tracker over an owned-port, a relationship conventions/domain.yaml does not declare',
+        ),
+      ]),
+    );
+  });
+
   it('requires a plan that crosses a boundary to name the contract it publishes, or the service that asks', () => {
     const byEvent = validatePlan(
       aPlan({ crossContext: { context: 'Notifications', strategy: 'integration-event' } }),

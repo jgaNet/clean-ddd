@@ -4,6 +4,7 @@ import { load } from 'js-yaml';
 
 import { ArchitectureContract, Checklist, ContractError, Rule, SUPPORTED_SCHEMA_VERSION } from './types';
 import { getChecklist, getConcept, getRule, getVerbs } from './query';
+import { loadDomainMap } from './domain';
 
 /**
  * A feature plan: what someone intends to change, written before writing it, in the contract's
@@ -208,6 +209,21 @@ export function validatePlan(plan: FeaturePlan, contract: ArchitectureContract, 
     if (!STRATEGIES.includes(strategy)) {
       problems.push(
         `${where}: crossContext strategy must be ${STRATEGIES.join(' or ')} — those are the only two contracts between contexts (CTX-CONTRACTS)`,
+      );
+    }
+  }
+  if (plan.crossContext && STRATEGIES.includes(plan.crossContext.strategy)) {
+    const map = loadDomainMap(root);
+    const { context: other, strategy } = plan.crossContext;
+    const related = map?.relationships.some(
+      relationship =>
+        relationship.mechanism === strategy &&
+        ((relationship.upstream === plan.context && relationship.downstream === other) ||
+          (relationship.upstream === other && relationship.downstream === plan.context)),
+    );
+    if (map && !related) {
+      problems.push(
+        `${where}: crosses between ${plan.context} and ${other} over an ${strategy}, a relationship ${map.source} does not declare; a new relationship between two contexts is a decision (CTX-MAP-DECLARED), so declare it in the map first`,
       );
     }
   }

@@ -11,3 +11,4 @@ export * from './plan';
 export * from './modes';
 export * from './create';
 export * from './probes';
+export * from './domain';

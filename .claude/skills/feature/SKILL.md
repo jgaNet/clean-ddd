@@ -74,6 +74,10 @@ infrastructure only if a port changed, then the route, then the wiring. `CLAUDE.
 step-by-step and answers the questions that come up (where the spec goes, whether an event
 needs a handler, which verb, how to compare things in a spec).
 
+A cross-context reaction runs between two contexts the context map relates (`yarn architecture
+domain`): a new consumer of an existing relationship is a feature; a pair the map does not relate is
+a new relationship, which is a decision (CTX-MAP-DECLARED) — stop and say so rather than declare it.
+
 ## 5. Prove it
 
 A feature is written **inside** the architecture, never around it:
