@@ -12,8 +12,8 @@ written in this one; both are rendered from the same contract the tooling enforc
 disagree with the linter. Work from the language's directory (`cd typescript`, `cd rust`,
 `cd python`, `cd go`); the tooling prints paths from the repository root. Then follow the `feature` skill's
 order of operations — ask the contract for the shape (`yarn architecture checklist <kind>`, `verb
-<intent>`, `can-import <file> <specifier>`; run from `typescript/`, they answer for the language
-you pass with `--language rust`, `--language python` or `--language go`, and Rust, Python and Go have their own
+<intent>`, `can-import <file> <specifier>`; at the root or from `typescript/`, or `yarn --cwd .. architecture …`
+from another language's directory, they answer for the language you pass with `--language rust`, `--language python` or `--language go`, and Rust, Python and Go have their own
 `can-import`: `cargo run -q -p conventions -- can-import <file> <path>`, `uv run python -m
 tools.conventions can-import <file> <module>`, `go run ./tools/conventions can-import <file> <import-path>`), open the canonical file the checklist names, and
 copy it rather than inventing a second shape.
@@ -21,9 +21,9 @@ copy it rather than inventing a second shape.
 **You work under the feature mode.** The building blocks (`typescript/src/Architecture`,
 `rust/src/architecture`, `python/src/architecture`, `go/architecture`), the shared kernel's model, `conventions/`
 (the contract and the bindings alike), `docs/adr/`, the linters (`typescript/eslint.config.js`,
-`rust/tools/`, `python/tools/`, `go/tools/`) and `typescript/tools/` are not yours to change. The integration
+`rust/tools/`, `python/tools/`, `go/tools/`) and the root's `tools/` are not yours to change. The integration
 events are the exception: publishing a fact is what a cross-context feature does. Run
-`yarn architecture mode feature --base working` (from `typescript/`, with `--language <id>` for
+`yarn architecture mode feature --base working` (at the root or from `typescript/`, with `--language <id>` for
 Rust, Python or Go) before you finish, and do not report done while it refuses.
 
 **If the work needs one of those trees changed, stop and say so.** Do not work around it, do

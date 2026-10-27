@@ -1,7 +1,8 @@
-#!/usr/bin/env tsx
 /**
- * `yarn architecture <command>`: the contract, asked from a terminal or by a tool.
+ * `yarn architecture <command>` (`clean-ddd <command>` from an installed package): the contract, asked
+ * from a terminal or by a tool.
  *
+ *   yarn check:conventions                    = `architecture check [--write]`: the conventions and the code agree
  *   yarn architecture inspect                 what the contract holds, for this language
  *   yarn architecture rule <ID>               one rule: statement, why, remediation, references, examples
  *   yarn architecture concept <id>            one concept: canonical files, rules, decisions
@@ -28,19 +29,22 @@
  * unknown id with a structured error. That output is the stable interface for coding agents.
  *
  * Every command answers for one language's binding: the one the command was typed in (from
- * `rust/`, `yarn --cwd ../typescript architecture checklist command` answers in Rust), or the
- * one `--language <id>` names, or TypeScript's.
+ * `rust/`, `yarn --cwd .. architecture checklist command` answers in Rust), or the one
+ * `--language <id>` names, or the reference's (TypeScript). `check` is the exception: it holds
+ * the tree this tooling reads, and ignores where it was typed.
  *
- * Paths are printed relative to the repository root, which is where the contract and the
- * decisions live; a path given on the command line is read relative to where the command was
- * typed (`yarn` records it as INIT_CWD), so `src/…` from this directory and `typescript/src/…`
- * from the root name the same file.
+ * The repository root is the nearest directory at or above where the command was typed that
+ * holds `conventions/` — this repository's root, or an application `create` made. Paths are
+ * printed relative to it; a path given on the command line is read relative to where the
+ * command was typed (`yarn` records it as INIT_CWD), so `src/…` from `typescript/` and
+ * `typescript/src/…` from the root name the same file.
  */
 
 import { relative, resolve } from 'path';
 
-import { ContractError } from './types';
-import { loadArchitectureContract, repositoryRoot } from './load';
+import { ContractError, SUPPORTED_SCHEMA_VERSION } from './types';
+import { loadArchitectureContract, repositoryRoot, typedFrom } from './load';
+import { checkConventions } from './check';
 import { canImportAll, getChecklist, getConcept, getRule, getVerbs, rulesOf } from './query';
 import { explainPlan, loadFeaturePlan, validatePlan } from './plan';
 import { changedFiles, checkMode } from './modes';
@@ -54,30 +58,29 @@ import {
   overlayExpectedStorm,
   validateExpectedStorm,
 } from './storms';
-import { createApplication } from './create';
+import { createApplication, referenceSource } from './create';
 import type { ModeName } from './types';
 
 const args = process.argv.slice(2);
 const json = args.includes('--json');
 const languageFlag = args.includes('--language') ? args[args.indexOf('--language') + 1] : undefined;
-const flags = ['--json', '--language', '--markdown', '--svg', '--expect'];
 const valued = ['--language', '--expect'];
 const expectFlag = args.includes('--expect') ? args[args.indexOf('--expect') + 1] : undefined;
-const [command, ...rest] = args.filter((arg, index) => !flags.includes(arg) && !valued.includes(args[index - 1]));
+const flagged = ['--json', '--language', '--markdown', '--svg', '--expect', '--write'];
+const [command, ...rest] = args.filter((arg, index) => !flagged.includes(arg) && !valued.includes(args[index - 1]));
 
-const root = repositoryRoot();
-const typedFrom = process.env.INIT_CWD ?? process.cwd();
+const here = typedFrom();
 
 /** The language whose directory the command was typed in, if it is one of the reference's. */
 function languageTypedIn(languages: string[]): string | undefined {
-  const here = resolve(typedFrom);
+  const from = resolve(here);
   return languages.find(language => {
     const languageDir = resolve(root, loadArchitectureContract(root, language).language.root);
-    return here === languageDir || here.startsWith(`${languageDir}/`);
+    return from === languageDir || from.startsWith(`${languageDir}/`);
   });
 }
 /** A path as typed, made repository-relative. */
-const fromHere = (path: string) => relative(root, resolve(typedFrom, path)).split('\\').join('/');
+const fromHere = (path: string) => relative(root, resolve(here, path)).split('\\').join('/');
 
 const out = (value: unknown, text: () => string) => {
   process.stdout.write(json ? `${JSON.stringify(value, null, 2)}\n` : `${text()}\n`);
@@ -90,9 +93,49 @@ const fail = (code: string, message: string): never => {
 
 const list = (title: string, items: string[]) => (items.length ? `${title}:\n  ${items.join('\n  ')}` : '');
 
+let root = '';
+
+function create(): void {
+  const [directory] = rest;
+  if (!directory) return fail('usage', 'usage: yarn architecture create <dir> [--name <name>]');
+  const name = rest.includes('--name') ? rest[rest.indexOf('--name') + 1] : directory.split('/').filter(Boolean).pop();
+  let created;
+  try {
+    created = createApplication(resolve(here, directory), name ?? 'my-app', referenceSource(here));
+  } catch (error) {
+    return fail('cannot-create', error instanceof Error ? error.message : String(error));
+  }
+  return out({ schemaVersion: SUPPORTED_SCHEMA_VERSION, ...created }, () =>
+    [
+      `${created.name}: ${created.files} files in ${created.directory}`,
+      '',
+      `The building blocks, the shared kernel, the tooling and the contract — ${created.rules} rules,`,
+      `${created.concepts} concepts — and no business: src/Contexts is yours to fill.`,
+      '',
+      'Next:',
+      `  cd ${created.directory} && yarn install`,
+      '  yarn check:conventions && yarn test:units',
+      '  yarn architecture checklist context',
+    ].join('\n'),
+  );
+}
+
 async function main(): Promise<void> {
   let contract;
   try {
+    // `create` needs no repository: from an installed package it copies the reference it carries.
+    if (command === 'create') return create();
+    root = repositoryRoot(here);
+    if (command === 'check') {
+      const write = args.includes('--write');
+      const report = await checkConventions(root, write);
+      if (report.problems.length) {
+        if (json) process.stdout.write(`${JSON.stringify({ ok: false, problems: report.problems }, null, 2)}\n`);
+        else for (const message of report.problems) process.stderr.write(`✗ ${message}\n`);
+        process.exit(1);
+      }
+      return out({ ok: true, problems: [] }, () => report.summary);
+    }
     contract = loadArchitectureContract(root);
     const language = languageFlag ?? languageTypedIn(contract.languages);
     if (language && !contract.languages.includes(language)) {
@@ -385,32 +428,6 @@ async function main(): Promise<void> {
         );
       }
       return out({ ...inventory, schemaVersion }, () => describeInventory(inventory));
-    }
-    case 'create': {
-      const [directory] = rest;
-      if (!directory) return fail('usage', 'usage: yarn architecture create <dir> [--name <name>]');
-      const name = rest.includes('--name')
-        ? rest[rest.indexOf('--name') + 1]
-        : directory.split('/').filter(Boolean).pop();
-      let created;
-      try {
-        created = createApplication(resolve(typedFrom, directory), name ?? 'my-app');
-      } catch (error) {
-        return fail('cannot-create', error instanceof Error ? error.message : String(error));
-      }
-      return out({ schemaVersion, ...created }, () =>
-        [
-          `${created.name}: ${created.files} files in ${created.directory}`,
-          '',
-          `The building blocks, the shared kernel, the tooling and the contract — ${created.rules} rules,`,
-          `${created.concepts} concepts — and no business: src/Contexts is yours to fill.`,
-          '',
-          'Next:',
-          `  cd ${created.directory} && yarn install`,
-          '  yarn check:conventions && yarn test:units',
-          '  yarn architecture checklist context',
-        ].join('\n'),
-      );
     }
     case 'mode': {
       const mode = rest[0] as ModeName;

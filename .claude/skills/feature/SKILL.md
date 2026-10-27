@@ -9,9 +9,9 @@ This repository's architecture is data, not prose: `conventions/architecture.yam
 shared by every language), `conventions/concepts.yaml` (the vocabulary) and the binding of the
 language you are working in (`conventions/typescript.yaml`, `rust.yaml`, `python.yaml`, `go.yaml`) are the
 source of truth, and `yarn architecture` answers from them. **Ask it instead of guessing.** The
-tooling lives in `typescript/`: run it from the language's directory (`cd typescript`; from `rust/`
-`python/` or `go/`, `yarn --cwd ../typescript architecture …`, which then answers for that language, or
-`--language <id>` says which) and it prints paths from the repository root. Every command takes
+tooling is the root's (`yarn install` once there): `yarn architecture …` from the root or from
+`typescript/`; from `rust/`, `python/` or `go/`, `yarn --cwd .. architecture …`, which then answers for
+that language, or `--language <id>` says which; it prints paths from the repository root. Every command takes
 `--json` (a `schemaVersion`, a structured error, a non-zero exit on an unknown id), so the answers
 can be parsed.
 

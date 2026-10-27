@@ -1,9 +1,10 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'fs';
-import { dirname, join } from 'path';
+import { dirname, join, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { dump, load } from 'js-yaml';
 
 import { ArchitectureContract, Concept, Rule } from './types';
-import { loadArchitectureContract, repositoryRoot } from './load';
+import { loadArchitectureContract, repositoryRoot, typedFrom } from './load';
 import {
   END_MARKER,
   RULES_MARKER,
@@ -21,10 +22,12 @@ import {
  * The rule that keeps it honest: **it copies what exists and generates the rest from the
  * contract; it templates nothing.** A scaffolder that carried its own copy of the building
  * blocks, or its own wording of the rules, would drift from the reference within a month. So
- * the building blocks, the shared kernel, the tooling and the configuration are copied
- * verbatim from the repository it runs in, and the new README, CLAUDE.md and conventions are
- * rendered from the same contract that renders this repository's own — which is why the
- * generated project passes the same six checks on its first run.
+ * the building blocks, the shared kernel and the configuration are copied verbatim from the
+ * reference — the checkout this runs in, or the copy of it the published package carries, made
+ * at build time from the same files — and the new README, CLAUDE.md and conventions are
+ * rendered from the same contract that renders this repository's own. The tooling is not
+ * copied: the new application depends on this package (`clean-ddd`), which is why the
+ * generated project passes the same six checks on its first run and keeps up with the tool.
  *
  * What it does *not* give you is an application: there are no contexts, no composition root
  * and no routes, because those are the business, and copying someone else's business is how a
@@ -41,11 +44,8 @@ const COPY_VERBATIM = [
   'src/Architecture',
   'src/SharedKernel/Domain',
   'src/SharedKernel/Application/Guards.ts',
-  'tools/architecture-contract',
-  'tools/check-conventions.ts',
   'tsconfig.json',
   'tsconfig.test.json',
-  'tsconfig.tools.json',
   'jest.config.js',
   'eslint.config.js',
   '.prettierrc.json',
@@ -62,25 +62,19 @@ const COPY_FROM_ROOT = [
   '.editorconfig',
 ];
 
-/** Copied without their specs: those assert on this repository's own contract. */
-const WITHOUT_SPECS = ['tools/architecture-contract'];
+/** Scripts a new application starts with, copied from the reference: the checks, the formatting. No app to start yet. */
+const SCRIPTS = ['typecheck', 'test', 'test:units', 'test:e2e', 'lint', 'format', 'format:check'];
 
-/** Scripts a new application starts with: the checks, the contract, the formatting. No app to start yet. */
-const SCRIPTS = [
-  'typecheck',
-  'test',
-  'test:units',
-  'test:e2e',
-  'lint',
-  'check:conventions',
-  'conventions:write',
-  'architecture',
-  'format',
-  'format:check',
-];
+/** The tooling, as the scripts every guide names; the package answers them all. */
+const TOOL_SCRIPTS = {
+  'check:conventions': 'clean-ddd check',
+  'conventions:write': 'clean-ddd check --write',
+  architecture: 'clean-ddd',
+};
 
-/** Dependencies the building blocks and the tooling actually import. The rest is the reference's business. */
-const DEPENDENCIES = ['uuid'];
+/** Dependencies the building blocks actually import, and the copied configuration loads (jest.config.js reads dotenv, tsconfig imports tslib's helpers). The rest is the reference's business. */
+const DEPENDENCIES = ['uuid', 'dotenv', 'tslib'];
+/** What the specs, the linter (which reads the contract with js-yaml) and the formatter need. */
 const DEV_DEPENDENCIES = [
   '@jest/globals',
   '@types/jest',
@@ -91,10 +85,26 @@ const DEV_DEPENDENCIES = [
   'js-yaml',
   'prettier',
   'ts-jest',
-  'tsx',
   'typescript',
   'typescript-eslint',
 ];
+
+/**
+ * Where the reference is read from: the checkout the command was typed in, when it is one (a
+ * repository whose binding's root is a directory of its own), else the copy the published
+ * package carries beside this file, made at build time from the same files.
+ */
+export function referenceSource(from: string = typedFrom()): string {
+  try {
+    const checkout = repositoryRoot(from);
+    if (loadArchitectureContract(checkout).language.root !== '.') return checkout;
+  } catch {
+    // not typed inside a repository that holds the contract: the bundled reference, below
+  }
+  const bundled = resolve(dirname(fileURLToPath(import.meta.url)), 'reference');
+  if (existsSync(join(bundled, 'conventions/architecture.yaml'))) return bundled;
+  throw new Error('no reference to copy from: run this from a checkout of clean-ddd, or from the published package');
+}
 
 const exists = (root: string, path: string) => existsSync(join(root, path));
 
@@ -200,7 +210,7 @@ export interface CreatedApplication {
 export function createApplication(
   directory: string,
   name: string,
-  source: string = repositoryRoot(),
+  source: string = referenceSource(),
 ): CreatedApplication {
   if (existsSync(directory) && readdirSync(directory).length) {
     throw new Error(`${directory} is not empty; a new application is created in an empty directory`);
@@ -208,18 +218,15 @@ export function createApplication(
   const contract = loadArchitectureContract(source);
   const language = join(source, contract.language.root);
 
-  // 1. Copy the architecture, the shared kernel, the tooling and the configuration. The
-  //    building blocks come with their specs — they are the best description of what a
-  //    Result, an aggregate or a publish-after-commit does — but the tooling's stay behind:
-  //    they assert on this repository's contract (that Notes is a context, that the example
-  //    plan validates), so elsewhere they would fail while saying nothing about the project.
-  //    What the tools do for the new application is proved by `yarn check:conventions`,
-  //    which runs them against its own contract.
+  // 1. Copy the architecture, the shared kernel and the configuration. The building blocks come
+  //    with their specs — they are the best description of what a Result, an aggregate or a
+  //    publish-after-commit does. The tooling is not copied: the new application depends on this
+  //    package, and what the tools do for it is proved by `yarn check:conventions`, which runs
+  //    them against its own contract.
   const copy = (from: string, path: string) => {
     const to = join(directory, path);
     mkdirSync(dirname(to), { recursive: true });
-    const withoutSpecs = WITHOUT_SPECS.includes(path);
-    cpSync(join(from, path), to, { recursive: true, filter: file => !(withoutSpecs && file.endsWith('.spec.ts')) });
+    cpSync(join(from, path), to, { recursive: true });
   };
   for (const path of COPY_VERBATIM) copy(language, path);
   for (const path of COPY_FROM_ROOT) copy(source, path);
@@ -277,7 +284,7 @@ export function createApplication(
   writeFileSync(join(directory, 'CLAUDE.md'), claude(lean, name));
   mkdirSync(join(directory, 'docs/adr'), { recursive: true });
   writeFileSync(join(directory, 'docs/adr/README.md'), adrIndex());
-  writeFileSync(join(directory, 'package.json'), packageJson(language, name));
+  writeFileSync(join(directory, 'package.json'), packageJson(source, language, name));
   writeFileSync(join(directory, '.gitignore'), 'node_modules\ndist\ncoverage\n*.tsbuildinfo\n');
 
   return {
@@ -437,7 +444,7 @@ function readme(contract: ArchitectureContract, name: string): string {
     '                      integration events your contexts will publish.',
     'src/Contexts/         your bounded contexts. Empty: this is the part that is yours.',
     'conventions/          the architecture as data; the import rules are generated from it.',
-    'tools/                the contract API, its CLI and the conventions check.',
+    '                      The tooling that holds the code to it is the clean-ddd package (yarn architecture, yarn check:conventions).',
     '```',
     '',
     '## First steps',
@@ -537,13 +544,15 @@ const adrIndex = () =>
     '',
   ].join('\n');
 
-function packageJson(language: string, name: string): string {
+function packageJson(source: string, language: string, name: string): string {
   const reference = JSON.parse(readFileSync(join(language, 'package.json'), 'utf8')) as {
     scripts: Record<string, string>;
     dependencies: Record<string, string>;
     devDependencies: Record<string, string>;
     engines: unknown;
   };
+  // The tool itself, at the version that made this application: the root package of the reference.
+  const tool = JSON.parse(readFileSync(join(source, 'package.json'), 'utf8')) as { name: string; version: string };
   const pick = (from: Record<string, string>, keys: string[]) =>
     Object.fromEntries(keys.filter(key => from[key]).map(key => [key, from[key]]));
 
@@ -554,9 +563,9 @@ function packageJson(language: string, name: string): string {
       private: true,
       type: 'module',
       engines: reference.engines,
-      scripts: pick(reference.scripts, SCRIPTS),
+      scripts: { ...pick(reference.scripts, SCRIPTS), ...TOOL_SCRIPTS },
       dependencies: pick(reference.dependencies, DEPENDENCIES),
-      devDependencies: pick(reference.devDependencies, DEV_DEPENDENCIES),
+      devDependencies: { ...pick(reference.devDependencies, DEV_DEPENDENCIES), [tool.name]: `^${tool.version}` },
     },
     null,
     2,

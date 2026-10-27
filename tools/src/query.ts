@@ -1,7 +1,8 @@
+import { createRequire } from 'module';
 import { join } from 'path';
-import { ESLint } from 'eslint';
+import type { ESLint } from 'eslint';
 
-import { ArchitectureContract, Checklist, Concept, Rule, Verb } from './types';
+import { ArchitectureContract, Checklist, Concept, ContractError, Rule, Verb } from './types';
 import { repositoryRoot } from './load';
 
 /** The questions a person, a check or an agent asks the contract. Pure functions over the loaded data. */
@@ -40,6 +41,22 @@ export interface ImportVerdict {
 }
 
 /**
+ * The language's own ESLint, resolved from its directory: the rules it generates from the table
+ * are what the build runs, so the answer must come from that install, not from a copy this
+ * package would carry (ADR 23). A language with no linter there is told to install one.
+ */
+function linterOf(languageDir: string): typeof ESLint {
+  try {
+    return (createRequire(join(languageDir, 'package.json'))('eslint') as { ESLint: typeof ESLint }).ESLint;
+  } catch {
+    throw new ContractError(
+      `no ESLint under ${languageDir}: the import rules are asked of the language's own linter; install it there first`,
+      'malformed',
+    );
+  }
+}
+
+/**
  * Would a file at `file` (repository-relative) be allowed to import `specifier`? Asked of the
  * same ESLint configuration the build runs — the language's, found from its directory — on a
  * one-line synthetic module, so the answer is the enforcement's, not a re-implementation of it.
@@ -64,7 +81,7 @@ export async function canImportAll(
   contract: ArchitectureContract,
   root: string = repositoryRoot(),
 ): Promise<ImportVerdict[]> {
-  const eslint = new ESLint({ cwd: join(root, contract.language.root) });
+  const eslint = new (linterOf(join(root, contract.language.root)))({ cwd: join(root, contract.language.root) });
   return Promise.all(
     probes.map(async ([file, specifier]) => {
       const [result] = await eslint.lintText(`import { probe } from '${specifier}';\nexport const p = probe;\n`, {

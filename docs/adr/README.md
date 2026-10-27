@@ -26,5 +26,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0020](0020-the-event-storm-is-read-from-the-code.md) | The event storm is read from the code, and the documents show it |
 | [0021](0021-one-application-every-language-writes-the-same-inventory.md) | One application: every language's tool writes the same inventory, and the check holds them equal |
 | [0022](0022-the-storm-is-facilitated-and-the-code-is-held-to-it.md) | The storm is facilitated before the code, written as data, and the code is held to it |
+| [0023](0023-the-tooling-lives-at-the-root-and-ships-as-a-package.md) | The tooling lives at the root and ships as a package: one `clean-ddd` for every language and any repository |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

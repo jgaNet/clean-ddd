@@ -1,0 +1,66 @@
+name: publish
+
+# Publishes the tooling (the root package, `clean-ddd`) to npm when a version tag is pushed.
+# The tag must be the version in package.json (`v0.1.0` for `0.1.0`), which is what
+# `yarn version --new-version <x.y.z>` writes and tags in one move. Two ways to be allowed to
+# publish, tried in this order: a granular npm token in the NPM_TOKEN secret, or npm's trusted
+# publishing (OpenID Connect, no secret) once this workflow is registered on npmjs.com as the
+# package's trusted publisher. Both publish with provenance. tools/README.md says how to set up.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  HAS_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: The tag is the version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          test "${GITHUB_REF_NAME}" = "v${version}" || { echo "tag ${GITHUB_REF_NAME} is not v${version}"; exit 1; }
+
+      - name: Install
+        run: yarn install --frozen-lockfile
+
+      - name: Install the TypeScript language (its ESLint answers the import probes)
+        run: yarn install --frozen-lockfile
+        working-directory: typescript
+
+      - name: Build and test
+        run: |
+          yarn check:conventions
+          yarn typecheck
+          yarn lint
+          yarn test
+          yarn build
+
+      - name: Publish with a token
+        if: ${{ env.HAS_TOKEN == 'true' }}
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+          npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish with trusted publishing
+        if: ${{ env.HAS_TOKEN != 'true' }}
+        run: npm publish --provenance --access public

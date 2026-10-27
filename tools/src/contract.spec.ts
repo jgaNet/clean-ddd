@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-import { ContractError, loadArchitectureContract, validateContract, repositoryRoot, languageRoot } from './index';
+import { ContractError, loadArchitectureContract, validateContract, repositoryRoot } from './index';
 import { getChecklist, getConcept, getRule, getVerbs, listConcepts, listRules, rulesOf } from './query';
 
 const root = repositoryRoot();
@@ -54,9 +54,11 @@ describe('the architecture contract', () => {
     expect(listConcepts(contract).length).toBeGreaterThan(30);
   });
 
-  it('finds the repository root above the language root, where the contract lives', () => {
-    expect(join(root, contract.language.root)).toBe(languageRoot());
-    expect(root).not.toBe(languageRoot());
+  it('finds the repository root from where the command is typed, and the language under it', () => {
+    expect(repositoryRoot(join(root, 'typescript/src/Contexts'))).toBe(root);
+    expect(repositoryRoot(join(root, 'rust'))).toBe(root);
+    expect(join(root, contract.language.root)).toBe(join(root, 'typescript'));
+    expect(() => repositoryRoot('/')).toThrow('conventions/architecture.yaml not found');
   });
 
   it('speaks repository-relative paths, whichever file they came from', () => {
@@ -71,7 +73,7 @@ describe('the architecture contract', () => {
       '](typescript/src/Contexts/Notes/Domain/Note/Note.ts)',
     );
     expect(contract.modes.feature.protected).toEqual(
-      expect.arrayContaining(['conventions', 'docs/adr', 'typescript/src/Architecture', 'typescript/tools']),
+      expect.arrayContaining(['conventions', 'docs/adr', 'tools', 'typescript/src/Architecture']),
     );
   });
 
@@ -152,7 +154,7 @@ describe('the architecture contract', () => {
       undefined,
       MINIMAL_BINDING.replace(/enforcers:.*\n/, 'enforcers: { linter: l }\n'),
     );
-    const problems = validateContract(loadArchitectureContract(dir), dir);
+    const problems = validateContract(loadArchitectureContract(dir, 'typescript'), dir);
     expect(problems).toEqual(
       expect.arrayContaining([
         expect.stringContaining('the language typescript is not in "languages"'),

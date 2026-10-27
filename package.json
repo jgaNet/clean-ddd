@@ -1,0 +1,68 @@
+{
+  "name": "clean-ddd",
+  "version": "0.1.0",
+  "description": "The architecture of the clean-ddd reference, as a tool: ask the contract, hold a tree to it, read the domain, the event storm and the inventory from the code, create an application on it.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jgaNet/clean-ddd.git"
+  },
+  "homepage": "https://github.com/jgaNet/clean-ddd#readme",
+  "bugs": "https://github.com/jgaNet/clean-ddd/issues",
+  "keywords": [
+    "clean-architecture",
+    "domain-driven-design",
+    "ddd",
+    "architecture",
+    "event-storming",
+    "bounded-context",
+    "conventions",
+    "linter"
+  ],
+  "type": "module",
+  "bin": {
+    "clean-ddd": "tools/dist/cli.js"
+  },
+  "main": "tools/dist/index.js",
+  "types": "tools/dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./tools/dist/index.d.ts",
+      "default": "./tools/dist/index.js"
+    }
+  },
+  "files": [
+    "tools/dist",
+    "tools/README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "architecture": "tsx tools/src/cli.ts",
+    "check:conventions": "tsx tools/src/cli.ts check",
+    "conventions:write": "tsx tools/src/cli.ts check --write",
+    "build": "node tools/build.mjs",
+    "typecheck": "tsc -p tools/tsconfig.json",
+    "lint": "eslint tools",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
+    "format": "prettier \"tools/**/*.{ts,mjs}\" \"*.{js,mjs}\" --write",
+    "format:check": "prettier \"tools/**/*.{ts,mjs}\" \"*.{js,mjs}\" --check",
+    "prepack": "yarn build"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.5.2",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24",
+    "cross-env": "^10.1.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.11.0",
+    "jest": "^30.5.2",
+    "js-yaml": "^5.4.2",
+    "prettier": "^3.9.9",
+    "ts-jest": "^29.4.14",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9",
+    "typescript-eslint": "^8.71.0"
+  }
+}

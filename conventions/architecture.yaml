@@ -8,7 +8,7 @@
 #   - the import rules of the language (ESLint in TypeScript) are generated from `layers`;
 #   - the conventions check of the language proves the tree has the shape `layers` describe, and
 #     that this file and the binding are well-formed (unique ids, existing references);
-#   - `yarn architecture rule <id>` (TypeScript) explains any rule, for a human or a tool (`--json`).
+#   - `yarn architecture rule <id>` (the tooling at the root) explains any rule, for a human or a tool (`--json`).
 #
 # Read the layers as: "a file in layer X of context C may import from ...". Anything not listed
 # is forbidden. The words:
@@ -108,7 +108,7 @@ layers:
 # architecture mode allows them and asks for the decision that explains them. Nothing here is a
 # CI gate: the maintainer changes the architecture on purpose, and the check is for whoever has
 # agreed to work under a constraint. What is protected here is what every language shares — the
-# contract and the decisions; each binding adds its building blocks, its shared kernel and its tools.
+# contract, the decisions and the tooling at the root; each binding adds its building blocks, its shared kernel and its linter.
 modes:
   feature:
     why: >-
@@ -116,7 +116,8 @@ modes:
       blocks, the shared kernel's model, the conventions and the decisions are immutable; if the
       work seems to need one of them changed, that is the finding, and it becomes an
       architecture change with its own reasoning.
-    protected: [conventions, docs/adr]
+    # The tooling at the root holds every language to this file; a feature does not change it.
+    protected: [conventions, docs/adr, tools]
     # A feature may bring its plan, and the storm the session decided it would be.
     allowed: [conventions/plans, conventions/storms]
   architecture:

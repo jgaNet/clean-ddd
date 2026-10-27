@@ -8,7 +8,7 @@
 # It declares what the code cannot say — the kind of a subdomain, the pattern of a relationship,
 # the reason — and nothing the code already says: the contracts a relationship carries (which
 # integration events, which port) are read from the code and rendered next to it, never written
-# here. `yarn check:conventions` (TypeScript) holds the map to the code both ways: a relationship
+# here. `yarn check:conventions` (the tooling at the root) holds the map to the code both ways: a relationship
 # declared here that nothing in the code carries fails, and a link in the code between two
 # contexts that no relationship here declares fails (CTX-MAP-DECLARED). The decision is
 # docs/adr/0019-the-domain-is-data.md.

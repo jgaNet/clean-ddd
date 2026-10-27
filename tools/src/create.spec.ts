@@ -2,7 +2,14 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-import { createApplication, loadArchitectureContract, repositoryRoot, shown, validateContract } from './index';
+import {
+  createApplication,
+  loadArchitectureContract,
+  referenceSource,
+  repositoryRoot,
+  shown,
+  validateContract,
+} from './index';
 
 /**
  * What `yarn architecture create` promises: an application with this repository's architecture
@@ -21,6 +28,7 @@ const reference = loadArchitectureContract(root);
 describe('yarn architecture create', () => {
   const directory = mkdtempSync(join(tmpdir(), 'created-'));
   const created = createApplication(directory, 'my-app', root);
+  expect(referenceSource(root)).toBe(root);
   const generated = loadArchitectureContract(directory);
   const read = (path: string) => readFileSync(join(directory, path), 'utf8');
 
@@ -31,8 +39,6 @@ describe('yarn architecture create', () => {
       'src/Architecture/Domain/AggregateRoot.ts',
       'src/Architecture/Application/CommandHandler.ts',
       'src/SharedKernel/Domain/Email.ts',
-      'tools/architecture-contract/cli.ts',
-      'tools/check-conventions.ts',
       'eslint.config.js',
       'jest.config.js',
       'tsconfig.json',
@@ -51,12 +57,19 @@ describe('yarn architecture create', () => {
     expect(created.files).toBeGreaterThan(50);
   });
 
-  it('keeps the building blocks’ specs, which describe them, and leaves the tooling’s behind', () => {
-    // The tooling's specs assert on this repository's contract; elsewhere they would fail
-    // while saying nothing about the project.
+  it('keeps the building blocks’ specs, which describe them, and depends on the tool instead of copying it', () => {
     expect(existsSync(join(directory, 'src/Architecture/Application/CommandHandler.spec.ts'))).toBe(true);
-    expect(existsSync(join(directory, 'tools/architecture-contract/create.spec.ts'))).toBe(false);
-    expect(readdirSync(join(directory, 'tools/architecture-contract')).some(f => f.endsWith('.spec.ts'))).toBe(false);
+    expect(existsSync(join(directory, 'tools'))).toBe(false);
+    const pkg = JSON.parse(read('package.json'));
+    expect(pkg.scripts).toMatchObject({
+      architecture: 'clean-ddd',
+      'check:conventions': 'clean-ddd check',
+      'conventions:write': 'clean-ddd check --write',
+    });
+    expect(pkg.devDependencies['clean-ddd']).toMatch(/^\^\d+\.\d+\.\d+/);
+    expect(pkg.devDependencies.tsx).toBeUndefined();
+    // jest.config.js, copied verbatim, loads dotenv; the helpers tsconfig asks for come from tslib.
+    expect(Object.keys(pkg.dependencies)).toEqual(['uuid', 'dotenv', 'tslib']);
   });
 
   it('gives no business: no context, no composition root, no route', () => {
