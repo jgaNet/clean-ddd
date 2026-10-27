@@ -21,6 +21,8 @@ Where each sticky comes from:
 
 From a terminal: `yarn --cwd typescript architecture storm` (`storm Notes` for one lane; `--markdown`, `--svg`, `--json`).
 
+The same reading in the words every language shares is the [inventory](inventory/README.md), which each language's tool writes from its own tree and the check holds equal across the four ([ADR 21](adr/0021-one-application-every-language-writes-the-same-inventory.md)).
+
 <!-- generated from the code (event storm); run yarn conventions:write -->
 Read from the TypeScript tree. Colours are the ones a wall would have: actors in pale yellow, commands in blue, aggregates in yellow, domain events in orange, integration events in dark orange, policies in purple, read models in green, external systems in pink.
 

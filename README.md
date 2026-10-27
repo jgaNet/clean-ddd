@@ -127,7 +127,7 @@ flowchart LR
 | Shared kernel | `sharedKernel` of [`domain.yaml`](conventions/domain.yaml) | what every context agrees on and changes together: vocabulary, not mechanics; declared once, not as a relationship between pairs |
 <!-- end generated -->
 
-What happens inside each context — who may ask for what, which command reaches which aggregate, which fact that records, who reacts — is the **event storm**, read from the code rather than drawn by hand: [`docs/event-storm.md`](docs/event-storm.md), with the board as one picture ([ADR 20](docs/adr/0020-the-event-storm-is-read-from-the-code.md)); `yarn architecture storm` from a terminal.
+What happens inside each context — who may ask for what, which command reaches which aggregate, which fact that records, who reacts — is the **event storm**, read from the code rather than drawn by hand: [`docs/event-storm.md`](docs/event-storm.md), with the board as one picture ([ADR 20](docs/adr/0020-the-event-storm-is-read-from-the-code.md)); `yarn architecture storm` from a terminal. The same reading, in words every language shares, is the **inventory** each language's tool writes from its own tree ([`docs/inventory/`](docs/inventory/README.md)): the check holds the four equal, so the languages are one application from the inside as the scenario makes them one API from the outside (ARCH-ONE-APPLICATION, [ADR 21](docs/adr/0021-one-application-every-language-writes-the-same-inventory.md)).
 
 ## The languages
 
@@ -253,6 +253,7 @@ conventions/                the architecture as data: architecture.yaml (the con
                             one binding per language (typescript.yaml, rust.yaml, python.yaml, go.yaml), plans/ (feature plans)
 docs/adr/                   the decisions, shared by every language
 docs/event-storm.md         the event storm, read from the code and rendered (with the board, event-storm.svg)
+docs/inventory/             what each language's tree says the application is, one JSON per language, held equal by the check
 docs/evaluations/           can a newcomer add a feature from the documentation alone? Protocol and records
 typescript/                 the TypeScript implementation: its code, its toolchain, its README and CLAUDE.md
 rust/                       the Rust implementation: the same application, a crate per layer, its check, its README and CLAUDE.md

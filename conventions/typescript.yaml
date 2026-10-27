@@ -91,6 +91,8 @@ rules:
     references: [tools/check-conventions.ts]
   CTX-MAP-DECLARED:
     references: [tools/architecture-contract/domain.ts]
+  ARCH-ONE-APPLICATION:
+    references: [tools/architecture-contract/inventory.ts]
 
 # The routes file that shows each verb of the HTTP table, by intent.
 verbs:

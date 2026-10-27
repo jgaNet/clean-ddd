@@ -13,3 +13,4 @@ export * from './create';
 export * from './probes';
 export * from './domain';
 export * from './storm';
+export * from './inventory';

@@ -18,6 +18,8 @@
  *   yarn architecture domain                  the subdomains and the context map, its contracts read from the code
  *   yarn architecture context <id>            one bounded context: purpose, language, what it depends on and who depends on it
  *   yarn architecture storm [<context>]       the event storm read from the code (--markdown, --svg for the board, --json)
+ *   yarn architecture inventory [<language>]  what the tree says the application is, in words every language shares;
+ *                                             with a language, where that language's committed inventory differs
  *   yarn architecture rules | concepts | verbs | checklists   the lists
  *
  * Every command takes --json: valid JSON only on stdout, nothing decorative, exit 1 on an
@@ -42,6 +44,7 @@ import { explainPlan, loadFeaturePlan, validatePlan } from './plan';
 import { changedFiles, checkMode } from './modes';
 import { DOMAIN_FILE, describeContext, describeDomain, inspectContextLinks, loadDomainMap } from './domain';
 import { describeEventStorm, inspectEventStorm, renderEventStorm, renderEventStormSvg, renderProcess } from './storm';
+import { compareInventories, describeInventory, inspectInventory, loadInventories } from './inventory';
 import { createApplication } from './create';
 import type { ModeName } from './types';
 
@@ -309,6 +312,21 @@ async function main(): Promise<void> {
       return out({ schemaVersion, ...storm }, () =>
         args.includes('--markdown') ? renderEventStorm(storm) : describeEventStorm(storm),
       );
+    }
+    case 'inventory': {
+      const inventory = inspectInventory(contract, root);
+      const [other] = rest;
+      if (other) {
+        const committed = loadInventories(root).get(other);
+        if (!committed) {
+          return fail('unknown-language', `No committed inventory for "${other}" under docs/inventory`);
+        }
+        const problems = compareInventories(inventory, committed);
+        return out({ schemaVersion, reference: inventory.language, other, problems }, () =>
+          problems.length ? problems.join('\n') : `${other}: the same application as ${inventory.language}`,
+        );
+      }
+      return out({ ...inventory, schemaVersion }, () => describeInventory(inventory));
     }
     case 'create': {
       const [directory] = rest;

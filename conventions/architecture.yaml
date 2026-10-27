@@ -367,3 +367,11 @@ rules:
     remediation: Add the relationship to `relationships` in the domain map with its pattern and its reason — or remove the link in the code, if the coupling was not meant; never widen the check.
     enforcement: check
     references: [docs/adr/0019-the-domain-is-data.md, conventions/README.md]
+
+  - id: ARCH-ONE-APPLICATION
+    name: every-language-is-the-same-application
+    statement: Every language's tree says the same application, in words every language shares — the commands of each context with who may call them, their route, the aggregate they reach and the events it records; the queries; the domain events; the policies and what they publish or reach; the links between contexts; each language's tool writes that inventory from its own tree, and the check holds the inventories equal.
+    why: The scenario holds the servers to one API from the outside; the inventory holds the trees to one model from the inside. A command one language has and another lacks, or a policy that reaches different facts, is one application in three languages and something else in the fourth, and nothing a client sees would say so.
+    remediation: Fix the tree that differs, never the inventory — a missing command, a route that differs, a policy that reaches other events is a divergence to close in the code; then regenerate the inventory with the language's tool and commit it.
+    enforcement: check
+    references: [docs/adr/0021-one-application-every-language-writes-the-same-inventory.md, conventions/README.md]
