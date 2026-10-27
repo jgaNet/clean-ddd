@@ -1,0 +1,63 @@
+# An expected storm: what an event-storming session decided a feature adds, in the words of the
+# inventory (so one file is true for every language), written before the code and held to it
+# after (`yarn architecture storm validate <file>`, `storm --expect <file>`; the conventions check
+# holds every file here). It is a delta — what the feature brings — not the whole board; it
+# generates no code and is not a source of truth: the code is, and this is what the code is
+# compared to. `done: true` once the code carries it; the hot spots are the questions the session
+# left open, each with how it was decided.
+#
+# This one is the canonical example, already carried: sharing a note, from the owner's command
+# to the recipient's notification across the context boundary.
+
+schemaVersion: 1
+
+feature: share-a-note
+intent: >-
+  The owner of a note shares it with another account, which can then read it, and the people a
+  note is shared with are told about it.
+
+done: true
+
+hotSpots:
+  - question: Can a note be shared with an account that does not exist?
+    decision: No — Notes asks Security through a port it owns (AccountDirectory) and refuses; the rule is a domain service, since it needs the port.
+  - question: Who tells the recipient, and how?
+    decision: Notifications, from the published fact; Notes knows nothing of channels.
+
+contexts:
+  - id: Notes
+    commands:
+      - name: ShareNote
+        actor: a signed-in account
+        route: POST /notes/{param}/share
+        aggregate: Note
+        events: [NoteShared]
+    queries:
+      - name: GetNotesSharedWithMe
+        actor: a signed-in account
+        route: GET /notes/shared
+    events: [NoteShared]
+    policies:
+      - on: NoteShared
+        kind: domain-event
+        publishes: [NoteShared]
+        events: []
+  - id: Notifications
+    commands: []
+    queries: []
+    events: []
+    policies:
+      - on: NoteShared
+        kind: integration-event
+        publishes: []
+        events: [NotificationFailed, NotificationSent]
+
+links:
+  - mechanism: integration-event
+    upstream: Notes
+    downstream: Notifications
+    contracts: [NoteShared]
+  - mechanism: owned-port
+    upstream: Security
+    downstream: Notes
+    contracts: [AccountDirectory]

@@ -21,7 +21,7 @@ Where each sticky comes from:
 
 From a terminal: `yarn --cwd typescript architecture storm` (`storm Notes` for one lane; `--markdown`, `--svg`, `--json`).
 
-The same reading in the words every language shares is the [inventory](inventory/README.md), which each language's tool writes from its own tree and the check holds equal across the four ([ADR 21](adr/0021-one-application-every-language-writes-the-same-inventory.md)).
+The same reading in the words every language shares is the [inventory](inventory/README.md), which each language's tool writes from its own tree and the check holds equal across the four ([ADR 21](adr/0021-one-application-every-language-writes-the-same-inventory.md)). The storm also runs forwards: what a facilitated session decides a feature will add is an [expected storm](../conventions/storms/pin-a-note.yaml), and `yarn --cwd typescript architecture storm --expect <file>` says what the code still owes it ([ADR 22](adr/0022-the-storm-is-facilitated-and-the-code-is-held-to-it.md)).
 
 <!-- generated from the code (event storm); run yarn conventions:write -->
 Read from the TypeScript tree. Colours are the ones a wall would have: actors in pale yellow, commands in blue, aggregates in yellow, domain events in orange, integration events in dark orange, policies in purple, read models in green, external systems in pink.
@@ -80,6 +80,7 @@ flowchart LR
   classDef policy fill:#d4b3ff,stroke:#333,color:#111
   classDef readmodel fill:#b6f0b6,stroke:#333,color:#111
   classDef external fill:#ffb3d9,stroke:#333,color:#111
+  classDef planned stroke-dasharray: 6 4,stroke-width:2px
 ```
 
 ### Notes
@@ -141,6 +142,7 @@ flowchart LR
   classDef policy fill:#d4b3ff,stroke:#333,color:#111
   classDef readmodel fill:#b6f0b6,stroke:#333,color:#111
   classDef external fill:#ffb3d9,stroke:#333,color:#111
+  classDef planned stroke-dasharray: 6 4,stroke-width:2px
 ```
 
 | Actor | Command | Route | Aggregate · behaviour | Events | Needs |
@@ -217,6 +219,7 @@ flowchart LR
   classDef policy fill:#d4b3ff,stroke:#333,color:#111
   classDef readmodel fill:#b6f0b6,stroke:#333,color:#111
   classDef external fill:#ffb3d9,stroke:#333,color:#111
+  classDef planned stroke-dasharray: 6 4,stroke-width:2px
 ```
 
 | Actor | Command | Route | Aggregate · behaviour | Events | Needs |
@@ -300,6 +303,7 @@ flowchart LR
   classDef policy fill:#d4b3ff,stroke:#333,color:#111
   classDef readmodel fill:#b6f0b6,stroke:#333,color:#111
   classDef external fill:#ffb3d9,stroke:#333,color:#111
+  classDef planned stroke-dasharray: 6 4,stroke-width:2px
 ```
 
 | Actor | Command | Route | Aggregate · behaviour | Events | Needs |
@@ -348,6 +352,7 @@ flowchart LR
   classDef policy fill:#d4b3ff,stroke:#333,color:#111
   classDef readmodel fill:#b6f0b6,stroke:#333,color:#111
   classDef external fill:#ffb3d9,stroke:#333,color:#111
+  classDef planned stroke-dasharray: 6 4,stroke-width:2px
 ```
 
 | On | Policy | Does |

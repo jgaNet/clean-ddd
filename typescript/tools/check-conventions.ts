@@ -25,6 +25,8 @@
  *    its markers and the docs/event-storm.svg board, when the repository has them.
  * 10. One application: this language's inventory under docs/inventory is what its tree says, and every
  *    other language's committed inventory says the same (ARCH-ONE-APPLICATION).
+ * 11. Every expected storm under conventions/storms is legal against the contract and the map, and the
+ *    code carries the ones marked done and not yet the others.
  *
  * A client of tools/architecture-contract, like the CLI; it parses no YAML itself. Two roots: the
  * repository's, where the contract and the shared documents live, and this language's, where the
@@ -71,6 +73,10 @@ import {
   inspectInventory,
   loadInventories,
   serializeInventory,
+  STORMS_DIR,
+  checkExpectedStorm,
+  loadExpectedStorm,
+  validateExpectedStorm,
 } from './architecture-contract';
 import type { ArchitectureContract } from './architecture-contract';
 
@@ -253,6 +259,23 @@ if (multi) {
   for (const [language, other] of inventories) {
     if (language === contract.language.id) continue;
     for (const difference of compareInventories(inventory, other)) problem(`ARCH-ONE-APPLICATION: ${difference}`);
+  }
+}
+
+// 11. Every expected storm is legal, and the code carries it or not as it says
+
+const stormsDir = join(root, STORMS_DIR);
+if (existsSync(stormsDir)) {
+  const actualInventory = inspectInventory(contract, root);
+  for (const entry of readdirSync(stormsDir).filter(name => name.endsWith('.yaml'))) {
+    const file = `${STORMS_DIR}/${entry}`;
+    try {
+      const expected = loadExpectedStorm(file, root);
+      for (const wrong of validateExpectedStorm(expected, contract, actualInventory, root)) problem(wrong);
+      for (const wrong of checkExpectedStorm(expected, actualInventory)) problem(wrong);
+    } catch (error) {
+      problem(`${file}: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 }
 

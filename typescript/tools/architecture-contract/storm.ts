@@ -43,6 +43,8 @@ export interface StormEvent {
   recordedBy: string[];
   /** The policies subscribed to it, by handler name. */
   policies: string[];
+  /** Laid over the board by an expected storm, not read from the code yet. */
+  expected?: boolean;
 }
 
 export interface StormCommand {
@@ -62,6 +64,8 @@ export interface StormCommand {
   services: string[];
   /** The external systems it needs: ports that are neither a repository nor a queries port. */
   uses: string[];
+  /** Laid over the board by an expected storm, not read from the code yet. */
+  expected?: boolean;
 }
 
 export interface StormPolicy {
@@ -76,6 +80,8 @@ export interface StormPolicy {
   events: string[];
   services: string[];
   uses: string[];
+  /** Laid over the board by an expected storm, not read from the code yet. */
+  expected?: boolean;
 }
 
 export interface StormReadModel {
@@ -86,6 +92,8 @@ export interface StormReadModel {
   model: string;
   actor: Actor;
   route?: string;
+  /** Laid over the board by an expected storm, not read from the code yet. */
+  expected?: boolean;
 }
 
 export interface StormExternal {
@@ -483,7 +491,13 @@ const externalLabel = (context: StormContext, name: string) => {
 
 const classDefs = [
   ...(Object.keys(COLOURS) as Kind[]).map(kind => `  classDef ${kind} fill:${COLOURS[kind]},stroke:#333,color:#111`),
+  // A sticky an expected storm lays over the board, not read from the code yet: dashed.
+  '  classDef planned stroke-dasharray: 6 4,stroke-width:2px',
 ].join('\n');
+
+/** The names of the events an expected storm brings to a context, not yet in the code. */
+const plannedEvents = (context: StormContext) =>
+  new Set(context.events.filter(event => event.expected).map(event => event.name));
 
 /** The big picture: the domain events of each context in a lane, and the integration events that pivot between lanes. */
 export function renderBigPicture(storm: EventStorm): string {
@@ -495,7 +509,11 @@ export function renderBigPicture(storm: EventStorm): string {
       ...context.policies.flatMap(policy => policy.events),
       ...context.events.map(event => event.name),
     ]);
-    for (const name of ordered) lines.push(`    e_${id(context.id)}_${id(name)}["${name}"]:::event`);
+    const planned = plannedEvents(context);
+    for (const name of ordered) {
+      lines.push(`    e_${id(context.id)}_${id(name)}["${name}"]:::event`);
+      if (planned.has(name)) lines.push(`    class e_${id(context.id)}_${id(name)} planned`);
+    }
     if (!ordered.length) lines.push(`    e_${id(context.id)}_none["(no domain event: a projection)"]:::readmodel`);
     lines.push('  end');
   }
@@ -529,12 +547,15 @@ export function renderBigPicture(storm: EventStorm): string {
 export function renderProcess(context: StormContext, storm: EventStorm): string {
   const lines = ['```mermaid', 'flowchart LR'];
   const nodes = new Set<string>();
-  const node = (key: string, label: string, kind: Kind, shape: [string, string] = ['["', '"]']) => {
+  const planned = plannedEvents(context);
+  const node = (key: string, label: string, kind: Kind, shape: [string, string] = ['["', '"]'], expected = false) => {
     if (nodes.has(key)) return key;
     nodes.add(key);
     lines.push(`  ${key}${shape[0]}${label}${shape[1]}:::${kind}`);
+    if (expected) lines.push(`  class ${key} planned`);
     return key;
   };
+  const eventNode = (event: string) => node(`e_${c}_${id(event)}`, event, 'event', ['["', '"]'], planned.has(event));
   const edge = (from: string, to: string, label = '', dotted = false) => {
     const arrow = dotted ? (label ? `-. "${label}" .->` : '-.->') : label ? `-- "${label}" -->` : '-->';
     lines.push(`  ${from} ${arrow} ${to}`);
@@ -547,6 +568,8 @@ export function renderProcess(context: StormContext, storm: EventStorm): string 
       `c_${c}_${id(command.name)}`,
       command.route ? `${command.name}<br/>${command.route}` : command.name,
       'command',
+      ['["', '"]'],
+      command.expected,
     );
     edge(actor, cmd);
     let last = cmd;
@@ -555,18 +578,18 @@ export function renderProcess(context: StormContext, storm: EventStorm): string 
       edge(cmd, aggregate, command.behaviours.map(each => each.split('.')[1]).join(', '));
       last = aggregate;
     }
-    for (const event of command.events) edge(last, node(`e_${c}_${id(event)}`, event, 'event'));
+    for (const event of command.events) edge(last, eventNode(event));
     for (const external of command.uses)
       edge(cmd, node(`x_${c}_${id(external)}`, externalLabel(context, external), 'external'), '', true);
   }
   for (const policy of context.policies) {
     const trigger =
       policy.on.kind === 'domain-event'
-        ? node(`e_${c}_${id(policy.on.event)}`, policy.on.event, 'event')
+        ? eventNode(policy.on.event)
         : policy.on.kind === 'integration-event'
           ? node(`ie_${id(policy.on.event)}`, policy.on.event, 'integration', ['{{"', '"}}'])
           : node(`op_${c}`, policy.on.event, 'event');
-    const pol = node(`p_${c}_${id(policy.name)}`, policy.name, 'policy');
+    const pol = node(`p_${c}_${id(policy.name)}`, policy.name, 'policy', ['["', '"]'], policy.expected);
     edge(trigger, pol);
     for (const name of policy.publishes) edge(pol, node(`ie_${id(name)}`, name, 'integration', ['{{"', '"}}']));
     for (const name of policy.dispatches) edge(pol, node(`c_${c}_${id(name)}`, name, 'command'));
@@ -576,7 +599,7 @@ export function renderProcess(context: StormContext, storm: EventStorm): string 
       last = node(`ag_${c}_${id(aggregate)}`, aggregate, 'aggregate');
       edge(pol, last, policy.behaviours.map(each => each.split('.')[1]).join(', '));
     }
-    for (const event of policy.events) edge(last, node(`e_${c}_${id(event)}`, event, 'event'));
+    for (const event of policy.events) edge(last, eventNode(event));
     for (const external of policy.uses)
       edge(pol, node(`x_${c}_${id(external)}`, externalLabel(context, external), 'external'), '', true);
   }
@@ -586,6 +609,8 @@ export function renderProcess(context: StormContext, storm: EventStorm): string 
       `rm_${c}_${id(readModel.name)}`,
       `${readModel.name}${readModel.model ? `<br/>${readModel.model}` : ''}${readModel.route ? `<br/>${readModel.route}` : ''}`,
       'readmodel',
+      ['["', '"]'],
+      readModel.expected,
     );
     edge(actor, rm);
   }
@@ -616,7 +641,7 @@ export function renderEventStorm(storm: EventStorm): string {
           ['Actor', 'Command', 'Route', 'Aggregate · behaviour', 'Events', 'Needs'],
           context.commands.map(command => [
             command.actor,
-            `\`${command.name}\``,
+            `\`${command.name}\`${command.expected ? ' *(planned)*' : ''}`,
             command.route ? `\`${command.route}\`` : '—',
             command.behaviours.length ? code(command.behaviours) : command.aggregate ? `\`${command.aggregate}\`` : '—',
             code(command.events),
@@ -638,7 +663,7 @@ export function renderEventStorm(storm: EventStorm): string {
               : policy.on.kind === 'every-operation'
                 ? policy.on.event
                 : `\`${policy.on.event}\``,
-            `\`${policy.name}\``,
+            `\`${policy.name}\`${policy.expected ? ' *(planned)*' : ''}`,
             [
               ...policy.publishes.map(name => `publishes \`${name}\``),
               ...policy.dispatches.map(name => `dispatches \`${name}\``),
@@ -695,15 +720,31 @@ export function renderEventStormSvg(storm: EventStorm): string {
   const GX = 212;
   const GY = 88;
   const LEFT = 40;
-  type Sticky = { col: number; kind: Kind; title: string; subtitle?: string; arrow?: boolean; dotted?: boolean };
+  type Sticky = {
+    col: number;
+    kind: Kind;
+    title: string;
+    subtitle?: string;
+    arrow?: boolean;
+    dotted?: boolean;
+    planned?: boolean;
+  };
   type Row = Sticky[];
   const lanes: { title: string; rows: Row[] }[] = [];
   for (const context of storm.contexts) {
     const rows: Row[] = [];
+    const planned = plannedEvents(context);
     for (const command of context.commands) {
       const row: Row = [
         { col: 0, kind: 'actor', title: command.actor },
-        { col: 1, kind: 'command', title: command.name, subtitle: command.route, arrow: true },
+        {
+          col: 1,
+          kind: 'command',
+          title: command.name,
+          subtitle: command.route,
+          arrow: true,
+          planned: command.expected,
+        },
       ];
       let col = 2;
       if (command.aggregate)
@@ -714,7 +755,9 @@ export function renderEventStormSvg(storm: EventStorm): string {
           subtitle: command.behaviours.map(each => each.split('.')[1]).join(', '),
           arrow: true,
         });
-      for (const event of command.events) row.push({ col: col++, kind: 'event', title: event, arrow: true });
+      for (const event of command.events) {
+        row.push({ col: col++, kind: 'event', title: event, arrow: true, planned: planned.has(event) });
+      }
       for (const use of command.uses)
         row.push({ col: col++, kind: 'external', title: externalLabel(context, use), dotted: true });
       rows.push(row);
@@ -726,7 +769,7 @@ export function renderEventStormSvg(storm: EventStorm): string {
           : policy.on.kind === 'every-operation'
             ? { col: 0, kind: 'event', title: 'every operation' }
             : { col: 0, kind: 'event', title: policy.on.event },
-        { col: 1, kind: 'policy', title: policy.name, arrow: true },
+        { col: 1, kind: 'policy', title: policy.name, arrow: true, planned: policy.expected },
       ];
       let col = 2;
       const aggregate = policy.behaviours[0]?.split('.')[0];
@@ -738,7 +781,9 @@ export function renderEventStormSvg(storm: EventStorm): string {
           subtitle: policy.behaviours.map(each => each.split('.')[1]).join(', '),
           arrow: true,
         });
-      for (const event of policy.events) row.push({ col: col++, kind: 'event', title: event, arrow: true });
+      for (const event of policy.events) {
+        row.push({ col: col++, kind: 'event', title: event, arrow: true, planned: planned.has(event) });
+      }
       for (const name of policy.publishes)
         row.push({ col: col++, kind: 'integration', title: name, subtitle: 'published', arrow: true });
       for (const name of policy.dispatches)
@@ -750,7 +795,14 @@ export function renderEventStormSvg(storm: EventStorm): string {
     for (const readModel of context.readModels) {
       rows.push([
         { col: 0, kind: 'actor', title: readModel.actor },
-        { col: 1, kind: 'readmodel', title: readModel.name, subtitle: readModel.route ?? readModel.model, arrow: true },
+        {
+          col: 1,
+          kind: 'readmodel',
+          title: readModel.name,
+          subtitle: readModel.route ?? readModel.model,
+          arrow: true,
+          planned: readModel.expected,
+        },
       ]);
     }
     lanes.push({ title: context.id, rows });
@@ -806,14 +858,13 @@ export function renderEventStormSvg(storm: EventStorm): string {
           }
         }
         const stroke = sticky.kind === 'integration' ? '#7a2e00' : '#333';
+        const subtitle = sticky.subtitle ?? (sticky.planned ? 'planned' : undefined);
         out.push(
-          `<rect x="${x}" y="${ry}" width="${W}" height="${H}" fill="${COLOURS[sticky.kind]}" stroke="${stroke}" stroke-width="${sticky.kind === 'integration' ? 2 : 1}" rx="3"/>`,
-          `<text x="${x + 10}" y="${ry + (sticky.subtitle ? 27 : 36)}" font-weight="600">${esc(clip(sticky.title, 27))}</text>`,
+          `<rect x="${x}" y="${ry}" width="${W}" height="${H}" fill="${COLOURS[sticky.kind]}" stroke="${stroke}" stroke-width="${sticky.kind === 'integration' || sticky.planned ? 2 : 1}" rx="3"${sticky.planned ? ' stroke-dasharray="6 4"' : ''}/>`,
+          `<text x="${x + 10}" y="${ry + (subtitle ? 27 : 36)}" font-weight="600">${esc(clip(sticky.title, 27))}</text>`,
         );
-        if (sticky.subtitle)
-          out.push(
-            `<text x="${x + 10}" y="${ry + 46}" font-size="10" fill="#333">${esc(clip(sticky.subtitle, 33))}</text>`,
-          );
+        if (subtitle)
+          out.push(`<text x="${x + 10}" y="${ry + 46}" font-size="10" fill="#333">${esc(clip(subtitle, 33))}</text>`);
       }
       ry += GY;
     }

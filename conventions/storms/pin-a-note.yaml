@@ -1,0 +1,47 @@
+# The storm of a feature that is not in the code yet, as the facilitated session left it
+# (`.claude/skills/storm/SKILL.md`): the stickies it adds, the hot spots and how they were
+# decided. `yarn architecture storm --expect conventions/storms/pin-a-note.yaml` says what the
+# code still owes it, in every language; the check confirms it is not carried yet, and will
+# refuse it the day it is until `done: true`.
+#
+# The request, in product words: "Users want to pin a note. A user can pin one of their own
+# notes and unpin it later. Pinning an archived note is not allowed. In 'my notes', pinned notes
+# come first."
+
+schemaVersion: 1
+
+feature: pin-a-note
+intent: >-
+  The owner of a note pins it, so that it comes first in their notes, and unpins it later; an
+  archived note cannot be pinned.
+
+done: false
+
+hotSpots:
+  - question: Does archiving a pinned note unpin it?
+    decision: No — archiving touches the status only; an owner can always tidy up, so an archived note can still be unpinned (like a restore), and keeps its pin until then.
+  - question: Is a second pin a refusal or a no-op?
+    decision: A refusal (NoteAlreadyPinned), like sharing twice; the client learns it on the operation.
+  - question: Does the list say which notes are pinned, or only order them?
+    decision: It says it — a list ordered by a fact it hides is useless to a client; the field reaches every language's API, which the shared scenario then holds them to.
+  - question: Who else cares that a note was pinned?
+    decision: Nobody yet; the facts are recorded, no policy reacts, no integration event is published.
+
+contexts:
+  - id: Notes
+    commands:
+      - name: PinNote
+        actor: a signed-in account
+        route: POST /notes/{param}/pin
+        aggregate: Note
+        events: [NotePinned]
+      - name: UnpinNote
+        actor: a signed-in account
+        route: POST /notes/{param}/unpin
+        aggregate: Note
+        events: [NoteUnpinned]
+    queries: []
+    events: [NotePinned, NoteUnpinned]
+    policies: []
+
+links: []

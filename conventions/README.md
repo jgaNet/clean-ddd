@@ -12,6 +12,7 @@ The architecture of this repository, written as data so that tooling can hold th
 | [`go.yaml`](go.yaml) | the Go binding: the same sections for Go — a package per layer, the contexts, the wiring file `module.go`, the libraries, what holds each enforcement word, the file that shows each concept and each rule | [`tools/conventions`](../go/tools/conventions), which checks every import against the table with `go/parser` and the tree against the contract |
 | [`python.yaml`](python.yaml) | the Python binding: the same sections for Python — a package per layer under `src/`, the contexts, the wiring file `module_local.py`, the libraries, what holds each enforcement word, the file that shows each concept and each rule | [`tools/conventions.py`](../python/tools/conventions.py), which checks every `import` against the table and the tree against the contract |
 | [`plans/`](plans) | feature plans, each written for one language, validated on every build | `yarn architecture plan` |
+| [`storms/`](storms) | expected storms: what a facilitated event-storming session decided a feature adds, as a delta in the inventory's words (one file for every language), with its hot spots and their decisions; held to the code on every build ([ADR 22](../docs/adr/0022-the-storm-is-facilitated-and-the-code-is-held-to-it.md)) | `yarn architecture storm validate\|--expect`; the `storm` skill |
 
 ```bash
 cd typescript
@@ -73,6 +74,17 @@ The same reading, reduced to the words every language shares — per context the
 A **plan** ([`plans/share-a-note.yaml`](plans/share-a-note.yaml)) is what someone intends to change, written before writing it: the language it is written for, the context, the changes by kind and name, the invariants it adds, the events it records, how it crosses a context boundary if it does, and whether it means to touch the protected trees. `yarn architecture plan validate <file>` answers whether that shape is legal against the contract *and* against the tree; `plan explain <file>` expands it into the files, with the checklists' placeholders filled with the plan's own names, the canonical examples and the rules it is bound by.
 
 A plan generates no code and is not a source of truth — the code is. Every plan under `plans/` is validated by `yarn check:conventions`, against the binding it names, so the examples cannot rot. While the work is only planned, its changes carry no `new:` line and the check confirms that none of it exists yet; once the work is done, the same entries say `new: false` and the check confirms that each part is where the plan said it would be. A plan kept in the repository is therefore edited once, at the end — and that is what makes it a test rather than a note.
+
+### Expected storms
+
+An **expected storm** ([`storms/share-a-note.yaml`](storms/share-a-note.yaml) is the carried example, [`storms/pin-a-note.yaml`](storms/pin-a-note.yaml) a planned one) is what an event-storming session decided a feature adds, written before the code: a *delta* in the inventory's words — per context the commands (actor, route with `{param}`, aggregate, events), the queries, the events, the policies and what they publish or reach; the links the feature uses — plus the hot spots the session raised and how each was decided, and `done`. One file is true for every language. The [`storm` skill](../.claude/skills/storm/SKILL.md) facilitates the session and writes it.
+
+```bash
+yarn architecture storm validate <file>     # the contract, the map and the code: a declared context, a verb of the grammar, an actor of the three, an event brought or existing, a pivot the map relates; done and carried, or not yet
+yarn architecture storm --expect <file>     # what the code still owes the storm (before), nothing (after), what the storm reshapes; --markdown, --svg lay the planned stickies on the board, dashed
+```
+
+Every storm under `storms/` is held by `yarn check:conventions`: one `done` must be carried by the code, one not done must not be yet, and a done storm has no open hot spot. A difference is closed in the code or brought back to the session; the storm is never edited to pass. A feature may bring its storm, as it may bring its plan.
 
 ### Modes
 
