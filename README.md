@@ -4,6 +4,7 @@ One small application — notes you can share, accounts, notifications, operatio
 
 The reference is written in several programming languages from **one architecture**. The architecture is data, in [`conventions/`](conventions/README.md): the layers and what each may import, every rule under a stable id, the HTTP grammar, the vocabulary. Each language is a directory with its own toolchain, its own guide, and a **binding** that says where its trees are, which of its files shows each concept and which tool holds each rule. A language never carries a rule of its own; what it cannot show yet, the map below shows as a gap ([ADR 11](docs/adr/0011-one-reference-several-languages.md)).
 
+- [Get started](#get-started)
 - [The domain](#the-domain)
 - [The languages](#the-languages)
 - [The map: concept × language](#the-map-concept--language)
@@ -11,6 +12,73 @@ The reference is written in several programming languages from **one architectur
 - [How the repository is organised](#how-the-repository-is-organised)
 - [Adding a language](#adding-a-language)
 - [Decisions](#decisions)
+
+## Get started
+
+Ten minutes, three moves: run it, ask it, change it. Every command below runs from the directory it names; nothing runs from the root, which holds data and prose.
+
+### Run it, in the language you read best
+
+| Language | Needs | Run the server |
+|---|---|---|
+| TypeScript | Node ≥ 24 ([`.nvmrc`](typescript/.nvmrc)), yarn | `cd typescript && nvm use && yarn install && yarn start:dev` |
+| Rust | a stable toolchain | `cd rust && cargo run -p bootstrap` |
+| Python | Python ≥ 3.13, [uv](https://docs.astral.sh/uv/) | `cd python && uv sync && uv run python -m bootstrap` |
+| Go | Go ≥ 1.24 | `cd go && go run ./bootstrap/cmd/application` |
+
+Every server listens on `http://127.0.0.1:10000`, answers the API under `/v1` (`GET /v1/health` says it is up) and seeds one administrator, `admin@admin.fr` / `admin` (`ADMIN_IDENTIFIER`, `ADMIN_PASSWORD`). The four answer **one API**, and the proof is one command, against whichever server is up:
+
+```bash
+node api/scenario.mjs http://127.0.0.1:10000      # 31 steps: sign up, share a note, follow an operation, the websocket…
+```
+
+The front end is a static folder, a client like any other. Start the server with `WEB_ORIGINS=http://127.0.0.1:8080`, then:
+
+```bash
+node web/serve.mjs web/htmx --port 8080 --api http://127.0.0.1:10000   # then open http://127.0.0.1:8080
+```
+
+A language's README is where to read it: the request followed end to end, the map of its files, how it is tested.
+
+### Ask it: the tooling answers from the data
+
+The architecture, the domain and the storm are data, and one CLI answers from them (it lives in `typescript/`, reads every binding, and answers in the language whose directory you type it from — or `--language go`; add `--json` for a tool):
+
+```bash
+cd typescript
+yarn architecture domain                    # the subdomains and the context map, its contracts read from the code
+yarn architecture context Notes             # one context: purpose, language, what it depends on, who depends on it
+yarn architecture storm [Notes]             # the event storm read from the code (--markdown, --svg for the board)
+yarn architecture inventory [rust]          # what the tree says the application is; with a language, where it differs
+yarn architecture rule CTX-CONTRACTS        # any rule: statement, why, remediation, the file that shows it
+yarn architecture concept aggregate-root    # any concept: canonical file, rules, decisions
+yarn architecture checklist command         # what a new command is made of and where it goes, in this language
+yarn architecture verb act                  # which HTTP verb and path shape an intent takes
+yarn architecture can-import <file> <specifier>   # would this import be allowed, and which rule says
+```
+
+What the CLI prints is also rendered: [the domain](#the-domain) below, [the storm](docs/event-storm.md) with its board, [the inventory](docs/inventory/README.md) of each language.
+
+### Change it: a feature, in the right shape
+
+1. **Read the guide of the language**: [`typescript/CLAUDE.md`](typescript/CLAUDE.md), [`rust/CLAUDE.md`](rust/CLAUDE.md), [`python/CLAUDE.md`](python/CLAUDE.md) or [`go/CLAUDE.md`](go/CLAUDE.md), its *How to add a feature* and the questions it answers. Domain first, then the handler, infrastructure only if a port changed, the route, the wiring.
+2. **Ask before writing**: `yarn architecture checklist <kind>` names the canonical file to copy; `can-import` checks a planned import; a cross-context feature runs between contexts the map relates (`yarn architecture domain`). A plan is optional and worth it when a feature crosses a context: [`conventions/plans/share-a-note.rust.yaml`](conventions/plans/share-a-note.rust.yaml) is the example, `yarn architecture plan validate|explain <file>` checks it.
+3. **Prove it stayed inside the architecture**: `yarn architecture mode feature --base working` refuses a change to the building blocks, the shared kernel, the conventions or the decisions; then the language's checks, the same CI runs:
+
+   | Language | The checks |
+   |---|---|
+   | TypeScript | `yarn check:conventions && yarn format:check && yarn lint && yarn typecheck && yarn test:units && yarn test:e2e` |
+   | Rust | `cargo run -p conventions && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test` |
+   | Python | `uv run python -m tools.conventions && uv run ruff format --check . && uv run ruff check . && uv run mypy && uv run pytest` |
+   | Go | `go run ./tools/conventions && test -z "$(gofmt -l .)" && go vet ./... && golangci-lint run ./... && go test ./...` |
+
+4. **Regenerate what the code renders**: the inventory of the language (`yarn conventions:write`, `cargo run -p conventions -- inventory --write`, `uv run python -m tools.conventions inventory --write`, `go run ./tools/conventions inventory --write`) and, from `typescript/`, `yarn conventions:write` for the storm; the check refuses a stale one. A feature that changes what a client sees fails the scenario against the other servers until they carry it: that is the list of what they owe ([ADR 16](docs/adr/0016-one-api-for-every-language.md)).
+
+With an agent, the same loop is a procedure: the [`feature` skill](.claude/skills/feature/SKILL.md) asks the contract first and proves the change last, and the [`feature-author`](.claude/agents/feature-author.md) subagent is bound to the feature mode, told to stop and report rather than work around a rule.
+
+### Change the architecture
+
+A rule, a layer, a relationship between contexts, a binding, a language: that is a decision, made at the root under `yarn architecture mode architecture`, which asks for the ADR that explains it ([ADR 9](docs/adr/0009-work-is-done-in-one-of-two-modes.md)); then `yarn conventions:write` renders every language's documents and each language's check holds its tree to the change. The recipe for a language is [below](#adding-a-language).
 
 ## The domain
 
