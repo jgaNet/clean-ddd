@@ -47,7 +47,7 @@ checks:
 # decisions, which architecture.yaml protects for every language.
 modes:
   feature:
-    protected: [src/Architecture, src/SharedKernel, eslint.config.js, tools]
+    protected: [src/Architecture, src/SharedKernel, eslint.config.js]
     # Publishing a fact is what a cross-context feature does: the contracts folder is not protected.
     allowed: [src/SharedKernel/Application/IntegrationEvents]
   architecture:
@@ -88,11 +88,11 @@ rules:
   API-ONE-SURFACE:
     references: [src/Contexts/Tracker/Application/Projections/OperationProjection.ts, src/Contexts/Tracker/Presentation/API/REST/Routes/operation.routes.e2e.spec.ts]
   ARCH-MAP-IS-REAL:
-    references: [tools/check-conventions.ts]
+    references: [../tools/src/check.ts]
   CTX-MAP-DECLARED:
-    references: [tools/architecture-contract/domain.ts]
+    references: [../tools/src/domain.ts]
   ARCH-ONE-APPLICATION:
-    references: [tools/architecture-contract/inventory.ts]
+    references: [../tools/src/inventory.ts]
 
 # The routes file that shows each verb of the HTTP table, by intent.
 verbs:

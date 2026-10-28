@@ -6,7 +6,7 @@
 #
 # One canonical example per concept and per language. `rules` must name ids from architecture.yaml;
 # `references` are ADRs; `description` is Markdown, written for the README, and names no file.
-# `yarn architecture concept <id>` (TypeScript) answers from here and from its binding.
+# `yarn architecture concept <id>` (the tooling at the root) answers from here and from its binding.
 schemaVersion: 1
 concepts:
   - id: entity

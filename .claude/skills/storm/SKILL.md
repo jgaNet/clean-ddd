@@ -11,7 +11,7 @@ session ends with a file, `conventions/storms/<feature>.yaml`, written in the wo
 language of this repository shares, that the code is then held to (`yarn architecture storm
 --expect <file>`); it is the acceptance test of the model, as the scenario is of the API.
 
-The repository already holds a wall: `yarn --cwd typescript architecture storm` prints what the
+The repository already holds a wall: `yarn architecture storm` (at the root) prints what the
 code says today, `architecture domain` the subdomains, the contexts with their language and the
 context map, `architecture context <id>` one context. Read them before the session starts; the
 session adds to that wall, it does not redraw it.
@@ -70,10 +70,9 @@ decisions; `done: false`). Routes carry `{param}` for every parameter; names are
 without the suffix of their kind.
 
 ```bash
-cd typescript
-yarn architecture storm validate ../conventions/storms/<feature>.yaml   # the contract, the map, the code
-yarn architecture storm --expect ../conventions/storms/<feature>.yaml   # what the code still owes it
-yarn architecture storm --expect ../conventions/storms/<feature>.yaml --svg > /tmp/board.svg   # the wall, planned stickies dashed
+yarn architecture storm validate conventions/storms/<feature>.yaml   # the contract, the map, the code
+yarn architecture storm --expect conventions/storms/<feature>.yaml   # what the code still owes it
+yarn architecture storm --expect conventions/storms/<feature>.yaml --svg > /tmp/board.svg   # the wall, planned stickies dashed
 ```
 
 A refusal of `validate` is a question for the room, not something to edit around: an actor that
@@ -86,7 +85,7 @@ The storm is language-neutral; the feature is written in one language at a time,
 worth stating first. When the work is done:
 
 ```bash
-yarn architecture storm --expect ../conventions/storms/<feature>.yaml
+yarn architecture storm --expect conventions/storms/<feature>.yaml
 ```
 
 An empty "still owed" is the proof. What the code added beyond the storm shows in the diff of

@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from 'fs';
 import { dirname, join, posix, resolve } from 'path';
-import { fileURLToPath } from 'url';
 import { load } from 'js-yaml';
 
 import {
@@ -28,23 +27,22 @@ import {
  * nothing, a binding naming a rule the contract does not have) is reported by
  * validateContract(), so that a check can list them all at once.
  *
- * Two roots. The *language root* is where this tooling lives, with the code it checks
- * (`typescript/` here, or the application itself once `yarn architecture create` has copied the
- * tooling). The *repository root* is the nearest directory above it holding `conventions/`:
- * the contract, the decisions and the documents every language shares. Every path a loaded
- * contract carries is relative to the repository root, whichever file it came from.
+ * One root: the *repository root*, the nearest directory at or above where the command was
+ * typed that holds `conventions/`. Every path a loaded contract carries is relative to it,
+ * whichever file it came from. A language's own directory is what its binding's `root` says —
+ * `typescript/` in the reference, `.` in an application `clean-ddd create` made.
  */
 
-/** The binding this tooling is written for: it is the TypeScript tooling of the reference. */
-export const LANGUAGE = 'typescript';
+/** The language a command answers for when nothing names one: the one whose tree this tooling reads. */
+export const DEFAULT_LANGUAGE = 'typescript';
 
 const CONTRACT = 'conventions/architecture.yaml';
 
-/** The directory of the language this tooling lives in: the one holding `tools/`. */
-export const languageRoot = (): string => resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+/** Where a command was typed: `yarn` records it as INIT_CWD, and that is where a typed path is read from. */
+export const typedFrom = (): string => process.env.INIT_CWD ?? process.cwd();
 
-/** The nearest directory at or above the language root that holds the contract. */
-export function repositoryRoot(from: string = languageRoot()): string {
+/** The nearest directory at or above `from` that holds the contract. */
+export function repositoryRoot(from: string = typedFrom()): string {
   let dir = resolve(from);
   for (;;) {
     if (existsSync(join(dir, CONTRACT))) return dir;
@@ -52,6 +50,12 @@ export function repositoryRoot(from: string = languageRoot()): string {
     if (parent === dir) throw new ContractError(`${CONTRACT} not found at or above ${from}`, 'malformed');
     dir = parent;
   }
+}
+
+/** The language a contract answers for by default: the reference's, or the first the contract lists. */
+export function defaultLanguage(root: string): string {
+  const languages = strings(readYaml(root, CONTRACT).languages);
+  return languages.includes(DEFAULT_LANGUAGE) ? DEFAULT_LANGUAGE : (languages[0] ?? DEFAULT_LANGUAGE);
 }
 
 const sourcesFor = (language: string) => ({
@@ -127,7 +131,7 @@ function dependencyRule(layer: string, entry: Raw, whatFor: string): Rule {
 
 export function loadArchitectureContract(
   root: string = repositoryRoot(),
-  language: string = LANGUAGE,
+  language: string = defaultLanguage(root),
 ): ArchitectureContract {
   const sources = sourcesFor(language);
   const architecture = readYaml(root, sources.architecture);

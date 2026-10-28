@@ -2,7 +2,7 @@
 
 This is the **TypeScript implementation** of the Clean Architecture + Domain-Driven Design reference. The goal is one canonical, simple example per concept, with the architectural rules enforced by tooling. The rules themselves, and what every language of the reference shares, are in the root [CLAUDE.md](../CLAUDE.md); this guide is TypeScript's: its commands, where its things are, how a feature is added here. Before changing anything, read the [README](README.md): it maps every concept to the file that shows it, and links the decisions in [`docs/adr`](../docs/adr).
 
-Every command below runs from this directory (`cd typescript`, or `yarn --cwd typescript …` from the root). The tooling prints paths from the repository root (`typescript/src/…`), and reads a path you type from where you are, so `src/…` from here names the same file; this guide links from here.
+Every command below runs from this directory (`cd typescript`, or `yarn --cwd typescript …` from the root); `architecture`, `check:conventions` and `conventions:write` are the root's tooling ([`tools/`](../tools/README.md)) reached through scripts here, so run `yarn install` at the root once. The tooling prints paths from the repository root (`typescript/src/…`), and reads a path you type from where you are, so `src/…` from here names the same file; this guide links from here.
 
 ## Commands
 

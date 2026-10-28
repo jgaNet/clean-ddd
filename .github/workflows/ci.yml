@@ -1,10 +1,12 @@
 name: ci
 
-# One job per language, each run from its own directory with its own toolchain, and one `check`
-# job that fans them in, which is what the branch protection requires. Each language's job ends
-# by starting its server and running the one API scenario against it (api/scenario.mjs). There is no
-# path filter on purpose: a change to the contract, to a decision or to a shared document must
-# run every language's checks, since every language's documents are rendered from them.
+# One job for the tooling at the root (the `clean-ddd` package: the conventions check of the
+# whole repository, its own specs, its build), one job per language, each run from its own
+# directory with its own toolchain, and one `check` job that fans them in, which is what the
+# branch protection requires. Each language's job ends by starting its server and running the
+# one API scenario against it (api/scenario.mjs). There is no path filter on purpose: a change to
+# the contract, to a decision or to a shared document must run every language's checks, since
+# every language's documents are rendered from them.
 
 on:
   push:
@@ -13,6 +15,48 @@ on:
   pull_request:
 
 jobs:
+  tools:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+          cache-dependency-path: |
+            yarn.lock
+            typescript/yarn.lock
+
+      - name: Install
+        run: yarn install --frozen-lockfile
+
+      - name: Install the TypeScript language (its ESLint answers the import probes)
+        run: yarn install --frozen-lockfile
+        working-directory: typescript
+
+      - name: Conventions, every language and every document
+        run: yarn check:conventions
+
+      - name: Format
+        run: yarn format:check
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Typecheck
+        run: yarn typecheck
+
+      - name: Specs
+        run: yarn test
+
+      - name: Build, and what the package would ship
+        run: |
+          yarn build
+          npm pack --dry-run
+
   typescript:
     runs-on: ubuntu-latest
     defaults:
@@ -31,9 +75,6 @@ jobs:
 
       - name: Install
         run: yarn install --frozen-lockfile
-
-      - name: Conventions
-        run: yarn check:conventions
 
       - name: Format
         run: yarn format:check
@@ -213,16 +254,18 @@ jobs:
   # language is added to `needs`, and nothing else changes.
   check:
     runs-on: ubuntu-latest
-    needs: [typescript, rust, python, go, web]
+    needs: [tools, typescript, rust, python, go, web]
     if: always()
     steps:
       - name: Every language is green
         run: |
+          echo "tools: ${{ needs.tools.result }}"
           echo "typescript: ${{ needs.typescript.result }}"
           echo "rust: ${{ needs.rust.result }}"
           echo "python: ${{ needs.python.result }}"
           echo "go: ${{ needs.go.result }}"
           echo "web: ${{ needs.web.result }}"
+          test "${{ needs.tools.result }}" = "success"
           test "${{ needs.typescript.result }}" = "success"
           test "${{ needs.rust.result }}" = "success"
           test "${{ needs.python.result }}" = "success"

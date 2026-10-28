@@ -1,24 +1,21 @@
 import { spawnSync } from 'child_process';
 import { join } from 'path';
 
-import { languageRoot, repositoryRoot } from './load';
+import { repositoryRoot } from './load';
 
-/** The CLI as a tool would call it: a process, its stdout, its exit status. JSON must be JSON. */
-const architecture = (...args: string[]) => architectureTypedIn(languageRoot(), ...args);
+const root = repositoryRoot();
+
+/** The CLI as a tool would call it from `typescript/`, where `src/…` names this language's files. */
+const architecture = (...args: string[]) => architectureTypedIn(join(root, 'typescript'), ...args);
 
 /** The CLI as typed from `typedFrom`: a process, its stdout, its exit status. JSON must be JSON. */
 const architectureTypedIn = (typedFrom: string, ...args: string[]) => {
-  // The CLI reads a typed path from where the command was typed (INIT_CWD, which yarn sets);
-  // by default that is the language's directory, as for `cd typescript && yarn architecture …`.
-  const result = spawnSync(
-    join(languageRoot(), 'node_modules/.bin/tsx'),
-    ['tools/architecture-contract/cli.ts', ...args],
-    {
-      cwd: languageRoot(),
-      encoding: 'utf8',
-      env: { ...process.env, INIT_CWD: typedFrom },
-    },
-  );
+  // The CLI reads a typed path from where the command was typed (INIT_CWD, which yarn sets).
+  const result = spawnSync(join(root, 'node_modules/.bin/tsx'), ['tools/src/cli.ts', ...args], {
+    cwd: root,
+    encoding: 'utf8',
+    env: { ...process.env, INIT_CWD: typedFrom },
+  });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 };
 
@@ -83,7 +80,7 @@ describe('yarn architecture', () => {
   });
 
   it('answers for the language the command was typed in, or the one --language names', () => {
-    const fromRust = architectureTypedIn(join(repositoryRoot(), 'rust'), 'checklist', 'command');
+    const fromRust = architectureTypedIn(join(root, 'rust'), 'checklist', 'command');
     expect(fromRust.status).toBe(0);
     expect(fromRust.stdout).toContain('rust/src/contexts/<context>/application/src/commands/<use_case>.rs');
 

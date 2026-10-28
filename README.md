@@ -15,7 +15,7 @@ The reference is written in several programming languages from **one architectur
 
 ## Get started
 
-Ten minutes, three moves: run it, ask it, change it. Every command below runs from the directory it names; nothing runs from the root, which holds data and prose.
+Ten minutes, three moves: run it, ask it, change it. Every command below runs from the directory it names: a language's from its directory, the tooling's from the root.
 
 ### Run it, in the language you read best
 
@@ -42,10 +42,10 @@ A language's README is where to read it: the request followed end to end, the ma
 
 ### Ask it: the tooling answers from the data
 
-The architecture, the domain and the storm are data, and one CLI answers from them (it lives in `typescript/`, reads every binding, and answers in the language whose directory you type it from — or `--language go`; add `--json` for a tool):
+The architecture, the domain and the storm are data, and one CLI answers from them (the [`clean-ddd`](tools/README.md) package at the root — `yarn install` once there; it reads every binding and answers in the language whose directory you type it from, `yarn --cwd .. architecture …` from `rust/`, or the one `--language go` names; add `--json` for a tool):
 
 ```bash
-cd typescript
+yarn install                                # once, at the root
 yarn architecture domain                    # the subdomains and the context map, its contracts read from the code
 yarn architecture context Notes             # one context: purpose, language, what it depends on, who depends on it
 yarn architecture storm [Notes]             # the event storm read from the code (--markdown, --svg for the board)
@@ -72,7 +72,7 @@ What the CLI prints is also rendered: [the domain](#the-domain) below, [the stor
    | Python | `uv run python -m tools.conventions && uv run ruff format --check . && uv run ruff check . && uv run mypy && uv run pytest` |
    | Go | `go run ./tools/conventions && test -z "$(gofmt -l .)" && go vet ./... && golangci-lint run ./... && go test ./...` |
 
-4. **Regenerate what the code renders**: the inventory of the language (`yarn conventions:write`, `cargo run -p conventions -- inventory --write`, `uv run python -m tools.conventions inventory --write`, `go run ./tools/conventions inventory --write`) and, from `typescript/`, `yarn conventions:write` for the storm; the check refuses a stale one. A feature that changes what a client sees fails the scenario against the other servers until they carry it: that is the list of what they owe ([ADR 16](docs/adr/0016-one-api-for-every-language.md)).
+4. **Regenerate what the code renders**: the inventory of the language (`yarn conventions:write`, `cargo run -p conventions -- inventory --write`, `uv run python -m tools.conventions inventory --write`, `go run ./tools/conventions inventory --write`) and, at the root, `yarn conventions:write` for the storm and the documents; the check refuses a stale one. A feature that changes what a client sees fails the scenario against the other servers until they carry it: that is the list of what they owe ([ADR 16](docs/adr/0016-one-api-for-every-language.md)).
 
 With an agent, the same loop is a procedure: the [`feature` skill](.claude/skills/feature/SKILL.md) asks the contract first and proves the change last, and the [`feature-author`](.claude/agents/feature-author.md) subagent is bound to the feature mode, told to stop and report rather than work around a rule.
 
@@ -325,6 +325,8 @@ docs/adr/                   the decisions, shared by every language
 docs/event-storm.md         the event storm, read from the code and rendered (with the board, event-storm.svg)
 docs/inventory/             what each language's tree says the application is, one JSON per language, held equal by the check
 docs/evaluations/           can a newcomer add a feature from the documentation alone? Protocol and records
+tools/                      the tooling, one package for every language (clean-ddd on npm): the contract API, the CLI,
+                            the conventions check; package.json at the root drives it (yarn architecture, yarn check:conventions)
 typescript/                 the TypeScript implementation: its code, its toolchain, its README and CLAUDE.md
 rust/                       the Rust implementation: the same application, a crate per layer, its check, its README and CLAUDE.md
 python/                     the Python implementation: the same application, a package per layer, its import linter, its README and CLAUDE.md
@@ -334,7 +336,7 @@ api/                        the API every language answers, as one black-box sce
 .claude/                    the feature skill and the feature-author agent, for working here with an agent
 ```
 
-Everything a language shares with the others lives at the root: the contract, the concepts, the decisions, the evaluation protocol, the agent loop. Everything one language owns lives in its directory, including the tooling that holds it to the contract. The TypeScript tooling is also the reference tooling for the contract itself: `yarn architecture` answers from the contract and from any binding, and `yarn check:conventions` validates every binding the map shows.
+Everything a language shares with the others lives at the root: the contract, the concepts, the decisions, the evaluation protocol, the agent loop. Everything one language owns lives in its directory, including the linter and the check that hold it to the contract. The tooling that reads the contract itself is the root's, one package for every language ([`tools/`](tools/README.md), published to npm as `clean-ddd`): `yarn architecture` answers from the contract and from any binding, `yarn check:conventions` validates every binding the map shows and every document, and `clean-ddd create` starts an application on this architecture anywhere ([ADR 23](docs/adr/0023-the-tooling-lives-at-the-root-and-ships-as-a-package.md)).
 
 ## Adding a language
 
@@ -342,7 +344,7 @@ A new language is a new rendering of the same architecture, not a fork of it.
 
 1. **A directory** `<language>/` with the language's toolchain, and in it the same application: the building blocks, the shared kernel, the contexts, each in the four layers the contract names.
 2. **A binding**, `conventions/<language>.yaml`, listed under `languages` in [`conventions/architecture.yaml`](conventions/architecture.yaml). It says where the trees are and how they are imported, which contexts exist, which tool holds each enforcement word, which checks a change must pass, what the two modes protect, what a new thing of each kind is made of in that language, and which file shows each concept and each rule. [`conventions/typescript.yaml`](conventions/typescript.yaml) is the example; its header says what each section is for.
-3. **An import linter and a conventions check** of its own, generated from the dependency table the way `typescript/eslint.config.js` and `typescript/tools/check-conventions.ts` are. In a language whose compilation units carry their dependencies the table may become those dependencies, and the check compares them to the contract: that is what `rust/` does, one crate per layer and `cargo run -p conventions`. In a language with neither, the check reads every import itself: that is what `python/` does, an `ast` walk in `tools/conventions.py`.
+3. **An import linter and a conventions check** of its own, generated from the dependency table the way `typescript/eslint.config.js` and the root's `tools/src/check.ts` are. In a language whose compilation units carry their dependencies the table may become those dependencies, and the check compares them to the contract: that is what `rust/` does, one crate per layer and `cargo run -p conventions`. In a language with neither, the check reads every import itself: that is what `python/` does, an `ast` walk in `tools/conventions.py`.
 4. **A README and a CLAUDE.md** in the directory, rendered from the contract between the same markers, so that the documents cannot drift from the data.
 5. **The same API.** [`api/scenario.mjs`](api/scenario.mjs) run against the new server passes unchanged, and CI runs it (API-ONE-SURFACE, [ADR 16](docs/adr/0016-one-api-for-every-language.md)); until it does, the failing steps are the list of what the language still owes its clients.
 

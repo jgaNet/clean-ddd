@@ -1,0 +1,10 @@
+# The root formats the tooling only; each language formats its own tree with its own tool.
+tools/dist
+typescript
+rust
+python
+go
+web
+api
+docs
+node_modules

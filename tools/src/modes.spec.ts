@@ -24,7 +24,7 @@ describe('development modes', () => {
       'conventions/architecture.yaml',
       'conventions/typescript.yaml',
       'docs/adr/0001-result-instead-of-exceptions.md',
-      'typescript/tools/check-conventions.ts',
+      'tools/src/check.ts',
       'typescript/eslint.config.js',
     ]);
     expect(verdict.ok).toBe(false);
