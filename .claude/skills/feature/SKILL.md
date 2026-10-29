@@ -15,6 +15,10 @@ that language, or `--language <id>` says which; it prints paths from the reposit
 `--json` (a `schemaVersion`, a structured error, a non-zero exit on an unknown id), so the answers
 can be parsed.
 
+In an application `clean-ddd create` made, there is one language and it is at the root: its binding is
+the only one, the commands run from the root, and the tool is `yarn architecture` when `package.json` defines
+it, `npx clean-ddd` otherwise.
+
 Nothing here replaces the language's `CLAUDE.md` — read it first. This is the order of operations.
 
 ## 1. Find out what exists
@@ -85,36 +89,26 @@ a new relationship, which is a decision (CTX-MAP-DECLARED) — stop and say so r
 
 ## 5. Prove it
 
-A feature is written **inside** the architecture, never around it:
+A feature is written **inside** the architecture, never around it, and is done when the gate says so:
 
 ```bash
-yarn architecture mode feature --base <ref>     # or --base working for uncommitted work
+yarn architecture gate --base <ref>             # the commit you started from; `--json` for a script
 ```
 
-This refuses any change to the building blocks, the shared kernel, the conventions, the
-decisions or the tools. The integration events are the exception — publishing a fact is what a
-cross-context feature does.
+The gate runs, in order, the feature mode against the base (committed and uncommitted changes alike: it
+refuses any change to the building blocks, the shared kernel, the conventions, the decisions or the
+tools — the integration events are the exception, publishing a fact is what a cross-context feature
+does), the conventions check, and the language's own checks as CI runs them (`checks` in its binding). It
+stops at the first failure of the architecture and otherwise runs every step, so one run shows all that is
+left; it exits non-zero unless every step passed. In this reference, from a language's directory, it is
+`yarn --cwd .. architecture gate --language <id> --base <ref>`.
 
-Then the language's checks, all of which must pass:
-
-```bash
-# typescript/
-yarn check:conventions && yarn format:check && yarn lint && yarn typecheck \
-  && yarn test:units && yarn test:e2e
-# rust/
-cargo run -p conventions && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
-# python/
-uv run python -m tools.conventions && uv run ruff format --check . && uv run ruff check . \
-  && uv run mypy && uv run pytest
-# go/
-go run ./tools/conventions && test -z "$(gofmt -l .)" && go vet ./... && golangci-lint run ./... && go test ./...
-```
-
-The languages answer one API, and `api/scenario.mjs` holds every server to the same shapes, field
+In this reference the languages answer one API, and `api/scenario.mjs` holds every server to the same shapes, field
 count included (ADR 16). A feature that changes what a client sees in one language fails the scenario
 against that server until the other languages carry it: the feature is done in its language when its
 end-to-end suite proves it; say in the PR what the other languages now owe, and never edit the scenario
-to make one server pass.
+to make one server pass. An application of one language has no shared scenario: its own end-to-end
+suite is the proof.
 
 ## If you need to change a protected tree, stop
 

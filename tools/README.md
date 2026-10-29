@@ -57,11 +57,17 @@ clean-ddd storm --expect <file>   what the code still owes an expected storm; --
 clean-ddd inventory [<language>]  what the tree says the application is; with a language, where its inventory differs
 clean-ddd plan validate|explain <file>      a feature plan, before the code
 clean-ddd mode feature|architecture [--base <ref>|--base working]   which rules this change is held to
+clean-ddd gate [--base <ref>]      is this change done: the feature mode, the conventions check and the language's
+                                  `checks`, one verdict; --json for a script, exit 1 when it fails
 clean-ddd create <dir> [--name <app>] [--language <id>]   a new application on this architecture, in that language
 clean-ddd check [--write]         the conventions check; --write regenerates what it holds
 ```
 
 Every command takes `--json` (valid JSON only, a structured error and exit 1 on an unknown id) and `--language <id>`. Paths are printed relative to the repository root — the nearest directory at or above where the command was typed that holds `conventions/` — and a path typed on the command line is read from where it was typed.
+
+## The gate
+
+`clean-ddd gate --base <ref>` is the completion contract of a feature ([RFC 0001](../docs/rfc/0001-architecture-aware-multi-agent-flow.md)): one verdict, as data, that whoever starts an agent reads instead of the agent's report. It runs the feature mode against the base — the changes committed since it and the ones not committed yet alike — then the conventions check, then the commands the language's binding lists under `checks`, in CI's order, in the language's directory. The steps that hold the architecture (the mode, the conventions check, the first of `checks`, which is the language's own) stop it when they fail; the quality and test steps after them all run, so one gate shows everything left to fix. It adds no check: every step is a command that already exists. `--json` prints the report (`verdict`, and per step its `stage`, `status`, duration and, on a failure, the lines to read).
 
 ## What is the tool's and what is a language's
 

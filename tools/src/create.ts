@@ -531,6 +531,13 @@ function readme(contract: ArchitectureContract, name: string, local: (path: stri
     '',
     generated(RULES_MARKER('rules'), renderRulesTable(contract)),
     '',
+    '### Who may import whom',
+    '',
+    "The dependency table, per layer. `own` is the file's own context, `architecture` the building blocks, `kernel` the shared kernel, `others` any other context; anything not listed is refused, and the refusal names the rule. It is rendered here once the first context is declared.",
+    '',
+    // Empty until a context exists; the check fills it then (`--write`), and it can only fill a block whose marker is here.
+    generated(RULES_MARKER('dependencies'), ''),
+    '',
     '## The map: concept → file',
     '',
     `One canonical example per concept, rendered from \`conventions/concepts.yaml\` and \`conventions/${contract.language.id}.yaml\`.`,

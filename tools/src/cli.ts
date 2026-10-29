@@ -14,6 +14,8 @@
  *   yarn architecture create <dir> [--name x] [--language <id>]   a new application on this architecture, in that language, with none of its business
  *   yarn architecture mode feature [--base <ref>]     did this change leave the architecture alone
  *   yarn architecture mode architecture [--base <ref>] does it record the decision it makes
+ *   yarn architecture gate [--base <ref>]     is this change done: the feature mode, the conventions check and the
+ *                                             language's checks, one verdict (--json for a script; exit 1 when it fails)
  *   yarn architecture plan validate <file>    is this intended change legal, before writing it
  *   yarn architecture plan explain <file>     the files, rules and examples it implies
  *   yarn architecture domain                  the subdomains and the context map, its contracts read from the code
@@ -59,6 +61,7 @@ import {
   validateExpectedStorm,
 } from './storms';
 import { createApplication, referenceSource } from './create';
+import { describeGate, runGate } from './gate';
 import type { ModeName } from './types';
 
 const args = process.argv.slice(2);
@@ -456,6 +459,21 @@ async function main(): Promise<void> {
             ].join('\n'),
       );
       return process.exit(verdict.ok ? 0 : 1);
+    }
+    case 'gate': {
+      const base =
+        rest[rest.indexOf('--base') + 1] && rest.includes('--base') ? rest[rest.indexOf('--base') + 1] : 'origin/main';
+      try {
+        changedFiles(base, root);
+      } catch {
+        return fail(
+          'no-such-base',
+          `Cannot compare with "${base}": no such ref. Try --base main, or --base working for uncommitted changes.`,
+        );
+      }
+      const report = await runGate({ root, base, language: contract.language.id });
+      out(report, () => describeGate(report));
+      return process.exit(report.verdict === 'pass' ? 0 : 1);
     }
     case 'plan': {
       const [action, file] = rest;
