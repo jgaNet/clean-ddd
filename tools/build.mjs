@@ -47,7 +47,12 @@ const reference = join(dist, 'reference');
 const copyInto = path => {
   const to = join(reference, path);
   mkdirSync(dirname(to), { recursive: true });
-  cpSync(join(root, path), to, { recursive: true });
+  // What a working checkout builds beside the sources (caches, build output) is not the reference.
+  cpSync(join(root, path), to, {
+    recursive: true,
+    filter: source =>
+      !/(^|\/)(__pycache__|\.pytest_cache|\.mypy_cache|\.ruff_cache|node_modules|target|\.venv)(\/|$)/.test(source),
+  });
 };
 const contract = yaml(readFileSync(join(root, 'conventions/architecture.yaml'), 'utf8'));
 for (const path of [

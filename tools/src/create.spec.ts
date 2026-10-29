@@ -201,16 +201,19 @@ describe('yarn architecture create --language python', () => {
     expect(existsSync(join(directory, 'package.json'))).toBe(false);
   });
 
-  it('writes a pyproject renamed and narrowed to what the copied files import, and an empty inventory', () => {
+  it('writes a pyproject renamed and narrowed to what the copied files import, and the Tracker’s lines of the inventory', () => {
     const pyproject = read('pyproject.toml');
     expect(pyproject).toContain('name = "my-app"');
     expect(pyproject).toContain('version = "0.1.0"');
-    expect(pyproject).toMatch(/dependencies = \[\n\s+"fastapi[^\n]*\n\s+"pyyaml[^\n]*\n\]/);
+    const dependencies = pyproject.match(/^dependencies = \[\n([\s\S]*?)^\]/m)?.[1] ?? '';
+    for (const kept of ['fastapi', 'pyyaml', 'uvicorn']) expect(dependencies).toContain(`"${kept}`);
     expect(pyproject).not.toContain('bcrypt');
     expect(pyproject).toContain('[dependency-groups]');
-    expect(read('docs/inventory/python.json')).toBe(
-      '{\n  "schemaVersion": 1,\n  "language": "python",\n  "contexts": [],\n  "links": []\n}\n',
-    );
+    const inventory = JSON.parse(read('docs/inventory/python.json'));
+    expect(inventory.contexts.map((context: { id: string }) => context.id)).toEqual(['Tracker']);
+    expect(inventory.links).toEqual([]);
+    expect(generated.contexts).toEqual(['Tracker']);
+    expect(existsSync(join(directory, 'src/contexts/notes'))).toBe(false);
   });
 
   it('holds its context map to the links its own tool writes in the inventory: CTX-MAP-DECLARED outside TypeScript', async () => {
@@ -236,23 +239,24 @@ describe('yarn architecture create --language python', () => {
     }
   });
 
-  it('stays green when its first context is declared: the README has the block the dependency table goes in', async () => {
+  it('stays green when its first context of its own is declared beside the Tracker', async () => {
     const binding = read('conventions/python.yaml');
     const map = read('conventions/domain.yaml');
     const readme = read('README.md');
     try {
+      expect(binding).toContain('\ncontexts:\n  - Tracker\n');
       writeFileSync(
         join(directory, 'conventions/python.yaml'),
-        binding.replace('\ncontexts: []\n', '\ncontexts: [Notes]\n'),
+        binding.replace('\ncontexts:\n  - Tracker\n', '\ncontexts:\n  - Tracker\n  - Notes\n'),
       );
       writeFileSync(
         join(directory, 'conventions/domain.yaml'),
         map
           .replace(
-            'subdomains: []',
-            'subdomains:\n  - { id: notes, name: Notes, kind: core, why: what it is for, contexts: [Notes] }',
+            '\nsubdomains:\n',
+            '\nsubdomains:\n  - { id: notes, name: Notes, kind: core, why: what it is for, contexts: [Notes] }\n',
           )
-          .replace('contexts: []', 'contexts:\n  - { id: Notes, purpose: the notes, language: [] }'),
+          .replace('\ncontexts:\n', '\ncontexts:\n  - { id: Notes, purpose: the notes, language: [] }\n'),
       );
       expect((await checkConventions(directory, true)).problems).toEqual([]);
       expect((await checkConventions(directory)).problems).toEqual([]);
@@ -266,7 +270,7 @@ describe('yarn architecture create --language python', () => {
 
   it('is a repository of one language, sound on its own terms, whose guides speak Python', () => {
     expect(generated.language).toEqual({ id: 'python', name: 'Python', root: '.' });
-    expect(generated.contexts).toEqual([]);
+    expect(generated.contexts).toEqual(['Tracker']);
     expect(validateContract(generated, directory)).toEqual([]);
     expect(read('README.md')).toContain('uv sync');
     expect(read('README.md')).toContain('npx clean-ddd check');

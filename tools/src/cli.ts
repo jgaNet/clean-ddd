@@ -113,7 +113,7 @@ function create(): void {
       `${created.name}: ${created.files} files in ${created.directory}`,
       '',
       `The building blocks, the shared kernel, the tooling and the contract — ${created.rules} rules,`,
-      `${created.concepts} concepts — and no business: src/Contexts is yours to fill.`,
+      `${created.concepts} concepts — and no business: ${created.contexts.length ? `${created.contexts.join(', ')} to follow every command, and ` : ''}the contexts are yours to write.`,
       '',
       'Next:',
       ...created.next.map(line => `  ${line}`),

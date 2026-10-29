@@ -71,14 +71,15 @@ modes:
   architecture:
     decides: [src/architecture, src/shared_kernel/domain]
 
-# What `clean-ddd create --language python` makes of this directory (ADR 10, ADR 23): the files
-# copied as they are (the building blocks with their tests, the shared kernel's model, the
+# What `clean-ddd create --language python` makes of this directory (ADR 10, ADR 23, ADR 27): the
+# files copied as they are (the building blocks with their tests, the shared kernel's model, the
 # conventions tool — which in Python is the import linter, so it travels with the tree it holds —
 # and the configuration), the package its integration events go in, the manifest rewritten with
 # the application's name, the dependencies the copied files import (fastapi in the presentation
-# building blocks, pyyaml in the tool; the dev group travels whole), and the commands the
-# generated guide shows first. The tool wants its inventory committed, so `create` writes an
-# empty one.
+# building blocks and the Tracker's routes, uvicorn in the transport, httpx in the starting
+# composition's end-to-end suite, pyyaml in the tool; the dev group travels whole), and the
+# commands the generated guide shows first. The tool wants its inventory committed, so `create`
+# writes the Tracker's lines of this one.
 create:
   copy:
     - src/architecture
@@ -87,7 +88,19 @@ create:
     - src/shared_kernel/application/__init__.py
     - src/shared_kernel/application/guards.py
     - src/shared_kernel/application/integration_events/__init__.py
+    # The Tracker, which a client follows a command's 202 at, and the contract it publishes (ADR 27).
+    # Its end-to-end suite (src/bootstrap/test_operation_routes_e2e.py) boots this repository's four
+    # contexts, so it stays here; the starting composition's suite boots the Tracker alone.
+    - src/shared_kernel/application/integration_events/tracker_integration_events.py
     - src/contexts/__init__.py
+    - src/contexts/tracker
+    # The transport, which knows no context, the entry point, and the composition root a new
+    # application starts from, in place of this repository's.
+    - src/bootstrap/__init__.py
+    - src/bootstrap/fastapi_application.py
+    - src/bootstrap/__main__.py
+    - { from: src/bootstrap/starter/create_application.py, to: src/bootstrap/create_application.py }
+    - { from: src/bootstrap/starter/test_create_application_e2e.py, to: src/bootstrap/test_create_application_e2e.py }
     - tools/__init__.py
     - tools/conventions.py
     - pyproject.toml
@@ -95,7 +108,7 @@ create:
     - .gitignore
   contracts: src/shared_kernel/application/integration_events
   manifest: pyproject.toml
-  dependencies: [fastapi, pyyaml]
+  dependencies: [fastapi, httpx, pyyaml, uvicorn]
   inventory: true
   install: uv sync
   test: uv run pytest
@@ -184,10 +197,11 @@ checklists:
     place: src/contexts/<context>/application/commands/<use_case>.py
     parts:
       - 'The command: a frozen dataclass extending `CommandEvent`, its fields the payload and nothing more.'
-      - 'The handler in the same file: a class extending `CommandHandler`, the ports it takes in `__init__`, `execute()` — the signed-in guard at the top, load, ask the aggregate or the domain service, save (return the `Failure` as is), `publish_domain_events`.'
+      - 'The handler in the same file: a class extending `CommandHandler`, the ports it takes in `__init__`, `execute()` — the signed-in guard at the top, load, ask the aggregate or the domain service, save (return the `Failure` as is), `publish_domain_events`. A command anyone may send (a sign-up) has no `require_signed_in`; its caller follows it by the operation id it was answered, signed in or not (ADR 27).'
       - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
       - 'A test with at least a happy path and one refusal, in `test_commands.py` beside the commands; through `handle()` when the rule is in `guard()`.'
-      - 'A route in the context''s `presentation/routes.py`: an `async def` taking the `Request`, `accept(context_of(request), TheCommand(...))`, answering `202 { operationId }`; the handler listed in `module_local.py`.'
+      - 'A route in the context''s `presentation/routes.py`: an `async def` taking the `Request`, `accept(context_of(request), TheCommand(...))`, answering `202 { operationId }`; the handler listed in `module_local.py`. A create never answers its new id: the handler returns it, and the client reads it as the operation''s `result` at `GET /v1/tracker/operations/{id}`.'
+      - 'An end-to-end case when the flow is user-visible, in `src/bootstrap/test_<context>_routes_e2e.py`: it boots the application on a free port and speaks HTTP with `httpx`, as the composition root''s own `test_create_application_e2e.py` does.'
   query:
     place: src/contexts/<context>/application/queries/<use_case>.py
     parts:
@@ -218,7 +232,7 @@ checklists:
       - 'One package per layer (`domain`, `application`, `infrastructure`, `presentation`) and the wiring file `module_local.py`, nothing else.'
       - 'Its own vocabulary: a word that means something else here is a sign the context is right.'
       - 'It asks other contexts through ports it owns, and tells them through integration events; never both sides of a dependency.'
-      - 'Registered in the composition root (`src/bootstrap/create_application.py`), with its routes under its own prefix.'
+      - 'Registered in the composition root (`src/bootstrap/create_application.py`): its store among the stores, its module after the Tracker''s, its `APIRouter` under its own prefix (`/notes`), which `register_routes()` serves under the API''s (`/v1/notes`).'
 
 # One test style per layer, for the README; the rows the language has so far.
 tests:
@@ -275,7 +289,9 @@ vocabulary:
   Anti-corruption layer: '[`note_shared_handler.py`](src/contexts/notifications/application/events/note_shared_handler.py)'
   Snapshot: '[`dtos.py`](src/contexts/notes/domain/note/dtos.py)'
   Operation: '[`operation.py`](src/architecture/application/operation.py)'
-  Composition root: '[`create_application.py`](src/bootstrap/create_application.py)'
+  Composition root: >-
+    [`create_application.py`](src/bootstrap/create_application.py) on
+    [`fastapi_application.py`](src/bootstrap/fastapi_application.py)
 
 # The file that shows each concept of concepts.yaml, by id; a concept not listed here is one
 # this language does not show yet, and the map says so.
@@ -519,14 +535,20 @@ concepts:
     canonical: [src/contexts/security/presentation/authentication.py]
     example: >-
       [`authentication.py`](src/contexts/security/presentation/authentication.py) — never blocks, leaves the
-      caller anonymous unless the token verifies; an ASGI middleware over every request and websocket connection
+      caller anonymous unless the token verifies; the transport asks it on every request and websocket connection
   composition-root:
     canonical:
       - src/bootstrap/create_application.py
       - src/architecture/application/application.py
+      - src/bootstrap/fastapi_application.py
       - src/bootstrap/__main__.py
+    examples:
+      - src/bootstrap/starter/create_application.py
     example: >-
       [`create_application.py`](src/bootstrap/create_application.py) on
-      [`application.py`](src/architecture/application/application.py): wires, starts the modules, seeds the
-      administrator through the same handler as any command, then listens;
-      [`__main__.py`](src/bootstrap/__main__.py) is the process entry point
+      [`fastapi_application.py`](src/bootstrap/fastapi_application.py), the transport, which knows no context
+      (an [`Application`](src/architecture/application/application.py) served over HTTP): wires, starts the
+      modules, seeds the administrator through the same handler as any command, then listens;
+      [`__main__.py`](src/bootstrap/__main__.py) is the process entry point, and
+      [`starter/create_application.py`](src/bootstrap/starter/create_application.py) the composition a created
+      application starts from (the Tracker alone; ADR 27)

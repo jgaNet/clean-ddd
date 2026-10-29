@@ -172,6 +172,8 @@ export interface CreatedApplication {
   directory: string;
   name: string;
   language: string;
+  /** The contexts it starts with: plumbing every application needs, never the reference's business (ADR 27). */
+  contexts: string[];
   /** The commands to run first, in the language's words. */
   next: string[];
   files: number;
@@ -215,9 +217,16 @@ export function createApplication(
   // application starts from beside its own, and the application gets it in its place.
   for (const { from, to } of spec.copy) copy(languageDir, local(from), local(to));
   for (const path of COPY_FROM_ROOT) copy(source, path);
-  // The contexts it starts with: those of the reference's whose folder was copied.
+  // The contexts it starts with: those of the reference's whose folder was copied, under the name
+  // each language gives it (`Tracker` in TypeScript, `tracker` in Python, Go and Rust).
   const contextsDir = local(contract.contextsTree.path);
-  const contexts = contract.contexts.filter(context => existsSync(join(directory, contextsDir, context)));
+  const folderName = (name: string) => name.toLowerCase().replace(/[_-]/g, '');
+  const copiedFolders = existsSync(join(directory, contextsDir))
+    ? readdirSync(join(directory, contextsDir), { withFileTypes: true })
+        .filter(entry => entry.isDirectory())
+        .map(entry => folderName(entry.name))
+    : [];
+  const contexts = contract.contexts.filter(context => copiedFolders.includes(folderName(context)));
   // A Go module: the reference's module path becomes the application's name, in every import.
   const modulePath = moduleOf(source, contract);
   if (modulePath && modulePath !== name) rewriteModulePath(directory, modulePath, name);
@@ -321,6 +330,7 @@ export function createApplication(
     directory,
     name,
     language: contract.language.id,
+    contexts,
     next: [
       `cd ${directory} && ${spec.install}`,
       `${toolCheck(contract)} && ${spec.test}`,
