@@ -1,0 +1,22 @@
+# The transport: an axum server that gives each request its identity and its ExecutionContext,
+# serves the routes it is given under one API prefix, and listens. It names no context, so it is
+# what a composition root is built on — this repository's (`bootstrap`) and the one a created
+# application starts from (`bootstrap-starter`) — and `clean-ddd create` copies it as it is.
+[package]
+name = "bootstrap-transport"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+architecture-domain = { path = "../../architecture/domain" }
+architecture-application = { path = "../../architecture/application" }
+architecture-infrastructure = { path = "../../architecture/infrastructure" }
+axum.workspace = true
+tokio.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+
+[lints]
+workspace = true

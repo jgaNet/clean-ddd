@@ -2,7 +2,7 @@
 
 The Rust rendering of the [reference](../README.md): the same application, the same architecture ([`conventions/`](../conventions/README.md)), the same decisions ([`docs/adr`](../docs/adr)), under the same rules and the same ids. This page is about this directory, and every command on it runs from here.
 
-**What is here today**: the whole application, every concept of the [map](../README.md#the-map-concept--language) included. The building blocks in their four layers, the shared kernel, the four contexts — Notes from its Domain to its routes, with an in-memory and a SQLite adapter behind the same ports; Security (accounts, sign-up, login, validation, the authentication layer, its answers in JSON or HTMX); Notifications (an inbox fed by the other contexts' facts, delivered over a websocket or by email); Tracker (every operation the bus carries, recorded and followed) — and the composition root in `src/bootstrap`, which builds the bus, the stores, the modules, the HTTP transport (axum) and the static HTMX front end, and whose end-to-end tests boot the whole application on a free port and speak HTTP to it.
+**What is here today**: the whole application, every concept of the [map](../README.md#the-map-concept--language) included. The building blocks in their four layers, the shared kernel, the four contexts — Notes from its Domain to its routes, with an in-memory and a SQLite adapter behind the same ports; Security (accounts, sign-up, login, validation, the authentication layer, its answers in JSON or HTMX); Notifications (an inbox fed by the other contexts' facts, delivered over a websocket or by email); Tracker (every operation the bus carries, recorded and followed) — and the composition root in `src/bootstrap`, which builds the bus, the stores and the modules on the HTTP transport (`src/bootstrap/transport`, axum, which knows no context), and whose end-to-end tests boot the whole application on a free port and speak HTTP to it. Beside it, `src/bootstrap/starter` is the composition a new application starts from: `clean-ddd create --language rust` gives it the building blocks, the shared kernel, the Tracker (which a client follows a command's `202` at), the transport and that starter with its entry point and its end-to-end suite, in place of this composition root, and none of the business ([ADR 27](../docs/adr/0027-a-created-application-starts-with-the-tracker.md)).
 
 - [Where the decisions land in Rust](#where-the-decisions-land-in-rust)
 - [The map: concept → file](#the-map-concept--file)
@@ -109,7 +109,7 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 | Routes and JSON schemas | the `Router` and the request bodies and views of [`notes/presentation`](src/contexts/notes/presentation/src/lib.rs), on [`architecture/presentation`](src/architecture/presentation/src/lib.rs) (`Accepted`, the refusals) |
 | Authentication middleware | [`authentication.rs`](src/contexts/security/presentation/src/authentication.rs) — never blocks, leaves the caller anonymous unless the token verifies; a layer over every route |
 | Presenters (one use case, several formats) | [`security/presentation/presenters.rs`](src/contexts/security/presentation/src/presenters.rs), picked per request by [`format.rs`](src/architecture/presentation/src/format.rs) — a `const ByFormat` per answer in the controller, no registry |
-| Composition root | [`create_application.rs`](src/bootstrap/src/create_application.rs) on [`application.rs`](src/architecture/application/src/application.rs): wires, starts the modules, seeds the administrator through the same handler as any command, then listens; [`main.rs`](src/bootstrap/src/main.rs) is the process entry point |
+| Composition root | [`create_application.rs`](src/bootstrap/src/create_application.rs) on [`application.rs`](src/architecture/application/src/application.rs) and [`axum_application.rs`](src/bootstrap/transport/src/axum_application.rs), the transport, which knows no context: wires, starts the modules, seeds the administrator through the same handler as any command, then listens; [`main.rs`](src/bootstrap/src/main.rs) is the process entry point, and [`starter/src/lib.rs`](src/bootstrap/starter/src/lib.rs) the composition a created application starts from (the Tracker alone, with its own entry point; ADR 27) |
 <!-- end generated -->
 
 ### Tests, one style per layer
@@ -220,6 +220,11 @@ src/contexts/tracker/             no Domain: application/ (read_model, ports, pr
 src/bootstrap/                    crate bootstrap: settings.rs, create_application.rs (the composition root),
                                   home.rs (the API's home, in two formats), main.rs (cargo run -p bootstrap),
                                   tests/ (the end-to-end suites, over HTTP)
+  transport/                      crate bootstrap-transport: axum_application.rs, the transport, which names no
+                                  context — the per-request identity and ExecutionContext, CORS, routes under the
+                                  API prefix, listening; anonymous callers unless given an authentication layer
+  starter/                        crate bootstrap-starter: the composition `create` gives a new application (the
+                                  Tracker alone), its main.rs (cargo run -p bootstrap-starter) and its e2e suite
 tools/conventions/                cargo run -p conventions: the graph is the table, the tree is the contract's
 ```
 
@@ -236,6 +241,7 @@ cargo fmt --check                           # rustfmt, as CI runs it
 cargo clippy --all-targets -- -D warnings   # the lints, warnings refused
 cargo test                                  # every #[test] in every crate, the end-to-end suites of src/bootstrap/tests included
 cargo run -p bootstrap                      # serves on http://127.0.0.1:10000/v1 (PORT, API_PREFIX, JWT_SECRET, ADMIN_IDENTIFIER, ADMIN_PASSWORD)
+cargo run -p bootstrap-starter              # the composition a created application starts from, the Tracker alone (PORT, API_PREFIX, WEB_ORIGINS)
 node ../api/scenario.mjs http://127.0.0.1:10000   # the API every language answers, walked against that server
 ```
 

@@ -14,6 +14,7 @@ cargo fmt --check                           # rustfmt (cargo fmt to apply)
 cargo clippy --all-targets -- -D warnings   # the lints, warnings refused
 cargo test                                  # every #[test], the end-to-end suites included; cargo test -p notes-domain for one crate, cargo test <name> for one test
 cargo run -p bootstrap                      # serves the application on http://127.0.0.1:10000/v1
+cargo run -p bootstrap-starter              # serves the composition a created application starts from: the Tracker alone
 node ../api/scenario.mjs http://127.0.0.1:10000   # the API every language answers, against that server
 yarn --cwd .. architecture rule <ID> | concept <id> | checklist <kind> | verb <intent>   # the contract, asked; from here it answers in Rust (`--language rust` says it explicitly)
                                             # the kinds: aggregate, value-object, domain-service, command, query, integration-event, event-handler, context
@@ -42,6 +43,11 @@ src/contexts/<context>/           one crate per layer (domain/, application/, in
   wiring/src/lib.rs               local_<context>_module(): the Module as data, and what the context exports
 src/bootstrap/                    the composition root (create_application.rs), the settings, the binary, and tests/:
                                   the end-to-end suites, over HTTP, with tests/support/mod.rs booting the application
+  transport/                      crate bootstrap-transport: the transport, which names no context (axum_application.rs:
+                                  the per-request identity and ExecutionContext, CORS, routes under the API prefix,
+                                  listening; without an authentication layer every caller is anonymous)
+  starter/                        crate bootstrap-starter: the composition root `create` gives a new application, the
+                                  Tracker alone, with its entry point and its end-to-end suite (ADR 27)
 tools/conventions/                the conventions check
 ../conventions/rust.yaml          this language's binding of the contract: contexts, trees, enforcers, checklists, canonical files
 ```

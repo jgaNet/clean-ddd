@@ -324,6 +324,17 @@ describe('yarn architecture create --language go', () => {
     expect(existsSync(join(directory, 'sharedkernel/application/integrationevents/note_integration_events.go'))).toBe(
       false,
     );
+    // The Tracker, the transport and the composition a project starts from, in place of the reference's (ADR 27).
+    expect(generated.contexts).toEqual(['Tracker']);
+    expect(existsSync(join(directory, 'contexts/tracker'))).toBe(true);
+    expect(existsSync(join(directory, 'contexts/notes'))).toBe(false);
+    expect(existsSync(join(directory, 'bootstrap/transport/server.go'))).toBe(true);
+    expect(read('bootstrap/create_application.go')).toBe(
+      readFileSync(join(root, 'go/bootstrap/starter/create_application.go'), 'utf8')
+        .split('"clean-ddd/')
+        .join('"my-app/'),
+    );
+    expect(existsSync(join(directory, 'bootstrap/starter'))).toBe(false);
   });
 
   it('is a module named after the application: go.mod, every import, every alias of the binding', () => {
@@ -379,12 +390,20 @@ describe('yarn architecture create --language rust', () => {
     expect(
       existsSync(join(directory, 'src/shared_kernel/application/src/integration_events/note_integration_events.rs')),
     ).toBe(false);
-    expect(existsSync(join(directory, 'src/bootstrap'))).toBe(false);
+    // The Tracker, the transport and the composition a project starts from; not the reference's (ADR 27).
+    expect(generated.contexts).toEqual(['Tracker']);
+    expect(existsSync(join(directory, 'src/contexts/tracker/application/Cargo.toml'))).toBe(true);
+    expect(existsSync(join(directory, 'src/contexts/notes'))).toBe(false);
+    expect(existsSync(join(directory, 'src/bootstrap/transport/Cargo.toml'))).toBe(true);
+    expect(existsSync(join(directory, 'src/bootstrap/starter/tests/create_application.rs'))).toBe(true);
+    expect(existsSync(join(directory, 'src/bootstrap/src'))).toBe(false);
   });
 
-  it('writes a workspace narrowed to the copied trees and the dependencies they use, and an empty contracts module', () => {
+  it('writes a workspace of the copied crates and the dependencies they use, and a contracts module of the copied contract', () => {
     const cargo = read('Cargo.toml');
-    expect(cargo).toContain('members = ["src/architecture/*", "src/shared_kernel/*", "tools/*"]');
+    expect(cargo).toContain(
+      'members = ["src/architecture/*", "src/shared_kernel/*", "src/contexts/*/*", "src/bootstrap/*", "tools/*"]',
+    );
     expect(cargo).toContain('version = "0.1.0"');
     expect(cargo).toContain('uuid = ');
     expect(cargo).toContain('axum = ');
@@ -393,7 +412,7 @@ describe('yarn architecture create --language rust', () => {
     expect(cargo).toContain('[workspace.lints.clippy]');
     const contracts = read('src/shared_kernel/application/src/integration_events/mod.rs');
     expect(contracts).toContain('//!');
-    expect(contracts).not.toContain('pub mod');
+    expect(contracts.match(/pub mod \w+;/g)).toEqual(['pub mod tracker_integration_events;']);
   });
 
   it('is sound on its own terms, with guides in Rust words', () => {

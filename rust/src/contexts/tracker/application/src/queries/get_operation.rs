@@ -1,4 +1,7 @@
 //! One operation, by id. A user may follow their own operations; an administrator may follow any.
+//! An operation nobody started — an anonymous command, a sign-up — is followed by whoever holds
+//! its id: the id is unguessable and is only ever given to the caller who started it, in the 202
+//! (ADR 27).
 
 use std::sync::Arc;
 
@@ -38,15 +41,18 @@ impl<R: OperationRecords + Send + Sync + 'static> QueryHandler for GetOperationQ
         GetOperation { id }: GetOperation,
         context: &ExecutionContext,
     ) -> DomainResult<OperationRecord> {
+        let record = self.records.find_by_id(&id).await;
+        if let Some(record) = &record
+            && record.subject_id.as_deref().is_none_or(str::is_empty)
+        {
+            return Ok(record.clone());
+        }
+
         let reader = require_signed_in(context, SERVICE)?;
         let is_admin = context.auth().role.as_deref() == Some(Role::Admin.as_str());
 
         // An operation someone else started does not exist, as far as you know.
-        let visible = self
-            .records
-            .find_by_id(&id)
-            .await
-            .filter(|record| is_admin || record.subject_id.as_deref() == Some(reader.value()));
+        let visible = record.filter(|record| is_admin || record.subject_id.as_deref() == Some(reader.value()));
 
         visible.ok_or_else(|| Exception::not_found(SERVICE, "Operation not found").with("id", id))
     }

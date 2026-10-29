@@ -81,15 +81,15 @@ modes:
   architecture:
     decides: [architecture, sharedkernel/domain]
 
-# What `clean-ddd create --language go` makes of this directory (ADR 10, ADR 23): the files copied
-# as they are (the building blocks with their tests, the shared kernel's model and guard, the
+# What `clean-ddd create --language go` makes of this directory (ADR 10, ADR 23, ADR 27): the files
+# copied as they are (the building blocks with their tests, the shared kernel's model and guard, the
 # conventions tool — which in Go is the import linter, so it travels with the tree it holds — and
 # the configuration), the package its integration events go in, the manifest rewritten with the
 # application's name as its module path (every import of the copied files and every alias of the
 # binding are rewritten with it), the dependencies the copied files import (uuid in the domain,
 # yaml in the tool; go.sum travels whole and `go mod tidy` prunes it), and the commands the
-# generated guide shows first. The tool wants its inventory committed, so `create` writes an
-# empty one.
+# generated guide shows first. The tool wants its inventory committed, so `create` writes the
+# Tracker's lines of this one.
 create:
   copy:
     - architecture
@@ -98,7 +98,24 @@ create:
     - sharedkernel/application/guards.go
     - sharedkernel/application/guards_test.go
     - sharedkernel/application/integrationevents/doc.go
-    - tools/conventions
+    # The Tracker, which a client follows a command's 202 at, and the contract it publishes (ADR 27).
+    # Its end-to-end cases are in bootstrap/operation_routes_e2e_test.go, which boots this
+    # repository's four contexts, so they stay here; the starting composition's suite boots the
+    # Tracker alone.
+    - sharedkernel/application/integrationevents/tracker_integration_events.go
+    - contexts/tracker
+    # The transport, which knows no context, the entry point, and the composition root a new
+    # application starts from, in place of this repository's. The starter is package bootstrap in
+    # bootstrap/starter, so it lands in bootstrap/ as it is; nothing imports it by its path.
+    - bootstrap/transport
+    - bootstrap/cmd/application/main.go
+    - { from: bootstrap/starter/create_application.go, to: bootstrap/create_application.go }
+    - { from: bootstrap/starter/create_application_e2e_test.go, to: bootstrap/create_application_e2e_test.go }
+    # The tool, without its tests: they write violations into a copy of this repository's tree.
+    - tools/conventions/contract.go
+    - tools/conventions/inventory.go
+    - tools/conventions/linter.go
+    - tools/conventions/main.go
     - .golangci.yml
     - go.sum
   contracts: sharedkernel/application/integrationevents
@@ -200,10 +217,11 @@ checklists:
     place: contexts/<context>/application/commands/<use_case>.go
     parts:
       - 'The command: a struct embedding `domain.CommandEvent`, named `<UseCase>CommandEvent`, its exported fields the payload and nothing more.'
-      - 'The handler in the same file: a struct named `<UseCase>Handler` taking its ports in `New<UseCase>Handler()`, with `Execute(command, ctx) (R, error)` — the signed-in guard at the top, load, ask the aggregate or the domain service, save (return the error as is), `application.PublishDomainEvents`; `R` is `application.Nothing` when there is nothing to answer.'
+      - 'The handler in the same file: a struct named `<UseCase>Handler` taking its ports in `New<UseCase>Handler()`, with `Execute(command, ctx) (R, error)` — the signed-in guard (`kernel.RequireSignedIn`) at the top, load, ask the aggregate or the domain service, save (return the error as is), `application.PublishDomainEvents`; `R` is `application.Nothing` when there is nothing to answer. A command anyone may send (a sign-up) has no signed-in guard; its caller follows it by the operation id it was answered, signed in or not (ADR 27).'
       - 'A `Guard(ctx) error` method only for a rule that needs no caller id, such as administrators only.'
       - 'A test with at least a happy path and one refusal, in `commands_test.go` beside the commands; through `application.Run` when the rule is in `Guard`.'
-      - 'A route in the context''s `presentation/routes.go`: a handler func on the mux, `presentation.Accept(w, presentation.ContextOf(r), TheCommand{...})`, answering `202 { operationId }`; the handler listed in `module.go` with `application.Command()`.'
+      - 'A route in the context''s `presentation/routes.go`: a handler func on the mux, `presentation.Accept(w, presentation.ContextOf(r), TheCommand{...})`, answering `202 { operationId }`; the handler listed in `module.go` with `application.Command()`. A create never answers its new id: the handler returns it (`R` is a `string`), and the client reads it as the operation''s `result` at `GET /v1/tracker/operations/{id}`.'
+      - 'An end-to-end case when the flow is user-visible, in `bootstrap/<context>_routes_e2e_test.go` (package `bootstrap`): it boots the application on a free port and speaks HTTP with `net/http`, as the composition root''s own `create_application_e2e_test.go` does with `startTestApplication(t)` (the clean-ddd reference''s own suites, which boot its four contexts, use `StartTestApplication(t)` of its `bootstrap/testing.go`).'
   query:
     place: contexts/<context>/application/queries/<use_case>.go
     parts:
@@ -234,7 +252,7 @@ checklists:
       - 'One package directory per layer (`domain`, `application`, `infrastructure`, `presentation`) and the wiring file `module.go` (package `<context>`), nothing else.'
       - 'Its own vocabulary: a word that means something else here is a sign the context is right.'
       - 'It asks other contexts through ports it owns, and tells them through integration events; never both sides of a dependency.'
-      - 'Registered in the composition root (`bootstrap/create_application.go`), with its routes under its own prefix.'
+      - 'Registered in the composition root (`bootstrap/create_application.go`): its store in the list the unit of work snapshots, its module after the Tracker''s, its routes mounted on the transport under its own prefix (`server.Routes("/notes", notesapi.Routes, notesModule)`), which the transport serves under the API''s (`/v1/notes`).'
 
 # One test style per layer, for the README.
 tests:
@@ -548,9 +566,15 @@ concepts:
     canonical:
       - bootstrap/create_application.go
       - architecture/application/application.go
+      - bootstrap/transport/server.go
       - bootstrap/cmd/application/main.go
+    examples:
+      - bootstrap/starter/create_application.go
     example: >-
       [`create_application.go`](bootstrap/create_application.go) on
-      [`application.go`](architecture/application/application.go): wires, starts the modules, seeds the
-      administrator through the same handler as any command, then listens;
-      [`cmd/application/main.go`](bootstrap/cmd/application/main.go) is the process entry point
+      [`application.go`](architecture/application/application.go) and
+      [`transport/server.go`](bootstrap/transport/server.go), the transport, which knows no context: wires,
+      starts the modules, seeds the administrator through the same handler as any command, then listens;
+      [`cmd/application/main.go`](bootstrap/cmd/application/main.go) is the process entry point, and
+      [`starter/create_application.go`](bootstrap/starter/create_application.go) the composition a created
+      application starts from (the Tracker alone; ADR 27)

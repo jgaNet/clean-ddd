@@ -1397,16 +1397,26 @@ func (t *sourceTree) mountsOf() map[string]string {
 				if !ok || len(call.Args) < 2 {
 					return true
 				}
-				local, name := typeRef(call.Fun)
-				if name != "Routes" || local == "" {
-					return true
+				// Called on the mux (`notesapi.Routes(mux, prefix+"/notes", …)`), the mount is its
+				// second argument; handed to the transport (`server.Routes("/notes", notesapi.Routes, …)`),
+				// it is the first argument of that call.
+				routes, mountArg := call.Fun, call.Args[1]
+				if _, name := typeRef(call.Fun); name != "Routes" || !isContextRef(s, routes, contexts) {
+					routes = nil
+					for _, arg := range call.Args[1:] {
+						if isContextRef(s, arg, contexts) {
+							routes, mountArg = arg, call.Args[0]
+							break
+						}
+					}
+					if routes == nil {
+						return true
+					}
 				}
-				rest, inside := strings.CutPrefix(s.imports[local], contexts)
-				if !inside {
-					return true
-				}
+				local, _ := typeRef(routes)
+				rest, _ := strings.CutPrefix(s.imports[local], contexts)
 				context := firstDir(rest)
-				mount := strings.TrimSuffix(path.Clean("/"+sc.eval(call.Args[1], 0)), "/")
+				mount := strings.TrimSuffix(path.Clean("/"+sc.eval(mountArg, 0)), "/")
 				if _, seen := mounts[context]; !seen {
 					mounts[context] = mount
 				}
@@ -1415,6 +1425,15 @@ func (t *sourceTree) mountsOf() map[string]string {
 		}
 	}
 	return mounts
+}
+
+// isContextRef says whether an expression names the Routes of a context's package: `notesapi.Routes`.
+func isContextRef(s *source, expr ast.Expr, contexts string) bool {
+	local, name := typeRef(expr)
+	if name != "Routes" || local == "" {
+		return false
+	}
+	return strings.HasPrefix(s.imports[local], contexts)
 }
 
 // ---------------------------------------------------------------------------------------------

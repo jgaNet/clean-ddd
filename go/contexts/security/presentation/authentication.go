@@ -1,7 +1,6 @@
 package presentation
 
 import (
-	"context"
 	"net/http"
 	"strings"
 
@@ -17,9 +16,9 @@ import (
 // (SignedTokens.Verify), the account still exists and is active, and the role it claims is
 // the account's current role.
 //
-// The composition root installs Middleware outermost, over every route and the websocket
-// upgrade alike; the Auth it establishes travels on the request (AuthOf) to the middleware
-// that builds the execution context.
+// The composition root gives Authenticate to the transport, which asks it for every request,
+// every route and the websocket upgrade alike, and puts the Auth it answers on the request's
+// execution context.
 type Authentication struct {
 	accounts account.Queries
 	tokens   auth.SignedTokens
@@ -61,27 +60,11 @@ func (a *Authentication) Identify(headers http.Header, queryToken string) applic
 	return application.Auth{SubjectID: detail.ID, Role: string(role)}
 }
 
-// Middleware identifies the caller of every request, before anything else runs, and attaches
-// the Auth to the request for the composition root to read with AuthOf.
-func (a *Authentication) Middleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, WithAuth(r, a.Identify(r.Header, r.URL.Query().Get("token"))))
-	})
-}
-
-type authKey struct{}
-
-// WithAuth attaches who is calling to the request.
-func WithAuth(r *http.Request, auth application.Auth) *http.Request {
-	return r.WithContext(context.WithValue(r.Context(), authKey{}, auth))
-}
-
-// AuthOf is who is calling, as the middleware established it; GUEST when it did not run.
-func AuthOf(r *http.Request) application.Auth {
-	if auth, ok := r.Context().Value(authKey{}).(application.Auth); ok {
-		return auth
-	}
-	return Guest
+// Authenticate identifies the caller of a request, from its headers and its query token. The
+// composition root gives it to the transport, which asks it once per request — the websocket
+// upgrade included — before it builds the request's execution context.
+func (a *Authentication) Authenticate(r *http.Request) application.Auth {
+	return a.Identify(r.Header, r.URL.Query().Get("token"))
 }
 
 func tokenFromHeader(headers http.Header) string {

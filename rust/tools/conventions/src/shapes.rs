@@ -15,7 +15,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::{BINDING, inventory, repository_root, yaml};
+use super::{BINDING, inventory, repository_root, text, yaml};
 
 const PRESENTATION: &str = "rust/src/contexts/notes/presentation/src/lib.rs";
 const WIRING: &str = "rust/src/contexts/notes/wiring/src/lib.rs";
@@ -40,6 +40,15 @@ impl Verdict {
     fn about(&self, rule: &str) -> Vec<&str> {
         self.caught.iter().map(String::as_str).filter(|line| line.starts_with(&format!("{rule}:"))).collect()
     }
+}
+
+/// Whether these probes run in this repository, whose Notes context they write into. An
+/// application `clean-ddd create` made carries this tool without Notes, and is told apart by its
+/// binding, whose root is the application itself (`.`); there the probes have nothing to probe.
+/// Here they always run, so a Notes tree that moved fails them rather than skipping them.
+fn the_reference_tree_is_here() -> bool {
+    let root = repository_root(Path::new(env!("CARGO_MANIFEST_DIR"))).expect("the repository root");
+    text(&yaml(&root.join(BINDING))["root"]) != "."
 }
 
 /// A copy of the repository's tree in a directory of its own, removed when dropped.
@@ -131,6 +140,9 @@ const SHARE_UNANSWERED: &str =
 
 #[test]
 fn the_tree_as_it_is_every_shape_recognised_nothing_caught() {
+    if !the_reference_tree_is_here() {
+        return;
+    }
     assert_eq!(probe(&[]), Verdict { recognised: true, caught: vec![] });
 }
 
@@ -148,6 +160,9 @@ fn a_replacement_that_matches_twice_stops_the_probe() {
 
 #[test]
 fn a_handler_struct_named_for_its_use_case_is_recognised_the_command_is_its_type_command() {
+    if !the_reference_tree_is_here() {
+        return;
+    }
     let verdict = probe(&[
         (HANDLER, "pub struct ShareNoteCommandHandler<", "pub struct ShareNoteUseCase<"),
         (
@@ -171,6 +186,9 @@ fn a_handler_struct_named_for_its_use_case_is_recognised_the_command_is_its_type
 
 #[test]
 fn a_command_built_through_a_use_as_alias_is_recognised_the_alias_followed_in_its_file() {
+    if !the_reference_tree_is_here() {
+        return;
+    }
     let verdict = probe(&[
         (PRESENTATION, SHARE_USED, "use notes_application::commands::share_note::ShareNote as Share;"),
         (PRESENTATION, SHARE_BUILT, "accept(&context, Share { note_id: id, recipient_id: body.recipient_id })"),
@@ -180,6 +198,9 @@ fn a_command_built_through_a_use_as_alias_is_recognised_the_alias_followed_in_it
 
 #[test]
 fn a_command_built_through_a_type_alias_loses_its_route_caught_by_the_inventory_never_named_share() {
+    if !the_reference_tree_is_here() {
+        return;
+    }
     let verdict = probe(&[
         (PRESENTATION, SHARE_BUILT, "accept(&context, Share { note_id: id, recipient_id: body.recipient_id })"),
         (PRESENTATION, "async fn share_note(", "type Share = ShareNote;\n\nasync fn share_note("),
@@ -192,6 +213,9 @@ fn a_command_built_through_a_type_alias_loses_its_route_caught_by_the_inventory_
 
 #[test]
 fn a_command_built_by_a_helper_the_route_calls_loses_its_route_caught_by_the_inventory_never_named_share() {
+    if !the_reference_tree_is_here() {
+        return;
+    }
     let verdict = probe(&[
         (PRESENTATION, SHARE_BUILT, "accept(&context, share(id, body.recipient_id))"),
         (
@@ -208,6 +232,9 @@ fn a_command_built_by_a_helper_the_route_calls_loses_its_route_caught_by_the_inv
 
 #[test]
 fn a_subscription_taken_from_a_let_binding_is_not_listed_caught_by_the_inventory_and_arch_one_handler() {
+    if !the_reference_tree_is_here() {
+        return;
+    }
     let verdict = probe(&[
         (WIRING, SHARE_LISTED, "share,"),
         (
@@ -223,6 +250,9 @@ fn a_subscription_taken_from_a_let_binding_is_not_listed_caught_by_the_inventory
 
 #[test]
 fn a_handler_built_by_a_factory_is_not_read_caught_by_the_inventory_and_arch_one_handler() {
+    if !the_reference_tree_is_here() {
+        return;
+    }
     let verdict = probe(&[
         (WIRING, SHARE_LISTED, "Subscription::command(share_handler(repository.clone(), accounts)),"),
         (
@@ -239,6 +269,9 @@ fn a_handler_built_by_a_factory_is_not_read_caught_by_the_inventory_and_arch_one
 
 #[test]
 fn a_command_re_exported_under_another_name_is_recognised_the_re_export_followed() {
+    if !the_reference_tree_is_here() {
+        return;
+    }
     let verdict = probe(&[
         (
             COMMANDS,

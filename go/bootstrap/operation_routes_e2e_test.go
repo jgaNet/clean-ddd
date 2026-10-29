@@ -80,3 +80,24 @@ func TestTrackerListsOperationsForAnAdministratorByTraceWhenAsked(t *testing.T) 
 		t.Fatal("unknown operation")
 	}
 }
+
+func TestTrackerShowsAnOperationNobodyStartedToWhoeverHoldsItsIDAndOneAnAccountStartedToThatAccountOnly(t *testing.T) {
+	app := StartTestApplication(t)
+	anonymous := app.Anonymous()
+
+	// A sign-up is anonymous: the only one who knows its id is the caller it was answered to.
+	signUp := anonymous.Post("/auth/signup", map[string]string{"identifier": "tracked@x.fr", "password": "secret"})
+	operation := app.Accepted(anonymous, signUp)
+	if operation["name"] != "SignUp" || operation["status"] != "SUCCESS" {
+		t.Fatalf("operation: %v", operation)
+	}
+	if _, ok := operation["result"].(string); !ok {
+		t.Fatalf("result: %v", operation)
+	}
+
+	admin := app.Admin()
+	signed := admin.Post("/notes/00000000-0000-4000-8000-000000000000/share", map[string]string{"recipientId": "bob"})
+	if status := anonymous.Get("/tracker/operations/" + signed.Object()["operationId"].(string)).Status; status != http.StatusForbidden {
+		t.Fatalf("anonymous, for an operation an account started: %d", status)
+	}
+}

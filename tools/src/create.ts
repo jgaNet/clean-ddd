@@ -855,7 +855,6 @@ function cargoToml(spec: CreateSpec, text: string, name: string): string {
     `# ${name}: a workspace on the clean-ddd architecture, made by \`clean-ddd create\`. Every layer of every`,
     "# tree is a crate, and a crate's `[dependencies]` are its row of the dependency table in",
     '# conventions/architecture.yaml: the compiler holds the boundary, `cargo run -p conventions` proves it.',
-    '# Add "src/contexts/*/*" to the members with your first context, and "src/bootstrap" with the composition root.',
     '',
   ].join('\n');
   return `${note}${kept

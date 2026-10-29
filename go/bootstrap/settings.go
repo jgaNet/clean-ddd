@@ -25,7 +25,6 @@ type Settings struct {
 	AdminAccount *AdminAccount
 	// WebOrigins are the origins a front end may call the API from (CORS); none: same-origin clients only.
 	WebOrigins []string
-	Debug      bool
 }
 
 type AdminAccount struct {
@@ -71,7 +70,6 @@ func SettingsFromEnv() Settings {
 		},
 		AdminAccount: &AdminAccount{Identifier: env("ADMIN_IDENTIFIER", "admin@admin.fr"), Password: env("ADMIN_PASSWORD", "admin")},
 		WebOrigins:   origins,
-		Debug:        os.Getenv("DEBUG") == "true",
 	}
 }
 
