@@ -74,6 +74,11 @@ export interface Relationship {
   patterns: Pattern[];
   mechanism: Mechanism;
   why: string;
+  /**
+   * Decided before the code that carries it (ADR 28): the check does not ask the code to carry
+   * a planned relationship yet, and holds it like any other once it does.
+   */
+  planned?: boolean;
 }
 
 export interface DomainMap {
@@ -156,6 +161,7 @@ export function loadDomainMap(root: string): DomainMap | undefined {
       patterns: strings(entry.patterns) as Pattern[],
       mechanism: text(entry.mechanism) as Mechanism,
       why: text(entry.why),
+      ...(entry.planned === true && { planned: true }),
     })),
     sharedKernel: { holds: text(kernel.holds), why: text(kernel.why) },
     source: DOMAIN_FILE,
@@ -383,9 +389,9 @@ export function checkDomainAgainstLinks(map: DomainMap, links: ContextLink[], la
   const same = (a: { upstream: string; downstream: string; mechanism: Mechanism }, b: typeof a) =>
     a.upstream === b.upstream && a.downstream === b.downstream && a.mechanism === b.mechanism;
   for (const relationship of map.relationships) {
-    if (!links.some(found => same(found, relationship))) {
+    if (!relationship.planned && !links.some(found => same(found, relationship))) {
       problems.push(
-        `CTX-MAP-DECLARED: ${map.source} declares ${relationship.upstream} → ${relationship.downstream} over an ${relationship.mechanism}, which nothing in the ${language} code carries`,
+        `CTX-MAP-DECLARED: ${map.source} declares ${relationship.upstream} → ${relationship.downstream} over an ${relationship.mechanism}, which nothing in the ${language} code carries; a relationship decided before its code is declared \`planned: true\``,
       );
     }
   }
@@ -463,7 +469,8 @@ export function renderDomain(map: DomainMap, links: ContextLink[], strategic: St
         relationship.downstream,
         relationship.patterns.map(spell).join(', '),
         spell(relationship.mechanism),
-        (linkOf(relationship, links)?.contracts ?? []).map(contract => `\`${contract}\``).join(', ') || '—',
+        (linkOf(relationship, links)?.contracts ?? []).map(contract => `\`${contract}\``).join(', ') ||
+          (relationship.planned && !linkOf(relationship, links) ? 'planned: not carried yet' : '—'),
         relationship.why,
       ]),
     ),
