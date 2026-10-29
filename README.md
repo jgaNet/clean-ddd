@@ -336,7 +336,7 @@ api/                        the API every language answers, as one black-box sce
 .claude/                    the feature skill and the feature-author agent, for working here with an agent
 ```
 
-Everything a language shares with the others lives at the root: the contract, the concepts, the decisions, the evaluation protocol, the agent loop. Everything one language owns lives in its directory, including the linter and the check that hold it to the contract. The tooling that reads the contract itself is the root's, one package for every language ([`tools/`](tools/README.md), published to npm as `clean-ddd`): `yarn architecture` answers from the contract and from any binding, `yarn check:conventions` validates every binding the map shows and every document, and `clean-ddd create --language <id>` starts an application on this architecture anywhere, in TypeScript or in Python ([ADR 23](docs/adr/0023-the-tooling-lives-at-the-root-and-ships-as-a-package.md)).
+Everything a language shares with the others lives at the root: the contract, the concepts, the decisions, the evaluation protocol, the agent loop. Everything one language owns lives in its directory, including the linter and the check that hold it to the contract. The tooling that reads the contract itself is the root's, one package for every language ([`tools/`](tools/README.md), published to npm as `clean-ddd`): `yarn architecture` answers from the contract and from any binding, `yarn check:conventions` validates every binding the map shows and every document, and `clean-ddd create --language <id>` starts an application on this architecture anywhere, in TypeScript, Python or Go ([ADR 23](docs/adr/0023-the-tooling-lives-at-the-root-and-ships-as-a-package.md)).
 
 ## Adding a language
 

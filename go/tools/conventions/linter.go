@@ -26,9 +26,18 @@ type file struct {
 
 // classify says what a repository-relative path is in this language, or false when it is in no
 // tree the binding declares (the tools, the module file).
+// insideRoot is a repository-relative path made relative to the language's directory: `go/architecture/x.go`
+// is `architecture/x.go` here, and the same path is its own in an application whose root is `.`.
+func insideRoot(contract *Contract, repoPath string) (string, bool) {
+	if contract.Root == "." {
+		return repoPath, !strings.HasPrefix(repoPath, "../")
+	}
+	return strings.CutPrefix(repoPath, contract.Root+"/")
+}
+
 func classify(contract *Contract, repoPath string) (file, bool) {
 	f := file{path: repoPath}
-	relative, ok := strings.CutPrefix(repoPath, contract.Root+"/")
+	relative, ok := insideRoot(contract, repoPath)
 	if !ok {
 		return f, false
 	}
@@ -244,7 +253,10 @@ func checkTree(root string, contract *Contract) []string {
 	}
 	for _, entry := range entries {
 		if !entry.IsDir() {
-			problems = append(problems, fmt.Sprintf("ARCH-CONTEXT-DECLARED: %s/%s is not a context directory", contract.ContextsTree, entry.Name()))
+			// A Go file beside the contexts belongs to none of them; a document (the README of an application with no context yet) is fine.
+			if strings.HasSuffix(entry.Name(), ".go") {
+				problems = append(problems, fmt.Sprintf("ARCH-CONTEXT-DECLARED: %s/%s is not a context directory", contract.ContextsTree, entry.Name()))
+			}
 			continue
 		}
 		if !declared[entry.Name()] {

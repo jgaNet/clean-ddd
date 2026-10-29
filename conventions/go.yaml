@@ -81,6 +81,33 @@ modes:
   architecture:
     decides: [architecture, sharedkernel/domain]
 
+# What `clean-ddd create --language go` makes of this directory (ADR 10, ADR 23): the files copied
+# as they are (the building blocks with their tests, the shared kernel's model and guard, the
+# conventions tool — which in Go is the import linter, so it travels with the tree it holds — and
+# the configuration), the package its integration events go in, the manifest rewritten with the
+# application's name as its module path (every import of the copied files and every alias of the
+# binding are rewritten with it), the dependencies the copied files import (uuid in the domain,
+# yaml in the tool; go.sum travels whole and `go mod tidy` prunes it), and the commands the
+# generated guide shows first. The tool wants its inventory committed, so `create` writes an
+# empty one.
+create:
+  copy:
+    - architecture
+    - sharedkernel/domain
+    - sharedkernel/application/doc.go
+    - sharedkernel/application/guards.go
+    - sharedkernel/application/guards_test.go
+    - sharedkernel/application/integrationevents/doc.go
+    - tools/conventions
+    - .golangci.yml
+    - go.sum
+  contracts: sharedkernel/application/integrationevents
+  manifest: go.mod
+  dependencies: [github.com/google/uuid, gopkg.in/yaml.v3]
+  inventory: true
+  install: go mod tidy
+  test: go test ./...
+
 # The files that show a rule, by id. The rule itself is in architecture.yaml.
 rules:
   ARCH-RELATIVE:
