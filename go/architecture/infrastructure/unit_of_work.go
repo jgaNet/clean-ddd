@@ -1,6 +1,10 @@
 package infrastructure
 
-import "errors"
+import (
+	"errors"
+
+	"clean-ddd/architecture/application"
+)
 
 // InMemoryUnitOfWork is the transaction boundary over the in-memory stores. BeginTransaction
 // snapshots every store it was given (by default every store of the process),
@@ -14,18 +18,31 @@ import "errors"
 // isolation. A database gives both, through the same four methods (ADR 3). One instance per
 // request: see the bootstrap. Misuse (two begins, a commit with nothing open) is a programming
 // error and is reported as one.
+//
+// The outbox is one of the stores (ADR 24): the process's InMemoryOutbox registers its store
+// like any other, so an entry appended by a transaction that rolls back is gone with the
+// transaction's writes, and one that commits is durable for the relay.
 type InMemoryUnitOfWork struct {
 	stores  []Snapshotter
+	outbox  *InMemoryOutbox
 	restore []func()
 	active  bool
 }
 
-// NewInMemoryUnitOfWork guards the given stores, or every store of the process when given none.
+// NewInMemoryUnitOfWork guards the given stores and the process's outbox, or every store of the process when given none.
 func NewInMemoryUnitOfWork(stores ...Snapshotter) *InMemoryUnitOfWork {
+	return NewInMemoryUnitOfWorkWith(SharedOutbox, stores...)
+}
+
+// NewInMemoryUnitOfWorkWith guards the given stores and this outbox, or every store of the
+// process when given none (the outbox's is one of them, registered at its creation).
+func NewInMemoryUnitOfWorkWith(outbox *InMemoryOutbox, stores ...Snapshotter) *InMemoryUnitOfWork {
 	if len(stores) == 0 {
 		stores = AllStores()
+	} else {
+		stores = append(append([]Snapshotter(nil), stores...), outbox.Store())
 	}
-	return &InMemoryUnitOfWork{stores: stores}
+	return &InMemoryUnitOfWork{stores: stores, outbox: outbox}
 }
 
 func (u *InMemoryUnitOfWork) BeginTransaction() error {
@@ -60,3 +77,5 @@ func (u *InMemoryUnitOfWork) RollbackTransaction() error {
 }
 
 func (u *InMemoryUnitOfWork) HasActiveTransaction() bool { return u.active }
+
+func (u *InMemoryUnitOfWork) Outbox() application.Outbox { return u.outbox }

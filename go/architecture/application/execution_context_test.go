@@ -14,17 +14,64 @@ func (noBus) Connect() error { return nil }
 func (noBus) Publish(domain.Event, *ExecutionContext) *Operation {
 	panic("not used")
 }
+func (noBus) PublishWithID(domain.Event, *ExecutionContext, string) *Operation {
+	panic("not used")
+}
 func (noBus) Dispatch(*Operation)          { panic("not used") }
 func (noBus) Subscribe(string, Subscriber) {}
 
-// fakeUnitOfWork records the order of things, so a test can see what happened before what.
-type fakeUnitOfWork struct {
-	active bool
-	log    []string
+// fakeOutbox keeps its entries in order, and remembers every id it ever gave, so a test can
+// see what was stored, what was relayed, and under which id.
+type fakeOutbox struct {
+	entries  []OutboxEntry
+	appended []string
 }
+
+func (o *fakeOutbox) Append(events []domain.Event) []OutboxEntry {
+	var appended []OutboxEntry
+	for _, event := range events {
+		entry := OutboxEntry{ID: domain.GenerateID().Value(), Event: event}
+		o.entries = append(o.entries, entry)
+		o.appended = append(o.appended, entry.ID)
+		appended = append(appended, entry)
+	}
+	return appended
+}
+
+func (o *fakeOutbox) Pending() []OutboxEntry { return append([]OutboxEntry(nil), o.entries...) }
+
+func (o *fakeOutbox) MarkPublished(id string) {
+	kept := o.entries[:0]
+	for _, entry := range o.entries {
+		if entry.ID != id {
+			kept = append(kept, entry)
+		}
+	}
+	o.entries = kept
+}
+
+func (o *fakeOutbox) events() []domain.Event {
+	var events []domain.Event
+	for _, entry := range o.entries {
+		events = append(events, entry.Event)
+	}
+	return events
+}
+
+// fakeUnitOfWork records the order of things, so a test can see what happened before what; its
+// outbox lives and dies with the transaction, as the in-memory one does.
+type fakeUnitOfWork struct {
+	active   bool
+	log      []string
+	outbox   *fakeOutbox
+	snapshot []OutboxEntry
+}
+
+func newFakeUnitOfWork() *fakeUnitOfWork { return &fakeUnitOfWork{outbox: &fakeOutbox{}} }
 
 func (u *fakeUnitOfWork) BeginTransaction() error {
 	u.active = true
+	u.snapshot = u.outbox.Pending()
 	u.log = append(u.log, "begin")
 	return nil
 }
@@ -37,11 +84,14 @@ func (u *fakeUnitOfWork) CommitTransaction() error {
 
 func (u *fakeUnitOfWork) RollbackTransaction() error {
 	u.active = false
+	u.outbox.entries = u.snapshot
 	u.log = append(u.log, "rollback")
 	return nil
 }
 
 func (u *fakeUnitOfWork) HasActiveTransaction() bool { return u.active }
+
+func (u *fakeUnitOfWork) Outbox() Outbox { return u.outbox }
 
 func contextWith(unitOfWork UnitOfWork) *ExecutionContext {
 	return NewExecutionContext(Options{TraceID: "trace", EventBus: noBus{}, Auth: Auth{}, UnitOfWork: unitOfWork})
@@ -54,7 +104,7 @@ func contextWithout() *ExecutionContext {
 type nothing struct{}
 
 func TestRunsTheCallbackOnlyOnceTheTransactionIsCommitted(t *testing.T) {
-	unitOfWork := &fakeUnitOfWork{}
+	unitOfWork := newFakeUnitOfWork()
 	context := contextWith(unitOfWork)
 
 	_, err := Transaction(context, func() (nothing, error) {
@@ -70,8 +120,50 @@ func TestRunsTheCallbackOnlyOnceTheTransactionIsCommitted(t *testing.T) {
 	}
 }
 
+func TestRunsABeforeCommitStepInsideTheTransactionAfterTheWorkAndBeforeTheCommitThenRelaysTheOutbox(t *testing.T) {
+	unitOfWork := newFakeUnitOfWork()
+	bus := &recordingBus{log: &unitOfWork.log}
+	context := NewExecutionContext(Options{TraceID: "trace", EventBus: bus, UnitOfWork: unitOfWork})
+
+	_, err := Transaction(context, func() (nothing, error) {
+		context.AfterCommit(func() { unitOfWork.log = append(unitOfWork.log, "callback") })
+		context.BeforeCommit(func() {
+			unitOfWork.log = append(unitOfWork.log, "before commit")
+			unitOfWork.outbox.Append([]domain.Event{GreetedEvent{Name: "fact"}})
+		})
+		unitOfWork.log = append(unitOfWork.log, "work")
+		return nothing{}, nil
+	})
+	if err != nil {
+		t.Fatalf("unexpected failure: %v", err)
+	}
+	if want := []string{"begin", "work", "before commit", "commit", "publish", "callback"}; !reflect.DeepEqual(unitOfWork.log, want) {
+		t.Errorf("log: got %v, want %v", unitOfWork.log, want)
+	}
+	if pending := unitOfWork.outbox.Pending(); len(pending) != 0 {
+		t.Errorf("the outbox should have been relayed, got %v", pending)
+	}
+}
+
+func TestDropsTheBeforeCommitStepWithTheCallbackWhenTheTransactionFails(t *testing.T) {
+	unitOfWork := newFakeUnitOfWork()
+	context := contextWith(unitOfWork)
+
+	_, err := Transaction(context, func() (nothing, error) {
+		context.BeforeCommit(func() { unitOfWork.log = append(unitOfWork.log, "before commit") })
+		context.AfterCommit(func() { unitOfWork.log = append(unitOfWork.log, "callback") })
+		return nothing{}, domain.Unknown("nope", nil)
+	})
+	if refused, ok := domain.Refusal(err); !ok || refused.Message != "nope" {
+		t.Errorf("the refusal should come back as is, got %v", err)
+	}
+	if want := []string{"begin", "rollback"}; !reflect.DeepEqual(unitOfWork.log, want) {
+		t.Errorf("log: got %v, want %v", unitOfWork.log, want)
+	}
+}
+
 func TestDropsTheCallbackWhenTheTransactionFails(t *testing.T) {
-	unitOfWork := &fakeUnitOfWork{}
+	unitOfWork := newFakeUnitOfWork()
 	context := contextWith(unitOfWork)
 
 	_, err := Transaction(context, func() (nothing, error) {
@@ -87,7 +179,7 @@ func TestDropsTheCallbackWhenTheTransactionFails(t *testing.T) {
 }
 
 func TestDropsTheCallbackWhenTheTransactionPanics(t *testing.T) {
-	unitOfWork := &fakeUnitOfWork{}
+	unitOfWork := newFakeUnitOfWork()
 	context := contextWith(unitOfWork)
 
 	_, err := Transaction(context, func() (nothing, error) {
@@ -104,7 +196,7 @@ func TestDropsTheCallbackWhenTheTransactionPanics(t *testing.T) {
 }
 
 func TestRunsTheCallbackAtTheOutermostCommitWhenTransactionsAreNested(t *testing.T) {
-	unitOfWork := &fakeUnitOfWork{}
+	unitOfWork := newFakeUnitOfWork()
 	context := contextWith(unitOfWork)
 
 	inner := func() (nothing, error) {
@@ -127,7 +219,7 @@ func TestRunsTheCallbackAtTheOutermostCommitWhenTransactionsAreNested(t *testing
 }
 
 func TestAnInnerFailureRollsBackTheOuterTransaction(t *testing.T) {
-	unitOfWork := &fakeUnitOfWork{}
+	unitOfWork := newFakeUnitOfWork()
 	context := contextWith(unitOfWork)
 
 	_, err := Transaction(context, func() (nothing, error) {
@@ -159,19 +251,20 @@ func TestStillDefersTheCallbackWithoutAUnitOfWorkUntilTheFunctionSucceeds(t *tes
 
 	_, err := Transaction(context, func() (nothing, error) {
 		context.AfterCommit(func() { order = append(order, "callback") })
+		context.BeforeCommit(func() { order = append(order, "before commit") })
 		order = append(order, "work")
 		return nothing{}, nil
 	})
 	if err != nil {
 		t.Fatalf("unexpected failure: %v", err)
 	}
-	if want := []string{"work", "callback"}; !reflect.DeepEqual(order, want) {
+	if want := []string{"work", "before commit", "callback"}; !reflect.DeepEqual(order, want) {
 		t.Errorf("order: got %v, want %v", order, want)
 	}
 }
 
 func TestTheContextCarriesWhatExistsPerRequestAndLogsSilentlyWithoutALogger(t *testing.T) {
-	unitOfWork := &fakeUnitOfWork{}
+	unitOfWork := newFakeUnitOfWork()
 	context := NewExecutionContext(Options{
 		TraceID: "trace-1", Auth: Auth{SubjectID: "alice", Role: "USER"}, EventBus: noBus{}, UnitOfWork: unitOfWork,
 	})

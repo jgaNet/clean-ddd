@@ -34,8 +34,8 @@ class TrackedEventBus:
     async def connect(self) -> None:
         await self._bus.connect()
 
-    def publish[E: Event](self, event: E, context: ExecutionContext) -> Operation[E]:
-        operation = Operation(event, context)
+    def publish[E: Event](self, event: E, context: ExecutionContext, message_id: str | None = None) -> Operation[E]:
+        operation = Operation(event, context, id=message_id)
         task = asyncio.get_running_loop().create_task(self.dispatch(operation))
         self._pending.add(task)
         task.add_done_callback(self._pending.discard)

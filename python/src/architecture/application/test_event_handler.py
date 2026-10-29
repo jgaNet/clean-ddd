@@ -30,7 +30,7 @@ class OnGreeted(EventHandler[Greeted]):
 class NoBus:
     async def connect(self) -> None: ...
 
-    def publish[E: Event](self, event: E, context: ExecutionContext) -> Operation[E]:
+    def publish[E: Event](self, event: E, context: ExecutionContext, message_id: str | None = None) -> Operation[E]:
         raise AssertionError("not used")
 
     async def dispatch(self, operation: Operation[Any]) -> Operation[Any]:

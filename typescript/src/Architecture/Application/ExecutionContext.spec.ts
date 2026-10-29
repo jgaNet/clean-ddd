@@ -1,14 +1,16 @@
 import { expect, jest } from '@jest/globals';
 
-import { Result, UnknownException } from '@Architecture/Domain';
+import { Event, Result, UnknownException } from '@Architecture/Domain';
 import { EventBus } from '@Architecture/Application/EventBus';
 import { ExecutionContext, UnitOfWork } from '@Architecture/Application/ExecutionContext';
+import { InMemoryOutbox } from '@Architecture/Infrastructure/Outbox/InMemoryOutbox';
 
 const eventBus = { connect: jest.fn(), publish: jest.fn(), subscribe: jest.fn() } as EventBus;
 
 class FakeUnitOfWork implements UnitOfWork {
   active = false;
   log: string[] = [];
+  outbox = new InMemoryOutbox();
 
   async beginTransaction() {
     this.active = true;
@@ -27,6 +29,8 @@ class FakeUnitOfWork implements UnitOfWork {
   }
 }
 
+beforeEach(() => jest.resetAllMocks());
+
 function contextWith(unitOfWork?: UnitOfWork): ExecutionContext {
   return new ExecutionContext({ traceId: 'trace', eventBus, auth: {}, unitOfWork });
 }
@@ -43,6 +47,40 @@ describe('ExecutionContext.afterCommit', () => {
     });
 
     expect(unitOfWork.log).toEqual(['begin', 'work', 'commit', 'callback']);
+  });
+
+  it('runs a beforeCommit step inside the transaction, after the work and before the commit, then relays the outbox', async () => {
+    const unitOfWork = new FakeUnitOfWork();
+    const context = contextWith(unitOfWork);
+    jest.mocked(eventBus.publish).mockImplementation(() => {
+      unitOfWork.log.push('publish');
+      return undefined as never;
+    });
+
+    await context.withTransaction(async () => {
+      context.afterCommit(() => unitOfWork.log.push('callback'));
+      context.beforeCommit(() => {
+        unitOfWork.log.push('before commit');
+        unitOfWork.outbox.append([new (class extends Event<string> {})({ payload: 'fact', name: 'Fact' })]);
+      });
+      unitOfWork.log.push('work');
+      return Result.ok();
+    });
+
+    expect(unitOfWork.log).toEqual(['begin', 'work', 'before commit', 'commit', 'publish', 'callback']);
+    expect(unitOfWork.outbox.pending()).toEqual([]);
+  });
+
+  it('drops the beforeCommit step, with the callback, when the transaction fails', async () => {
+    const unitOfWork = new FakeUnitOfWork();
+    const context = contextWith(unitOfWork);
+
+    await context.withTransaction(async () => {
+      context.beforeCommit(() => unitOfWork.log.push('before commit'));
+      return Result.fail(new UnknownException('nope'));
+    });
+
+    expect(unitOfWork.log).toEqual(['begin', 'rollback']);
   });
 
   it('drops the callback when the transaction fails', async () => {

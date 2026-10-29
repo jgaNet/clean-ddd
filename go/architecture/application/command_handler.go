@@ -15,6 +15,8 @@ import (
 //  2. logging      what ran, and whether it failed
 //  3. transaction  Execute runs inside the context's unit of work when there is one
 //  4. safety net   an unexpected panic becomes a failed result instead of a crash
+//  5. retry        a concurrency conflict is re-read and re-decided in a new transaction, up to
+//     ConflictAttempts times; the last conflict is the refusal (ADR 25)
 //
 // Command subscribes the handler to its command on the event bus, where Handle receives an
 // Operation (the command plus its execution context) and marks it done. Run is the typed half
@@ -35,7 +37,10 @@ type Guarded interface {
 // Nothing is what a command that has nothing to answer returns; the operation records no result.
 type Nothing struct{}
 
-// Run is guard, log, transaction, safety net; the use case's answer in return.
+// ConflictAttempts is how many times Execute runs on a concurrency conflict before the conflict is the answer.
+const ConflictAttempts = 3
+
+// Run is guard, log, transaction, safety net, retry; the use case's answer in return.
 func Run[C domain.Event, R any](handler CommandHandler[C, R], command C, context *ExecutionContext) (R, error) {
 	var zero R
 	name := domain.NameOf(command)
@@ -47,13 +52,28 @@ func Run[C domain.Event, R any](handler CommandHandler[C, R], command C, context
 	}
 	context.Log().Info(fmt.Sprintf("Executing %s", name), Meta{"traceId": context.TraceID()})
 
-	value, err := Transaction(context, func() (R, error) {
-		return safeExecute(handler, command, context)
-	})
+	value, err := executeUntilUncontended(handler, command, context)
 	if err != nil {
 		context.Log().Warn(fmt.Sprintf("%s failed: %s", name, err.Error()), Meta{"traceId": context.TraceID()})
 	}
 	return value, err
+}
+
+// executeUntilUncontended is the use case in its transaction; again, from a fresh read, when
+// the first run lost a race (ADR 25). Execute loads the aggregate, so the second run re-decides
+// the rule on what the other writer left; nothing is re-applied blindly. A failed attempt
+// rolled back and dropped its events, like any refusal.
+func executeUntilUncontended[C domain.Event, R any](handler CommandHandler[C, R], command C, context *ExecutionContext) (R, error) {
+	for attempt := 1; ; attempt++ {
+		value, err := Transaction(context, func() (R, error) {
+			return safeExecute(handler, command, context)
+		})
+		if !domain.IsConcurrencyConflict(err) || attempt >= ConflictAttempts {
+			return value, err
+		}
+		context.Log().Info(fmt.Sprintf("%s lost a race (attempt %d of %d); reading again", domain.NameOf(command), attempt, ConflictAttempts),
+			Meta{"traceId": context.TraceID()})
+	}
 }
 
 func safeExecute[C domain.Event, R any](handler CommandHandler[C, R], command C, context *ExecutionContext) (value R, err error) {

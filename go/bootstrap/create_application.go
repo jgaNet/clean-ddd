@@ -64,6 +64,12 @@ func CreateApplication(settings Settings, logger application.Logger) (*App, erro
 	if err := app.StartModules(); err != nil {
 		return nil, err
 	}
+	// What a previous run made durable and did not publish goes out now (ADR 24): nothing, with
+	// an in-memory outbox, and the line is where a store's outbox would be relayed. Every
+	// request's unit of work guards that same outbox, one per process.
+	application.RelayOutbox(infrastructure.SharedOutbox, eventBus, application.NewExecutionContext(application.Options{
+		TraceID: "startup", EventBus: eventBus, Logger: logger,
+	}))
 
 	// The routes, under the API prefix, each context's under its own; the websocket at the root.
 	mux := http.NewServeMux()

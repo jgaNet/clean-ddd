@@ -65,9 +65,11 @@ describe('the architecture contract', () => {
     expect(contract.architecture).toEqual({ alias: '@Architecture', path: 'typescript/src/Architecture' });
     expect(getRule(contract, 'CONC-OPTIMISTIC')?.references).toEqual([
       'docs/adr/0008-optimistic-concurrency-on-the-aggregate.md',
+      'docs/adr/0025-a-conflict-is-retried-from-a-fresh-read-then-refused.md',
     ]);
     expect(getRule(contract, 'CONC-OPTIMISTIC')?.examples).toEqual([
       'typescript/src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts',
+      'typescript/src/Architecture/Application/CommandHandler.spec.ts',
     ]);
     expect(getConcept(contract, 'aggregate-root')?.example).toContain(
       '](typescript/src/Contexts/Notes/Domain/Note/Note.ts)',

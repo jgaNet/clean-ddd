@@ -20,9 +20,11 @@ from starlette.responses import Response
 
 from architecture.application.application import Application
 from architecture.application.execution_context import Auth, ExecutionContext, Logger
+from architecture.application.outbox import relay_outbox
 from architecture.domain.id import Id
 from architecture.domain.result import Failure
 from architecture.infrastructure.event_bus import InMemoryEventBus
+from architecture.infrastructure.outbox import InMemoryOutbox
 from architecture.infrastructure.unit_of_work import InMemoryUnitOfWork
 from bootstrap.home import HomeViewModel, home_routes
 from bootstrap.settings import Settings
@@ -99,12 +101,13 @@ class Running:
 async def create_application(settings: Settings, logger: Logger | None = None) -> App:
     """Builds the whole application. The modules start before the seed so that the seed's events
     reach their handlers."""
-    # The stores, listed once: the unit of work of a request snapshots them all.
+    # The stores, listed once: the unit of work of a request snapshots them all, the process's
+    # outbox among them (ADR 24), so a rolled-back transaction drops the facts it appended.
     notes = note_store()
     accounts = account_store()
     operations = operation_store()
     notifications_ = notification_store()
-    stores: list[Any] = [notes, accounts, operations, notifications_]
+    stores: list[Any] = [notes, accounts, operations, notifications_, InMemoryOutbox.shared.store]
 
     # The application's bus: the in-memory bus, decorated so that every operation is recorded.
     records = operation_records(operations)
@@ -120,6 +123,11 @@ async def create_application(settings: Settings, logger: Logger | None = None) -
     application = Application(event_bus).register_module(tracker).register_module(notes_module)
     application.register_module(security.module).register_module(notifications.module)
     await application.start_modules()
+    # What a previous run made durable and did not publish goes out now (ADR 24): nothing, with
+    # an in-memory outbox, and the line is where a store's outbox would be relayed.
+    relay_outbox(
+        InMemoryOutbox.shared, event_bus, ExecutionContext(trace_id="startup", event_bus=event_bus, logger=logger)
+    )
 
     # The routes, under the API prefix, each context's under its own; the websocket at the root.
     fastapi = FastAPI(title=settings.name, version=settings.version, docs_url=f"/{settings.api_prefix}/docs")

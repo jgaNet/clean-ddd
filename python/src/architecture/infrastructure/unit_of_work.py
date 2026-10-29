@@ -10,18 +10,29 @@ another request's work. What these four methods give you is a transaction *bound
 isolation. A database gives both, through the same four methods (ADR 3). One instance per
 request: see the bootstrap. Misuse (two begins, a commit with nothing open) is a programming
 error and raises.
+
+The outbox is one of the stores (ADR 24): the process's ``InMemoryOutbox`` registers its store
+like any other, so an entry appended by a transaction that rolls back is gone with the
+transaction's writes, and one that commits is durable for the relay.
 """
 
 from collections.abc import Callable, Iterable
 from typing import Any
 
+from architecture.application.outbox import Outbox
 from architecture.infrastructure.data_sources import InMemoryDataSource
+from architecture.infrastructure.outbox import InMemoryOutbox
 
 
 class InMemoryUnitOfWork:
-    def __init__(self, stores: Iterable[InMemoryDataSource[Any]] | None = None) -> None:
+    def __init__(self, stores: Iterable[InMemoryDataSource[Any]] | None = None, outbox: Outbox | None = None) -> None:
         self._stores = stores if stores is not None else InMemoryDataSource.all
+        self._outbox: Outbox = outbox if outbox is not None else InMemoryOutbox.shared
         self._restore: list[Callable[[], None]] | None = None
+
+    @property
+    def outbox(self) -> Outbox:
+        return self._outbox
 
     async def begin_transaction(self) -> None:
         if self._restore is not None:

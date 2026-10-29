@@ -13,6 +13,9 @@ func (noBus) Connect() error { return nil }
 func (noBus) Publish(domain.Event, *application.ExecutionContext) *application.Operation {
 	panic("not used")
 }
+func (noBus) PublishWithID(domain.Event, *application.ExecutionContext, string) *application.Operation {
+	panic("not used")
+}
 func (noBus) Dispatch(*application.Operation)          {}
 func (noBus) Subscribe(string, application.Subscriber) {}
 

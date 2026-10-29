@@ -21,6 +21,9 @@ type EventBus interface {
 	Connect() error
 	// Publish builds the operation, schedules its dispatch, and answers with it before the handling.
 	Publish(event domain.Event, context *ExecutionContext) *Operation
+	// PublishWithID is Publish for a message relayed from the outbox: the operation carries the
+	// entry's id as its own, so a subscriber that already handled it is not handed it again (ADR 24).
+	PublishWithID(event domain.Event, context *ExecutionContext, messageID string) *Operation
 	// Dispatch hands the operation to every handler subscribed to its event's name, and waits for them.
 	Dispatch(operation *Operation)
 	// Subscribe routes the events named channel to handler.

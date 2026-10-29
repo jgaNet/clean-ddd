@@ -42,7 +42,15 @@ func NewTrackedEventBus(bus application.EventBus, records trackerapp.Records) *T
 func (b *TrackedEventBus) Connect() error { return b.bus.Connect() }
 
 func (b *TrackedEventBus) Publish(event domain.Event, context *application.ExecutionContext) *application.Operation {
-	operation := application.NewOperation(event, context)
+	return b.start(application.NewOperation(event, context))
+}
+
+// PublishWithID keeps the message's id (an outbox entry's, ADR 24): the record is under it, and so is the inner bus's inbox.
+func (b *TrackedEventBus) PublishWithID(event domain.Event, context *application.ExecutionContext, messageID string) *application.Operation {
+	return b.start(application.NewOperationWithID(messageID, event, context))
+}
+
+func (b *TrackedEventBus) start(operation *application.Operation) *application.Operation {
 	b.pending.Add(1)
 	go func() {
 		defer b.pending.Done()

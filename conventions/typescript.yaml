@@ -109,9 +109,9 @@ rules:
   DOMAIN-NON-DETERMINISM:
     references: [src/Contexts/Notes/Application/Commands/SuggestNoteTitle/SuggestNoteTitleCommandHandler.ts]
   EVENT-AFTER-COMMIT:
-    references: [src/Architecture/Application/DomainEvents.spec.ts]
+    references: [src/Architecture/Application/DomainEvents.spec.ts, src/Architecture/Infrastructure/EventBus/InMemoryEventBus.spec.ts]
   CONC-OPTIMISTIC:
-    references: [src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts]
+    references: [src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts, src/Architecture/Application/CommandHandler.spec.ts]
   API-ONE-SURFACE:
     references: [src/Contexts/Tracker/Application/Projections/OperationProjection.ts, src/Contexts/Tracker/Presentation/API/REST/Routes/operation.routes.e2e.spec.ts]
   ARCH-MAP-IS-REAL:
@@ -416,6 +416,19 @@ concepts:
     canonical:
       - src/Architecture/Application/CommandHandler.ts
     example: '`publishDomainEvents()` in [`CommandHandler.ts`](src/Architecture/Application/CommandHandler.ts)'
+  transactional-outbox:
+    canonical:
+      - src/Architecture/Application/Outbox.ts
+    examples:
+      - src/Architecture/Infrastructure/Outbox/InMemoryOutbox.ts
+      - src/Architecture/Application/DomainEvents.ts
+    example: '[`Outbox.ts`](src/Architecture/Application/Outbox.ts) (the port and `relayOutbox()`), [`InMemoryOutbox.ts`](src/Architecture/Infrastructure/Outbox/InMemoryOutbox.ts), [`DomainEvents.ts`](src/Architecture/Application/DomainEvents.ts) (appends at commit)'
+  retry-on-conflict:
+    canonical:
+      - src/Architecture/Application/CommandHandler.ts
+    examples:
+      - src/Architecture/Application/CommandHandler.spec.ts
+    example: '[`CommandHandler.ts`](src/Architecture/Application/CommandHandler.ts) (`CONFLICT_ATTEMPTS`), [`CommandHandler.spec.ts`](src/Architecture/Application/CommandHandler.spec.ts)'
   domain-event-handler:
     canonical:
       - src/Contexts/Notes/Application/Events/NoteSharedHandler.ts
@@ -482,6 +495,12 @@ concepts:
     canonical:
       - src/Architecture/Infrastructure/EventBus/InMemoryEventBus.ts
     example: '[`InMemoryEventBus.ts`](src/Architecture/Infrastructure/EventBus/InMemoryEventBus.ts)'
+  idempotent-delivery:
+    canonical:
+      - src/Architecture/Infrastructure/EventBus/InMemoryEventBus.ts
+    examples:
+      - src/Architecture/Infrastructure/EventBus/InMemoryEventBus.spec.ts
+    example: '[`InMemoryEventBus.ts`](src/Architecture/Infrastructure/EventBus/InMemoryEventBus.ts) (the inbox: `subscribe()`), [`InMemoryEventBus.spec.ts`](src/Architecture/Infrastructure/EventBus/InMemoryEventBus.spec.ts)'
   decorator:
     canonical:
       - src/Contexts/Tracker/Infrastructure/TrackedEventBus.ts

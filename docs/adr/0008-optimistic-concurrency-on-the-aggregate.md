@@ -19,6 +19,10 @@ The canonical example is `Note`, the one aggregate here with several writers (th
 - The snapshot gains a `version` field and the SQLite table a column. Read models do not expose it: a screen has no use for it, and a client that wants "edit what I saw" sends a command, not a version.
 - The in-memory unit of work still restores whole stores on rollback ([ADR 3](0003-publish-domain-events-after-commit.md)); the version check protects against lost updates *between* transactions, not against interleaving *inside* one.
 
+## Since
+
+- **2026-10-29 — the handler retries** ([ADR 25](0025-a-conflict-is-retried-from-a-fresh-read-then-refused.md)): a conflict is re-read and re-decided by the base handler in a new transaction, up to three attempts; the third conflict is the one the client sees. "The client re-reads and decides again" below is now the last resort, not the first.
+
 ## When to revisit
 
 If a behaviour must be applied to whatever is current rather than to what was read (a counter, a "like"), model it as an event the store applies, not as a version-checked save. If clients need "edit what I saw" across requests, the version becomes part of the command's payload and of the read model, and the refusal a `409` on the query side.

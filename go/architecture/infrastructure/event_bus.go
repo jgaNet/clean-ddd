@@ -13,6 +13,11 @@ import (
 // the operation's status and result in, and the Tracker context records those by decorating
 // this bus. Settle waits for every dispatch still running: a test calls it to see what the
 // handlers did, the bootstrap calls it before stopping.
+//
+// Delivery is idempotent per subscriber (ADR 24): a message relayed from the outbox carries its
+// entry's id, and a subscriber that already handled that id — and did not fail — is not handed
+// it again. The inbox is the bus's, not each handler's, so a reaction stays a plain Execute; a
+// reaction that failed is handed the message again, which is what at-least-once is for.
 type InMemoryEventBus struct {
 	mu       sync.RWMutex
 	handlers map[string][]application.Subscriber
@@ -27,7 +32,14 @@ func NewInMemoryEventBus() *InMemoryEventBus {
 func (b *InMemoryEventBus) Connect() error { return nil }
 
 func (b *InMemoryEventBus) Publish(event domain.Event, context *application.ExecutionContext) *application.Operation {
-	operation := application.NewOperation(event, context)
+	return b.start(application.NewOperation(event, context))
+}
+
+func (b *InMemoryEventBus) PublishWithID(event domain.Event, context *application.ExecutionContext, messageID string) *application.Operation {
+	return b.start(application.NewOperationWithID(messageID, event, context))
+}
+
+func (b *InMemoryEventBus) start(operation *application.Operation) *application.Operation {
 	b.pending.Add(1)
 	go func() {
 		defer b.pending.Done()
@@ -47,11 +59,51 @@ func (b *InMemoryEventBus) Dispatch(operation *application.Operation) {
 	}
 }
 
+// Subscribe routes the channel to the handler, behind its own inbox.
 func (b *InMemoryEventBus) Subscribe(channel string, handler application.Subscriber) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.handlers[channel] = append(b.handlers[channel], handler)
+	b.handlers[channel] = append(b.handlers[channel], &inbox{handler: handler, handled: map[string]bool{}})
 }
 
 // Settle waits for every dispatch in flight, including the ones those dispatches publish.
 func (b *InMemoryEventBus) Settle() { b.pending.Wait() }
+
+// inbox is one subscription's memory of the messages it handled: a message whose id it already
+// handled, or is handling now, is marked sent and not handed to the handler again; one whose
+// reaction failed is forgotten, so the next relay hands it again.
+type inbox struct {
+	handler application.Subscriber
+	mu      sync.Mutex
+	// handled is the id of every message handled, true, or being handled now, false.
+	handled map[string]bool
+}
+
+func (i *inbox) Handle(operation *application.Operation) {
+	if !i.claim(operation.ID) {
+		operation.Sent()
+		return
+	}
+	i.handler.Handle(operation)
+	i.settle(operation.ID, operation.Status != application.StatusError)
+}
+
+func (i *inbox) claim(id string) bool {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	if _, seen := i.handled[id]; seen {
+		return false
+	}
+	i.handled[id] = false
+	return true
+}
+
+func (i *inbox) settle(id string, handled bool) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	if handled {
+		i.handled[id] = true
+		return
+	}
+	delete(i.handled, id)
+}

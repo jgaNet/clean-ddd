@@ -28,8 +28,9 @@ class OperationStatus(StrEnum):
 class Operation[E: Event]:
     __slots__ = ("context", "created_at", "event", "finished_at", "id", "result", "status")
 
-    def __init__(self, event: E, context: ExecutionContext) -> None:
-        self.id = str(uuid4())
+    def __init__(self, event: E, context: ExecutionContext, id: str | None = None) -> None:
+        # The id is the message's when the event is relayed from the outbox (ADR 24), fresh otherwise.
+        self.id = id or str(uuid4())
         self.status = OperationStatus.PENDING
         self.event = event
         self.context = context

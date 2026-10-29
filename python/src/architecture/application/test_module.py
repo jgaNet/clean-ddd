@@ -74,7 +74,7 @@ async def test_subscribes_every_handler_to_its_event_name() -> None:
     class ListingBus:
         async def connect(self) -> None: ...
 
-        def publish[E: Event](self, event: E, context: ExecutionContext) -> Operation[E]:
+        def publish[E: Event](self, event: E, context: ExecutionContext, message_id: str | None = None) -> Operation[E]:
             raise AssertionError("not used")
 
         async def dispatch(self, operation: Operation[Any]) -> Operation[Any]:

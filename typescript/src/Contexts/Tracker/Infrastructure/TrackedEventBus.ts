@@ -25,8 +25,8 @@ export class TrackedEventBus implements EventBus {
     return this.bus.connect();
   }
 
-  publish<T>(event: Event<T>, context: ExecutionContext): IOperation<Event<T>> {
-    const operation = this.bus.publish(event, context);
+  publish<T>(event: Event<T>, context: ExecutionContext, messageId?: string): IOperation<Event<T>> {
+    const operation = this.bus.publish(event, context, messageId);
     void this.track(operation);
     return operation;
   }

@@ -8,9 +8,10 @@
 //!
 //! The bootstrap builds one per request; tests build one by hand with [`ExecutionContext::new`].
 //! A handler reads `context.auth()` to know the caller and passes `context` on when it publishes.
-//! `with_transaction()` and `after_commit()` are what make "publish after commit" possible
-//! (ADR 3). The context is shared by `Arc`: a clone is the same context, which is how what is
-//! deferred until the commit can still publish on the same bus.
+//! `with_transaction()`, `before_commit()` and `after_commit()` are what make "durable, then
+//! published" possible: the events are appended to the unit of work's outbox at commit and
+//! relayed after it (ADR 3, ADR 24). The context is shared by `Arc`: a clone is the same
+//! context, which is how what is deferred until the commit can still publish on the same bus.
 
 use std::future::Future;
 use std::panic::AssertUnwindSafe;
@@ -21,8 +22,9 @@ use futures::FutureExt;
 use architecture_domain::{DomainResult, Event, Exception};
 
 use crate::BoxFuture;
-use crate::event_bus::EventBus;
+use crate::event_bus::{AnyEvent, EventBus};
 use crate::operation::Operation;
+use crate::outbox::{Outbox, relay_outbox};
 
 /// The transaction boundary of the store a context writes to.
 pub trait UnitOfWork: Send + Sync {
@@ -30,6 +32,8 @@ pub trait UnitOfWork: Send + Sync {
     fn commit_transaction(&self) -> BoxFuture<'_, ()>;
     fn rollback_transaction(&self) -> BoxFuture<'_, ()>;
     fn has_active_transaction(&self) -> bool;
+    /// The transactional outbox: what this transaction makes durable to be published after it commits (ADR 24).
+    fn outbox(&self) -> &dyn Outbox;
 }
 
 /// Where a handler logs; every line carries the trace id of its request.
@@ -67,6 +71,7 @@ pub struct ExecutionContextOptions {
 
 struct State {
     in_transaction: bool,
+    before_commit: Vec<BoxFuture<'static, ()>>,
     after_commit: Vec<BoxFuture<'static, ()>>,
 }
 
@@ -90,7 +95,7 @@ impl ExecutionContext {
             event_bus: options.event_bus,
             unit_of_work: options.unit_of_work,
             logger: options.logger,
-            state: Mutex::new(State { in_transaction: false, after_commit: Vec::new() }),
+            state: Mutex::new(State { in_transaction: false, before_commit: Vec::new(), after_commit: Vec::new() }),
         }))
     }
 
@@ -119,9 +124,18 @@ impl ExecutionContext {
         self.0.event_bus.publish(Arc::new(event), self.clone()).await
     }
 
-    /// Runs `work` inside the unit of work when there is one, then runs the `after_commit`
-    /// callbacks registered during it once the transaction is committed. A failed result or a
-    /// panic rolls back and drops those callbacks. Nested calls join the outer transaction.
+    /// Publishes a message under a given id, with this context: what the outbox relay calls,
+    /// with the entry's id, so that the bus can recognise a message it already delivered.
+    pub async fn publish_with_id(&self, event: Arc<dyn AnyEvent>, message_id: String) -> Operation {
+        self.0.event_bus.publish_with_id(message_id, event, self.clone()).await
+    }
+
+    /// Runs `work` inside the unit of work when there is one: the `before_commit` steps
+    /// registered during `work` run inside the transaction once `work` has succeeded (the
+    /// outbox is written there), then the transaction commits, then the outbox is relayed
+    /// through the bus, then the `after_commit` callbacks run. A failed result or a panic rolls
+    /// back and drops every step and callback. Nested calls join the outer transaction:
+    /// everything happens at the outermost one.
     pub async fn with_transaction<T, F, Fut>(&self, work: F) -> DomainResult<T>
     where
         F: FnOnce() -> Fut,
@@ -134,23 +148,43 @@ impl ExecutionContext {
             outermost
         };
 
-        let result = self.run_in_unit_of_work(work).await;
+        let result = self.run_in_unit_of_work(work, outermost).await;
 
         if outermost {
-            // The transaction is over before the callbacks run: a reaction they publish opens
-            // its own transaction, and its own callbacks run at its own commit.
+            // The transaction is over before the relay and the callbacks run: a reaction they
+            // publish opens its own transaction, and its own steps run at its own commit.
             let callbacks = {
                 let mut state = self.state();
                 state.in_transaction = false;
+                state.before_commit.clear();
                 std::mem::take(&mut state.after_commit)
             };
             if result.is_ok() {
+                self.relay().await;
                 for callback in callbacks {
                     callback.await;
                 }
             }
         }
         result
+    }
+
+    /// Runs `step` inside the current transaction, once the use case has succeeded and just
+    /// before the commit: where `publish_domain_events()` appends the aggregate's events to the
+    /// outbox, so that they are durable with the state they describe and gone with it on a
+    /// rollback. Outside of any transaction (a reaction, which runs after the command that set
+    /// it off committed) the step runs immediately, and the outbox is relayed at once: what it
+    /// stored is published now, not at the next commit.
+    pub async fn before_commit(&self, step: impl Future<Output = ()> + Send + 'static) {
+        {
+            let mut state = self.state();
+            if state.in_transaction {
+                state.before_commit.push(Box::pin(step));
+                return;
+            }
+        }
+        step.await;
+        self.relay().await;
     }
 
     /// Defers `callback` until the current transaction is committed, so that its side effects
@@ -167,13 +201,31 @@ impl ExecutionContext {
         callback.await;
     }
 
-    async fn run_in_unit_of_work<T, F, Fut>(&self, work: F) -> DomainResult<T>
+    /// What the unit of work made durable goes out now, through this request's bus (ADR 24);
+    /// nothing to relay without a unit of work, since there is no outbox.
+    async fn relay(&self) {
+        if let Some(unit_of_work) = &self.0.unit_of_work {
+            relay_outbox(unit_of_work.outbox(), self).await;
+        }
+    }
+
+    /// The `before_commit` steps, inside the transaction, once the outermost use case has succeeded.
+    async fn run_before_commit(&self) -> DomainResult {
+        let steps = std::mem::take(&mut self.state().before_commit);
+        for step in steps {
+            step.await;
+        }
+        Ok(())
+    }
+
+    async fn run_in_unit_of_work<T, F, Fut>(&self, work: F, outermost: bool) -> DomainResult<T>
     where
         F: FnOnce() -> Fut,
         Fut: Future<Output = DomainResult<T>>,
     {
         let Some(unit_of_work) = &self.0.unit_of_work else {
-            return self.guarded(work()).await;
+            let result = self.guarded(work()).await;
+            return if outermost { self.then_before_commit(result).await } else { result };
         };
 
         let existing = unit_of_work.has_active_transaction();
@@ -181,15 +233,26 @@ impl ExecutionContext {
             unit_of_work.begin_transaction().await;
         }
 
-        let result = self.guarded(work()).await;
+        let mut result = self.guarded(work()).await;
 
         if !existing {
+            if outermost {
+                result = self.then_before_commit(result).await;
+            }
             match &result {
                 Ok(_) => unit_of_work.commit_transaction().await,
                 Err(_) => unit_of_work.rollback_transaction().await,
             }
         }
         result
+    }
+
+    /// A successful use case, followed by its `before_commit` steps under the same safety net:
+    /// a step that panics fails the transaction like the use case would have.
+    async fn then_before_commit<T>(&self, result: DomainResult<T>) -> DomainResult<T> {
+        let value = result?;
+        self.guarded(self.run_before_commit()).await?;
+        Ok(value)
     }
 
     /// The safety net: a panic inside the work becomes a failed result instead of a crash.
@@ -226,26 +289,28 @@ pub fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
 mod tests {
     use super::*;
     use crate::event_bus::AnyHandler;
+    use crate::outbox::testing::FakeOutbox;
+    use architecture_domain::EventKind;
 
-    /// A bus nothing is published on here: the tests are about the context.
-    struct NoBus;
-    impl EventBus for NoBus {
-        fn connect(&self) -> BoxFuture<'_, ()> {
-            Box::pin(async {})
+    /// What a relayed entry carries here: a fact with a name, nothing more.
+    #[derive(Debug, Clone, PartialEq)]
+    struct Fact;
+    impl Event for Fact {
+        fn name(&self) -> &'static str {
+            "Fact"
         }
-        fn dispatch(&self, _operation: Operation) -> BoxFuture<'_, Operation> {
-            unreachable!("not used")
-        }
-        fn subscribe(&self, _channel: &'static str, _handler: Arc<dyn AnyHandler>) -> BoxFuture<'_, ()> {
-            Box::pin(async {})
+        fn kind(&self) -> EventKind {
+            EventKind::Domain
         }
     }
 
-    /// Records the order of things, so the tests can see what happened before what.
+    /// Records the order of things, so the tests can see what happened before what: the
+    /// transaction's steps and, through the bus that shares its log, what was published.
     #[derive(Default)]
     struct RecordingUnitOfWork {
-        log: Mutex<Vec<&'static str>>,
+        log: Arc<Mutex<Vec<&'static str>>>,
         active: Mutex<bool>,
+        outbox: FakeOutbox,
     }
     impl RecordingUnitOfWork {
         fn log(&self, entry: &'static str) {
@@ -274,13 +339,32 @@ mod tests {
         fn has_active_transaction(&self) -> bool {
             *self.active.lock().unwrap()
         }
+        fn outbox(&self) -> &dyn Outbox {
+            &self.outbox
+        }
+    }
+
+    /// A bus that writes "publish" in the unit of work's log and hands the operation back as it is.
+    struct RecordingBus(Arc<Mutex<Vec<&'static str>>>);
+    impl EventBus for RecordingBus {
+        fn connect(&self) -> BoxFuture<'_, ()> {
+            Box::pin(async {})
+        }
+        fn dispatch(&self, operation: Operation) -> BoxFuture<'_, Operation> {
+            self.0.lock().unwrap().push("publish");
+            Box::pin(async move { operation })
+        }
+        fn subscribe(&self, _channel: &'static str, _handler: Arc<dyn AnyHandler>) -> BoxFuture<'_, ()> {
+            Box::pin(async {})
+        }
     }
 
     fn context_with(unit_of_work: Option<Arc<RecordingUnitOfWork>>) -> ExecutionContext {
+        let log = unit_of_work.as_ref().map(|uow| uow.log.clone()).unwrap_or_default();
         ExecutionContext::new(ExecutionContextOptions {
             trace_id: "trace".into(),
             auth: Auth::anonymous(),
-            event_bus: Arc::new(NoBus),
+            event_bus: Arc::new(RecordingBus(log)),
             unit_of_work: unit_of_work.map(|uow| uow as Arc<dyn UnitOfWork>),
             logger: None,
         })
@@ -300,6 +384,60 @@ mod tests {
         .expect("committed");
 
         assert_eq!(uow.entries(), ["begin", "work", "commit", "callback"]);
+    }
+
+    #[test]
+    fn runs_a_before_commit_step_inside_the_transaction_after_the_work_and_before_the_commit_then_relays_the_outbox() {
+        let uow = Arc::new(RecordingUnitOfWork::default());
+        let context = context_with(Some(uow.clone()));
+
+        pollster::block_on(context.with_transaction(|| async {
+            let recorder = uow.clone();
+            context.after_commit(async move { recorder.log("callback") }).await;
+            let recorder = uow.clone();
+            context
+                .before_commit(async move {
+                    recorder.log("before commit");
+                    recorder.outbox.append(vec![Arc::new(Fact)]).await;
+                })
+                .await;
+            uow.log("work");
+            Ok(())
+        }))
+        .expect("committed");
+
+        assert_eq!(uow.entries(), ["begin", "work", "before commit", "commit", "publish", "callback"]);
+        assert!(uow.outbox.entries().is_empty());
+    }
+
+    #[test]
+    fn drops_the_before_commit_step_with_the_callback_when_the_transaction_fails() {
+        let uow = Arc::new(RecordingUnitOfWork::default());
+        let context = context_with(Some(uow.clone()));
+
+        let result: DomainResult = pollster::block_on(context.with_transaction(|| async {
+            let recorder = uow.clone();
+            context.before_commit(async move { recorder.log("before commit") }).await;
+            Err(Exception::unknown("nope"))
+        }));
+
+        assert!(result.is_err());
+        assert_eq!(uow.entries(), ["begin", "rollback"]);
+    }
+
+    #[test]
+    fn runs_a_before_commit_step_at_once_outside_any_transaction_and_relays_the_outbox_at_once() {
+        let uow = Arc::new(RecordingUnitOfWork::default());
+        let context = context_with(Some(uow.clone()));
+        let recorder = uow.clone();
+
+        pollster::block_on(context.before_commit(async move {
+            recorder.log("step");
+            recorder.outbox.append(vec![Arc::new(Fact)]).await;
+        }));
+
+        assert_eq!(uow.entries(), ["step", "publish"]);
+        assert!(uow.outbox.entries().is_empty());
     }
 
     #[test]

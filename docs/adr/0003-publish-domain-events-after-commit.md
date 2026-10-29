@@ -21,6 +21,10 @@ A command handler saves an aggregate and publishes the events it recorded. If th
 - Publication is best-effort after commit: if the process dies between the commit and the publish, the event is lost. This is the **single-process, in-memory version** of the guarantee. It is honest about what it does and does not promise.
 - The handler code does not change: `this.publishDomainEvents(aggregate, context)` reads the same as before; the timing is the base class's concern.
 
+## Since
+
+- **2026-10-29 — the window is closed** ([ADR 24](0024-events-are-durable-before-they-are-published.md)): the events are made durable in the unit of work's outbox at commit and relayed after it; a crash after the commit delays a fact rather than losing it, and the bus delivers a message once per subscriber. The deferral below is still the timing; the outbox is what it publishes from.
+
 ## When to revisit
 
 The moment events cross a process boundary (a message broker, a second service), replace the in-memory deferral with a **transactional outbox**: write the events to the same store in the same transaction, and let a relay publish them. The `afterCommit` hook is where that relay would plug in; the aggregates and handlers would not change.

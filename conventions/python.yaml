@@ -134,11 +134,11 @@ rules:
   DOMAIN-NON-DETERMINISM:
     references: [src/contexts/notes/application/suggestions.py, src/contexts/notes/application/commands/suggest_note_title.py]
   EVENT-AFTER-COMMIT:
-    references: [src/architecture/application/execution_context.py, src/architecture/application/domain_events.py]
+    references: [src/architecture/application/execution_context.py, src/architecture/application/domain_events.py, src/architecture/application/test_domain_events.py, src/architecture/infrastructure/test_event_bus.py]
   QUERY-READ-MODELS:
     references: [src/contexts/notes/domain/note/ports/note_queries.py, src/contexts/notes/infrastructure/queries.py]
   CONC-OPTIMISTIC:
-    references: [src/contexts/notes/infrastructure/repositories.py, src/contexts/notes/infrastructure/test_persistence_contract.py]
+    references: [src/contexts/notes/infrastructure/repositories.py, src/contexts/notes/infrastructure/test_persistence_contract.py, src/architecture/application/test_command_handler.py]
   ARCH-INFRASTRUCTURE:
     references: [src/contexts/notes/infrastructure/notes_table.py]
   API-ONE-SURFACE:
@@ -408,6 +408,16 @@ concepts:
     canonical: [src/architecture/application/domain_events.py]
     example: '`publish_domain_events()` in [`domain_events.py`](src/architecture/application/domain_events.py)'
     notes: 'the handler hands the aggregate over, and the events are pulled at the commit'
+  transactional-outbox:
+    canonical: [src/architecture/application/outbox.py]
+    examples: [src/architecture/infrastructure/outbox.py, src/architecture/application/domain_events.py]
+    example: '[`outbox.py`](src/architecture/application/outbox.py) (the port and `relay_outbox()`), [`infrastructure/outbox.py`](src/architecture/infrastructure/outbox.py), [`domain_events.py`](src/architecture/application/domain_events.py) (appends at commit)'
+    notes: 'the port is a `Protocol` with three plain methods; the in-memory adapter is an `InMemoryDataSource`, so the unit of work snapshots it with the other stores; `before_commit()` is where the append happens, and the context relays after the outermost commit'
+  retry-on-conflict:
+    canonical: [src/architecture/application/command_handler.py]
+    examples: [src/architecture/application/test_command_handler.py]
+    example: '[`command_handler.py`](src/architecture/application/command_handler.py) (`CONFLICT_ATTEMPTS`), [`test_command_handler.py`](src/architecture/application/test_command_handler.py)'
+    notes: '`_execute_until_uncontended()` runs `execute()` again in a new transaction while the result is a `Failure` carrying a `ConcurrencyConflictException`, up to the class constant'
   domain-event-handler:
     canonical: [src/contexts/notes/application/events/note_shared_handler.py]
   integration-event:
@@ -468,6 +478,11 @@ concepts:
     canonical: [src/architecture/infrastructure/event_bus.py]
     notes: '`publish()` schedules the dispatch as a task on the running loop and answers at once; `settle()` awaits what is in flight; the port is [`event_bus.py`](src/architecture/application/event_bus.py)'
     examples: [src/architecture/application/event_bus.py]
+  idempotent-delivery:
+    canonical: [src/architecture/infrastructure/event_bus.py]
+    examples: [src/architecture/infrastructure/test_event_bus.py]
+    example: '[`event_bus.py`](src/architecture/infrastructure/event_bus.py) (the inbox: one set of message ids per subscription, read in `dispatch()`), [`test_event_bus.py`](src/architecture/infrastructure/test_event_bus.py)'
+    notes: 'a message already handled by a subscriber, without error, is marked sent and not handed to it again; a failed reaction is handed the message again'
   decorator:
     canonical: [src/contexts/tracker/infrastructure/tracked_event_bus.py]
     notes: 'wraps `dispatch`: a record before, a record after, the completion notice when it is a command''s'

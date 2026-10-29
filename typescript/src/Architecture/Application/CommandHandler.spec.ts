@@ -1,15 +1,24 @@
 import { EventEmitter } from 'events';
 import { expect, jest } from '@jest/globals';
 
-import { AggregateRoot, CommandEvent, DomainEvent, IResult, NotAllowedException, Result } from '@Architecture/Domain';
+import {
+  AggregateRoot,
+  CommandEvent,
+  ConcurrencyConflictException,
+  DomainEvent,
+  IResult,
+  NotAllowedException,
+  Result,
+} from '@Architecture/Domain';
 import { Id } from '@Architecture/Domain';
 import { CommandHandler } from './CommandHandler';
 import { EventBus } from './EventBus';
 import { ExecutionContext, UnitOfWork } from './ExecutionContext';
 import { OperationStatus } from './Operation';
 import { InMemoryEventBus } from '@Architecture/Infrastructure/EventBus/InMemoryEventBus';
+import { InMemoryOutbox } from '@Architecture/Infrastructure/Outbox/InMemoryOutbox';
 
-class Greet extends CommandEvent<{ name: string; then?: 'fail' | 'throw' }> {}
+class Greet extends CommandEvent<{ name: string; then?: 'fail' | 'throw'; conflicts?: number }> {}
 class Greeted extends DomainEvent<{ name: string }> {}
 
 class Greeter extends AggregateRoot {
@@ -20,13 +29,20 @@ class Greeter extends AggregateRoot {
 
 /** The shape of every concrete handler: a guard for who may call, an execute for the use case. Roles are strings to the mechanics. */
 class GreetHandler extends CommandHandler<Greet> {
+  /** How many times `execute()` ran: a conflict re-runs it from a fresh read (ADR 25). */
+  executions = 0;
+
   protected async guard(_: Greet, { auth }: ExecutionContext): Promise<IResult<unknown>> {
     return auth.role === 'guest' ? Result.fail(new NotAllowedException('Test', 'Guests cannot greet')) : Result.ok();
   }
 
   async execute({ payload }: Greet, context: ExecutionContext): Promise<IResult<string>> {
+    this.executions++;
     if (payload.then === 'throw') throw new Error('boom');
     if (payload.then === 'fail') return Result.fail(new NotAllowedException('Test', 'Refused'));
+    if (payload.conflicts && this.executions <= payload.conflicts) {
+      return Result.fail(new ConcurrencyConflictException('Test', 'The greeter changed since it was read'));
+    }
 
     const greeter = new Greeter(new Id('greeter'));
     greeter.greet(payload.name);
@@ -39,6 +55,7 @@ class GreetHandler extends CommandHandler<Greet> {
 /** Records the order of things, so the tests can see what happened before what. */
 class RecordingUnitOfWork implements UnitOfWork {
   log: string[] = [];
+  outbox = new InMemoryOutbox();
   #active = false;
 
   async beginTransaction() {
@@ -88,7 +105,33 @@ describe('CommandHandler.handle()', () => {
     expect(done.status).toBe(OperationStatus.SUCCESS);
     expect(done.result?.data).toBe('Hello Alice');
     expect(unitOfWork.log).toEqual(['begin', 'commit', 'publish']);
-    expect(publish).toHaveBeenCalledWith(Greeted.set({ name: 'Alice' }), expect.any(ExecutionContext));
+    expect(publish).toHaveBeenCalledWith(
+      Greeted.set({ name: 'Alice' }),
+      expect.any(ExecutionContext),
+      expect.any(String),
+    );
+    expect(unitOfWork.outbox.pending()).toEqual([]);
+  });
+
+  it('runs the use case again from a fresh read when it lost a race, and answers with the second run', async () => {
+    const handler = new GreetHandler();
+    const done = await handler.handle(operationFor({ name: 'Alice', conflicts: 1 }));
+
+    expect(done.status).toBe(OperationStatus.SUCCESS);
+    expect(handler.executions).toBe(2);
+    // The first attempt rolled back and published nothing; the second committed and published.
+    expect(unitOfWork.log).toEqual(['begin', 'rollback', 'begin', 'commit', 'publish']);
+  });
+
+  it('refuses with the conflict after the third attempt, and publishes nothing', async () => {
+    const handler = new GreetHandler();
+    const done = await handler.handle(operationFor({ name: 'Alice', conflicts: 10 }));
+
+    expect(done.status).toBe(OperationStatus.ERROR);
+    expect(done.result?.error?.type).toBe('ConcurrencyConflict');
+    expect(handler.executions).toBe(CommandHandler.CONFLICT_ATTEMPTS);
+    expect(unitOfWork.log).toEqual(['begin', 'rollback', 'begin', 'rollback', 'begin', 'rollback']);
+    expect(publish).not.toHaveBeenCalled();
   });
 
   it('refuses at the guard without opening a transaction or running the use case', async () => {

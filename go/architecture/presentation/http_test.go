@@ -18,6 +18,10 @@ func (b *recordingBus) Publish(event domain.Event, context *application.Executio
 	b.published = append(b.published, event)
 	return application.NewOperation(event, context)
 }
+
+func (b *recordingBus) PublishWithID(event domain.Event, context *application.ExecutionContext, _ string) *application.Operation {
+	return b.Publish(event, context)
+}
 func (*recordingBus) Dispatch(*application.Operation)          {}
 func (*recordingBus) Subscribe(string, application.Subscriber) {}
 

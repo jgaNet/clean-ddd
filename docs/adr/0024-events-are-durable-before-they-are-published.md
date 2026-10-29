@@ -1,0 +1,27 @@
+# 24. Events are durable before they are published: an outbox, a relay, idempotent delivery
+
+## Context
+
+ADR 3 publishes domain events after the transaction commits, from memory: `publishDomainEvents()` defers the publication to `afterCommit()`, and a rollback leaves the events on the aggregate. That closes one window — listeners never see a fact that was rolled back — and leaves another open, which ADR 3 named: a process that dies between the commit and the publication has committed a fact nobody was told of, and nothing recovers it. The README listed the transactional outbox under what is deliberately not here, "until messages cross a process boundary". An external review named the window again, and the owner decided the reference should close it rather than describe it.
+
+## Decision
+
+**A domain event is made durable with the state it describes, in the same transaction, and published from that store after the commit; delivery is at least once, and the bus delivers a message it already delivered once only.**
+
+- **The outbox is the unit of work's** (`UnitOfWork.outbox`, a port in the building blocks' Application): `append()` stores events with the transaction's writes and is rolled back with them; `pending()` lists what is durable and not yet published; `markPublished()` acknowledges a delivery. The in-memory adapter is an `InMemoryDataSource` like any store, so the in-memory unit of work snapshots and restores it with the others ([`InMemoryOutbox.ts`](../../typescript/src/Architecture/Infrastructure/Outbox/InMemoryOutbox.ts)).
+- **`publishDomainEvents()` appends at commit** ([`DomainEvents.ts`](../../typescript/src/Architecture/Application/DomainEvents.ts)): it registers a `beforeCommit()` step that pulls the aggregate's events and appends them to the outbox, inside the transaction, so what is stored is everything the aggregate recorded during it, as before. Outside any transaction (a context without a unit of work, as in a handler's unit spec) the events go straight to the bus, as before.
+- **The context relays after the outermost commit** ([`ExecutionContext.ts`](../../typescript/src/Architecture/Application/ExecutionContext.ts)): every pending entry of the outbox is published through the bus with the entry's id as the message's id, then marked published. A relay that fails leaves the entry pending; the next commit, or the application's start ([`relayOutbox()`](../../typescript/src/Architecture/Application/Outbox.ts), called by the bootstrap), publishes it. That is the window ADR 3 left open, closed: a crash after the commit delays a fact, it no longer loses it.
+- **The bus delivers once per message id** ([`InMemoryEventBus.ts`](../../typescript/src/Architecture/Infrastructure/EventBus/InMemoryEventBus.ts)): `publish(event, context, messageId)` takes the outbox entry's id, and a subscriber that already handled that id, successfully, is not handed it again — the inbox, kept by the bus rather than by each handler, so handlers stay as they are. A reaction that failed is handed the message again on the next relay: at least once is the promise, and a failure is the case it exists for.
+- **The rule is the contract's** (EVENT-AFTER-COMMIT, reworded): the same in every language, each binding pointing at the files that show it; [`DomainEvents.spec.ts`](../../typescript/src/Architecture/Application/DomainEvents.spec.ts) pins the append at commit, the rollback, the failed relay published by the next one; [`InMemoryEventBus.spec.ts`](../../typescript/src/Architecture/Infrastructure/EventBus/InMemoryEventBus.spec.ts) the single delivery.
+
+## Consequences
+
+- The handler code does not change: `this.publishDomainEvents(aggregate, context)` reads as before. The timing and the durability are the base class's and the context's concern.
+- What the system promises changes from "after commit, best effort" to "after commit, at least once": a listener may see a fact twice only if a relay failed between two attempts, and the bus hides that from it. A listener that reaches outside the process (a mailer) is where idempotence by message id matters most; the in-memory inbox shows the shape, a database inbox would be a table keyed by (subscriber, message id).
+- The outbox is one more store the unit of work guards, and one per process: the bootstrap builds it once and hands it to every request's unit of work.
+- The SQLite adapters of the reference do not join the unit of work (ADR 3's known gap), so there is no SQLite outbox yet: the day a SQLite unit of work spans the notes table and an outbox table, the outbox port gets its second adapter and the contract spec that holds both. Listed in the README's known gaps.
+- Ordering is per outbox, oldest first; across processes it would be the relay's business.
+
+## When to revisit
+
+The moment events cross a process boundary (a broker, a second service), the relay becomes a process of its own polling the outbox table, and the inbox a table on the consumer's side; the ports do not change. If a subscriber must see a fact exactly once *and* act outside the process, the inbox moves into the consumer's transaction, keyed by message id, which is the one place at-least-once can be turned into effectively-once.

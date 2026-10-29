@@ -216,6 +216,22 @@ concepts:
       - EVENT-AFTER-COMMIT
     references:
       - docs/adr/0003-publish-domain-events-after-commit.md
+  - id: transactional-outbox
+    name: Transactional outbox
+    layer: application
+    description: the facts a transaction makes durable with the state they describe, relayed to the bus after the commit; a crash after the commit loses nothing, the next relay publishes what is pending ([ADR 24](docs/adr/0024-events-are-durable-before-they-are-published.md))
+    rules:
+      - EVENT-AFTER-COMMIT
+    references:
+      - docs/adr/0024-events-are-durable-before-they-are-published.md
+  - id: retry-on-conflict
+    name: Retry on conflict
+    layer: application
+    description: a command refused by a concurrency conflict is re-read and re-decided by its handler in a new transaction, up to three times; the third conflict is the client's ([ADR 25](docs/adr/0025-a-conflict-is-retried-from-a-fresh-read-then-refused.md))
+    rules:
+      - CONC-OPTIMISTIC
+    references:
+      - docs/adr/0025-a-conflict-is-retried-from-a-fresh-read-then-refused.md
   - id: domain-event-handler
     name: Domain event handler
     layer: application
@@ -297,6 +313,14 @@ concepts:
     description: the only bus implementation
     rules:
       - EVENT-AFTER-COMMIT
+  - id: idempotent-delivery
+    name: Idempotent delivery (the inbox)
+    layer: infrastructure
+    description: a fact relayed from the outbox may reach the bus twice; the bus recognises a message it already delivered to a subscriber by the message's id and delivers it once ([ADR 24](docs/adr/0024-events-are-durable-before-they-are-published.md))
+    rules:
+      - EVENT-AFTER-COMMIT
+    references:
+      - docs/adr/0024-events-are-durable-before-they-are-published.md
   - id: decorator
     name: Decorator (cross-cutting concern)
     layer: infrastructure

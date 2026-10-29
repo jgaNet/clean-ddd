@@ -8,12 +8,15 @@ import (
 )
 
 // The shape of every concrete handler, and what the template does around it: a guard for who
-// may call, an Execute for the use case, a transaction around it, the events after the commit.
+// may call, an Execute for the use case, a transaction around it, the events after the commit,
+// a fresh read when the use case lost a race.
 
 type GreetCommandEvent struct {
 	domain.CommandEvent
 	Name string
 	Then string
+	// Conflicts is how many runs of Execute answer with a concurrency conflict before one succeeds.
+	Conflicts int
 }
 
 type GreetedEvent struct {
@@ -25,21 +28,28 @@ type greeter struct{ domain.AggregateRoot }
 
 func (g *greeter) greet(name string) { g.Record(GreetedEvent{Name: name}) }
 
-type greetHandler struct{}
+type greetHandler struct {
+	// executions is how many times Execute ran: a conflict re-runs it from a fresh read (ADR 25).
+	executions int
+}
 
-func (greetHandler) Guard(context *ExecutionContext) error {
+func (*greetHandler) Guard(context *ExecutionContext) error {
 	if context.Auth().Role == "guest" {
 		return domain.NotAllowed("Test", "Guests cannot greet", nil)
 	}
 	return nil
 }
 
-func (greetHandler) Execute(command GreetCommandEvent, context *ExecutionContext) (string, error) {
+func (h *greetHandler) Execute(command GreetCommandEvent, context *ExecutionContext) (string, error) {
+	h.executions++
 	switch command.Then {
 	case "throw":
 		panic("boom")
 	case "fail":
 		return "", domain.NotAllowed("Test", "Refused", nil)
+	}
+	if h.executions <= command.Conflicts {
+		return "", domain.ConcurrencyConflict("Test", "The greeter changed since it was read", nil)
 	}
 	g := &greeter{AggregateRoot: domain.NewAggregateRoot(domain.NewID("greeter"), 0)}
 	g.greet(command.Name)
@@ -47,28 +57,40 @@ func (greetHandler) Execute(command GreetCommandEvent, context *ExecutionContext
 	return "Hello " + command.Name, nil
 }
 
-// recordingBus remembers what was published, in order, and dispatches nothing. Given a log it
-// also notes each publication there, next to the unit of work's own entries.
+// recordingBus remembers what was published, in order, with the message ids the relay gave,
+// and dispatches nothing. Given a log it also notes each publication there, next to the unit
+// of work's own entries. Told to, it panics once, the way a bus that is down would.
 type recordingBus struct {
-	log       *[]string
-	published []domain.Event
+	log        *[]string
+	published  []domain.Event
+	messageIDs []string
+	panicOnce  bool
 }
 
 func (*recordingBus) Connect() error { return nil }
 
 func (b *recordingBus) Publish(event domain.Event, context *ExecutionContext) *Operation {
+	return b.PublishWithID(event, context, "")
+}
+
+func (b *recordingBus) PublishWithID(event domain.Event, context *ExecutionContext, messageID string) *Operation {
+	if b.panicOnce {
+		b.panicOnce = false
+		panic("the bus is down")
+	}
 	if b.log != nil {
 		*b.log = append(*b.log, "publish")
 	}
 	b.published = append(b.published, event)
-	return NewOperation(event, context)
+	b.messageIDs = append(b.messageIDs, messageID)
+	return NewOperationWithID(messageID, event, context)
 }
 
 func (*recordingBus) Dispatch(*Operation)          {}
 func (*recordingBus) Subscribe(string, Subscriber) {}
 
 func operationFor(command GreetCommandEvent, role string) (*Operation, *fakeUnitOfWork, *recordingBus) {
-	unitOfWork := &fakeUnitOfWork{}
+	unitOfWork := newFakeUnitOfWork()
 	bus := &recordingBus{log: &unitOfWork.log}
 	context := NewExecutionContext(Options{
 		TraceID: "trace", EventBus: bus, UnitOfWork: unitOfWork, Auth: Auth{SubjectID: "alice", Role: role},
@@ -76,10 +98,12 @@ func operationFor(command GreetCommandEvent, role string) (*Operation, *fakeUnit
 	return NewOperation(command, context), unitOfWork, bus
 }
 
-func handle(operation *Operation) *Operation {
-	Command[GreetCommandEvent, string](greetHandler{}).Handlers[0].Handle(operation)
+func handleWith(handler *greetHandler, operation *Operation) *Operation {
+	Command[GreetCommandEvent, string](handler).Handlers[0].Handle(operation)
 	return operation
 }
+
+func handle(operation *Operation) *Operation { return handleWith(&greetHandler{}, operation) }
 
 func TestRunsTheUseCaseInsideATransactionAndPublishesTheDomainEventsAfterTheCommit(t *testing.T) {
 	operation, unitOfWork, bus := operationFor(GreetCommandEvent{Name: "Alice"}, "user")
@@ -98,8 +122,55 @@ func TestRunsTheUseCaseInsideATransactionAndPublishesTheDomainEventsAfterTheComm
 	if want := []domain.Event{GreetedEvent{Name: "Alice"}}; !reflect.DeepEqual(bus.published, want) {
 		t.Errorf("published: got %v, want %v", bus.published, want)
 	}
+	if len(bus.messageIDs) != 1 || bus.messageIDs[0] == "" {
+		t.Errorf("the fact should have been published under its outbox entry's id, got %v", bus.messageIDs)
+	}
+	if pending := unitOfWork.outbox.Pending(); len(pending) != 0 {
+		t.Errorf("the outbox should have been relayed, got %v", pending)
+	}
 	if done.FinishedAt == nil {
 		t.Error("a marked operation knows when it finished")
+	}
+}
+
+func TestRunsTheUseCaseAgainFromAFreshReadWhenItLostARaceAndAnswersWithTheSecondRun(t *testing.T) {
+	operation, unitOfWork, _ := operationFor(GreetCommandEvent{Name: "Alice", Conflicts: 1}, "user")
+	handler := &greetHandler{}
+
+	done := handleWith(handler, operation)
+
+	if done.Status != StatusSuccess {
+		t.Fatalf("status: got %s, want SUCCESS (%v)", done.Status, done.Error)
+	}
+	if handler.executions != 2 {
+		t.Errorf("executions: got %d, want 2", handler.executions)
+	}
+	// The first attempt rolled back and published nothing; the second committed and published.
+	if want := []string{"begin", "rollback", "begin", "commit", "publish"}; !reflect.DeepEqual(unitOfWork.log, want) {
+		t.Errorf("log: got %v, want %v", unitOfWork.log, want)
+	}
+}
+
+func TestRefusesWithTheConflictAfterTheThirdAttemptAndPublishesNothing(t *testing.T) {
+	operation, unitOfWork, bus := operationFor(GreetCommandEvent{Name: "Alice", Conflicts: 10}, "user")
+	handler := &greetHandler{}
+
+	done := handleWith(handler, operation)
+
+	if done.Status != StatusError {
+		t.Fatalf("status: got %s, want ERROR", done.Status)
+	}
+	if done.Error == nil || done.Error.Type != domain.TypeConcurrencyConflict {
+		t.Errorf("error: got %+v, want ConcurrencyConflict", done.Error)
+	}
+	if handler.executions != ConflictAttempts {
+		t.Errorf("executions: got %d, want %d", handler.executions, ConflictAttempts)
+	}
+	if want := []string{"begin", "rollback", "begin", "rollback", "begin", "rollback"}; !reflect.DeepEqual(unitOfWork.log, want) {
+		t.Errorf("log: got %v, want %v", unitOfWork.log, want)
+	}
+	if len(bus.published) != 0 {
+		t.Errorf("published: got %v, want nothing", bus.published)
 	}
 }
 
@@ -157,7 +228,7 @@ func TestTurnsAPanicIntoAFailedOperationInsteadOfCrashingAndRollsBack(t *testing
 func TestRunAnswersTheUseCasesValueToASynchronousCaller(t *testing.T) {
 	operation, unitOfWork, _ := operationFor(GreetCommandEvent{Name: "Bob"}, "user")
 
-	greeting, err := Run[GreetCommandEvent, string](greetHandler{}, GreetCommandEvent{Name: "Bob"}, operation.Context)
+	greeting, err := Run[GreetCommandEvent, string](&greetHandler{}, GreetCommandEvent{Name: "Bob"}, operation.Context)
 
 	if err != nil || greeting != "Hello Bob" {
 		t.Errorf("Run: got (%q, %v)", greeting, err)
@@ -187,12 +258,13 @@ func TestACommandWithNothingToAnswerLeavesTheOperationWithoutAResult(t *testing.
 }
 
 func TestTheSubscriptionIsListedUnderTheCommandsNameAndExposesTheHandler(t *testing.T) {
-	subscription := Command[GreetCommandEvent, string](greetHandler{})
+	handler := &greetHandler{}
+	subscription := Command[GreetCommandEvent, string](handler)
 
 	if subscription.Channel != "GreetCommandEvent" {
 		t.Errorf("channel: got %q", subscription.Channel)
 	}
-	if wrapped, ok := subscription.Handlers[0].(inner); !ok || wrapped.Inner() != (greetHandler{}) {
+	if wrapped, ok := subscription.Handlers[0].(inner); !ok || wrapped.Inner() != any(handler) {
 		t.Error("the subscriber should expose the handler it wraps")
 	}
 }

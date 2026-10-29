@@ -10,10 +10,12 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use architecture_application::{Application, Auth, ExecutionContext, ExecutionContextOptions, Logger, UnitOfWork};
+use architecture_application::{
+    Application, Auth, ExecutionContext, ExecutionContextOptions, Logger, Outbox, UnitOfWork, relay_outbox,
+};
 use architecture_domain::Id;
 use architecture_infrastructure::data_sources::Snapshottable;
-use architecture_infrastructure::{InMemoryEventBus, InMemoryUnitOfWork};
+use architecture_infrastructure::{InMemoryEventBus, InMemoryOutbox, InMemoryUnitOfWork};
 use axum::Router;
 use axum::ServiceExt;
 use axum::extract::{Request, State};
@@ -54,12 +56,13 @@ fn cors(origins: &[String]) -> CorsLayer {
         .expose_headers([TRACE_HEADER])
 }
 
-/// What every request's context is built from: the application's bus and logger, and the
-/// stores a request's unit of work guards.
+/// What every request's context is built from: the application's bus and logger, the stores a
+/// request's unit of work guards, and the process's outbox it writes its facts to (ADR 24).
 struct PerRequest {
     application: Application,
     logger: Arc<dyn Logger>,
     stores: Vec<Arc<dyn Snapshottable>>,
+    outbox: Arc<dyn Outbox>,
 }
 
 /// The application: wired, its modules listening on the bus, seeded; not yet serving.
@@ -72,16 +75,19 @@ pub struct App {
 /// Builds the whole application. The modules start before the seed so that the seed's events
 /// reach their handlers.
 pub async fn create_application(settings: Settings, logger: Arc<dyn Logger>) -> App {
-    // The stores, listed once: the unit of work of a request snapshots them all.
+    // The stores, listed once: the unit of work of a request snapshots them all, the outbox's
+    // among them, so that a fact is durable with the state it describes or gone with it (ADR 24).
     let notes = note_store();
     let accounts = account_store();
     let operations = operation_store();
     let notifications = notification_store();
+    let outbox = Arc::new(InMemoryOutbox::new());
     let stores: Vec<Arc<dyn Snapshottable>> = vec![
         Arc::new(notes.clone()),
         Arc::new(accounts.clone()),
         Arc::new(operations.clone()),
         Arc::new(notifications.clone()),
+        outbox.store(),
     ];
 
     // The application's bus: the in-memory bus, decorated so that every operation is recorded.
@@ -101,6 +107,19 @@ pub async fn create_application(settings: Settings, logger: Arc<dyn Logger>) -> 
         .register_module(security.module.clone())
         .register_module(notifications.module.clone());
     application.start_modules().await;
+    // What a previous run made durable and did not publish goes out now (ADR 24): nothing, with
+    // an in-memory outbox, and the line is where a store's outbox would be relayed.
+    relay_outbox(
+        outbox.as_ref(),
+        &ExecutionContext::new(ExecutionContextOptions {
+            trace_id: "startup".into(),
+            auth: Auth::anonymous(),
+            event_bus: event_bus.clone(),
+            unit_of_work: None,
+            logger: Some(logger.clone()),
+        }),
+    )
+    .await;
 
     // The routes, under the API prefix, each context's under its own; the websocket at the root.
     let home = Arc::new(HomeViewModel { name: settings.name.clone(), version: settings.version.clone() });
@@ -110,7 +129,7 @@ pub async fn create_application(settings: Settings, logger: Arc<dyn Logger>) -> 
         .nest("/tracker/operations", operation_routes(tracker))
         .nest("/notifications", notification_routes(notifications.module.clone()))
         .merge(auth_routes(security.module.clone()));
-    let per_request = Arc::new(PerRequest { application, logger: logger.clone(), stores });
+    let per_request = Arc::new(PerRequest { application, logger: logger.clone(), stores, outbox });
     let router = Router::new()
         .nest(&format!("/{}", settings.api_prefix), api)
         .merge(notifications.websocket.clone().routes())
@@ -142,7 +161,8 @@ async fn with_execution_context(State(shared): State<Arc<PerRequest>>, mut reque
         .map(str::to_string)
         .unwrap_or_else(|| Id::generate().value().to_string());
     let auth = request.extensions().get::<Auth>().cloned().unwrap_or_default();
-    let unit_of_work: Arc<dyn UnitOfWork> = Arc::new(InMemoryUnitOfWork::new(shared.stores.clone()));
+    let unit_of_work: Arc<dyn UnitOfWork> =
+        Arc::new(InMemoryUnitOfWork::new(shared.stores.clone(), shared.outbox.clone()));
 
     request.extensions_mut().insert(ExecutionContext::new(ExecutionContextOptions {
         trace_id: trace_id.clone(),
