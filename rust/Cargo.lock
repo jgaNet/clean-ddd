@@ -173,10 +173,10 @@ name = "bootstrap"
 version = "3.1.0"
 dependencies = [
  "architecture-application",
- "architecture-domain",
  "architecture-infrastructure",
  "architecture-presentation",
  "axum",
+ "bootstrap-transport",
  "chrono",
  "notes-infrastructure",
  "notes-presentation",
@@ -189,10 +189,35 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "tower",
- "tower-http",
  "tracker-presentation",
  "tracker-wiring",
+]
+
+[[package]]
+name = "bootstrap-starter"
+version = "3.1.0"
+dependencies = [
+ "architecture-application",
+ "architecture-infrastructure",
+ "bootstrap-transport",
+ "reqwest",
+ "serde_json",
+ "tokio",
+ "tracker-presentation",
+ "tracker-wiring",
+]
+
+[[package]]
+name = "bootstrap-transport"
+version = "3.1.0"
+dependencies = [
+ "architecture-application",
+ "architecture-domain",
+ "architecture-infrastructure",
+ "axum",
+ "tokio",
+ "tower",
+ "tower-http",
 ]
 
 [[package]]

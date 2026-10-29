@@ -260,7 +260,11 @@ export function loadArchitectureContract(
 
   const create = isObject(binding.create)
     ? {
-        copy: local.paths(binding.create.copy),
+        copy: (Array.isArray(binding.create.copy) ? binding.create.copy : []).map((entry: unknown) =>
+          isObject(entry)
+            ? { from: local.path(String(entry.from ?? '')), to: local.path(String(entry.to ?? '')) }
+            : { from: local.path(String(entry)), to: local.path(String(entry)) },
+        ),
         contracts: local.path(String(binding.create.contracts ?? '')),
         manifest: local.path(String(binding.create.manifest ?? '')),
         members: strings(binding.create.members),
@@ -408,7 +412,10 @@ export function validateContract(contract: ArchitectureContract, root: string = 
       problems.push(`${bindingFile}: names the word "${word}", which ${conceptsFile} does not define`);
   }
 
-  for (const file of [...(contract.create?.copy ?? []), ...(contract.create ? [contract.create.manifest] : [])]) {
+  for (const file of [
+    ...(contract.create?.copy ?? []).map(entry => entry.from),
+    ...(contract.create ? [contract.create.manifest] : []),
+  ]) {
     if (!exists(file)) problems.push(`${bindingFile} create: names ${file}, which does not exist`);
   }
 

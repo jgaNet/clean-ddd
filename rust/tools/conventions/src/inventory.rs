@@ -1412,7 +1412,10 @@ impl EventHandler for NoteCreatedHandler {
     #[test]
     fn the_tree_as_it_is_lists_every_command_once_and_answers_every_command_built() {
         let language_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").canonicalize().expect("the workspace");
-        let binding = fs::read_to_string(language_root.join("../conventions/rust.yaml")).expect("the binding");
+        // The binding is at the repository's root: above this directory here, this directory in an
+        // application `clean-ddd create` made.
+        let repository = crate::repository_root(&language_root).expect("the repository root");
+        let binding = fs::read_to_string(repository.join(crate::BINDING)).expect("the binding");
         let binding: Yaml = serde_yaml::from_str(&binding).expect("the binding is YAML");
         let mut problems = Vec::new();
         check_handlers(&binding, &language_root, &mut problems);

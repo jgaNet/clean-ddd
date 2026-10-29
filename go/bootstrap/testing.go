@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"testing"
 	"time"
+
+	"clean-ddd/bootstrap/transport"
 )
 
 // Boots the real application in this process, on a free port, with fresh in-memory stores,
@@ -23,7 +25,7 @@ type TestApplication struct {
 	API string
 	// Root is the base URL without the prefix.
 	Root    string
-	running *Running
+	running *transport.Running
 }
 
 // Client speaks HTTP to the application, as an anonymous caller or with a bearer token.
@@ -44,16 +46,16 @@ type Response struct {
 
 func StartTestApplication(t *testing.T) *TestApplication {
 	t.Helper()
-	app, err := CreateApplication(SettingsForTests(), nil)
+	server, err := Compose(SettingsForTests(), nil)
 	if err != nil {
 		t.Fatalf("the application could not be built: %v", err)
 	}
-	running, err := app.Start(0)
+	running, err := server.Start(0)
 	if err != nil {
 		t.Fatalf("the application could not listen: %v", err)
 	}
 	t.Cleanup(func() { _ = running.Stop() })
-	return &TestApplication{t: t, API: running.Address + "/v1", Root: running.Address, running: running}
+	return &TestApplication{t: t, API: running.API, Root: running.Address, running: running}
 }
 
 func (a *TestApplication) Anonymous() *Client {

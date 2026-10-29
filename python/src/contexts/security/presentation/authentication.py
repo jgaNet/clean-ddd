@@ -3,16 +3,15 @@ the request anonymous (GUEST), and each handler's guard decides what a guest may
 accepted only if its signature and expiry check out (SignedTokens.verify), the account still
 exists and is active, and the role it claims is the account's current role.
 
-The composition root installs ``AuthenticationMiddleware`` over every route; the ``Auth`` it
-establishes travels on the connection's state (``request.state.auth``, ``websocket.state.auth``)
-to the middleware that builds the execution context, and to the websocket channel. It is a
-plain ASGI middleware, so a websocket connection is identified the same way as a request.
+The composition root gives ``Authentication.authenticate`` to the transport, which asks it on
+every HTTP request and every websocket connection, before anything else runs; the ``Auth`` it
+answers travels on the connection's state (``request.state.auth``, ``websocket.state.auth``) to
+the middleware that builds the execution context, and to the websocket channel.
 """
 
 from collections.abc import Mapping
 
 from starlette.requests import HTTPConnection
-from starlette.types import ASGIApp, Receive, Scope, Send
 
 from architecture.application.execution_context import Auth
 from contexts.security.domain.account.account_status import AccountStatus
@@ -45,21 +44,9 @@ class Authentication:
             return GUEST
         return Auth(subject_id=account.id, role=role)
 
-
-class AuthenticationMiddleware:
-    """``app.add_middleware(AuthenticationMiddleware, authentication=...)``: who is calling, on every
-    HTTP request and every websocket connection, before anything else runs."""
-
-    def __init__(self, app: ASGIApp, authentication: Authentication) -> None:
-        self._app = app
-        self._authentication = authentication
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] in ("http", "websocket"):
-            connection = HTTPConnection(scope)
-            auth = await self._authentication.identify(connection.headers, connection.query_params.get("token"))
-            scope.setdefault("state", {})["auth"] = auth
-        await self._app(scope, receive, send)
+    async def authenticate(self, connection: HTTPConnection) -> Auth:
+        """Who is behind a request or a websocket connection: what the transport asks."""
+        return await self.identify(connection.headers, connection.query_params.get("token"))
 
 
 def token_from_header(headers: Mapping[str, str]) -> str | None:

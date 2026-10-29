@@ -3,7 +3,7 @@
 # compiler holds the boundary, and `cargo run -p conventions` proves the graph is the table.
 [workspace]
 resolver = "3"
-members = ["src/architecture/*", "src/shared_kernel/*", "src/contexts/*/*", "src/bootstrap", "tools/*"]
+members = ["src/architecture/*", "src/shared_kernel/*", "src/contexts/*/*", "src/bootstrap", "src/bootstrap/transport", "src/bootstrap/starter", "tools/*"]
 
 [workspace.package]
 version = "3.1.0"

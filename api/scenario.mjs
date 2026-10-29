@@ -106,7 +106,8 @@ async function outcome(who, operationId) {
   throw new Refused(`operation ${operationId} still PENDING after 5s`);
 }
 async function signUpValidated(admin, identifier, password) {
-  const signedUp = await accepted(admin, await anonymous.post('/auth/signup', { identifier, password }));
+  // A sign-up is anonymous: its caller follows it by the id it was given, signed in or not (ADR 27).
+  const signedUp = await accepted(anonymous, await anonymous.post('/auth/signup', { identifier, password }));
   eq(signedUp.status, 'SUCCESS', `sign-up of ${identifier}`);
   const accountId = signedUp.result;
   const validated = await accepted(admin, await admin.get(`/auth/accounts/${accountId}/validate`));
@@ -356,12 +357,13 @@ await step('a user may not list operations; an administrator lists them by trace
   ok(records.every((r) => r.traceId === state.unknownShareTrace), 'one trace');
   ok(records.every((r) => !('context' in r) && !('payload' in r)), 'no context, no payload');
 });
-await step('an operation is read by its caller or an administrator, not by another user', async () => {
+await step('an operation an account started is read by that account or an administrator, not by another user nor anonymously', async () => {
   const created = await state.bob.post('/notes', { title: 'Private', content: '...' });
   const operationId = created.json.operationId;
   await outcome(state.bob, operationId);
   eq((await state.admin.get(`/tracker/operations/${operationId}`)).status, 200, 'admin');
   eq((await state.carol.get(`/tracker/operations/${operationId}`)).status, 404, 'another user');
+  eq((await anonymous.get(`/tracker/operations/${operationId}`)).status, 403, 'anonymous, for an operation an account started');
   eq((await state.admin.get('/tracker/operations/00000000-0000-4000-8000-000000000000')).status, 404, 'unknown');
 });
 

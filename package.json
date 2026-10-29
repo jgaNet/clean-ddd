@@ -46,8 +46,8 @@
     "typecheck": "tsc -p tools/tsconfig.json",
     "lint": "eslint tools",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
-    "format": "prettier \"tools/**/*.{ts,mjs}\" \"*.{js,mjs}\" --write",
-    "format:check": "prettier \"tools/**/*.{ts,mjs}\" \"*.{js,mjs}\" --check",
+    "format": "prettier \"tools/**/*.{ts,mjs}\" \".claude/**/*.mjs\" \"*.{js,mjs}\" --write",
+    "format:check": "prettier \"tools/**/*.{ts,mjs}\" \".claude/**/*.mjs\" \"*.{js,mjs}\" --check",
     "prepack": "yarn build"
   },
   "devDependencies": {

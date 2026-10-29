@@ -4,12 +4,12 @@ import 'dotenv/config';
 
 import { ConsoleLogger } from '@Architecture/Infrastructure/Logging/ConsoleLogger';
 
-import { SETTINGS } from './application.settings';
 import { createApplication } from './createApplication';
 
-// The process entry point: build the application and serve it. Everything else is in
-// createApplication.ts, so that tests can build the same application without listening here.
-const logger = new ConsoleLogger({ debug: SETTINGS.logger.debug });
+// The process entry point: build the application and serve it, on the port its composition
+// reads (PORT). Everything else is in createApplication.ts, so that tests can build the same
+// application without listening here.
+const logger = new ConsoleLogger({ debug: false });
 
 try {
   const app = await createApplication({ logger });

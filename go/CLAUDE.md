@@ -14,7 +14,7 @@ test -z "$(gofmt -l .)"                     # the formatter (gofmt -w . to apply
 go vet ./...                                # the compiler's second look
 golangci-lint run ./...                     # the lints (errcheck included: a dropped refusal is refused)
 go test ./...                               # every _test.go; go test ./contexts/notes/... for one context, -run <Name> for one test
-go run ./bootstrap/cmd/application          # serves http://127.0.0.1:10000/v1 (PORT, API_PREFIX, JWT_SECRET, ADMIN_IDENTIFIER, ADMIN_PASSWORD, WEB_ORIGINS)
+go run ./bootstrap/cmd/application          # serves http://127.0.0.1:10000/v1 (PORT, API_PREFIX, WEB_ORIGINS; JWT_SECRET, ADMIN_IDENTIFIER, ADMIN_PASSWORD for Security)
 node ../api/scenario.mjs http://127.0.0.1:10000   # the API every language answers, against that server
 yarn --cwd .. architecture rule <ID> | concept <id> | checklist <kind> | verb <intent>   # the contract, asked; from here it answers in Go (`--language go` says it explicitly)
                                             # the kinds: aggregate, value-object, domain-service, command, query, integration-event, event-handler, context
@@ -44,6 +44,10 @@ contexts/<context>/               one package directory per layer (domain/, appl
   presentation/routes.go          the routes and their views, on the http.ServeMux; presenters.go beside it
 bootstrap/                        the composition root (create_application.go), the settings, cmd/application (the entry
                                   point), testing.go and the end-to-end suites *_e2e_test.go
+  transport/                      the transport, which names no context: each request's identity and ExecutionContext, CORS,
+                                  the routes under the API prefix (server.Routes), listening; without an Authenticate, anonymous
+  starter/                        the composition root `create` gives a new application: the Tracker alone, and its e2e
+                                  suite (package bootstrap, copied as bootstrap/create_application.go; ADR 27)
 tools/conventions/                the import linter and conventions check, in one
 ../conventions/go.yaml            this language's binding of the contract: contexts, trees, enforcers, checklists, canonical files
 ```

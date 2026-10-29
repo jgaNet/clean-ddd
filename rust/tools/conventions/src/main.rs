@@ -14,8 +14,10 @@
 //!    row allows — `own.<Layer>`, `architecture.<Layer>`, `kernel.<Layer>`, `others.<Layer>`,
 //!    the wiring, the bootstrap — a dev-dependency may add what the layer's `specs` row allows,
 //!    and a library the binding lists is seen only where `libraries` is allowed (ARCH-INWARD).
-//!    The bootstrap may depend on anything, but its tests — the end-to-end tests — on the
-//!    bootstrap and the libraries only: no layer crate in its `[dev-dependencies]` (ARCH-E2E).
+//!    The bootstrap's crates — the composition root, and the crates beside it under the
+//!    bootstrap's path (the transport, the composition a created application starts from) — may
+//!    depend on anything, but their tests — the end-to-end tests — on the bootstrap and the
+//!    libraries only: no layer crate in their `[dev-dependencies]` (ARCH-E2E).
 //! 4. Every file the binding names exists (ARCH-MAP-IS-REAL). The rendered documents and the
 //!    links are checked by the TypeScript tooling, which reads every binding.
 //! 5. The committed inventory (`docs/inventory/rust.json`) is what the tree renders now
@@ -287,7 +289,10 @@ fn classify(rel: &str, binding: &Yaml, layers: &[String]) -> Result<(Tree, Part)
         let path = text(&binding[tree]["path"]);
         rel.strip_prefix(&format!("{path}/")).map(str::to_string)
     };
-    if rel == text(&binding["bootstrap"]["path"]) {
+    // The composition root, and the crates beside it under the bootstrap's path (the transport,
+    // the starting composition): none is a layer, each is the bootstrap.
+    let bootstrap = text(&binding["bootstrap"]["path"]);
+    if rel == bootstrap || rel.starts_with(&format!("{bootstrap}/")) {
         return Ok((Tree::Bootstrap, Part::Whole));
     }
     if let Some(rest) = under("architecture") {

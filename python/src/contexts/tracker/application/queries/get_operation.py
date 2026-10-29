@@ -1,4 +1,6 @@
-"""A user may follow their own operations; an administrator may follow any."""
+"""A user may follow their own operations; an administrator may follow any. An operation nobody
+started — an anonymous command, a sign-up — is followed by whoever holds its id: the id is
+unguessable and is only ever given to the caller who started it, in the 202 (ADR 27)."""
 
 from architecture.application.execution_context import ExecutionContext
 from architecture.application.query_handler import QueryHandler
@@ -14,11 +16,13 @@ SERVICE = "Tracker"
 
 class GetOperationQueryHandler(QueryHandler[OperationRecords, str, OperationRecord]):
     async def execute(self, operation_id: str, context: ExecutionContext) -> Result[OperationRecord]:
+        record = await self.queries.find_by_id(operation_id)
+        if record is not None and not record.subject_id:
+            return Success(record)
+
         reader = require_signed_in(context, SERVICE)
         if isinstance(reader, Failure):
             return reader
-
-        record = await self.queries.find_by_id(operation_id)
 
         # An operation someone else started does not exist, as far as you know.
         is_admin = Role.parse(context.auth.role) is Role.ADMIN

@@ -1,5 +1,7 @@
-// Command application is the process entry point: the settings from the environment, the
-// application wired by the composition root, serving until the process ends.
+// Command application is the process entry point: the application its composition root builds,
+// serving until the process ends. It reads no setting of its own (the composition root reads
+// the environment: PORT, API_PREFIX, WEB_ORIGINS, and whatever its contexts need), so it is the
+// same file in every application built on this architecture.
 package main
 
 import (
@@ -10,14 +12,13 @@ import (
 )
 
 func main() {
-	settings := bootstrap.SettingsFromEnv()
-	logger := infrastructure.NewConsoleLogger(settings.Debug)
-	app, err := bootstrap.CreateApplication(settings, logger)
+	logger := infrastructure.NewConsoleLogger(os.Getenv("DEBUG") == "true")
+	server, err := bootstrap.CreateApplication(logger)
 	if err != nil {
 		logger.Error("The application could not be built", err, nil)
 		os.Exit(1)
 	}
-	running, err := app.Start(-1)
+	running, err := server.Start(-1)
 	if err != nil {
 		logger.Error("The application could not listen", err, nil)
 		os.Exit(1)

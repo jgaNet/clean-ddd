@@ -12,7 +12,8 @@ from typing import Any
 
 import httpx
 
-from bootstrap.create_application import Running, create_application
+from bootstrap.create_application import create_application
+from bootstrap.fastapi_application import Running
 from bootstrap.settings import Settings
 
 

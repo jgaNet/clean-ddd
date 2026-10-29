@@ -58,15 +58,14 @@ modes:
   architecture:
     decides: [src/architecture, src/shared_kernel/domain]
 
-# What `clean-ddd create --language rust` makes of this directory (ADR 10, ADR 23): the crates
-# copied as they are (the building blocks with their tests, the shared kernel's model and guard,
-# the conventions tool — a crate of the workspace — and the configuration), the module its
-# integration events go in (its `mod.rs` is copied and emptied of this repository's contracts),
-# the workspace manifest rewritten with the application's name, its members narrowed to the
-# trees copied (`src/contexts/*/*` and `src/bootstrap` are added when the first context and the
-# bootstrap appear, since cargo refuses a member glob that matches nothing) and its dependencies
-# to what the copied crates use; Cargo.lock travels whole and the next build settles it. The
-# tool wants its inventory committed, so `create` writes an empty one.
+# What `clean-ddd create --language rust` makes of this directory (ADR 10, ADR 23, ADR 27): the
+# crates copied as they are (the building blocks with their tests, the shared kernel's model and
+# guard, the conventions tool — a crate of the workspace — and the configuration), the module its
+# integration events go in (its `mod.rs` is copied and keeps only the contracts copied with it),
+# the workspace manifest rewritten with the application's name, its members narrowed to the trees
+# copied and its dependencies to what the copied crates use; Cargo.lock travels whole and the next
+# build settles it. The tool wants its inventory committed, so `create` writes the Tracker's lines
+# of this one.
 create:
   copy:
     - src/architecture
@@ -75,14 +74,29 @@ create:
     - src/shared_kernel/application/src/lib.rs
     - src/shared_kernel/application/src/guards.rs
     - src/shared_kernel/application/src/integration_events/mod.rs
+    # The Tracker, which a client follows a command's 202 at, and the contract it publishes (ADR 27).
+    # Its end-to-end cases are in src/bootstrap/tests/operation_routes.rs, which boots this
+    # repository's four contexts, so they stay here; the starting composition's suite boots the
+    # Tracker alone.
+    - src/shared_kernel/application/src/integration_events/tracker_integration_events.rs
+    - src/contexts/tracker
+    # The transport, which knows no context, and the composition root a new application starts
+    # from, with its entry point and its end-to-end suite, in place of this repository's
+    # (src/bootstrap itself, which is not copied). A crate is named in its manifest, and a
+    # workspace holds one crate of a name, so the starter keeps its directory and its name
+    # (`bootstrap-starter`, `cargo run -p bootstrap-starter`) rather than taking this one's.
+    - src/bootstrap/transport
+    - src/bootstrap/starter
     - tools/conventions
     - rustfmt.toml
     - .gitignore
     - Cargo.lock
   contracts: src/shared_kernel/application/src/integration_events
   manifest: Cargo.toml
-  members: ['src/architecture/*', 'src/shared_kernel/*', 'tools/*']
-  dependencies: [uuid, futures, indexmap, pollster, serde, serde_json, serde_yaml, toml, axum, tokio]
+  members: ['src/architecture/*', 'src/shared_kernel/*', 'src/contexts/*/*', 'src/bootstrap/*', 'tools/*']
+  # The Tracker's read model carries its times (chrono); the transport is axum on tokio, with
+  # tower's layers; the starter's end-to-end suite speaks HTTP with reqwest.
+  dependencies: [uuid, futures, indexmap, pollster, serde, serde_json, serde_yaml, toml, chrono, axum, tokio, tower, tower-http, reqwest]
   inventory: true
   install: cargo build
   test: cargo test
@@ -107,7 +121,7 @@ rules:
   ARCH-WIRING:
     references: [src/contexts/notes/wiring/src/lib.rs]
   ARCH-E2E:
-    references: [src/bootstrap/tests/support/mod.rs]
+    references: [src/bootstrap/tests/support/mod.rs, src/bootstrap/starter/tests/create_application.rs]
   ARCH-MODULES-DATA:
     references: [src/contexts/notes/wiring/src/lib.rs]
   ARCH-ONE-HANDLER:
@@ -185,11 +199,12 @@ checklists:
     place: src/contexts/<context>/application/src/commands/<use_case>.rs
     parts:
       - 'The command: a struct with a named payload and nothing more, `impl Event` and `impl CommandEvent` with its `NAME`.'
-      - 'The handler in the same file: a struct generic over the ports it takes in `new()`, `impl CommandHandler` with `execute()` — the signed-in guard at the top, load, ask the aggregate or the domain service, save (`?` on the `DomainResult`), `publish_domain_events`.'
+      - 'The handler in the same file: a struct generic over the ports it takes in `new()`, `impl CommandHandler` with `execute()` — the signed-in guard (`require_signed_in`) at the top, load, ask the aggregate or the domain service, save (`?` on the `DomainResult`), `publish_domain_events`. A command anyone may send (a sign-up) has no `require_signed_in`; its caller follows it by the operation id it was answered, signed in or not (ADR 27).'
       - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
-      - 'One `pub mod` line in `commands/mod.rs`; the handlers of one aggregate share the tests at the bottom of that file.'
+      - 'One `pub mod` line in `commands/mod.rs`, and a `pub use` of what the wiring lists; the handlers of one aggregate share the tests at the bottom of that file.'
       - 'At least a happy path and one refusal in the tests; through `handle()` when the rule is in `guard()`.'
-      - 'A route in the context''s `presentation` crate: a function taking the request''s `Extension<ExecutionContext>` and `accept(&context, Command { … })`, answering `202 { operationId }`; the handler listed in the wiring crate with `Subscription::command`.'
+      - 'A route in the context''s `presentation` crate: a function taking the request''s `Extension<ExecutionContext>` and `accept(&context, Command { … })`, answering `202 { operationId }`; the handler listed in the wiring crate with `Subscription::command`. A create never answers its new id: the handler returns it (its `Output`), and the client reads it as the operation''s `result` at `GET /v1/tracker/operations/{id}`.'
+      - 'An end-to-end case when the flow is user-visible, in a file of its own under the composition root''s `tests/` (`<things>_routes.rs`): it boots the application on a free port and speaks HTTP with `reqwest`, as the starting composition''s own [`create_application.rs`](src/bootstrap/starter/tests/create_application.rs) does; this repository''s suites boot theirs with `start_test_application()` of [`tests/support/mod.rs`](src/bootstrap/tests/support/mod.rs) and follow a `202` with `app.accepted()`.'
   query:
     place: src/contexts/<context>/application/src/queries/<use_case>.rs
     parts:
@@ -221,7 +236,7 @@ checklists:
       - 'One crate per layer (`domain`, `application`, `infrastructure`, `presentation`) and the `wiring` crate, nothing else; each crate''s `[dependencies]` are its row of the table.'
       - 'Its own vocabulary: a word that means something else here is a sign the context is right.'
       - 'It asks other contexts through ports it owns, and tells them through integration events; never both sides of a dependency.'
-      - 'Registered in the composition root (`src/bootstrap/src/create_application.rs`), with its routes under its own prefix.'
+      - 'Registered in the composition root (`src/bootstrap/src/create_application.rs` here, `src/bootstrap/starter/src/lib.rs` in an application `create` made): its store in the list the unit of work snapshots, its module after the Tracker''s, its routes mounted on the transport under its own prefix (`.nest("/notes", note_routes(notes))`), which the transport serves under the API''s (`/v1/notes`).'
 
 # One test style per layer, for the README; the rows the language has so far.
 tests:
@@ -533,9 +548,15 @@ concepts:
     canonical:
       - src/bootstrap/src/create_application.rs
       - src/architecture/application/src/application.rs
+      - src/bootstrap/transport/src/axum_application.rs
       - src/bootstrap/src/main.rs
+    examples:
+      - src/bootstrap/starter/src/lib.rs
     example: >-
       [`create_application.rs`](src/bootstrap/src/create_application.rs) on
-      [`application.rs`](src/architecture/application/src/application.rs): wires, starts the modules, seeds the
-      administrator through the same handler as any command, then listens;
-      [`main.rs`](src/bootstrap/src/main.rs) is the process entry point
+      [`application.rs`](src/architecture/application/src/application.rs) and
+      [`axum_application.rs`](src/bootstrap/transport/src/axum_application.rs), the transport, which knows no
+      context: wires, starts the modules, seeds the administrator through the same handler as any command, then
+      listens; [`main.rs`](src/bootstrap/src/main.rs) is the process entry point, and
+      [`starter/src/lib.rs`](src/bootstrap/starter/src/lib.rs) the composition a created application starts
+      from (the Tracker alone, with its own entry point; ADR 27)

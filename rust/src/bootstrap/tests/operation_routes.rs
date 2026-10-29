@@ -62,3 +62,37 @@ async fn following_an_operation() {
 
     app.stop().await;
 }
+
+#[tokio::test]
+async fn an_operation_nobody_started_is_shown_to_whoever_holds_its_id_and_one_an_account_started_to_that_account_only()
+{
+    let app = start_test_application().await;
+    let api = app.api.clone();
+    let anonymous = app.anonymous();
+
+    // A sign-up is anonymous: the only one who knows its id is the caller it was answered to.
+    let sign_up = anonymous
+        .post(format!("{api}/auth/signup"))
+        .json(&json!({ "identifier": "tracked@x.fr", "password": "secret" }))
+        .send()
+        .await
+        .expect("answers");
+    let operation = app.accepted(&anonymous, sign_up).await;
+    assert_eq!(operation["name"], "SignUp");
+    assert_eq!(operation["status"], "SUCCESS");
+    assert!(operation["result"].is_string());
+
+    // An operation an account started is that account's: an anonymous caller is told to sign in.
+    let admin = app.admin().await;
+    let shared = admin
+        .post(format!("{api}/notes/00000000-0000-4000-8000-000000000000/share"))
+        .json(&json!({ "recipientId": "bob" }))
+        .send()
+        .await
+        .expect("answers");
+    let operation_id = app.accepted(&admin, shared).await["id"].as_str().expect("an id").to_string();
+    let stranger = anonymous.get(format!("{api}/tracker/operations/{operation_id}")).send().await.expect("answers");
+    assert_eq!(stranger.status(), 403);
+
+    app.stop().await;
+}

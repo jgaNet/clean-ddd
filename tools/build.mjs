@@ -47,12 +47,18 @@ const reference = join(dist, 'reference');
 const copyInto = path => {
   const to = join(reference, path);
   mkdirSync(dirname(to), { recursive: true });
-  cpSync(join(root, path), to, { recursive: true });
+  // What a working checkout builds beside the sources (caches, build output) is not the reference.
+  cpSync(join(root, path), to, {
+    recursive: true,
+    filter: source =>
+      !/(^|\/)(__pycache__|\.pytest_cache|\.mypy_cache|\.ruff_cache|node_modules|target|\.venv)(\/|$)/.test(source),
+  });
 };
 const contract = yaml(readFileSync(join(root, 'conventions/architecture.yaml'), 'utf8'));
 for (const path of [
   'conventions/architecture.yaml',
   'conventions/concepts.yaml',
+  'conventions/domain.yaml',
   '.claude',
   '.editorconfig',
   'package.json',
@@ -62,6 +68,11 @@ for (const language of contract.languages) {
   const binding = yaml(readFileSync(join(root, `conventions/${language}.yaml`), 'utf8'));
   copyInto(`conventions/${language}.yaml`);
   if (!binding.create) continue;
-  for (const path of [...binding.create.copy, binding.create.manifest]) copyInto(join(binding.root, path));
+  for (const entry of [...binding.create.copy, binding.create.manifest]) {
+    copyInto(join(binding.root, typeof entry === 'string' ? entry : entry.from));
+  }
+  // The contexts a created application starts with keep their description in the map and, where the
+  // language's tool commits one, their lines of the inventory.
+  if (binding.create.inventory) copyInto(`docs/inventory/${language}.json`);
 }
 process.stdout.write('✓ tools/dist: cli.js, index.js, the declarations, the reference for create\n');

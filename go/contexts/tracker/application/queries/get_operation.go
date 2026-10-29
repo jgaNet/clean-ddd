@@ -9,7 +9,9 @@ import (
 )
 
 // GetOperationHandler answers one operation by id: a user may follow their own operations;
-// an administrator may follow any.
+// an administrator may follow any. An operation nobody started — an anonymous command, a
+// sign-up — is followed by whoever holds its id: the id is unguessable and is only ever given
+// to the caller who started it, in the 202 (ADR 27).
 type GetOperationHandler struct {
 	records trackerapp.Records
 }
@@ -19,11 +21,15 @@ func NewGetOperationHandler(records trackerapp.Records) *GetOperationHandler {
 }
 
 func (h *GetOperationHandler) Execute(operationID string, ctx *application.ExecutionContext) (trackerapp.Record, error) {
-	reader, err := kernel.RequireSignedIn(ctx, trackerapp.Service)
+	record, err := h.records.FindByID(operationID)
 	if err != nil {
 		return trackerapp.Record{}, err
 	}
-	record, err := h.records.FindByID(operationID)
+	if record != nil && record.SubjectID == "" {
+		return *record, nil
+	}
+
+	reader, err := kernel.RequireSignedIn(ctx, trackerapp.Service)
 	if err != nil {
 		return trackerapp.Record{}, err
 	}

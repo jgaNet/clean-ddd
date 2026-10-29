@@ -46,3 +46,23 @@ async def test_following_an_operation() -> None:
     assert (await bob.get(f"{api}/tracker/operations/{operation_id}")).status_code == 404
 
     await app.stop()
+
+
+async def test_an_operation_nobody_started_is_shown_to_whoever_holds_its_id() -> None:
+    app = await start_test_application()
+    api = app.api
+    anonymous = app.anonymous()
+
+    # A sign-up is anonymous: the only one who knows its id is the caller it was answered to.
+    signed_up = await anonymous.post(f"{api}/auth/signup", json={"identifier": "tracked@x.fr", "password": "secret"})
+    operation = await app.accepted(anonymous, signed_up)
+    assert (operation["name"], operation["status"]) == ("SignUp", "SUCCESS")
+    assert isinstance(operation["result"], str)
+
+    admin = await app.admin()
+    accepted = await admin.post(f"{api}/notes/00000000-0000-4000-8000-000000000000/share", json={"recipientId": "bob"})
+    # One an account started is that account's, and an administrator's: an anonymous caller is asked to sign in.
+    stranger = await anonymous.get(f"{api}/tracker/operations/{accepted.json()['operationId']}")
+    assert stranger.status_code == 403
+
+    await app.stop()
