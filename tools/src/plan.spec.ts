@@ -115,6 +115,24 @@ describe('a feature plan', () => {
     );
   });
 
+  it('holds a kept plan that is in progress, and refuses it once every new part is written', () => {
+    const halfway = aPlan({
+      changes: [
+        { kind: 'aggregate', name: 'Note' },
+        { kind: 'aggregate', name: 'Ghost' },
+      ],
+    });
+    expect(validatePlan(halfway, contract, root, 'held').join('\n')).not.toContain('planned as new');
+    expect(validatePlan(halfway, contract, root, 'before').join('\n')).toContain('"Note" is planned as new');
+
+    const carried = aPlan({ changes: [{ kind: 'aggregate', name: 'Note' }] });
+    expect(validatePlan(carried, contract, root, 'held')).toContainEqual(
+      expect.stringContaining(
+        '"Note" is planned as new, but typescript/src/Contexts/Notes/Domain/Note/Note.ts already exists; the plan is carried: mark it new: false',
+      ),
+    );
+  });
+
   it('refuses a cross-context strategy that is not one of the two contracts, and a badly named event', () => {
     const problems = validatePlan(
       aPlan({

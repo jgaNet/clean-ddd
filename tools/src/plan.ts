@@ -135,9 +135,24 @@ const partExists = (root: string, place: string, change: PlannedChange): boolean
 };
 
 /** Everything the plan gets wrong against the contract, one line each; empty means it is legal. */
-export function validatePlan(plan: FeaturePlan, contract: ArchitectureContract, root: string): string[] {
+/**
+ * `before`: the plan is about to be worked on, so nothing it calls new may exist yet (`plan
+ * validate`). `held`: the plan is kept in the repository and held on every build, so it may be
+ * in progress — some of its new parts written, others not, as when several agents write one
+ * feature at once — and is refused only once every new part exists and it still says so (ADR 29).
+ */
+export type PlanMoment = 'before' | 'held';
+
+export function validatePlan(
+  plan: FeaturePlan,
+  contract: ArchitectureContract,
+  root: string,
+  moment: PlanMoment = 'before',
+): string[] {
   const problems: string[] = [];
   const where = `${plan.feature}`;
+  const written: string[] = [];
+  let unwritten = 0;
 
   if (plan.language && plan.language !== contract.language.id) {
     problems.push(
@@ -173,7 +188,8 @@ export function validatePlan(plan: FeaturePlan, contract: ArchitectureContract, 
     if (change.new === false && !exists)
       problems.push(`${where}: "${change.name}" is not new, but ${place} does not exist`);
     if (change.new !== false && exists)
-      problems.push(`${where}: "${change.name}" is planned as new, but ${place} already exists`);
+      written.push(`${where}: "${change.name}" is planned as new, but ${place} already exists`);
+    if (change.new !== false && !exists) unwritten += 1;
     if (!plan.architectureChanges && guarded(contract, place)) {
       problems.push(
         `${where}: "${change.name}" would go in ${place}, which is protected; a plan that touches it says architectureChanges: true`,
@@ -249,6 +265,12 @@ export function validatePlan(plan: FeaturePlan, contract: ArchitectureContract, 
   ) {
     problems.push(`${where}: a plan that touches the domain says which rules it is adding, in "invariants"`);
   }
+  // Before the work, a new part that exists is a plan for something already there. Held, a plan
+  // with some of its new parts written is in progress; one with all of them written is done and
+  // still says new, which is stale.
+  if (moment === 'before') problems.push(...written);
+  else if (written.length && !unwritten)
+    problems.push(...written.map(line => `${line}; the plan is carried: mark it new: false`));
   return problems;
 }
 

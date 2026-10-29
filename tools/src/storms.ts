@@ -354,8 +354,9 @@ function carried(storm: ExpectedStorm, actual: Inventory): { present: string[]; 
 
 /**
  * The storm against the code: done, every difference between the expected inventory and the
- * actual one is a problem; not done, anything of the delta already carried is one (mark it done,
- * or the storm is stale).
+ * actual one is a problem. Not done, it may be in progress — part of the delta carried, as when
+ * several agents write one feature at once, each its own context — and is refused only once the
+ * code carries all of it and it still says not done (mark it done; ADR 29).
  */
 export function checkExpectedStorm(storm: ExpectedStorm, actual: Inventory): string[] {
   if (storm.done) {
@@ -363,9 +364,9 @@ export function checkExpectedStorm(storm: ExpectedStorm, actual: Inventory): str
       difference => `${storm.source} is done, but ${difference}`,
     );
   }
-  return carried(storm, actual).present.map(
-    what => `${storm.source} is not done, yet the code already carries ${what}; mark it done or fix the storm`,
-  );
+  const { present, absent } = carried(storm, actual);
+  if (absent.length || !present.length) return [];
+  return [`${storm.source} is not done, yet the code carries all of it (${present.join('; ')}); mark it done`];
 }
 
 /** `storm --expect`, in words: what the code still owes the storm, or that it is carried. */

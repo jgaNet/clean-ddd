@@ -35,7 +35,8 @@
  *      the slice back once, in the same agent session, with the lines to read; an agent that says
  *      the contract is wrong (its report starts with BLOCKED) stops the feature;
  *   4. the single writer: an integration worktree from the base, each slice's patch applied, the
- *      generated documents regenerated, then the gate, what the code still owes the storm, and the
+ *      contract marked carried (the storm done, the plans' parts not new: ADR 29), the generated
+ *      documents regenerated, then the gate, what the code still owes the storm, and the
  *      acceptance test; a failure that names one slice's context sends that slice back once.
  *
  * Processes are controlled by process group, never by name. It changes nothing outside the
@@ -351,6 +352,19 @@ async function integrate() {
       });
       return { ok: false };
     }
+  }
+  // Every slice is in: the single writer says the contract is carried — the storm done, the plans'
+  // parts no longer new — and the check below then holds the code to all of it (ADR 29). A slice
+  // could not say so alone: it carries its own part, and the rest is in the other worktrees.
+  const carried = [plan.storm, ...slices.map(slice => slice.plan)];
+  for (const file of carried) {
+    const text = readFileSync(join(path, file), 'utf8');
+    writeFileSync(
+      join(path, file),
+      file === plan.storm
+        ? text.replace(/^done: false$/m, 'done: true')
+        : text.replace(/^(\s+)new: true$/gm, '$1new: false'),
+    );
   }
   const regenerated = await sh('yarn -s conventions:write', path, 300_000);
   git(path, 'add', '-A');

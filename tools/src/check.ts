@@ -398,7 +398,7 @@ export async function checkConventions(
           problem(`${file}: is written for ${plan.language}, which is not one of ${contract.languages.join(', ')}`);
           continue;
         }
-        for (const wrong of validatePlan(plan, bound, root)) problem(`${file}: ${wrong}`);
+        for (const wrong of validatePlan(plan, bound, root, 'held')) problem(`${file}: ${wrong}`);
         explainPlan(plan, bound); // it must expand without throwing
       } catch (error) {
         problem(`${file}: ${error instanceof Error ? error.message : String(error)}`);

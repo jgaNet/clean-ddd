@@ -32,5 +32,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0026](0026-a-command-has-exactly-one-handler.md) | A command has exactly one handler, and every language's check holds it |
 | [0027](0027-a-created-application-starts-with-the-tracker.md) | A created application starts with the Tracker and a composition root that serves it |
 | [0028](0028-a-relationship-is-decided-before-its-code.md) | A relationship between two contexts is decided before its code, and says so |
+| [0029](0029-a-contract-may-be-in-progress.md) | A feature's contract may be in progress, and is marked carried when all of it is |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

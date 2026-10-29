@@ -399,6 +399,7 @@ Non-obvious choices are recorded as short ADRs in [`docs/adr`](docs/adr):
 26. [A command has exactly one handler, and every language's check holds it](docs/adr/0026-a-command-has-exactly-one-handler.md)
 27. [A created application starts with the Tracker and a composition root that serves it](docs/adr/0027-a-created-application-starts-with-the-tracker.md)
 28. [A relationship between two contexts is decided before its code, and says so](docs/adr/0028-a-relationship-is-decided-before-its-code.md)
+29. [A feature's contract may be in progress, and is marked carried when all of it is](docs/adr/0029-a-contract-may-be-in-progress.md)
 
 What is deliberately *not* here — a DI container, an ORM, a message broker, a generic saga — is listed with its reason and the day it would come in the TypeScript README's [What is deliberately not here](typescript/README.md#what-is-deliberately-not-here); the known gaps of each language are at the end of its README.
 
