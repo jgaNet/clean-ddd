@@ -297,12 +297,16 @@ rules:
 
   - id: EVENT-AFTER-COMMIT
     name: domain-events-publish-after-commit
-    statement: Domain events are published after the transaction commits, never before; a rolled-back transaction publishes nothing and leaves the events on the aggregate.
-    why: Listeners must only ever see facts that are durable.
-    remediation: Call `publishDomainEvents()` and let `ExecutionContext.afterCommit()` do the timing; never publish from inside a behaviour.
+    statement: Domain events are made durable with the state they describe, in the same transaction (the outbox), and published from there after the commit — never before, and never from memory alone; a rolled-back transaction stores nothing and leaves the events on the aggregate; a fact a crash kept from being published is published on the next relay, so a subscriber may see a fact twice and the bus delivers a message it already delivered once only.
+    why: Listeners must only ever see facts that are durable, and every durable fact must reach them; publishing from memory after the commit loses the facts a crash interrupts, so the facts are stored first and at-least-once delivery is paid for with idempotent delivery.
+    remediation: >-
+      Call `publishDomainEvents()`: it appends the aggregate's events to the unit of work's outbox at commit and the
+      context relays the outbox after it; never publish from inside a behaviour; carry the entry's id as the message's
+      id, and let the bus recognise it.
     enforcement: tests
     references:
       - docs/adr/0003-publish-domain-events-after-commit.md
+      - docs/adr/0024-events-are-durable-before-they-are-published.md
 
   - id: QUERY-READ-MODELS
     name: queries-return-read-models
@@ -322,12 +326,13 @@ rules:
 
   - id: CONC-OPTIMISTIC
     name: optimistic-concurrency-on-save
-    statement: An aggregate carries the version it was read at and never changes it; `save()` stores version + 1 and refuses an aggregate that is no longer at the stored version with a ConcurrencyConflictException.
-    why: A consistency boundary is only as good as the write; of two writers who read the same version only the first may win.
-    remediation: Check the stored version in the adapter the way the store makes atomic (an UPDATE ... WHERE version = ?), return a failed Result, let the caller re-read.
+    statement: An aggregate carries the version it was read at and never changes it; `save()` stores version + 1 and refuses an aggregate that is no longer at the stored version with a ConcurrencyConflictException; the command handler then re-reads and re-decides in a new transaction, up to three attempts, and the third conflict is the operation's refusal.
+    why: A consistency boundary is only as good as the write; of two writers who read the same version only the first may win, and the second, re-run on what the first wrote, usually wins too — a rule re-decided on fresh state is a decision, a write re-applied blindly is not.
+    remediation: Check the stored version in the adapter the way the store makes atomic (an UPDATE ... WHERE version = ?), return a failed Result; let the base handler retry `execute()` from a fresh read, and let the third conflict reach the client, who re-reads and decides.
     enforcement: tests
     references:
       - docs/adr/0008-optimistic-concurrency-on-the-aggregate.md
+      - docs/adr/0025-a-conflict-is-retried-from-a-fresh-read-then-refused.md
 
   - id: ARCH-MAP-IS-REAL
     name: the-map-names-real-files

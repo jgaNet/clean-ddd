@@ -12,4 +12,5 @@ export * from './EventHandler';
 export * from './ExecutionContext';
 export * from './Module';
 export * from './Operation';
+export * from './Outbox';
 export * from './QueryHandler';

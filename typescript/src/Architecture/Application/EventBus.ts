@@ -23,9 +23,11 @@ export interface EventBus {
    * Publishes an event to the event bus
    * @param event The event to dispatch
    * @param context The execution context of the caller, carried to the handlers
+   * @param messageId The message's id when the event is relayed from the outbox (its entry's id): a
+   * subscriber that already handled it is not handed it again (ADR 24). A fresh id otherwise.
    * @returns The operation tracking the event
    */
-  publish<T>(event: Event<T>, context: ExecutionContext): IOperation<Event<T>>;
+  publish<T>(event: Event<T>, context: ExecutionContext, messageId?: string): IOperation<Event<T>>;
 
   /**
    * Subscribes to an event

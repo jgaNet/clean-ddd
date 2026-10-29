@@ -1,5 +1,6 @@
-import { UnitOfWork } from '@Architecture/Application';
+import { Outbox, UnitOfWork } from '@Architecture/Application';
 import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
+import { InMemoryOutbox } from '@Architecture/Infrastructure/Outbox/InMemoryOutbox';
 
 /**
  * The transaction boundary over the in-memory stores. `beginTransaction()` snapshots every
@@ -15,11 +16,18 @@ import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InM
  * *boundary*, not isolation. A database gives both, through the same four methods
  * (docs/adr/0003-publish-domain-events-after-commit.md). One instance per request: see the
  * bootstrap.
+ *
+ * The outbox is one of the stores (ADR 24): the process's `InMemoryOutbox` registers its store
+ * like any other, so an entry appended by a transaction that rolls back is gone with the
+ * transaction's writes, and one that commits is durable for the relay.
  */
 export class InMemoryUnitOfWork implements UnitOfWork {
   #restore: (() => void)[] | null = null;
 
-  constructor(private stores: Iterable<InMemoryDataSource<unknown>> = InMemoryDataSource.all) {}
+  constructor(
+    private stores: Iterable<InMemoryDataSource<unknown>> = InMemoryDataSource.all,
+    readonly outbox: Outbox = InMemoryOutbox.shared,
+  ) {}
 
   async beginTransaction(): Promise<void> {
     if (this.#restore) {

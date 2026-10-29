@@ -27,5 +27,7 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0021](0021-one-application-every-language-writes-the-same-inventory.md) | One application: every language's tool writes the same inventory, and the check holds them equal |
 | [0022](0022-the-storm-is-facilitated-and-the-code-is-held-to-it.md) | The storm is facilitated before the code, written as data, and the code is held to it |
 | [0023](0023-the-tooling-lives-at-the-root-and-ships-as-a-package.md) | The tooling lives at the root and ships as a package: one `clean-ddd` for every language and any repository |
+| [0024](0024-events-are-durable-before-they-are-published.md) | Events are durable before they are published: an outbox, a relay, idempotent delivery |
+| [0025](0025-a-conflict-is-retried-from-a-fresh-read-then-refused.md) | A conflict is retried from a fresh read, three times, then refused |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

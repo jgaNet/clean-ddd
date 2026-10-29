@@ -21,10 +21,11 @@ import { operationRoutes } from '@Contexts/Tracker/Presentation/API/REST/Routes'
 import { authRoutes } from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes';
 import { notificationRoutes } from '@Contexts/Notifications/Presentation/API/REST/Routes';
 
-import { Application, ExecutionContext, Logger } from '@Architecture/Application';
+import { Application, ExecutionContext, Logger, relayOutbox } from '@Architecture/Application';
 import { formatOf } from '@Architecture/Presentation/Format';
 import { ConsoleLogger } from '@Architecture/Infrastructure/Logging/ConsoleLogger';
 import { InMemoryUnitOfWork } from '@Architecture/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
+import { InMemoryOutbox } from '@Architecture/Infrastructure/Outbox/InMemoryOutbox';
 
 /**
  * The composition root: the one place that knows every context, every route and the
@@ -172,5 +173,12 @@ export async function createApplication({
     .registerRoutes('/notifications', notificationRoutes, { notificationsModule: localNotificationsModule });
 
   await app.startModules();
+  // What a previous run made durable and did not publish goes out now (ADR 24): nothing, with
+  // an in-memory outbox, and the line is where a store's outbox would be relayed.
+  relayOutbox(
+    InMemoryOutbox.shared,
+    app.getEventBus(),
+    new ExecutionContext({ traceId: 'startup', auth: {}, eventBus: app.getEventBus(), logger }),
+  );
   return app.seed();
 }
