@@ -31,8 +31,11 @@ class EventBus(Protocol):
         """Connects to the event infrastructure, when there is one."""
         ...
 
-    def publish[E: Event](self, event: E, context: ExecutionContext) -> Operation[E]:
-        """Builds the operation, schedules its dispatch, and answers with it before the handling."""
+    def publish[E: Event](self, event: E, context: ExecutionContext, message_id: str | None = None) -> Operation[E]:
+        """Builds the operation, schedules its dispatch, and answers with it before the handling.
+        ``message_id`` is the message's id when the event is relayed from the outbox (its entry's
+        id): a subscriber that already handled it is not handed it again (ADR 24). A fresh id
+        otherwise."""
         ...
 
     async def dispatch(self, operation: Operation[Any]) -> Operation[Any]:

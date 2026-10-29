@@ -15,6 +15,7 @@ from architecture.application.event_handler import EventHandler
 from architecture.application.execution_context import Auth, ExecutionContext, Logger, UnitOfWork
 from architecture.application.module import Module, Subscription
 from architecture.application.operation import Operation, OperationStatus
+from architecture.application.outbox import Outbox, OutboxEntry, relay_outbox
 from architecture.application.query_handler import QueryHandler
 
 __all__ = [
@@ -27,9 +28,12 @@ __all__ = [
     "Module",
     "Operation",
     "OperationStatus",
+    "Outbox",
+    "OutboxEntry",
     "QueryHandler",
     "Subscriber",
     "Subscription",
     "UnitOfWork",
     "publish_domain_events",
+    "relay_outbox",
 ]
