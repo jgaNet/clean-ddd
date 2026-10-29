@@ -139,14 +139,16 @@ export interface ArchitectureContract {
 }
 
 /**
- * What `create` copies and writes for one language (ADR 10): the files copied as they are (paths
+ * What `create` copies and writes for one language (ADR 10): the files copied as they are, or under
+ * another name (a composition root the reference keeps beside its own; ADR 27) (paths
  * repository-relative, like every path a loaded contract carries), the folder the integration
  * events go in, the manifest rewritten with the application's name, the dependencies to keep,
  * whether the language's tool wants an inventory committed, and the commands the generated
  * guide shows first.
  */
 export interface CreateSpec {
-  copy: string[];
+  /** Each file or folder copied, and where it lands: the same path, unless the binding renames it. */
+  copy: { from: string; to: string }[];
   contracts: string;
   manifest: string;
   /** A workspace manifest's members, when the manifest is one (Rust). */

@@ -5,12 +5,13 @@ import { dump, load } from 'js-yaml';
 
 import { ArchitectureContract, Concept, ContractError, CreateSpec, Rule } from './types';
 import { loadArchitectureContract, repositoryRoot, typedFrom } from './load';
-import { serializeInventory } from './inventory';
+import { Inventory, serializeInventory } from './inventory';
 import {
   END_MARKER,
   RULES_MARKER,
   SECTION_MARKER,
   renderConceptLayer,
+  renderDependencyTable,
   renderRulesList,
   renderRulesTable,
   shown,
@@ -30,10 +31,12 @@ import {
  * copied: the new application depends on this package (`clean-ddd`), which is why the
  * generated project passes the same six checks on its first run and keeps up with the tool.
  *
- * What it does *not* give you is an application: there are no contexts, no composition root
- * and no routes, because those are the business, and copying someone else's business is how a
- * reference implementation becomes a framework. The generated CLAUDE.md says what to write
- * first and `yarn architecture checklist context` says what it is made of.
+ * What it does *not* give you is a business: the only context it carries is the one any
+ * asynchronous application needs and none competes on — the Tracker, which a client follows a
+ * command's 202 at — wired into the smallest composition root that serves it (ADR 27). The
+ * contexts that are the business are not copied, because copying someone else's business is how a
+ * reference implementation becomes a framework. The generated CLAUDE.md says what to write first
+ * and `yarn architecture checklist context` says what a context is made of.
  *
  * The new application is a repository of one language: its contract, its binding and its code
  * sit in the same directory, which is the shape this tooling takes when the binding's `root`
@@ -203,28 +206,36 @@ export function createApplication(
   //    contract is not copied: the new application depends on this package, and what it does
   //    for it is proved by `check`, which runs against its own contract. A language whose
   //    linter is its own tool (Python) lists that tool here: it travels with the tree it holds.
-  const copy = (from: string, path: string) => {
+  const copy = (root: string, from: string, path: string = from) => {
     const to = join(directory, path);
     mkdirSync(dirname(to), { recursive: true });
-    cpSync(join(from, path), to, { recursive: true });
+    cpSync(join(root, from), to, { recursive: true });
   };
-  for (const path of spec.copy) copy(languageDir, local(path));
+  // An entry may land under another name: the reference keeps the composition root a new
+  // application starts from beside its own, and the application gets it in its place.
+  for (const { from, to } of spec.copy) copy(languageDir, local(from), local(to));
   for (const path of COPY_FROM_ROOT) copy(source, path);
+  // The contexts it starts with: those of the reference's whose folder was copied.
+  const contextsDir = local(contract.contextsTree.path);
+  const contexts = contract.contexts.filter(context => existsSync(join(directory, contextsDir, context)));
   // A Go module: the reference's module path becomes the application's name, in every import.
   const modulePath = moduleOf(source, contract);
   if (modulePath && modulePath !== name) rewriteModulePath(directory, modulePath, name);
 
   // 2. The places a new application fills in: where its contexts will publish, where they will live.
   const contractsDir = local(spec.contracts);
-  const contextsDir = local(contract.contextsTree.path);
   mkdirSync(join(directory, contractsDir), { recursive: true });
-  // A module file copied with the folder (Rust's mod.rs) keeps its doc comment and loses the
-  // declarations of this repository's contracts: the application has none yet.
+  // A module file copied with the folder (Rust's mod.rs) keeps its doc comment and the
+  // declarations of the contracts that were copied with it, and loses the others.
   const moduleFile = join(directory, contractsDir, 'mod.rs');
   if (existsSync(moduleFile)) {
     const kept = readFileSync(moduleFile, 'utf8')
       .split('\n')
-      .filter(line => line.trim() === '' || line.trim().startsWith('//'));
+      .filter(line => {
+        const declared = line.match(/^\s*pub\s+mod\s+(\w+)\s*;/);
+        if (declared) return exists(join(directory, contractsDir), `${declared[1]}.rs`);
+        return line.trim() === '' || line.trim().startsWith('//');
+      });
     writeFileSync(moduleFile, `${kept.join('\n').trim()}\n`);
   }
   writeFileSync(
@@ -236,7 +247,9 @@ export function createApplication(
       'one file per subject. Both sides see the same file, so changing one is a visible, reviewable',
       'change to a contract.',
       '',
-      'Nothing here yet: a contract appears when a first consumer needs a fact.',
+      contexts.length
+        ? 'The ones here are published by the contexts this application started with; a new contract appears when a first consumer needs a fact.'
+        : 'Nothing here yet: a contract appears when a first consumer needs a fact.',
       '`clean-ddd checklist integration-event` says what one is made of.',
       '',
     ].join('\n'),
@@ -251,8 +264,17 @@ export function createApplication(
       `and its wiring file \`${contract.wiring}\`, and each declared in \`conventions/${contract.language.id}.yaml\``,
       'so that the import rules apply to it.',
       '',
-      'Nothing here yet. `clean-ddd checklist context` says what a context is made of, and',
-      '`clean-ddd checklist aggregate` what goes in its Domain.',
+      ...(contexts.length
+        ? [
+            `${contexts.map(context => `\`${context}\``).join(', ')}: what any asynchronous application needs and none competes on,`,
+            'copied from the reference and described in `conventions/domain.yaml` (ADR 27 of the reference). The',
+            'contexts that are your business go beside them. `clean-ddd checklist context` says what a context is',
+            'made of, and `clean-ddd checklist aggregate` what goes in its Domain.',
+          ]
+        : [
+            'Nothing here yet. `clean-ddd checklist context` says what a context is made of, and',
+            '`clean-ddd checklist aggregate` what goes in its Domain.',
+          ]),
       '',
     ].join('\n'),
   );
@@ -262,7 +284,7 @@ export function createApplication(
   const concepts = contract.concepts
     .map(concept => surviving(concept, directory, local))
     .filter((concept): concept is Concept => concept !== undefined);
-  writeContract(directory, source, contract, concepts, name);
+  writeContract(directory, source, contract, concepts, name, contexts);
 
   // 4. The documents, rendered from that contract exactly as this repository renders its own,
   //    the manifest, and — where the language's own tool holds its inventory — an empty one.
@@ -270,7 +292,7 @@ export function createApplication(
     ...contract,
     rules,
     concepts,
-    contexts: [],
+    contexts,
     language: { ...contract.language, root: '.' },
   };
   writeFileSync(join(directory, 'README.md'), readme(lean, name, local));
@@ -280,7 +302,7 @@ export function createApplication(
   // The two contracts that keep contexts apart once there are several, present from the first day
   // (RFC 0001): an empty context map, so that CTX-MAP-DECLARED holds the first relationship between
   // two contexts, and the directory the storms a session decides are written to.
-  writeFileSync(join(directory, 'conventions/domain.yaml'), domainMapSkeleton(name));
+  writeFileSync(join(directory, 'conventions/domain.yaml'), domainMap(name, source, contexts));
   mkdirSync(join(directory, 'conventions/storms'), { recursive: true });
   writeFileSync(join(directory, 'conventions/storms/README.md'), stormsReadme());
   writeFileSync(join(directory, local(spec.manifest)), manifest(spec, source, languageDir, name));
@@ -291,7 +313,7 @@ export function createApplication(
     mkdirSync(join(directory, 'docs/inventory'), { recursive: true });
     writeFileSync(
       join(directory, `docs/inventory/${contract.language.id}.json`),
-      serializeInventory({ schemaVersion: 1, language: contract.language.id, contexts: [], links: [] }),
+      serializeInventory(startingInventory(source, contract.language.id, contexts)),
     );
   }
 
@@ -327,6 +349,7 @@ function writeContract(
   contract: ArchitectureContract,
   concepts: Concept[],
   name: string,
+  contexts: string[],
 ): void {
   mkdirSync(join(directory, 'conventions/plans'), { recursive: true });
   const yaml = { lineWidth: 110, noRefs: true };
@@ -388,7 +411,14 @@ function writeContract(
   const bindingText = readFileSync(join(source, contract.sources.binding), 'utf8');
   const binding = load(bindingText) as Record<string, unknown>;
   binding.root = '.';
-  binding.contexts = [];
+  binding.contexts = contexts;
+  // What was copied under another name is, here, the application's own file at that name.
+  const created = binding.create as { copy?: unknown[] } | undefined;
+  if (Array.isArray(created?.copy)) {
+    created.copy = created.copy.map(entry =>
+      typeof entry === 'object' && entry !== null && 'to' in entry ? (entry as { to: string }).to : entry,
+    );
+  }
   if (typeof binding.module === 'string' && binding.module !== name) {
     const from = binding.module;
     binding.module = name;
@@ -412,8 +442,8 @@ function writeContract(
   binding.tests = [];
   binding.vocabulary = {};
   const bindingNote = [
-    '# Created by `clean-ddd create` from the clean-ddd reference. `contexts` is empty:',
-    '# declare your first one there, or no import rule applies to its files. A concept whose',
+    '# Created by `clean-ddd create` from the clean-ddd reference. `contexts` holds the ones it',
+    '# started with: declare yours there, or no import rule applies to its files. A concept whose',
     '# canonical file this application does not have yet is not listed under `concepts`; add it',
     '# back with the file when you write it.',
     '',
@@ -502,7 +532,8 @@ function readme(contract: ArchitectureContract, name: string, local: (path: stri
     '                      the execution context, the event bus, the in-memory adapters. Mechanics, no vocabulary.',
     `${pad(local(contract.kernel.path))}what every context will agree on: the shared kernel's model (an email, a role, the`,
     `                      signed-in guard) and, under ${local(spec.contracts)}/, the integration events your contexts will publish.`,
-    `${pad(local(contract.contextsTree.path))}your bounded contexts. Empty: this is the part that is yours.`,
+    `${pad(local(contract.contextsTree.path))}your bounded contexts: ${contract.contexts.length ? `${contract.contexts.join(', ')} to start with, and yours beside it` : 'none yet; this is the part that is yours'}.`,
+    `${pad(local(contract.bootstrap.path))}the composition root: the transport, the bus, the modules and their routes.`,
     'conventions/          the architecture as data; the import rules are generated from it.',
     `                      The tooling that holds the code to it is the clean-ddd package (${ask} …, ${toolCheck(contract)}).`,
     '```',
@@ -520,8 +551,9 @@ function readme(contract: ArchitectureContract, name: string, local: (path: stri
     `${`${ask} checklist context`.padEnd(width)}# what your first context is made of`,
     '```',
     '',
-    `Then: name your first context in \`conventions/${contract.language.id}.yaml\`, create it under \`${local(contract.contextsTree.path)}\`,`,
-    `and write your composition root in \`${local(contract.bootstrap.path)}\`. \`${ask} checklist aggregate\` says`,
+    `Then: name your first context in \`conventions/${contract.language.id}.yaml\` and describe it in \`conventions/domain.yaml\`,`,
+    `create it under \`${local(contract.contextsTree.path)}\`, and register its module and its routes in the composition root under`,
+    `\`${local(contract.bootstrap.path)}\`, as the ones already there are. \`${ask} checklist aggregate\` says`,
     `what goes in its Domain, and \`${ask} can-import <file> <specifier>\` or the language's own \`can-import\` answers,`,
     'before you write an import, whether the rules allow it.',
     '',
@@ -533,10 +565,10 @@ function readme(contract: ArchitectureContract, name: string, local: (path: stri
     '',
     '### Who may import whom',
     '',
-    "The dependency table, per layer. `own` is the file's own context, `architecture` the building blocks, `kernel` the shared kernel, `others` any other context; anything not listed is refused, and the refusal names the rule. It is rendered here once the first context is declared.",
+    "The dependency table, per layer. `own` is the file's own context, `architecture` the building blocks, `kernel` the shared kernel, `others` any other context; anything not listed is refused, and the refusal names the rule. It is rendered here while a context is declared.",
     '',
-    // Empty until a context exists; the check fills it then (`--write`), and it can only fill a block whose marker is here.
-    generated(RULES_MARKER('dependencies'), ''),
+    // Empty while no context exists; the check fills it then (`--write`), and it can only fill a block whose marker is here.
+    generated(RULES_MARKER('dependencies'), contract.contexts.length ? renderDependencyTable(contract) : ''),
     '',
     '## The map: concept → file',
     '',
@@ -599,24 +631,60 @@ function claude(contract: ArchitectureContract, name: string, local: (path: stri
   ].join('\n');
 }
 
-const domainMapSkeleton = (name: string) =>
-  [
+/**
+ * The context map a new application starts with: its name, a purpose to rewrite, and the
+ * contexts it was given, described as the reference describes them — their subdomain, their
+ * purpose, their words — with the relationships between them, if any. Every context it declares
+ * later is described here, and every relationship between two of them (CTX-MAP-DECLARED).
+ */
+function domainMap(name: string, source: string, contexts: string[]): string {
+  const reference = load(readFileSync(join(source, 'conventions/domain.yaml'), 'utf8')) as {
+    subdomains?: { contexts: string[] }[];
+    contexts?: { id: string }[];
+    relationships?: { upstream: string; downstream: string }[];
+  };
+  const kept = (context: string) => contexts.includes(context);
+  const map = {
+    schemaVersion: 1,
+    name,
+    purpose: `What ${name} is for, in the words of the people who use it. Rewrite this sentence before the first context of your own.`,
+    subdomains: (reference.subdomains ?? [])
+      .filter(subdomain => subdomain.contexts.some(kept))
+      .map(subdomain => ({ ...subdomain, contexts: subdomain.contexts.filter(kept) })),
+    contexts: (reference.contexts ?? []).filter(context => kept(context.id)),
+    relationships: (reference.relationships ?? []).filter(
+      relationship => kept(relationship.upstream) && kept(relationship.downstream),
+    ),
+  };
+  return [
     '# The domain, as data: the subdomains and their kind, each bounded context with its purpose and its',
     '# language, and the context map — every relationship between two contexts, the pattern it follows,',
     '# the mechanism that carries it and why. The conventions check holds it to the binding (a context',
     '# declared there is described here) and to the code (a link between two contexts that this map does',
     '# not declare is refused, and so is a relationship nothing carries: CTX-MAP-DECLARED). It starts',
-    '# empty: the first context is described here when it is declared in the binding.',
+    '# with the contexts this application was created with, described as the reference describes them;',
+    '# each context of your own is described here when it is declared in the binding.',
     '# `clean-ddd rule CTX-MAP-DECLARED` explains the rule; `clean-ddd concept context-map` the idea.',
-    'schemaVersion: 1',
-    `name: ${name}`,
-    'purpose: >-',
-    `  What ${name} is for, in the words of the people who use it. Rewrite this sentence before the first context.`,
-    'subdomains: []',
-    'contexts: []',
-    'relationships: []',
-    '',
+    dump(map, { lineWidth: 110, noRefs: true }),
   ].join('\n');
+}
+
+/**
+ * The inventory a language's own tool would write for the contexts a new application starts
+ * with: the reference's, narrowed to them and to the links between them. The check of the new
+ * application then holds it to its tree like any other.
+ */
+function startingInventory(source: string, language: string, contexts: string[]): Inventory {
+  const file = join(source, `docs/inventory/${language}.json`);
+  const reference: Inventory = existsSync(file)
+    ? (JSON.parse(readFileSync(file, 'utf8')) as Inventory)
+    : { schemaVersion: 1, language, contexts: [], links: [] };
+  return {
+    ...reference,
+    contexts: reference.contexts.filter(context => contexts.includes(context.id)),
+    links: reference.links.filter(link => contexts.includes(link.upstream) && contexts.includes(link.downstream)),
+  };
+}
 
 const stormsReadme = () =>
   [

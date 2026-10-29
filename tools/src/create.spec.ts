@@ -70,17 +70,30 @@ describe('yarn architecture create', () => {
       'conventions:write': 'clean-ddd check --write',
     });
     expect(pkg.devDependencies['clean-ddd']).toMatch(/^\^\d+\.\d+\.\d+/);
-    expect(pkg.devDependencies.tsx).toBeUndefined();
     // jest.config.js, copied verbatim, loads dotenv; the helpers tsconfig asks for come from tslib.
-    expect(Object.keys(pkg.dependencies)).toEqual(['uuid', 'dotenv', 'tslib']);
+    expect(Object.keys(pkg.dependencies)).toEqual(['uuid', 'dotenv', 'tslib', 'fastify', '@fastify/cors']);
+    expect(pkg.scripts['start:dev']).toContain('src/Bootstrap/Fastify/application.ts');
+    expect(pkg.devDependencies.tsx).toBeDefined();
   });
 
-  it('gives no business: no context, no composition root, no route', () => {
-    expect(generated.contexts).toEqual([]);
-    expect(readdirSync(join(directory, 'src/Contexts'))).toEqual(['README.md']);
-    expect(existsSync(join(directory, 'src/Bootstrap'))).toBe(false);
+  it('gives no business: the Tracker alone, and the composition root that serves it in place of the reference’s', () => {
+    expect(generated.contexts).toEqual(['Tracker']);
+    expect(readdirSync(join(directory, 'src/Contexts')).sort()).toEqual(['README.md', 'Tracker']);
+    expect(read('src/Bootstrap/Fastify/createApplication.ts')).toBe(
+      readFileSync(join(root, 'typescript/src/Bootstrap/Starter/createApplication.ts'), 'utf8'),
+    );
+    expect(existsSync(join(directory, 'src/Bootstrap/Fastify/createApplication.e2e.spec.ts'))).toBe(true);
+    expect(existsSync(join(directory, 'src/Bootstrap/Starter'))).toBe(false);
+    // The Tracker's own suite boots the reference's four contexts: it stays in the reference.
+    expect(
+      existsSync(join(directory, 'src/Contexts/Tracker/Presentation/API/REST/Routes/operation.routes.e2e.spec.ts')),
+    ).toBe(false);
+    expect(readdirSync(join(directory, 'src/SharedKernel/Application/IntegrationEvents')).sort()).toEqual([
+      'README.md',
+      'TrackerIntegrationEvents.ts',
+    ]);
     // `src/Contexts/<Context>/...` stays: a checklist's placeholder is not a business. A named
-    // context of this repository would be.
+    // context of this repository's business would be.
     for (const document of [
       'README.md',
       'CLAUDE.md',
@@ -88,7 +101,7 @@ describe('yarn architecture create', () => {
       'conventions/concepts.yaml',
       'conventions/typescript.yaml',
     ]) {
-      for (const context of reference.contexts) {
+      for (const context of reference.contexts.filter(context => context !== 'Tracker')) {
         expect(read(document)).not.toContain(`src/Contexts/${context}`);
       }
     }
@@ -119,9 +132,11 @@ describe('yarn architecture create', () => {
     expect(validateContract(generated, directory)).toEqual([]);
   });
 
-  it('starts with an empty context map and a place for storms, so the cross-context rule holds from the first feature', () => {
+  it('starts with a context map that describes the Tracker and a place for storms, so the cross-context rule holds from the first feature', () => {
     const map = loadDomainMap(directory);
-    expect(map).toMatchObject({ name: 'my-app', subdomains: [], contexts: [], relationships: [] });
+    expect(map).toMatchObject({ name: 'my-app', relationships: [] });
+    expect(map!.subdomains).toEqual([expect.objectContaining({ kind: 'generic', contexts: ['Tracker'] })]);
+    expect(map!.contexts.map(context => context.id)).toEqual(['Tracker']);
     expect(validateDomainMap(map!, [generated], directory)).toEqual([]);
     expect(read('conventions/storms/README.md')).toContain('../../.claude/skills/storm/SKILL.md');
     expect(existsSync(join(directory, '.claude/skills/storm/SKILL.md'))).toBe(true);

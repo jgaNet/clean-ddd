@@ -134,13 +134,20 @@ try {
 }
 event('gate', {
   wallClockMs: Date.now() - gateStarted,
-  ...(report ? { verdict: report.verdict, report } : { verdict: 'unreadable', stdoutTail: (gate.stdout ?? '').slice(-2000) }),
+  ...(report
+    ? { verdict: report.verdict, report }
+    : { verdict: 'unreadable', stdoutTail: (gate.stdout ?? '').slice(-2000) }),
 });
 
 const head = git(worktree, 'rev-parse', 'HEAD');
 const commits = Number(git(worktree, 'rev-list', '--count', `${baseCommit}..HEAD`));
 const changed = git(worktree, 'diff', '--name-only', baseCommit).split('\n').filter(Boolean);
-const finished = event('finished', { head, commits, changedFiles: changed.length, verdict: report?.verdict ?? 'unreadable' });
+const finished = event('finished', {
+  head,
+  commits,
+  changedFiles: changed.length,
+  verdict: report?.verdict ?? 'unreadable',
+});
 
 process.stdout.write(
   `${run}: gate ${finished.verdict}, ${commits} commit(s), ${changed.length} file(s) changed` +

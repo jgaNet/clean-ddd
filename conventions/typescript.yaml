@@ -64,6 +64,24 @@ create:
     - src/Architecture
     - src/SharedKernel/Domain
     - src/SharedKernel/Application/Guards.ts
+    # The Tracker, which a client follows a command's 202 at, and the contract it publishes (ADR 27).
+    # Its end-to-end suite boots this repository's four contexts, so it stays here; the starting
+    # composition root's suite boots the Tracker alone.
+    - src/SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents.ts
+    - src/Contexts/Tracker/Application
+    - src/Contexts/Tracker/Infrastructure
+    - src/Contexts/Tracker/Presentation/API/REST/Controllers
+    - src/Contexts/Tracker/Presentation/API/REST/Routes/index.ts
+    - src/Contexts/Tracker/Presentation/API/REST/Routes/operation.routes.ts
+    - src/Contexts/Tracker/Presentation/API/REST/Routes/operation.routes.schema.ts
+    - src/Contexts/Tracker/module.local.ts
+    # The transport, which knows no context, the entry point, and the composition root a new
+    # application starts from, in place of this repository's.
+    - src/Bootstrap/Fastify/FastifyApplication.ts
+    - src/Bootstrap/Fastify/fastify.d.ts
+    - src/Bootstrap/Fastify/application.ts
+    - { from: src/Bootstrap/Starter/createApplication.ts, to: src/Bootstrap/Fastify/createApplication.ts }
+    - { from: src/Bootstrap/Starter/createApplication.e2e.spec.ts, to: src/Bootstrap/Fastify/createApplication.e2e.spec.ts }
     - tsconfig.json
     - tsconfig.test.json
     - jest.config.js
@@ -73,10 +91,10 @@ create:
     - .nvmrc
   contracts: src/SharedKernel/Application/IntegrationEvents
   manifest: package.json
-  # jest.config.js, copied verbatim, loads dotenv; tsconfig asks for tslib's helpers.
-  dependencies: [uuid, dotenv, tslib]
-  devDependencies: ["@jest/globals", "@types/jest", "@types/node", cross-env, eslint, jest, js-yaml, prettier, ts-jest, typescript, typescript-eslint]
-  scripts: [typecheck, test, test:units, test:e2e, lint, format, format:check]
+  # jest.config.js, copied verbatim, loads dotenv; tsconfig asks for tslib's helpers; the transport is Fastify.
+  dependencies: [uuid, dotenv, tslib, fastify, "@fastify/cors"]
+  devDependencies: ["@jest/globals", "@types/jest", "@types/node", cross-env, eslint, jest, js-yaml, nodemon, prettier, ts-jest, tsx, typescript, typescript-eslint]
+  scripts: [start:dev, typecheck, test, test:units, test:e2e, lint, format, format:check]
   install: yarn install
   test: yarn test:units
 
@@ -169,11 +187,12 @@ checklists:
     place: src/Contexts/<Context>/Application/Commands/<UseCase>/
     parts:
       - '`<UseCase>CommandEvent.ts`: a named payload, nothing more.'
-      - '`<UseCase>CommandHandler.ts`: `requireSignedIn` at the top of `execute()`, load, ask the aggregate or the domain service, save (check the `IResult`), `publishDomainEvents`.'
+      - '`<UseCase>CommandHandler.ts`: `requireSignedIn` at the top of `execute()`, load, ask the aggregate or the domain service, save (check the `IResult`), `publishDomainEvents`. A command anyone may send (a sign-up) has no `requireSignedIn`; its caller follows it by the operation id it was answered, signed in or not (ADR 27).'
       - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
-      - 'Two lines in `Application/Commands/index.ts`; no barrel in the use-case folder.'
+      - 'Two lines in `Application/Commands/index.ts`, each through the alias (`@Contexts/<Context>/Application/Commands/<UseCase>/<UseCase>CommandHandler`), never a relative path; no barrel in the use-case folder.'
       - 'A spec with at least a happy path and one refusal; through `handle()` when the rule is in `guard()`.'
-      - 'A route answering `202 { operationId }`, its JSON schema, and the handler registered in `module.local.ts`.'
+      - 'A route answering `202 { operationId }`, its JSON schema, and the handler registered in `module.local.ts`. A create never answers its new id: the handler returns it, and the client reads it as the operation''s `result` at `GET /v1/tracker/operations/:id`.'
+      - 'An end-to-end case when the flow is user-visible, in `Presentation/API/REST/Routes/<things>.routes.e2e.spec.ts` beside the routes: it boots the application on a free port and speaks HTTP, as the composition root''s own `createApplication.e2e.spec.ts` does.'
   query:
     place: src/Contexts/<Context>/Application/Queries/<UseCase>/
     parts:
@@ -205,7 +224,7 @@ checklists:
       - 'The four layers and nothing else beside `module.local.ts`.'
       - 'Its own vocabulary: a word that means something else here is a sign the context is right.'
       - 'It asks other contexts through ports it owns, and tells them through integration events; never both sides of an import.'
-      - 'Registered in the composition root, with its routes under its own prefix.'
+      - 'Registered in the composition root (`src/Bootstrap/Fastify/createApplication.ts`): its module after the Tracker''s, its routes under its own prefix (`/notes`), which the transport serves under the API''s (`/v1/notes`).'
 
 # One test style per layer, for the README.
 tests:
@@ -547,9 +566,14 @@ concepts:
     canonical:
       - src/Bootstrap/Fastify/createApplication.ts
       - src/Architecture/Application/Application.ts
+      - src/Bootstrap/Fastify/FastifyApplication.ts
       - src/Bootstrap/Fastify/application.ts
+    examples:
+      - src/Bootstrap/Starter/createApplication.ts
     example: >-
       [`createApplication.ts`](src/Bootstrap/Fastify/createApplication.ts) on
-      [`Application.ts`](src/Architecture/Application/Application.ts): wires, starts the modules, seeds the
-      administrator through the same bus as any command, then listens;
-      [`application.ts`](src/Bootstrap/Fastify/application.ts) is the process entry point
+      [`FastifyApplication.ts`](src/Bootstrap/Fastify/FastifyApplication.ts), the transport, which knows no
+      context: wires, starts the modules, seeds the administrator through the same bus as any command, then
+      listens; [`application.ts`](src/Bootstrap/Fastify/application.ts) is the process entry point, and
+      [`Starter/createApplication.ts`](src/Bootstrap/Starter/createApplication.ts) the composition a created
+      application starts from (the Tracker alone; ADR 27)
