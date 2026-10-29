@@ -20,7 +20,7 @@ ADR 3 publishes domain events after the transaction commits, from memory: `publi
 - What the system promises changes from "after commit, best effort" to "after commit, at least once": a listener may see a fact twice only if a relay failed between two attempts, and the bus hides that from it. A listener that reaches outside the process (a mailer) is where idempotence by message id matters most; the in-memory inbox shows the shape, a database inbox would be a table keyed by (subscriber, message id).
 - The outbox is one more store the unit of work guards, and one per process: the bootstrap builds it once and hands it to every request's unit of work.
 - The SQLite adapters of the reference do not join the unit of work (ADR 3's known gap), so there is no SQLite outbox yet: the day a SQLite unit of work spans the notes table and an outbox table, the outbox port gets its second adapter and the contract spec that holds both. Listed in the README's known gaps.
-- Ordering is per outbox, oldest first; across processes it would be the relay's business.
+- Ordering is per outbox, oldest first; across processes it would be the relay's business. The relay goes on past a publish that threw, leaving that entry pending for the next relay, so a failure costs the order: a later fact, of the same aggregate too, reaches the bus before the earlier one that failed. That is a choice — availability over blocking the queue behind one bad entry — and it means a subscriber that needs facts in order must not assume the relay gives it; the day one does, the relay stops at the first failure for that aggregate, and the rest is a decision to write here.
 
 ## When to revisit
 

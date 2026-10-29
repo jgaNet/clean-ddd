@@ -42,7 +42,10 @@ class UnitOfWork(Protocol):
 
     async def rollback_transaction(self) -> None: ...
 
-    def has_active_transaction(self) -> bool: ...
+    def has_active_transaction(self) -> bool:
+        """Whether a transaction is open. The context owns its transaction: it asks this before
+        opening one, and a transaction already open there is a programming error, not one to join."""
+        ...
 
     @property
     def outbox(self) -> Outbox:
@@ -103,23 +106,27 @@ class ExecutionContext:
         registered during ``fn`` run inside the transaction once ``fn`` has succeeded (the outbox
         is written there), then the transaction commits, then the outbox is relayed through the
         bus, then the ``after_commit`` callbacks run. A failed result or a raise rolls back and
-        drops every step and callback. Nested calls join the outer transaction: everything
-        happens at the outermost one."""
+        drops every step and callback — whatever the failure, so a context is clean for its next
+        transaction even after a unit of work that could not begin or roll back. Nested calls join
+        the outer transaction: everything happens at the outermost one. The context owns that
+        transaction: it opens it and closes it, and a unit of work that already has one open at the
+        outermost call is a programming error (the steps and callbacks would otherwise run against
+        a commit this context never sees), so it raises."""
         outermost = not self._in_transaction
         self._in_transaction = True
         try:
             result = await self._run_in_unit_of_work(fn, outermost)
-            if outermost:
+            if outermost and isinstance(result, Success):
                 callbacks, self._after_commit = self._after_commit, []
-                self._before_commit = []
-                if isinstance(result, Success):
-                    self._relay()
-                    for callback in callbacks:
-                        callback()
+                self._relay()
+                for callback in callbacks:
+                    callback()
             return result
         finally:
             if outermost:
                 self._in_transaction = False
+                self._before_commit = []
+                self._after_commit = []
 
     def before_commit(self, step: Callable[[], None]) -> None:
         """Runs ``step`` inside the current transaction, once the use case has succeeded and just
@@ -161,27 +168,39 @@ class ExecutionContext:
                 self._run_before_commit()
             return result
 
-        joined = unit_of_work.has_active_transaction()
-        if not joined:
+        if outermost:
+            if unit_of_work.has_active_transaction():
+                raise RuntimeError(
+                    "The unit of work already has a transaction open: "
+                    "the context owns its transaction and opens it itself, nothing else may begin one"
+                )
             await unit_of_work.begin_transaction()
+
         try:
             result = await fn()
-            if not joined:
-                if isinstance(result, Failure):
-                    await unit_of_work.rollback_transaction()
-                else:
-                    if outermost:
-                        self._run_before_commit()
-                    await unit_of_work.commit_transaction()
         except Exception as error:
-            if not joined:
-                await unit_of_work.rollback_transaction()
-            if self._logger:
-                self._logger.error(
-                    "Transaction failed", error, {"traceId": self._trace_id, "userId": self._auth.subject_id}
-                )
-            return Failure(UnknownException(str(error) or type(error).__name__))
+            result = self._failed(error)
+        if not outermost:
+            return result
+
+        if isinstance(result, Failure):
+            await unit_of_work.rollback_transaction()
+            return result
+        try:
+            self._run_before_commit()
+            await unit_of_work.commit_transaction()
+        except Exception as error:
+            await unit_of_work.rollback_transaction()
+            return self._failed(error)
         return result
+
+    def _failed[T](self, error: Exception) -> Result[T]:
+        """A raise inside the transaction, logged and turned into a failed Result (DOMAIN-RESULT)."""
+        if self._logger:
+            self._logger.error(
+                "Transaction failed", error, {"traceId": self._trace_id, "userId": self._auth.subject_id}
+            )
+        return Failure(UnknownException(str(error) or type(error).__name__))
 
     @property
     def trace_id(self) -> str:

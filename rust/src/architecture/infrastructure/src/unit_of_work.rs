@@ -126,6 +126,29 @@ mod tests {
     }
 
     #[test]
+    fn pins_the_honest_limit_two_requests_over_the_same_stores_are_a_boundary_each_not_isolated_a_rollback_undoes_the_other_one_too()
+     {
+        let (notes, accounts, unit_of_work) = stores();
+        let other = InMemoryUnitOfWork::new(
+            vec![Arc::new(notes.clone()), Arc::new(accounts.clone())],
+            Arc::new(InMemoryOutbox::new()),
+        );
+
+        pollster::block_on(unit_of_work.begin_transaction());
+        notes.set("n1", "first writer".into());
+        pollster::block_on(other.begin_transaction());
+        notes.set("n2", "second writer".into());
+        pollster::block_on(other.commit_transaction());
+        pollster::block_on(unit_of_work.rollback_transaction());
+
+        assert_eq!(notes.get("n1").as_deref(), Some("before"));
+        // The second writer committed, and its write is gone with the first one's rollback: the
+        // snapshot is of the whole store. A database keeps n2 here; the README lists this as the
+        // gap it is.
+        assert!(notes.get("n2").is_none());
+    }
+
+    #[test]
     #[should_panic(expected = "already in progress")]
     fn allows_one_transaction_at_a_time() {
         let (_, _, unit_of_work) = stores();

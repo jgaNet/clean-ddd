@@ -57,6 +57,39 @@ func TestACommitKeepsWhatWasWritten(t *testing.T) {
 	}
 }
 
+func TestPinsTheHonestLimitTwoRequestsOverTheSameStoresAreABoundaryEachNotIsolated(t *testing.T) {
+	notes := NewInMemoryDataSource[string]()
+	accounts := NewInMemoryDataSource[string]()
+	notes.Set("n1", "before")
+	unitOfWork := NewInMemoryUnitOfWork(notes, accounts)
+	other := NewInMemoryUnitOfWork(notes, accounts)
+
+	if err := unitOfWork.BeginTransaction(); err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	notes.Set("n1", "first writer")
+	if err := other.BeginTransaction(); err != nil {
+		t.Fatalf("Begin (other): %v", err)
+	}
+	notes.Set("n2", "second writer")
+	if err := other.CommitTransaction(); err != nil {
+		t.Fatalf("Commit (other): %v", err)
+	}
+	if err := unitOfWork.RollbackTransaction(); err != nil {
+		t.Fatalf("Rollback: %v", err)
+	}
+
+	if n1, _ := notes.Get("n1"); n1 != "before" {
+		t.Errorf("n1: got %q, want the value before the first writer", n1)
+	}
+	// The second writer committed, and its write is gone with the first one's rollback: the
+	// snapshot is of the whole store. A database keeps n2 here; the README lists this as the gap
+	// it is.
+	if _, exists := notes.Get("n2"); exists {
+		t.Error("n2 is undone by the other request's rollback: the in-memory stores give a boundary, not isolation")
+	}
+}
+
 func TestMisuseIsAProgrammingError(t *testing.T) {
 	unitOfWork := NewInMemoryUnitOfWork(NewInMemoryDataSource[string]())
 	if err := unitOfWork.CommitTransaction(); err == nil || err.Error() != "no active transaction to commit" {

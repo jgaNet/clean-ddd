@@ -18,6 +18,9 @@ type UnitOfWork interface {
 	BeginTransaction() error
 	CommitTransaction() error
 	RollbackTransaction() error
+	// HasActiveTransaction is whether a transaction is open. The context owns its transaction: it
+	// asks this before opening one, and a transaction already open there is a programming error,
+	// not one to join.
 	HasActiveTransaction() bool
 	// Outbox is the transactional outbox: what this transaction makes durable to be published after it commits (ADR 24).
 	Outbox() Outbox
@@ -122,29 +125,49 @@ func (c *ExecutionContext) AfterCommit(callback func()) {
 // steps registered during fn run inside the transaction once fn has succeeded (the outbox is
 // written there), then the transaction commits, then the outbox is relayed through the bus,
 // then the AfterCommit callbacks run. A refusal or a panic rolls back and drops every step and
-// callback. Nested calls join the outer transaction: everything happens at the outermost one.
-// A package function because a method cannot be generic.
+// callback — whatever the failure, so a context is clean for its next transaction even after a
+// unit of work that could not begin or roll back. Nested calls join the outer transaction:
+// everything happens at the outermost one. The context owns that transaction: it opens it and
+// closes it, and a unit of work that already has one open at the outermost call is a
+// programming error (the steps and callbacks would otherwise run against a commit this context
+// never sees), reported as a failure before fn runs. A package function because a method
+// cannot be generic.
 func Transaction[T any](c *ExecutionContext, fn func() (T, error)) (T, error) {
 	c.mu.Lock()
 	outermost := !c.inTransaction
 	c.inTransaction = true
 	c.mu.Unlock()
-
-	value, err := runInUnitOfWork(c, fn, outermost)
-
-	if outermost {
-		c.mu.Lock()
-		callbacks := c.afterCommit
-		c.afterCommit, c.beforeCommit, c.inTransaction = nil, nil, false
-		c.mu.Unlock()
-		if err == nil {
-			c.relay()
-			for _, callback := range callbacks {
-				callback()
-			}
-		}
+	if !outermost {
+		return runInUnitOfWork(c, fn, false)
 	}
-	return value, err
+
+	// Whatever happened below, the outermost call leaves nothing behind: no step, no callback,
+	// no open flag.
+	defer c.leave()
+
+	value, err := runInUnitOfWork(c, fn, true)
+	if err != nil {
+		return value, err
+	}
+	// The context leaves its transaction before relaying: the bus dispatches in its own goroutine
+	// with this very context, and a reaction's BeforeCommit must find no transaction to join.
+	callbacks := c.leave()
+	c.relay()
+	for _, callback := range callbacks {
+		callback()
+	}
+	return value, nil
+}
+
+// leave closes the outermost transaction on the context: the flag goes down and both lists are
+// dropped, whatever happened. The AfterCommit callbacks are handed back, for the caller to run
+// after a commit and to drop after anything else.
+func (c *ExecutionContext) leave() []func() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	callbacks := c.afterCommit
+	c.afterCommit, c.beforeCommit, c.inTransaction = nil, nil, false
+	return callbacks
 }
 
 // outbox is the unit of work's, or nil without a unit of work.
@@ -173,44 +196,84 @@ func (c *ExecutionContext) runBeforeCommit() {
 	}
 }
 
+// runInUnitOfWork is the work inside its transaction. Without a unit of work there is no
+// transaction: the work runs, and the steps run after it when it succeeded. With one, the
+// outermost call owns the transaction — it refuses a unit of work that already has one open,
+// begins, runs the work, then rolls back once on a failure, or runs the steps and commits, and
+// rolls back if that could not go through — while a nested call only runs its work. A panic of
+// the work is the failed result it should have returned (DOMAIN-RESULT).
 func runInUnitOfWork[T any](c *ExecutionContext, fn func() (T, error), outermost bool) (value T, err error) {
 	unitOfWork := c.unitOfWork
-	joined := unitOfWork == nil || unitOfWork.HasActiveTransaction()
-	if !joined {
-		if err = unitOfWork.BeginTransaction(); err != nil {
-			return value, err
-		}
-	}
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			err = domain.Recovered(recovered)
-			if !joined {
-				_ = unitOfWork.RollbackTransaction()
-			}
-			c.Log().Error("Transaction failed", err, Meta{"traceId": c.traceID, "userId": c.auth.SubjectID})
-			err = domain.Unknown(err.Error(), nil)
-		}
-	}()
-	value, err = fn()
 	if unitOfWork == nil {
+		value, err = recovering(c, fn)
 		if outermost && err == nil {
 			c.runBeforeCommit()
 		}
 		return value, err
 	}
-	if !joined {
-		if err != nil {
-			_ = unitOfWork.RollbackTransaction()
-		} else {
-			if outermost {
-				c.runBeforeCommit()
-			}
-			if commitErr := unitOfWork.CommitTransaction(); commitErr != nil {
-				return value, commitErr
-			}
+
+	if outermost {
+		if unitOfWork.HasActiveTransaction() {
+			return value, domain.Unknown("The unit of work already has a transaction open: the context owns its transaction and opens it itself, nothing else may begin one", nil)
+		}
+		if err = unitOfWork.BeginTransaction(); err != nil {
+			return value, err
 		}
 	}
-	return value, err
+
+	value, err = recovering(c, fn)
+	if !outermost {
+		return value, err
+	}
+	if err != nil {
+		return value, rolledBack(unitOfWork, err)
+	}
+	if err = c.commit(unitOfWork); err != nil {
+		return value, rolledBack(unitOfWork, err)
+	}
+	return value, nil
+}
+
+// recovering runs fn and turns a panic of it into the failed result it should have returned:
+// logged as the transaction's failure, carried as an Unknown refusal (DOMAIN-RESULT).
+func recovering[T any](c *ExecutionContext, fn func() (T, error)) (value T, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = c.failed(domain.Recovered(recovered))
+		}
+	}()
+	return fn()
+}
+
+// commit runs the BeforeCommit steps inside the transaction and commits it; a step that panics
+// or a commit that is refused is the transaction's failure, for the caller to roll back.
+func (c *ExecutionContext) commit(unitOfWork UnitOfWork) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = c.failed(domain.Recovered(recovered))
+		}
+	}()
+	c.runBeforeCommit()
+	if err := unitOfWork.CommitTransaction(); err != nil {
+		return c.failed(err)
+	}
+	return nil
+}
+
+// failed logs a failure of the transaction's own mechanics and returns it as the refusal the
+// operation records: an Unknown one, since nobody declared it.
+func (c *ExecutionContext) failed(err error) error {
+	c.Log().Error("Transaction failed", err, Meta{"traceId": c.traceID, "userId": c.auth.SubjectID})
+	return domain.Unknown(err.Error(), nil)
+}
+
+// rolledBack undoes the transaction after a failure, once. A unit of work that cannot even roll
+// back is the failure reported instead: the context can promise nothing about what it left behind.
+func rolledBack(unitOfWork UnitOfWork, err error) error {
+	if rollbackErr := unitOfWork.RollbackTransaction(); rollbackErr != nil {
+		return rollbackErr
+	}
+	return err
 }
 
 type silent struct{}

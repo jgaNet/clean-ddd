@@ -1,7 +1,9 @@
 package application
 
 import (
+	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"clean-ddd/architecture/domain"
@@ -191,6 +193,79 @@ func TestDropsTheCallbackWhenTheTransactionPanics(t *testing.T) {
 		t.Errorf("a panic should become an Unknown failure, got %v", err)
 	}
 	if want := []string{"begin", "rollback"}; !reflect.DeepEqual(unitOfWork.log, want) {
+		t.Errorf("log: got %v, want %v", unitOfWork.log, want)
+	}
+}
+
+// unitOfWorkThatCannotRollBack is the fake whose connection is gone when it should roll back, once.
+type unitOfWorkThatCannotRollBack struct {
+	*fakeUnitOfWork
+	failing bool
+}
+
+func (u *unitOfWorkThatCannotRollBack) RollbackTransaction() error {
+	if err := u.fakeUnitOfWork.RollbackTransaction(); err != nil {
+		return err
+	}
+	if u.failing {
+		return errors.New("the connection is gone")
+	}
+	return nil
+}
+
+func TestKeepsNothingFromATransactionWhoseUnitOfWorkCouldNotRollBackTheContextIsCleanForTheNextOne(t *testing.T) {
+	unitOfWork := &unitOfWorkThatCannotRollBack{fakeUnitOfWork: newFakeUnitOfWork(), failing: true}
+	context := contextWith(unitOfWork)
+
+	_, err := Transaction(context, func() (nothing, error) {
+		context.BeforeCommit(func() { unitOfWork.log = append(unitOfWork.log, "stale step") })
+		context.AfterCommit(func() { unitOfWork.log = append(unitOfWork.log, "stale callback") })
+		return nothing{}, errors.New("refused")
+	})
+	if err == nil || err.Error() != "the connection is gone" {
+		t.Fatalf("the rollback failure should be reported, got %v", err)
+	}
+
+	unitOfWork.failing = false
+	_, err = Transaction(context, func() (nothing, error) {
+		context.AfterCommit(func() { unitOfWork.log = append(unitOfWork.log, "callback") })
+		return nothing{}, nil
+	})
+	if err != nil {
+		t.Fatalf("unexpected failure: %v", err)
+	}
+	if want := []string{"begin", "rollback", "begin", "commit", "callback"}; !reflect.DeepEqual(unitOfWork.log, want) {
+		t.Errorf("log: got %v, want %v", unitOfWork.log, want)
+	}
+}
+
+func TestOwnsItsTransactionAUnitOfWorkThatAlreadyHasOneOpenAtTheOutermostCallIsAProgrammingError(t *testing.T) {
+	unitOfWork := newFakeUnitOfWork()
+	unitOfWork.active = true
+	context := contextWith(unitOfWork)
+	calls := 0
+	fn := func() (nothing, error) {
+		calls++
+		return nothing{}, nil
+	}
+
+	_, err := Transaction(context, fn)
+	refused, ok := domain.Refusal(err)
+	if !ok || refused.Type != domain.TypeUnknown || !strings.Contains(refused.Message, "the context owns its transaction") {
+		t.Fatalf("a transaction already open should be refused as a programming error, got %v", err)
+	}
+	if calls != 0 {
+		t.Error("the work should never have run")
+	}
+	if len(unitOfWork.log) != 0 {
+		t.Errorf("nothing should have happened to the unit of work, got %v", unitOfWork.log)
+	}
+
+	unitOfWork.active = false
+	if _, err := Transaction(context, fn); err != nil {
+		t.Fatalf("unexpected failure: %v", err)
+	}
+	if want := []string{"begin", "commit"}; !reflect.DeepEqual(unitOfWork.log, want) {
 		t.Errorf("log: got %v, want %v", unitOfWork.log, want)
 	}
 }
