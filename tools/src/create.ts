@@ -277,6 +277,12 @@ export function createApplication(
   writeFileSync(join(directory, 'CLAUDE.md'), claude(lean, name, local));
   mkdirSync(join(directory, 'docs/adr'), { recursive: true });
   writeFileSync(join(directory, 'docs/adr/README.md'), adrIndex());
+  // The two contracts that keep contexts apart once there are several, present from the first day
+  // (RFC 0001): an empty context map, so that CTX-MAP-DECLARED holds the first relationship between
+  // two contexts, and the directory the storms a session decides are written to.
+  writeFileSync(join(directory, 'conventions/domain.yaml'), domainMapSkeleton(name));
+  mkdirSync(join(directory, 'conventions/storms'), { recursive: true });
+  writeFileSync(join(directory, 'conventions/storms/README.md'), stormsReadme());
   writeFileSync(join(directory, local(spec.manifest)), manifest(spec, source, languageDir, name));
   if (!existsSync(join(directory, '.gitignore'))) {
     writeFileSync(join(directory, '.gitignore'), 'node_modules\ndist\ncoverage\n*.tsbuildinfo\n');
@@ -585,6 +591,39 @@ function claude(contract: ArchitectureContract, name: string, local: (path: stri
     '',
   ].join('\n');
 }
+
+const domainMapSkeleton = (name: string) =>
+  [
+    '# The domain, as data: the subdomains and their kind, each bounded context with its purpose and its',
+    '# language, and the context map — every relationship between two contexts, the pattern it follows,',
+    '# the mechanism that carries it and why. The conventions check holds it to the binding (a context',
+    '# declared there is described here) and to the code (a link between two contexts that this map does',
+    '# not declare is refused, and so is a relationship nothing carries: CTX-MAP-DECLARED). It starts',
+    '# empty: the first context is described here when it is declared in the binding.',
+    '# `clean-ddd rule CTX-MAP-DECLARED` explains the rule; `clean-ddd concept context-map` the idea.',
+    'schemaVersion: 1',
+    `name: ${name}`,
+    'purpose: >-',
+    `  What ${name} is for, in the words of the people who use it. Rewrite this sentence before the first context.`,
+    'subdomains: []',
+    'contexts: []',
+    'relationships: []',
+    '',
+  ].join('\n');
+
+const stormsReadme = () =>
+  [
+    '# Storms',
+    '',
+    'An expected storm is what an event-storming session decided a feature adds, written in the words the',
+    'inventory uses — commands, queries, domain events, policies, the links between contexts — before the',
+    'code. The conventions check holds every storm here to the code: done and carried, or not yet.',
+    '',
+    'The [`storm` skill](../../.claude/skills/storm/SKILL.md) facilitates the session and writes the file;',
+    '`clean-ddd storm validate <file>` holds it to the contract and the context map, and',
+    '`clean-ddd storm --expect <file>` says what the code still owes it.',
+    '',
+  ].join('\n');
 
 const adrIndex = () =>
   [
