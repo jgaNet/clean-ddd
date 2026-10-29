@@ -272,7 +272,7 @@ tools/src/gate.ts                    `clean-ddd gate --base <ref> --json` (Phase
 tools/src/create.ts                  scaffold an empty conventions/domain.yaml and conventions/storms/ (Phase 1)
 tools/src/pack.ts                    `clean-ddd pack --plan <file> --json` (Phase 3)
 .claude/agents/feature-author.md     "end with `clean-ddd gate`" instead of a list of commands; copied into created projects
-.claude/workflows/                   the driver, while it is one script (Phase 2)
+.claude/flow/                        the driver, while it is one script (Phase 1: run-feature.mjs)
 docs/rfc/                            this RFC; an ADR replaces it once decided
 ```
 

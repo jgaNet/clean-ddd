@@ -221,6 +221,34 @@ describe('yarn architecture create --language python', () => {
     }
   });
 
+  it('stays green when its first context is declared: the README has the block the dependency table goes in', async () => {
+    const binding = read('conventions/python.yaml');
+    const map = read('conventions/domain.yaml');
+    const readme = read('README.md');
+    try {
+      writeFileSync(
+        join(directory, 'conventions/python.yaml'),
+        binding.replace('\ncontexts: []\n', '\ncontexts: [Notes]\n'),
+      );
+      writeFileSync(
+        join(directory, 'conventions/domain.yaml'),
+        map
+          .replace(
+            'subdomains: []',
+            'subdomains:\n  - { id: notes, name: Notes, kind: core, why: what it is for, contexts: [Notes] }',
+          )
+          .replace('contexts: []', 'contexts:\n  - { id: Notes, purpose: the notes, language: [] }'),
+      );
+      expect((await checkConventions(directory, true)).problems).toEqual([]);
+      expect((await checkConventions(directory)).problems).toEqual([]);
+      expect(read('README.md')).toContain('| Domain |');
+    } finally {
+      writeFileSync(join(directory, 'conventions/python.yaml'), binding);
+      writeFileSync(join(directory, 'conventions/domain.yaml'), map);
+      writeFileSync(join(directory, 'README.md'), readme);
+    }
+  });
+
   it('is a repository of one language, sound on its own terms, whose guides speak Python', () => {
     expect(generated.language).toEqual({ id: 'python', name: 'Python', root: '.' });
     expect(generated.contexts).toEqual([]);
