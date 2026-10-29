@@ -199,7 +199,7 @@ func readTree(root string, contract *Contract) (*sourceTree, error) {
 		if err != nil {
 			return fmt.Errorf("%s: %w", relative, err)
 		}
-		inside := strings.TrimPrefix(f.path, contract.Root+"/")
+		inside, _ := insideRoot(contract, f.path)
 		s := &source{file: f, pkg: contract.ModulePath + "/" + path.Dir(inside), syntax: syntax}
 		tree.files = append(tree.files, s)
 		tree.packages[s.pkg] = append(tree.packages[s.pkg], s)
@@ -1331,5 +1331,9 @@ func inspectInventory(root string, contract *Contract) (*Inventory, error) {
 	// By id, not in the binding's order: the bindings list the contexts differently, the inventories are one file.
 	sort.Slice(inventory.Contexts, func(i, j int) bool { return inventory.Contexts[i].ID < inventory.Contexts[j].ID })
 	inventory.Links = tree.linksOf(inventory.Contexts)
+	if inventory.Links == nil {
+		// Canonical JSON says `[]`, as every language's tool does: an application with no link yet is not `null`.
+		inventory.Links = []InventoryLink{}
+	}
 	return inventory, nil
 }

@@ -204,3 +204,57 @@ describe('yarn architecture create --language python', () => {
     rmSync(empty, { recursive: true, force: true });
   });
 });
+
+describe('yarn architecture create --language go', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'created-go-'));
+  const created = createApplication(directory, 'my-app', root, 'go');
+  const generated = loadArchitectureContract(directory, 'go');
+  const read = (path: string) => readFileSync(join(directory, path), 'utf8');
+
+  afterAll(() => rmSync(directory, { recursive: true, force: true }));
+
+  it('copies the building blocks, the shared kernel, the conventions tool and the configuration, in Go', () => {
+    expect(created.language).toBe('go');
+    for (const path of [
+      'architecture/domain/aggregate_root.go',
+      'architecture/domain/result_test.go',
+      'sharedkernel/domain/email.go',
+      'sharedkernel/application/guards.go',
+      'sharedkernel/application/integrationevents/doc.go',
+      'sharedkernel/application/integrationevents/README.md',
+      'contexts/README.md',
+      'tools/conventions/main.go',
+      'go.mod',
+      'go.sum',
+      '.golangci.yml',
+      'conventions/go.yaml',
+      'docs/inventory/go.json',
+    ]) {
+      expect(existsSync(join(directory, path))).toBe(true);
+    }
+    expect(existsSync(join(directory, 'sharedkernel/application/integrationevents/note_integration_events.go'))).toBe(
+      false,
+    );
+  });
+
+  it('is a module named after the application: go.mod, every import, every alias of the binding', () => {
+    const goMod = read('go.mod');
+    expect(goMod).toMatch(/^module my-app$/m);
+    expect(goMod).toContain('github.com/google/uuid');
+    expect(goMod).toContain('gopkg.in/yaml.v3');
+    expect(goMod).not.toContain('modernc.org/sqlite');
+    expect(goMod).not.toContain('// indirect');
+    expect(read('architecture/application/command_handler.go')).toContain('"my-app/architecture/domain"');
+    expect(read('sharedkernel/application/guards.go')).not.toContain('"clean-ddd/');
+    expect(generated.architecture).toEqual({ alias: 'my-app/architecture', path: 'architecture' });
+    expect(generated.contextsTree.alias).toBe('my-app/contexts');
+    expect(read('conventions/go.yaml')).toContain('module: my-app');
+  });
+
+  it('is sound on its own terms, with guides in Go words', () => {
+    expect(generated.language).toEqual({ id: 'go', name: 'Go', root: '.' });
+    expect(validateContract(generated, directory)).toEqual([]);
+    expect(read('README.md')).toContain('go mod tidy');
+    expect(read('CLAUDE.md')).toContain('module.go');
+  });
+});

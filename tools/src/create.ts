@@ -210,6 +210,9 @@ export function createApplication(
   };
   for (const path of spec.copy) copy(languageDir, local(path));
   for (const path of COPY_FROM_ROOT) copy(source, path);
+  // A Go module: the reference's module path becomes the application's name, in every import.
+  const modulePath = moduleOf(source, contract);
+  if (modulePath && modulePath !== name) rewriteModulePath(directory, modulePath, name);
 
   // 2. The places a new application fills in: where its contexts will publish, where they will live.
   const contractsDir = local(spec.contracts);
@@ -250,7 +253,7 @@ export function createApplication(
   const concepts = contract.concepts
     .map(concept => surviving(concept, directory, local))
     .filter((concept): concept is Concept => concept !== undefined);
-  writeContract(directory, source, contract, concepts);
+  writeContract(directory, source, contract, concepts, name);
 
   // 4. The documents, rendered from that contract exactly as this repository renders its own,
   //    the manifest, and — where the language's own tool holds its inventory — an empty one.
@@ -296,8 +299,20 @@ function count(directory: string): number {
   return readdirSync(directory, { withFileTypes: true, recursive: true }).filter(entry => entry.isFile()).length;
 }
 
+/** The module path a binding declares (`module: clean-ddd` in Go), or nothing. */
+function moduleOf(source: string, contract: ArchitectureContract): string | undefined {
+  const raw = load(readFileSync(join(source, contract.sources.binding), 'utf8')) as { module?: unknown };
+  return typeof raw.module === 'string' ? raw.module : undefined;
+}
+
 /** The same contract and the same binding, with no contexts of their own yet and no reference to a file that was not copied. */
-function writeContract(directory: string, source: string, contract: ArchitectureContract, concepts: Concept[]): void {
+function writeContract(
+  directory: string,
+  source: string,
+  contract: ArchitectureContract,
+  concepts: Concept[],
+  name: string,
+): void {
   mkdirSync(join(directory, 'conventions/plans'), { recursive: true });
   const yaml = { lineWidth: 110, noRefs: true };
   // The header comment — the vocabulary a file is read with — is carried over, naming the tool as the new application calls it.
@@ -359,6 +374,15 @@ function writeContract(directory: string, source: string, contract: Architecture
   const binding = load(bindingText) as Record<string, unknown>;
   binding.root = '.';
   binding.contexts = [];
+  if (typeof binding.module === 'string' && binding.module !== name) {
+    const from = binding.module;
+    binding.module = name;
+    for (const tree of ['contexts_tree', 'architecture', 'kernel', 'bootstrap']) {
+      const entry = binding[tree] as { alias?: string } | undefined;
+      if (entry?.alias?.startsWith(`${from}/`)) entry.alias = `${name}${entry.alias.slice(from.length)}`;
+      else if (entry?.alias === from) entry.alias = name;
+    }
+  }
   prune(binding, directory);
   const bindingRules = (binding.rules ?? {}) as Record<string, { references?: string[] }>;
   for (const [id, entry] of Object.entries(bindingRules)) if (!entry.references?.length) delete bindingRules[id];
@@ -580,8 +604,9 @@ function manifest(spec: CreateSpec, source: string, languageDir: string, name: s
   const text = readFileSync(join(languageDir, file), 'utf8');
   if (file === 'package.json') return packageJson(spec, source, text, name);
   if (file === 'pyproject.toml') return pyproject(spec, text, name);
+  if (file === 'go.mod') return goMod(spec, text, name);
   throw new ContractError(
-    `create cannot write a ${file} yet; a manifest is package.json or pyproject.toml`,
+    `create cannot write a ${file} yet; a manifest is package.json, pyproject.toml or go.mod`,
     'malformed',
   );
 }
@@ -612,6 +637,56 @@ function packageJson(spec: CreateSpec, source: string, text: string, name: strin
     null,
     2,
   )}\n`;
+}
+
+/**
+ * The reference's go.mod with the application's name as its module path and its requirements
+ * narrowed to what the copied files import; `go mod tidy` settles the rest, go.sum included.
+ */
+function goMod(spec: CreateSpec, text: string, name: string): string {
+  const lines = text.split('\n');
+  const kept: string[] = [];
+  let inRequire = false;
+  let block: string[] = [];
+  for (const line of lines) {
+    if (/^module\s/.test(line)) {
+      kept.push(`module ${name}`);
+    } else if (/^require\s*\($/.test(line)) {
+      inRequire = true;
+      block = [];
+    } else if (inRequire && line.trim() === ')') {
+      inRequire = false;
+      if (block.length) kept.push('require (', ...block, ')');
+    } else if (inRequire) {
+      if (spec.dependencies.some(dependency => line.trim().startsWith(`${dependency} `))) block.push(line);
+    } else if (/^require\s/.test(line)) {
+      if (spec.dependencies.some(dependency => line.includes(`${dependency} `))) kept.push(line);
+    } else {
+      kept.push(line);
+    }
+  }
+  return `${kept
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()}\n`;
+}
+
+/**
+ * A Go import is the module path: the copied files import `clean-ddd/architecture/domain`, and
+ * the application's module is its name, so every import under the reference's module path, and
+ * every alias of the binding, is rewritten with it. Done on the files once copied, which keeps
+ * `create` a copy and a rename rather than a template (ADR 10).
+ */
+function rewriteModulePath(directory: string, from: string, to: string): void {
+  const walk = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap(entry =>
+      entry.isDirectory() ? walk(join(dir, entry.name)) : entry.name.endsWith('.go') ? [join(dir, entry.name)] : [],
+    );
+  for (const path of walk(directory)) {
+    const text = readFileSync(path, 'utf8');
+    const rewritten = text.split(`"${from}/`).join(`"${to}/`);
+    if (rewritten !== text) writeFileSync(path, rewritten);
+  }
 }
 
 /** The reference's pyproject, renamed, at 0.1.0, its dependency list narrowed to what the copied files import; the rest (the dev group, ruff, mypy, pytest) travels whole. */

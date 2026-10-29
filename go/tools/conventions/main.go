@@ -64,7 +64,7 @@ func main() {
 		for _, problem := range problems {
 			fmt.Println("✗ " + problem)
 		}
-		fmt.Printf("\n%d problem(s). `yarn --cwd typescript architecture rule <ID>` explains a rule.\n", len(problems))
+		fmt.Printf("\n%d problem(s). `clean-ddd rule <ID>` (`yarn architecture rule <ID>` in the reference) explains a rule.\n", len(problems))
 		os.Exit(1)
 	}
 	fmt.Println(summary(root, contract))
