@@ -23,7 +23,8 @@
 //     they reach and the events it records; the queries; the domain events; the policies and
 //     what they publish or reach; the links between contexts — read from the canonical shapes
 //     with go/ast (inventory.go), so that the TypeScript check can hold the four inventories
-//     equal (ARCH-ONE-APPLICATION).
+//     equal (ARCH-ONE-APPLICATION). A stale one is refused by a line saying so, then a line
+//     per difference, named in the words every language's tool prints.
 //  6. Every command has exactly one handler: the Module lists it once, with one handler, and
 //     every command a route or a policy builds is one the Module lists; a fact may have any
 //     number of subscribers (ARCH-ONE-HANDLER), read from the same wiring the inventory is.
@@ -63,7 +64,6 @@ func main() {
 
 	problems := check(root, contract)
 	if len(problems) > 0 {
-		sort.Strings(problems)
 		for _, problem := range problems {
 			fmt.Println("✗ " + problem)
 		}
@@ -107,8 +107,20 @@ func check(root string, contract *Contract) []string {
 	}
 	problems = append(problems, checkNamedFiles(root, contract)...)
 	problems = append(problems, checkOneHandler(root, contract)...)
-	problems = append(problems, checkInventory(root, contract)...)
-	return problems
+	return withInventory(problems, checkInventory(root, contract))
+}
+
+// withInventory is the problems sorted, with a stale inventory's lines kept together and in
+// their order — the line saying it is stale, then each difference — where the first one sorts.
+func withInventory(problems, inventory []string) []string {
+	sort.Strings(problems)
+	if len(inventory) == 0 {
+		return problems
+	}
+	at := sort.SearchStrings(problems, inventory[0])
+	found := append([]string{}, problems[:at]...)
+	found = append(found, inventory...)
+	return append(found, problems[at:]...)
 }
 
 func summary(root string, contract *Contract) string {
