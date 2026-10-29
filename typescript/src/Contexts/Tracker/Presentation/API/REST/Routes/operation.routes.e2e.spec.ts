@@ -53,4 +53,16 @@ describe('Tracker: following an operation', () => {
     expect(records.map(r => r.name)).toEqual(expect.arrayContaining(['NotificationFailed']));
     expect(new Set(records.map(r => r.traceId))).toEqual(new Set([accepted.headers['x-trace-id']]));
   });
+
+  it('shows an operation nobody started to whoever holds its id, and one an account started to that account only', async () => {
+    // A sign-up is anonymous: the only one who knows its id is the caller it was answered to.
+    const signUp = await superagent.post(`${api}/auth/signup`).send({ identifier: 'tracked@x.fr', password: 'secret' });
+    const anonymous = await superagent.get(`${api}/tracker/operations/${signUp.body.operationId}`);
+    expect(anonymous.status).toBe(200);
+    expect(anonymous.body).toMatchObject({ name: 'SignUp', status: 'SUCCESS', result: expect.any(String) });
+
+    const signed = await shareUnknownNote();
+    const stranger = await superagent.get(`${api}/tracker/operations/${signed.body.operationId}`).ok(() => true);
+    expect(stranger.status).toBe(403);
+  });
 });

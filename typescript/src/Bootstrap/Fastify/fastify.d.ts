@@ -6,10 +6,10 @@ export interface AuthInfo {
   role: Role;
 }
 
-/** What the two request hooks of createApplication.ts attach to every Fastify request. */
+/** What the two request hooks of FastifyApplication.ts attach to every Fastify request. */
 declare module 'fastify' {
   interface FastifyRequest {
-    /** Set by the authentication middleware from the bearer token or cookie; absent when anonymous. */
+    /** Who is calling: anonymous (a guest) unless the authentication given to the transport says otherwise. */
     auth: AuthInfo;
     /** Set by the preHandler hook: the request's trace, caller, bus, unit of work and logger. */
     executionContext: ExecutionContext;
