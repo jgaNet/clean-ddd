@@ -369,6 +369,16 @@ Non-obvious choices are recorded as short ADRs in [`docs/adr`](docs/adr):
 13. [In Rust, the bus routes type-erased events by name, and a handler is a trait with a provided `handle()`](docs/adr/0013-in-rust-the-bus-routes-by-name-and-a-handler-is-a-trait.md)
 14. [In Rust, the transport spawns the dispatch, and a handler is found by its message](docs/adr/0014-in-rust-the-transport-spawns-the-dispatch-and-finds-handlers-by-their-message.md)
 15. [In Python, a layer is a package, and an `ast` walk holds the dependency table](docs/adr/0015-in-python-a-layer-is-a-package-and-an-ast-walk-holds-the-table.md)
+16. [One API for every language: a shared black-box scenario is the executable contract](docs/adr/0016-one-api-for-every-language.md)
+17. [The front end is a client served elsewhere](docs/adr/0017-the-front-end-is-a-client-served-elsewhere.md)
+18. [In Go, a layer is a package, a refusal is an error value, and `go/parser` holds the dependency table](docs/adr/0018-in-go-a-layer-is-a-package-and-a-refusal-is-an-error-value.md)
+19. [The domain is data: subdomains, a context map and the language of each context](docs/adr/0019-the-domain-is-data.md)
+20. [The event storm is read from the code, and the documents show it](docs/adr/0020-the-event-storm-is-read-from-the-code.md)
+21. [One application: every language's tool writes the same inventory](docs/adr/0021-one-application-every-language-writes-the-same-inventory.md)
+22. [The storm is facilitated before the code, written as data, and the code is held to it](docs/adr/0022-the-storm-is-facilitated-and-the-code-is-held-to-it.md)
+23. [The tooling lives at the root and ships as a package](docs/adr/0023-the-tooling-lives-at-the-root-and-ships-as-a-package.md)
+
+What is deliberately *not* here — a DI container, an ORM, a transactional outbox, an automatic retry on a concurrency conflict, a generic saga — is listed with its reason and the day it would come in the TypeScript README's [What is deliberately not here](typescript/README.md#what-is-deliberately-not-here); the known gaps of each language are at the end of its README.
 
 The decisions are about the architecture, so they hold in every language; where a language's idiom changes how a decision lands (a `Result` is native in Rust, a `throw` is a `panic`), the language's README says so ([Rust](rust/README.md#where-the-decisions-land-in-rust), [Python](python/README.md#where-the-decisions-land-in-python)).
 
