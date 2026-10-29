@@ -116,6 +116,8 @@ rules:
     references: [src/bootstrap/testing.py]
   ARCH-MODULES-DATA:
     references: [src/contexts/notes/module_local.py, src/architecture/application/module.py]
+  ARCH-ONE-HANDLER:
+    references: [src/contexts/notes/module_local.py]
   CTX-CONTRACTS:
     references:
       - src/contexts/notes/infrastructure/directories.py

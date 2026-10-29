@@ -441,7 +441,16 @@ export function overlayExpectedStorm(storm: EventStorm, expected: ExpectedStorm,
   for (const delta of expected.contexts) {
     let context = overlaid.contexts.find(candidate => candidate.id === delta.id);
     if (!context) {
-      context = { id: delta.id, aggregates: [], events: [], commands: [], policies: [], readModels: [], externals: [] };
+      context = {
+        id: delta.id,
+        aggregates: [],
+        events: [],
+        commands: [],
+        policies: [],
+        readModels: [],
+        externals: [],
+        routed: [],
+      };
       overlaid.contexts.push(context);
     }
     for (const event of delta.events) {
@@ -454,6 +463,7 @@ export function overlayExpectedStorm(storm: EventStorm, expected: ExpectedStorm,
       const sticky: StormCommand = {
         name: command.name,
         handler: '',
+        handlers: [],
         file: '',
         actor: command.actor as StormCommand['actor'],
         ...(command.route && { route: command.route }),

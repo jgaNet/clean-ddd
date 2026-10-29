@@ -14,6 +14,9 @@
 //! the command or asks `module.query::<…>()`, mounted where the bootstrap `.nest()`s it. A shape
 //! this reader does not recognise is a shape the guides do not teach: the remedy is the canonical
 //! shape, not a looser reading.
+//!
+//! The same reading holds ARCH-ONE-HANDLER (`check_handlers`): a command the Module lists once,
+//! with one handler, and every command a route or a policy builds is one the Module lists.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -27,6 +30,7 @@ pub const INVENTORY_FILE: &str = "docs/inventory/rust.json";
 /// What writes it.
 pub const WRITE_COMMAND: &str = "cargo run -p conventions -- inventory --write";
 const SCHEMA_VERSION: u64 = 1;
+const ONE_HANDLER_RULE: &str = "ARCH-ONE-HANDLER";
 
 const SIGNED_IN: &str = "a signed-in account";
 const ADMINISTRATOR: &str = "an administrator";
@@ -189,6 +193,46 @@ fn section<'a>(text: &'a str, key: &str) -> &'a str {
     let Some(at) = text.find(&format!("{key}: vec![")) else { return "" };
     let open = at + key.len() + ": vec!".len();
     balanced(text, open, '[', ']')
+}
+
+/// The handlers a wiring lists under `commands`, one per `Subscription::command(handler)`, in order.
+fn command_handlers(wiring_text: &str) -> Vec<&str> {
+    let listed = section(wiring_text, "commands");
+    after_each(listed, "Subscription::command(")
+        .filter_map(|at| ident_at(listed, at))
+        .map(|(handler, _)| handler)
+        .collect()
+}
+
+/// The reactions a wiring lists under `key` (`domain_events`, `integration_events`): each
+/// `Subscription::reaction(channel, handler)` as the channel's expression and the handler's type.
+fn reactions<'a>(wiring_text: &'a str, key: &str) -> Vec<(&'a str, &'a str)> {
+    let listed = section(wiring_text, key);
+    after_each(listed, "Subscription::reaction(")
+        .filter_map(|at| {
+            let (channel, handler) = balanced(listed, at - 1, '(', ')').split_once(',')?;
+            Some((channel, ident_at(handler, 0)?.0))
+        })
+        .collect()
+}
+
+/// The paths each `publish(…)` of a text is handed, directly (`publish(NoteIntegrationEvent::Shared { … })`)
+/// and through a local binding (`let notice = OperationCompleteIntegrationEvent { … }; … publish(Arc::new(notice), …)`).
+fn published_paths(text: &str) -> Vec<Vec<&str>> {
+    let mut paths = Vec::new();
+    for at in after_each(text, "publish(") {
+        let at = at + text[at..].len() - text[at..].trim_start().len();
+        let at = text[at..].strip_prefix("Arc::new(").map_or(at, |_| at + "Arc::new(".len());
+        let Some((segments, _)) = path_at(text, at) else { continue };
+        let binding = format!("let {} = ", segments[0]);
+        if let Some(at) = text.find(&binding)
+            && let Some((bound, _)) = path_at(text, at + binding.len())
+        {
+            paths.push(bound);
+        }
+        paths.push(segments);
+    }
+    paths
 }
 
 /// The top-level items that are `}` on their own line: the end of a struct, an impl, a function.
@@ -384,18 +428,8 @@ impl IntegrationEvents {
     /// (`let notice = OperationCompleteIntegrationEvent { … }; … publish(Arc::new(notice), …)`).
     fn published_by(&self, text: &str) -> Vec<String> {
         let mut names = Vec::new();
-        for at in after_each(text, "publish(") {
-            let at = at + text[at..].len() - text[at..].trim_start().len();
-            let at = text[at..].strip_prefix("Arc::new(").map_or(at, |_| at + "Arc::new(".len());
-            let Some((segments, _)) = path_at(text, at) else { continue };
-            let name = self.named_by(&segments).or_else(|| {
-                let binding = format!("let {} = ", segments.first()?);
-                let (segments, _) = path_at(text, text.find(&binding)? + binding.len())?;
-                self.named_by(&segments)
-            });
-            if let Some(name) = name
-                && !names.contains(&name)
-            {
+        for name in published_paths(text).iter().filter_map(|segments| self.named_by(segments)) {
+            if !names.contains(&name) {
                 names.push(name);
             }
         }
@@ -636,11 +670,36 @@ impl<'a> ContextReader<'a> {
         ident_at(handler, handler.find(&key)? + key.len()).map(|(name, _)| name)
     }
 
+    /// The public name of a command type (`CreateNote`, `ValidateAccount`): its `NAME`, or the type's own.
+    fn command_name(&self, command_type: &str) -> String {
+        self.command_names.get(command_type).cloned().unwrap_or_else(|| public_name(command_type).to_string())
+    }
+
+    /// The public name of the command a handler answers, by its `type Command = X;`.
+    fn command_name_of(&self, handler_name: &str) -> String {
+        let handler = file_declaring(self.files, handler_name);
+        let text = handler.map(|file| file.text.as_str()).unwrap_or_default();
+        self.command_name(self.message_of(text, "Command").unwrap_or(handler_name))
+    }
+
+    /// The commands of this context a text dispatches: each `publish(…)` handed a command type.
+    fn commands_dispatched(&self, text: &str) -> Vec<String> {
+        let mut names = Vec::new();
+        for segments in published_paths(text) {
+            if let Some(name) = self.command_names.get(segments[0])
+                && !names.contains(name)
+            {
+                names.push(name.clone());
+            }
+        }
+        names
+    }
+
     fn command(&self, handler_name: &str) -> Command {
         let handler = file_declaring(self.files, handler_name);
         let text = handler.map(|file| file.text.as_str()).unwrap_or_default();
         let message = self.message_of(text, "Command").unwrap_or(handler_name);
-        let name = self.command_names.get(message).cloned().unwrap_or_else(|| public_name(handler_name).to_string());
+        let name = self.command_name(message);
         let (behaviours, events) = self.analyse(text);
         let aggregate = behaviours.first().map(|(aggregate, _)| aggregate.clone()).or_else(|| {
             self.aggregates.iter().find(|each| contains_word(text, &each.name)).map(|each| each.name.clone())
@@ -667,9 +726,8 @@ impl<'a> ContextReader<'a> {
     }
 }
 
-/// The commands and queries a controller function builds: `accept(&context, X { … })`,
-/// `module.command::<X>()`, `module.query::<X>()`.
-fn messages_built(body: &str) -> Vec<String> {
+/// The commands a controller builds, by type: `accept(&context, X { … })`, `module.command::<X>()`.
+fn commands_built(body: &str) -> Vec<String> {
     let mut built = Vec::new();
     for at in after_each(body, "accept(") {
         let arguments = balanced(body, at - 1, '(', ')');
@@ -680,14 +738,71 @@ fn messages_built(body: &str) -> Vec<String> {
             built.push((*first).to_string());
         }
     }
-    for key in ["command::<", "query::<"] {
-        for at in after_each(body, key) {
-            if let Some((name, _)) = ident_at(body, at) {
-                built.push(name.to_string());
-            }
+    for at in after_each(body, "command::<") {
+        if let Some((name, _)) = ident_at(body, at) {
+            built.push(name.to_string());
         }
     }
     built
+}
+
+/// The commands and queries a controller function builds: the commands, and `module.query::<X>()`.
+fn messages_built(body: &str) -> Vec<String> {
+    let mut built = commands_built(body);
+    for at in after_each(body, "query::<") {
+        if let Some((name, _)) = ident_at(body, at) {
+            built.push(name.to_string());
+        }
+    }
+    built
+}
+
+/// ARCH-ONE-HANDLER, for one context, read from the shapes the inventory reads: a command the
+/// Module's `commands` list with other than one handler (a `Subscription::command(handler)` carries
+/// one, so that is the same command listed twice); a command a controller builds that no listed
+/// handler answers; a command a subscribed policy dispatches that none answers. The messages are
+/// the four languages'.
+fn one_handler_problems(context: &str, wiring_text: &str, reader: &ContextReader) -> Vec<String> {
+    let mut handlers_of: BTreeMap<String, Vec<&str>> = BTreeMap::new();
+    for handler in command_handlers(wiring_text) {
+        handlers_of.entry(reader.command_name_of(handler)).or_default().push(handler);
+    }
+    let mut problems: Vec<String> = handlers_of
+        .iter()
+        .filter(|(_, handlers)| handlers.len() != 1)
+        .map(|(command, handlers)| {
+            format!(
+                "{ONE_HANDLER_RULE}: {context}: command {command} has {} handlers ({}); a command has exactly one",
+                handlers.len(),
+                handlers.join(", ")
+            )
+        })
+        .collect();
+    let built: BTreeSet<String> = reader
+        .files
+        .iter()
+        .filter(|file| file.path.contains("/presentation/"))
+        .flat_map(|file| commands_built(&file.text))
+        .map(|command_type| reader.command_name(&command_type))
+        .collect();
+    for command in built.iter().filter(|command| !handlers_of.contains_key(*command)) {
+        problems.push(format!(
+            "{ONE_HANDLER_RULE}: {context}: command {command} is built by a route and no handler in the Module answers it"
+        ));
+    }
+    for key in ["domain_events", "integration_events"] {
+        for (_, policy) in reactions(wiring_text, key) {
+            let text = file_declaring(reader.files, policy).map(|file| file.text.as_str()).unwrap_or_default();
+            for command in reader.commands_dispatched(text) {
+                if !handlers_of.contains_key(&command) {
+                    problems.push(format!(
+                        "{ONE_HANDLER_RULE}: {context}: command {command} is dispatched by {policy} and no handler in the Module answers it"
+                    ));
+                }
+            }
+        }
+    }
+    problems
 }
 
 /// Where each context's routes are mounted, from the composition root: `.nest("/notes", note_routes(…))`
@@ -722,48 +837,96 @@ fn mounts(bootstrap: &[SourceFile], contexts: &[(String, Vec<SourceFile>)]) -> B
     mounts
 }
 
-/// The inventory read from the Rust tree the binding describes.
-pub fn inspect(binding: &Yaml, language_root: &Path) -> Inventory {
-    let text = |value: &Yaml| value.as_str().unwrap_or_default().to_string();
-    let contexts_dir = language_root.join(text(&binding["contexts_tree"]["path"]));
-    let wiring = text(&binding["wiring"]);
-    let declared: Vec<String> =
-        binding["contexts"].as_sequence().map(|items| items.iter().map(text).collect()).unwrap_or_default();
+/// The Rust tree the binding describes, read once: the shared kernel's contracts, each declared
+/// context's sources, and where the bootstrap mounts each context's routes.
+struct Tree {
+    language: String,
+    wiring: String,
+    integration: IntegrationEvents,
+    sources: Vec<(String, Vec<SourceFile>)>,
+    mounts: BTreeMap<String, String>,
+}
 
-    let mut kernel = Vec::new();
-    read_sources(&language_root.join(text(&binding["kernel"]["path"])), &mut kernel);
-    let integration = integration_events(&kernel);
-    let mut bootstrap = Vec::new();
-    read_sources(&language_root.join(text(&binding["bootstrap"]["path"])), &mut bootstrap);
-    let sources: Vec<(String, Vec<SourceFile>)> = declared
-        .iter()
-        .map(|context| {
-            let mut files = Vec::new();
-            read_sources(&contexts_dir.join(context.to_lowercase()), &mut files);
-            (context.clone(), files)
-        })
-        .collect();
-    let mounts = mounts(&bootstrap, &sources);
+impl Tree {
+    fn read(binding: &Yaml, language_root: &Path) -> Self {
+        let text = |value: &Yaml| value.as_str().unwrap_or_default().to_string();
+        let contexts_dir = language_root.join(text(&binding["contexts_tree"]["path"]));
+        let declared: Vec<String> =
+            binding["contexts"].as_sequence().map(|items| items.iter().map(text).collect()).unwrap_or_default();
 
-    let mut contexts = Vec::new();
-    let mut published_by: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    let mut consumed_by: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    for (context, files) in &sources {
+        let mut kernel = Vec::new();
+        read_sources(&language_root.join(text(&binding["kernel"]["path"])), &mut kernel);
+        let mut bootstrap = Vec::new();
+        read_sources(&language_root.join(text(&binding["bootstrap"]["path"])), &mut bootstrap);
+        let sources: Vec<(String, Vec<SourceFile>)> = declared
+            .iter()
+            .map(|context| {
+                let mut files = Vec::new();
+                read_sources(&contexts_dir.join(context.to_lowercase()), &mut files);
+                (context.clone(), files)
+            })
+            .collect();
+        let mounts = mounts(&bootstrap, &sources);
+        Self {
+            language: text(&binding["language"]),
+            wiring: text(&binding["wiring"]),
+            integration: integration_events(&kernel),
+            sources,
+            mounts,
+        }
+    }
+
+    /// A context's reader, and the `name()` arms of its domain events.
+    fn reader_of<'a>(
+        &self,
+        context: &str,
+        files: &'a [SourceFile],
+    ) -> (ContextReader<'a>, BTreeMap<(String, String), String>) {
         let mut arms = BTreeMap::new();
         for file in files.iter().filter(|file| file.text.contains("impl DomainEvent for")) {
             event_arms(&file.text, &mut arms);
         }
-        let reader = ContextReader::new(files, &arms, mounts.get(context).map_or("", String::as_str));
-        let wiring_text = files
-            .iter()
-            .find(|file| file.path.contains(&format!("/{wiring}/")))
-            .map(|file| file.text.as_str())
-            .unwrap_or_default();
+        let reader = ContextReader::new(files, &arms, self.mounts.get(context).map_or("", String::as_str));
+        (reader, arms)
+    }
 
-        let mut commands: Vec<Command> = after_each(section(wiring_text, "commands"), "Subscription::command(")
-            .filter_map(|at| ident_at(section(wiring_text, "commands"), at))
-            .map(|(handler, _)| reader.command(handler))
-            .collect();
+    /// A context's wiring file, its tests stripped.
+    fn wiring_of<'a>(&self, files: &'a [SourceFile]) -> &'a str {
+        files
+            .iter()
+            .find(|file| file.path.contains(&format!("/{}/", self.wiring)))
+            .map(|file| file.text.as_str())
+            .unwrap_or_default()
+    }
+}
+
+/// Every command has exactly one handler, context by context (ARCH-ONE-HANDLER), read from the
+/// tree the inventory is read from; the problems are added to `problems`, each naming the rule.
+pub fn check_handlers(binding: &Yaml, language_root: &Path, problems: &mut Vec<String>) {
+    let tree = Tree::read(binding, language_root);
+    let mut sources: Vec<&(String, Vec<SourceFile>)> = tree.sources.iter().collect();
+    sources.sort_by(|a, b| a.0.cmp(&b.0));
+    for (context, files) in sources {
+        let (reader, _) = tree.reader_of(context, files);
+        problems.extend(one_handler_problems(context, tree.wiring_of(files), &reader));
+    }
+}
+
+/// The inventory read from the Rust tree the binding describes.
+pub fn inspect(binding: &Yaml, language_root: &Path) -> Inventory {
+    let tree = Tree::read(binding, language_root);
+    let integration = &tree.integration;
+    let sources = &tree.sources;
+
+    let mut contexts = Vec::new();
+    let mut published_by: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    let mut consumed_by: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for (context, files) in sources {
+        let (reader, arms) = tree.reader_of(context, files);
+        let wiring_text = tree.wiring_of(files);
+
+        let mut commands: Vec<Command> =
+            command_handlers(wiring_text).into_iter().map(|handler| reader.command(handler)).collect();
         commands.sort_by(|a, b| a.name.cmp(&b.name));
 
         let mut queries: Vec<Query> = after_each(section(wiring_text, "queries"), "query(")
@@ -778,13 +941,9 @@ pub fn inspect(binding: &Yaml, language_root: &Path) -> Inventory {
         let mut policies = Vec::new();
         let mut handlers: Vec<String> = Vec::new();
         for (key, kind) in [("domain_events", "domain-event"), ("integration_events", "integration-event")] {
-            let listed = section(wiring_text, key);
-            for at in after_each(listed, "Subscription::reaction(") {
-                let arguments = balanced(listed, at - 1, '(', ')');
-                let Some((channel, handler)) = arguments.split_once(',') else { continue };
-                let Some((handler, _)) = ident_at(handler, 0) else { continue };
+            for (channel, handler) in reactions(wiring_text, key) {
                 let text = file_declaring(files, handler).map(|file| file.text.as_str()).unwrap_or_default();
-                policies.push(reader.policy(integration.channel(channel), kind, text, &integration));
+                policies.push(reader.policy(integration.channel(channel), kind, text, integration));
                 handlers.push(handler.to_string());
             }
         }
@@ -799,7 +958,7 @@ pub fn inspect(binding: &Yaml, language_root: &Path) -> Inventory {
             {
                 continue;
             }
-            policies.push(reader.policy("every operation".into(), "every-operation", &file.text, &integration));
+            policies.push(reader.policy("every operation".into(), "every-operation", &file.text, integration));
         }
         policies.sort_by(|a, b| a.kind.cmp(&b.kind).then_with(|| a.on.cmp(&b.on)));
 
@@ -832,7 +991,7 @@ pub fn inspect(binding: &Yaml, language_root: &Path) -> Inventory {
             }
         }
     }
-    for (context, files) in &sources {
+    for (context, files) in sources {
         let ports: BTreeSet<&str> = files
             .iter()
             .filter(|file| file.path.contains("/ports/"))
@@ -865,7 +1024,7 @@ pub fn inspect(binding: &Yaml, language_root: &Path) -> Inventory {
         .collect();
     links.sort_by_key(|link| format!("{}→{}:{}", link.upstream, link.downstream, link.mechanism));
 
-    Inventory { schema_version: SCHEMA_VERSION, language: text(&binding["language"]), contexts, links }
+    Inventory { schema_version: SCHEMA_VERSION, language: tree.language.clone(), contexts, links }
 }
 
 #[cfg(test)]
@@ -950,5 +1109,130 @@ impl Event for AccountIntegrationEvent {
             ["AccountCreated"]
         );
         assert!(integration.published_by("let AccountIntegrationEvent::Created { .. } = event;").is_empty());
+    }
+
+    /// A context of two commands, `CreateNote` answered by its handler and `PinNote` by nobody, and a
+    /// controller and a policy that build one of them.
+    fn one_handler_files(controller: &str, policy: &str) -> Vec<SourceFile> {
+        let command = |name: &str| {
+            format!(
+                "pub struct {name} {{\n    pub note_id: String,\n}}\n\nimpl CommandEvent for {name} {{\n    const NAME: &'static str = \"{name}\";\n    type Output = ();\n}}\n"
+            )
+        };
+        let handler = |name: &str, command: &str| {
+            format!(
+                "pub struct {name}<R> {{\n    repository: Arc<R>,\n}}\n\nimpl<R: NoteRepository> CommandHandler for {name}<R> {{\n    type Command = {command};\n}}\n"
+            )
+        };
+        vec![
+            SourceFile {
+                path: "notes/application/src/commands/create_note.rs".into(),
+                text: command("CreateNote") + &handler("CreateNoteCommandHandler", "CreateNote"),
+            },
+            SourceFile { path: "notes/application/src/commands/pin_note.rs".into(), text: command("PinNote") },
+            SourceFile {
+                path: "notes/application/src/commands/other.rs".into(),
+                text: handler("OtherHandler", "CreateNote"),
+            },
+            SourceFile { path: "notes/presentation/src/lib.rs".into(), text: controller.into() },
+            SourceFile { path: "notes/application/src/events/note_created_handler.rs".into(), text: policy.into() },
+        ]
+    }
+
+    fn one_handler_problems_of(wiring: &str, controller: &str, policy: &str) -> Vec<String> {
+        let files = one_handler_files(controller, policy);
+        let reader = ContextReader::new(&files, &BTreeMap::new(), "");
+        one_handler_problems("Notes", wiring, &reader)
+    }
+
+    const CREATES_A_NOTE: &str = "\
+async fn create_note(Extension(context): Extension<ExecutionContext>, Json(body): Json<CreateNoteBody>) -> Response {
+    accept(&context, CreateNote { note_id: body.note_id }).into_response()
+}
+";
+    const LOGS_A_CREATED_NOTE: &str = "\
+pub struct NoteCreatedHandler;
+
+impl EventHandler for NoteCreatedHandler {
+    type Event = NoteEvent;
+
+    async fn execute(&self, event: NoteEvent, context: &ExecutionContext) -> DomainResult {
+        Ok(())
+    }
+}
+";
+    const ONE_HANDLER_EACH: &str = "\
+        commands: vec![
+            Subscription::command(CreateNoteCommandHandler::new(repository.clone())),
+        ],
+        domain_events: vec![
+            Subscription::reaction(\"NoteCreated\", NoteCreatedHandler),
+        ],
+";
+
+    #[test]
+    fn the_tree_as_it_is_lists_every_command_once_and_answers_every_command_built() {
+        let language_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").canonicalize().expect("the workspace");
+        let binding = fs::read_to_string(language_root.join("../conventions/rust.yaml")).expect("the binding");
+        let binding: Yaml = serde_yaml::from_str(&binding).expect("the binding is YAML");
+        let mut problems = Vec::new();
+        check_handlers(&binding, &language_root, &mut problems);
+        assert_eq!(problems, Vec::<String>::new());
+    }
+
+    #[test]
+    fn a_wiring_that_lists_the_same_command_twice_is_refused_naming_the_rule_and_the_command() {
+        let wiring = "\
+        commands: vec![
+            Subscription::command(CreateNoteCommandHandler::new(repository.clone())),
+            Subscription::command(OtherHandler::new(repository)),
+        ],
+";
+        assert_eq!(
+            one_handler_problems_of(wiring, CREATES_A_NOTE, LOGS_A_CREATED_NOTE),
+            [
+                "ARCH-ONE-HANDLER: Notes: command CreateNote has 2 handlers (CreateNoteCommandHandler, OtherHandler); a command has exactly one"
+            ]
+        );
+    }
+
+    #[test]
+    fn a_command_a_controller_builds_that_no_handler_answers_is_refused() {
+        let controller = "\
+async fn pin_note(Extension(context): Extension<ExecutionContext>, Path(id): Path<String>) -> Response {
+    accept(&context, PinNote { note_id: id }).into_response()
+}
+";
+        assert_eq!(
+            one_handler_problems_of(ONE_HANDLER_EACH, controller, LOGS_A_CREATED_NOTE),
+            ["ARCH-ONE-HANDLER: Notes: command PinNote is built by a route and no handler in the Module answers it"]
+        );
+        assert_eq!(
+            one_handler_problems_of(ONE_HANDLER_EACH, CREATES_A_NOTE, LOGS_A_CREATED_NOTE),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn a_command_a_policy_dispatches_that_no_handler_answers_is_refused() {
+        let policy = "\
+pub struct NoteCreatedHandler;
+
+impl EventHandler for NoteCreatedHandler {
+    type Event = NoteEvent;
+
+    async fn execute(&self, event: NoteEvent, context: &ExecutionContext) -> DomainResult {
+        let NoteEvent::Created { note_id, .. } = event else { return Ok(()) };
+        context.publish(PinNote { note_id }).await;
+        Ok(())
+    }
+}
+";
+        assert_eq!(
+            one_handler_problems_of(ONE_HANDLER_EACH, CREATES_A_NOTE, policy),
+            [
+                "ARCH-ONE-HANDLER: Notes: command PinNote is dispatched by NoteCreatedHandler and no handler in the Module answers it"
+            ]
+        );
     }
 }

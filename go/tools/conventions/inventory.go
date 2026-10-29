@@ -843,10 +843,19 @@ func publishesIn(funcs []*ast.FuncDecl) []string {
 // The wiring: the handlers a Module lists, by section.
 
 type wiring struct {
-	commands          []handlerRef
+	commands          []commandEntry
 	queries           []handlerRef
 	domainEvents      []handlerRef
 	integrationEvents []handlerRef
+}
+
+// commandEntry is one entry of a Module's Commands: the command it answers, when the entry
+// spells it (a `Subscription{Channel: …}` literal; "" when `application.Command(h)` derives it
+// from the handler), and the handlers it lists — one through application.Command(h), any number
+// through a literal. ARCH-ONE-HANDLER wants exactly one per command, across the entries.
+type commandEntry struct {
+	channel  string
+	handlers []handlerRef
 }
 
 func (c *contextShapes) wiringOf() wiring {
@@ -884,13 +893,16 @@ func (c *contextShapes) wiringOf() wiring {
 					for _, entry := range list.Elts {
 						switch key.Name {
 						case "Commands":
-							found.commands = append(found.commands, c.handlerOf(s, sc, unwrapSubscription(entry)))
+							channel, handlers := c.subscriptionOf(s, sc, entry)
+							found.commands = append(found.commands, commandEntry{channel: channel, handlers: handlers})
 						case "Queries":
 							found.queries = append(found.queries, c.handlerOf(s, sc, entry))
 						case "DomainEvents":
-							found.domainEvents = append(found.domainEvents, c.handlerOf(s, sc, unwrapSubscription(entry)))
+							_, handlers := c.subscriptionOf(s, sc, entry)
+							found.domainEvents = append(found.domainEvents, handlers...)
 						case "IntegrationEvents":
-							found.integrationEvents = append(found.integrationEvents, c.handlerOf(s, sc, unwrapSubscription(entry)))
+							_, handlers := c.subscriptionOf(s, sc, entry)
+							found.integrationEvents = append(found.integrationEvents, handlers...)
 						}
 					}
 				}
@@ -901,6 +913,71 @@ func (c *contextShapes) wiringOf() wiring {
 	return found
 }
 
+// subscriptionOf reads one entry of a subscriptions section: `application.Command(h)` and
+// `application.Reaction(h)` list one handler and derive the channel from it; a
+// `Subscription{Channel: …, Handlers: […]}` literal spells the channel (a string, or
+// `domain.NameOfType[T]()`), by public name, and lists any number of handlers.
+func (c *contextShapes) subscriptionOf(s *source, sc *scope, entry ast.Expr) (channel string, handlers []handlerRef) {
+	literal, ok := entry.(*ast.CompositeLit)
+	if !ok || literal.Type == nil {
+		return "", []handlerRef{c.handlerOf(s, sc, unwrapSubscription(entry))}
+	}
+	if _, name := typeRef(literal.Type); name != "Subscription" {
+		return "", []handlerRef{c.handlerOf(s, sc, unwrapSubscription(entry))}
+	}
+	handlers = []handlerRef{}
+	for _, element := range literal.Elts {
+		kv, ok := element.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		key, ok := kv.Key.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		switch key.Name {
+		case "Channel":
+			channel = channelOf(sc, kv.Value)
+		case "Handlers":
+			if list, ok := kv.Value.(*ast.CompositeLit); ok {
+				for _, each := range list.Elts {
+					handlers = append(handlers, c.handlerOf(s, sc, unwrapSubscription(each)))
+				}
+			}
+		}
+	}
+	return channel, handlers
+}
+
+// channelOf is the public name of the message a Channel expression names: a constant string
+// (`"ShareNoteCommandEvent"`) or `domain.NameOfType[commands.ShareNoteCommandEvent]()`; "" otherwise.
+func channelOf(sc *scope, expr ast.Expr) string {
+	if value := sc.eval(expr, 0); value != "" {
+		return publicName(value)
+	}
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return ""
+	}
+	var fun, index ast.Expr
+	switch e := call.Fun.(type) {
+	case *ast.IndexExpr:
+		fun, index = e.X, e.Index
+	case *ast.IndexListExpr:
+		if len(e.Indices) > 0 {
+			fun, index = e.X, e.Indices[0]
+		}
+	}
+	if fun == nil {
+		return ""
+	}
+	if _, name := typeRef(fun); name != "NameOfType" {
+		return ""
+	}
+	_, typeName := typeRef(index)
+	return publicName(typeName)
+}
+
 // unwrapSubscription is the handler inside `application.Command(h)` / `application.Reaction(h)`.
 func unwrapSubscription(entry ast.Expr) ast.Expr {
 	if call, ok := entry.(*ast.CallExpr); ok && len(call.Args) > 0 {
@@ -909,6 +986,18 @@ func unwrapSubscription(entry ast.Expr) ast.Expr {
 		}
 	}
 	return entry
+}
+
+// commandName is the public name of the command a listed handler answers: what its entry
+// spells, else what its Execute takes, else its type's name without the suffix of its kind.
+func (c *contextShapes) commandName(entry commandEntry, ref handlerRef) string {
+	if entry.channel != "" {
+		return entry.channel
+	}
+	if name := c.executeParam(ref); name != "" {
+		return name
+	}
+	return handlerName(ref.typeName)
 }
 
 // handlerOf resolves a wiring entry to the handler type it names: a constructor call
@@ -989,10 +1078,7 @@ func (c *contextShapes) routesOf(mount string) map[string]string {
 // carriedBy is what a route's handler carries: the commands it builds (`commands.ShareNoteCommandEvent{…}`)
 // and the handlers it finds in the module (`application.QueryOf[*queries.GetNoteHandler]`).
 func carriedBy(handler ast.Expr) []string {
-	var found []string
-	for _, name := range compositeTypes(handler, "CommandEvent") {
-		found = append(found, publicName(name))
-	}
+	found := commandsBuiltIn(handler)
 	ast.Inspect(handler, func(n ast.Node) bool {
 		var fun, index ast.Expr
 		switch e := n.(type) {
@@ -1065,20 +1151,19 @@ func (t *sourceTree) inventoryOf(context string, mounts map[string]string) Inven
 	found := InventoryContext{ID: context, Commands: []InventoryCommand{}, Queries: []InventoryQuery{}, Events: []string{}, Policies: []InventoryPolicy{}}
 
 	handlerTypes := map[string]bool{}
-	for _, ref := range wired.commands {
-		handlerTypes[ref.typeName] = true
-		name := shapes.executeParam(ref)
-		if name == "" {
-			name = handlerName(ref.typeName)
+	for _, entry := range wired.commands {
+		for _, ref := range entry.handlers {
+			handlerTypes[ref.typeName] = true
+			name := shapes.commandName(entry, ref)
+			analysed := shapes.analyse(ref.source)
+			found.Commands = append(found.Commands, InventoryCommand{
+				Name:      name,
+				Actor:     actorOf(ref.source),
+				Route:     routes[name],
+				Aggregate: analysed.aggregate,
+				Events:    sorted(analysed.events),
+			})
 		}
-		analysed := shapes.analyse(ref.source)
-		found.Commands = append(found.Commands, InventoryCommand{
-			Name:      name,
-			Actor:     actorOf(ref.source),
-			Route:     routes[name],
-			Aggregate: analysed.aggregate,
-			Events:    sorted(analysed.events),
-		})
 	}
 	for _, ref := range wired.queries {
 		name := handlerName(ref.typeName)
@@ -1140,6 +1225,104 @@ func (t *sourceTree) inventoryOf(context string, mounts map[string]string) Inven
 		return found.Policies[i].On < found.Policies[j].On
 	})
 	return found
+}
+
+// ---------------------------------------------------------------------------------------------
+// ARCH-ONE-HANDLER: a command has exactly one handler. The Module lists it once, with one
+// handler; every command a route builds (`commands.ShareNoteCommandEvent{…}` in the
+// Presentation layer) and every command a policy dispatches (the same literal in a domain or
+// integration event handler) is one the Module lists. A fact may have any number of subscribers,
+// so DomainEvents and IntegrationEvents are not held to it.
+
+const oneHandlerRule = "ARCH-ONE-HANDLER"
+
+// checkOneHandler holds every context's wiring to ARCH-ONE-HANDLER, as problems of the check.
+func checkOneHandler(root string, contract *Contract) []string {
+	tree, err := readTree(root, contract)
+	if err != nil {
+		return []string{fmt.Sprintf("%s: the wiring could not be read from the tree: %s", oneHandlerRule, err.Error())}
+	}
+	var problems []string
+	for _, context := range contract.Contexts {
+		problems = append(problems, tree.oneHandlerOf(context)...)
+	}
+	return problems
+}
+
+// oneHandlerOf is the ARCH-ONE-HANDLER problems of one context, each naming the rule, the
+// context and the command, in the words every language's tool uses.
+func (t *sourceTree) oneHandlerOf(context string) []string {
+	shapes := t.shapesOf(context)
+	wired := shapes.wiringOf()
+	var problems []string
+
+	// The handlers the Module lists, by command, in the Module's order.
+	handlers := map[string][]string{}
+	var commands []string
+	listed := func(name string) {
+		if _, seen := handlers[name]; !seen {
+			commands = append(commands, name)
+			handlers[name] = []string{}
+		}
+	}
+	for _, entry := range wired.commands {
+		if entry.channel != "" {
+			listed(entry.channel)
+		}
+		for _, ref := range entry.handlers {
+			name := shapes.commandName(entry, ref)
+			listed(name)
+			handlers[name] = append(handlers[name], ref.typeName)
+		}
+	}
+	for _, name := range commands {
+		if len(handlers[name]) != 1 {
+			problems = append(problems, fmt.Sprintf("%s: %s: command %s has %d handlers (%s); a command has exactly one",
+				oneHandlerRule, context, name, len(handlers[name]), strings.Join(handlers[name], ", ")))
+		}
+	}
+
+	// Every command a route builds is one the Module lists.
+	for _, name := range shapes.commandsBuiltByRoutes() {
+		if _, answered := handlers[name]; !answered {
+			problems = append(problems, fmt.Sprintf("%s: %s: command %s is built by a route and no handler in the Module answers it",
+				oneHandlerRule, context, name))
+		}
+	}
+
+	// Every command a policy dispatches is one the Module lists.
+	for _, ref := range append(append([]handlerRef{}, wired.domainEvents...), wired.integrationEvents...) {
+		if ref.source == nil {
+			continue
+		}
+		for _, name := range commandsBuiltIn(ref.source.syntax) {
+			if _, answered := handlers[name]; !answered {
+				problems = append(problems, fmt.Sprintf("%s: %s: command %s is dispatched by %s and no handler in the Module answers it",
+					oneHandlerRule, context, name, ref.typeName))
+			}
+		}
+	}
+	return problems
+}
+
+// commandsBuiltByRoutes is every command the context's Presentation layer builds, by public name.
+func (c *contextShapes) commandsBuiltByRoutes() []string {
+	var found []string
+	for _, s := range c.files {
+		if s.file.layer == "Presentation" {
+			found = append(found, commandsBuiltIn(s.syntax)...)
+		}
+	}
+	return unique(found)
+}
+
+// commandsBuiltIn is every command a node builds (`commands.ShareNoteCommandEvent{…}`), by public name.
+func commandsBuiltIn(node ast.Node) []string {
+	var found []string
+	for _, name := range compositeTypes(node, "CommandEvent") {
+		found = append(found, publicName(name))
+	}
+	return unique(found)
 }
 
 // linksOf is every relationship the code carries: an integration event of the shared kernel

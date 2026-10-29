@@ -98,6 +98,8 @@ rules:
     references: [src/Architecture, src/SharedKernel]
   ARCH-MODULES-DATA:
     references: [src/Contexts/Notes/module.local.ts]
+  ARCH-ONE-HANDLER:
+    references: [src/Contexts/Notes/module.local.ts]
   ARCH-EXECUTION-CONTEXT:
     references: [src/Architecture/Application/ExecutionContext.ts]
   DOMAIN-RESULT:

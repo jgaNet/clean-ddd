@@ -1,7 +1,9 @@
 import { loadArchitectureContract, repositoryRoot } from './load';
 import {
   describeEventStorm,
+  EventStorm,
   inspectEventStorm,
+  oneHandlerProblems,
   publicName,
   renderBigPicture,
   renderEventStorm,
@@ -156,6 +158,48 @@ describe('the event storm read from the code', () => {
       'Security→Notifications',
       'Tracker→Notifications',
     ]);
+  });
+});
+
+describe('one handler per command (ARCH-ONE-HANDLER)', () => {
+  const notes = () => {
+    const copy: EventStorm = JSON.parse(JSON.stringify(storm));
+    return { copy, context: copy.contexts.find(context => context.id === 'Notes')! };
+  };
+
+  it('finds nothing to refuse in the tree as it is, where every routed command has its one handler', () => {
+    expect(storm.contexts.every(context => context.commands.every(command => command.handlers.length === 1))).toBe(
+      true,
+    );
+    expect(storm.contexts.find(context => context.id === 'Notes')?.routed).toContain('ShareNote');
+    expect(oneHandlerProblems(storm)).toEqual([]);
+  });
+
+  it('refuses a command listed with two handlers, or listed twice', () => {
+    const { copy, context } = notes();
+    const share = context.commands.find(command => command.name === 'ShareNote')!;
+    share.handlers = [...share.handlers, 'ShareNoteTwiceHandler'];
+    context.commands.push({ ...context.commands.find(command => command.name === 'EditNote')! });
+    expect(oneHandlerProblems(copy)).toEqual([
+      'ARCH-ONE-HANDLER: Notes: command EditNote has 2 handlers (EditNoteCommandHandler, EditNoteCommandHandler); a command has exactly one',
+      'ARCH-ONE-HANDLER: Notes: command ShareNote has 2 handlers (ShareNoteCommandHandler, ShareNoteTwiceHandler); a command has exactly one',
+    ]);
+  });
+
+  it('refuses a command a route builds, or a policy dispatches, that no handler in the Module answers', () => {
+    const { copy, context } = notes();
+    context.commands = context.commands.filter(command => command.name !== 'ShareNote');
+    context.policies[0].dispatches = ['Forget'];
+    expect(oneHandlerProblems(copy)).toEqual([
+      'ARCH-ONE-HANDLER: Notes: command ShareNote is built by a route and no handler in the Module answers it',
+      `ARCH-ONE-HANDLER: Notes: command Forget is dispatched by ${context.policies[0].name} and no handler in the Module answers it`,
+    ]);
+  });
+
+  it('leaves alone what an expected storm lays over the board, not read from the code yet', () => {
+    const { copy, context } = notes();
+    context.commands.push({ ...context.commands[0], name: 'Planned', handlers: [], expected: true });
+    expect(oneHandlerProblems(copy)).toEqual([]);
   });
 });
 

@@ -21,6 +21,9 @@
 //! 5. The committed inventory (`docs/inventory/rust.json`) is what the tree renders now
 //!    (ARCH-ONE-APPLICATION): `cargo run -p conventions -- inventory` prints it, `--write`
 //!    writes it, and the TypeScript check holds every language's inventory equal.
+//! 6. A command has exactly one handler (ARCH-ONE-HANDLER): the Module lists it once, with one
+//!    handler, and every command a route or a policy builds is one the Module lists; read from
+//!    the same wiring, routes and policies the inventory is.
 //!
 //! Layer names are the contract's (`Domain`); a crate directory is the same word in lowercase
 //! (`domain`), which is Rust's convention for a path.
@@ -77,7 +80,7 @@ fn main() -> ExitCode {
     }
 }
 
-/// The check: the four proofs above, and the inventory current.
+/// The check: the four proofs above, every command with one handler, and the inventory current.
 fn check(contract: &Yaml, binding: &Yaml, repository_root: &Path, language_root: &Path) -> ExitCode {
     let mut problems: Vec<String> = Vec::new();
     check_binding(contract, binding, repository_root, language_root, &mut problems);
@@ -85,11 +88,12 @@ fn check(contract: &Yaml, binding: &Yaml, repository_root: &Path, language_root:
     check_tree(binding, &layers, language_root, &mut problems);
     let crates = check_graph(contract, binding, &layers, language_root, &mut problems);
     check_files(binding, language_root, &mut problems);
+    inventory::check_handlers(binding, language_root, &mut problems);
     inventory::check(repository_root, &inventory::render(&inventory::inspect(binding, language_root)), &mut problems);
 
     if problems.is_empty() {
         println!(
-            "✓ contract v{}, Rust binding: {} crates are the table, {} contexts match the tree, every file the binding names exists; the inventory is current.",
+            "✓ contract v{}, Rust binding: {} crates are the table, {} contexts match the tree, every file the binding names exists; every command has one handler; the inventory is current.",
             contract["schemaVersion"].as_u64().unwrap_or(0),
             crates,
             strings(&binding["contexts"]).len()

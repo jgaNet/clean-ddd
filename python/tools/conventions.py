@@ -28,6 +28,9 @@ linter and the check, generated from the data the way ``typescript/eslint.config
    function builds the command) and written in words every language shares, so the TypeScript
    check can hold the four inventories equal. ``python -m tools.conventions inventory`` prints
    it, ``--write`` writes it.
+6. A command has exactly one handler (ARCH-ONE-HANDLER): the Module lists it once, with one
+   handler, and every command a route's function or a policy builds is one the Module lists; read
+   from the same wiring, routes and policies the inventory is.
 
 Every refusal names its rule id first, so a reader or ``yarn architecture rule <id>`` can look
 it up. Layer names are the contract's (``Domain``); a package is the same word in lowercase.
@@ -324,6 +327,7 @@ INVENTORY = f"docs/inventory/{LANGUAGE}.json"
 INVENTORY_SCHEMA_VERSION = 1
 INVENTORY_WRITE = "uv run python -m tools.conventions inventory --write"
 INVENTORY_RULE = "ARCH-ONE-APPLICATION"
+ONE_HANDLER_RULE = "ARCH-ONE-HANDLER"
 
 SUFFIXES = re.compile(r"(CommandEvent|IntegrationEvent|CommandHandler|QueryHandler|EventHandler|Handler|Event)$")
 #: The building blocks a service is not: a class extending one of these holds state or a fact, not an orchestration.
@@ -627,6 +631,13 @@ def route_of(decorator: ast.expr, prefixes: dict[str, str]) -> str | None:
     return canonical_route(decorator.func.attr, prefixes[router], constant_str(path))
 
 
+def commands_built_in(node: ast.AST) -> list[str]:
+    """The commands a node builds, ``XCommandEvent(...)``, as public names, in the order they are built."""
+    return unique(
+        [public_name(name_of(call.func)) for call in calls_in(node) if name_of(call.func).endswith("CommandEvent")]
+    )
+
+
 def routes_of(sources: list[Source]) -> dict[str, str]:
     """Public name -> ``VERB /path`` for every command a route's function builds and every query it asks,
     read from the decorators of the presentation routes and the ``prefix`` of their router; when several
@@ -640,11 +651,10 @@ def routes_of(sources: list[Source]) -> dict[str, str]:
             if not isinstance(function, ast.FunctionDef | ast.AsyncFunctionDef):
                 continue
             for route in filter(None, (route_of(decorator, prefixes) for decorator in function.decorator_list)):
+                for command in commands_built_in(function):
+                    routes.setdefault(command, route)
                 for call in calls_in(function):
-                    built = name_of(call.func)
-                    if built.endswith("CommandEvent"):
-                        routes.setdefault(public_name(built), route)
-                    if built == "get_query" and call.args:
+                    if name_of(call.func) == "get_query" and call.args:
                         routes.setdefault(public_name(name_of(call.args[0])), route)
     return routes
 
@@ -723,6 +733,36 @@ def inventory_context(context: str, sources: list[Source], wiring_file: str) -> 
         "events": domain_events_of(sources),
         "policies": inventory_policies(shapes, wiring),
     }
+
+
+def one_handler_problems(context: str, sources: list[Source], wiring_file: str) -> list[str]:
+    """What the context says against ARCH-ONE-HANDLER, read from the same wiring, routes and policies
+    as the inventory: a command the Module lists with other than one handler, counted across every
+    ``Subscription`` that names it; a command a route builds, or a subscribed policy builds, that no
+    ``Subscription`` under ``commands`` answers. The messages are the four languages'."""
+    wiring = wiring_of(sources, wiring_file)
+    handlers_of: dict[str, list[str]] = {}
+    for event, handlers in wiring["commands"]:
+        handlers_of.setdefault(public_name(event), []).extend(handlers)
+    problems = [
+        f"{context}: command {command} has {len(handlers)} handlers ({', '.join(handlers)}); a command has exactly one"
+        for command, handlers in handlers_of.items()
+        if len(handlers) != 1
+    ]
+    routes = [source.module for source in sources if source.layer == "presentation"]
+    for command in unique([command for module in routes for command in commands_built_in(module)]):
+        if command not in handlers_of:
+            problems.append(f"{context}: command {command} is built by a route and no handler in the Module answers it")
+    policies = unique(
+        [policy for section in ("domain_events", "integration_events") for _, p in wiring[section] for policy in p]
+    )
+    for policy in policies:
+        module = next((source.module for source in sources if policy in source.classes), None)
+        for command in commands_built_in(module) if module else []:
+            if command not in handlers_of:
+                unanswered = f"{context}: command {command} is dispatched by {policy} and no handler in the Module"
+                problems.append(f"{unanswered} answers it")
+    return problems
 
 
 def port_implemented(cls: ast.ClassDef, ports: dict[str, set[str]]) -> str:
@@ -804,6 +844,12 @@ def inventory_links(
     )
 
 
+def context_sources(here: Path, binding: dict[str, Any]) -> dict[str, list[Source]]:
+    """Every context the binding declares, with its parsed sources, by id."""
+    contexts_dir = here / binding["contexts_tree"]["path"]
+    return {context: parse_sources(contexts_dir / context.lower()) for context in binding["contexts"]}
+
+
 def inspect_inventory(here: Path) -> Json:
     """The inventory of this language's tree, read with ``ast``: the commands of each context with who may
     call them, their route, the aggregate they reach and the events it records; the queries; the domain
@@ -814,8 +860,7 @@ def inspect_inventory(here: Path) -> Json:
         raise SystemExit(f"✗ {CONTRACT} not found at or above {here}")
     binding = load_yaml(root / BINDING)
     wiring_file = str(binding["wiring"])
-    contexts_dir = here / binding["contexts_tree"]["path"]
-    sources = {context: parse_sources(contexts_dir / context.lower()) for context in binding["contexts"]}
+    sources = context_sources(here, binding)
     return {
         "schemaVersion": INVENTORY_SCHEMA_VERSION,
         "language": LANGUAGE,
@@ -845,6 +890,18 @@ def check_inventory(here: Path, problems: Problems) -> None:
             f"{INVENTORY} differs from what the Python tree says; run `{INVENTORY_WRITE}` and commit it "
             "(fix the tree that differs from the other languages, never the inventory)",
         )
+
+
+def check_handlers(here: Path, problems: Problems) -> None:
+    """ARCH-ONE-HANDLER, context by context, from the same shapes the inventory reads."""
+    root = repository_root(here)
+    if root is None:
+        return
+    binding = load_yaml(root / BINDING)
+    wiring_file = str(binding["wiring"])
+    for context, sources in sorted(context_sources(here, binding).items()):
+        for problem in one_handler_problems(context, sources, wiring_file):
+            problems.add(ONE_HANDLER_RULE, problem)
 
 
 def write_inventory(here: Path) -> Path:
@@ -877,11 +934,12 @@ def run(here: Path) -> tuple[Problems, str]:
             modules.append(module)
     imports = check_imports(modules, binding, contract, here, problems)
     check_files(binding, here, problems)
+    check_handlers(here, problems)
     check_inventory(here, problems)
     summary = (
         f"✓ contract v{contract.get('schemaVersion')}, Python binding: {len(modules)} modules and {imports} imports "
         f"are the table, {len(binding['contexts'])} contexts match the tree, every file the binding names exists; "
-        "the inventory is current."
+        "every command has one handler; the inventory is current."
     )
     return problems, summary
 

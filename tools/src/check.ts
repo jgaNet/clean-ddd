@@ -23,9 +23,11 @@
  *    declared (CTX-MAP-DECLARED); the root README's strategic view is rendered from it.
  * 9. The event storm the documents show is the one read from the code: docs/event-storm.md between
  *    its markers and the docs/event-storm.svg board, when the repository has them.
- * 10. One application: this language's inventory under docs/inventory is what its tree says, and every
+ * 10. One handler per command: each context's wiring lists every command once, with one handler, and
+ *    answers every command a route or a policy builds (ARCH-ONE-HANDLER).
+ * 11. One application: this language's inventory under docs/inventory is what its tree says, and every
  *    other language's committed inventory says the same (ARCH-ONE-APPLICATION).
- * 11. Every expected storm under conventions/storms is legal against the contract and the map, and the
+ * 12. Every expected storm under conventions/storms is legal against the contract and the map, and the
  *    code carries the ones marked done and not yet the others.
  *
  * A client of the contract API, like the CLI; it parses no YAML itself. One root: the
@@ -67,6 +69,7 @@ import {
   validateContract,
   STORM_MARKER,
   inspectEventStorm,
+  oneHandlerProblems,
   renderEventStorm,
   renderEventStormSvg,
   INVENTORY_DIR,
@@ -257,7 +260,13 @@ export async function checkConventions(
     }
   }
 
-  // 10. One application: this language's inventory is current, and every committed inventory says the same
+  // 10. One handler per command: the wiring lists each command once, and answers every command a route or a policy builds
+
+  if (readsTree) {
+    for (const wrong of oneHandlerProblems(storm ?? inspectEventStorm(contract, root))) problem(wrong);
+  }
+
+  // 11. One application: this language's inventory is current, and every committed inventory says the same
 
   const inventories = multi && readsTree ? loadInventories(root) : new Map();
   if (multi && readsTree) {
@@ -281,7 +290,7 @@ export async function checkConventions(
     }
   }
 
-  // 11. Every expected storm is legal, and the code carries it or not as it says
+  // 12. Every expected storm is legal, and the code carries it or not as it says
 
   const stormsDir = join(root, STORMS_DIR);
   if (readsTree && existsSync(stormsDir)) {
