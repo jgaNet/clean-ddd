@@ -32,6 +32,8 @@
 #![allow(clippy::print_stdout, clippy::print_stderr)]
 
 mod inventory;
+#[cfg(test)]
+mod shapes;
 
 use std::collections::BTreeSet;
 use std::fs;
