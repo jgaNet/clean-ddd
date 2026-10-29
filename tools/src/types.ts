@@ -149,6 +149,8 @@ export interface CreateSpec {
   copy: string[];
   contracts: string;
   manifest: string;
+  /** A workspace manifest's members, when the manifest is one (Rust). */
+  members: string[];
   dependencies: string[];
   devDependencies: string[];
   scripts: string[];

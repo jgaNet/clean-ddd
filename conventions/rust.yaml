@@ -58,6 +58,35 @@ modes:
   architecture:
     decides: [src/architecture, src/shared_kernel/domain]
 
+# What `clean-ddd create --language rust` makes of this directory (ADR 10, ADR 23): the crates
+# copied as they are (the building blocks with their tests, the shared kernel's model and guard,
+# the conventions tool — a crate of the workspace — and the configuration), the module its
+# integration events go in (its `mod.rs` is copied and emptied of this repository's contracts),
+# the workspace manifest rewritten with the application's name, its members narrowed to the
+# trees copied (`src/contexts/*/*` and `src/bootstrap` are added when the first context and the
+# bootstrap appear, since cargo refuses a member glob that matches nothing) and its dependencies
+# to what the copied crates use; Cargo.lock travels whole and the next build settles it. The
+# tool wants its inventory committed, so `create` writes an empty one.
+create:
+  copy:
+    - src/architecture
+    - src/shared_kernel/domain
+    - src/shared_kernel/application/Cargo.toml
+    - src/shared_kernel/application/src/lib.rs
+    - src/shared_kernel/application/src/guards.rs
+    - src/shared_kernel/application/src/integration_events/mod.rs
+    - tools/conventions
+    - rustfmt.toml
+    - .gitignore
+    - Cargo.lock
+  contracts: src/shared_kernel/application/src/integration_events
+  manifest: Cargo.toml
+  members: ['src/architecture/*', 'src/shared_kernel/*', 'tools/*']
+  dependencies: [uuid, futures, indexmap, pollster, serde, serde_json, serde_yaml, toml, axum, tokio]
+  inventory: true
+  install: cargo build
+  test: cargo test
+
 # The files that show a rule, by id. The rule itself is in architecture.yaml.
 rules:
   ARCH-RELATIVE:

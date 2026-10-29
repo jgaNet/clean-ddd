@@ -218,6 +218,15 @@ export function createApplication(
   const contractsDir = local(spec.contracts);
   const contextsDir = local(contract.contextsTree.path);
   mkdirSync(join(directory, contractsDir), { recursive: true });
+  // A module file copied with the folder (Rust's mod.rs) keeps its doc comment and loses the
+  // declarations of this repository's contracts: the application has none yet.
+  const moduleFile = join(directory, contractsDir, 'mod.rs');
+  if (existsSync(moduleFile)) {
+    const kept = readFileSync(moduleFile, 'utf8')
+      .split('\n')
+      .filter(line => line.trim() === '' || line.trim().startsWith('//'));
+    writeFileSync(moduleFile, `${kept.join('\n').trim()}\n`);
+  }
   writeFileSync(
     join(directory, contractsDir, 'README.md'),
     [
@@ -605,8 +614,9 @@ function manifest(spec: CreateSpec, source: string, languageDir: string, name: s
   if (file === 'package.json') return packageJson(spec, source, text, name);
   if (file === 'pyproject.toml') return pyproject(spec, text, name);
   if (file === 'go.mod') return goMod(spec, text, name);
+  if (file === 'Cargo.toml') return cargoToml(spec, text, name);
   throw new ContractError(
-    `create cannot write a ${file} yet; a manifest is package.json, pyproject.toml or go.mod`,
+    `create cannot write a ${file} yet; a manifest is package.json, pyproject.toml, go.mod or Cargo.toml`,
     'malformed',
   );
 }
@@ -687,6 +697,47 @@ function rewriteModulePath(directory: string, from: string, to: string): void {
     const rewritten = text.split(`"${from}/`).join(`"${to}/`);
     if (rewritten !== text) writeFileSync(path, rewritten);
   }
+}
+
+/**
+ * The reference's workspace manifest: its members narrowed to the trees copied (cargo refuses a
+ * member glob that matches nothing, so the contexts and the bootstrap are listed the day they
+ * exist), its version 0.1.0, its `[workspace.dependencies]` narrowed to what the copied crates
+ * use; the lints and the package defaults travel whole.
+ */
+function cargoToml(spec: CreateSpec, text: string, name: string): string {
+  const body = text.slice(text.indexOf('[workspace]'));
+  const lines = body.split('\n');
+  const kept: string[] = [];
+  let section = '';
+  for (const line of lines) {
+    const header = line.match(/^\[([^\]]+)\]/);
+    if (header) section = header[1];
+    if (section === 'workspace' && /^members\s*=/.test(line)) {
+      kept.push(`members = [${spec.members.map(member => `"${member}"`).join(', ')}]`);
+      continue;
+    }
+    if (section === 'workspace.package' && /^version\s*=/.test(line)) {
+      kept.push('version = "0.1.0"');
+      continue;
+    }
+    if (section === 'workspace.dependencies' && /^[A-Za-z0-9_-]+\s*=/.test(line)) {
+      const key = line.split('=')[0].trim();
+      if (!spec.dependencies.includes(key)) continue;
+    }
+    kept.push(line);
+  }
+  const note = [
+    `# ${name}: a workspace on the clean-ddd architecture, made by \`clean-ddd create\`. Every layer of every`,
+    "# tree is a crate, and a crate's `[dependencies]` are its row of the dependency table in",
+    '# conventions/architecture.yaml: the compiler holds the boundary, `cargo run -p conventions` proves it.',
+    '# Add "src/contexts/*/*" to the members with your first context, and "src/bootstrap" with the composition root.',
+    '',
+  ].join('\n');
+  return `${note}${kept
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()}\n`;
 }
 
 /** The reference's pyproject, renamed, at 0.1.0, its dependency list narrowed to what the copied files import; the rest (the dev group, ruff, mypy, pytest) travels whole. */

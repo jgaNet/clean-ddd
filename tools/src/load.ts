@@ -263,6 +263,7 @@ export function loadArchitectureContract(
         copy: local.paths(binding.create.copy),
         contracts: local.path(String(binding.create.contracts ?? '')),
         manifest: local.path(String(binding.create.manifest ?? '')),
+        members: strings(binding.create.members),
         dependencies: strings(binding.create.dependencies),
         devDependencies: strings(binding.create.devDependencies),
         scripts: strings(binding.create.scripts),
