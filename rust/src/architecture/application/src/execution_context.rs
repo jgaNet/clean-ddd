@@ -31,6 +31,8 @@ pub trait UnitOfWork: Send + Sync {
     fn begin_transaction(&self) -> BoxFuture<'_, ()>;
     fn commit_transaction(&self) -> BoxFuture<'_, ()>;
     fn rollback_transaction(&self) -> BoxFuture<'_, ()>;
+    /// Whether a transaction is open. The context owns its transaction: it asks this before
+    /// opening one, and a transaction already open there is a programming error, not one to join.
     fn has_active_transaction(&self) -> bool;
     /// The transactional outbox: what this transaction makes durable to be published after it commits (ADR 24).
     fn outbox(&self) -> &dyn Outbox;
@@ -134,8 +136,12 @@ impl ExecutionContext {
     /// registered during `work` run inside the transaction once `work` has succeeded (the
     /// outbox is written there), then the transaction commits, then the outbox is relayed
     /// through the bus, then the `after_commit` callbacks run. A failed result or a panic rolls
-    /// back and drops every step and callback. Nested calls join the outer transaction:
-    /// everything happens at the outermost one.
+    /// back and drops every step and callback — whatever the failure, so a context is clean for
+    /// its next transaction even after a unit of work that could not begin or roll back. Nested
+    /// calls join the outer transaction: everything happens at the outermost one. The context
+    /// owns that transaction: it opens it and closes it, and a unit of work that already has one
+    /// open at the outermost call is a programming error (the steps and callbacks would otherwise
+    /// run against a commit this context never sees), so it panics.
     pub async fn with_transaction<T, F, Fut>(&self, work: F) -> DomainResult<T>
     where
         F: FnOnce() -> Fut,
@@ -147,23 +153,23 @@ impl ExecutionContext {
             state.in_transaction = true;
             outermost
         };
+        // Dropped on every way out of the outermost call, a panic of the unit of work included:
+        // the context is then out of its transaction, with no step and no callback left over.
+        let _clean = outermost.then(|| TransactionOver(self));
 
         let result = self.run_in_unit_of_work(work, outermost).await;
 
-        if outermost {
+        if outermost && result.is_ok() {
             // The transaction is over before the relay and the callbacks run: a reaction they
             // publish opens its own transaction, and its own steps run at its own commit.
             let callbacks = {
                 let mut state = self.state();
                 state.in_transaction = false;
-                state.before_commit.clear();
                 std::mem::take(&mut state.after_commit)
             };
-            if result.is_ok() {
-                self.relay().await;
-                for callback in callbacks {
-                    callback.await;
-                }
+            self.relay().await;
+            for callback in callbacks {
+                callback.await;
             }
         }
         result
@@ -224,35 +230,53 @@ impl ExecutionContext {
         Fut: Future<Output = DomainResult<T>>,
     {
         let Some(unit_of_work) = &self.0.unit_of_work else {
-            let result = self.guarded(work()).await;
-            return if outermost { self.then_before_commit(result).await } else { result };
+            let value = self.guarded(work()).await?;
+            if outermost {
+                self.guarded(self.run_before_commit()).await?;
+            }
+            return Ok(value);
         };
 
-        let existing = unit_of_work.has_active_transaction();
-        if !existing {
+        if outermost {
+            // Outside the safety net on purpose: a transaction somebody else opened is a
+            // programming error, not an outcome of the use case (DOMAIN-RESULT).
+            if unit_of_work.has_active_transaction() {
+                panic!(
+                    "The unit of work already has a transaction open: the context owns its transaction and opens it itself, nothing else may begin one"
+                );
+            }
             unit_of_work.begin_transaction().await;
         }
 
-        let mut result = self.guarded(work()).await;
+        let result = self.guarded(work()).await;
+        if !outermost {
+            return result;
+        }
 
-        if !existing {
-            if outermost {
-                result = self.then_before_commit(result).await;
+        let value = match result {
+            Ok(value) => value,
+            Err(exception) => {
+                unit_of_work.rollback_transaction().await;
+                return Err(exception);
             }
-            match &result {
-                Ok(_) => unit_of_work.commit_transaction().await,
-                Err(_) => unit_of_work.rollback_transaction().await,
+        };
+
+        // The `before_commit` steps and the commit, under the same safety net as the use case: a
+        // step or a commit that panics fails the transaction like the use case would have.
+        let committed = self
+            .guarded(async {
+                self.run_before_commit().await?;
+                unit_of_work.commit_transaction().await;
+                Ok(())
+            })
+            .await;
+        match committed {
+            Ok(()) => Ok(value),
+            Err(exception) => {
+                unit_of_work.rollback_transaction().await;
+                Err(exception)
             }
         }
-        result
-    }
-
-    /// A successful use case, followed by its `before_commit` steps under the same safety net:
-    /// a step that panics fails the transaction like the use case would have.
-    async fn then_before_commit<T>(&self, result: DomainResult<T>) -> DomainResult<T> {
-        let value = result?;
-        self.guarded(self.run_before_commit()).await?;
-        Ok(value)
     }
 
     /// The safety net: a panic inside the work becomes a failed result instead of a crash.
@@ -271,6 +295,20 @@ impl ExecutionContext {
 
     fn state(&self) -> std::sync::MutexGuard<'_, State> {
         self.0.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+}
+
+/// The end of the outermost transaction, however it ended: what a `finally` would do. Dropping
+/// it takes the context out of its transaction and drops every step and callback still
+/// registered, so that nothing of a failed transaction reaches the next one.
+struct TransactionOver<'a>(&'a ExecutionContext);
+
+impl Drop for TransactionOver<'_> {
+    fn drop(&mut self) {
+        let mut state = self.0.state();
+        state.in_transaction = false;
+        state.before_commit.clear();
+        state.after_commit.clear();
     }
 }
 
@@ -310,6 +348,8 @@ mod tests {
     struct RecordingUnitOfWork {
         log: Arc<Mutex<Vec<&'static str>>>,
         active: Mutex<bool>,
+        /// A rollback that panics after it ran: the connection gone, as a store would report it.
+        rollback_fails: Mutex<bool>,
         outbox: FakeOutbox,
     }
     impl RecordingUnitOfWork {
@@ -334,6 +374,7 @@ mod tests {
         fn rollback_transaction(&self) -> BoxFuture<'_, ()> {
             *self.active.lock().unwrap() = false;
             self.log("rollback");
+            assert!(!*self.rollback_fails.lock().unwrap(), "the connection is gone");
             Box::pin(async {})
         }
         fn has_active_transaction(&self) -> bool {
@@ -342,6 +383,11 @@ mod tests {
         fn outbox(&self) -> &dyn Outbox {
             &self.outbox
         }
+    }
+
+    /// Runs `work` to its end and hands back what it panicked with, if it did, as text.
+    fn panic_of<T>(work: impl FnOnce() -> T) -> Option<String> {
+        std::panic::catch_unwind(AssertUnwindSafe(work)).err().map(|payload| panic_message(payload.as_ref()))
     }
 
     /// A bus that writes "publish" in the unit of work's log and hands the operation back as it is.
@@ -468,6 +514,54 @@ mod tests {
 
         assert_eq!(result.expect_err("a panic").message(), "boom");
         assert_eq!(uow.entries(), ["begin", "rollback"]);
+    }
+
+    #[test]
+    fn keeps_nothing_from_a_transaction_whose_unit_of_work_could_not_roll_back_the_context_is_clean_for_the_next_one() {
+        let uow = Arc::new(RecordingUnitOfWork::default());
+        let context = context_with(Some(uow.clone()));
+        *uow.rollback_fails.lock().unwrap() = true;
+
+        let failure = panic_of(|| {
+            pollster::block_on(context.with_transaction(|| async {
+                let recorder = uow.clone();
+                context.before_commit(async move { recorder.log("stale step") }).await;
+                let recorder = uow.clone();
+                context.after_commit(async move { recorder.log("stale callback") }).await;
+                Err::<(), _>(Exception::unknown("refused"))
+            }))
+        });
+        assert_eq!(failure.as_deref(), Some("the connection is gone"));
+
+        *uow.rollback_fails.lock().unwrap() = false;
+        pollster::block_on(context.with_transaction(|| async {
+            let recorder = uow.clone();
+            context.after_commit(async move { recorder.log("callback") }).await;
+            Ok(())
+        }))
+        .expect("committed");
+
+        assert_eq!(uow.entries(), ["begin", "rollback", "begin", "commit", "callback"]);
+    }
+
+    #[test]
+    fn owns_its_transaction_a_unit_of_work_that_already_has_one_open_at_the_outermost_call_is_a_programming_error() {
+        let uow = Arc::new(RecordingUnitOfWork::default());
+        let context = context_with(Some(uow.clone()));
+        *uow.active.lock().unwrap() = true;
+
+        let failure = panic_of(|| {
+            pollster::block_on(context.with_transaction(|| async {
+                uow.log("work");
+                Ok(())
+            }))
+        });
+        assert!(failure.expect("a panic").contains("the context owns its transaction"));
+        assert!(uow.entries().is_empty());
+
+        *uow.active.lock().unwrap() = false;
+        pollster::block_on(context.with_transaction(|| async { Ok(()) })).expect("committed");
+        assert_eq!(uow.entries(), ["begin", "commit"]);
     }
 
     #[test]
