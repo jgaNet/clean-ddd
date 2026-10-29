@@ -6,7 +6,7 @@
  * same way. ESLint is never bundled: the import rules are asked of the language's own linter.
  */
 import { execFileSync } from 'child_process';
-import { chmodSync, cpSync, mkdirSync, rmSync } from 'fs';
+import { chmodSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import * as esbuild from 'esbuild';
@@ -34,35 +34,34 @@ const common = {
 await esbuild.build({ ...common, entryPoints: ['tools/src/cli.ts'], outfile: 'tools/dist/cli.js' });
 await esbuild.build({ ...common, entryPoints: ['tools/src/index.ts'], outfile: 'tools/dist/index.js' });
 // The shebang goes on its own line, before the banner.
-const { readFileSync, writeFileSync } = await import('fs');
 writeFileSync(join(dist, 'cli.js'), `#!/usr/bin/env node\n${readFileSync(join(dist, 'cli.js'), 'utf8')}`);
 chmodSync(join(dist, 'cli.js'), 0o755);
 
 execFileSync(join(root, 'node_modules/.bin/tsc'), ['-p', 'tools/tsconfig.build.json'], { cwd: root, stdio: 'inherit' });
 
-// What `create` copies: the same list as create.ts, plus what it reads (the contract, the package).
+// What `create` copies, per language, as each binding's `create` section lists it, plus what
+// `create` reads: the contract, the concepts, the bindings, each language's manifest, the root
+// package (for the version) and what every language shares (.claude, .editorconfig).
+const yaml = (await import('js-yaml')).load;
 const reference = join(dist, 'reference');
-for (const path of [
-  'typescript/src/Architecture',
-  'typescript/src/SharedKernel/Domain',
-  'typescript/src/SharedKernel/Application/Guards.ts',
-  'typescript/tsconfig.json',
-  'typescript/tsconfig.test.json',
-  'typescript/jest.config.js',
-  'typescript/eslint.config.js',
-  'typescript/.prettierrc.json',
-  'typescript/.prettierignore',
-  'typescript/.nvmrc',
-  'typescript/package.json',
-  'conventions/architecture.yaml',
-  'conventions/concepts.yaml',
-  'conventions/typescript.yaml',
-  '.claude',
-  '.editorconfig',
-  'package.json',
-]) {
+const copyInto = path => {
   const to = join(reference, path);
   mkdirSync(dirname(to), { recursive: true });
   cpSync(join(root, path), to, { recursive: true });
+};
+const contract = yaml(readFileSync(join(root, 'conventions/architecture.yaml'), 'utf8'));
+for (const path of [
+  'conventions/architecture.yaml',
+  'conventions/concepts.yaml',
+  '.claude',
+  '.editorconfig',
+  'package.json',
+])
+  copyInto(path);
+for (const language of contract.languages) {
+  const binding = yaml(readFileSync(join(root, `conventions/${language}.yaml`), 'utf8'));
+  copyInto(`conventions/${language}.yaml`);
+  if (!binding.create) continue;
+  for (const path of [...binding.create.copy, binding.create.manifest]) copyInto(join(binding.root, path));
 }
 process.stdout.write('✓ tools/dist: cli.js, index.js, the declarations, the reference for create\n');

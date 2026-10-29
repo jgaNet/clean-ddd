@@ -3,8 +3,9 @@ import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { dump, load } from 'js-yaml';
 
-import { ArchitectureContract, Concept, Rule } from './types';
+import { ArchitectureContract, Concept, ContractError, CreateSpec, Rule } from './types';
 import { loadArchitectureContract, repositoryRoot, typedFrom } from './load';
+import { serializeInventory } from './inventory';
 import {
   END_MARKER,
   RULES_MARKER,
@@ -39,20 +40,6 @@ import {
  * is `.`.
  */
 
-/** Copied as they are, from this language's directory: the architecture, the shared kernel's model, the tooling, the configuration. */
-const COPY_VERBATIM = [
-  'src/Architecture',
-  'src/SharedKernel/Domain',
-  'src/SharedKernel/Application/Guards.ts',
-  'tsconfig.json',
-  'tsconfig.test.json',
-  'jest.config.js',
-  'eslint.config.js',
-  '.prettierrc.json',
-  '.prettierignore',
-  '.nvmrc',
-];
-
 /** Copied as they are, from the repository root, which every language shares. */
 const COPY_FROM_ROOT = [
   // The loop, for whoever works here with an agent: the skill asks the contract for the shape
@@ -62,32 +49,12 @@ const COPY_FROM_ROOT = [
   '.editorconfig',
 ];
 
-/** Scripts a new application starts with, copied from the reference: the checks, the formatting. No app to start yet. */
-const SCRIPTS = ['typecheck', 'test', 'test:units', 'test:e2e', 'lint', 'format', 'format:check'];
-
 /** The tooling, as the scripts every guide names; the package answers them all. */
 const TOOL_SCRIPTS = {
   'check:conventions': 'clean-ddd check',
   'conventions:write': 'clean-ddd check --write',
   architecture: 'clean-ddd',
 };
-
-/** Dependencies the building blocks actually import, and the copied configuration loads (jest.config.js reads dotenv, tsconfig imports tslib's helpers). The rest is the reference's business. */
-const DEPENDENCIES = ['uuid', 'dotenv', 'tslib'];
-/** What the specs, the linter (which reads the contract with js-yaml) and the formatter need. */
-const DEV_DEPENDENCIES = [
-  '@jest/globals',
-  '@types/jest',
-  '@types/node',
-  'cross-env',
-  'eslint',
-  'jest',
-  'js-yaml',
-  'prettier',
-  'ts-jest',
-  'typescript',
-  'typescript-eslint',
-];
 
 /**
  * Where the reference is read from: the checkout the command was typed in, when it is one (a
@@ -201,6 +168,9 @@ const surviving = (concept: Concept, target: string, local: (path: string) => st
 export interface CreatedApplication {
   directory: string;
   name: string;
+  language: string;
+  /** The commands to run first, in the language's words. */
+  next: string[];
   files: number;
   /** The concepts the new application's binding shows a file for. */
   concepts: number;
@@ -211,68 +181,79 @@ export function createApplication(
   directory: string,
   name: string,
   source: string = referenceSource(),
+  language?: string,
 ): CreatedApplication {
   if (existsSync(directory) && readdirSync(directory).length) {
     throw new Error(`${directory} is not empty; a new application is created in an empty directory`);
   }
-  const contract = loadArchitectureContract(source);
-  const language = join(source, contract.language.root);
+  const contract = loadArchitectureContract(source, language);
+  const spec = contract.create;
+  if (!spec) {
+    throw new ContractError(
+      `${contract.sources.binding} says nothing about create yet: a \`create\` section names what to copy and what to write for ${contract.language.name}`,
+      'malformed',
+    );
+  }
+  const local = inApplication(contract);
+  const languageDir = join(source, contract.language.root);
 
-  // 1. Copy the architecture, the shared kernel and the configuration. The building blocks come
-  //    with their specs — they are the best description of what a Result, an aggregate or a
-  //    publish-after-commit does. The tooling is not copied: the new application depends on this
-  //    package, and what the tools do for it is proved by `yarn check:conventions`, which runs
-  //    them against its own contract.
+  // 1. Copy the architecture, the shared kernel and the configuration, as the binding lists
+  //    them. The building blocks come with their specs — they are the best description of what
+  //    a Result, an aggregate or a publish-after-commit does. The tooling that reads the
+  //    contract is not copied: the new application depends on this package, and what it does
+  //    for it is proved by `check`, which runs against its own contract. A language whose
+  //    linter is its own tool (Python) lists that tool here: it travels with the tree it holds.
   const copy = (from: string, path: string) => {
     const to = join(directory, path);
     mkdirSync(dirname(to), { recursive: true });
     cpSync(join(from, path), to, { recursive: true });
   };
-  for (const path of COPY_VERBATIM) copy(language, path);
+  for (const path of spec.copy) copy(languageDir, local(path));
   for (const path of COPY_FROM_ROOT) copy(source, path);
 
-  // 2. The places a new application fills in. The integration events folder is where its
-  //    contexts will publish; src/Contexts is where they will live.
-  mkdirSync(join(directory, 'src/SharedKernel/Application/IntegrationEvents'), { recursive: true });
+  // 2. The places a new application fills in: where its contexts will publish, where they will live.
+  const contractsDir = local(spec.contracts);
+  const contextsDir = local(contract.contextsTree.path);
+  mkdirSync(join(directory, contractsDir), { recursive: true });
   writeFileSync(
-    join(directory, 'src/SharedKernel/Application/IntegrationEvents/README.md'),
+    join(directory, contractsDir, 'README.md'),
     [
       '# Integration events',
       '',
       'The published contracts between this application’s contexts: named, versionable payloads,',
-      'one file per subject (`OrderIntegrationEvents.ts`). Both sides see the same file, so changing',
-      'one is a visible, reviewable change to a contract.',
+      'one file per subject. Both sides see the same file, so changing one is a visible, reviewable',
+      'change to a contract.',
       '',
       'Nothing here yet: a contract appears when a first consumer needs a fact.',
-      '`yarn architecture checklist integration-event` says what one is made of.',
+      '`clean-ddd checklist integration-event` says what one is made of.',
       '',
     ].join('\n'),
   );
-  mkdirSync(join(directory, 'src/Contexts'), { recursive: true });
+  mkdirSync(join(directory, contextsDir), { recursive: true });
   writeFileSync(
-    join(directory, 'src/Contexts/README.md'),
+    join(directory, contextsDir, 'README.md'),
     [
       '# Contexts',
       '',
-      'One folder per bounded context, each with `Domain`, `Application`, `Infrastructure`,',
-      '`Presentation` and a `module.local.ts`, and each declared in `conventions/typescript.yaml`',
+      `One folder per bounded context, each with the four layers (${contract.layers.map(layer => `\`${layer}\``).join(', ')})`,
+      `and its wiring file \`${contract.wiring}\`, and each declared in \`conventions/${contract.language.id}.yaml\``,
       'so that the import rules apply to it.',
       '',
-      'Nothing here yet. `yarn architecture checklist context` says what a context is made of, and',
-      '`yarn architecture checklist aggregate` what goes in its Domain.',
+      'Nothing here yet. `clean-ddd checklist context` says what a context is made of, and',
+      '`clean-ddd checklist aggregate` what goes in its Domain.',
       '',
     ].join('\n'),
   );
 
   // 3. The contract, kept whole, and the binding emptied of this repository's business.
-  const local = inApplication(contract);
   const rules: Rule[] = contract.rules.map(rule => leanRule(rule, directory, local));
   const concepts = contract.concepts
     .map(concept => surviving(concept, directory, local))
     .filter((concept): concept is Concept => concept !== undefined);
   writeContract(directory, source, contract, concepts);
 
-  // 4. The documents, rendered from that contract exactly as this repository renders its own.
+  // 4. The documents, rendered from that contract exactly as this repository renders its own,
+  //    the manifest, and — where the language's own tool holds its inventory — an empty one.
   const lean: ArchitectureContract = {
     ...contract,
     rules,
@@ -280,16 +261,31 @@ export function createApplication(
     contexts: [],
     language: { ...contract.language, root: '.' },
   };
-  writeFileSync(join(directory, 'README.md'), readme(lean, name));
-  writeFileSync(join(directory, 'CLAUDE.md'), claude(lean, name));
+  writeFileSync(join(directory, 'README.md'), readme(lean, name, local));
+  writeFileSync(join(directory, 'CLAUDE.md'), claude(lean, name, local));
   mkdirSync(join(directory, 'docs/adr'), { recursive: true });
   writeFileSync(join(directory, 'docs/adr/README.md'), adrIndex());
-  writeFileSync(join(directory, 'package.json'), packageJson(source, language, name));
-  writeFileSync(join(directory, '.gitignore'), 'node_modules\ndist\ncoverage\n*.tsbuildinfo\n');
+  writeFileSync(join(directory, local(spec.manifest)), manifest(spec, source, languageDir, name));
+  if (!existsSync(join(directory, '.gitignore'))) {
+    writeFileSync(join(directory, '.gitignore'), 'node_modules\ndist\ncoverage\n*.tsbuildinfo\n');
+  }
+  if (spec.inventory) {
+    mkdirSync(join(directory, 'docs/inventory'), { recursive: true });
+    writeFileSync(
+      join(directory, `docs/inventory/${contract.language.id}.json`),
+      serializeInventory({ schemaVersion: 1, language: contract.language.id, contexts: [], links: [] }),
+    );
+  }
 
   return {
     directory,
     name,
+    language: contract.language.id,
+    next: [
+      `cd ${directory} && ${spec.install}`,
+      `${toolCheck(contract)} && ${spec.test}`,
+      `${tool(contract)} checklist context`,
+    ],
     files: count(directory),
     concepts: concepts.length,
     rules: rules.length,
@@ -304,7 +300,13 @@ function count(directory: string): number {
 function writeContract(directory: string, source: string, contract: ArchitectureContract, concepts: Concept[]): void {
   mkdirSync(join(directory, 'conventions/plans'), { recursive: true });
   const yaml = { lineWidth: 110, noRefs: true };
-  const headerOf = (text: string) => text.slice(0, text.indexOf('schemaVersion:'));
+  // The header comment — the vocabulary a file is read with — is carried over, naming the tool as the new application calls it.
+  const headerOf = (text: string) =>
+    text
+      .slice(0, text.indexOf('schemaVersion:'))
+      .replace(/`yarn check:conventions`/g, '`clean-ddd check`')
+      .replace(/`yarn architecture /g, '`clean-ddd ')
+      .replace(/ \(the tooling at the root\)/g, '');
 
   // The contract, as data: the same table, with every reference that points at a file this
   // application does not have removed. The header comment — the vocabulary the table is read
@@ -318,7 +320,7 @@ function writeContract(directory: string, source: string, contract: Architecture
     verb.shape = neutralShape(verb.shape, verb.intent);
   }
   const note = [
-    '# Created by `yarn architecture create` from the clean-ddd reference. The URL shapes in',
+    '# Created by `clean-ddd create` from the clean-ddd reference. The URL shapes in',
     '# `http.verbs` are written with placeholders (`GET /<things>/:id`), because what that table',
     '# teaches is the grammar — which verb a use case takes, and what the URL names. Fill them in',
     '# with your own nouns as your first routes appear.',
@@ -371,7 +373,7 @@ function writeContract(directory: string, source: string, contract: Architecture
   binding.tests = [];
   binding.vocabulary = {};
   const bindingNote = [
-    '# Created by `yarn architecture create` from the clean-ddd reference. `contexts` is empty:',
+    '# Created by `clean-ddd create` from the clean-ddd reference. `contexts` is empty:',
     '# declare your first one there, or no import rule applies to its files. A concept whose',
     '# canonical file this application does not have yet is not listed under `concepts`; add it',
     '# back with the file when you write it.',
@@ -398,9 +400,9 @@ function writeContract(directory: string, source: string, contract: Architecture
       '| [`plans/`](plans) | feature plans: what a change intends, checked before it is written |',
       '',
       '```bash',
-      'yarn check:conventions    # the contract is sound and the tree matches it',
-      'yarn conventions:write    # regenerate the rendered blocks in README.md and CLAUDE.md',
-      'yarn architecture …       # ask the contract: inspect, rules, concepts, verbs, checklists, plan, mode, can-import',
+      'clean-ddd check           # the contract is sound and the documents are rendered from it',
+      'clean-ddd check --write   # regenerate the rendered blocks in README.md and CLAUDE.md',
+      'clean-ddd …               # ask the contract: inspect, rules, concepts, verbs, checklists, plan, mode, can-import',
       '```',
       '',
       `Adding a context means adding it to \`contexts\` in \`${contract.language.id}.yaml\`, or no import rule applies to it.`,
@@ -412,11 +414,11 @@ function writeContract(directory: string, source: string, contract: Architecture
     [
       '# Feature plans',
       '',
-      'A plan is what a change intends, written before the code: `yarn architecture plan validate <file>`',
+      'A plan is what a change intends, written before the code: `clean-ddd plan validate <file>`',
       'checks it against the contract and the tree, `plan explain <file>` expands it into the files, the',
       'rules and the examples it implies.',
       '',
-      'Every plan here is validated by `yarn check:conventions`, so none of them can rot.',
+      'Every plan here is validated by `clean-ddd check`, so none of them can rot.',
       '',
     ].join('\n'),
   );
@@ -424,47 +426,69 @@ function writeContract(directory: string, source: string, contract: Architecture
 
 const generated = (marker: string, body: string) => `${marker}\n${body}\n${END_MARKER}`;
 
-function readme(contract: ArchitectureContract, name: string): string {
+/** The tool's commands as the generated guides name them: in a TypeScript application through its scripts, elsewhere through npx. */
+const tool = (contract: ArchitectureContract): string =>
+  contract.create?.manifest.endsWith('package.json') ? 'yarn architecture' : 'npx clean-ddd';
+const toolCheck = (contract: ArchitectureContract): string =>
+  contract.create?.manifest.endsWith('package.json') ? 'yarn check:conventions' : 'npx clean-ddd check';
+
+/** `local` turns the reference's repository-relative paths into the application's own (`python/src/…` → `src/…`). */
+function readme(contract: ArchitectureContract, name: string, local: (path: string) => string): string {
+  const spec = contract.create as CreateSpec;
   const layers = (['domain', 'application', 'infrastructure', 'presentation'] as const).filter(layer =>
     contract.concepts.some(concept => concept.layer === layer && shown(concept)),
   );
+  const pad = (path: string) => `${path}/`.padEnd(22);
+  const ask = tool(contract);
+  // The commands of the first steps, aligned on the longest.
+  const commands = [
+    spec.install,
+    toolCheck(contract),
+    ...contract.checks,
+    `${ask} inspect`,
+    `${ask} checklist context`,
+  ];
+  const width = Math.max(...commands.map(command => command.length)) + 3;
   return [
     `# ${name}`,
     '',
-    'An application built on the Clean Architecture and Domain-Driven Design reference implementation',
-    '[clean-ddd](https://github.com/jgaNet/clean-ddd): its building blocks, its shared kernel, its',
+    `An application built on the Clean Architecture and Domain-Driven Design reference implementation`,
+    `[clean-ddd](https://github.com/jgaNet/clean-ddd), in ${contract.language.name}: its building blocks, its shared kernel, its`,
     'architecture contract and its checks, with none of its business.',
     '',
     '## What is here',
     '',
     '```',
-    'src/Architecture/     the building blocks: Entity, AggregateRoot, ValueObject, Result, the handlers,',
+    `${pad(local(contract.architecture.path))}the building blocks: Entity, AggregateRoot, ValueObject, Result, the handlers,`,
     '                      the execution context, the event bus, the in-memory adapters. Mechanics, no vocabulary.',
-    'src/SharedKernel/     what every context will agree on: Email, Role, requireSignedIn, and the',
-    '                      integration events your contexts will publish.',
-    'src/Contexts/         your bounded contexts. Empty: this is the part that is yours.',
+    `${pad(local(contract.kernel.path))}what every context will agree on: the shared kernel's model (an email, a role, the`,
+    `                      signed-in guard) and, under ${local(spec.contracts)}/, the integration events your contexts will publish.`,
+    `${pad(local(contract.contextsTree.path))}your bounded contexts. Empty: this is the part that is yours.`,
     'conventions/          the architecture as data; the import rules are generated from it.',
-    '                      The tooling that holds the code to it is the clean-ddd package (yarn architecture, yarn check:conventions).',
+    `                      The tooling that holds the code to it is the clean-ddd package (${ask} …, ${toolCheck(contract)}).`,
     '```',
     '',
     '## First steps',
     '',
     '```bash',
-    'yarn install',
-    'yarn check:conventions            # the contract is sound and the tree matches it',
-    'yarn test:units                   # the building blocks come with their own specs',
-    'yarn architecture inspect         # what the contract holds',
-    'yarn architecture checklist context   # what your first context is made of',
+    `${spec.install.padEnd(width)}# the language's toolchain`,
+    `${toolCheck(contract).padEnd(width)}# the contract is sound, the documents are rendered from it`,
+    ...contract.checks.map(
+      (check, index) =>
+        `${check.padEnd(width)}# ${index === 0 ? "the tree and the imports, by the language's own tool" : 'as CI runs it'}`,
+    ),
+    `${`${ask} inspect`.padEnd(width)}# what the contract holds`,
+    `${`${ask} checklist context`.padEnd(width)}# what your first context is made of`,
     '```',
     '',
-    `Then: name your first context in \`conventions/${contract.language.id}.yaml\`, create it under \`src/Contexts\`,`,
-    'and write your composition root in `src/Bootstrap`. `yarn architecture checklist aggregate` says',
-    'what goes in its Domain, and `yarn architecture can-import <file> <specifier>` answers, before you',
-    'write an import, whether the rules allow it.',
+    `Then: name your first context in \`conventions/${contract.language.id}.yaml\`, create it under \`${local(contract.contextsTree.path)}\`,`,
+    `and write your composition root in \`${local(contract.bootstrap.path)}\`. \`${ask} checklist aggregate\` says`,
+    `what goes in its Domain, and \`${ask} can-import <file> <specifier>\` or the language's own \`can-import\` answers,`,
+    'before you write an import, whether the rules allow it.',
     '',
     '## The rules, and how they are enforced',
     '',
-    'Every rule has a stable id; `yarn architecture rule <ID>` explains it, `--json` for a tool.',
+    `Every rule has a stable id; \`${ask} rule <ID>\` explains it, \`--json\` for a tool.`,
     '',
     generated(RULES_MARKER('rules'), renderRulesTable(contract)),
     '',
@@ -486,24 +510,25 @@ function readme(contract: ArchitectureContract, name: string): string {
   ].join('\n');
 }
 
-function claude(contract: ArchitectureContract, name: string): string {
+function claude(contract: ArchitectureContract, name: string, local: (path: string) => string): string {
+  const ask = tool(contract);
+  const width = Math.max(...[toolCheck(contract), ...contract.checks].map(command => command.length)) + 3;
   return [
     `# Working on ${name} (guide for AI assistance)`,
     '',
-    'This application is built on the [clean-ddd](https://github.com/jgaNet/clean-ddd) architecture:',
+    `This application is built on the [clean-ddd](https://github.com/jgaNet/clean-ddd) architecture, in ${contract.language.name}:`,
     'the rules below are generated from [`conventions/architecture.yaml`](conventions/architecture.yaml),',
-    `and that file with [\`conventions/${contract.language.id}.yaml\`](conventions/${contract.language.id}.yaml) generates the import rules ESLint enforces. Ask the contract before guessing.`,
+    `and that file with [\`conventions/${contract.language.id}.yaml\`](conventions/${contract.language.id}.yaml) generates the import rules the linter enforces (${contract.enforcers.linter}). Ask the contract before guessing.`,
     '',
     '## Commands',
     '',
     '```bash',
-    'yarn check:conventions            # the contract is sound, the tree matches it, the documents are rendered from it',
-    'yarn typecheck | lint | test:units | test:e2e | format:check',
-    'yarn architecture inspect | rules | concepts | verbs | checklists',
-    'yarn architecture rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind>',
-    'yarn architecture can-import <file> <specifier> …     # before you write the import',
-    'yarn architecture plan validate|explain <file>        # a change, stated before it is written',
-    'yarn architecture mode feature|architecture           # which rules this change is held to',
+    `${toolCheck(contract).padEnd(width)}# the contract is sound, the documents are rendered from it`,
+    ...contract.checks.map(check => `${check.padEnd(width)}# the language's own check, as CI runs it`),
+    `${ask} inspect | rules | concepts | verbs | checklists`,
+    `${ask} rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind>`,
+    `${ask} plan validate|explain <file>        # a change, stated before it is written`,
+    `${ask} mode feature|architecture           # which rules this change is held to`,
     '```',
     '',
     '## The rules (enforced)',
@@ -512,18 +537,18 @@ function claude(contract: ArchitectureContract, name: string): string {
     '',
     '## How to add a feature',
     '',
-    'Run `yarn architecture checklist <kind>` for the file list, and `yarn architecture verb <intent>`',
+    `Run \`${ask} checklist <kind>\` for the file list, and \`${ask} verb <intent>\``,
     'for the route. In short: the domain first (a behaviour on the aggregate that enforces the rule and',
     'records an event), then the command or query handler, then the adapter only if a port changed, then',
-    'the route, then the wiring in `module.local.ts`. A rule that spans aggregates or needs a port is a',
+    `the route, then the wiring in \`${contract.wiring}\`. A rule that spans aggregates or needs a port is a`,
     'domain service. Expected failures are `Result` values, never thrown.',
     '',
     '## Things to avoid',
     '',
     '- A generic `Mapper`, `Repository<T>`, `Saga`, service locator or DI container.',
-    '- Fixing a boundary violation with an `eslint-disable` instead of a port: `yarn check:conventions` refuses one.',
-    '- Changing anything under `src/Architecture`, `src/SharedKernel` or `conventions` while adding a feature:',
-    '  `yarn architecture mode feature` will say so, and that is a finding, not a detour.',
+    `- Fixing a boundary violation by silencing the linter instead of a port: the conventions check refuses one.`,
+    `- Changing anything under \`${local(contract.architecture.path)}\`, \`${local(contract.kernel.path)}\` or \`conventions\` while adding a feature:`,
+    `  \`${ask} mode feature\` will say so, and that is a finding, not a detour.`,
     '',
   ].join('\n');
 }
@@ -544,8 +569,25 @@ const adrIndex = () =>
     '',
   ].join('\n');
 
-function packageJson(source: string, language: string, name: string): string {
-  const reference = JSON.parse(readFileSync(join(language, 'package.json'), 'utf8')) as {
+/**
+ * The manifest, in the language's idiom: a `package.json` is rebuilt from the reference's with
+ * the scripts and the dependencies the binding keeps, plus this package; a `pyproject.toml` is
+ * the reference's text with its name, its version and its dependency list rewritten. The
+ * format of each is this repository's own, so a textual rewrite is read against a known file.
+ */
+function manifest(spec: CreateSpec, source: string, languageDir: string, name: string): string {
+  const file = spec.manifest.split('/').pop() ?? spec.manifest;
+  const text = readFileSync(join(languageDir, file), 'utf8');
+  if (file === 'package.json') return packageJson(spec, source, text, name);
+  if (file === 'pyproject.toml') return pyproject(spec, text, name);
+  throw new ContractError(
+    `create cannot write a ${file} yet; a manifest is package.json or pyproject.toml`,
+    'malformed',
+  );
+}
+
+function packageJson(spec: CreateSpec, source: string, text: string, name: string): string {
+  const reference = JSON.parse(text) as {
     scripts: Record<string, string>;
     dependencies: Record<string, string>;
     devDependencies: Record<string, string>;
@@ -563,11 +605,32 @@ function packageJson(source: string, language: string, name: string): string {
       private: true,
       type: 'module',
       engines: reference.engines,
-      scripts: { ...pick(reference.scripts, SCRIPTS), ...TOOL_SCRIPTS },
-      dependencies: pick(reference.dependencies, DEPENDENCIES),
-      devDependencies: { ...pick(reference.devDependencies, DEV_DEPENDENCIES), [tool.name]: `^${tool.version}` },
+      scripts: { ...pick(reference.scripts, spec.scripts), ...TOOL_SCRIPTS },
+      dependencies: pick(reference.dependencies, spec.dependencies),
+      devDependencies: { ...pick(reference.devDependencies, spec.devDependencies), [tool.name]: `^${tool.version}` },
     },
     null,
     2,
   )}\n`;
+}
+
+/** The reference's pyproject, renamed, at 0.1.0, its dependency list narrowed to what the copied files import; the rest (the dev group, ruff, mypy, pytest) travels whole. */
+function pyproject(spec: CreateSpec, text: string, name: string): string {
+  const body = text
+    .slice(text.indexOf('[project]'))
+    .replace(/^name = ".*"$/m, `name = "${name}"`)
+    .replace(/^version = ".*"$/m, 'version = "0.1.0"')
+    .replace(/^description = ".*"$/m, 'description = "An application on the clean-ddd architecture"')
+    .replace(/^dependencies = \[\n([\s\S]*?)^\]/m, (_whole, lines: string) => {
+      const kept = lines
+        .split('\n')
+        .filter(line => spec.dependencies.some(dependency => line.trim().startsWith(`"${dependency}`)));
+      return `dependencies = [\n${kept.join('\n')}\n]`;
+    });
+  const note = [
+    '# Created by `clean-ddd create` from the clean-ddd reference: the same project layout, the same',
+    '# lints, the same checks; the dependencies are the ones the copied files import.',
+    '',
+  ].join('\n');
+  return `${note}${body}`;
 }

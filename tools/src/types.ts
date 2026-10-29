@@ -125,6 +125,8 @@ export interface ArchitectureContract {
   enforcers: Record<Enforcement, string>;
   /** The commands a change must pass before it is done, in CI's order. */
   checks: string[];
+  /** What `create --language <id>` makes of this language's directory; absent when the binding says nothing about it yet. */
+  create?: CreateSpec;
   layers: string[];
   rules: Rule[];
   concepts: Concept[];
@@ -134,6 +136,25 @@ export interface ArchitectureContract {
   checklists: Checklist[];
   modes: Record<ModeName, Mode>;
   sources: { architecture: string; concepts: string; binding: string };
+}
+
+/**
+ * What `create` copies and writes for one language (ADR 10): the files copied as they are (paths
+ * repository-relative, like every path a loaded contract carries), the folder the integration
+ * events go in, the manifest rewritten with the application's name, the dependencies to keep,
+ * whether the language's tool wants an inventory committed, and the commands the generated
+ * guide shows first.
+ */
+export interface CreateSpec {
+  copy: string[];
+  contracts: string;
+  manifest: string;
+  dependencies: string[];
+  devDependencies: string[];
+  scripts: string[];
+  inventory: boolean;
+  install: string;
+  test: string;
 }
 
 export class ContractError extends Error {

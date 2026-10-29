@@ -37,9 +37,9 @@ const notesCell = (concept: Concept, at: string) =>
     .join('; ');
 
 export const SECTION_MARKER = (id: string) =>
-  `<!-- generated from conventions/concepts.yaml (${id}); edit the YAML, then run yarn conventions:write -->`;
+  `<!-- generated from conventions/concepts.yaml (${id}); edit the YAML, then run the conventions check with --write -->`;
 export const RULES_MARKER = (view: string) =>
-  `<!-- generated from conventions/architecture.yaml (${view}); edit the YAML, then run yarn conventions:write -->`;
+  `<!-- generated from conventions/architecture.yaml (${view}); edit the YAML, then run the conventions check with --write -->`;
 export const END_MARKER = '<!-- end generated -->';
 
 /** A concept this language shows: the binding names at least one file for it. */

@@ -415,7 +415,7 @@ const table = (headers: string[], rows: string[][]) =>
 const title = (word: string) => `${word[0].toUpperCase()}${word.slice(1)}`;
 const spell = (pattern: string) => pattern.replace(/-/g, ' ');
 
-export const DOMAIN_MARKER = `<!-- generated from conventions/domain.yaml (map); edit the YAML, then run yarn conventions:write -->`;
+export const DOMAIN_MARKER = `<!-- generated from conventions/domain.yaml (map); edit the YAML, then run the conventions check with --write -->`;
 
 /**
  * The strategic view of the root README: the subdomains, the context map as a diagram and as a

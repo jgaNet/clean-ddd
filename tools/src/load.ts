@@ -258,6 +258,20 @@ export function loadArchitectureContract(
     doubles: local.markdown(row.doubles) ?? '',
   }));
 
+  const create = isObject(binding.create)
+    ? {
+        copy: local.paths(binding.create.copy),
+        contracts: local.path(String(binding.create.contracts ?? '')),
+        manifest: local.path(String(binding.create.manifest ?? '')),
+        dependencies: strings(binding.create.dependencies),
+        devDependencies: strings(binding.create.devDependencies),
+        scripts: strings(binding.create.scripts),
+        inventory: binding.create.inventory === true,
+        install: String(binding.create.install ?? ''),
+        test: String(binding.create.test ?? ''),
+      }
+    : undefined;
+
   return {
     schemaVersion: SUPPORTED_SCHEMA_VERSION,
     languages: strings(architecture.languages),
@@ -271,6 +285,7 @@ export function loadArchitectureContract(
     libraries: strings(binding.libraries),
     enforcers: (isObject(binding.enforcers) ? binding.enforcers : {}) as Record<Enforcement, string>,
     checks: strings(binding.checks),
+    ...(create && { create }),
     layers: Object.keys(layersRaw),
     rules,
     concepts: conceptList,
@@ -390,6 +405,10 @@ export function validateContract(contract: ArchitectureContract, root: string = 
   for (const word of Object.keys(isObject(bindingRaw.vocabulary) ? bindingRaw.vocabulary : {})) {
     if (!words.has(word))
       problems.push(`${bindingFile}: names the word "${word}", which ${conceptsFile} does not define`);
+  }
+
+  for (const file of [...(contract.create?.copy ?? []), ...(contract.create ? [contract.create.manifest] : [])]) {
+    if (!exists(file)) problems.push(`${bindingFile} create: names ${file}, which does not exist`);
   }
 
   for (const checklist of contract.checklists) {

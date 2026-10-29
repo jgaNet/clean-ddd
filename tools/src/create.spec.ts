@@ -140,3 +140,67 @@ describe('yarn architecture create', () => {
     expect(() => createApplication(directory, 'again', root)).toThrow(/not empty/);
   });
 });
+
+describe('yarn architecture create --language python', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'created-py-'));
+  const created = createApplication(directory, 'my-app', root, 'python');
+  const generated = loadArchitectureContract(directory, 'python');
+  const read = (path: string) => readFileSync(join(directory, path), 'utf8');
+
+  afterAll(() => rmSync(directory, { recursive: true, force: true }));
+
+  it('copies the building blocks, the shared kernel, the conventions tool and the configuration, in Python', () => {
+    expect(created.language).toBe('python');
+    for (const path of [
+      'src/architecture/domain/aggregate_root.py',
+      'src/architecture/application/command_handler.py',
+      'src/architecture/domain/test_result.py',
+      'src/shared_kernel/domain/email.py',
+      'src/shared_kernel/application/guards.py',
+      'src/shared_kernel/application/integration_events/__init__.py',
+      'src/shared_kernel/application/integration_events/README.md',
+      'src/contexts/__init__.py',
+      'src/contexts/README.md',
+      'tools/conventions.py',
+      'pyproject.toml',
+      '.python-version',
+      'conventions/python.yaml',
+      'docs/inventory/python.json',
+      'README.md',
+      'CLAUDE.md',
+    ]) {
+      expect(existsSync(join(directory, path))).toBe(true);
+    }
+    expect(existsSync(join(directory, 'tools/test_conventions.py'))).toBe(false);
+    expect(existsSync(join(directory, 'package.json'))).toBe(false);
+  });
+
+  it('writes a pyproject renamed and narrowed to what the copied files import, and an empty inventory', () => {
+    const pyproject = read('pyproject.toml');
+    expect(pyproject).toContain('name = "my-app"');
+    expect(pyproject).toContain('version = "0.1.0"');
+    expect(pyproject).toMatch(/dependencies = \[\n\s+"fastapi[^\n]*\n\s+"pyyaml[^\n]*\n\]/);
+    expect(pyproject).not.toContain('bcrypt');
+    expect(pyproject).toContain('[dependency-groups]');
+    expect(read('docs/inventory/python.json')).toBe(
+      '{\n  "schemaVersion": 1,\n  "language": "python",\n  "contexts": [],\n  "links": []\n}\n',
+    );
+  });
+
+  it('is a repository of one language, sound on its own terms, whose guides speak Python', () => {
+    expect(generated.language).toEqual({ id: 'python', name: 'Python', root: '.' });
+    expect(generated.contexts).toEqual([]);
+    expect(validateContract(generated, directory)).toEqual([]);
+    expect(read('README.md')).toContain('uv sync');
+    expect(read('README.md')).toContain('npx clean-ddd check');
+    expect(read('CLAUDE.md')).toContain('module_local.py');
+    expect(read('CLAUDE.md')).not.toContain('yarn ');
+    expect(read('src/contexts/README.md')).toContain('`module_local.py`');
+  });
+
+  it('refuses a language whose binding says nothing about create', () => {
+    const empty = mkdtempSync(join(tmpdir(), 'created-rs-'));
+    expect(() => createApplication(empty, 'my-app', root, 'rust')).toThrow('says nothing about create yet');
+    rmSync(empty, { recursive: true, force: true });
+  });
+});

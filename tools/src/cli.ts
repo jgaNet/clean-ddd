@@ -11,7 +11,7 @@
  *   yarn architecture verb <intent>           which HTTP verb and path shape a use case takes
  *   yarn architecture checklist <kind>        what a new aggregate, value object, command … is made of
  *   yarn architecture place <kind>            where it goes, path only
- *   yarn architecture create <dir> [--name x] a new application on this architecture, with none of its business
+ *   yarn architecture create <dir> [--name x] [--language <id>]   a new application on this architecture, in that language, with none of its business
  *   yarn architecture mode feature [--base <ref>]     did this change leave the architecture alone
  *   yarn architecture mode architecture [--base <ref>] does it record the decision it makes
  *   yarn architecture plan validate <file>    is this intended change legal, before writing it
@@ -101,7 +101,7 @@ function create(): void {
   const name = rest.includes('--name') ? rest[rest.indexOf('--name') + 1] : directory.split('/').filter(Boolean).pop();
   let created;
   try {
-    created = createApplication(resolve(here, directory), name ?? 'my-app', referenceSource(here));
+    created = createApplication(resolve(here, directory), name ?? 'my-app', referenceSource(here), languageFlag);
   } catch (error) {
     return fail('cannot-create', error instanceof Error ? error.message : String(error));
   }
@@ -113,9 +113,7 @@ function create(): void {
       `${created.concepts} concepts — and no business: src/Contexts is yours to fill.`,
       '',
       'Next:',
-      `  cd ${created.directory} && yarn install`,
-      '  yarn check:conventions && yarn test:units',
-      '  yarn architecture checklist context',
+      ...created.next.map(line => `  ${line}`),
     ].join('\n'),
   );
 }

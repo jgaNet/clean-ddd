@@ -71,6 +71,35 @@ modes:
   architecture:
     decides: [src/architecture, src/shared_kernel/domain]
 
+# What `clean-ddd create --language python` makes of this directory (ADR 10, ADR 23): the files
+# copied as they are (the building blocks with their tests, the shared kernel's model, the
+# conventions tool — which in Python is the import linter, so it travels with the tree it holds —
+# and the configuration), the package its integration events go in, the manifest rewritten with
+# the application's name, the dependencies the copied files import (fastapi in the presentation
+# building blocks, pyyaml in the tool; the dev group travels whole), and the commands the
+# generated guide shows first. The tool wants its inventory committed, so `create` writes an
+# empty one.
+create:
+  copy:
+    - src/architecture
+    - src/shared_kernel/__init__.py
+    - src/shared_kernel/domain
+    - src/shared_kernel/application/__init__.py
+    - src/shared_kernel/application/guards.py
+    - src/shared_kernel/application/integration_events/__init__.py
+    - src/contexts/__init__.py
+    - tools/__init__.py
+    - tools/conventions.py
+    - pyproject.toml
+    - .python-version
+    - .gitignore
+  contracts: src/shared_kernel/application/integration_events
+  manifest: pyproject.toml
+  dependencies: [fastapi, pyyaml]
+  inventory: true
+  install: uv sync
+  test: uv run pytest
+
 # The files that show a rule, by id. The rule itself is in architecture.yaml.
 rules:
   ARCH-RELATIVE:

@@ -37,7 +37,7 @@ One canonical example per concept. When two files could teach the same thing, th
 
 ### Domain layer
 
-<!-- generated from conventions/concepts.yaml (domain); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (domain); edit the YAML, then run the conventions check with --write -->
 | Concept | Canonical example | Notes |
 | --- | --- | --- |
 | Entity | [`Entity.ts`](src/Architecture/Domain/Entity.ts) | identity, `equals()` |
@@ -63,7 +63,7 @@ One canonical example per concept. When two files could teach the same thing, th
 
 ### Application layer
 
-<!-- generated from conventions/concepts.yaml (application); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (application); edit the YAML, then run the conventions check with --write -->
 | Concept | Canonical example | Notes |
 | --- | --- | --- |
 | Command | [`ShareNoteCommandEvent.ts`](src/Contexts/Notes/Application/Commands/ShareNote/ShareNoteCommandEvent.ts) | a named payload, nothing more. It extends `CommandEvent`, one of the three kinds of message the building blocks define: a command travels on the same bus as the events and is tracked as an operation, so it has their shape; the class says its intent (one handler, may be refused); the three kinds of message: [`EventTypes.ts`](src/Architecture/Domain/EventTypes.ts) |
@@ -84,7 +84,7 @@ One canonical example per concept. When two files could teach the same thing, th
 
 ### Infrastructure layer
 
-<!-- generated from conventions/concepts.yaml (infrastructure); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (infrastructure); edit the YAML, then run the conventions check with --write -->
 | Concept | Canonical example | Notes |
 | --- | --- | --- |
 | Repository implementation | [`InMemoryNoteRepository.ts`](src/Contexts/Notes/Infrastructure/Repositories/InMemoryNoteRepository.ts) | snapshot in, snapshot out |
@@ -99,7 +99,7 @@ One canonical example per concept. When two files could teach the same thing, th
 
 ### Presentation and bootstrap
 
-<!-- generated from conventions/concepts.yaml (presentation); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (presentation); edit the YAML, then run the conventions check with --write -->
 | Concept | Canonical example |
 | --- | --- |
 | Controller (commands → `202 { operationId }`, queries → sync; one `refuse()` per controller: `403` not allowed, `404` not found, `400` otherwise, always `{ message }`) | [`FastifyNoteController.ts`](src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts); every other controller has the same shape |
@@ -111,7 +111,7 @@ One canonical example per concept. When two files could teach the same thing, th
 
 ### Tests, one style per layer
 
-<!-- generated from conventions/concepts.yaml (tests); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (tests); edit the YAML, then run the conventions check with --write -->
 | Layer | Example | Doubles |
 | --- | --- | --- |
 | Domain | [`Note.spec.ts`](src/Contexts/Notes/Domain/Note/Note.spec.ts) | none |
@@ -149,7 +149,7 @@ Two trees stand beside the contexts, each layered like one. [`src/Architecture`]
 
 Every rule has a stable id, a reason, a remediation and says how it is held — in the contract's words (`linter`, `check`, `types`, `tests`, `review`, `evaluations`) and, below, in this language's: ESLint, `yarn check:conventions`, the type checker, a spec, review, the evaluations. The rules are the same in every language; the files that show them are this language's. Ask any of them: `yarn architecture rule CONC-OPTIMISTIC` (add `--json` for a tool).
 
-<!-- generated from conventions/architecture.yaml (rules); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/architecture.yaml (rules); edit the YAML, then run the conventions check with --write -->
 | Rule | Enforced by |
 | --- | --- |
 | **ARCH-RELATIVE** — A relative import names a sibling file and nothing else; anything across directories goes through the path the import rules are written against. | ESLint, generated from `architecture.yaml` · [CLAUDE.md](CLAUDE.md) |
@@ -179,7 +179,7 @@ Every rule has a stable id, a reason, a remediation and says how it is held — 
 
 The dependency table, per layer. `own` is the file's own context, `architecture` the building blocks, `kernel` the shared kernel, `others` any other context; anything not listed is refused, and the refusal names the rule.
 
-<!-- generated from conventions/architecture.yaml (dependencies); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/architecture.yaml (dependencies); edit the YAML, then run the conventions check with --write -->
 | A file in… | may import | Rule |
 | --- | --- | --- |
 | Domain | `own.Domain`, `architecture.Domain`, `kernel.Domain` | ARCH-DOMAIN |
@@ -207,7 +207,7 @@ yarn architecture mode feature                                               # d
 yarn architecture mode architecture                                          # does it record the decision it makes?
 yarn architecture plan validate conventions/plans/share-a-note.yaml           # is this intended change legal?
 yarn architecture plan explain  conventions/plans/share-a-note.yaml           # the files, rules and examples it implies
-yarn architecture create ../my-app                                           # a new application with this architecture and none of this business
+yarn architecture create ../my-app [--language python]                       # a new application with this architecture and none of this business
 ```
 
 Working here with a coding agent uses the same commands: [`.claude/skills/feature/SKILL.md`](../.claude/skills/feature/SKILL.md) is the order of operations — ask the contract for the shape, follow the canonical example, prove the change with `mode feature` and the six checks — and [`.claude/agents/feature-author.md`](../.claude/agents/feature-author.md) is a subagent bound to that mode, told to report what it needed rather than work around it. There is no MCP server and no plugin: `--json` on every command is the interface, and a second one would be a second thing to drift.
@@ -273,7 +273,7 @@ node ../api/scenario.mjs http://127.0.0.1:10000   # the API every language answe
 
 The words this README uses, in one line each, with the file that shows them. Where a word has several meanings in the literature, this is the one used here.
 
-<!-- generated from conventions/concepts.yaml (vocabulary); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (vocabulary); edit the YAML, then run the conventions check with --write -->
 | Word | Here it means | See |
 | --- | --- | --- |
 | Building blocks | the mechanics every context is written with (Entity, AggregateRoot, ValueObject, Result, the handlers, the bus); they know no context and no vocabulary, not even the roles | [`src/Architecture`](src/Architecture) |
