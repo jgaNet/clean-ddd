@@ -15,6 +15,13 @@
 //! this reader does not recognise is a shape the guides do not teach: the remedy is the canonical
 //! shape, not a looser reading.
 //!
+//! A reader never names what it did not resolve. A name is a command only when it resolves to a
+//! command type of the context (a type that `impl CommandEvent`, or that a handler's `type Command`
+//! names), through a `use … as` renaming of its own file or a `pub use … as` re-export of the
+//! context's application crate; a wiring entry is read as a command only when its handler is a type
+//! of the context that `impl CommandHandler`. What does not resolve is not counted, and the hole it
+//! leaves is caught where it shows: a route lost, a command no handler answers.
+//!
 //! The same reading holds ARCH-ONE-HANDLER (`check_handlers`): a command the Module lists once,
 //! with one handler, and every command a route or a policy builds is one the Module lists.
 
@@ -22,7 +29,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_yaml::Value as Yaml;
 
 /// Where the inventory is committed, relative to the repository root.
@@ -38,7 +45,7 @@ const ANYONE: &str = "anyone";
 
 // The inventory, in the canonical key order; `serde_json::to_string_pretty` renders the canonical bytes.
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Inventory {
     schema_version: u64,
@@ -47,7 +54,7 @@ pub struct Inventory {
     links: Vec<Link>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Context {
     id: String,
     commands: Vec<Command>,
@@ -56,7 +63,7 @@ pub struct Context {
     policies: Vec<Policy>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Command {
     name: String,
     actor: String,
@@ -68,7 +75,7 @@ pub struct Command {
     events: Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Query {
     name: String,
     actor: String,
@@ -76,7 +83,7 @@ pub struct Query {
     route: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Policy {
     on: String,
     kind: String,
@@ -84,7 +91,7 @@ pub struct Policy {
     events: Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Link {
     mechanism: String,
     upstream: String,
@@ -98,15 +105,138 @@ pub fn render(inventory: &Inventory) -> String {
     format!("{json}\n")
 }
 
-/// The committed inventory is what the tree renders now (ARCH-ONE-APPLICATION).
-pub fn check(repository_root: &Path, rendered: &str, problems: &mut Vec<String>) {
+/// The committed inventory is what the tree renders now (ARCH-ONE-APPLICATION). When it is not, the
+/// line that says so comes first, then one line per difference (`changes`), so a stale inventory is
+/// a list of named differences, not a file to diff by hand.
+pub fn check(repository_root: &Path, tree: &Inventory, problems: &mut Vec<String>) {
+    let rendered = render(tree);
     match fs::read_to_string(repository_root.join(INVENTORY_FILE)) {
         Ok(committed) if committed == rendered => {}
-        Ok(_) => problems.push(format!(
-            "ARCH-ONE-APPLICATION: {INVENTORY_FILE} differs from what the Rust tree says; run `{WRITE_COMMAND}`"
-        )),
+        Ok(committed) => {
+            problems.push(format!(
+                "ARCH-ONE-APPLICATION: {INVENTORY_FILE} differs from what the Rust tree says; run `{WRITE_COMMAND}`"
+            ));
+            if let Ok(committed) = serde_json::from_str::<Inventory>(&committed) {
+                problems
+                    .extend(changes(&committed, tree).into_iter().map(|line| format!("ARCH-ONE-APPLICATION: {line}")));
+            }
+        }
         Err(_) => problems.push(format!("ARCH-ONE-APPLICATION: {INVENTORY_FILE} is missing; run `{WRITE_COMMAND}`")),
     }
+}
+
+/// What changed between the committed inventory and the one the tree renders now, one line per
+/// difference, in the words every language's check prints: what the committed inventory has and the
+/// tree no longer says, what the tree says and the committed one does not, and what both say with
+/// other fields, before → after. Contexts in the committed order, then the new ones; inside a
+/// context the commands, the queries, the domain events, the policies; then the links.
+pub fn changes(committed: &Inventory, tree: &Inventory) -> Vec<String> {
+    let mut lines = Vec::new();
+    for context in &committed.contexts {
+        let id = context.id.as_str();
+        let Some(twin) = tree.contexts.iter().find(|candidate| candidate.id == context.id) else {
+            lines.push(format!("{id}: the committed inventory has the context, the tree no longer says it"));
+            continue;
+        };
+        compare(
+            &mut lines,
+            id,
+            "command",
+            &context.commands,
+            &twin.commands,
+            |command| command.name.clone(),
+            |command| {
+                vec![
+                    ("actor", quoted(Some(&command.actor))),
+                    ("route", quoted(command.route.as_deref())),
+                    ("aggregate", quoted(command.aggregate.as_deref())),
+                    ("events", list(&command.events)),
+                ]
+            },
+        );
+        compare(
+            &mut lines,
+            id,
+            "query",
+            &context.queries,
+            &twin.queries,
+            |query| query.name.clone(),
+            |query| vec![("actor", quoted(Some(&query.actor))), ("route", quoted(query.route.as_deref()))],
+        );
+        compare(&mut lines, id, "domain event", &context.events, &twin.events, String::clone, |_| Vec::new());
+        // A policy is known by what it reacts to; by its kind as well when two of one side share an `on`.
+        let shared = |policies: &[Policy]| -> BTreeSet<String> {
+            let ons: Vec<&String> = policies.iter().map(|policy| &policy.on).collect();
+            ons.iter().filter(|on| ons.iter().filter(|other| other == on).count() > 1).map(|on| (*on).clone()).collect()
+        };
+        let shared: BTreeSet<String> = shared(&context.policies).union(&shared(&twin.policies)).cloned().collect();
+        let policy_key = |policy: &Policy| {
+            if shared.contains(&policy.on) {
+                format!("on {} ({})", policy.on, policy.kind)
+            } else {
+                format!("on {}", policy.on)
+            }
+        };
+        compare(&mut lines, id, "policy", &context.policies, &twin.policies, policy_key, |policy| {
+            vec![
+                ("kind", quoted(Some(&policy.kind))),
+                ("publishes", list(&policy.publishes)),
+                ("events", list(&policy.events)),
+            ]
+        });
+    }
+    for context in tree.contexts.iter().filter(|context| !committed.contexts.iter().any(|other| other.id == context.id))
+    {
+        lines.push(format!("{}: the tree says the context, the committed inventory does not", context.id));
+    }
+    let link_key = |link: &Link| format!("{} → {} ({})", link.upstream, link.downstream, link.mechanism);
+    compare(&mut lines, "context map", "link", &committed.links, &tree.links, link_key, |link| {
+        vec![("contracts", list(&link.contracts))]
+    });
+    lines
+}
+
+/// One kind of a scope, compared by key: lost, changed field by field (before → after), gained.
+fn compare<T>(
+    lines: &mut Vec<String>,
+    scope: &str,
+    kind: &str,
+    before: &[T],
+    after: &[T],
+    key: impl Fn(&T) -> String,
+    fields: impl Fn(&T) -> Vec<(&'static str, String)>,
+) {
+    for item in before {
+        let Some(twin) = after.iter().find(|candidate| key(candidate) == key(item)) else {
+            lines.push(format!(
+                "{scope}: the committed inventory has the {kind} {}, the tree no longer says it",
+                key(item)
+            ));
+            continue;
+        };
+        let changed: Vec<String> = fields(item)
+            .into_iter()
+            .zip(fields(twin))
+            .filter(|((_, was), (_, is))| was != is)
+            .map(|((name, was), (_, is))| format!("{name} {was} → {is}"))
+            .collect();
+        if !changed.is_empty() {
+            lines.push(format!("{scope}: the {kind} {} differs: {}", key(item), changed.join("; ")));
+        }
+    }
+    for item in after.iter().filter(|item| !before.iter().any(|other| key(other) == key(item))) {
+        lines.push(format!("{scope}: the tree says the {kind} {}, the committed inventory does not", key(item)));
+    }
+}
+
+/// A string as the lines spell it: quoted, or `none` when absent.
+fn quoted(value: Option<&str>) -> String {
+    value.map_or_else(|| "none".to_string(), |value| format!("\"{value}\""))
+}
+
+/// A list as the lines spell it: `[A, B]`, `[]` when empty.
+fn list(values: &[String]) -> String {
+    format!("[{}]", values.join(", "))
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -195,13 +325,11 @@ fn section<'a>(text: &'a str, key: &str) -> &'a str {
     balanced(text, open, '[', ']')
 }
 
-/// The handlers a wiring lists under `commands`, one per `Subscription::command(handler)`, in order.
-fn command_handlers(wiring_text: &str) -> Vec<&str> {
+/// The handlers a wiring lists under `commands`, one per `Subscription::command(handler)`, in order,
+/// as the paths written there (`ShareNoteCommandHandler::new`), not yet resolved.
+fn command_handlers(wiring_text: &str) -> Vec<Vec<&str>> {
     let listed = section(wiring_text, "commands");
-    after_each(listed, "Subscription::command(")
-        .filter_map(|at| ident_at(listed, at))
-        .map(|(handler, _)| handler)
-        .collect()
+    after_each(listed, "Subscription::command(").filter_map(|at| path_at(listed, at)).map(|(path, _)| path).collect()
 }
 
 /// The reactions a wiring lists under `key` (`domain_events`, `integration_events`): each
@@ -303,6 +431,38 @@ fn file_declaring<'a>(files: &'a [SourceFile], type_name: &str) -> Option<&'a So
         after_each(&file.text, "pub struct ")
             .any(|at| ident_at(&file.text, at).is_some_and(|(name, _)| name == type_name))
     })
+}
+
+/// The renamings the `use … as …;` statements of a text make, `alias → name` (`use …::ShareNote as
+/// Share;` gives `Share → ShareNote`), grouped imports included; with `public`, only the `pub use`
+/// re-exports. A statement starts a line.
+fn use_aliases(text: &str, public: bool) -> BTreeMap<String, String> {
+    let mut aliases = BTreeMap::new();
+    let mut at = 0;
+    for line in text.split_inclusive('\n') {
+        let start = at;
+        at += line.len();
+        let trimmed = line.trim_start();
+        let rest = if public {
+            trimmed.strip_prefix("pub use ")
+        } else {
+            ["use ", "pub use ", "pub(crate) use "].iter().find_map(|prefix| trimmed.strip_prefix(prefix))
+        };
+        let Some(rest) = rest else { continue };
+        let from = start + line.len() - rest.len();
+        let statement = text[from..].split(';').next().unwrap_or_default();
+        for (at, _) in statement.match_indices(" as ") {
+            let before = statement[..at].trim_end();
+            let name = &before[before.rfind(|c: char| !is_ident(c)).map_or(0, |at| at + 1)..];
+            if let Some((alias, _)) = ident_at(statement, at + " as ".len())
+                && !name.is_empty()
+                && alias != "_"
+            {
+                aliases.insert(alias.to_string(), name.to_string());
+            }
+        }
+    }
+    aliases
 }
 
 /// The public name of a message: its intent or its fact, without the suffix of its kind (API-ONE-SURFACE).
@@ -517,16 +677,34 @@ struct ContextReader<'a> {
     routes: BTreeMap<String, String>,
     /// The `NAME` of each command, by its type.
     command_names: BTreeMap<String, String>,
+    /// The handlers of the context: each type that `impl CommandHandler`, the command type its
+    /// `type Command` names, and the text of the file that holds the impl.
+    handlers: BTreeMap<String, (String, &'a str)>,
+    /// The renamings the application crate re-exports (`pub use share_note::ShareNote as ShareRequest;`).
+    re_exports: BTreeMap<String, String>,
 }
 
 impl<'a> ContextReader<'a> {
     fn new(files: &'a [SourceFile], arms: &BTreeMap<(String, String), String>, mount: &str) -> Self {
         let aggregates = aggregates(files, arms);
-        let mut reader =
-            Self { files, aggregates, services: Vec::new(), routes: BTreeMap::new(), command_names: BTreeMap::new() };
+        let mut reader = Self {
+            files,
+            aggregates,
+            services: Vec::new(),
+            routes: BTreeMap::new(),
+            command_names: BTreeMap::new(),
+            handlers: BTreeMap::new(),
+            re_exports: BTreeMap::new(),
+        };
         reader.services = reader.find_services();
-        reader.routes = reader.find_routes(mount);
         reader.command_names = reader.find_command_names();
+        reader.handlers = reader.find_handlers();
+        reader.re_exports = files
+            .iter()
+            .filter(|file| file.path.contains("/application/"))
+            .flat_map(|file| use_aliases(&file.text, true))
+            .collect();
+        reader.routes = reader.find_routes(mount);
         reader
     }
 
@@ -618,13 +796,13 @@ impl<'a> ContextReader<'a> {
         let mut routes = BTreeMap::new();
         let presentation: Vec<&SourceFile> =
             self.files.iter().filter(|file| file.path.contains("/presentation/")).collect();
-        let bodies: BTreeMap<String, &str> = presentation
+        let bodies: BTreeMap<String, (&str, &str)> = presentation
             .iter()
             .flat_map(|file| {
                 after_each(&file.text, "async fn ").filter_map(|at| {
                     let (name, _) = ident_at(&file.text, at)?;
                     let end = item_ends(&file.text).find(|end| *end > at).unwrap_or(file.text.len());
-                    Some((name.to_string(), &file.text[at..end]))
+                    Some((name.to_string(), (&file.text[at..end], file.text.as_str())))
                 })
             })
             .collect();
@@ -638,9 +816,11 @@ impl<'a> ContextReader<'a> {
                 for verb in ["get", "post", "put", "patch", "delete"] {
                     for at in after_each(chain, &format!("{verb}(")) {
                         let Some((function, _)) = ident_at(chain, at) else { continue };
-                        let Some(body) = bodies.get(function) else { continue };
+                        let Some((body, file)) = bodies.get(function) else { continue };
                         let route = canonical_route(verb, &format!("{mount}{path}"));
-                        for message in messages_built(body) {
+                        for message in
+                            self.commands_built(body, &use_aliases(file, false)).into_iter().chain(queries_asked(body))
+                        {
                             routes.entry(message).or_insert_with(|| route.clone());
                         }
                     }
@@ -664,10 +844,53 @@ impl<'a> ContextReader<'a> {
         names
     }
 
-    /// The command a handler handles (`type Command = X;`) or the query (`type Query = X;`).
-    fn message_of<'b>(&self, handler: &'b str, kind: &str) -> Option<&'b str> {
-        let key = format!("type {kind} = ");
-        ident_at(handler, handler.find(&key)? + key.len()).map(|(name, _)| name)
+    /// The command handlers: every `impl CommandHandler for X` and the `type Command = Y;` it declares.
+    fn find_handlers(&self) -> BTreeMap<String, (String, &'a str)> {
+        let mut handlers = BTreeMap::new();
+        for file in self.files {
+            for (implemented, type_name, body) in impl_blocks(&file.text) {
+                let key = "type Command = ";
+                if implemented == "CommandHandler"
+                    && let Some(at) = body.find(key)
+                    && let Some((command, _)) = ident_at(body, at + key.len())
+                {
+                    handlers.insert(type_name, (command.to_string(), file.text.as_str()));
+                }
+            }
+        }
+        handlers
+    }
+
+    /// A name as written, through the renamings of its file (`aliases`) and the application crate's
+    /// re-exports, to the name it stands for.
+    fn follow(&self, name: &str, aliases: &BTreeMap<String, String>) -> String {
+        let mut name = aliases.get(name).cloned().unwrap_or_else(|| name.to_string());
+        for _ in 0..4 {
+            match self.re_exports.get(&name) {
+                Some(next) if *next != name => name = next.clone(),
+                _ => break,
+            }
+        }
+        name
+    }
+
+    /// The command type a name resolves to: a type that `impl CommandEvent`, or that a handler's
+    /// `type Command` names. A name that resolves to neither (a helper, an alias not followed) is no
+    /// command: the reader never names what it did not resolve.
+    fn command_type(&self, name: &str, aliases: &BTreeMap<String, String>) -> Option<String> {
+        let resolved = self.follow(name, aliases);
+        (self.command_names.contains_key(&resolved) || self.handlers.values().any(|(command, _)| *command == resolved))
+            .then_some(resolved)
+    }
+
+    /// The commands a controller builds, as command types: `accept(&context, X { … })`,
+    /// `module.command::<X>()`; of a path (`commands::ShareNote { … }`, `ShareNote::new(…)`), the
+    /// segment that resolves.
+    fn commands_built(&self, body: &str, aliases: &BTreeMap<String, String>) -> Vec<String> {
+        commands_written(body)
+            .iter()
+            .filter_map(|segments| segments.iter().rev().find_map(|segment| self.command_type(segment, aliases)))
+            .collect()
     }
 
     /// The public name of a command type (`CreateNote`, `ValidateAccount`): its `NAME`, or the type's own.
@@ -675,36 +898,54 @@ impl<'a> ContextReader<'a> {
         self.command_names.get(command_type).cloned().unwrap_or_else(|| public_name(command_type).to_string())
     }
 
-    /// The public name of the command a handler answers, by its `type Command = X;`.
-    fn command_name_of(&self, handler_name: &str) -> String {
-        let handler = file_declaring(self.files, handler_name);
-        let text = handler.map(|file| file.text.as_str()).unwrap_or_default();
-        self.command_name(self.message_of(text, "Command").unwrap_or(handler_name))
+    /// The handler type a wiring entry names, when it is one: of the path written there, the segment
+    /// that is a type of the context that `impl CommandHandler`, through the wiring's renamings; with
+    /// the command type it answers and the text of its file.
+    fn handler(&self, path: &[&str], aliases: &BTreeMap<String, String>) -> Option<(String, &(String, &'a str))> {
+        path.iter().rev().find_map(|segment| {
+            let resolved = self.follow(segment, aliases);
+            let handler = self.handlers.get(&resolved)?;
+            Some((resolved, handler))
+        })
     }
 
     /// The commands of this context a text dispatches: each `publish(…)` handed a command type.
     fn commands_dispatched(&self, text: &str) -> Vec<String> {
+        let aliases = use_aliases(text, false);
         let mut names = Vec::new();
         for segments in published_paths(text) {
-            if let Some(name) = self.command_names.get(segments[0])
-                && !names.contains(name)
-            {
-                names.push(name.clone());
+            if let Some(command_type) = segments.iter().rev().find_map(|segment| self.command_type(segment, &aliases)) {
+                let name = self.command_name(&command_type);
+                if !names.contains(&name) {
+                    names.push(name);
+                }
             }
         }
         names
     }
 
-    fn command(&self, handler_name: &str) -> Command {
-        let handler = file_declaring(self.files, handler_name);
-        let text = handler.map(|file| file.text.as_str()).unwrap_or_default();
-        let message = self.message_of(text, "Command").unwrap_or(handler_name);
+    /// The command a wiring entry lists, when its handler resolves to a handler type of the context;
+    /// an entry that does not (a factory function, a name not followed) is not read as a command.
+    fn command(&self, path: &[&str], aliases: &BTreeMap<String, String>) -> Option<Command> {
+        let (_, (message, text)) = self.handler(path, aliases)?;
         let name = self.command_name(message);
         let (behaviours, events) = self.analyse(text);
         let aggregate = behaviours.first().map(|(aggregate, _)| aggregate.clone()).or_else(|| {
             self.aggregates.iter().find(|each| contains_word(text, &each.name)).map(|each| each.name.clone())
         });
-        Command { name, actor: actor_of(text).to_string(), route: self.routes.get(message).cloned(), aggregate, events }
+        Some(Command {
+            name,
+            actor: actor_of(text).to_string(),
+            route: self.routes.get(message).cloned(),
+            aggregate,
+            events,
+        })
+    }
+
+    /// The query a handler answers (`type Query = X;`).
+    fn message_of<'b>(&self, handler: &'b str, kind: &str) -> Option<&'b str> {
+        let key = format!("type {kind} = ");
+        ident_at(handler, handler.find(&key)? + key.len()).map(|(name, _)| name)
     }
 
     fn query(&self, handler_name: &str) -> Query {
@@ -726,35 +967,29 @@ impl<'a> ContextReader<'a> {
     }
 }
 
-/// The commands a controller builds, by type: `accept(&context, X { … })`, `module.command::<X>()`.
-fn commands_built(body: &str) -> Vec<String> {
-    let mut built = Vec::new();
+/// What a controller writes where a command goes, as paths not yet resolved: the second argument of
+/// `accept(&context, …)`, the type of `module.command::<…>()`.
+fn commands_written(body: &str) -> Vec<Vec<&str>> {
+    let mut written = Vec::new();
     for at in after_each(body, "accept(") {
         let arguments = balanced(body, at - 1, '(', ')');
         if let Some(rest) = arguments.split_once(',').map(|(_, rest)| rest)
             && let Some((segments, _)) = path_at(rest, 0)
-            && let Some(first) = segments.first()
         {
-            built.push((*first).to_string());
+            written.push(segments);
         }
     }
     for at in after_each(body, "command::<") {
-        if let Some((name, _)) = ident_at(body, at) {
-            built.push(name.to_string());
+        if let Some((segments, _)) = path_at(body, at) {
+            written.push(segments);
         }
     }
-    built
+    written
 }
 
-/// The commands and queries a controller function builds: the commands, and `module.query::<X>()`.
-fn messages_built(body: &str) -> Vec<String> {
-    let mut built = commands_built(body);
-    for at in after_each(body, "query::<") {
-        if let Some((name, _)) = ident_at(body, at) {
-            built.push(name.to_string());
-        }
-    }
-    built
+/// The queries a controller function asks the module for: `module.query::<X>()`.
+fn queries_asked(body: &str) -> Vec<String> {
+    after_each(body, "query::<").filter_map(|at| ident_at(body, at)).map(|(name, _)| name.to_string()).collect()
 }
 
 /// ARCH-ONE-HANDLER, for one context, read from the shapes the inventory reads: a command the
@@ -763,9 +998,12 @@ fn messages_built(body: &str) -> Vec<String> {
 /// handler answers; a command a subscribed policy dispatches that none answers. The messages are
 /// the four languages'.
 fn one_handler_problems(context: &str, wiring_text: &str, reader: &ContextReader) -> Vec<String> {
-    let mut handlers_of: BTreeMap<String, Vec<&str>> = BTreeMap::new();
-    for handler in command_handlers(wiring_text) {
-        handlers_of.entry(reader.command_name_of(handler)).or_default().push(handler);
+    let aliases = use_aliases(wiring_text, false);
+    let mut handlers_of: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for path in command_handlers(wiring_text) {
+        if let Some((handler, (command, _))) = reader.handler(&path, &aliases) {
+            handlers_of.entry(reader.command_name(command)).or_default().push(handler);
+        }
     }
     let mut problems: Vec<String> = handlers_of
         .iter()
@@ -782,7 +1020,7 @@ fn one_handler_problems(context: &str, wiring_text: &str, reader: &ContextReader
         .files
         .iter()
         .filter(|file| file.path.contains("/presentation/"))
-        .flat_map(|file| commands_built(&file.text))
+        .flat_map(|file| reader.commands_built(&file.text, &use_aliases(&file.text, false)))
         .map(|command_type| reader.command_name(&command_type))
         .collect();
     for command in built.iter().filter(|command| !handlers_of.contains_key(*command)) {
@@ -925,8 +1163,9 @@ pub fn inspect(binding: &Yaml, language_root: &Path) -> Inventory {
         let (reader, arms) = tree.reader_of(context, files);
         let wiring_text = tree.wiring_of(files);
 
+        let aliases = use_aliases(wiring_text, false);
         let mut commands: Vec<Command> =
-            command_handlers(wiring_text).into_iter().map(|handler| reader.command(handler)).collect();
+            command_handlers(wiring_text).iter().filter_map(|path| reader.command(path, &aliases)).collect();
         commands.sort_by(|a, b| a.name.cmp(&b.name));
 
         let mut queries: Vec<Query> = after_each(section(wiring_text, "queries"), "query(")
@@ -1210,6 +1449,126 @@ async fn pin_note(Extension(context): Extension<ExecutionContext>, Path(id): Pat
         assert_eq!(
             one_handler_problems_of(ONE_HANDLER_EACH, CREATES_A_NOTE, LOGS_A_CREATED_NOTE),
             Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn a_name_is_a_command_only_when_it_resolves_to_a_command_type_of_the_context() {
+        // A renaming in the controller's file is followed: the route builds CreateNote, which is answered.
+        let renamed = "\
+use notes_application::commands::create_note::{CreateNote as Create, other};
+
+async fn create_note(Extension(context): Extension<ExecutionContext>, Json(body): Json<CreateNoteBody>) -> Response {
+    accept(&context, Create { note_id: body.note_id }).into_response()
+}
+";
+        assert_eq!(one_handler_problems_of(ONE_HANDLER_EACH, renamed, LOGS_A_CREATED_NOTE), Vec::<String>::new());
+        // A helper, or a renaming the reader does not follow, is no command: nothing is named.
+        let helper = "\
+async fn pin_note(Extension(context): Extension<ExecutionContext>, Path(id): Path<String>) -> Response {
+    accept(&context, pin(id)).into_response()
+}
+";
+        assert_eq!(one_handler_problems_of(ONE_HANDLER_EACH, helper, LOGS_A_CREATED_NOTE), Vec::<String>::new());
+        // A wiring entry whose handler is a factory function is not read as a command: CreateNote is unanswered.
+        let factory = "\
+        commands: vec![
+            Subscription::command(create_note_handler(repository.clone())),
+        ],
+";
+        assert_eq!(
+            one_handler_problems_of(factory, CREATES_A_NOTE, LOGS_A_CREATED_NOTE),
+            ["ARCH-ONE-HANDLER: Notes: command CreateNote is built by a route and no handler in the Module answers it"]
+        );
+    }
+
+    #[test]
+    fn a_renaming_is_read_from_use_statements_and_a_re_export_only_from_pub_use() {
+        let text = "\
+use notes_application::commands::share_note::ShareNote as Share;
+pub use share_note::{ShareNote as ShareRequest, ShareNoteCommandHandler};
+use std::io::Write as _;
+// we use this as that;
+";
+        let all = use_aliases(text, false);
+        assert_eq!(all.get("Share").map(String::as_str), Some("ShareNote"));
+        assert_eq!(all.get("ShareRequest").map(String::as_str), Some("ShareNote"));
+        assert_eq!(all.len(), 2);
+        let public = use_aliases(text, true);
+        assert_eq!(public.keys().collect::<Vec<_>>(), ["ShareRequest"]);
+    }
+
+    fn inventory(json: &str) -> Inventory {
+        serde_json::from_str(json).expect("a hand-built inventory")
+    }
+
+    #[test]
+    fn a_stale_inventory_names_each_difference_in_the_words_every_language_prints() {
+        let committed = inventory(
+            r#"{
+  "schemaVersion": 1, "language": "rust",
+  "contexts": [
+    { "id": "Notes",
+      "commands": [
+        { "name": "ArchiveNote", "actor": "a signed-in account", "route": "POST /notes/{param}/archive", "aggregate": "Note", "events": ["NoteArchived"] },
+        { "name": "ShareNote", "actor": "a signed-in account", "route": "POST /notes/{param}/share", "aggregate": "Note", "events": ["NoteShared"] }
+      ],
+      "queries": [{ "name": "GetNote", "actor": "a signed-in account", "route": "GET /notes/{param}" }],
+      "events": ["NoteArchived", "NoteShared"],
+      "policies": [{ "on": "NoteShared", "kind": "domain-event", "publishes": ["NoteShared"], "events": [] }] },
+    { "id": "Security", "commands": [], "queries": [], "events": [], "policies": [] }
+  ],
+  "links": [{ "mechanism": "integration-event", "upstream": "Notes", "downstream": "Notifications", "contracts": ["NoteShared"] }]
+}"#,
+        );
+        let tree = inventory(
+            r#"{
+  "schemaVersion": 1, "language": "rust",
+  "contexts": [
+    { "id": "Notes",
+      "commands": [
+        { "name": "PinNote", "actor": "a signed-in account", "route": "POST /notes/{param}/pin", "aggregate": "Note", "events": ["NotePinned"] },
+        { "name": "ShareNote", "actor": "anyone", "aggregate": "Note", "events": ["NoteShared"] }
+      ],
+      "queries": [{ "name": "GetNote", "actor": "a signed-in account", "route": "GET /notes/{param}" }],
+      "events": ["NoteShared"],
+      "policies": [{ "on": "NoteShared", "kind": "domain-event", "publishes": [], "events": [] }] },
+    { "id": "Tracker", "commands": [], "queries": [], "events": [], "policies": [] }
+  ],
+  "links": [{ "mechanism": "integration-event", "upstream": "Notes", "downstream": "Notifications", "contracts": ["NoteArchived", "NoteShared"] }]
+}"#,
+        );
+        assert_eq!(
+            changes(&committed, &tree),
+            [
+                "Notes: the committed inventory has the command ArchiveNote, the tree no longer says it",
+                "Notes: the command ShareNote differs: actor \"a signed-in account\" → \"anyone\"; route \"POST /notes/{param}/share\" → none",
+                "Notes: the tree says the command PinNote, the committed inventory does not",
+                "Notes: the committed inventory has the domain event NoteArchived, the tree no longer says it",
+                "Notes: the policy on NoteShared differs: publishes [NoteShared] → []",
+                "Security: the committed inventory has the context, the tree no longer says it",
+                "Tracker: the tree says the context, the committed inventory does not",
+                "context map: the link Notes → Notifications (integration-event) differs: contracts [NoteShared] → [NoteArchived, NoteShared]",
+            ]
+        );
+        assert_eq!(changes(&committed, &committed), Vec::<String>::new());
+    }
+
+    #[test]
+    fn two_policies_on_one_fact_are_told_apart_by_their_kind() {
+        let side = |kind: &str| {
+            inventory(&format!(
+                r#"{{ "schemaVersion": 1, "language": "rust", "links": [], "contexts": [{{ "id": "Notes", "commands": [], "queries": [], "events": [],
+  "policies": [{{ "on": "NoteShared", "kind": "domain-event", "publishes": [], "events": [] }},
+               {{ "on": "NoteShared", "kind": "{kind}", "publishes": [], "events": [] }}] }}] }}"#
+            ))
+        };
+        assert_eq!(
+            changes(&side("integration-event"), &side("every-operation")),
+            [
+                "Notes: the committed inventory has the policy on NoteShared (integration-event), the tree no longer says it",
+                "Notes: the tree says the policy on NoteShared (every-operation), the committed inventory does not",
+            ]
         );
     }
 
