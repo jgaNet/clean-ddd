@@ -37,6 +37,22 @@ describe('InMemoryUnitOfWork', () => {
     expect(unitOfWork.hasActiveTransaction()).toBe(false);
   });
 
+  it('pins the honest limit: two requests over the same stores are a boundary each, not isolated — a rollback undoes the other one too', async () => {
+    const other = new InMemoryUnitOfWork([notes, accounts]);
+
+    await unitOfWork.beginTransaction();
+    notes.collection.set('n1', { title: 'first writer' });
+    await other.beginTransaction();
+    notes.collection.set('n2', { title: 'second writer' });
+    await other.commitTransaction();
+    await unitOfWork.rollbackTransaction();
+
+    expect(notes.collection.get('n1')).toEqual({ title: 'before' });
+    // The second writer committed, and its write is gone with the first one's rollback: the snapshot is of
+    // the whole store. A database keeps n2 here; the README lists this as the gap it is.
+    expect(notes.collection.has('n2')).toBe(false);
+  });
+
   it('allows one transaction at a time, and only commits or rolls back an open one', async () => {
     await expect(unitOfWork.commitTransaction()).rejects.toThrow('No active transaction');
     await expect(unitOfWork.rollbackTransaction()).rejects.toThrow('No active transaction');

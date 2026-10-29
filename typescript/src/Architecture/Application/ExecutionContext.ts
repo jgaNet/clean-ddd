@@ -42,7 +42,8 @@ export interface UnitOfWork {
   rollbackTransaction(): Promise<void>;
 
   /**
-   * Checks if there is an active transaction
+   * Whether a transaction is open. The context owns its transaction: it asks this before opening
+   * one, and a transaction already open there is a programming error, not one to join.
    */
   hasActiveTransaction(): boolean;
 
@@ -128,7 +129,12 @@ export class ExecutionContext {
    * during `fn` run inside the transaction once `fn` has succeeded (the outbox is written
    * there), then the transaction commits, then the outbox is relayed through the bus, then the
    * `afterCommit` callbacks run. A failed result or a throw rolls back and drops every step and
-   * callback. Nested calls join the outer transaction: everything happens at the outermost one.
+   * callback — whatever the failure, so a context is clean for its next transaction even after a
+   * unit of work that could not begin or roll back. Nested calls join the outer transaction:
+   * everything happens at the outermost one. The context owns that transaction: it opens it and
+   * closes it, and a unit of work that already has one open at the outermost call is a
+   * programming error (the steps and callbacks would otherwise run against a commit this context
+   * never sees), so it throws.
    */
   async withTransaction<T>(fn: () => Promise<IResult<T>>): Promise<IResult<T>> {
     const outermost = !this.#inTransaction;
@@ -137,19 +143,20 @@ export class ExecutionContext {
     try {
       const result = await this.runInUnitOfWork(fn, outermost);
 
-      if (outermost) {
+      if (outermost && result.isSuccess()) {
         const callbacks = this.#afterCommit;
         this.#afterCommit = [];
-        this.#beforeCommit = [];
-        if (result.isSuccess()) {
-          this.relay();
-          callbacks.forEach(callback => callback());
-        }
+        this.relay();
+        callbacks.forEach(callback => callback());
       }
 
       return result;
     } finally {
-      if (outermost) this.#inTransaction = false;
+      if (outermost) {
+        this.#inTransaction = false;
+        this.#beforeCommit = [];
+        this.#afterCommit = [];
+      }
     }
   }
 
@@ -201,41 +208,39 @@ export class ExecutionContext {
       return result;
     }
 
-    const hasExistingTransaction = this.#unitOfWork.hasActiveTransaction();
-
-    if (!hasExistingTransaction) {
+    if (outermost) {
+      if (this.#unitOfWork.hasActiveTransaction()) {
+        throw new Error(
+          'The unit of work already has a transaction open: the context owns its transaction and opens it itself, nothing else may begin one',
+        );
+      }
       await this.#unitOfWork.beginTransaction();
     }
 
+    const failed = (error: unknown): IResult<T> => {
+      this.#logger?.error('Transaction failed', error, { traceId: this.#traceId, userId: this.#auth.subjectId });
+      return Result.fail(error);
+    };
+
+    let result: IResult<T>;
     try {
-      const result = await fn();
+      result = await fn();
+    } catch (error) {
+      result = failed(error);
+    }
+    if (!outermost) return result;
 
-      if (result.isFailure()) {
-        if (!hasExistingTransaction) {
-          await this.#unitOfWork.rollbackTransaction();
-        }
-        return result;
-      }
-
-      if (!hasExistingTransaction) {
-        if (outermost) this.runBeforeCommit();
-        await this.#unitOfWork.commitTransaction();
-      }
-
+    if (result.isFailure()) {
+      await this.#unitOfWork.rollbackTransaction();
+      return result;
+    }
+    try {
+      this.runBeforeCommit();
+      await this.#unitOfWork.commitTransaction();
       return result;
     } catch (error) {
-      if (!hasExistingTransaction) {
-        await this.#unitOfWork.rollbackTransaction();
-      }
-
-      if (this.#logger) {
-        this.#logger.error('Transaction failed', error, {
-          traceId: this.#traceId,
-          userId: this.#auth.subjectId,
-        });
-      }
-
-      return Result.fail(error);
+      await this.#unitOfWork.rollbackTransaction();
+      return failed(error);
     }
   }
 

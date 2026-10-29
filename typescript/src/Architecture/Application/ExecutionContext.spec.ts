@@ -108,6 +108,49 @@ describe('ExecutionContext.afterCommit', () => {
     expect(unitOfWork.log).toEqual(['begin', 'rollback']);
   });
 
+  it('keeps nothing from a transaction whose unit of work could not roll back: the context is clean for the next one', async () => {
+    const unitOfWork = new (class extends FakeUnitOfWork {
+      failing = true;
+      async rollbackTransaction() {
+        await super.rollbackTransaction();
+        if (this.failing) throw new Error('the connection is gone');
+      }
+    })();
+    const context = contextWith(unitOfWork);
+
+    await expect(
+      context.withTransaction(async () => {
+        context.beforeCommit(() => unitOfWork.log.push('stale step'));
+        context.afterCommit(() => unitOfWork.log.push('stale callback'));
+        return Result.fail(new Error('refused'));
+      }),
+    ).rejects.toThrow('the connection is gone');
+
+    unitOfWork.failing = false;
+    const result = await context.withTransaction(async () => {
+      context.afterCommit(() => unitOfWork.log.push('callback'));
+      return Result.ok();
+    });
+
+    expect(result.isSuccess()).toBe(true);
+    expect(unitOfWork.log).toEqual(['begin', 'rollback', 'begin', 'commit', 'callback']);
+  });
+
+  it('owns its transaction: a unit of work that already has one open at the outermost call is a programming error', async () => {
+    const unitOfWork = new FakeUnitOfWork();
+    unitOfWork.active = true;
+    const context = contextWith(unitOfWork);
+    const fn = jest.fn(async () => Result.ok());
+
+    await expect(context.withTransaction(fn)).rejects.toThrow('the context owns its transaction');
+    expect(fn).not.toHaveBeenCalled();
+    expect(unitOfWork.log).toEqual([]);
+
+    unitOfWork.active = false;
+    expect((await context.withTransaction(fn)).isSuccess()).toBe(true);
+    expect(unitOfWork.log).toEqual(['begin', 'commit']);
+  });
+
   it('runs the callback at the outermost commit when transactions are nested', async () => {
     const unitOfWork = new FakeUnitOfWork();
     const context = contextWith(unitOfWork);
