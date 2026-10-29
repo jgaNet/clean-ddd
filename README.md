@@ -297,6 +297,7 @@ Every rule has a stable id, a reason, a remediation and says how it is held: by 
 | **ARCH-TREES** — The building blocks import nothing outside themselves, not even the shared kernel; the shared kernel imports the building blocks and no context. | linter |
 | **ARCH-CONTEXT-DECLARED** — Every directory under the contexts tree is a context declared in the language's binding, holds only the declared layers and its wiring file. | check · [README.md](conventions/README.md) |
 | **ARCH-MODULES-DATA** — A context's wiring is one file building a Module as data — its name, its commands, its queries, its domain event and integration event handlers; anything else it exposes is a named export of that file. No container, no builder, no service locator. | review |
+| **ARCH-ONE-HANDLER** — A command has exactly one handler — the Module lists it once, with one handler, and every command a route or a policy builds is one the Module lists; a fact may have any number of subscribers. | check · [0026-a-command-has-exactly-one-handler.md](docs/adr/0026-a-command-has-exactly-one-handler.md) |
 | **ARCH-EXECUTION-CONTEXT** — ExecutionContext carries what exists per request and nothing else — who is calling, the trace, the transaction, the bus, the logger. A mailer, a clock, a model client is a constructor dependency of the handler that needs it. | review |
 | **DOMAIN-RESULT** — A refused command or query is a failed Result value, never a thrown exception; throwing (or panicking) is for programming errors and corrupted state only. | tests · [0001-result-instead-of-exceptions.md](docs/adr/0001-result-instead-of-exceptions.md) |
 | **DOMAIN-RECORDS-EVENTS** — Only an aggregate root records domain events (`record(...)` inside a behaviour); handlers never construct one, they call `publishDomainEvents(aggregate, context)` after saving. | types |
@@ -316,6 +317,18 @@ Every rule has a stable id, a reason, a remediation and says how it is held: by 
 <!-- end generated -->
 
 The dependency table — which layer may import from which — is in [`conventions/architecture.yaml`](conventions/architecture.yaml) and rendered in each language's README, where the import rules are generated from it.
+
+### How the architecture is tested against itself
+
+The rules are not trusted to be read; they are attacked, on every run of the checks.
+
+- **The import table is probed.** For every tree the contract describes and every layer of it, `yarn check:conventions` generates one import the table allows and one it refuses — 1365 of them today, under the repository's real contexts — and asks ESLint about each: a probe allowed where the table refuses, refused where it allows, or refused without naming its rule, fails the check (ARCH-MAP-IS-REAL). The probes are generated from the contract, not listed, so a context declared this morning is probed this morning.
+- **The other linters are tested on violations.** The Python, Go and Rust tools each come with tests that take the tree as it is, which must pass, and write a violation into a copy of it or into the smallest text the reader takes — a Domain that imports its Infrastructure, a relative import across directories, an undeclared context, a wiring that lists a command twice, a stale inventory — which must be refused naming the rule.
+- **Nothing is silenced.** The TypeScript check refuses an `eslint-disable` outside the console logger's `no-console`, and the Go linter runs with no `//nolint`; a rule that cannot be held is reported as a gap in the binding, never silenced in a file.
+- **The documents are held to the code.** Every file the concept maps name must exist and every link must resolve (ARCH-MAP-IS-REAL); the context map is checked against the code in both directions (CTX-MAP-DECLARED); the event storm is read from the code and held to what the sessions decided ([ADR 22](docs/adr/0022-the-storm-is-facilitated-and-the-code-is-held-to-it.md)); the four inventories are held equal (ARCH-ONE-APPLICATION); one API scenario runs against each server (API-ONE-SURFACE).
+- **The guides are tested on a stranger.** Periodically a fresh agent, with nothing but the repository, is handed a feature in one language and graded on the shape it lands; every guess in its report is a sentence missing from a guide (ARCH-LEARNABLE, [the records](docs/evaluations/README.md)).
+
+What none of these catches is the next thing to add; what one of them refuses is fixed in the code or the map, never in the check.
 
 ## How the repository is organised
 
@@ -382,6 +395,7 @@ Non-obvious choices are recorded as short ADRs in [`docs/adr`](docs/adr):
 23. [The tooling lives at the root and ships as a package](docs/adr/0023-the-tooling-lives-at-the-root-and-ships-as-a-package.md)
 24. [Events are durable before they are published: an outbox, a relay, idempotent delivery](docs/adr/0024-events-are-durable-before-they-are-published.md)
 25. [A conflict is retried from a fresh read, three times, then refused](docs/adr/0025-a-conflict-is-retried-from-a-fresh-read-then-refused.md)
+26. [A command has exactly one handler, and every language's check holds it](docs/adr/0026-a-command-has-exactly-one-handler.md)
 
 What is deliberately *not* here — a DI container, an ORM, a message broker, a generic saga — is listed with its reason and the day it would come in the TypeScript README's [What is deliberately not here](typescript/README.md#what-is-deliberately-not-here); the known gaps of each language are at the end of its README.
 

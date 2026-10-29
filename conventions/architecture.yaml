@@ -244,6 +244,14 @@ rules:
     enforcement: review
     references: []
 
+  - id: ARCH-ONE-HANDLER
+    name: one-handler-per-command
+    statement: A command has exactly one handler — the Module lists it once, with one handler, and every command a route or a policy builds is one the Module lists; a fact may have any number of subscribers.
+    why: Commands and facts share one bus, and they differ in what an answer is — a command's outcome is its handler's result, so two handlers would answer with two outcomes and none with no outcome, while a fact is told to whoever listens and nobody is a fine answer.
+    remediation: List the command once in the Module with the one handler that decides it; a second reaction to the same intent is a policy on the fact that handler records, not a second handler; a command a route builds and nobody answers is a handler missing from the wiring.
+    enforcement: check
+    references: [docs/adr/0026-a-command-has-exactly-one-handler.md]
+
   - id: ARCH-EXECUTION-CONTEXT
     name: execution-context-carries-only-the-request
     statement: ExecutionContext carries what exists per request and nothing else — who is calling, the trace, the transaction, the bus, the logger. A mailer, a clock, a model client is a constructor dependency of the handler that needs it.

@@ -95,6 +95,40 @@ def test_refuses_a_binding_that_names_a_file_which_does_not_exist(copy: Path) ->
     assert any(problem.startswith("ARCH-MAP-IS-REAL:") and "src/nowhere.py" in problem for problem in found)
 
 
+def one_handler_refusals(here: Path) -> list[str]:
+    return [problem for problem in refusals(here) if problem.startswith("ARCH-ONE-HANDLER:")]
+
+
+def test_refuses_a_command_the_module_lists_with_two_handlers_naming_the_rule_and_the_command(copy: Path) -> None:
+    wiring = copy / "src/contexts/notes/module_local.py"
+    one = "[CreateNoteCommandHandler(repository)]"
+    two = "[CreateNoteCommandHandler(repository), EditNoteCommandHandler(repository)]"
+    wiring.write_text(wiring.read_text(encoding="utf-8").replace(one, two), encoding="utf-8")
+    assert one_handler_refusals(copy) == [
+        "ARCH-ONE-HANDLER: Notes: command CreateNote has 2 handlers "
+        "(CreateNoteCommandHandler, EditNoteCommandHandler); a command has exactly one"
+    ]
+
+
+def test_refuses_a_command_a_route_builds_that_no_handler_answers(copy: Path) -> None:
+    wiring = copy / "src/contexts/notes/module_local.py"
+    listed = "            Subscription(RestoreNoteCommandEvent, [RestoreNoteCommandHandler(repository)]),\n"
+    wiring.write_text(wiring.read_text(encoding="utf-8").replace(listed, ""), encoding="utf-8")
+    assert one_handler_refusals(copy) == [
+        "ARCH-ONE-HANDLER: Notes: command RestoreNote is built by a route and no handler in the Module answers it"
+    ]
+
+
+def test_refuses_a_command_a_policy_dispatches_that_no_handler_answers(copy: Path) -> None:
+    policy = copy / "src/contexts/notes/application/events/note_created_handler.py"
+    dispatch = "\n\ndef dispatch() -> object:\n    return PinNoteCommandEvent(note_id='x')\n"
+    policy.write_text(policy.read_text(encoding="utf-8") + dispatch, encoding="utf-8")
+    assert one_handler_refusals(copy) == [
+        "ARCH-ONE-HANDLER: Notes: command PinNote is dispatched by NoteCreatedHandler "
+        "and no handler in the Module answers it"
+    ]
+
+
 def test_can_import_answers_before_the_import_is_written_and_names_the_rule_that_refuses() -> None:
     verdicts = can_import(
         HERE,

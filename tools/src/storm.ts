@@ -50,7 +50,10 @@ export interface StormEvent {
 export interface StormCommand {
   /** The public name: the class name without `CommandEvent`. */
   name: string;
+  /** The handler that decides it: the first one listed, the only one when the wiring is right (ARCH-ONE-HANDLER). */
   handler: string;
+  /** Every handler the wiring lists for it. */
+  handlers: string[];
   file: string;
   actor: Actor;
   /** `VERB /path`, when a route carries the command. */
@@ -113,6 +116,8 @@ export interface StormContext {
   policies: StormPolicy[];
   readModels: StormReadModel[];
   externals: StormExternal[];
+  /** The commands the context's routes build, by public name, whether or not the wiring answers them. */
+  routed: string[];
 }
 
 export interface StormIntegrationEvent {
@@ -127,6 +132,21 @@ export interface EventStorm {
   integrationEvents: StormIntegrationEvent[];
   links: ContextLink[];
 }
+
+/** The handlers a `handlers: [...]` list constructs, at its own level: a `new` inside a handler's arguments is a port, not a handler. */
+const listedHandlers = (list: string): string[] => {
+  const found: string[] = [];
+  let depth = 0;
+  for (const match of list.matchAll(/new (\w+)\(|[()]/g)) {
+    if (match[0] === '(') depth += 1;
+    else if (match[0] === ')') depth -= 1;
+    else {
+      if (depth === 0) found.push(match[1]);
+      depth += 1;
+    }
+  }
+  return found;
+};
 
 /** The public name of a class: its intent or its fact, without the suffix of its kind (API-ONE-SURFACE). */
 export const publicName = (className: string): string =>
@@ -287,6 +307,7 @@ function inspectContext(
   // Routes: the controller method a route binds, and the command or query that method builds.
   const mount = mounts.get(context) ?? '';
   const routeOf = new Map<string, string>();
+  const routed = new Set<string>();
   for (const controller of files.filter(
     file => /CommandEvent\.set\(|getQuery\(/.test(file.text) && /Presentation/.test(file.path),
   )) {
@@ -299,7 +320,10 @@ function inspectContext(
         if (!body) continue;
         const path = posix.normalize(`${mount}/${match[2]}`).replace(/\/$/, '') || '/';
         const route = `${match[1].toUpperCase()} ${path}`;
-        for (const command of body.matchAll(/(\w+)CommandEvent\.set\(/g)) routeOf.set(publicName(command[1]), route);
+        for (const command of body.matchAll(/(\w+)CommandEvent\.set\(/g)) {
+          routeOf.set(publicName(command[1]), route);
+          routed.add(publicName(command[1]));
+        }
         for (const query of body.matchAll(/getQuery\((\w+)\)/g)) routeOf.set(publicName(query[1]), route);
       }
     }
@@ -317,15 +341,17 @@ function inspectContext(
   };
 
   const commands: StormCommand[] = [
-    ...section(wiringText, 'commands').matchAll(/event:\s*(\w+)CommandEvent,\s*handlers:\s*\[\s*new (\w+)\(/g),
+    ...section(wiringText, 'commands').matchAll(/event:\s*(\w+)CommandEvent,\s*handlers:\s*\[([^\]]*)\]/g),
   ].map(match => {
-    const handler = fileOf(files, match[2]);
+    const handlers = listedHandlers(match[2]);
+    const handler = handlers[0] ? fileOf(files, handlers[0]) : undefined;
     const text = handler?.text ?? '';
     const found = analyse(text);
     const aggregate = found.behaviours[0]?.split('.')[0] ?? aggregates.find(each => text.includes(each.name))?.name;
     return {
       name: publicName(match[1]),
-      handler: match[2],
+      handler: handlers[0] ?? '',
+      handlers,
       file: handler?.path ?? '',
       actor: actorOf(text),
       ...(routeOf.has(publicName(match[1])) && { route: routeOf.get(publicName(match[1])) }),
@@ -389,7 +415,44 @@ function inspectContext(
     };
   });
 
-  return { id: context, aggregates, events, commands, policies, readModels, externals };
+  return { id: context, aggregates, events, commands, policies, readModels, externals, routed: [...routed].sort() };
+}
+
+/**
+ * ARCH-ONE-HANDLER: a command has exactly one handler. The wiring lists it once, with one
+ * handler; every command a route or a policy builds is one the wiring lists. A fact may have
+ * any number of subscribers; a command's outcome is its handler's result, so two handlers
+ * would answer twice and none not at all.
+ */
+export function oneHandlerProblems(storm: EventStorm): string[] {
+  const problems: string[] = [];
+  for (const context of storm.contexts) {
+    const listed = new Map<string, string[]>();
+    for (const command of context.commands.filter(command => !command.expected)) {
+      listed.set(command.name, [...(listed.get(command.name) ?? []), ...command.handlers]);
+    }
+    for (const [name, handlers] of listed) {
+      if (handlers.length !== 1)
+        problems.push(
+          `ARCH-ONE-HANDLER: ${context.id}: command ${name} has ${handlers.length} handlers (${handlers.join(', ')}); a command has exactly one`,
+        );
+    }
+    for (const name of context.routed) {
+      if (!listed.has(name))
+        problems.push(
+          `ARCH-ONE-HANDLER: ${context.id}: command ${name} is built by a route and no handler in the Module answers it`,
+        );
+    }
+    for (const policy of context.policies.filter(policy => !policy.expected)) {
+      for (const name of policy.dispatches) {
+        if (!listed.has(name))
+          problems.push(
+            `ARCH-ONE-HANDLER: ${context.id}: command ${name} is dispatched by ${policy.name} and no handler in the Module answers it`,
+          );
+      }
+    }
+  }
+  return problems;
 }
 
 /** Where each context's routes are mounted, read from the composition root (`registerRoutes('/notes', noteRoutes, …)`). */
