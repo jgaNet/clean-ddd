@@ -8,9 +8,11 @@ Phase 2 of the flow ([RFC 0001](../rfc/0001-architecture-aware-multi-agent-flow.
 
 ## Decision
 
-**A storm not done, and a plan kept in the repository, may be in progress.** The check refuses a storm `done: false` only once the code carries all of it (*mark it done*), and a held plan's `new: true` parts only once every one of them exists (*mark it new: false*). Everything else is unchanged: a storm `done: true` is held to the code difference by difference; a plan part `new: false` must exist; and `plan validate`, run before the work, still refuses any part called new that already exists.
+**A storm not done, and a plan kept in the repository, may be in progress.** The check refuses a storm `done: false` only once the code carries all of it (*mark it done*). A plan is in progress for as long as its feature's storm is not done, whichever of its own parts are written: in a run of several slices each slice writes *all* of its own plan and only part of the feature, so a plan is the wrong unit to ask whether the work is finished — the feature is. A plan with no storm, or whose storm is done, is refused once every one of its `new: true` parts exists (*mark it new: false*). Everything else is unchanged: a storm `done: true` is held to the code difference by difference; a plan part `new: false` must exist; and `plan validate`, run before the work, still refuses any part called new that already exists.
 
 **In a run of several slices, the single writer marks the contract carried.** Once every slice's patch is applied, the driver sets the storm `done: true` and the slices' plan parts `new: false`, and only then runs the gate on the integration: the done storm is held to the integrated code difference by difference, which is exactly the contract incompatibility the RFC asks integration to catch. Plans meant for such a run say `new:` on every part, so that the writer's mark is a plain substitution.
+
+The first version of this decision made a plan in progress while only *some* of its new parts existed. The next two runs stopped again, all four slices with the same report: each slice had written its whole plan, so in its worktree the plan was carried and asked to say `new: false`, in a file the slice may not touch. Each agent had checked that this one flag was all that stood between its slice and a passing gate. The unit is the feature, which the storm names.
 
 ## Consequences
 

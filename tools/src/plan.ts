@@ -137,11 +137,13 @@ const partExists = (root: string, place: string, change: PlannedChange): boolean
 /** Everything the plan gets wrong against the contract, one line each; empty means it is legal. */
 /**
  * `before`: the plan is about to be worked on, so nothing it calls new may exist yet (`plan
- * validate`). `held`: the plan is kept in the repository and held on every build, so it may be
- * in progress — some of its new parts written, others not, as when several agents write one
- * feature at once — and is refused only once every new part exists and it still says so (ADR 29).
+ * validate`). `held`: the plan is kept in the repository and held on every build; it may be
+ * partly written, and is refused once every new part exists and it still says new.
+ * `in-progress`: its feature's storm is not done yet, so the feature is still being written —
+ * by several agents at once, each writing all of its own plan — and nothing it calls new is
+ * refused for existing (ADR 29).
  */
-export type PlanMoment = 'before' | 'held';
+export type PlanMoment = 'before' | 'held' | 'in-progress';
 
 export function validatePlan(
   plan: FeaturePlan,
@@ -269,7 +271,7 @@ export function validatePlan(
   // with some of its new parts written is in progress; one with all of them written is done and
   // still says new, which is stale.
   if (moment === 'before') problems.push(...written);
-  else if (written.length && !unwritten)
+  else if (moment === 'held' && written.length && !unwritten)
     problems.push(...written.map(line => `${line}; the plan is carried: mark it new: false`));
   return problems;
 }

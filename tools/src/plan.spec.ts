@@ -131,6 +131,8 @@ describe('a feature plan', () => {
         '"Note" is planned as new, but typescript/src/Contexts/Notes/Domain/Note/Note.ts already exists; the plan is carried: mark it new: false',
       ),
     );
+    // Its feature's storm not done yet: the feature is still being written, whatever this plan's share.
+    expect(validatePlan(carried, contract, root, 'in-progress').join('\n')).not.toContain('planned as new');
   });
 
   it('refuses a cross-context strategy that is not one of the two contracts, and a badly named event', () => {
