@@ -35,7 +35,7 @@ const project = resolve(required('project'));
 const base = required('base');
 const request = readFileSync(resolve(required('request')), 'utf8').trim();
 const run = required('run');
-const model = option('model', 'claude-opus-5-5');
+const model = option('model');
 const timeoutMs = Number(option('timeout-minutes', '60')) * 60_000;
 // Beside the project: `<project>.flow/`. Inside it, the project's own tools would walk every worktree.
 const flowDir = `${project}.flow`;
@@ -76,7 +76,15 @@ const brief = [
 const agentStarted = Date.now();
 const agent = spawnSync(
   'claude',
-  ['-p', brief, '--output-format', 'json', '--model', model, '--allowedTools', 'Bash Read Edit Write Glob Grep'],
+  [
+    '-p',
+    brief,
+    '--output-format',
+    'json',
+    ...(model ? ['--model', model] : []),
+    '--allowedTools',
+    'Bash Read Edit Write Glob Grep',
+  ],
   {
     cwd: worktree,
     encoding: 'utf8',

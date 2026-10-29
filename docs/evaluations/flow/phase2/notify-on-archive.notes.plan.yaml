@@ -1,0 +1,36 @@
+schemaVersion: 1
+
+feature: notify-on-archive
+language: typescript
+context: Notes
+
+intent: >-
+  Each time an owner archives a note, Notes publishes the fact in its public words, with the
+  accounts the note is shared with at that moment, so that another context can tell them. The
+  anti-corruption handler in Notifications is the other slice's, written at the same time.
+
+changes:
+  - kind: integration-event
+    name: NoteArchivedIntegrationEvent
+    aggregate: Note
+    new: false
+  - kind: event-handler
+    name: NoteArchived
+    new: true
+
+invariants:
+  - The fact is published on every archiving, whether the note is shared or not, and whether anyone listens.
+  - The recipients are the accounts the note is shared with when it is archived, never its owner.
+  - The payload is the contract in src/SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts, unchanged.
+
+events:
+  - NoteArchivedEvent
+
+crossContext:
+  context: Notifications
+  strategy: integration-event
+  why: >-
+    The accounts a note is shared with are told when it is archived. Notes publishes the fact; it
+    knows nothing of notifications.
+
+architectureChanges: false

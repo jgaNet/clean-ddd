@@ -1,0 +1,48 @@
+# What the session decided the feature adds, in the inventory's words; the code is held to it.
+schemaVersion: 1
+
+feature: notify-on-archive
+intent: >-
+  When the owner archives a note that is shared, each account it is shared with is notified, and
+  lists its notifications.
+
+done: false
+
+hotSpots:
+  - question: Who is notified when the owner archives a note?
+    decision: The accounts the note is shared with at that moment; never the owner, who acted. A note shared with nobody notifies nobody.
+  - question: A note archived, restored, then archived again?
+    decision: One notification per archiving, each time; every archiving is a fact.
+  - question: What can a recipient do with a notification?
+    decision: List their own, most recent first. Nothing else yet (no read status).
+  - question: Is the human contract approved before the agents start?
+    decision: No separate approval; the run starts once the storm, the plans and the acceptance test pass the tooling, and the contract is shown in the run's report.
+
+contexts:
+  - id: Notes
+    commands: []
+    queries: []
+    events: []
+    policies:
+      - on: NoteArchived
+        kind: domain-event
+        publishes: [NoteArchived]
+        events: []
+  - id: Notifications
+    commands: []
+    queries:
+      - name: GetMyNotifications
+        actor: a signed-in account
+        route: GET /notifications
+    events: [NotificationCreated]
+    policies:
+      - on: NoteArchived
+        kind: integration-event
+        publishes: []
+        events: [NotificationCreated]
+
+links:
+  - mechanism: integration-event
+    upstream: Notes
+    downstream: Notifications
+    contracts: [NoteArchived]

@@ -1,6 +1,6 @@
 # Flow
 
-The smallest driver of the clean-ddd reference's RFC 0001 (`docs/rfc/0001-architecture-aware-multi-agent-flow.md` there), phase 1: one feature, one agent in its own git worktree, one verdict from the gate, one log.
+The smallest driver of the clean-ddd reference's RFC 0001 (`docs/rfc/0001-architecture-aware-multi-agent-flow.md` there), phases 1 and 2: one feature, one agent in its own git worktree, one verdict from the gate, one log — then one cross-context feature, one agent per bounded context in parallel, and one writer that integrates them.
 
 ```bash
 node .claude/flow/run-feature.mjs --project <dir> --base <ref> --request <file> --run <id> \
@@ -12,4 +12,19 @@ node .claude/flow/run-feature.mjs --project <dir> --base <ref> --request <file> 
 - **The gate** is run by the driver on the worktree once the agent has stopped. Its verdict is the run's, whatever the agent reported.
 - **The log** is JSONL, one event per line: `started`, `agent-finished` (exit code, turns, duration, and the cost and tokens per model **only as the runner reports them** — absent otherwise, never estimated), `gate` (the whole report), `finished`.
 
-It is a script on purpose. It schedules nothing, runs one feature, and holds no state but the log; scheduling, several agents and resuming are later phases of the RFC, and come only if the measurements justify them.
+## Phase 2: one feature, one agent per bounded context
+
+```bash
+node .claude/flow/run-slices.mjs --project <dir> --plan <execution-plan.yaml> [--log <file.jsonl>]
+```
+
+The feature's contract is decided first, by a person, and committed (the contract stage): the storm, one feature plan per context, the integration contracts in the shared kernel, the relationship in the context map (declared `planned` until its code), the composition root's registration of a new context, and an acceptance test of the user-visible flow that only the integrated feature can pass. The execution plan then says how this run executes it — the base, the request, the storm, the slices with their plans, the acceptance test and the command that runs it, the model, the parallelism, the retry, the ports; its comment at the top of the script shows one.
+
+- **The contract is held before anything starts:** the storm and every plan validate, and the acceptance test exists and fails at the base.
+- **The slices run at once**, each in its own worktree (`<project>.flow/worktrees/<run>/<slice>`), with its own port, told the contract is frozen and that it may change its own context's folder and nothing else.
+- **The driver's verdict per slice** is the gate, plus its scope: a file outside the slice's context is refused. A failure sends the slice back once, in the same conversation, with the lines to read; an agent whose report starts with `BLOCKED` stops the feature — the contract is a person's to change.
+- **One writer integrates:** each slice's patch applied to a worktree from the base, the contract marked carried (the storm done, the plans' parts not new), the documents regenerated, then the gate, what the code still owes the storm, and the acceptance test. The integrated branch `run/<run>/integration-<n>` is what a person reviews and merges.
+
+The log has the same shape as phase 1's, per slice, plus `contract`, `slice` (its state), `integration` and `finished`.
+
+It is a script on purpose. It holds no state but the log; resuming a run, a second runner and several features at once are later phases of the RFC, and come only if the measurements justify them.

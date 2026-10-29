@@ -19,7 +19,7 @@
  *   slices:
  *     - { id: notes, context: Notes, plan: conventions/plans/notify-on-archive.notes.yaml }
  *     - { id: notifications, context: Notifications, plan: conventions/plans/notify-on-archive.notifications.yaml }
- *   agent: { model: claude-opus-5-5, timeoutMinutes: 60 }
+ *   agent: { timeoutMinutes: 60 }                    # and `model: <id>` to name one; the runner's default otherwise
  *   parallelism: 2
  *   retry: { perSlice: 1 }
  *   ports: { base: 10100 }
@@ -62,7 +62,7 @@ for (const key of ['run', 'base', 'request', 'storm', 'acceptance', 'slices']) {
   if (!plan[key]) fail(`${planFile}: ${key} is required`);
 }
 const run = plan.run;
-const model = plan.agent?.model ?? 'claude-opus-5-5';
+const model = plan.agent?.model;
 const timeoutMs = (plan.agent?.timeoutMinutes ?? 60) * 60_000;
 const parallelism = plan.parallelism ?? 1;
 const retries = plan.retry?.perSlice ?? 1;
@@ -204,21 +204,21 @@ const brief = (slice, port) => {
   ].join('\n');
 };
 
-async function agent(slice, path, port, prompt, sessionId) {
+async function agent(slice, path, port, prompt, again) {
   const started = Date.now();
   const runnerArgs = [
     '-p',
     prompt,
     '--output-format',
     'json',
-    '--model',
-    model,
+    ...(model ? ['--model', model] : []),
     '--allowedTools',
     'Bash Read Edit Write Glob Grep',
   ];
-  // The same agent, in the same worktree: its conversation is the latest one there. (The session id
-  // the runner reports can be the parent's, inherited through the environment.)
-  if (sessionId) runnerArgs.push('--continue');
+  // The same agent, in the same worktree: its conversation is the latest one there. The session id
+  // the runner reports is not used: run from inside a Claude Code session, every agent reported
+  // the parent's, inherited through the environment (phase 2).
+  if (again) runnerArgs.push('--continue');
   const result = await exec('claude', runnerArgs, { cwd: path, extraEnv: { PORT: String(port) } });
   const json = parse(result.stdout);
   return {
@@ -227,7 +227,6 @@ async function agent(slice, path, port, prompt, sessionId) {
     wallClockMs: Date.now() - started,
     ...(json
       ? {
-          sessionId: json.session_id,
           isError: json.is_error,
           numTurns: json.num_turns,
           durationMs: json.duration_ms,
@@ -268,8 +267,7 @@ async function work(slice, feedback) {
   const prompt = feedback
     ? `The driver checked your work and it is not done:\n\n${feedback.join('\n')}\n\nFix it, inside src/Contexts/${slice.context}/, then commit. The rest of the contract is unchanged.`
     : brief(slice, slice.port);
-  const result = await agent(slice, slice.path, slice.port, prompt, feedback ? slice.sessionId : undefined);
-  slice.sessionId = result.sessionId ?? slice.sessionId;
+  const result = await agent(slice, slice.path, slice.port, prompt, Boolean(feedback));
   slice.cost += result.costUsd ?? 0;
   event('agent-finished', { slice: slice.id, attempt: slice.attempts, ...result });
   if (/^\s*BLOCKED/.test(result.report ?? '')) {

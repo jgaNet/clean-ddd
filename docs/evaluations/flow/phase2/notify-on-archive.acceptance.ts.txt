@@ -1,0 +1,123 @@
+import { FastifyApplication } from '@Bootstrap/Fastify/FastifyApplication';
+import { createApplication } from '@Bootstrap/Fastify/createApplication';
+
+/**
+ * The acceptance test of "notify on archive", written in the contract stage, before either slice:
+ * the whole application over HTTP, as a client sees it. It passes only once Notes publishes the
+ * fact and Notifications tells the recipients; it is not an end-to-end spec of either context, so
+ * it is run on its own (`--testMatch '**\/notify-on-archive.acceptance.ts'`), never by `test:e2e`.
+ */
+let app: FastifyApplication;
+let api: string;
+beforeAll(async () => {
+  app = await createApplication();
+  await app.start(0);
+  api = `${app.address}/${app.apiPrefix}`;
+});
+afterAll(() => app.stop());
+
+type Json = Record<string, unknown>;
+const call = async (method: string, path: string, token?: string, body?: Json) => {
+  const response = await fetch(`${api}${path}`, {
+    method,
+    headers: {
+      ...(body && { 'content-type': 'application/json' }),
+      ...(token && { authorization: `Bearer ${token}` }),
+    },
+    body: body && JSON.stringify(body),
+  });
+  return { status: response.status, body: response.status === 204 ? undefined : await response.json() };
+};
+/** What a command came to: the 202's operation, followed until it ends. */
+const outcome = async (accepted: { status: number; body: Json }, token?: string): Promise<Json> => {
+  expect(accepted.status).toBe(202);
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const { body } = await call('GET', `/tracker/operations/${accepted.body.operationId}`, token);
+    if (body.status === 'SUCCESS' || body.status === 'ERROR') return body;
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  throw new Error('the operation never ended');
+};
+/** A reaction runs after the command's outcome: read until the answer is the expected one, or give up. */
+const eventually = async <T>(read: () => Promise<T>, expected: (value: T) => boolean): Promise<T> => {
+  let value = await read();
+  for (let attempt = 0; attempt < 50 && !expected(value); attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 20));
+    value = await read();
+  }
+  return value;
+};
+
+const account = async (email: string) => {
+  const signedUp = await outcome(await call('POST', '/accounts', undefined, { email, password: 'secret123' }));
+  const login = await call('POST', '/accounts/login', undefined, { email, password: 'secret123' });
+  return { id: String(signedUp.result), token: String(login.body.token) };
+};
+const notificationsOf = async (token: string) => (await call('GET', '/notifications', token)).body as Json[];
+
+describe('notify on archive', () => {
+  it('tells every account a note is shared with, once per archiving, and nobody else', async () => {
+    const [owner, bob, carl, stranger] = await Promise.all(
+      ['owner@acceptance.test', 'bob@acceptance.test', 'carl@acceptance.test', 'stranger@acceptance.test'].map(account),
+    );
+    const written = await outcome(
+      await call('POST', '/notes', owner.token, { title: 'Plan', text: 'the plan' }),
+      owner.token,
+    );
+    const noteId = String(written.result);
+    for (const recipient of [bob, carl]) {
+      const shared = await outcome(
+        await call('POST', `/notes/${noteId}/shares`, owner.token, { accountId: recipient.id }),
+        owner.token,
+      );
+      expect(shared.status).toBe('SUCCESS');
+    }
+
+    expect((await outcome(await call('POST', `/notes/${noteId}/archive`, owner.token), owner.token)).status).toBe(
+      'SUCCESS',
+    );
+
+    for (const recipient of [bob, carl]) {
+      const notifications = await eventually(
+        () => notificationsOf(recipient.token),
+        list => list.length === 1,
+      );
+      expect(notifications).toEqual([
+        { id: expect.any(String), noteId, noteTitle: 'Plan', archivedAt: expect.any(String) },
+      ]);
+      expect(Number.isNaN(Date.parse(String(notifications[0].archivedAt)))).toBe(false);
+    }
+    expect(await notificationsOf(owner.token)).toEqual([]);
+    expect(await notificationsOf(stranger.token)).toEqual([]);
+
+    // Restored, then archived again: a second fact, a second notification, the newest first.
+    expect((await outcome(await call('POST', `/notes/${noteId}/restore`, owner.token), owner.token)).status).toBe(
+      'SUCCESS',
+    );
+    expect((await outcome(await call('POST', `/notes/${noteId}/archive`, owner.token), owner.token)).status).toBe(
+      'SUCCESS',
+    );
+    const twice = await eventually(
+      () => notificationsOf(bob.token),
+      list => list.length === 2,
+    );
+    expect(twice).toHaveLength(2);
+    expect(Date.parse(String(twice[0].archivedAt))).toBeGreaterThanOrEqual(Date.parse(String(twice[1].archivedAt)));
+    expect(twice[0].id).not.toEqual(twice[1].id);
+  });
+
+  it('notifies nobody for a note shared with nobody', async () => {
+    const [owner, bob] = await Promise.all(['alone@acceptance.test', 'bob2@acceptance.test'].map(account));
+    const written = await outcome(await call('POST', '/notes', owner.token, { title: 'Mine', text: '' }), owner.token);
+    expect(
+      (await outcome(await call('POST', `/notes/${written.result}/archive`, owner.token), owner.token)).status,
+    ).toBe('SUCCESS');
+    await new Promise(resolve => setTimeout(resolve, 200));
+    expect(await notificationsOf(owner.token)).toEqual([]);
+    expect(await notificationsOf(bob.token)).toEqual([]);
+  });
+
+  it('refuses an anonymous caller', async () => {
+    expect((await call('GET', '/notifications')).status).toBe(403);
+  });
+});
