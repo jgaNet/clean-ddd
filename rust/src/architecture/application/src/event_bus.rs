@@ -66,6 +66,18 @@ pub trait EventBus: Send + Sync {
         self.dispatch(Operation::new(event, context))
     }
 
+    /// Publishes a message under a given id: what the outbox relay calls, with the entry's id,
+    /// so that a subscriber that already handled it is not handed it again (ADR 24). The
+    /// operation is built here and dispatched like any other: a decorator sees the same id.
+    fn publish_with_id(
+        &self,
+        message_id: String,
+        event: Arc<dyn AnyEvent>,
+        context: ExecutionContext,
+    ) -> BoxFuture<'_, Operation> {
+        self.dispatch(Operation::with_id(message_id, event, context))
+    }
+
     /// Subscribes a handler to a channel: the name of the event it reacts to.
     fn subscribe(&self, channel: &'static str, handler: Arc<dyn AnyHandler>) -> BoxFuture<'_, ()>;
 }

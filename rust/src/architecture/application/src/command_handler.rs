@@ -8,6 +8,8 @@
 //! 2. logging      — what ran, and whether it failed
 //! 3. transaction  — `execute()` runs inside the context's unit of work when there is one
 //! 4. safety net   — a panic becomes a failed operation instead of a crash
+//! 5. retry        — a concurrency conflict is re-read and re-decided in a new transaction, up to
+//!    `CONFLICT_ATTEMPTS` times; the last conflict is the refusal (ADR 25)
 //!
 //! The handler is subscribed to its command on the event bus by the Module, wrapped in a
 //! [`CommandSubscriber`] that gives it its command back from the type-erased operation. The
@@ -20,6 +22,7 @@ use std::any::{Any, type_name};
 use std::future::Future;
 use std::sync::Arc;
 
+use architecture_domain::common_exceptions::CONCURRENCY_CONFLICT;
 use architecture_domain::{CommandEvent, DomainResult};
 use serde::Serialize;
 
@@ -31,7 +34,10 @@ use crate::operation::Operation;
 pub trait CommandHandler: Send + Sync + 'static {
     /// The command it handles; what it answers with is the command's `Output`, serializable
     /// because the Tracker shows it to the client who asked.
-    type Command: CommandEvent<Output: Serialize> + Send + Sync + 'static;
+    type Command: CommandEvent<Output: Serialize> + Clone + Send + Sync + 'static;
+
+    /// How many times `execute()` runs on a concurrency conflict before the conflict is the answer (ADR 25).
+    const CONFLICT_ATTEMPTS: usize = 3;
 
     /// Authorization hook. Override it to refuse callers who may not run this command. Business
     /// rules about *what* they may do to *which* object belong in the aggregate.
@@ -67,11 +73,41 @@ pub trait CommandHandler: Send + Sync + 'static {
             if let Some(logger) = context.logger() {
                 logger.info(context.trace_id(), &format!("Executing {name}"));
             }
-            let result = context.with_transaction(|| self.execute(command, context)).await;
+            let result = self.execute_until_uncontended(command, context).await;
             if let Err(failure) = &result {
                 log_warn(context, &format!("{name} failed: {}", failure.message()));
             }
             result
+        }
+    }
+
+    /// The use case in its transaction; again, from a fresh read, when the first run lost a
+    /// race (ADR 25). `execute()` loads the aggregate, so the second run re-decides the rule on
+    /// what the other writer left; nothing is re-applied blindly. A failed attempt rolled back
+    /// and dropped its events, like any failed result. Not meant to be overridden.
+    fn execute_until_uncontended(
+        &self,
+        command: Self::Command,
+        context: &ExecutionContext,
+    ) -> impl Future<Output = DomainResult<<Self::Command as CommandEvent>::Output>> + Send {
+        async move {
+            let attempts = Self::CONFLICT_ATTEMPTS;
+            let mut attempt = 1;
+            loop {
+                let result = context.with_transaction(|| self.execute(command.clone(), context)).await;
+                let conflict = matches!(&result, Err(failure) if failure.is(CONCURRENCY_CONFLICT));
+                if !conflict || attempt >= attempts {
+                    return result;
+                }
+                if let Some(logger) = context.logger() {
+                    let name = Self::Command::NAME;
+                    logger.info(
+                        context.trace_id(),
+                        &format!("{name} lost a race (attempt {attempt} of {attempts}); reading again"),
+                    );
+                }
+                attempt += 1;
+            }
         }
     }
 
@@ -143,11 +179,15 @@ mod tests {
     use crate::event_bus::EventBus;
     use crate::execution_context::{Auth, ExecutionContextOptions, UnitOfWork};
     use crate::operation::OperationStatus;
+    use crate::outbox::Outbox;
+    use crate::outbox::testing::FakeOutbox;
 
     #[derive(Debug, Clone, PartialEq)]
     struct Greet {
         name: String,
         then: Option<&'static str>,
+        /// How many runs lose a race before one wins: a conflict re-runs `execute()` (ADR 25).
+        conflicts: usize,
     }
     impl Event for Greet {
         fn name(&self) -> &'static str {
@@ -195,7 +235,16 @@ mod tests {
     }
 
     /// The shape of every concrete handler: a guard for who may call, an execute for the use case.
-    struct GreetHandler;
+    /// It counts how many times `execute()` ran: a conflict re-runs it from a fresh read.
+    #[derive(Default)]
+    struct GreetHandler {
+        executions: Mutex<usize>,
+    }
+    impl GreetHandler {
+        fn executions(&self) -> usize {
+            *self.executions.lock().unwrap()
+        }
+    }
     impl CommandHandler for GreetHandler {
         type Command = Greet;
 
@@ -207,10 +256,14 @@ mod tests {
         }
 
         async fn execute(&self, command: Greet, context: &ExecutionContext) -> DomainResult<String> {
+            *self.executions.lock().unwrap() += 1;
             match command.then {
                 Some("throw") => panic!("boom"),
                 Some("fail") => return Err(Exception::not_allowed("Test", "Refused")),
                 _ => {}
+            }
+            if self.executions() <= command.conflicts {
+                return Err(Exception::concurrency_conflict("Test", "The greeter changed since it was read"));
             }
             let mut greeter = Greeter(AggregateRoot::new(Id::new("greeter"), 0));
             greeter.greet(&command.name);
@@ -219,11 +272,13 @@ mod tests {
         }
     }
 
-    /// Records what was published and when, in the same log as the unit of work.
+    /// Records what was published and when, in the same log as the unit of work; its outbox is
+    /// what the handler's events go through.
     #[derive(Default)]
     struct Recorder {
         log: Mutex<Vec<String>>,
         active: Mutex<bool>,
+        outbox: FakeOutbox,
     }
     impl EventBus for Recorder {
         fn connect(&self) -> BoxFuture<'_, ()> {
@@ -256,6 +311,13 @@ mod tests {
         fn has_active_transaction(&self) -> bool {
             *self.active.lock().unwrap()
         }
+        fn outbox(&self) -> &dyn Outbox {
+            &self.outbox
+        }
+    }
+
+    fn greet(name: &str, then: Option<&'static str>) -> Greet {
+        Greet { name: name.into(), then, conflicts: 0 }
     }
 
     fn operation_for(recorder: &Arc<Recorder>, command: Greet, role: &str) -> Operation {
@@ -276,21 +338,50 @@ mod tests {
     #[test]
     fn runs_the_use_case_inside_a_transaction_and_publishes_the_domain_events_after_the_commit() {
         let recorder = Arc::new(Recorder::default());
-        let operation = operation_for(&recorder, Greet { name: "Alice".into(), then: None }, "user");
+        let operation = operation_for(&recorder, greet("Alice", None), "user");
 
-        let done = pollster::block_on(GreetHandler.handle(operation));
+        let done = pollster::block_on(GreetHandler::default().handle(operation));
 
         assert_eq!(done.status(), OperationStatus::Success);
         assert_eq!(done.value::<String>().map(String::as_str), Some("Hello Alice"));
         assert_eq!(log(&recorder), ["begin", "commit", "publish Greeted { name: \"Alice\" }"]);
+        assert!(recorder.outbox.entries().is_empty());
+    }
+
+    #[test]
+    fn runs_the_use_case_again_from_a_fresh_read_when_it_lost_a_race_and_answers_with_the_second_run() {
+        let recorder = Arc::new(Recorder::default());
+        let handler = GreetHandler::default();
+        let operation = operation_for(&recorder, Greet { name: "Alice".into(), then: None, conflicts: 1 }, "user");
+
+        let done = pollster::block_on(handler.handle(operation));
+
+        assert_eq!(done.status(), OperationStatus::Success);
+        assert_eq!(handler.executions(), 2);
+        // The first attempt rolled back and published nothing; the second committed and published.
+        assert_eq!(log(&recorder), ["begin", "rollback", "begin", "commit", "publish Greeted { name: \"Alice\" }"]);
+    }
+
+    #[test]
+    fn refuses_with_the_conflict_after_the_third_attempt_and_publishes_nothing() {
+        let recorder = Arc::new(Recorder::default());
+        let handler = GreetHandler::default();
+        let operation = operation_for(&recorder, Greet { name: "Alice".into(), then: None, conflicts: 10 }, "user");
+
+        let done = pollster::block_on(handler.handle(operation));
+
+        assert_eq!(done.status(), OperationStatus::Error);
+        assert!(done.error().expect("refused").is(CONCURRENCY_CONFLICT));
+        assert_eq!(handler.executions(), GreetHandler::CONFLICT_ATTEMPTS);
+        assert_eq!(log(&recorder), ["begin", "rollback", "begin", "rollback", "begin", "rollback"]);
     }
 
     #[test]
     fn refuses_at_the_guard_without_opening_a_transaction_or_running_the_use_case() {
         let recorder = Arc::new(Recorder::default());
-        let operation = operation_for(&recorder, Greet { name: "Alice".into(), then: None }, "guest");
+        let operation = operation_for(&recorder, greet("Alice", None), "guest");
 
-        let done = pollster::block_on(GreetHandler.handle(operation));
+        let done = pollster::block_on(GreetHandler::default().handle(operation));
 
         assert_eq!(done.status(), OperationStatus::Error);
         assert!(done.error().expect("refused").is(architecture_domain::common_exceptions::NOT_ALLOWED));
@@ -300,9 +391,9 @@ mod tests {
     #[test]
     fn rolls_back_a_failed_result_and_publishes_nothing() {
         let recorder = Arc::new(Recorder::default());
-        let operation = operation_for(&recorder, Greet { name: "Alice".into(), then: Some("fail") }, "user");
+        let operation = operation_for(&recorder, greet("Alice", Some("fail")), "user");
 
-        let done = pollster::block_on(GreetHandler.handle(operation));
+        let done = pollster::block_on(GreetHandler::default().handle(operation));
 
         assert_eq!(done.status(), OperationStatus::Error);
         assert_eq!(log(&recorder), ["begin", "rollback"]);
@@ -311,9 +402,9 @@ mod tests {
     #[test]
     fn turns_a_panic_into_a_failed_operation_instead_of_crashing_and_rolls_back() {
         let recorder = Arc::new(Recorder::default());
-        let operation = operation_for(&recorder, Greet { name: "Alice".into(), then: Some("throw") }, "user");
+        let operation = operation_for(&recorder, greet("Alice", Some("throw")), "user");
 
-        let done = pollster::block_on(GreetHandler.handle(operation));
+        let done = pollster::block_on(GreetHandler::default().handle(operation));
 
         assert_eq!(done.status(), OperationStatus::Error);
         assert_eq!(done.error().expect("failed").message(), "boom");

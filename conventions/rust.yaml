@@ -121,14 +121,14 @@ rules:
   DOMAIN-NON-DETERMINISM:
     references: [src/contexts/notes/application/src/commands/suggest_note_title.rs]
   EVENT-AFTER-COMMIT:
-    references: [src/architecture/application/src/domain_events.rs]
+    references: [src/architecture/application/src/domain_events.rs, src/architecture/infrastructure/src/event_bus.rs]
   CTX-CONTRACTS:
     references:
       - src/contexts/notes/infrastructure/src/directories.rs
       - src/contexts/notes/application/src/events/note_shared_handler.rs
       - src/contexts/notifications/application/src/events/note_shared_handler.rs
   CONC-OPTIMISTIC:
-    references: [src/contexts/notes/infrastructure/src/repositories.rs]
+    references: [src/contexts/notes/infrastructure/src/repositories.rs, src/architecture/application/src/command_handler.rs]
   API-ONE-SURFACE:
     references: [src/contexts/tracker/application/src/projection.rs, src/bootstrap/tests/operation_routes.rs]
   ARCH-MAP-IS-REAL:
@@ -411,6 +411,22 @@ concepts:
     canonical: [src/architecture/application/src/domain_events.rs]
     example: '`publish_domain_events()` in [`domain_events.rs`](src/architecture/application/src/domain_events.rs)'
     notes: 'the handler hands the aggregate over, and the events are pulled at the commit'
+  transactional-outbox:
+    canonical:
+      - src/architecture/application/src/outbox.rs
+    examples:
+      - src/architecture/infrastructure/src/outbox.rs
+      - src/architecture/application/src/domain_events.rs
+    example: >-
+      [`outbox.rs`](src/architecture/application/src/outbox.rs) (the port and `relay_outbox()`),
+      [`infrastructure/outbox.rs`](src/architecture/infrastructure/src/outbox.rs),
+      [`domain_events.rs`](src/architecture/application/src/domain_events.rs) (appends at commit)
+    notes: 'the port is async by shape, like every port here; the in-memory outbox hands its store out as a `Snapshottable` and the composition root lists it with the stores the unit of work guards'
+  retry-on-conflict:
+    canonical:
+      - src/architecture/application/src/command_handler.rs
+    example: '`CONFLICT_ATTEMPTS` and `execute_until_uncontended()` in [`command_handler.rs`](src/architecture/application/src/command_handler.rs), with its `mod tests`'
+    notes: 'an associated const of the trait, so a handler may say its own number the day one needs to; the retry is in the provided `run()`, which `handle()` and a synchronous caller share'
   domain-event-handler:
     canonical: [src/contexts/notes/application/src/events/note_shared_handler.rs]
   integration-event:
@@ -472,6 +488,10 @@ concepts:
     canonical: [src/architecture/infrastructure/src/event_bus.rs]
     notes: 'routes by name, awaits the handlers inline; the port is [`event_bus.rs`](src/architecture/application/src/event_bus.rs)'
     examples: [src/architecture/application/src/event_bus.rs]
+  idempotent-delivery:
+    canonical: [src/architecture/infrastructure/src/event_bus.rs]
+    example: 'the inbox of each `Subscription` in [`event_bus.rs`](src/architecture/infrastructure/src/event_bus.rs) (`claim()` and `release()`), with its `mod tests`'
+    notes: 'the id is claimed when the delivery starts, since the handlers run inline and a reaction that commits relays in its turn'
   decorator:
     canonical: [src/contexts/tracker/infrastructure/src/tracked_event_bus.rs]
     notes: 'wraps `dispatch`: a record before, a record after, the completion notice when it is a command''s'

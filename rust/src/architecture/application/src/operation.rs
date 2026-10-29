@@ -69,8 +69,14 @@ pub struct Operation {
 impl Operation {
     /// A pending operation for an event just published; the bus is the usual caller.
     pub fn new(event: Arc<dyn AnyEvent>, context: ExecutionContext) -> Self {
+        Self::with_id(Id::generate().value().to_string(), event, context)
+    }
+
+    /// A pending operation under a given id: a message relayed from the outbox carries its
+    /// entry's id, so that a subscriber that already handled it is not handed it again (ADR 24).
+    pub fn with_id(id: String, event: Arc<dyn AnyEvent>, context: ExecutionContext) -> Self {
         Self {
-            id: Id::generate().value().to_string(),
+            id,
             status: OperationStatus::Pending,
             event,
             context,

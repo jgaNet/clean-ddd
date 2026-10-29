@@ -8,10 +8,15 @@
 //! another request's work. What these four methods give you is a transaction *boundary*, not
 //! isolation; a database gives both, through the same four methods (ADR 3). One instance per
 //! request, over the stores the composition root lists.
+//!
+//! The outbox is one of the stores (ADR 24): the process's `InMemoryOutbox` hands its store out
+//! (`store()`) and the composition root lists it with the others, so an entry appended by a
+//! transaction that rolls back is gone with the transaction's writes, and one that commits is
+//! durable for the relay.
 
 use std::sync::{Arc, Mutex};
 
-use architecture_application::{BoxFuture, UnitOfWork};
+use architecture_application::{BoxFuture, Outbox, UnitOfWork};
 
 use crate::data_sources::Snapshottable;
 
@@ -20,12 +25,15 @@ type Restore = Box<dyn FnOnce() + Send>;
 
 pub struct InMemoryUnitOfWork {
     stores: Vec<Arc<dyn Snapshottable>>,
+    outbox: Arc<dyn Outbox>,
     restore: Mutex<Option<Vec<Restore>>>,
 }
 
 impl InMemoryUnitOfWork {
-    pub fn new(stores: Vec<Arc<dyn Snapshottable>>) -> Self {
-        Self { stores, restore: Mutex::new(None) }
+    /// Over the stores it guards — the outbox's among them, or its entries would survive a
+    /// rollback — and the outbox the transaction writes its facts to.
+    pub fn new(stores: Vec<Arc<dyn Snapshottable>>, outbox: Arc<dyn Outbox>) -> Self {
+        Self { stores, outbox, restore: Mutex::new(None) }
     }
 
     fn restore(&self) -> std::sync::MutexGuard<'_, Option<Vec<Restore>>> {
@@ -67,18 +75,25 @@ impl UnitOfWork for InMemoryUnitOfWork {
     fn has_active_transaction(&self) -> bool {
         self.restore().is_some()
     }
+
+    fn outbox(&self) -> &dyn Outbox {
+        self.outbox.as_ref()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::data_sources::InMemoryDataSource;
+    use crate::outbox::InMemoryOutbox;
 
     fn stores() -> (Arc<InMemoryDataSource<String>>, Arc<InMemoryDataSource<String>>, InMemoryUnitOfWork) {
         let notes = Arc::new(InMemoryDataSource::<String>::new());
         let accounts = Arc::new(InMemoryDataSource::<String>::new());
         notes.set("n1", "before".into());
-        let unit_of_work = InMemoryUnitOfWork::new(vec![Arc::new(notes.clone()), Arc::new(accounts.clone())]);
+        let outbox = Arc::new(InMemoryOutbox::new());
+        let unit_of_work =
+            InMemoryUnitOfWork::new(vec![Arc::new(notes.clone()), Arc::new(accounts.clone()), outbox.store()], outbox);
         (notes, accounts, unit_of_work)
     }
 

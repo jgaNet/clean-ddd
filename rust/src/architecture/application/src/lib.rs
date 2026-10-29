@@ -16,6 +16,7 @@ pub mod event_handler;
 pub mod execution_context;
 pub mod module;
 pub mod operation;
+pub mod outbox;
 pub mod query_handler;
 
 use std::future::Future;
@@ -32,4 +33,5 @@ pub use event_handler::{EventHandler, EventSubscriber};
 pub use execution_context::{Auth, ExecutionContext, ExecutionContextOptions, Logger, UnitOfWork};
 pub use module::{Module, ModuleDefinition, QueryEntry, Subscription, query};
 pub use operation::{AnyValue, Operation, OperationStatus, OperationValue};
+pub use outbox::{Outbox, OutboxEntry, relay_outbox};
 pub use query_handler::{AnyQuery, Query, QueryHandler};
