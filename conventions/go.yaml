@@ -124,6 +124,8 @@ rules:
     references: [bootstrap/testing.go]
   ARCH-MODULES-DATA:
     references: [contexts/notes/module.go, architecture/application/module.go]
+  ARCH-ONE-HANDLER:
+    references: [contexts/notes/module.go]
   CTX-CONTRACTS:
     references:
       - contexts/notes/infrastructure/directories.go
