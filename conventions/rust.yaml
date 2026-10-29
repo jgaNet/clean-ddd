@@ -217,6 +217,7 @@ checklists:
     place: src/contexts/<context>/
     parts:
       - 'Declared in `contexts` in this file, or no row of the table applies to its crates.'
+      - 'Described in `conventions/domain.yaml`: its subdomain, its purpose and its language; a relationship to another context is declared there before the code carries it (CTX-MAP-DECLARED).'
       - 'One crate per layer (`domain`, `application`, `infrastructure`, `presentation`) and the `wiring` crate, nothing else; each crate''s `[dependencies]` are its row of the table.'
       - 'Its own vocabulary: a word that means something else here is a sign the context is right.'
       - 'It asks other contexts through ports it owns, and tells them through integration events; never both sides of a dependency.'

@@ -201,6 +201,7 @@ checklists:
     place: src/Contexts/<Context>/
     parts:
       - 'Declared in `contexts` in this file, or no import rule applies to it.'
+      - 'Described in `conventions/domain.yaml`: its subdomain, its purpose and its language; a relationship to another context is declared there before the code carries it (CTX-MAP-DECLARED).'
       - 'The four layers and nothing else beside `module.local.ts`.'
       - 'Its own vocabulary: a word that means something else here is a sign the context is right.'
       - 'It asks other contexts through ports it owns, and tells them through integration events; never both sides of an import.'

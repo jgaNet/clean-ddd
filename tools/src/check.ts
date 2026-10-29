@@ -83,7 +83,7 @@ import {
   loadExpectedStorm,
   validateExpectedStorm,
 } from './index';
-import type { ArchitectureContract, Inventory } from './index';
+import type { ArchitectureContract, ContextLink, Inventory, Mechanism } from './index';
 
 export interface CheckReport {
   /** Empty when the conventions and the code agree. */
@@ -129,10 +129,23 @@ export async function checkConventions(
   // 8. The domain map, when there is one: sound against every binding, and true to the code both ways
 
   const domainMap = loadDomainMap(root);
-  const links = domainMap && readsTree ? inspectContextLinks(contract, root) : [];
+  // The links between contexts: read from the TypeScript tree, or, for another language, from the
+  // inventory its own tool keeps current — the same links, in the same words (ARCH-ONE-APPLICATION).
+  const inventoryLinks = (): ContextLink[] | undefined => {
+    const file = posix.join(INVENTORY_DIR, `${contract.language.id}.json`);
+    if (!existsSync(join(root, file))) return undefined;
+    const inventory = JSON.parse(readFileSync(join(root, file), 'utf8')) as Inventory;
+    return inventory.links.map(link => ({ ...link, mechanism: link.mechanism as Mechanism, evidence: [file] }));
+  };
+  const links: ContextLink[] = domainMap
+    ? readsTree
+      ? inspectContextLinks(contract, root)
+      : (inventoryLinks() ?? [])
+    : [];
+  const linksKnown = readsTree || (domainMap !== undefined && inventoryLinks() !== undefined);
   if (domainMap) {
     problems.push(...validateDomainMap(domainMap, contracts, root));
-    if (readsTree) problems.push(...checkDomainAgainstLinks(domainMap, links, contract.language.name));
+    if (linksKnown) problems.push(...checkDomainAgainstLinks(domainMap, links, contract.language.name));
   }
 
   if (readsTree) {

@@ -3,12 +3,15 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 
 import {
+  checkConventions,
   createApplication,
   loadArchitectureContract,
+  loadDomainMap,
   referenceSource,
   repositoryRoot,
   shown,
   validateContract,
+  validateDomainMap,
 } from './index';
 
 /**
@@ -116,6 +119,14 @@ describe('yarn architecture create', () => {
     expect(validateContract(generated, directory)).toEqual([]);
   });
 
+  it('starts with an empty context map and a place for storms, so the cross-context rule holds from the first feature', () => {
+    const map = loadDomainMap(directory);
+    expect(map).toMatchObject({ name: 'my-app', subdomains: [], contexts: [], relationships: [] });
+    expect(validateDomainMap(map!, [generated], directory)).toEqual([]);
+    expect(read('conventions/storms/README.md')).toContain('../../.claude/skills/storm/SKILL.md');
+    expect(existsSync(join(directory, '.claude/skills/storm/SKILL.md'))).toBe(true);
+  });
+
   it('keeps every concept, shows only those a copied file still shows, and their canonical files exist', () => {
     expect(generated.concepts.map(concept => concept.id)).toEqual(reference.concepts.map(concept => concept.id));
     const displayed = generated.concepts.filter(shown);
@@ -185,6 +196,29 @@ describe('yarn architecture create --language python', () => {
     expect(read('docs/inventory/python.json')).toBe(
       '{\n  "schemaVersion": 1,\n  "language": "python",\n  "contexts": [],\n  "links": []\n}\n',
     );
+  });
+
+  it('holds its context map to the links its own tool writes in the inventory: CTX-MAP-DECLARED outside TypeScript', async () => {
+    expect((await checkConventions(directory)).problems).toEqual([]);
+
+    const inventory = read('docs/inventory/python.json');
+    const map = read('conventions/domain.yaml');
+    try {
+      // A link the code carries (as the Python tool reports it) and the map does not declare.
+      const linked = JSON.parse(inventory);
+      linked.links = [
+        { mechanism: 'integration-event', upstream: 'Notes', downstream: 'Notifications', contracts: ['NoteShared'] },
+      ];
+      writeFileSync(join(directory, 'docs/inventory/python.json'), `${JSON.stringify(linked, null, 2)}\n`);
+      expect((await checkConventions(directory)).problems).toContainEqual(
+        expect.stringMatching(
+          /^CTX-MAP-DECLARED: docs\/inventory\/python\.json makes Notifications depend on Notes over an integration-event \(NoteShared\), a relationship conventions\/domain\.yaml does not declare/,
+        ),
+      );
+    } finally {
+      writeFileSync(join(directory, 'docs/inventory/python.json'), inventory);
+      writeFileSync(join(directory, 'conventions/domain.yaml'), map);
+    }
   });
 
   it('is a repository of one language, sound on its own terms, whose guides speak Python', () => {
