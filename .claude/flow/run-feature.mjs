@@ -6,7 +6,9 @@
  *        [--model <id>] [--timeout-minutes 60] [--log <file.jsonl>]
  *
  * In the project (an application `clean-ddd create` made, or any repository with `conventions/`):
- *   1. a git worktree on a branch `run/<id>`, from the base, with the project's node_modules linked;
+ *   1. a git worktree on a branch `run/<id>`, from the base, beside the project rather than inside it
+ *      (the project's own test runner and linter would otherwise walk it), with its own copy of the
+ *      project's node_modules (hard links: cheap, and an agent's `yarn add` changes its copy only);
  *   2. Claude Code, headless, in that worktree, given the request and the project's own agent brief
  *      (`.claude/agents/feature-author.md`); its usage is what its JSON result reports, nothing more;
  *   3. the gate, run here on the worktree — never read from the agent's report;
@@ -18,7 +20,7 @@
  * reads from the same checks?
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, symlinkSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
 const args = process.argv.slice(2);
@@ -35,8 +37,10 @@ const request = readFileSync(resolve(required('request')), 'utf8').trim();
 const run = required('run');
 const model = option('model', 'claude-opus-5-5');
 const timeoutMs = Number(option('timeout-minutes', '60')) * 60_000;
-const log = resolve(option('log', join(project, '.flow', `${run}.jsonl`)));
-const worktree = join(project, '.flow', 'worktrees', run);
+// Beside the project: `<project>.flow/`. Inside it, the project's own tools would walk every worktree.
+const flowDir = `${project}.flow`;
+const log = resolve(option('log', join(flowDir, `${run}.jsonl`)));
+const worktree = join(flowDir, 'worktrees', run);
 
 mkdirSync(dirname(log), { recursive: true });
 const event = (name, data = {}) => {
@@ -50,7 +54,10 @@ const git = (cwd, ...gitArgs) => execFileSync('git', gitArgs, { cwd, encoding: '
 const baseCommit = git(project, 'rev-parse', base);
 if (existsSync(worktree)) fail(`${worktree} exists: a run id is used once`);
 git(project, 'worktree', 'add', '-q', '-b', `run/${run}`, worktree, baseCommit);
-if (existsSync(join(project, 'node_modules'))) symlinkSync(join(project, 'node_modules'), join(worktree, 'node_modules'));
+// A copy, not a link: an agent that adds a dependency must not change what the other runs, or the project, see.
+if (existsSync(join(project, 'node_modules'))) {
+  execFileSync('cp', ['-al', join(project, 'node_modules'), join(worktree, 'node_modules')]);
+}
 event('started', { project, base, baseCommit, worktree, model });
 
 // 2. The agent. Its brief is the project's own; the request is in product words.

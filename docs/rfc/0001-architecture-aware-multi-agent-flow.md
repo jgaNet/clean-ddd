@@ -1,6 +1,6 @@
 # RFC 0001 — An architecture-aware multi-agent development flow
 
-**Status:** proposed, awaiting a decision. Nothing here is implemented. One open question is decided (§16, question 1).
+**Status:** proposed. One open question is decided and implemented (§16, question 1). **Phase 1 is done**: `clean-ddd gate`, the driver in `.claude/flow/`, and three runs on a created project whose gate verdicts matched a person's reading — [the record](../evaluations/2026-10-29-flow-phase-1.md), with the guesses a created project still leaves an agent to make.
 **Scope:** whether a project built on clean-ddd should be developed by several coding agents at once, what that needs from clean-ddd, and what belongs elsewhere.
 **Reference case:** a real project — one application, **one language**, created with `clean-ddd create --language <id>`, growing feature by feature from a backlog. Not this repository, whose four languages are a property of the reference and of no real project.
 **Recommendation:** **modify.** Give created projects the contracts that make parallel work safe (a context map and storms from day one), add a machine-readable completion gate and a run log to the existing tooling, and parallelise along the boundary the architecture already enforces: the bounded context. Do not build a `flow/` package in this repository. Decide on a standalone orchestrator only after a benchmark on a real backlog shows that several agents beat one.
