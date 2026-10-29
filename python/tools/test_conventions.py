@@ -3,9 +3,7 @@ copy of it: a refusal must name its rule, as the ESLint probes do in TypeScript.
 
 import json
 import shutil
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -14,12 +12,18 @@ from tools.conventions import (
     INVENTORY_WRITE,
     can_import,
     inspect_inventory,
+    inventory_changes,
     run,
     serialize_inventory,
     write_inventory,
 )
 
 HERE = Path(__file__).resolve().parent.parent
+
+STALE_INVENTORY = (
+    f"ARCH-ONE-APPLICATION: {INVENTORY} differs from what the Python tree says; run `{INVENTORY_WRITE}` "
+    "and commit it (fix the tree that differs from the other languages, never the inventory)"
+)
 
 
 def test_the_tree_as_it_is_passes() -> None:
@@ -166,7 +170,11 @@ def test_refuses_a_stale_or_missing_inventory_naming_the_command_that_writes_it(
     committed = copy.parent / INVENTORY
     committed.write_text(committed.read_text(encoding="utf-8").replace('"ShareNote"', '"ShareNotes"'), encoding="utf-8")
     stale = [problem for problem in refusals(copy) if problem.startswith("ARCH-ONE-APPLICATION:")]
-    assert len(stale) == 1 and INVENTORY in stale[0] and INVENTORY_WRITE in stale[0]
+    assert stale == [
+        STALE_INVENTORY,
+        "ARCH-ONE-APPLICATION: Notes: the committed inventory has the command ShareNotes, the tree no longer says it",
+        "ARCH-ONE-APPLICATION: Notes: the tree says the command ShareNote, the committed inventory does not",
+    ]
 
     committed.unlink()
     missing = [problem for problem in refusals(copy) if problem.startswith("ARCH-ONE-APPLICATION:")]
@@ -174,6 +182,63 @@ def test_refuses_a_stale_or_missing_inventory_naming_the_command_that_writes_it(
 
     assert write_inventory(copy) == committed
     assert not any(problem.startswith("ARCH-ONE-APPLICATION:") for problem in refusals(copy))
+
+
+def test_a_stale_inventory_names_each_difference_committed_before_tree_in_the_words_every_language_prints() -> None:
+    share = {
+        "name": "ShareNote",
+        "actor": "a signed-in account",
+        "route": "POST /notes/{param}/share",
+        "aggregate": "Note",
+        "events": ["NoteShared"],
+    }
+    archive = {"name": "ArchiveNote", "actor": "a signed-in account", "aggregate": "Note", "events": ["NoteArchived"]}
+    on_shared = {"on": "NoteShared", "kind": "domain-event", "publishes": ["NoteShared"], "events": []}
+    link = {"mechanism": "owned-port", "upstream": "Security", "downstream": "Notes", "contracts": ["AccountDirectory"]}
+    committed = {
+        "schemaVersion": 1,
+        "language": "python",
+        "contexts": [
+            {
+                "id": "Notes",
+                "commands": [archive, share],
+                "queries": [],
+                "events": ["NoteArchived", "NoteShared"],
+                "policies": [on_shared],
+            },
+            {"id": "Notifications", "commands": [], "queries": [], "events": [], "policies": []},
+        ],
+        "links": [link],
+    }
+    tree = {
+        "schemaVersion": 1,
+        "language": "python",
+        "contexts": [
+            {
+                "id": "Notes",
+                "commands": [
+                    {"name": "PinNote", "actor": "a signed-in account", "aggregate": "Note", "events": []},
+                    {**{key: value for key, value in share.items() if key != "route"}, "actor": "anyone"},
+                ],
+                "queries": [],
+                "events": ["NoteShared"],
+                "policies": [{**on_shared, "publishes": []}],
+            },
+        ],
+        "links": [{**link, "contracts": ["AccountDirectory", "AccountNames"]}],
+    }
+    assert inventory_changes(committed, tree) == [
+        "Notes: the committed inventory has the command ArchiveNote, the tree no longer says it",
+        'Notes: the command ShareNote differs: actor "a signed-in account" → "anyone"; '
+        'route "POST /notes/{param}/share" → none',
+        "Notes: the tree says the command PinNote, the committed inventory does not",
+        "Notes: the committed inventory has the domain event NoteArchived, the tree no longer says it",
+        "Notes: the policy on NoteShared differs: publishes [NoteShared] → []",
+        "Notifications: the committed inventory has the context, the tree no longer says it",
+        "context map: the link Security → Notes (owned-port) differs: contracts [AccountDirectory] → "
+        "[AccountDirectory, AccountNames]",
+    ]
+    assert inventory_changes(committed, committed) == []
 
 
 # The readers, challenged with unusual shapes: recognised, or caught, never silent.
@@ -200,9 +265,11 @@ SHARE_LISTED = f"Subscription(ShareNoteCommandEvent, [{SHARE_HANDLER_BUILT}]),"
 ROUTES_BODY = "class ShareNoteBody(BaseModel):"
 WIRING_PORTS = "    queries = InMemoryNoteQueries(store)\n"
 
-STALE_INVENTORY = (
-    f"ARCH-ONE-APPLICATION: {INVENTORY} differs from what the Python tree says; run `{INVENTORY_WRITE}` "
-    "and commit it (fix the tree that differs from the other languages, never the inventory)"
+SHARE_ROUTE_LOST = (
+    'ARCH-ONE-APPLICATION: Notes: the command ShareNote differs: route "POST /notes/{param}/share" → none'
+)
+SHARE_LOST = (
+    "ARCH-ONE-APPLICATION: Notes: the committed inventory has the command ShareNote, the tree no longer says it"
 )
 SHARE_UNANSWERED = (
     "ARCH-ONE-HANDLER: Notes: command ShareNote is built by a route and no handler in the Module answers it"
@@ -218,90 +285,39 @@ def rewrite(here: Path, file: str, old: str, new: str) -> None:
     path.write_text(text.replace(old, new), encoding="utf-8")
 
 
-def inventory_differences(here: Path) -> list[str]:
-    """What the copy's inventory says differently from the committed one, command by command and field by
-    field. Test-only: the check says that the inventory differs, not where; this says what a probe cost it."""
-    committed: dict[str, Any] = json.loads((here.parent / INVENTORY).read_text(encoding="utf-8"))
-    read = inspect_inventory(here)
-    before = {context["id"]: context for context in committed["contexts"]}
-    differences: list[str] = []
-    for context in read["contexts"]:
-        old = {command["name"]: command for command in before[context["id"]]["commands"]}
-        new = {command["name"]: command for command in context["commands"]}
-        for name in sorted(old.keys() | new.keys()):
-            if name not in old:
-                differences.append(f"{context['id']}: command {name} is read, and the committed inventory has none")
-            elif name not in new:
-                differences.append(f"{context['id']}: command {name} is no longer read")
-            else:
-                differences.extend(
-                    f"{context['id']}: command {name}: {key} {old[name].get(key)!r} -> {new[name].get(key)!r}"
-                    for key in dict.fromkeys([*old[name], *new[name]])
-                    if old[name].get(key) != new[name].get(key)
-                )
-        differences.extend(
-            f"{context['id']}: {section} differ"
-            for section in ("queries", "events", "policies")
-            if context[section] != before[context["id"]][section]
-        )
-    if read["links"] != committed["links"]:
-        differences.append("links differ")
-    return differences
-
-
-@dataclass(frozen=True)
-class Verdict:
-    problems: list[str]
-    """Every line the full check reports on the copy."""
-    differences: list[str]
-    """Where the copy's inventory differs from the committed one."""
-
-    @property
-    def recognised(self) -> bool:
-        """The copy's inventory says what the committed one says, and the check has nothing to say."""
-        return self.problems == [] and self.differences == []
-
-
-def probe(here: Path, *edits: tuple[str, str, str]) -> Verdict:
-    """The copy with one unusual shape written into it, and what the full check says of it: recognised, or
-    caught; a copy that is neither, or an inventory that lost something with no ARCH-ONE-APPLICATION line,
-    is a false negative, and fails here whatever the test then asserts."""
+def probe(here: Path, *edits: tuple[str, str, str]) -> list[str]:
+    """The copy with one unusual shape written into it, and every line the full check says of it: none when
+    the shape is recognised (the inventory is then the committed one, byte for byte), else the refusals —
+    a stale inventory is the stale line followed by each difference it names."""
     for file, old, new in edits:
         rewrite(here, file, old, new)
-    verdict = Verdict(refusals(here), inventory_differences(here))
-    assert verdict.recognised or verdict.problems, f"silent: {verdict}"
-    if verdict.differences:
-        assert STALE_INVENTORY in verdict.problems, f"the inventory lost {verdict.differences} and nothing said so"
-    return verdict
+    return refusals(here)
 
 
 def test_the_tree_as_it_is_every_shape_recognised_nothing_caught(copy: Path) -> None:
-    assert probe(copy) == Verdict(problems=[], differences=[])
+    assert probe(copy) == []
 
 
 def test_a_handler_class_named_for_its_use_case_is_recognised_the_command_is_named_by_its_event(copy: Path) -> None:
-    verdict = probe(
+    found = probe(
         copy,
         (SHARE_HANDLER, "class ShareNoteCommandHandler(", "class ShareNoteUseCase("),
         (NOTES_WIRING, "ShareNoteCommandEvent, ShareNoteCommandHandler\n", "ShareNoteCommandEvent, ShareNoteUseCase\n"),
         (NOTES_WIRING, SHARE_HANDLER_BUILT, "ShareNoteUseCase(repository, NoteSharing(accounts))"),
     )
-    assert verdict == Verdict(problems=[], differences=[])
+    assert found == []
 
 
 def test_a_command_built_through_an_alias_of_its_class_is_not_seen_by_the_route_reading_caught_by_the_inventory(
     copy: Path,
 ) -> None:
-    verdict = probe(
+    found = probe(
         copy,
         (NOTES_ROUTES, SHARE_BUILT, "Share(note_id=note_id, recipient_id=body.recipientId)"),
         (NOTES_ROUTES, ROUTES_BODY, f"Share = ShareNoteCommandEvent\n\n\n{ROUTES_BODY}"),
     )
     # The handler is listed, so ARCH-ONE-HANDLER has nothing to say; the route is what the inventory lost.
-    assert verdict == Verdict(
-        problems=[STALE_INVENTORY],
-        differences=["Notes: command ShareNote: route 'POST /notes/{param}/share' -> None"],
-    )
+    assert found == [STALE_INVENTORY, SHARE_ROUTE_LOST]
 
 
 def test_a_command_built_by_a_helper_the_route_calls_is_not_seen_by_the_route_reading_caught_by_the_inventory(
@@ -311,80 +327,68 @@ def test_a_command_built_by_a_helper_the_route_calls_is_not_seen_by_the_route_re
         "def share(note_id: str, recipient_id: str) -> ShareNoteCommandEvent:\n"
         "    return ShareNoteCommandEvent(note_id=note_id, recipient_id=recipient_id)\n\n\n"
     )
-    verdict = probe(
+    found = probe(
         copy,
         (NOTES_ROUTES, SHARE_BUILT, "share(note_id, body.recipientId)"),
         (NOTES_ROUTES, ROUTES_BODY, f"{helper}{ROUTES_BODY}"),
     )
     # The helper builds the command in the routes module, which ARCH-ONE-HANDLER reads whole: it is answered.
-    assert verdict == Verdict(
-        problems=[STALE_INVENTORY],
-        differences=["Notes: command ShareNote: route 'POST /notes/{param}/share' -> None"],
-    )
+    assert found == [STALE_INVENTORY, SHARE_ROUTE_LOST]
 
 
 def test_a_handlers_list_held_in_a_variable_is_not_seen_caught_by_both_rules_as_zero_handlers(copy: Path) -> None:
-    verdict = probe(
+    found = probe(
         copy,
         (NOTES_WIRING, SHARE_LISTED, "Subscription(ShareNoteCommandEvent, share_handlers),"),
         (NOTES_WIRING, WIRING_PORTS, f"{WIRING_PORTS}    share_handlers = [{SHARE_HANDLER_BUILT}]\n"),
     )
     # The Subscription is read and its handlers are not: the command is listed with none.
-    assert verdict == Verdict(
-        problems=[
-            "ARCH-ONE-HANDLER: Notes: command ShareNote has 0 handlers (); a command has exactly one",
-            STALE_INVENTORY,
-        ],
-        differences=["Notes: command ShareNote is no longer read"],
-    )
+    assert found == [
+        "ARCH-ONE-HANDLER: Notes: command ShareNote has 0 handlers (); a command has exactly one",
+        STALE_INVENTORY,
+        SHARE_LOST,
+    ]
 
 
 def test_a_handler_built_by_a_factory_is_counted_as_the_one_handler_but_not_read_caught_by_the_inventory(
     copy: Path,
 ) -> None:
     factory = f"    def share_handler() -> ShareNoteCommandHandler:\n        return {SHARE_HANDLER_BUILT}\n\n"
-    verdict = probe(
+    found = probe(
         copy,
         (NOTES_WIRING, SHARE_LISTED, "Subscription(ShareNoteCommandEvent, [share_handler()]),"),
         (NOTES_WIRING, WIRING_PORTS, f"{WIRING_PORTS}{factory}"),
     )
     # One call in the list is one handler, so ARCH-ONE-HANDLER is satisfied; the call names no class the
     # reader can follow, so the command keeps its route and loses its guard, its aggregate and its events.
-    assert verdict == Verdict(
-        problems=[STALE_INVENTORY],
-        differences=[
-            "Notes: command ShareNote: actor 'a signed-in account' -> 'anyone'",
-            "Notes: command ShareNote: aggregate 'Note' -> None",
-            "Notes: command ShareNote: events ['NoteShared'] -> []",
-        ],
-    )
+    assert found == [
+        STALE_INVENTORY,
+        'ARCH-ONE-APPLICATION: Notes: the command ShareNote differs: actor "a signed-in account" → "anyone"; '
+        'aggregate "Note" → none; events [NoteShared] → []',
+    ]
 
 
 def test_a_subscription_spread_into_the_commands_list_from_a_variable_is_not_seen_caught_by_both_rules(
     copy: Path,
 ) -> None:
-    verdict = probe(
+    found = probe(
         copy,
         (NOTES_WIRING, SHARE_LISTED, "*share_commands,"),
         (NOTES_WIRING, WIRING_PORTS, f"{WIRING_PORTS}    share_commands = [{SHARE_LISTED[:-1]}]\n"),
     )
-    assert verdict == Verdict(
-        problems=[SHARE_UNANSWERED, STALE_INVENTORY],
-        differences=["Notes: command ShareNote is no longer read"],
-    )
+    assert found == [SHARE_UNANSWERED, STALE_INVENTORY, SHARE_LOST]
 
 
 def test_a_command_listed_under_an_alias_of_its_event_class_is_not_seen_caught_by_both_rules(copy: Path) -> None:
-    verdict = probe(
+    found = probe(
         copy,
         (NOTES_WIRING, SHARE_LISTED, f"Subscription(Share, [{SHARE_HANDLER_BUILT}]),"),
         (NOTES_WIRING, "#: The context's store", "Share = ShareNoteCommandEvent\n\n#: The context's store"),
     )
     # The alias is read as the command's name: a command Share no route builds, and ShareNote unanswered.
-    assert verdict == Verdict(
-        problems=[SHARE_UNANSWERED, STALE_INVENTORY],
-        differences=[
-            "Notes: command Share is read, and the committed inventory has none",
-            "Notes: command ShareNote is no longer read",
-        ],
-    )
+    assert found == [
+        SHARE_UNANSWERED,
+        STALE_INVENTORY,
+        SHARE_LOST,
+        "ARCH-ONE-APPLICATION: Notes: the tree says the command Share, the committed inventory does not",
+    ]

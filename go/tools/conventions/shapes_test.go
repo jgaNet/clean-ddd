@@ -6,15 +6,15 @@
 // matters is whether such a shape can stay silent. These probes write unusual but valid shapes
 // (the copy still builds) into a copy of the tree and run the whole check on it: the command is
 // still read as the committed inventory expects (recognised), or the copy is refused — by the
-// inventory held to what the tree says (ARCH-ONE-APPLICATION), or by the one-handler rule
-// (ARCH-ONE-HANDLER). A probe that is neither is a false negative, and fails here; a reader that
+// inventory held to what the tree says (ARCH-ONE-APPLICATION, a line per difference, named by
+// the check itself), or by the one-handler rule (ARCH-ONE-HANDLER). A reader never names what it
+// did not resolve, so no line may name as a command what is not one (a Subscription, an alias, a
+// factory). A probe that is neither is a false negative, and fails here; a reader that
 // starts recognising a shape moves its probe to "recognised", which is a change to the guides as
 // much as to the tool. The TypeScript tool asks the same questions (tools/src/shapes.spec.ts).
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,30 +24,35 @@ import (
 )
 
 const (
-	notesRoutes    = "go/contexts/notes/presentation/routes.go"
-	shareNoteFile  = "go/contexts/notes/application/commands/share_note.go"
-	shareBuilt     = `commands.ShareNoteCommandEvent{NoteID: r.PathValue("id"), RecipientID: body.RecipientID}`
-	shareListed    = "application.Command(commands.NewShareNoteHandler(repository, note.NewSharing(accounts))),"
-	beforeRoutes   = "// Routes registers the context's routes"
-	beforeModule   = "// LocalModule is the Notes module"
-	moduleReturned = "\treturn &application.Module{"
+	notesRoutes       = "go/contexts/notes/presentation/routes.go"
+	shareNoteFile     = "go/contexts/notes/application/commands/share_note.go"
+	shareBuilt        = `commands.ShareNoteCommandEvent{NoteID: r.PathValue("id"), RecipientID: body.RecipientID}`
+	shareListed       = "application.Command(commands.NewShareNoteHandler(repository, note.NewSharing(accounts))),"
+	beforeRoutes      = "// Routes registers the context's routes"
+	beforeModule      = "// LocalModule is the Notes module"
+	moduleReturned    = "\treturn &application.Module{"
+	applicationImport = "\t\"clean-ddd/architecture/application\"\n"
+	domainImport      = "\t\"clean-ddd/architecture/domain\"\n"
+	// staleInventory is the line a stale inventory is refused with, before the line of each difference.
+	staleInventory = "ARCH-ONE-APPLICATION: docs/inventory/go.json differs from what the Go tree says; run `go run ./tools/conventions inventory --write` and commit it (fix the tree that differs from the other languages, never the inventory)"
 )
 
 // edit is one replacement written into the copy: in a file, a text that occurs exactly once.
 type edit struct{ file, from, to string }
 
-// shapeVerdict is what the whole check says of a copy: its ARCH-ONE-APPLICATION and
-// ARCH-ONE-HANDLER lines, and — since the check's inventory line names the file, not the command —
-// what the copy's inventory says differently from the committed one, command by command.
+// shapeVerdict is what the whole check says of a copy: its ARCH-ONE-APPLICATION lines (the
+// stale inventory, then each difference, named by the check itself) and its ARCH-ONE-HANDLER lines.
 type shapeVerdict struct {
 	oneApplication []string
 	oneHandler     []string
-	differences    []string
 }
 
 func (v shapeVerdict) recognised() bool {
 	return len(v.oneApplication) == 0 && len(v.oneHandler) == 0
 }
+
+// unresolved is what a reader could take for a command without resolving it: none may be named one.
+var unresolved = []string{"Subscription", "share", "shareHandler", "shareSubscription", "Command"}
 
 // probe writes the edits into a copy of the tree, proves the copy still builds, and runs the
 // whole check on it.
@@ -65,6 +70,11 @@ func probe(t *testing.T, edits ...edit) shapeVerdict {
 	}
 	var found shapeVerdict
 	for _, problem := range check(root, contract) {
+		for _, name := range unresolved {
+			if strings.Contains(problem, "command "+name+" ") || strings.Contains(problem, "command "+name+",") {
+				t.Errorf("a line names %s as a command, which it did not resolve: %s", name, problem)
+			}
+		}
 		switch {
 		case strings.HasPrefix(problem, inventoryRule+":"):
 			found.oneApplication = append(found.oneApplication, problem)
@@ -75,9 +85,8 @@ func probe(t *testing.T, edits ...edit) shapeVerdict {
 			t.Fatalf("the probe breaks another rule: %s", problem)
 		}
 	}
-	found.differences = inventoryDifferences(t, root, contract)
-	if found.recognised() != (len(found.differences) == 0) {
-		t.Fatalf("the check and the inventory disagree: %+v", found)
+	if len(found.oneApplication) > 0 && found.oneApplication[0] != staleInventory {
+		t.Fatalf("a stale inventory is refused first by the line saying so, got %q", found.oneApplication)
 	}
 	return found
 }
@@ -97,109 +106,26 @@ func rewriteOnce(t *testing.T, root string, change edit) {
 	writeFile(t, root, change.file, strings.Replace(string(data), change.from, change.to, 1))
 }
 
-// buildsAsGo proves the shape is valid Go: the copy's module builds.
+// buildsAsGo proves what a test wrote is valid Go: the copy's module builds.
 func buildsAsGo(t *testing.T, root string) {
 	t.Helper()
 	build := exec.Command("go", "build", "./...")
 	build.Dir = filepath.Join(root, "go")
 	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("the probed shape is not valid Go: %v\n%s", err, output)
+		t.Fatalf("the written Go does not build: %v\n%s", err, output)
 	}
-}
-
-// inventoryDifferences is what the copy's inventory says differently from the committed one: a
-// line per field of a command, a line per other section of a context, a line for the links.
-func inventoryDifferences(t *testing.T, root string, contract *Contract) []string {
-	t.Helper()
-	rendered, err := inspectInventory(root, contract)
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(inventoryFile)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var committed Inventory
-	if err := json.Unmarshal(data, &committed); err != nil {
-		t.Fatal(err)
-	}
-	// Through JSON both ways, so an empty list and an absent one compare as the file spells them.
-	data, err = json.Marshal(rendered)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var now Inventory
-	if err := json.Unmarshal(data, &now); err != nil {
-		t.Fatal(err)
-	}
-
-	var found []string
-	contexts := map[string]InventoryContext{}
-	for _, each := range now.Contexts {
-		contexts[each.ID] = each
-	}
-	for _, was := range committed.Contexts {
-		is := contexts[was.ID]
-		found = append(found, commandDifferences(was.ID, was.Commands, is.Commands)...)
-		for _, section := range []struct {
-			name    string
-			was, is any
-		}{{"queries", was.Queries, is.Queries}, {"events", was.Events, is.Events}, {"policies", was.Policies, is.Policies}} {
-			if !reflect.DeepEqual(section.was, section.is) {
-				found = append(found, fmt.Sprintf("%s: the %s differ", was.ID, section.name))
-			}
-		}
-	}
-	if !reflect.DeepEqual(committed.Links, now.Links) {
-		found = append(found, "the links differ")
-	}
-	return found
-}
-
-func commandDifferences(context string, was, is []InventoryCommand) []string {
-	byName := func(commands []InventoryCommand) map[string]InventoryCommand {
-		found := map[string]InventoryCommand{}
-		for _, each := range commands {
-			found[each.Name] = each
-		}
-		return found
-	}
-	before, after := byName(was), byName(is)
-	var found []string
-	for _, command := range was {
-		now, ok := after[command.Name]
-		if !ok {
-			found = append(found, fmt.Sprintf("%s: command %s is gone", context, command.Name))
-			continue
-		}
-		field := func(name, from, to string) {
-			if from != to {
-				found = append(found, fmt.Sprintf("%s: command %s: %s %q became %q", context, command.Name, name, from, to))
-			}
-		}
-		field("actor", command.Actor, now.Actor)
-		field("route", command.Route, now.Route)
-		field("aggregate", command.Aggregate, now.Aggregate)
-		field("events", strings.Join(command.Events, ", "), strings.Join(now.Events, ", "))
-	}
-	for _, command := range is {
-		if _, ok := before[command.Name]; !ok {
-			found = append(found, fmt.Sprintf("%s: command %s appears", context, command.Name))
-		}
-	}
-	return found
 }
 
 func assertRecognised(t *testing.T, verdict shapeVerdict) {
 	t.Helper()
-	if !verdict.recognised() || len(verdict.differences) != 0 {
+	if !verdict.recognised() {
 		t.Fatalf("expected the shape to be recognised, got %+v", verdict)
 	}
 }
 
-// assertCaught: the shape is refused, by exactly these ARCH-ONE-HANDLER lines, and by the
-// inventory with exactly these differences (none: the inventory says what it said).
-func assertCaught(t *testing.T, verdict shapeVerdict, oneHandler, differences []string) {
+// assertCaught: the shape is refused, by exactly these ARCH-ONE-HANDLER lines and exactly these
+// ARCH-ONE-APPLICATION lines, as the check prints them.
+func assertCaught(t *testing.T, verdict shapeVerdict, oneHandler, oneApplication []string) {
 	t.Helper()
 	if verdict.recognised() {
 		t.Fatalf("expected the shape to be caught, but it is recognised: %+v", verdict)
@@ -207,11 +133,8 @@ func assertCaught(t *testing.T, verdict shapeVerdict, oneHandler, differences []
 	if !reflect.DeepEqual(verdict.oneHandler, oneHandler) {
 		t.Errorf("ARCH-ONE-HANDLER:\n  got  %q\n  want %q", verdict.oneHandler, oneHandler)
 	}
-	if !reflect.DeepEqual(verdict.differences, differences) {
-		t.Errorf("the inventory's differences:\n  got  %q\n  want %q", verdict.differences, differences)
-	}
-	if want := min(len(differences), 1); len(verdict.oneApplication) != want {
-		t.Errorf("expected %d ARCH-ONE-APPLICATION line(s), got %q", want, verdict.oneApplication)
+	if !reflect.DeepEqual(verdict.oneApplication, oneApplication) {
+		t.Errorf("ARCH-ONE-APPLICATION:\n  got  %q\n  want %q", verdict.oneApplication, oneApplication)
 	}
 }
 
@@ -235,8 +158,10 @@ func TestACommandBuiltThroughATypeAliasIsNotSeenByTheRouteReadingCaughtByTheInve
 		edit{notesRoutes, shareBuilt, `share{NoteID: r.PathValue("id"), RecipientID: body.RecipientID}`},
 		edit{notesRoutes, beforeRoutes, "type share = commands.ShareNoteCommandEvent\n\n" + beforeRoutes},
 	)
+	// The alias is not a command type of the context: the route builds nothing the reader names.
 	assertCaught(t, verdict, nil, []string{
-		`Notes: command ShareNote: route "POST /notes/{param}/share" became ""`,
+		staleInventory,
+		`ARCH-ONE-APPLICATION: Notes: the command ShareNote differs: route "POST /notes/{param}/share" → none`,
 	})
 }
 
@@ -249,38 +174,44 @@ func TestACommandBuiltByAHelperTheRouteHandlerCallsIsNotSeenByTheRouteReadingCau
 	)
 	// The helper still builds the command in the Presentation layer, so ARCH-ONE-HANDLER sees it answered.
 	assertCaught(t, verdict, nil, []string{
-		`Notes: command ShareNote: route "POST /notes/{param}/share" became ""`,
+		staleInventory,
+		`ARCH-ONE-APPLICATION: Notes: the command ShareNote differs: route "POST /notes/{param}/share" → none`,
 	})
 }
 
-func TestACommandsEntryTakenFromAVariableIsReadAsTheSubscriptionTypeCaughtByTheInventoryAndByARCHONEHANDLER(t *testing.T) {
-	verdict := probe(t,
+func TestACommandsEntryTakenFromAVariableHoldingApplicationCommandIsFollowedToItsHandlerAndRecognised(t *testing.T) {
+	assertRecognised(t, probe(t,
 		edit{notesModule, shareListed, "share,"},
 		edit{notesModule, moduleReturned,
 			"\tshare := application.Command(commands.NewShareNoteHandler(repository, note.NewSharing(accounts)))\n\n" + moduleReturned},
+	))
+}
+
+func TestACommandsEntryBuiltByAFactoryReturningASubscriptionIsNotReadAsAHandlerCaughtByTheInventoryAndByARCHONEHANDLER(t *testing.T) {
+	verdict := probe(t,
+		edit{notesModule, shareListed, "shareSubscription(repository, note.NewSharing(accounts)),"},
+		edit{notesModule, beforeModule,
+			"func shareSubscription(repository note.Repository, sharing *note.Sharing) application.Subscription {\n" +
+				"\treturn application.Command(commands.NewShareNoteHandler(repository, sharing))\n}\n\n" + beforeModule},
 	)
+	// The factory's declared result is a Subscription, not a handler type of the context: the
+	// entry lists nothing the reader can name, and the holes it leaves are caught.
 	assertCaught(t, verdict, []string{
 		"ARCH-ONE-HANDLER: Notes: command ShareNote is built by a route and no handler in the Module answers it",
 	}, []string{
-		"Notes: command ShareNote is gone",
-		"Notes: command Subscription appears",
+		staleInventory,
+		"ARCH-ONE-APPLICATION: Notes: the committed inventory has the command ShareNote, the tree no longer says it",
 	})
 }
 
-func TestAHandlerBuiltByAFileLevelFactoryIsNamedButNotReadCaughtByTheInventory(t *testing.T) {
-	verdict := probe(t,
+func TestAHandlerBuiltByAFileLevelFactoryIsReadThroughTheFactorysDeclaredResultAndRecognised(t *testing.T) {
+	// The factory's result type is looked up where the factory declares it (the commands package), not in the wiring's.
+	assertRecognised(t, probe(t,
 		edit{notesModule, shareListed, "application.Command(shareHandler(repository, note.NewSharing(accounts))),"},
 		edit{notesModule, beforeModule,
 			"func shareHandler(repository note.Repository, sharing *note.Sharing) *commands.ShareNoteHandler {\n" +
 				"\treturn commands.NewShareNoteHandler(repository, sharing)\n}\n\n" + beforeModule},
-	)
-	// The factory's result type names the handler, so the command keeps its name and its one
-	// handler; but the handler is looked for in the wiring's package, so its file is not read.
-	assertCaught(t, verdict, nil, []string{
-		`Notes: command ShareNote: actor "a signed-in account" became "anyone"`,
-		`Notes: command ShareNote: aggregate "Note" became ""`,
-		`Notes: command ShareNote: events "NoteShared" became ""`,
-	})
+	))
 }
 
 func TestAHandlerHeldInALocalVariableAssignedItsConstructorIsRecognised(t *testing.T) {
@@ -291,18 +222,22 @@ func TestAHandlerHeldInALocalVariableAssignedItsConstructorIsRecognised(t *testi
 	))
 }
 
-func TestASubscriptionLiteralWhoseChannelGoesThroughAnAliasIsNotSeenCaughtByTheInventoryAndByARCHONEHANDLER(t *testing.T) {
-	verdict := probe(t,
-		// A command handler is not a Subscriber: a literal that compiles takes its Handlers from application.Command().
+func TestASubscriptionLiteralForShareNoteInTheFormThatCompilesIsRecognised(t *testing.T) {
+	// A command handler is not a Subscriber: a literal that compiles takes its Handlers from application.Command().
+	assertRecognised(t, probe(t,
+		edit{notesModule, shareListed,
+			"application.Subscription{Channel: domain.NameOfType[commands.ShareNoteCommandEvent](), Handlers: application.Command(commands.NewShareNoteHandler(repository, note.NewSharing(accounts))).Handlers},"},
+		edit{notesModule, applicationImport, applicationImport + domainImport},
+	))
+}
+
+func TestASubscriptionLiteralWhoseChannelGoesThroughAnAliasFallsBackToWhatExecuteTakesAndIsRecognised(t *testing.T) {
+	// The alias is not a command type of the context, so the channel is not read as a command;
+	// the handler's Execute says which command it answers, as when the entry spells no channel.
+	assertRecognised(t, probe(t,
 		edit{notesModule, shareListed,
 			"application.Subscription{Channel: domain.NameOfType[share](), Handlers: application.Command(commands.NewShareNoteHandler(repository, note.NewSharing(accounts))).Handlers},"},
-		edit{notesModule, "\t\"clean-ddd/architecture/application\"\n", "\t\"clean-ddd/architecture/application\"\n\t\"clean-ddd/architecture/domain\"\n"},
+		edit{notesModule, applicationImport, applicationImport + domainImport},
 		edit{notesModule, beforeModule, "type share = commands.ShareNoteCommandEvent\n\n" + beforeModule},
-	)
-	assertCaught(t, verdict, []string{
-		"ARCH-ONE-HANDLER: Notes: command share has 0 handlers (); a command has exactly one",
-		"ARCH-ONE-HANDLER: Notes: command ShareNote is built by a route and no handler in the Module answers it",
-	}, []string{
-		"Notes: command ShareNote is gone",
-	})
+	))
 }

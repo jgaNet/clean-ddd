@@ -15,8 +15,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use serde_json::Value as Json;
-
 use super::{BINDING, inventory, repository_root, yaml};
 
 const PRESENTATION: &str = "rust/src/contexts/notes/presentation/src/lib.rs";
@@ -80,52 +78,6 @@ fn new_copy() -> Copy {
     Copy(dir)
 }
 
-/// What differs between the committed inventory and the copy's, named: a command by its name, any
-/// other part of a context or the links as a whole.
-fn differences(committed: &str, read: &str) -> Vec<String> {
-    let committed: Json = serde_json::from_str(committed).expect("the committed inventory is JSON");
-    let read: Json = serde_json::from_str(read).expect("the rendered inventory is JSON");
-    let contexts = |inventory: &Json| -> Vec<Json> { inventory["contexts"].as_array().cloned().unwrap_or_default() };
-    let by_name = |items: &Json, key: &str| -> Vec<(String, Json)> {
-        items[key]
-            .as_array()
-            .map(|items| items.iter().map(|item| (item["name"].as_str().unwrap_or_default().to_string(), item.clone())))
-            .into_iter()
-            .flatten()
-            .collect()
-    };
-    let mut lines = Vec::new();
-    for expected in contexts(&committed) {
-        let id = expected["id"].as_str().unwrap_or_default();
-        let Some(actual) = contexts(&read).into_iter().find(|context| context["id"] == expected["id"]) else {
-            lines.push(format!("{id}: committed and not read"));
-            continue;
-        };
-        let (was, is) = (by_name(&expected, "commands"), by_name(&actual, "commands"));
-        for (name, command) in &was {
-            match is.iter().find(|(other, _)| other == name) {
-                None => lines.push(format!("{id}: command {name} is committed and not read")),
-                Some((_, read)) if read != command => {
-                    lines.push(format!("{id}: command {name}: committed {command}, read {read}"));
-                }
-                Some(_) => {}
-            }
-        }
-        for (name, _) in is.iter().filter(|(name, _)| !was.iter().any(|(other, _)| other == name)) {
-            lines.push(format!("{id}: command {name} is read and not committed"));
-        }
-        for key in ["queries", "events", "policies"] {
-            if expected[key] != actual[key] {
-                lines.push(format!("{id}: {key} differ"));
-            }
-        }
-    }
-    if committed["links"] != read["links"] {
-        lines.push("links differ".to_string());
-    }
-    lines
-}
-
 /// `text` with `from` replaced by `to`; a `from` that does not occur exactly once is a probe that
 /// no longer writes the shape it names, and stops it.
 fn mutate(file: &str, text: &str, from: &str, to: &str) -> String {
@@ -150,14 +102,8 @@ fn probe(edits: &[(&str, &str, &str)]) -> Verdict {
 
     let binding = yaml(&copy.0.join(BINDING));
     let language_root = copy.0.join("rust");
-    let rendered = inventory::render(&inventory::inspect(&binding, &language_root));
     let mut caught = Vec::new();
-    inventory::check(&copy.0, &rendered, &mut caught);
-    if !caught.is_empty() {
-        let committed = fs::read_to_string(root.join(inventory::INVENTORY_FILE)).expect("the committed inventory");
-        caught
-            .extend(differences(&committed, &rendered).into_iter().map(|line| format!("ARCH-ONE-APPLICATION: {line}")));
-    }
+    inventory::check(&copy.0, &inventory::inspect(&binding, &language_root), &mut caught);
     inventory::check_handlers(&binding, &language_root, &mut caught);
     Verdict { recognised: caught.is_empty(), caught }
 }
@@ -167,7 +113,7 @@ fn assert_caught(verdict: &Verdict) {
     assert!(!verdict.recognised && !verdict.caught.is_empty(), "neither recognised nor caught: {verdict:?}");
 }
 
-/// What the inventory says differs, after the check's own line: the inventory is no longer current.
+/// What the check says differs, after its own line that the inventory is no longer current.
 fn inventory_differences(verdict: &Verdict) -> Vec<&str> {
     let lines = verdict.about("ARCH-ONE-APPLICATION");
     assert_eq!(lines.first().copied(), Some(STALE), "{verdict:?}");
@@ -175,10 +121,10 @@ fn inventory_differences(verdict: &Verdict) -> Vec<&str> {
 }
 
 const STALE: &str = "ARCH-ONE-APPLICATION: docs/inventory/rust.json differs from what the Rust tree says; run `cargo run -p conventions -- inventory --write`";
-/// ShareNote read without the route that carries it: the route reading did not see the command built.
-const ROUTE_LOST: &str = "Notes: command ShareNote: committed {\"actor\":\"a signed-in account\",\"aggregate\":\"Note\",\"events\":[\"NoteShared\"],\"name\":\"ShareNote\",\"route\":\"POST /notes/{param}/share\"}, read {\"actor\":\"a signed-in account\",\"aggregate\":\"Note\",\"events\":[\"NoteShared\"],\"name\":\"ShareNote\"}";
-/// ShareNote missing from the commands: the wiring reading did not see it listed.
-const NOT_LISTED: &str = "Notes: command ShareNote is committed and not read";
+/// ShareNote read without the route that carries it: the route reading did not resolve the command built.
+const ROUTE_LOST: &str = "Notes: the command ShareNote differs: route \"POST /notes/{param}/share\" → none";
+/// ShareNote missing from the commands: the wiring reading did not see it listed, or did not resolve its handler.
+const NOT_LISTED: &str = "Notes: the committed inventory has the command ShareNote, the tree no longer says it";
 /// The one-handler rule, on ShareNote: built by the route, answered by no handler the Module lists.
 const SHARE_UNANSWERED: &str =
     "ARCH-ONE-HANDLER: Notes: command ShareNote is built by a route and no handler in the Module answers it";
@@ -224,21 +170,28 @@ fn a_handler_struct_named_for_its_use_case_is_recognised_the_command_is_its_type
 }
 
 #[test]
-fn a_command_built_through_a_use_as_alias_loses_its_route_caught_by_the_inventory_and_arch_one_handler() {
+fn a_command_built_through_a_use_as_alias_is_recognised_the_alias_followed_in_its_file() {
     let verdict = probe(&[
         (PRESENTATION, SHARE_USED, "use notes_application::commands::share_note::ShareNote as Share;"),
         (PRESENTATION, SHARE_BUILT, "accept(&context, Share { note_id: id, recipient_id: body.recipient_id })"),
     ]);
-    assert_caught(&verdict);
-    assert_eq!(inventory_differences(&verdict), [ROUTE_LOST]);
-    assert_eq!(
-        verdict.about("ARCH-ONE-HANDLER"),
-        ["ARCH-ONE-HANDLER: Notes: command Share is built by a route and no handler in the Module answers it"]
-    );
+    assert_eq!(verdict, Verdict { recognised: true, caught: vec![] });
 }
 
 #[test]
-fn a_command_built_by_a_helper_the_route_calls_loses_its_route_caught_by_the_inventory_and_arch_one_handler() {
+fn a_command_built_through_a_type_alias_loses_its_route_caught_by_the_inventory_never_named_share() {
+    let verdict = probe(&[
+        (PRESENTATION, SHARE_BUILT, "accept(&context, Share { note_id: id, recipient_id: body.recipient_id })"),
+        (PRESENTATION, "async fn share_note(", "type Share = ShareNote;\n\nasync fn share_note("),
+    ]);
+    assert_caught(&verdict);
+    assert_eq!(inventory_differences(&verdict), [ROUTE_LOST]);
+    // `Share` resolves to no command type, so no route builds one: nothing for the one-handler rule to name.
+    assert_eq!(verdict.about("ARCH-ONE-HANDLER"), Vec::<&str>::new());
+}
+
+#[test]
+fn a_command_built_by_a_helper_the_route_calls_loses_its_route_caught_by_the_inventory_never_named_share() {
     let verdict = probe(&[
         (PRESENTATION, SHARE_BUILT, "accept(&context, share(id, body.recipient_id))"),
         (
@@ -249,10 +202,8 @@ fn a_command_built_by_a_helper_the_route_calls_loses_its_route_caught_by_the_inv
     ]);
     assert_caught(&verdict);
     assert_eq!(inventory_differences(&verdict), [ROUTE_LOST]);
-    assert_eq!(
-        verdict.about("ARCH-ONE-HANDLER"),
-        ["ARCH-ONE-HANDLER: Notes: command share is built by a route and no handler in the Module answers it"]
-    );
+    // `share` is a function, no command type: the route builds nothing the one-handler rule could name.
+    assert_eq!(verdict.about("ARCH-ONE-HANDLER"), Vec::<&str>::new());
 }
 
 #[test]
@@ -271,7 +222,7 @@ fn a_subscription_taken_from_a_let_binding_is_not_listed_caught_by_the_inventory
 }
 
 #[test]
-fn a_handler_built_by_a_factory_is_read_as_a_command_of_its_own_caught_by_the_inventory_and_arch_one_handler() {
+fn a_handler_built_by_a_factory_is_not_read_caught_by_the_inventory_and_arch_one_handler() {
     let verdict = probe(&[
         (WIRING, SHARE_LISTED, "Subscription::command(share_handler(repository.clone(), accounts)),"),
         (
@@ -281,13 +232,13 @@ fn a_handler_built_by_a_factory_is_read_as_a_command_of_its_own_caught_by_the_in
         ),
     ]);
     assert_caught(&verdict);
-    // The factory's name is read as the handler's, and as the command's: one handler, of a command nobody builds.
-    assert_eq!(inventory_differences(&verdict), [NOT_LISTED, "Notes: command share_handler is read and not committed"]);
+    // `share_handler` is a function, no type that `impl CommandHandler`: the entry is not read as a command.
+    assert_eq!(inventory_differences(&verdict), [NOT_LISTED]);
     assert_eq!(verdict.about("ARCH-ONE-HANDLER"), [SHARE_UNANSWERED]);
 }
 
 #[test]
-fn a_command_re_exported_under_another_name_loses_its_route_caught_by_the_inventory_and_arch_one_handler() {
+fn a_command_re_exported_under_another_name_is_recognised_the_re_export_followed() {
     let verdict = probe(&[
         (
             COMMANDS,
@@ -297,10 +248,5 @@ fn a_command_re_exported_under_another_name_loses_its_route_caught_by_the_invent
         (PRESENTATION, SHARE_USED, "use notes_application::commands::ShareRequest;"),
         (PRESENTATION, SHARE_BUILT, "accept(&context, ShareRequest { note_id: id, recipient_id: body.recipient_id })"),
     ]);
-    assert_caught(&verdict);
-    assert_eq!(inventory_differences(&verdict), [ROUTE_LOST]);
-    assert_eq!(
-        verdict.about("ARCH-ONE-HANDLER"),
-        ["ARCH-ONE-HANDLER: Notes: command ShareRequest is built by a route and no handler in the Module answers it"]
-    );
+    assert_eq!(verdict, Verdict { recognised: true, caught: vec![] });
 }

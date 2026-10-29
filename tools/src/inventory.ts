@@ -221,6 +221,88 @@ export function compareInventories(reference: Inventory, other: Inventory): stri
   return problems;
 }
 
+/**
+ * What changed between the committed inventory of a language and the one its tree renders now, one
+ * line per difference, in the words every language's check prints (each tool writes the same lines):
+ * what the committed inventory has and the tree no longer says, what the tree says and the committed
+ * one does not, and what is said by both with other fields, before → after. A stale inventory is
+ * then a list of named differences, not a file to diff by hand.
+ */
+export function inventoryChanges(committed: Inventory, tree: Inventory): string[] {
+  const lines: string[] = [];
+  const quoted = (value: string | undefined) => (value === undefined ? 'none' : `"${value}"`);
+  const list = (values: string[]) => `[${values.join(', ')}]`;
+  type Field<T> = [name: string, read: (item: T) => string];
+  const compare = <T>(
+    scope: string,
+    kind: string,
+    before: T[],
+    after: T[],
+    key: (item: T) => string,
+    fields: Field<T>[],
+  ) => {
+    const afterByKey = new Map(after.map(item => [key(item), item]));
+    const beforeKeys = new Set(before.map(key));
+    for (const item of before) {
+      const twin = afterByKey.get(key(item));
+      if (!twin) {
+        lines.push(`${scope}: the committed inventory has the ${kind} ${key(item)}, the tree no longer says it`);
+        continue;
+      }
+      const changed = fields
+        .filter(([, read]) => read(item) !== read(twin))
+        .map(([name, read]) => `${name} ${read(item)} → ${read(twin)}`);
+      if (changed.length) lines.push(`${scope}: the ${kind} ${key(item)} differs: ${changed.join('; ')}`);
+    }
+    for (const item of after) {
+      if (!beforeKeys.has(key(item)))
+        lines.push(`${scope}: the tree says the ${kind} ${key(item)}, the committed inventory does not`);
+    }
+  };
+  const policyKey = (sides: InventoryPolicy[][]) => (policy: InventoryPolicy) =>
+    sides.some(side => side.filter(other => other.on === policy.on).length > 1)
+      ? `on ${policy.on} (${policy.kind})`
+      : `on ${policy.on}`;
+
+  for (const context of committed.contexts) {
+    const twin = tree.contexts.find(candidate => candidate.id === context.id);
+    if (!twin) {
+      lines.push(`${context.id}: the committed inventory has the context, the tree no longer says it`);
+      continue;
+    }
+    compare(context.id, 'command', context.commands, twin.commands, command => command.name, [
+      ['actor', command => quoted(command.actor)],
+      ['route', command => quoted(command.route)],
+      ['aggregate', command => quoted(command.aggregate)],
+      ['events', command => list(command.events)],
+    ]);
+    compare(context.id, 'query', context.queries, twin.queries, query => query.name, [
+      ['actor', query => quoted(query.actor)],
+      ['route', query => quoted(query.route)],
+    ]);
+    compare(context.id, 'domain event', context.events, twin.events, event => event, []);
+    const keyOf = policyKey([context.policies, twin.policies]);
+    compare(context.id, 'policy', context.policies, twin.policies, keyOf, [
+      ['kind', policy => quoted(policy.kind)],
+      ['publishes', policy => list(policy.publishes)],
+      ['events', policy => list(policy.events)],
+    ]);
+  }
+  for (const context of tree.contexts) {
+    if (!committed.contexts.some(candidate => candidate.id === context.id))
+      lines.push(`${context.id}: the tree says the context, the committed inventory does not`);
+  }
+  compare(
+    'context map',
+    'link',
+    committed.links,
+    tree.links,
+    link => `${link.upstream} → ${link.downstream} (${link.mechanism})`,
+    [['contracts', link => list(link.contracts)]],
+  );
+  return lines;
+}
+
 /** `yarn architecture inventory`, in words. */
 export function describeInventory(inventory: Inventory): string {
   const lines: string[] = [`Inventory of the ${inventory.language} tree (schema ${inventory.schemaVersion})`, ''];

@@ -74,6 +74,7 @@ import {
   renderEventStormSvg,
   INVENTORY_DIR,
   compareInventories,
+  inventoryChanges,
   inspectInventory,
   loadInventories,
   serializeInventory,
@@ -82,7 +83,7 @@ import {
   loadExpectedStorm,
   validateExpectedStorm,
 } from './index';
-import type { ArchitectureContract } from './index';
+import type { ArchitectureContract, Inventory } from './index';
 
 export interface CheckReport {
   /** Empty when the conventions and the code agree. */
@@ -282,6 +283,8 @@ export async function checkConventions(
         problem(
           `ARCH-ONE-APPLICATION: ${inventoryFile} differs from what the ${contract.language.name} tree says; run the conventions check with --write`,
         );
+        const before = JSON.parse(committed || '{"contexts":[],"links":[]}') as Inventory;
+        for (const change of inventoryChanges(before, inventory)) problem(`ARCH-ONE-APPLICATION: ${change}`);
       }
     }
     for (const [language, other] of inventories) {

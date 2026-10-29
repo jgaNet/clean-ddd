@@ -20,7 +20,8 @@
 //!    links are checked by the TypeScript tooling, which reads every binding.
 //! 5. The committed inventory (`docs/inventory/rust.json`) is what the tree renders now
 //!    (ARCH-ONE-APPLICATION): `cargo run -p conventions -- inventory` prints it, `--write`
-//!    writes it, and the TypeScript check holds every language's inventory equal.
+//!    writes it, and the TypeScript check holds every language's inventory equal. A stale one is
+//!    refused with one line per difference, in the words every language's check prints.
 //! 6. A command has exactly one handler (ARCH-ONE-HANDLER): the Module lists it once, with one
 //!    handler, and every command a route or a policy builds is one the Module lists; read from
 //!    the same wiring, routes and policies the inventory is.
@@ -91,7 +92,7 @@ fn check(contract: &Yaml, binding: &Yaml, repository_root: &Path, language_root:
     let crates = check_graph(contract, binding, &layers, language_root, &mut problems);
     check_files(binding, language_root, &mut problems);
     inventory::check_handlers(binding, language_root, &mut problems);
-    inventory::check(repository_root, &inventory::render(&inventory::inspect(binding, language_root)), &mut problems);
+    inventory::check(repository_root, &inventory::inspect(binding, language_root), &mut problems);
 
     if problems.is_empty() {
         println!(
