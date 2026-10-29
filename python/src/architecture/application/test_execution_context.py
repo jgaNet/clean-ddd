@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any
 
+import pytest
+
 from architecture.application.execution_context import Auth, ExecutionContext, UnitOfWork
 from architecture.application.operation import Operation
 from architecture.domain.common_exceptions import UnknownException
@@ -149,6 +151,59 @@ async def test_drops_the_callback_when_the_transaction_raises() -> None:
     result = await context.with_transaction(work)
     assert isinstance(result, Failure) and result.error.message == "boom"
     assert unit_of_work.log == ["begin", "rollback"]
+
+
+async def test_keeps_nothing_from_a_transaction_whose_unit_of_work_could_not_roll_back() -> None:
+    """The context is clean for the next transaction: no stale step or callback, one rollback."""
+
+    class RollbackFailsOnce(FakeUnitOfWork):
+        failing = True
+
+        async def rollback_transaction(self) -> None:
+            await super().rollback_transaction()
+            if self.failing:
+                raise RuntimeError("the connection is gone")
+
+    unit_of_work = RollbackFailsOnce()
+    context = context_with(unit_of_work)
+
+    async def refused() -> Result[None]:
+        context.before_commit(lambda: unit_of_work.log.append("stale step"))
+        context.after_commit(lambda: unit_of_work.log.append("stale callback"))
+        return Failure(UnknownException("refused"))
+
+    with pytest.raises(RuntimeError, match="the connection is gone"):
+        await context.with_transaction(refused)
+
+    unit_of_work.failing = False
+
+    async def work() -> Result[None]:
+        context.after_commit(lambda: unit_of_work.log.append("callback"))
+        return OK
+
+    result = await context.with_transaction(work)
+    assert isinstance(result, Success)
+    assert unit_of_work.log == ["begin", "rollback", "begin", "commit", "callback"]
+
+
+async def test_owns_its_transaction_a_unit_of_work_already_open_at_the_outermost_call_is_a_programming_error() -> None:
+    unit_of_work = FakeUnitOfWork()
+    unit_of_work.active = True
+    context = context_with(unit_of_work)
+    calls: list[str] = []
+
+    async def work() -> Result[None]:
+        calls.append("fn")
+        return OK
+
+    with pytest.raises(RuntimeError, match="the context owns its transaction"):
+        await context.with_transaction(work)
+    assert calls == []
+    assert unit_of_work.log == []
+
+    unit_of_work.active = False
+    assert isinstance(await context.with_transaction(work), Success)
+    assert unit_of_work.log == ["begin", "commit"]
 
 
 async def test_runs_the_callback_at_the_outermost_commit_when_transactions_are_nested() -> None:
