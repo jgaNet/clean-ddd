@@ -1,5 +1,12 @@
 import { loadArchitectureContract, repositoryRoot } from './load';
-import { canonicalRoute, compareInventories, inspectInventory, loadInventories, serializeInventory } from './inventory';
+import {
+  canonicalRoute,
+  compareInventories,
+  inspectInventory,
+  inventoryChanges,
+  loadInventories,
+  serializeInventory,
+} from './inventory';
 import type { Inventory } from './inventory';
 
 /**
@@ -79,5 +86,72 @@ describe('the inventory', () => {
       'context map: rust lacks the link typescript has: Security → Notes over an owned-port (AccountDirectory)',
     ]);
     expect(compareInventories(inventory, clone())).toEqual([]);
+  });
+
+  it('names what a stale inventory lost, gained or says differently, before → after', () => {
+    const before: Inventory = {
+      schemaVersion: 1,
+      language: 'typescript',
+      contexts: [
+        {
+          id: 'Notes',
+          commands: [
+            {
+              name: 'ShareNote',
+              actor: 'a signed-in account',
+              route: 'POST /notes/{param}/share',
+              aggregate: 'Note',
+              events: ['NoteShared'],
+            },
+            {
+              name: 'PinNote',
+              actor: 'a signed-in account',
+              route: 'POST /notes/{param}/pin',
+              aggregate: 'Note',
+              events: ['NotePinned'],
+            },
+          ],
+          queries: [{ name: 'GetNote', actor: 'a signed-in account', route: 'GET /notes/{param}' }],
+          events: ['NotePinned', 'NoteShared'],
+          policies: [{ on: 'NoteShared', kind: 'domain-event', publishes: ['NoteShared'], events: [] }],
+        },
+        { id: 'Tracker', commands: [], queries: [], events: [], policies: [] },
+      ],
+      links: [
+        { mechanism: 'integration-event', upstream: 'Notes', downstream: 'Notifications', contracts: ['NoteShared'] },
+      ],
+    };
+    const after: Inventory = {
+      ...before,
+      contexts: [
+        {
+          ...before.contexts[0],
+          commands: [
+            { name: 'ShareNote', actor: 'anyone', aggregate: 'Note', events: ['NoteShared'] },
+            {
+              name: 'ArchiveNote',
+              actor: 'a signed-in account',
+              route: 'POST /notes/{param}/archive',
+              aggregate: 'Note',
+              events: [],
+            },
+          ],
+          events: ['NoteShared'],
+          policies: [{ on: 'NoteShared', kind: 'domain-event', publishes: [], events: [] }],
+        },
+      ],
+      links: [{ mechanism: 'integration-event', upstream: 'Notes', downstream: 'Notifications', contracts: [] }],
+    };
+
+    expect(inventoryChanges(before, after)).toEqual([
+      'Notes: the command ShareNote differs: actor "a signed-in account" → "anyone"; route "POST /notes/{param}/share" → none',
+      'Notes: the committed inventory has the command PinNote, the tree no longer says it',
+      'Notes: the tree says the command ArchiveNote, the committed inventory does not',
+      'Notes: the committed inventory has the domain event NotePinned, the tree no longer says it',
+      'Notes: the policy on NoteShared differs: publishes [NoteShared] → []',
+      'Tracker: the committed inventory has the context, the tree no longer says it',
+      'context map: the link Notes → Notifications (integration-event) differs: contracts [NoteShared] → []',
+    ]);
+    expect(inventoryChanges(before, before)).toEqual([]);
   });
 });
