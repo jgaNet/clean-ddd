@@ -29,9 +29,13 @@ uv run python -m tools.conventions && npx clean-ddd check   # the tree and the i
 npx clean-ddd create my-app --language go       # the same, in Go: the module path is the application's name, in every import
 cd my-app && go mod tidy
 go run ./tools/conventions && npx clean-ddd check
+
+npx clean-ddd create my-app --language rust     # the same, in Rust: a workspace of the copied crates
+cd my-app && cargo build
+cargo run -p conventions && npx clean-ddd check
 ```
 
-What `create` copies and writes for a language is data in its binding (`create:` in `conventions/<language>.yaml`: the files copied as they are, the folder the integration events go in, the manifest to rewrite, the dependencies to keep, the first commands); a language whose binding has no such section is refused with that sentence. TypeScript, Python and Go have one. The generated application depends on `clean-ddd` rather than carrying a copy of the tooling ([ADR 23](../docs/adr/0023-the-tooling-lives-at-the-root-and-ships-as-a-package.md)): `yarn upgrade clean-ddd` is how it keeps up. The package carries, beside the CLI, the files `create` copies — the building blocks, the shared kernel's model, the configuration, the contract — taken from this repository at build time, so a created application is the reference's own files, never a template.
+What `create` copies and writes for a language is data in its binding (`create:` in `conventions/<language>.yaml`: the files copied as they are, the folder the integration events go in, the manifest to rewrite, the dependencies to keep, the first commands); a language whose binding has no such section is refused with that sentence. Every language of the reference has one. The generated application depends on `clean-ddd` rather than carrying a copy of the tooling ([ADR 23](../docs/adr/0023-the-tooling-lives-at-the-root-and-ships-as-a-package.md)): `yarn upgrade clean-ddd` is how it keeps up. The package carries, beside the CLI, the files `create` copies — the building blocks, the shared kernel's model, the configuration, the contract — taken from this repository at build time, so a created application is the reference's own files, never a template.
 
 The API is the same module the CLI uses: `import { loadArchitectureContract, inspectEventStorm } from 'clean-ddd'`.
 

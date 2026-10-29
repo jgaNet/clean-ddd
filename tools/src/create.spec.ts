@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -199,9 +199,17 @@ describe('yarn architecture create --language python', () => {
   });
 
   it('refuses a language whose binding says nothing about create', () => {
-    const empty = mkdtempSync(join(tmpdir(), 'created-rs-'));
-    expect(() => createApplication(empty, 'my-app', root, 'rust')).toThrow('says nothing about create yet');
+    // The repository's conventions, with the Go binding's create section removed.
+    const bare = mkdtempSync(join(tmpdir(), 'bare-'));
+    mkdirSync(join(bare, 'conventions'), { recursive: true });
+    for (const file of ['architecture.yaml', 'concepts.yaml', 'go.yaml']) {
+      const text = readFileSync(join(root, 'conventions', file), 'utf8');
+      writeFileSync(join(bare, 'conventions', file), text.replace(/^create:\n(?:  .*\n)+/m, ''));
+    }
+    const empty = mkdtempSync(join(tmpdir(), 'created-none-'));
+    expect(() => createApplication(empty, 'my-app', bare, 'go')).toThrow('says nothing about create yet');
     rmSync(empty, { recursive: true, force: true });
+    rmSync(bare, { recursive: true, force: true });
   });
 });
 
@@ -256,5 +264,61 @@ describe('yarn architecture create --language go', () => {
     expect(validateContract(generated, directory)).toEqual([]);
     expect(read('README.md')).toContain('go mod tidy');
     expect(read('CLAUDE.md')).toContain('module.go');
+  });
+});
+
+describe('yarn architecture create --language rust', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'created-rs-'));
+  const created = createApplication(directory, 'my-app', root, 'rust');
+  const generated = loadArchitectureContract(directory, 'rust');
+  const read = (path: string) => readFileSync(join(directory, path), 'utf8');
+
+  afterAll(() => rmSync(directory, { recursive: true, force: true }));
+
+  it('copies the crates of the building blocks, the shared kernel and the tool, and the configuration', () => {
+    expect(created.language).toBe('rust');
+    for (const path of [
+      'src/architecture/domain/Cargo.toml',
+      'src/architecture/domain/src/lib.rs',
+      'src/architecture/presentation/Cargo.toml',
+      'src/shared_kernel/domain/src/email.rs',
+      'src/shared_kernel/application/src/guards.rs',
+      'src/shared_kernel/application/src/integration_events/mod.rs',
+      'src/shared_kernel/application/src/integration_events/README.md',
+      'src/contexts/README.md',
+      'tools/conventions/src/main.rs',
+      'Cargo.toml',
+      'Cargo.lock',
+      'rustfmt.toml',
+      'conventions/rust.yaml',
+      'docs/inventory/rust.json',
+    ]) {
+      expect(existsSync(join(directory, path))).toBe(true);
+    }
+    expect(
+      existsSync(join(directory, 'src/shared_kernel/application/src/integration_events/note_integration_events.rs')),
+    ).toBe(false);
+    expect(existsSync(join(directory, 'src/bootstrap'))).toBe(false);
+  });
+
+  it('writes a workspace narrowed to the copied trees and the dependencies they use, and an empty contracts module', () => {
+    const cargo = read('Cargo.toml');
+    expect(cargo).toContain('members = ["src/architecture/*", "src/shared_kernel/*", "tools/*"]');
+    expect(cargo).toContain('version = "0.1.0"');
+    expect(cargo).toContain('uuid = ');
+    expect(cargo).toContain('axum = ');
+    expect(cargo).not.toContain('rusqlite');
+    expect(cargo).not.toContain('bcrypt');
+    expect(cargo).toContain('[workspace.lints.clippy]');
+    const contracts = read('src/shared_kernel/application/src/integration_events/mod.rs');
+    expect(contracts).toContain('//!');
+    expect(contracts).not.toContain('pub mod');
+  });
+
+  it('is sound on its own terms, with guides in Rust words', () => {
+    expect(generated.language).toEqual({ id: 'rust', name: 'Rust', root: '.' });
+    expect(validateContract(generated, directory)).toEqual([]);
+    expect(read('README.md')).toContain('cargo build');
+    expect(read('CLAUDE.md')).toContain('cargo run -p conventions');
   });
 });
