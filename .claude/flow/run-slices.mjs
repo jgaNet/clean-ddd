@@ -215,7 +215,9 @@ async function agent(slice, path, port, prompt, sessionId) {
     '--allowedTools',
     'Bash Read Edit Write Glob Grep',
   ];
-  if (sessionId) runnerArgs.push('--resume', sessionId);
+  // The same agent, in the same worktree: its conversation is the latest one there. (The session id
+  // the runner reports can be the parent's, inherited through the environment.)
+  if (sessionId) runnerArgs.push('--continue');
   const result = await exec('claude', runnerArgs, { cwd: path, extraEnv: { PORT: String(port) } });
   const json = parse(result.stdout);
   return {
