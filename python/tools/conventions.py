@@ -42,6 +42,7 @@ import ast
 import json
 import re
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -876,6 +877,114 @@ def serialize_inventory(inventory: Json) -> str:
     return json.dumps(inventory, indent=2, ensure_ascii=False) + "\n"
 
 
+def inventory_changes(committed: Json, tree: Json) -> list[str]:
+    """What changed between the committed inventory and the one the tree renders now, one line per
+    difference, in the words every language's check prints: what the committed inventory has and the tree
+    no longer says, what is said by both with other fields (before → after), what the tree says and the
+    committed one does not. Contexts in the committed order, then the new ones; inside a context the
+    commands, the queries, the domain events, the policies; then the links, under ``context map``."""
+    lines: list[str] = []
+
+    def quoted(value: Any) -> str:
+        return "none" if value is None else f'"{value}"'
+
+    def listed(values: Any) -> str:
+        return f"[{', '.join(str(value) for value in values or [])}]"
+
+    def compare(
+        scope: str,
+        kind: str,
+        before: list[Any],
+        after: list[Any],
+        key: Callable[[Any], str],
+        fields: list[tuple[str, Callable[[Any], str]]],
+    ) -> None:
+        after_by_key = {key(item): item for item in after}
+        before_keys = {key(item) for item in before}
+        for item in before:
+            twin = after_by_key.get(key(item))
+            if twin is None:
+                lines.append(f"{scope}: the committed inventory has the {kind} {key(item)}, the tree no longer says it")
+                continue
+            changed = [f"{name} {read(item)} → {read(twin)}" for name, read in fields if read(item) != read(twin)]
+            if changed:
+                lines.append(f"{scope}: the {kind} {key(item)} differs: {'; '.join(changed)}")
+        for item in after:
+            if key(item) not in before_keys:
+                lines.append(f"{scope}: the tree says the {kind} {key(item)}, the committed inventory does not")
+
+    def policy_key(before: list[Json], after: list[Json]) -> Callable[[Json], str]:
+        # Keyed on its event; on its event and its kind when two policies of one inventory share the event.
+        shared = {
+            policy["on"]
+            for policies in (before, after)
+            for policy in policies
+            if sum(other["on"] == policy["on"] for other in policies) > 1
+        }
+        return lambda policy: (
+            f"on {policy['on']} ({policy['kind']})" if policy["on"] in shared else f"on {policy['on']}"
+        )
+
+    contexts_after = {context["id"]: context for context in tree.get("contexts", [])}
+    contexts_before = {context["id"] for context in committed.get("contexts", [])}
+    for context in committed.get("contexts", []):
+        twin = contexts_after.get(context["id"])
+        if twin is None:
+            lines.append(f"{context['id']}: the committed inventory has the context, the tree no longer says it")
+            continue
+        scope = context["id"]
+        compare(
+            scope,
+            "command",
+            context.get("commands", []),
+            twin.get("commands", []),
+            lambda command: command["name"],
+            [
+                ("actor", lambda command: quoted(command.get("actor"))),
+                ("route", lambda command: quoted(command.get("route"))),
+                ("aggregate", lambda command: quoted(command.get("aggregate"))),
+                ("events", lambda command: listed(command.get("events"))),
+            ],
+        )
+        compare(
+            scope,
+            "query",
+            context.get("queries", []),
+            twin.get("queries", []),
+            lambda query: query["name"],
+            [
+                ("actor", lambda query: quoted(query.get("actor"))),
+                ("route", lambda query: quoted(query.get("route"))),
+            ],
+        )
+        compare(scope, "domain event", context.get("events", []), twin.get("events", []), lambda event: event, [])
+        before_policies, after_policies = context.get("policies", []), twin.get("policies", [])
+        compare(
+            scope,
+            "policy",
+            before_policies,
+            after_policies,
+            policy_key(before_policies, after_policies),
+            [
+                ("kind", lambda policy: quoted(policy.get("kind"))),
+                ("publishes", lambda policy: listed(policy.get("publishes"))),
+                ("events", lambda policy: listed(policy.get("events"))),
+            ],
+        )
+    for context in tree.get("contexts", []):
+        if context["id"] not in contexts_before:
+            lines.append(f"{context['id']}: the tree says the context, the committed inventory does not")
+    compare(
+        "context map",
+        "link",
+        committed.get("links", []),
+        tree.get("links", []),
+        lambda link: f"{link['upstream']} → {link['downstream']} ({link['mechanism']})",
+        [("contracts", lambda link: listed(link.get("contracts")))],
+    )
+    return lines
+
+
 def check_inventory(here: Path, problems: Problems) -> None:
     root = repository_root(here)
     if root is None:
@@ -884,12 +993,19 @@ def check_inventory(here: Path, problems: Problems) -> None:
     rendered = serialize_inventory(inspect_inventory(here))
     if not committed.is_file():
         problems.add(INVENTORY_RULE, f"{INVENTORY} is missing; run `{INVENTORY_WRITE}` and commit it")
-    elif committed.read_text(encoding="utf-8") != rendered:
+    elif (text := committed.read_text(encoding="utf-8")) != rendered:
         problems.add(
             INVENTORY_RULE,
             f"{INVENTORY} differs from what the Python tree says; run `{INVENTORY_WRITE}` and commit it "
             "(fix the tree that differs from the other languages, never the inventory)",
         )
+        try:
+            before = json.loads(text)
+        except json.JSONDecodeError:
+            return
+        if isinstance(before, dict):
+            for change in inventory_changes(before, json.loads(rendered)):
+                problems.add(INVENTORY_RULE, change)
 
 
 def check_handlers(here: Path, problems: Problems) -> None:
