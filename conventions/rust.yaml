@@ -110,6 +110,8 @@ rules:
     references: [src/bootstrap/tests/support/mod.rs]
   ARCH-MODULES-DATA:
     references: [src/contexts/notes/wiring/src/lib.rs]
+  ARCH-ONE-HANDLER:
+    references: [src/contexts/notes/wiring/src/lib.rs]
   ARCH-EXECUTION-CONTEXT:
     references: [src/architecture/application/src/execution_context.rs]
   DOMAIN-RESULT:
