@@ -1,6 +1,6 @@
 # RFC 0001 — An architecture-aware multi-agent development flow
 
-**Status:** proposed, awaiting a decision. Nothing here is implemented.
+**Status:** proposed, awaiting a decision. Nothing here is implemented. One open question is decided (§16, question 1).
 **Scope:** whether a project built on clean-ddd should be developed by several coding agents at once, what that needs from clean-ddd, and what belongs elsewhere.
 **Reference case:** a real project — one application, **one language**, created with `clean-ddd create --language <id>`, growing feature by feature from a backlog. Not this repository, whose four languages are a property of the reference and of no real project.
 **Recommendation:** **modify.** Give created projects the contracts that make parallel work safe (a context map and storms from day one), add a machine-readable completion gate and a run log to the existing tooling, and parallelise along the boundary the architecture already enforces: the bounded context. Do not build a `flow/` package in this repository. Decide on a standalone orchestrator only after a benchmark on a real backlog shows that several agents beat one.
@@ -309,7 +309,7 @@ Relative sizes, not durations: nothing yet records how long a change takes, whic
 
 ## 16. Open questions
 
-1. **Should every created project start with a context map**, even an empty one? This RFC says yes: it costs nothing and switches CTX-MAP-DECLARED on before the first cross-context feature, when it matters most.
+1. ~~**Should every created project start with a context map**, even an empty one?~~ **Decided: yes** (the maintainer, 2026-10-29). `create` scaffolds an empty `conventions/domain.yaml` and `conventions/storms/`, so CTX-MAP-DECLARED and the storm check run before the first cross-context feature. It is worth doing whatever is decided about the rest of this RFC: it helps one agent as much as several.
 2. **Who writes the acceptance test in the contract stage** — the person who decides the storm, or an agent whose test that person reviews?
 3. **Is a human approval required between the contract stage and the fan-out?** The `storm` skill already says hot spots are decided by people.
 4. **How coarse should the conflict key be** — the context, or `(context, aggregate)`? The RFC starts coarse and lets the benchmark decide.
