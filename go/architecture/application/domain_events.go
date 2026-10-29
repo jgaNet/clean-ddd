@@ -7,17 +7,29 @@ type Recorder interface {
 	PullDomainEvents() []domain.Event
 }
 
-// PublishDomainEvents sends every domain event an aggregate recorded, once the surrounding
-// transaction has committed. The events are pulled from the aggregate at that moment, not
-// before: what goes out is everything the aggregate recorded during the transaction, and a
-// rollback leaves the aggregate's events where they are, unpublished, to be discarded with it.
-// Extracting and acknowledging the events are one step, taken only when the facts are durable
-// (ADR 3). Command handlers call it after saving; application services do too. Outside any
-// transaction the callback runs at once (see ExecutionContext.AfterCommit).
+// PublishDomainEvents makes every domain event an aggregate recorded durable with the state it
+// describes, and lets the context publish it after the commit (ADR 3, ADR 24). The events are
+// pulled from the aggregate at commit time, not before: what is stored is everything the
+// aggregate recorded during the transaction, and a rollback leaves the aggregate's events
+// where they are, unpublished, to be discarded with it. Extracting and storing the events are
+// one step, taken only when the facts are about to be durable; publishing them is the relay's,
+// once they are. Command handlers call it after saving; application services do too. Outside
+// any transaction (a reaction, after the command that set it off committed) the step runs at
+// once and the context relays at once (see ExecutionContext.BeforeCommit).
+//
+// A context without a unit of work (a handler's unit test) has no outbox: there the events go
+// straight to the bus once the use case has succeeded, as AfterCommit promises.
 func PublishDomainEvents(aggregate Recorder, context *ExecutionContext) {
-	context.AfterCommit(func() {
-		for _, event := range aggregate.PullDomainEvents() {
-			context.Publish(event)
-		}
+	outbox := context.outbox()
+	if outbox == nil {
+		context.AfterCommit(func() {
+			for _, event := range aggregate.PullDomainEvents() {
+				context.Publish(event)
+			}
+		})
+		return
+	}
+	context.BeforeCommit(func() {
+		outbox.Append(aggregate.PullDomainEvents())
 	})
 }

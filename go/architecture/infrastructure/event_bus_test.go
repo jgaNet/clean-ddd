@@ -2,6 +2,8 @@ package infrastructure
 
 import (
 	"reflect"
+	"sort"
+	"sync"
 	"testing"
 
 	"clean-ddd/architecture/application"
@@ -138,5 +140,86 @@ func TestSettleWaitsForTheEventsADispatchPublishes(t *testing.T) {
 func TestConnectHasNothingToConnectTo(t *testing.T) {
 	if err := NewInMemoryEventBus().Connect(); err != nil {
 		t.Errorf("Connect: %v", err)
+	}
+}
+
+// counter is a reaction that counts, and fails when told to: the bus's inbox must remember
+// only what was handled. The dispatches run in parallel, so it locks and the tests sort.
+type counter struct {
+	mu       sync.Mutex
+	seen     []string
+	failNext bool
+}
+
+func (c *counter) Execute(event GreetedEvent, _ *application.ExecutionContext) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.failNext {
+		c.failNext = false
+		return domain.Unknown("not this time", nil)
+	}
+	c.seen = append(c.seen, event.Name)
+	return nil
+}
+
+func (c *counter) sorted() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	seen := append([]string{}, c.seen...)
+	sort.Strings(seen)
+	return seen
+}
+
+// Idempotent delivery (ADR 24): a message relayed twice from the outbox reaches a subscriber once.
+
+func TestDeliversAMessageOncePerSubscriberByItsIDHoweverManyTimesItIsPublished(t *testing.T) {
+	bus := NewInMemoryEventBus()
+	handler := &counter{}
+	subscribe(bus, application.Reaction[GreetedEvent](handler))
+
+	bus.PublishWithID(GreetedEvent{Name: "alice"}, contextOn(bus), "message-1")
+	bus.Settle()
+	again := bus.PublishWithID(GreetedEvent{Name: "alice"}, contextOn(bus), "message-1")
+	bus.Settle()
+
+	if want := []string{"alice"}; !reflect.DeepEqual(handler.sorted(), want) {
+		t.Errorf("seen: got %v, want %v", handler.sorted(), want)
+	}
+	if again.Status != application.StatusSent {
+		t.Errorf("a message already handled is marked sent, got %s", again.Status)
+	}
+}
+
+func TestDeliversTwoMessagesWithTwoIDsAndTheSameEventWithoutAnIDAsManyTimesAsItIsPublished(t *testing.T) {
+	bus := NewInMemoryEventBus()
+	handler := &counter{}
+	subscribe(bus, application.Reaction[GreetedEvent](handler))
+
+	bus.PublishWithID(GreetedEvent{Name: "alice"}, contextOn(bus), "message-1")
+	bus.PublishWithID(GreetedEvent{Name: "alice"}, contextOn(bus), "message-2")
+	bus.Publish(GreetedEvent{Name: "bob"}, contextOn(bus))
+	bus.Publish(GreetedEvent{Name: "bob"}, contextOn(bus))
+	bus.Settle()
+
+	if want := []string{"alice", "alice", "bob", "bob"}; !reflect.DeepEqual(handler.sorted(), want) {
+		t.Errorf("seen: got %v, want %v", handler.sorted(), want)
+	}
+}
+
+func TestHandsAMessageAgainToASubscriberWhoseReactionFailedAtLeastOnceIsThePromise(t *testing.T) {
+	bus := NewInMemoryEventBus()
+	handler := &counter{failNext: true}
+	subscribe(bus, application.Reaction[GreetedEvent](handler))
+
+	failed := bus.PublishWithID(GreetedEvent{Name: "alice"}, contextOn(bus), "message-1")
+	bus.Settle()
+	if failed.Status != application.StatusError || len(handler.sorted()) != 0 {
+		t.Fatalf("the first delivery should have failed: %s %v", failed.Status, handler.sorted())
+	}
+
+	bus.PublishWithID(GreetedEvent{Name: "alice"}, contextOn(bus), "message-1")
+	bus.Settle()
+	if want := []string{"alice"}; !reflect.DeepEqual(handler.sorted(), want) {
+		t.Errorf("seen: got %v, want %v", handler.sorted(), want)
 	}
 }

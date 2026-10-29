@@ -35,7 +35,13 @@ type Operation struct {
 }
 
 func NewOperation(event domain.Event, context *ExecutionContext) *Operation {
-	return &Operation{ID: uuid.NewString(), Status: StatusPending, Event: event, Context: context, CreatedAt: time.Now().UTC()}
+	return NewOperationWithID(uuid.NewString(), event, context)
+}
+
+// NewOperationWithID is the operation of a message whose id exists before the bus sees it: an
+// outbox entry relayed after the commit (ADR 24), recognised by its id wherever it is delivered.
+func NewOperationWithID(id string, event domain.Event, context *ExecutionContext) *Operation {
+	return &Operation{ID: id, Status: StatusPending, Event: event, Context: context, CreatedAt: time.Now().UTC()}
 }
 
 // Failed marks a command refused or a reaction that failed: the error is the operation's outcome.

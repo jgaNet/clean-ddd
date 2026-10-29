@@ -134,5 +134,8 @@ func (stubBus) Connect() error { return nil }
 func (stubBus) Publish(event domain.Event, ctx *application.ExecutionContext) *application.Operation {
 	return application.NewOperation(event, ctx)
 }
+func (stubBus) PublishWithID(event domain.Event, ctx *application.ExecutionContext, id string) *application.Operation {
+	return application.NewOperationWithID(id, event, ctx)
+}
 func (stubBus) Dispatch(*application.Operation)          {}
 func (stubBus) Subscribe(string, application.Subscriber) {}

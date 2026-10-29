@@ -92,6 +92,9 @@ func (b *listingBus) Connect() error { return b.connect }
 func (*listingBus) Publish(domain.Event, *ExecutionContext) *Operation {
 	panic("not used")
 }
+func (*listingBus) PublishWithID(domain.Event, *ExecutionContext, string) *Operation {
+	panic("not used")
+}
 func (*listingBus) Dispatch(*Operation) {}
 func (b *listingBus) Subscribe(channel string, _ Subscriber) {
 	b.subscribed = append(b.subscribed, channel)

@@ -142,11 +142,18 @@ rules:
   DOMAIN-NON-DETERMINISM:
     references: [contexts/notes/application/suggestions/suggestions.go, contexts/notes/application/commands/suggest_note_title.go]
   EVENT-AFTER-COMMIT:
-    references: [architecture/application/execution_context.go, architecture/application/domain_events.go]
+    references:
+      - architecture/application/execution_context.go
+      - architecture/application/domain_events.go
+      - architecture/application/domain_events_test.go
+      - architecture/infrastructure/event_bus_test.go
   QUERY-READ-MODELS:
     references: [contexts/notes/domain/note/queries.go, contexts/notes/infrastructure/queries.go]
   CONC-OPTIMISTIC:
-    references: [contexts/notes/infrastructure/repositories.go, contexts/notes/infrastructure/persistence_contract_test.go]
+    references:
+      - contexts/notes/infrastructure/repositories.go
+      - contexts/notes/infrastructure/persistence_contract_test.go
+      - architecture/application/command_handler_test.go
   ARCH-INFRASTRUCTURE:
     references: [contexts/notes/infrastructure/notes_table.go]
   API-ONE-SURFACE:
@@ -411,11 +418,28 @@ concepts:
     notes: '`application.Query()` runs a `QueryHandler[P, R]`: the parameters, the read model; the module finds it by its type with `application.QueryOf[*H]()`'
   execution-context:
     canonical: [architecture/application/execution_context.go]
-    notes: '`application.Transaction()` takes a function returning `(T, error)`, `AfterCommit()` a plain func'
+    notes: '`application.Transaction()` takes a function returning `(T, error)`, `BeforeCommit()` and `AfterCommit()` a plain func; the outbox is relayed between the two'
   publish-after-commit:
     canonical: [architecture/application/domain_events.go]
     example: '`application.PublishDomainEvents()` in [`domain_events.go`](architecture/application/domain_events.go)'
-    notes: 'the handler hands the aggregate over, and the events are pulled at the commit'
+    notes: 'the handler hands the aggregate over, and the events are pulled at the commit, into the outbox'
+  transactional-outbox:
+    canonical: [architecture/application/outbox.go]
+    examples:
+      - architecture/infrastructure/outbox.go
+      - architecture/application/domain_events.go
+    example: >-
+      [`outbox.go`](architecture/application/outbox.go) (the port and `RelayOutbox()`),
+      [`infrastructure/outbox.go`](architecture/infrastructure/outbox.go),
+      [`domain_events.go`](architecture/application/domain_events.go) (appends at commit)
+    notes: 'the in-memory outbox is a store the unit of work snapshots with the others; `SharedOutbox` is the process''s, relayed once at start by the bootstrap'
+  retry-on-conflict:
+    canonical: [architecture/application/command_handler.go]
+    examples: [architecture/application/command_handler_test.go]
+    example: >-
+      [`command_handler.go`](architecture/application/command_handler.go) (`ConflictAttempts`),
+      [`command_handler_test.go`](architecture/application/command_handler_test.go)
+    notes: '`application.Run()` runs `Execute()` again in a new transaction when `domain.IsConcurrencyConflict(err)`, up to three times'
   domain-event-handler:
     canonical: [contexts/notes/application/events/note_shared_handler.go]
   integration-event:
@@ -476,6 +500,13 @@ concepts:
     canonical: [architecture/infrastructure/event_bus.go]
     notes: '`Publish()` starts the dispatch in a goroutine and answers at once; `Settle()` waits for what is in flight; the port is [`event_bus.go`](architecture/application/event_bus.go)'
     examples: [architecture/application/event_bus.go]
+  idempotent-delivery:
+    canonical: [architecture/infrastructure/event_bus.go]
+    examples: [architecture/infrastructure/event_bus_test.go]
+    example: >-
+      [`event_bus.go`](architecture/infrastructure/event_bus.go) (the inbox: `Subscribe()`),
+      [`event_bus_test.go`](architecture/infrastructure/event_bus_test.go)
+    notes: '`PublishWithID()` carries the outbox entry''s id as the operation''s; each subscription keeps the ids it handled and marks a repeat sent'
   decorator:
     canonical: [contexts/tracker/infrastructure/tracked_event_bus.go]
     notes: 'wraps `Publish` and `Dispatch`: a record before, a record after, the completion notice when it is a command''s'
