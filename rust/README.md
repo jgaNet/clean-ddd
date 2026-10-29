@@ -35,7 +35,7 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 
 ### Domain layer
 
-<!-- generated from conventions/concepts.yaml (domain); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (domain); edit the YAML, then run the conventions check with --write -->
 | Concept | Canonical example | Notes |
 | --- | --- | --- |
 | Entity | [`entity.rs`](src/architecture/domain/src/entity.rs) | identity, `equals()`; a trait; the kind is the type, so two kinds cannot even be compared |
@@ -61,7 +61,7 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 
 ### Application layer
 
-<!-- generated from conventions/concepts.yaml (application); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (application); edit the YAML, then run the conventions check with --write -->
 | Concept | Canonical example | Notes |
 | --- | --- | --- |
 | Command | `ShareNote` in [`share_note.rs`](src/contexts/notes/application/src/commands/share_note.rs) | a named payload, nothing more. It extends `CommandEvent`, one of the three kinds of message the building blocks define: a command travels on the same bus as the events and is tracked as an operation, so it has their shape; the class says its intent (one handler, may be refused); a struct with a `NAME`, which is the channel its handler listens on, and an `Output`, what its handler answers with; the three kinds of message are three traits in [`event.rs`](src/architecture/domain/src/event.rs) |
@@ -82,7 +82,7 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 
 ### Infrastructure layer
 
-<!-- generated from conventions/concepts.yaml (infrastructure); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (infrastructure); edit the YAML, then run the conventions check with --write -->
 | Concept | Canonical example | Notes |
 | --- | --- | --- |
 | Repository implementation | [`repositories.rs`](src/contexts/notes/infrastructure/src/repositories.rs) | snapshot in, snapshot out |
@@ -97,7 +97,7 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 
 ### Presentation and bootstrap
 
-<!-- generated from conventions/concepts.yaml (presentation); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (presentation); edit the YAML, then run the conventions check with --write -->
 | Concept | Canonical example |
 | --- | --- |
 | Controller (commands → `202 { operationId }`, queries → sync; one `refuse()` per controller: `403` not allowed, `404` not found, `400` otherwise, always `{ message }`) | [`notes/presentation`](src/contexts/notes/presentation/src/lib.rs); every other context's has the same shape |
@@ -109,7 +109,7 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 
 ### Tests, one style per layer
 
-<!-- generated from conventions/concepts.yaml (tests); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (tests); edit the YAML, then run the conventions check with --write -->
 | Layer | Example | Doubles |
 | --- | --- | --- |
 | Domain | `mod tests` in [`note/mod.rs`](src/contexts/notes/domain/src/note/mod.rs) | none |
@@ -124,7 +124,7 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 
 Every rule has a stable id, a reason, a remediation and says how it is held — in the contract's words (`linter`, `check`, `types`, `tests`, `review`, `evaluations`) and, below, in this language's: the crate graph, `cargo run -p conventions`, the compiler, a `#[test]`, review, the evaluations. The rules are the same in every language; the files that show them are this language's. Ask any of them from `typescript/`: `yarn architecture rule CONC-OPTIMISTIC`.
 
-<!-- generated from conventions/architecture.yaml (rules); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/architecture.yaml (rules); edit the YAML, then run the conventions check with --write -->
 | Rule | Enforced by |
 | --- | --- |
 | **ARCH-RELATIVE** — A relative import names a sibling file and nothing else; anything across directories goes through the path the import rules are written against. | the crate graph — each layer is a crate whose `[dependencies]` are its row of the table, held by the compiler and compared to the contract by `cargo run -p conventions` · [CLAUDE.md](CLAUDE.md) |
@@ -154,7 +154,7 @@ Every rule has a stable id, a reason, a remediation and says how it is held — 
 
 The dependency table, per layer. `own` is the crate's own context, `architecture` the building blocks, `kernel` the shared kernel, `others` any other context; a crate's `[dependencies]` are its row, and `cargo run -p conventions` refuses a dependency the row does not allow, naming the rule.
 
-<!-- generated from conventions/architecture.yaml (dependencies); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/architecture.yaml (dependencies); edit the YAML, then run the conventions check with --write -->
 | A file in… | may import | Rule |
 | --- | --- | --- |
 | Domain | `own.Domain`, `architecture.Domain`, `kernel.Domain` | ARCH-DOMAIN |
@@ -239,7 +239,7 @@ Then, as a client would: `POST /v1/auth/login` with `{ "identifier": "admin@admi
 
 The words the reference uses, with the file that shows them here; a word with no file yet is one this language still owes.
 
-<!-- generated from conventions/concepts.yaml (vocabulary); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (vocabulary); edit the YAML, then run the conventions check with --write -->
 | Word | Here it means | See |
 | --- | --- | --- |
 | Building blocks | the mechanics every context is written with (Entity, AggregateRoot, ValueObject, Result, the handlers, the bus); they know no context and no vocabulary, not even the roles | [`src/architecture`](src/architecture) |

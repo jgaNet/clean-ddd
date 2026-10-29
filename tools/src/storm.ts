@@ -619,7 +619,7 @@ export function renderProcess(context: StormContext, storm: EventStorm): string 
   return lines.join('\n');
 }
 
-export const STORM_MARKER = '<!-- generated from the code (event storm); run yarn conventions:write -->';
+export const STORM_MARKER = '<!-- generated from the code (event storm); run the conventions check with --write -->';
 
 /** The whole storm as Markdown: the big picture, then each context at process level with its tables. */
 export function renderEventStorm(storm: EventStorm): string {

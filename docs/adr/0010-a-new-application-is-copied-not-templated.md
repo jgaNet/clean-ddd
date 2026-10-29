@@ -26,6 +26,10 @@ The test of all this is that the generated project passes the same six checks �
 - Nothing of this repository's business survives into a generated project, including where the vocabulary is only illustrative. The `http.verbs` table is the case that had to be decided: its URL shapes carry the reference's nouns (`GET /notes/:id`), and what the table teaches is the grammar — which verb a use case takes, and what the URL names. Keeping the nouns was tempting because the grammar is the point and a made-up noun would be a small fictional domain. The answer is a placeholder rather than a substitute: `GET /<things>/:id`, `POST /<things>/:id/<action>`, in the same idiom the checklists already use for `src/Contexts/<Context>/...`. "It is only an illustration" is not a reason for something to ride along.
 - This repository now has a second audience with different needs: the reader and the starter. When the two conflict, the reader wins — the scaffolder is a way of reading it, not a product.
 
+## Since
+
+- **2026-10-29 — `create` takes a language.** What it copies and writes is data in each binding (`create:` in `conventions/<language>.yaml`: the files copied as they are, the folder the integration events go in, the manifest rewritten, the dependencies kept, the first commands), and the tooling, now the root package (ADR 23), reads it. TypeScript and Python have one; a language without one is refused with that sentence. A Python application copies `tools/conventions.py` with its tree, because in Python the conventions tool *is* the import linter and holds nothing but that tree; the contract and the documents stay the package's. The conventions tool's own tests are not copied, as the TypeScript tooling's specs were not: they assert on the reference.
+
 ## When to revisit
 
 If `create` ever needs a file that does not exist in `src` — a template, a placeholder aggregate, a sample context — the decision has been broken, and the question to ask is why the reference does not have that file. If the answer is that it should not, then the scaffolder should not emit it either.

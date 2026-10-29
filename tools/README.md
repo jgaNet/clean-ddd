@@ -17,13 +17,17 @@ From a language's directory the same scripts answer for that language: `yarn --c
 ## Anywhere
 
 ```bash
-npx clean-ddd create my-app         # a new application on this architecture, with none of this business
+npx clean-ddd create my-app                     # a new TypeScript application on this architecture, with none of this business
 cd my-app && yarn install
-yarn check:conventions              # = clean-ddd check: the contract is sound, the tree matches it, the documents are rendered from it
-yarn architecture checklist context # = clean-ddd checklist context
+yarn check:conventions                          # = clean-ddd check: the contract is sound, the tree matches it, the documents are rendered from it
+yarn architecture checklist context             # = clean-ddd checklist context
+
+npx clean-ddd create my-app --language python   # the same, in Python: the building blocks, the shared kernel, the conventions tool
+cd my-app && uv sync
+uv run python -m tools.conventions && npx clean-ddd check   # the tree and the imports by the language's tool; the contract and the documents by this one
 ```
 
-The generated application depends on `clean-ddd` rather than carrying a copy of the tooling ([ADR 23](../docs/adr/0023-the-tooling-lives-at-the-root-and-ships-as-a-package.md)): `yarn upgrade clean-ddd` is how it keeps up. The package carries, beside the CLI, the files `create` copies — the building blocks, the shared kernel's model, the configuration, the contract — taken from this repository at build time, so a created application is the reference's own files, never a template.
+What `create` copies and writes for a language is data in its binding (`create:` in `conventions/<language>.yaml`: the files copied as they are, the folder the integration events go in, the manifest to rewrite, the dependencies to keep, the first commands); a language whose binding has no such section is refused with that sentence. TypeScript and Python have one. The generated application depends on `clean-ddd` rather than carrying a copy of the tooling ([ADR 23](../docs/adr/0023-the-tooling-lives-at-the-root-and-ships-as-a-package.md)): `yarn upgrade clean-ddd` is how it keeps up. The package carries, beside the CLI, the files `create` copies — the building blocks, the shared kernel's model, the configuration, the contract — taken from this repository at build time, so a created application is the reference's own files, never a template.
 
 The API is the same module the CLI uses: `import { loadArchitectureContract, inspectEventStorm } from 'clean-ddd'`.
 
@@ -45,7 +49,7 @@ clean-ddd storm --expect <file>   what the code still owes an expected storm; --
 clean-ddd inventory [<language>]  what the tree says the application is; with a language, where its inventory differs
 clean-ddd plan validate|explain <file>      a feature plan, before the code
 clean-ddd mode feature|architecture [--base <ref>|--base working]   which rules this change is held to
-clean-ddd create <dir> [--name <app>]       a new application on this architecture
+clean-ddd create <dir> [--name <app>] [--language <id>]   a new application on this architecture, in that language
 clean-ddd check [--write]         the conventions check; --write regenerates what it holds
 ```
 
@@ -53,7 +57,7 @@ Every command takes `--json` (valid JSON only, a structured error and exit 1 on 
 
 ## What is the tool's and what is a language's
 
-The contract, the concepts, the domain map, the bindings, the plans and the storms are read by this package for every language, and the documents of every language are rendered by it. What it reads *from a tree* — the links between contexts, the event storm, the inventory — it reads from the TypeScript tree, the reference's ([ADR 11](../docs/adr/0011-one-reference-several-languages.md)); Rust, Python and Go write their own inventory with their own tool, and `check` holds the four equal. The import rules are asked of each language's own linter: `can-import` and the probes of `check` load ESLint from the language's directory, never a copy of it, so install the language first (`cd typescript && yarn install`).
+The contract, the concepts, the domain map, the bindings, the plans and the storms are read by this package for every language, and the documents of every language are rendered by it. What it reads *from a tree* — the links between contexts, the event storm, the inventory — it reads from the TypeScript tree, the reference's ([ADR 11](../docs/adr/0011-one-reference-several-languages.md)); Rust, Python and Go write their own inventory with their own tool, and `check` holds the four equal. The import rules are asked of each language's own linter: `can-import` and the probes of `check` load ESLint from the language's directory, never a copy of it, so install the language first (`cd typescript && yarn install`). For a language whose tree this package does not read (`check --language rust` here, or `check` in a Python application), the steps that walk a tree are left to that language's tool and the summary says so.
 
 ## Layout
 

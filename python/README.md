@@ -31,7 +31,7 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 
 ### Domain layer
 
-<!-- generated from conventions/concepts.yaml (domain); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (domain); edit the YAML, then run the conventions check with --write -->
 | Concept | Canonical example | Notes |
 | --- | --- | --- |
 | Entity | [`entity.py`](src/architecture/domain/entity.py) | identity, `equals()`; a class with its state in private attributes; no `__eq__`, so two entities compare through `equals()` or their snapshots |
@@ -57,7 +57,7 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 
 ### Application layer
 
-<!-- generated from conventions/concepts.yaml (application); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (application); edit the YAML, then run the conventions check with --write -->
 | Concept | Canonical example | Notes |
 | --- | --- | --- |
 | Command | `ShareNoteCommandEvent` in [`share_note.py`](src/contexts/notes/application/commands/share_note.py) | a named payload, nothing more. It extends `CommandEvent`, one of the three kinds of message the building blocks define: a command travels on the same bus as the events and is tracked as an operation, so it has their shape; the class says its intent (one handler, may be refused); a frozen dataclass extending `CommandEvent`, its fields the payload; its handler is in the same file, and the channel is the class name (`name_of()`) |
@@ -78,7 +78,7 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 
 ### Infrastructure layer
 
-<!-- generated from conventions/concepts.yaml (infrastructure); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (infrastructure); edit the YAML, then run the conventions check with --write -->
 | Concept | Canonical example | Notes |
 | --- | --- | --- |
 | Repository implementation | [`repositories.py`](src/contexts/notes/infrastructure/repositories.py) | snapshot in, snapshot out |
@@ -93,7 +93,7 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 
 ### Presentation and bootstrap
 
-<!-- generated from conventions/concepts.yaml (presentation); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (presentation); edit the YAML, then run the conventions check with --write -->
 | Concept | Canonical example |
 | --- | --- |
 | Controller (commands → `202 { operationId }`, queries → sync; one `refuse()` per controller: `403` not allowed, `404` not found, `400` otherwise, always `{ message }`) | [`notes/presentation/routes.py`](src/contexts/notes/presentation/routes.py); every other context's has the same shape |
@@ -105,7 +105,7 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 
 ### Tests, one style per layer
 
-<!-- generated from conventions/concepts.yaml (tests); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (tests); edit the YAML, then run the conventions check with --write -->
 | Layer | Example | Doubles |
 | --- | --- | --- |
 | Domain | [`test_note.py`](src/contexts/notes/domain/note/test_note.py) | none |
@@ -120,7 +120,7 @@ One canonical example per concept, rendered from [`conventions/concepts.yaml`](.
 
 The rules are the contract's, listed with their ids in the root [CLAUDE.md](../CLAUDE.md); what stands behind each enforcement word here is in the binding's `enforcers`: `linter` and `check` are both `uv run python -m tools.conventions`, `types` is strict `mypy`, `tests` is `pytest`.
 
-<!-- generated from conventions/architecture.yaml (rules); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/architecture.yaml (rules); edit the YAML, then run the conventions check with --write -->
 | Rule | Enforced by |
 | --- | --- |
 | **ARCH-RELATIVE** — A relative import names a sibling file and nothing else; anything across directories goes through the path the import rules are written against. | `uv run python -m tools.conventions`, an `ast` walk holding every import of every module to its row of the table · [conventions.py](tools/conventions.py) |
@@ -148,7 +148,7 @@ The rules are the contract's, listed with their ids in the root [CLAUDE.md](../C
 
 ### Who may import whom
 
-<!-- generated from conventions/architecture.yaml (dependencies); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/architecture.yaml (dependencies); edit the YAML, then run the conventions check with --write -->
 | A file in… | may import | Rule |
 | --- | --- | --- |
 | Domain | `own.Domain`, `architecture.Domain`, `kernel.Domain` | ARCH-DOMAIN |
@@ -235,7 +235,7 @@ Once it serves: `GET /v1` is the home, `/v1/docs` the OpenAPI page, `/` the HTMX
 
 The words the reference uses, with the file that shows them here; a word with no file yet is one this language still owes.
 
-<!-- generated from conventions/concepts.yaml (vocabulary); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (vocabulary); edit the YAML, then run the conventions check with --write -->
 | Word | Here it means | See |
 | --- | --- | --- |
 | Building blocks | the mechanics every context is written with (Entity, AggregateRoot, ValueObject, Result, the handlers, the bus); they know no context and no vocabulary, not even the roles | [`src/architecture`](src/architecture) |

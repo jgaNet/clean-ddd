@@ -23,7 +23,7 @@ From a terminal: `yarn architecture storm` (at the root) (`storm Notes` for one 
 
 The same reading in the words every language shares is the [inventory](inventory/README.md), which each language's tool writes from its own tree and the check holds equal across the four ([ADR 21](adr/0021-one-application-every-language-writes-the-same-inventory.md)). The storm also runs forwards: what a facilitated session decides a feature will add is an [expected storm](../conventions/storms/pin-a-note.yaml), and `yarn --cwd typescript architecture storm --expect <file>` says what the code still owes it ([ADR 22](adr/0022-the-storm-is-facilitated-and-the-code-is-held-to-it.md)).
 
-<!-- generated from the code (event storm); run yarn conventions:write -->
+<!-- generated from the code (event storm); run the conventions check with --write -->
 Read from the TypeScript tree. Colours are the ones a wall would have: actors in pale yellow, commands in blue, aggregates in yellow, domain events in orange, integration events in dark orange, policies in purple, read models in green, external systems in pink.
 
 ### The big picture

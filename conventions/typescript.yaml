@@ -53,6 +53,33 @@ modes:
   architecture:
     decides: [src/Architecture, src/SharedKernel/Domain]
 
+# What `clean-ddd create --language typescript` makes of this directory (ADR 10, ADR 23): the files
+# copied as they are (the building blocks with their specs, the shared kernel's model, the
+# configuration; never the tooling, which the new application takes as a dependency), the
+# folder its integration events go in, the manifest rewritten with the application's name, the
+# dependencies the copied files import or the copied configuration loads, and the commands the
+# generated guide shows first.
+create:
+  copy:
+    - src/Architecture
+    - src/SharedKernel/Domain
+    - src/SharedKernel/Application/Guards.ts
+    - tsconfig.json
+    - tsconfig.test.json
+    - jest.config.js
+    - eslint.config.js
+    - .prettierrc.json
+    - .prettierignore
+    - .nvmrc
+  contracts: src/SharedKernel/Application/IntegrationEvents
+  manifest: package.json
+  # jest.config.js, copied verbatim, loads dotenv; tsconfig asks for tslib's helpers.
+  dependencies: [uuid, dotenv, tslib]
+  devDependencies: ["@jest/globals", "@types/jest", "@types/node", cross-env, eslint, jest, js-yaml, prettier, ts-jest, typescript, typescript-eslint]
+  scripts: [typecheck, test, test:units, test:e2e, lint, format, format:check]
+  install: yarn install
+  test: yarn test:units
+
 # The files that show a rule, by id. The rule itself is in architecture.yaml.
 rules:
   ARCH-RELATIVE:

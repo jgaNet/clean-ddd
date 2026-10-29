@@ -62,6 +62,7 @@ import {
   renderTests,
   renderVocabulary,
   repositoryRoot,
+  DEFAULT_LANGUAGE,
   defaultLanguage,
   validateContract,
   STORM_MARKER,
@@ -99,6 +100,12 @@ export async function checkConventions(
 
   const contract = loadArchitectureContract(root, language);
   problems.push(...validateContract(contract, root));
+  /**
+   * The steps that walk a tree — its layout, the silenced linter, the import probes, the links,
+   * the storm, the inventory — are written for the TypeScript tree (ADR 11); for another language
+   * they are its own tool's, and this check holds the contract and the documents.
+   */
+  const readsTree = contract.language.id === DEFAULT_LANGUAGE;
   const others: ArchitectureContract[] = [];
   for (const language of contract.languages.filter(language => language !== contract.language.id)) {
     try {
@@ -118,49 +125,51 @@ export async function checkConventions(
   // 8. The domain map, when there is one: sound against every binding, and true to the code both ways
 
   const domainMap = loadDomainMap(root);
-  const links = domainMap ? inspectContextLinks(contract, root) : [];
+  const links = domainMap && readsTree ? inspectContextLinks(contract, root) : [];
   if (domainMap) {
     problems.push(...validateDomainMap(domainMap, contracts, root));
-    problems.push(...checkDomainAgainstLinks(domainMap, links, contract.language.name));
+    if (readsTree) problems.push(...checkDomainAgainstLinks(domainMap, links, contract.language.name));
   }
 
-  // 2. The tree matches the contract
+  if (readsTree) {
+    // 2. The tree matches the contract
 
-  const layers = contract.layers;
-  const contextsDir = join(root, contract.contextsTree.path);
-  for (const entry of readdirSync(contextsDir, { withFileTypes: true })) {
-    if (entry.isDirectory() && !contract.contexts.includes(entry.name)) {
-      problem(
-        `ARCH-CONTEXT-DECLARED: ${contract.contextsTree.path}/${entry.name} is not declared in ${contract.sources.binding}, so no import rule applies to it`,
-      );
-    }
-  }
-  for (const context of contract.contexts) {
-    const dir = join(contextsDir, context);
-    if (!existsSync(dir)) {
-      problem(
-        `ARCH-CONTEXT-DECLARED: ${contract.sources.binding} declares the context ${context}, which does not exist`,
-      );
-      continue;
-    }
-    if (!existsSync(join(dir, contract.wiring)))
-      problem(`ARCH-CONTEXT-DECLARED: ${contract.contextsTree.path}/${context} has no ${contract.wiring}`);
-    for (const entry of readdirSync(dir)) {
-      if (entry !== contract.wiring && !layers.includes(entry)) {
+    const layers = contract.layers;
+    const contextsDir = join(root, contract.contextsTree.path);
+    for (const entry of readdirSync(contextsDir, { withFileTypes: true })) {
+      if (entry.isDirectory() && !contract.contexts.includes(entry.name)) {
         problem(
-          `ARCH-CONTEXT-DECLARED: ${contract.contextsTree.path}/${context}/${entry} is neither a layer (${layers.join(', ')}) nor ${contract.wiring}`,
+          `ARCH-CONTEXT-DECLARED: ${contract.contextsTree.path}/${entry.name} is not declared in ${contract.sources.binding}, so no import rule applies to it`,
         );
       }
     }
-  }
-  for (const tree of [contract.architecture, contract.kernel]) {
-    if (!existsSync(join(root, tree.path))) {
-      problem(`ARCH-TREES: ${tree.path} (${tree.alias}) does not exist`);
-      continue;
+    for (const context of contract.contexts) {
+      const dir = join(contextsDir, context);
+      if (!existsSync(dir)) {
+        problem(
+          `ARCH-CONTEXT-DECLARED: ${contract.sources.binding} declares the context ${context}, which does not exist`,
+        );
+        continue;
+      }
+      if (!existsSync(join(dir, contract.wiring)))
+        problem(`ARCH-CONTEXT-DECLARED: ${contract.contextsTree.path}/${context} has no ${contract.wiring}`);
+      for (const entry of readdirSync(dir)) {
+        if (entry !== contract.wiring && !layers.includes(entry)) {
+          problem(
+            `ARCH-CONTEXT-DECLARED: ${contract.contextsTree.path}/${context}/${entry} is neither a layer (${layers.join(', ')}) nor ${contract.wiring}`,
+          );
+        }
+      }
     }
-    for (const entry of readdirSync(join(root, tree.path))) {
-      if (!layers.includes(entry))
-        problem(`ARCH-TREES: ${tree.path}/${entry} is not a layer: ${tree.alias} holds layers and nothing else`);
+    for (const tree of [contract.architecture, contract.kernel]) {
+      if (!existsSync(join(root, tree.path))) {
+        problem(`ARCH-TREES: ${tree.path} (${tree.alias}) does not exist`);
+        continue;
+      }
+      for (const entry of readdirSync(join(root, tree.path))) {
+        if (!layers.includes(entry))
+          problem(`ARCH-TREES: ${tree.path}/${entry} is not a layer: ${tree.alias} holds layers and nothing else`);
+      }
     }
   }
 
@@ -179,7 +188,10 @@ export async function checkConventions(
       }
       if (match[1] !== rendered) {
         if (write) text = text.replace(pattern, `${open}\n${rendered}\n${END_MARKER}`);
-        else problem(`${file}: the block "${open}" differs from what the contract renders; run yarn conventions:write`);
+        else
+          problem(
+            `${file}: the block "${open}" differs from what the contract renders; run the conventions check with --write`,
+          );
       }
     }
     if (write) writeFileSync(join(root, file), text);
@@ -234,21 +246,21 @@ export async function checkConventions(
 
   const stormDocument = 'docs/event-storm.md';
   const stormBoard = 'docs/event-storm.svg';
-  const storm = existsSync(join(root, stormDocument)) ? inspectEventStorm(contract, root) : undefined;
+  const storm = readsTree && existsSync(join(root, stormDocument)) ? inspectEventStorm(contract, root) : undefined;
   if (storm) {
     renderInto(stormDocument, [[STORM_MARKER, renderEventStorm(storm)]]);
     const board = renderEventStormSvg(storm);
     const current = existsSync(join(root, stormBoard)) ? readFileSync(join(root, stormBoard), 'utf8') : '';
     if (current !== board) {
       if (write) writeFileSync(join(root, stormBoard), board);
-      else problem(`${stormBoard} differs from the board the code renders; run yarn conventions:write`);
+      else problem(`${stormBoard} differs from the board the code renders; run the conventions check with --write`);
     }
   }
 
   // 10. One application: this language's inventory is current, and every committed inventory says the same
 
-  const inventories = multi ? loadInventories(root) : new Map();
-  if (multi) {
+  const inventories = multi && readsTree ? loadInventories(root) : new Map();
+  if (multi && readsTree) {
     const inventory = inspectInventory(contract, root);
     const inventoryFile = posix.join(INVENTORY_DIR, `${contract.language.id}.json`);
     const rendered = serializeInventory(inventory);
@@ -259,7 +271,7 @@ export async function checkConventions(
         writeFileSync(join(root, inventoryFile), rendered);
       } else {
         problem(
-          `ARCH-ONE-APPLICATION: ${inventoryFile} differs from what the ${contract.language.name} tree says; run yarn conventions:write`,
+          `ARCH-ONE-APPLICATION: ${inventoryFile} differs from what the ${contract.language.name} tree says; run the conventions check with --write`,
         );
       }
     }
@@ -272,7 +284,7 @@ export async function checkConventions(
   // 11. Every expected storm is legal, and the code carries it or not as it says
 
   const stormsDir = join(root, STORMS_DIR);
-  if (existsSync(stormsDir)) {
+  if (readsTree && existsSync(stormsDir)) {
     const actualInventory = inspectInventory(contract, root);
     for (const entry of readdirSync(stormsDir).filter(name => name.endsWith('.yaml'))) {
       const file = `${STORMS_DIR}/${entry}`;
@@ -331,18 +343,20 @@ export async function checkConventions(
     }
   }
 
-  // 5. No eslint-disable, except the console logger's
+  if (readsTree) {
+    // 5. No eslint-disable, except the console logger's
 
-  const allowedDisables: Record<string, string> = {
-    [posix.join(contract.architecture.path, 'Infrastructure/Logging/ConsoleLogger.ts')]: 'no-console',
-  };
-  for (const file of walk(posix.join(at, 'src'), '.ts')) {
-    for (const line of readFileSync(join(root, file), 'utf8').split('\n')) {
-      const disable = line.match(/eslint-disable(?:-next-line|-line)?\s*([\w@/-]*)/);
-      if (!disable || allowedDisables[file] === disable[1]) continue;
-      problem(
-        `ARCH-MAP-IS-REAL: ${file} silences ESLint with "${disable[0].trim()}"; fix the cause (a port, a move) instead`,
-      );
+    const allowedDisables: Record<string, string> = {
+      [posix.join(contract.architecture.path, 'Infrastructure/Logging/ConsoleLogger.ts')]: 'no-console',
+    };
+    for (const file of walk(posix.join(at, 'src'), '.ts')) {
+      for (const line of readFileSync(join(root, file), 'utf8').split('\n')) {
+        const disable = line.match(/eslint-disable(?:-next-line|-line)?\s*([\w@/-]*)/);
+        if (!disable || allowedDisables[file] === disable[1]) continue;
+        problem(
+          `ARCH-MAP-IS-REAL: ${file} silences ESLint with "${disable[0].trim()}"; fix the cause (a port, a move) instead`,
+        );
+      }
     }
   }
 
@@ -369,27 +383,29 @@ export async function checkConventions(
 
   // 7. The generated import rules refuse and allow what the table says
 
-  const probes = generateProbes(contract);
-  const verdicts = await canImportAll(
-    probes.map(probe => [probe.file, probe.specifier] as [string, string]),
-    contract,
-    root,
-  );
-  probes.forEach((probe, index) => {
-    const verdict = verdicts[index];
-    const actual = verdict.allowed ? 'allowed' : 'refused';
-    if (actual !== probe.expected) {
-      problem(`${probe.rule}: ${probe.file} importing '${probe.specifier}' is ${actual}, expected ${probe.expected}`);
-    }
-    if (!verdict.allowed && !verdict.rule) {
-      problem(`${probe.rule}: the refusal of '${probe.specifier}' from ${probe.file} names no rule id`);
-    }
-  });
+  const probes = readsTree ? generateProbes(contract) : [];
+  if (readsTree) {
+    const verdicts = await canImportAll(
+      probes.map(probe => [probe.file, probe.specifier] as [string, string]),
+      contract,
+      root,
+    );
+    probes.forEach((probe, index) => {
+      const verdict = verdicts[index];
+      const actual = verdict.allowed ? 'allowed' : 'refused';
+      if (actual !== probe.expected) {
+        problem(`${probe.rule}: ${probe.file} importing '${probe.specifier}' is ${actual}, expected ${probe.expected}`);
+      }
+      if (!verdict.allowed && !verdict.rule) {
+        problem(`${probe.rule}: the refusal of '${probe.specifier}' from ${probe.file} names no rule id`);
+      }
+    });
+  }
 
   // Verdict
 
   return {
     problems,
-    summary: `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts match the tree; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; no eslint-disable; ${probes.length} import probes behave and name their rule${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}${storm ? `; the event storm is read from the code (${storm.contexts.reduce((sum, each) => sum + each.commands.length, 0)} commands, ${storm.contexts.reduce((sum, each) => sum + each.policies.length, 0)} policies)` : ''}${multi ? `; one application in ${inventories.size} inventor${inventories.size === 1 ? 'y' : 'ies'}` : ''}.`,
+    summary: `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts${readsTree ? ' match the tree' : ''}; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; ${readsTree ? `no eslint-disable; ${probes.length} import probes behave and name their rule` : `the tree is held by ${contract.language.name}'s own tool`}${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}${storm ? `; the event storm is read from the code (${storm.contexts.reduce((sum, each) => sum + each.commands.length, 0)} commands, ${storm.contexts.reduce((sum, each) => sum + each.policies.length, 0)} policies)` : ''}${multi ? `; one application in ${inventories.size} inventor${inventories.size === 1 ? 'y' : 'ies'}` : ''}.`,
   };
 }

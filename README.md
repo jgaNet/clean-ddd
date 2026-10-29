@@ -84,7 +84,7 @@ A rule, a layer, a relationship between contexts, a binding, a language: that is
 
 Before the layers: what the application is for, which parts of it are the business and which are commodity, and how the contexts talk. That is the strategic half of Domain-Driven Design, and here it is data too: [`conventions/domain.yaml`](conventions/domain.yaml) names the subdomains and their kind, each context's purpose and language, and the context map — every relationship between two contexts, with the pattern it follows, the mechanism that carries it and why. The contracts a relationship carries are read from the code, never written in the map, and `yarn check:conventions` holds the map to the code both ways: a relationship nothing carries, or a link the map does not declare, fails the build ([ADR 19](docs/adr/0019-the-domain-is-data.md)). Ask it from a terminal: `yarn architecture domain`, `yarn architecture context Notes`.
 
-<!-- generated from conventions/domain.yaml (map); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/domain.yaml (map); edit the YAML, then run the conventions check with --write -->
 **Notes.** One small application written to be read: notes you can share with other accounts, which tells the people concerned and lets every caller follow what it asked for. The business is small on purpose; the point is the shape.
 
 #### Subdomains
@@ -201,7 +201,7 @@ What happens inside each context — who may ask for what, which command reaches
 
 Each language's README is where to start reading it: the request followed end to end, the map of its files, how to run it. Its CLAUDE.md is the guide for working in it, by hand or with an agent. The four answer one API: [`api/scenario.mjs`](api/scenario.mjs), a black-box client, walks whichever server is up and passes against each ([ADR 16](docs/adr/0016-one-api-for-every-language.md)); the front end is a client like any other, served from [`web/`](web) by any static server ([ADR 17](docs/adr/0017-the-front-end-is-a-client-served-elsewhere.md)).
 
-<!-- generated from conventions/concepts.yaml (languages); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (languages); edit the YAML, then run the conventions check with --write -->
 | Language | Where | Contexts | Concepts shown | Read |
 | --- | --- | --- | --- | --- |
 | TypeScript | [`typescript/`](typescript) | Notes, Security, Notifications, Tracker | 46 / 46 | [README](typescript/README.md), [CLAUDE.md](typescript/CLAUDE.md) |
@@ -214,7 +214,7 @@ Each language's README is where to start reading it: the request followed end to
 
 One canonical example per concept and per language, rendered from [`conventions/concepts.yaml`](conventions/concepts.yaml) and each language's binding. A dash is a concept that language does not show yet. The notes are the concept's, the same in every language; what a language adds to them is in its own README.
 
-<!-- generated from conventions/concepts.yaml (map); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/concepts.yaml (map); edit the YAML, then run the conventions check with --write -->
 #### Domain layer
 
 | Concept | TypeScript | Rust | Python | Go | Notes |
@@ -286,7 +286,7 @@ One canonical example per concept and per language, rendered from [`conventions/
 
 Every rule has a stable id, a reason, a remediation and says how it is held: by the import linter generated from the table, by the conventions check, by the type checker, by a spec, by review, or by the evaluations. Each binding says which tool stands behind each of those words in its language, and which of its files shows the rule; the table below is the contract's view, the same for every language. Ask any rule from a language's directory: `yarn architecture rule CONC-OPTIMISTIC` (add `--json` for a tool).
 
-<!-- generated from conventions/architecture.yaml (rules); edit the YAML, then run yarn conventions:write -->
+<!-- generated from conventions/architecture.yaml (rules); edit the YAML, then run the conventions check with --write -->
 | Rule | Enforced by |
 | --- | --- |
 | **ARCH-RELATIVE** — A relative import names a sibling file and nothing else; anything across directories goes through the path the import rules are written against. | linter |
@@ -336,7 +336,7 @@ api/                        the API every language answers, as one black-box sce
 .claude/                    the feature skill and the feature-author agent, for working here with an agent
 ```
 
-Everything a language shares with the others lives at the root: the contract, the concepts, the decisions, the evaluation protocol, the agent loop. Everything one language owns lives in its directory, including the linter and the check that hold it to the contract. The tooling that reads the contract itself is the root's, one package for every language ([`tools/`](tools/README.md), published to npm as `clean-ddd`): `yarn architecture` answers from the contract and from any binding, `yarn check:conventions` validates every binding the map shows and every document, and `clean-ddd create` starts an application on this architecture anywhere ([ADR 23](docs/adr/0023-the-tooling-lives-at-the-root-and-ships-as-a-package.md)).
+Everything a language shares with the others lives at the root: the contract, the concepts, the decisions, the evaluation protocol, the agent loop. Everything one language owns lives in its directory, including the linter and the check that hold it to the contract. The tooling that reads the contract itself is the root's, one package for every language ([`tools/`](tools/README.md), published to npm as `clean-ddd`): `yarn architecture` answers from the contract and from any binding, `yarn check:conventions` validates every binding the map shows and every document, and `clean-ddd create --language <id>` starts an application on this architecture anywhere, in TypeScript or in Python ([ADR 23](docs/adr/0023-the-tooling-lives-at-the-root-and-ships-as-a-package.md)).
 
 ## Adding a language
 
