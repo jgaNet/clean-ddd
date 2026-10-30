@@ -16,6 +16,8 @@ like any other, so an entry appended by a transaction that rolls back is gone wi
 transaction's writes, and one that commits is durable for the relay.
 """
 
+from __future__ import annotations
+
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -53,3 +55,7 @@ class InMemoryUnitOfWork:
 
     def has_active_transaction(self) -> bool:
         return self._restore is not None
+
+    def another(self) -> InMemoryUnitOfWork:
+        """The same stores and outbox, for a transaction of its own: a reaction's (ADR 30)."""
+        return InMemoryUnitOfWork(self._stores, self._outbox)

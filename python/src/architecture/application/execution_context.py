@@ -52,6 +52,11 @@ class UnitOfWork(Protocol):
         """The transactional outbox: what this transaction makes durable to be published after it commits (ADR 24)."""
         ...
 
+    def another(self) -> UnitOfWork:
+        """A unit of work over the same stores and the same outbox, for a transaction of its own: the
+        one a reaction runs in (ADR 30). With a database, another transaction from the same pool."""
+        ...
+
 
 class Logger(Protocol):
     def info(self, message: str, meta: Meta | None = None) -> None: ...
@@ -132,8 +137,8 @@ class ExecutionContext:
         """Runs ``step`` inside the current transaction, once the use case has succeeded and just
         before the commit: where ``publish_domain_events()`` appends the aggregate's events to the
         outbox, so that they are durable with the state they describe and gone with it on a
-        rollback. Outside of any transaction (a reaction, after the command that set it off
-        committed) the step runs immediately and the outbox is relayed at once."""
+        rollback. Outside of any transaction (a handler's unit test calling ``execute()`` directly)
+        there is nothing to wait for: the step runs immediately and the outbox is relayed at once."""
         if not self._in_transaction:
             step()
             self._relay()
@@ -148,6 +153,19 @@ class ExecutionContext:
             callback()
             return
         self._after_commit.append(callback)
+
+    def for_reaction(self) -> ExecutionContext:
+        """The context a reaction to this request's facts runs in (ADR 30): the same caller, trace,
+        bus and logger, and a unit of work of its own. A reaction's transaction is its own — not the
+        one that published the fact, which has committed, nor the one of another reaction to the
+        same fact, running beside it."""
+        return ExecutionContext(
+            trace_id=self._trace_id,
+            auth=self._auth,
+            event_bus=self._event_bus,
+            unit_of_work=self._unit_of_work.another() if self._unit_of_work is not None else None,
+            logger=self._logger,
+        )
 
     def _relay(self) -> None:
         """Publishes what the unit of work's outbox holds, with this context (ADR 24)."""

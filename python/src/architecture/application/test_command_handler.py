@@ -80,6 +80,9 @@ class RecordingUnitOfWork:
     def has_active_transaction(self) -> bool:
         return self._active
 
+    def another(self) -> "RecordingUnitOfWork":
+        return RecordingUnitOfWork()
+
 
 class RecordingBus:
     def __init__(self, log: list[str]) -> None:

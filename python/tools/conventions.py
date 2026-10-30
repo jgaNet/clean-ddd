@@ -443,13 +443,19 @@ def recorded_events(method: ast.AST) -> list[str]:
     )
 
 
+#: The calls that publish an integration event: a reaction's ``publish_integration_event(XIntegrationEvent(...),
+#: context)``, through the outbox (ADR 30), and a bus's own ``publish(...)`` (the Tracker's decorated bus).
+PUBLISHES = {"publish_integration_event", "publish"}
+
+
 def published_integration_events(node: ast.AST) -> list[str]:
-    """The integration events a node publishes: ``bus.publish(XIntegrationEvent(...), context)``, as public names."""
+    """The integration events a node publishes: ``publish_integration_event(XIntegrationEvent(...), context)``,
+    or ``bus.publish(XIntegrationEvent(...), context)``, as public names."""
     return unique(
         [
             public_name(name_of(call.args[0].func))
             for call in calls_in(node)
-            if name_of(call.func) == "publish"
+            if name_of(call.func) in PUBLISHES
             and call.args
             and isinstance(call.args[0], ast.Call)
             and name_of(call.args[0].func).endswith("IntegrationEvent")

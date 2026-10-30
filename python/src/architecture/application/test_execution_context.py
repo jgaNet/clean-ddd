@@ -62,6 +62,9 @@ class FakeUnitOfWork:
     def has_active_transaction(self) -> bool:
         return self.active
 
+    def another(self) -> "FakeUnitOfWork":
+        return FakeUnitOfWork()
+
 
 def context_with(unit_of_work: UnitOfWork | None = None, bus: Any = None) -> ExecutionContext:
     return ExecutionContext(trace_id="trace", event_bus=bus or NoBus(), auth=Auth(), unit_of_work=unit_of_work)

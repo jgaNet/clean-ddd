@@ -2,6 +2,7 @@
 Notifications context will email to the new account. An account opened active (by an
 administrator, or the seed) has nothing to validate, so nothing leaves the context."""
 
+from architecture.application.domain_events import publish_integration_event
 from architecture.application.event_handler import EventHandler
 from architecture.application.execution_context import ExecutionContext
 from architecture.domain.result import Result, Success
@@ -25,7 +26,7 @@ class AccountCreatedHandler(EventHandler[AccountCreatedEvent]):
         validation_token = await self._tokens.issue(
             TokenPayload(subject_id=event.account_id, subject_type=TokenTypes.VALIDATION)
         )
-        context.event_bus.publish(
+        publish_integration_event(
             AccountCreatedIntegrationEvent(
                 account_id=event.account_id, email=event.email, validation_token=validation_token
             ),

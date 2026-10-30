@@ -392,3 +392,33 @@ def test_a_command_listed_under_an_alias_of_its_event_class_is_not_seen_caught_b
         SHARE_LOST,
         "ARCH-ONE-APPLICATION: Notes: the tree says the command Share, the committed inventory does not",
     ]
+
+
+# What a policy publishes: a reaction tells other contexts through the outbox, ``publish_integration_event(
+# XIntegrationEvent(...), context)`` (ADR 30), and that call is what the reader reads; a bus's own
+# ``publish(...)`` is read too, since the Tracker's decorated bus publishes that way.
+
+ON_SHARED = "src/contexts/notes/application/events/note_shared_handler.py"
+TOLD = "        publish_integration_event(\n            NoteSharedIntegrationEvent("
+ON_SHARED_LOST = "ARCH-ONE-APPLICATION: Notes: the policy on NoteShared differs: publishes [NoteShared] → []"
+
+
+def test_a_reaction_that_publishes_straight_to_the_bus_is_still_read_as_publishing(copy: Path) -> None:
+    found = probe(
+        copy, (ON_SHARED, TOLD, "        context.event_bus.publish(\n            NoteSharedIntegrationEvent(")
+    )
+    # Recognised: what the policy publishes is the same fact; that it bypasses the outbox is the review's to see.
+    assert found == []
+
+
+def test_an_integration_event_published_from_a_variable_is_not_seen_caught_by_the_inventory(copy: Path) -> None:
+    found = probe(
+        copy,
+        (ON_SHARED, TOLD, "        told = NoteSharedIntegrationEvent("),
+        (
+            ON_SHARED,
+            "            ),\n            context,\n        )\n",
+            "        )\n        publish_integration_event(told, context)\n",
+        ),
+    )
+    assert found == [STALE_INVENTORY, ON_SHARED_LOST]
