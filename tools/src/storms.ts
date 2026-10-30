@@ -385,6 +385,13 @@ export function checkExpectedStorm(storm: ExpectedStorm, actual: Inventory): str
   return [`${storm.source} is not done, yet the code carries all of it (${present.join('; ')}); mark it done`];
 }
 
+/** A storm not marked done yet that the code carries whole: the bookkeeping `gate --fix` does itself. */
+export function carriedButOpen(storm: ExpectedStorm, actual: Inventory): boolean {
+  if (storm.done) return false;
+  const { present, absent } = carried(storm, actual);
+  return absent.length === 0 && present.length > 0;
+}
+
 /** `storm --expect`, in words: what the code still owes the storm, or that it is carried. */
 export function describeExpectation(storm: ExpectedStorm, actual: Inventory): string {
   const { present, absent } = carried(storm, actual);

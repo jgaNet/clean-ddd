@@ -1,9 +1,9 @@
 import { execFileSync } from 'child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-import { createApplication, describeGate, Executor, repositoryRoot, runGate, tail } from './index';
+import { createApplication, describeGate, Executor, markCarriedStorms, repositoryRoot, runGate, tail } from './index';
 
 /**
  * The gate reads the commands, not an agent's report of them (RFC 0001). These specs run it on
@@ -132,6 +132,51 @@ describe('the gate', () => {
       rmSync(join(directory, 'src/architecture/domain/added.py'));
       rmSync(join(directory, 'docs/adr/0099-a-building-block.md'), { force: true });
     }
+  });
+
+  it('with --fix, marks done a storm the code carries whole, and leaves one the code does not carry', async () => {
+    // A TypeScript application, whose tree the tooling reads: its Tracker query, as a storm would
+    // have decided it, and a query it does not have.
+    const typescript = mkdtempSync(join(tmpdir(), 'gated-ts-'));
+    createApplication(typescript, 'my-app', root, 'typescript');
+    const storm = (feature: string, query: string) =>
+      [
+        'schemaVersion: 1',
+        `feature: ${feature}`,
+        'intent: An operation is read by the account that started it.',
+        'done: false',
+        'hotSpots: []',
+        'contexts:',
+        '  - id: Tracker',
+        '    commands: []',
+        '    queries:',
+        `      - { name: ${query}, actor: a signed-in account, route: 'GET /tracker/operations/{param}' }`,
+        '    events: []',
+        '    policies: []',
+        'links: []',
+        '',
+      ].join('\n');
+    const storms = join(typescript, 'conventions/storms');
+    mkdirSync(storms, { recursive: true });
+    writeFileSync(join(storms, 'read-an-operation.yaml'), storm('read-an-operation', 'GetOperation'));
+    writeFileSync(join(storms, 'not-yet.yaml'), storm('not-yet', 'GetSomethingElse'));
+    try {
+      const fixed = markCarriedStorms(typescript, 'typescript');
+
+      expect(fixed).toContain('conventions/storms/read-an-operation.yaml: the code carries all of it; marked done');
+      expect(fixed.some(line => line.includes('not-yet'))).toBe(false);
+      expect(readFileSync(join(storms, 'read-an-operation.yaml'), 'utf8')).toMatch(/^done: true$/m);
+      expect(readFileSync(join(storms, 'not-yet.yaml'), 'utf8')).toMatch(/^done: false$/m);
+    } finally {
+      rmSync(typescript, { recursive: true, force: true });
+    }
+  });
+
+  it('reports what --fix did, and does nothing without it', async () => {
+    const fixed = await runGate({ root: directory, base, fix: true, exec: recorder().exec });
+    expect(fixed.fixed).toEqual([]);
+    const plain = await runGate({ root: directory, base, exec: recorder().exec });
+    expect(plain.fixed).toBeUndefined();
   });
 
   it('keeps the last lines a command printed, which is what a failure is read from', () => {

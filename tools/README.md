@@ -59,7 +59,8 @@ clean-ddd plan validate|explain <file>      a feature plan, before the code
 clean-ddd mode feature|architecture [--base <ref>|--base working]   which rules this change is held to
 clean-ddd gate [--base <ref>]      is this change done: the feature mode, the conventions check and the language's
                                   `checks`, one verdict; --json for a script, exit 1 when it fails; --mode architecture
-                                  holds an architecture task instead (it may touch the architecture, and records an ADR)
+                                  holds an architecture task instead (it may touch the architecture, and records an ADR);
+                                  --fix does the bookkeeping first (a carried storm marked done, stale documents rendered)
 clean-ddd pack --plan <file>      one slice of a feature: what is its own to write, what another slice writes, the frozen
                                   contracts, the storm's part, the files that show each shape (from the bundled reference
                                   when the project has none yet, with the project's building blocks that differ from
@@ -76,6 +77,8 @@ Every command takes `--json` (valid JSON only, a structured error and exit 1 on 
 ## The gate
 
 `clean-ddd gate --base <ref>` is the completion contract of a feature ([RFC 0001](../docs/rfc/0001-architecture-aware-multi-agent-flow.md)): one verdict, as data, that whoever starts an agent reads instead of the agent's report. It runs the feature mode against the base — the changes committed since it and the ones not committed yet alike — then the conventions check, then the commands the language's binding lists under `checks`, in CI's order, in the language's directory. The steps that hold the architecture (the mode, the conventions check, the first of `checks`, which is the language's own) stop it when they fail; the quality and test steps after them all run, so one gate shows everything left to fix. It adds no check: every step is a command that already exists. `--json` prints the report (`verdict`, and per step its `stage`, `status`, duration and, on a failure, the lines to read).
+
+`--fix` first does the bookkeeping the tooling can do itself, so that an agent spends no turn on it ([ADR 31](../docs/adr/0031-the-architecture-is-a-guardrail-and-a-coordinator-not-an-accelerator.md)): a storm the code carries whole is marked `done`, and the documents the contract renders differently are written again. The report lists what it fixed (`fixed`), and it fixes nothing else. A storm the code does not carry whole is left as it is, and the gate reports it. The storms are read against the inventory of the tree this package reads: in a TypeScript tree, the code; in another language's, the inventory its own tool wrote.
 
 ## The strategy
 

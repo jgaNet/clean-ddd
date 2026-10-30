@@ -14,7 +14,7 @@
  *   yarn architecture create <dir> [--name x] [--language <id>]   a new application on this architecture, in that language, with none of its business
  *   yarn architecture mode feature [--base <ref>]     did this change leave the architecture alone
  *   yarn architecture mode architecture [--base <ref>] does it record the decision it makes
- *   yarn architecture gate [--base <ref>] [--mode feature|architecture]   is this change done: the mode, the conventions check and the
+ *   yarn architecture gate [--base <ref>] [--mode feature|architecture] [--fix]   is this change done: the mode, the conventions check and the
  *                                             language's checks, one verdict (--json for a script; exit 1 when it fails)
  *   yarn architecture pack --plan <file>      one slice of a feature: what is its to write, what is another slice's,
  *                                             the frozen contracts, the storm's part, the examples to read
@@ -480,8 +480,14 @@ async function main(): Promise<void> {
       }
       const held = rest.includes('--mode') ? rest[rest.indexOf('--mode') + 1] : 'feature';
       if (held !== 'feature' && held !== 'architecture')
-        return fail('usage', 'usage: yarn architecture gate [--base <ref>] [--mode feature|architecture]');
-      const report = await runGate({ root, base, language: contract.language.id, mode: held });
+        return fail('usage', 'usage: yarn architecture gate [--base <ref>] [--mode feature|architecture] [--fix]');
+      const report = await runGate({
+        root,
+        base,
+        language: contract.language.id,
+        mode: held,
+        fix: rest.includes('--fix'),
+      });
       out(report, () => describeGate(report));
       return process.exit(report.verdict === 'pass' ? 0 : 1);
     }
