@@ -54,7 +54,7 @@ Ten minutes, three moves: run it, ask it, change it. Every command below runs fr
 | Python | Python ≥ 3.13, [uv](https://docs.astral.sh/uv/) | `cd python && uv sync && uv run python -m bootstrap` |
 | Go | Go ≥ 1.24 | `cd go && go run ./bootstrap/cmd/application` |
 
-Every server listens on `http://127.0.0.1:10000`, answers the API under `/v1` (`GET /v1/health` says it is up) and seeds one administrator, `admin@admin.fr` / `admin` (`ADMIN_IDENTIFIER`, `ADMIN_PASSWORD`). The four answer **one API**, and the proof is one command, against whichever server is up:
+Every server listens on `http://127.0.0.1:10000` and answers the API under `/v1` (`GET /v1/health` says it is up). It seeds an administrator only when given one: set `ADMIN_IDENTIFIER` and `ADMIN_PASSWORD` in its environment (`ADMIN_IDENTIFIER=admin@admin.fr ADMIN_PASSWORD=admin` before the command above, the credentials the scenario below signs in with). There is no default, so a deployment that forgets them has no administrator rather than a known one. The four answer **one API**, and the proof is one command, against whichever server is up:
 
 ```bash
 node api/scenario.mjs http://127.0.0.1:10000      # 31 steps: sign up, share a note, follow an operation, the websocket…

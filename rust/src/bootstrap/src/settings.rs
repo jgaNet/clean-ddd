@@ -60,10 +60,7 @@ impl Settings {
                 ),
                 bcrypt_cost: var("BCRYPT_COST").and_then(|cost| cost.parse().ok()).unwrap_or(10),
             },
-            admin_account: Some(AdminAccount {
-                identifier: var("ADMIN_IDENTIFIER").unwrap_or_else(|| "admin@admin.fr".into()),
-                password: var("ADMIN_PASSWORD").unwrap_or_else(|| "admin".into()),
-            }),
+            admin_account: admin_account_from(var("ADMIN_IDENTIFIER"), var("ADMIN_PASSWORD")),
             debug: var("DEBUG").is_some_and(|debug| debug == "true"),
         }
     }
@@ -90,5 +87,25 @@ impl Settings {
             admin_account: Some(AdminAccount { identifier: "admin@admin.fr".into(), password: "admin".into() }),
             debug: false,
         }
+    }
+}
+
+/// The administrator the application is seeded with: only when both are set, never a default, since
+/// known credentials would open every deployment that forgot them.
+fn admin_account_from(identifier: Option<String>, password: Option<String>) -> Option<AdminAccount> {
+    identifier.zip(password).map(|(identifier, password)| AdminAccount { identifier, password })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_administrator_exists_only_when_both_its_identifier_and_password_are_set() {
+        let admin = admin_account_from(Some("root@example.com".into()), Some("s3cret".into())).expect("both set");
+        assert_eq!((admin.identifier.as_str(), admin.password.as_str()), ("root@example.com", "s3cret"));
+        assert!(admin_account_from(None, None).is_none());
+        assert!(admin_account_from(Some("root@example.com".into()), None).is_none());
+        assert!(admin_account_from(None, Some("s3cret".into())).is_none());
     }
 }

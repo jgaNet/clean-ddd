@@ -5,6 +5,9 @@
  *
  *   node api/scenario.mjs http://127.0.0.1:10000 [--admin admin@admin.fr:admin]
  *
+ * --admin names the administrator the server was started with (ADMIN_IDENTIFIER, ADMIN_PASSWORD):
+ * a server seeds none by default, so start it with the pair given here, or with the default one.
+ *
  * Every step asserts what a client may rely on — a status code, a body shape, a public name — and
  * nothing about the implementation. The first failing step stops the run and names what differed;
  * the exit code is the verdict. Accounts are created under a fresh suffix, so the scenario can run

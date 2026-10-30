@@ -30,6 +30,7 @@ Then run it:
 docker run -p 10000:10000 \
   -e NODE_ENV=production \
   -e JWT_SECRET=your-secret-key \
+  -e ADMIN_IDENTIFIER=admin@example.com \
   -e ADMIN_PASSWORD=secure-password \
   clean-ddd-api:latest
 ```
@@ -59,8 +60,8 @@ The application uses the following environment variables:
 | BASE_URL         | Base URL for the application     | localhost            |
 | JWT_SECRET       | Secret for JWT token signing     | random, per process (tokens do not survive a restart) |
 | JWT_EXPIRES_IN   | JWT token expiration time        | 24h                  |
-| ADMIN_IDENTIFIER | Admin user identifier (email)    | admin@admin.fr       |
-| ADMIN_PASSWORD   | Admin user password              | admin                |
+| ADMIN_IDENTIFIER | Admin user identifier (email)    | none: with ADMIN_PASSWORD, seeds the administrator |
+| ADMIN_PASSWORD   | Admin user password              | none: without both, no administrator is seeded |
 
 ## Build Process
 

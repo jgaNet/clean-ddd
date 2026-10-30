@@ -7,7 +7,7 @@ node api/scenario.mjs http://127.0.0.1:10000            # against whichever serv
 node api/scenario.mjs http://127.0.0.1:10000 --admin admin@admin.fr:admin --origin http://127.0.0.1:8080   # the origin the front end is served from (WEB_ORIGINS on the server)
 ```
 
-Plain Node ≥ 22, no package, no build: `fetch` and `WebSocket` are the platform's. Start a server first (`yarn start:dev` in `typescript/`, `cargo run -p bootstrap` in `rust/`, `uv run python -m bootstrap` in `python/`, each on `:10000` by default); the scenario signs up its own accounts under a fresh suffix, so it runs against a server that already holds data, and more than once. The first failing step stops the run and prints what differed; the exit code is the verdict. CI runs it against each language's server on every change.
+Plain Node ≥ 22, no package, no build: `fetch` and `WebSocket` are the platform's. Start a server first (`yarn start:dev` in `typescript/`, `cargo run -p bootstrap` in `rust/`, `uv run python -m bootstrap` in `python/`, each on `:10000` by default), with the administrator the scenario signs in as: `ADMIN_IDENTIFIER=admin@admin.fr ADMIN_PASSWORD=admin` in its environment, or another pair given to `--admin`, since a server seeds no administrator by default; the scenario signs up its own accounts under a fresh suffix, so it runs against a server that already holds data, and more than once. The first failing step stops the run and prints what differed; the exit code is the verdict. CI runs it against each language's server on every change.
 
 ## What it walks
 

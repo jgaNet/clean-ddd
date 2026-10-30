@@ -31,7 +31,10 @@ export async function startTestApplication(): Promise<TestApplication> {
   const agentAs = async (identifier: string, password: string) =>
     superagent.agent().set('authorization', `Bearer ${(await login(identifier, password)).body.token}`);
 
-  const admin = () => agentAs(SETTINGS.security.adminAccount.identifier, SETTINGS.security.adminAccount.password);
+  const { adminAccount } = SETTINGS.security;
+  if (!adminAccount)
+    throw new Error('The end-to-end suites need ADMIN_IDENTIFIER and ADMIN_PASSWORD (jest.config.js sets them).');
+  const admin = () => agentAs(adminAccount.identifier, adminAccount.password);
   const signUpValidated = async (identifier: string, password: string) => {
     const signUp = await superagent.post(`${api}/auth/signup`).send({ identifier, password });
     const administrator = await admin();

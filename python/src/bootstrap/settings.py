@@ -27,6 +27,12 @@ class AdminAccount:
     password: str
 
 
+def admin_account_from(identifier: str | None, password: str | None) -> "AdminAccount | None":
+    """The administrator the application is seeded with: only when both are set, never a default, since
+    known credentials would open every deployment that forgot them."""
+    return AdminAccount(identifier=identifier, password=password) if identifier and password else None
+
+
 @dataclass(frozen=True)
 class Settings:
     name: str
@@ -61,16 +67,14 @@ class Settings:
                 jwt_expires_in=timedelta(seconds=int(var("JWT_EXPIRES_IN_SECONDS") or 24 * 3600)),
                 bcrypt_cost=int(var("BCRYPT_COST") or 10),
             ),
-            admin_account=AdminAccount(
-                identifier=var("ADMIN_IDENTIFIER") or "admin@admin.fr", password=var("ADMIN_PASSWORD") or "admin"
-            ),
+            admin_account=admin_account_from(var("ADMIN_IDENTIFIER"), var("ADMIN_PASSWORD")),
             web_origins=tuple(origin for origin in (var("WEB_ORIGINS") or "").split(",") if origin),
             debug=var("DEBUG") == "true",
         )
 
     @staticmethod
     def for_tests() -> "Settings":
-        """The settings of a test application: a free port, a cheap hash, the default administrator."""
+        """The settings of a test application: a free port, a cheap hash, an administrator to sign in as."""
         return Settings(
             name=NAME,
             version=package_version(),

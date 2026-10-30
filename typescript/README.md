@@ -258,7 +258,7 @@ yarn install
 yarn start:dev          # http://localhost:10000, Swagger UI at /v1/docs
 ```
 
-A default administrator is seeded from the settings: `admin@admin.fr` / `admin` (override with `ADMIN_IDENTIFIER` / `ADMIN_PASSWORD`).
+An administrator is seeded only when `ADMIN_IDENTIFIER` and `ADMIN_PASSWORD` are both set, in the environment or in a `.env` file. There is no default: known credentials would open every deployment that forgot them. The test run sets its own, in `jest.config.js`.
 
 ```bash
 yarn check:conventions  # the tree matches conventions/architecture.yaml, the README map names real files
