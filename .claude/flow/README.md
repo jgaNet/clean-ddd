@@ -56,4 +56,21 @@ The SDK's agent process is not in a process group of its own: if the driver is k
 - **A budget reserved before an agent starts.** `run-backlog.mjs` reserves the agent's share before starting it, and starts it with that share as a cap (`--max-budget-usd` on the CLI, `maxBudgetUsd` on the SDK). The share is `agentBudgetUsd`, or all that is left, and agents running at the same time hold their reservations. A run that cannot reserve the minimum starts no more agents. Before, the budget was checked after the fact, and one agent could spend past it.
 - **A supervisor.** A runner says why it stopped an agent (`stoppedBy`: `timeout` or `cancel`). After every agent, the driver stops whatever still listens on the agent's port, with its process group (a watcher would start it again), and records what it stopped (`port-freed`). It finds them by the port, through `/proc`, never by name.
 
+## Rehearsing a kit before its runs
+
+Every campaign so far found defects in its own kit while grading, after the agents had been paid:
+- files the trees' own checks refuse;
+- a test that fails on every correct solution;
+- an earlier feature's assertion that a later feature supersedes;
+- a test no tree fails.
+
+[`dry-run.mjs`](dry-run.mjs) rehearses a kit first, with no agent. The plan names trees that exist: the commit the runs would start from (`before`) and, when there is one, a commit where the features are written (`solved`). Each is graded by `grade.mjs`, one after the other. The verdict is `defect`, `read` or `clean`:
+
+- **Hygiene.** The kit's files are held to the tree's own formatter, linter and type checker, which the agent's verdict runs over them. A refusal is a `defect`.
+- **Discrimination.** A feature's test that passes on a `before` tree tests nothing there: `read`.
+- **Solvability.** A test that fails on every solved tree, in more than one tree, is a `defect`. One that fails on some is `read`.
+- **Regression.** With `regression:` (the kit of the features the trees already had), an earlier feature's test that passes before and fails on a solved tree is `read`: a regression, or an assertion a new feature supersedes.
+
+[`dry-run.test.mjs`](dry-run.test.mjs) holds the verdict to the defects the earlier kits had. A kit is rehearsed before its campaign, and its report is committed with the kit.
+
 It is a script on purpose. It holds no state but the log (and, while it runs, a lock and the leases); several features at once is a later phase of the RFC, and comes only if the measurements justify it.

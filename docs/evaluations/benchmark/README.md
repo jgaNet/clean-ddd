@@ -67,6 +67,10 @@ Per feature, the rubric's verdict.
 
 The pilot is one run per arm. It proves the harness, the kit and the rubric on the whole backlog; the maintainer then decides whether to run the other two runs per arm. A pilot's numbers are single points, not ranges, and the record says so.
 
+## Before a campaign's runs
+
+A kit is rehearsed before any agent runs: `.claude/flow/dry-run.mjs` grades the trees the runs start from, and any tree where the features are already written, against the kit. Its report is committed with the kit. A `defect` is fixed before the runs. A `read` is decided and written in the kit's protocol. The tool holds a kit's files to the trees' own checks and finds a test that tests nothing, one no correct solution passes, or one a later feature supersedes. Every one of those was found by grading in an earlier campaign, after the runs were paid for.
+
 ## Biases, written down before the first run
 
 - **The backlog mirrors this reference's history**, which a model may have seen. Every run starts from a created project, never a clone.
