@@ -24,12 +24,12 @@ export interface INotification {
   attempts: IDeliveryAttempt[];
 }
 
-/** What is needed to send a new notification. */
+/** What is needed to send a new notification. The channels are names, as a client sends them: the domain refuses one it does not know. */
 export interface INewNotification {
   recipientId: string;
   title: string;
   content: string;
-  channels: Channel[];
+  channels: readonly string[];
   /** Whatever a channel may need that is not the notification itself (an email address, a source). */
   metadata?: Record<string, unknown>;
 }

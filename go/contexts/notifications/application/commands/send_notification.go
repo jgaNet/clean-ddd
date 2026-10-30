@@ -16,8 +16,9 @@ type SendNotificationCommandEvent struct {
 	RecipientID string
 	Title       string
 	Content     string
-	Channels    []notification.Channel
-	Metadata    map[string]any
+	// Channels are names, as a client sent them: the domain refuses one it does not know.
+	Channels []string
+	Metadata map[string]any
 }
 
 type SendNotificationHandler struct {
@@ -39,11 +40,15 @@ func (h *SendNotificationHandler) Guard(ctx *application.ExecutionContext) error
 
 // Execute answers with the id of the notification: the operation's result.
 func (h *SendNotificationHandler) Execute(command SendNotificationCommandEvent, ctx *application.ExecutionContext) (string, error) {
+	channels, err := notification.ParseChannels(command.Channels)
+	if err != nil {
+		return "", err
+	}
 	return h.delivery.Deliver(notification.NewNotification{
 		RecipientID: command.RecipientID,
 		Title:       command.Title,
 		Content:     command.Content,
-		Channels:    command.Channels,
+		Channels:    channels,
 		Metadata:    command.Metadata,
 	}, ctx)
 }

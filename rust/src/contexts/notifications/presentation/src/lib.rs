@@ -54,26 +54,10 @@ struct SendNotificationBody {
     recipient_id: String,
     title: String,
     content: String,
-    /// `WEBSOCKET`, `EMAIL`: an unknown one is refused by the body's shape, before the command exists.
-    channels: Vec<ChannelName>,
+    /// Shape only (API-BODY-SHAPE): an unknown channel, or none, is the domain's refusal, on the operation.
+    channels: Vec<String>,
     #[serde(default)]
     metadata: Metadata,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum ChannelName {
-    Websocket,
-    Email,
-}
-
-impl From<ChannelName> for Channel {
-    fn from(name: ChannelName) -> Self {
-        match name {
-            ChannelName::Websocket => Channel::WebSocket,
-            ChannelName::Email => Channel::Email,
-        }
-    }
 }
 
 #[derive(Debug, Serialize)]
@@ -159,7 +143,7 @@ async fn send_notification(
             recipient_id: body.recipient_id,
             title: body.title,
             content: body.content,
-            channels: body.channels.into_iter().map(Channel::from).collect(),
+            channels: body.channels,
             metadata: body.metadata,
         },
     )

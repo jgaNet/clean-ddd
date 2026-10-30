@@ -177,6 +177,8 @@ rules:
     references: [contexts/notes/infrastructure/notes_table.go]
   API-ONE-SURFACE:
     references: [contexts/tracker/application/projection.go, bootstrap/operation_routes_e2e_test.go]
+  API-BODY-SHAPE:
+    references: [contexts/notifications/presentation/routes.go, contexts/notifications/domain/notification/channel.go]
   ARCH-MAP-IS-REAL:
     references: [tools/conventions/main.go]
   ARCH-ONE-APPLICATION:

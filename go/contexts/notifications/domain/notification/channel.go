@@ -18,3 +18,18 @@ func ParseChannel(value string) (Channel, bool) {
 	}
 	return "", false
 }
+
+// ParseChannels turns the names a client sent into channels, or refuses the first one the domain
+// does not know (UnknownChannel): whether a name is a channel is the domain's to say, not the
+// request's (API-BODY-SHAPE). An empty list is the delivery strategy's refusal.
+func ParseChannels(names []string) ([]Channel, error) {
+	channels := make([]Channel, 0, len(names))
+	for _, name := range names {
+		channel, known := ParseChannel(name)
+		if !known {
+			return nil, UnknownChannel(name)
+		}
+		channels = append(channels, channel)
+	}
+	return channels, nil
+}

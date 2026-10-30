@@ -16,6 +16,7 @@ import {
   NotNotificationRecipientException,
   NotificationAlreadyReadException,
   NotificationNotDeliveredException,
+  UnknownChannelException,
 } from '@Contexts/Notifications/Domain/Notification/NotificationExceptions';
 
 const bob = new Id('bob');
@@ -46,6 +47,12 @@ describe('Notification', () => {
       expect(Notification.create({ recipientId: 'bob', title: 'x', content: 'x', channels: [] }).error).toBeInstanceOf(
         EmptyDeliveryStrategyException,
       );
+    });
+
+    it('refuses a channel it does not know, by name: the domain decides, not the request schema', () => {
+      const refused = Notification.create({ recipientId: 'bob', title: 'x', content: 'x', channels: ['EMAIL', 'FAX'] });
+      expect(refused.error).toBeInstanceOf(UnknownChannelException);
+      expect(refused.error?.type).toBe('UnknownChannel');
     });
   });
 

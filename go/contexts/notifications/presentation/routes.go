@@ -2,7 +2,6 @@ package presentation
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -126,22 +125,13 @@ func Routes(mux *http.ServeMux, prefix string, module *application.Module) {
 		if !presentation.DecodeBody(w, r, &body) {
 			return
 		}
-		// A channel is a string outside; the type guard turns it into one here, and an unknown
-		// name is the request's fault, not a refusal of the domain.
-		channels := make([]notification.Channel, 0, len(body.Channels))
-		for _, raw := range body.Channels {
-			channel, known := notification.ParseChannel(raw)
-			if !known {
-				presentation.Refuse(w, fmt.Errorf("unknown channel %q", raw), http.StatusBadRequest)
-				return
-			}
-			channels = append(channels, channel)
-		}
+		// Shape only (API-BODY-SHAPE): the channels go on as the names the client sent, and an
+		// unknown one, or none, is the domain's refusal, on the operation.
 		presentation.Accept(w, presentation.ContextOf(r), commands.SendNotificationCommandEvent{
 			RecipientID: body.RecipientID,
 			Title:       body.Title,
 			Content:     body.Content,
-			Channels:    channels,
+			Channels:    body.Channels,
 			Metadata:    body.Metadata,
 		})
 	})

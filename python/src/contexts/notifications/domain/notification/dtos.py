@@ -1,5 +1,6 @@
 """Snapshot of a Notification, attempts included: the aggregate is persisted as a whole."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -35,11 +36,12 @@ class NotificationSnapshot:
 
 @dataclass(frozen=True)
 class NewNotification:
-    """What is needed to send a new notification."""
+    """What is needed to send a new notification. The channels are names, as a client sends them:
+    the domain refuses one it does not know."""
 
     recipient_id: str
     title: str
     content: str
-    channels: list[Channel]
+    channels: Sequence[str]
     #: Whatever a channel may need that is not the notification itself (an email address, a source).
     metadata: dict[str, Any] = field(default_factory=dict)

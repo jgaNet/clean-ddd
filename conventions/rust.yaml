@@ -147,6 +147,8 @@ rules:
     references: [src/contexts/notes/infrastructure/src/repositories.rs, src/architecture/application/src/command_handler.rs]
   API-ONE-SURFACE:
     references: [src/contexts/tracker/application/src/projection.rs, src/bootstrap/tests/operation_routes.rs]
+  API-BODY-SHAPE:
+    references: [src/contexts/notifications/presentation/src/lib.rs, src/contexts/notifications/domain/src/notification/channel.rs]
   ARCH-MAP-IS-REAL:
     references: [tools/conventions/src/main.rs]
   ARCH-ONE-APPLICATION:

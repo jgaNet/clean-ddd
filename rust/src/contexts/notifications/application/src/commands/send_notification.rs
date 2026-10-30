@@ -17,7 +17,8 @@ pub struct SendNotification {
     pub recipient_id: String,
     pub title: String,
     pub content: String,
-    pub channels: Vec<Channel>,
+    /// The names a client sent: the domain refuses one it does not know.
+    pub channels: Vec<String>,
     pub metadata: Metadata,
 }
 
@@ -58,13 +59,14 @@ impl<R: NotificationRepository + Send + Sync + 'static> CommandHandler for SendN
     }
 
     async fn execute(&self, command: SendNotification, context: &ExecutionContext) -> DomainResult<String> {
+        let channels = Channel::parse_all(&command.channels)?;
         self.delivery
             .deliver(
                 NewNotification {
                     recipient_id: command.recipient_id,
                     title: command.title,
                     content: command.content,
-                    channels: command.channels,
+                    channels,
                     metadata: command.metadata,
                 },
                 context,

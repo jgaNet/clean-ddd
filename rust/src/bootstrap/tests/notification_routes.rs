@@ -89,7 +89,12 @@ async fn an_inbox() {
         .send()
         .await
         .expect("answers");
-    assert_eq!(unknown_channel.status(), 422);
+    // Shape only (API-BODY-SHAPE): an unknown channel is accepted, and refused by the domain, on the operation.
+    let refused = app.accepted(&admin, unknown_channel).await;
+    assert_eq!(
+        (refused["status"].as_str(), refused["error"]["type"].as_str()),
+        (Some("ERROR"), Some("UnknownChannel"))
+    );
 
     app.stop().await;
 }

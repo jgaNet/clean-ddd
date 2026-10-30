@@ -134,6 +134,8 @@ rules:
     references: [src/Contexts/Notes/Infrastructure/NotePersistence.contract.spec.ts, src/Architecture/Application/CommandHandler.spec.ts]
   API-ONE-SURFACE:
     references: [src/Contexts/Tracker/Application/Projections/OperationProjection.ts, src/Contexts/Tracker/Presentation/API/REST/Routes/operation.routes.e2e.spec.ts]
+  API-BODY-SHAPE:
+    references: [eslint.config.js, src/Contexts/Notifications/Presentation/API/REST/Routes/notification.routes.schema.ts, src/Contexts/Notifications/Domain/Notification/DeliveryStrategy.ts]
   ARCH-MAP-IS-REAL:
     references: [../tools/src/check.ts]
   CTX-MAP-DECLARED:

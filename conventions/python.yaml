@@ -158,6 +158,8 @@ rules:
     references: [src/contexts/notes/infrastructure/notes_table.py]
   API-ONE-SURFACE:
     references: [src/contexts/tracker/application/projection.py, src/bootstrap/test_operation_routes_e2e.py]
+  API-BODY-SHAPE:
+    references: [src/contexts/notifications/presentation/routes.py, src/contexts/notifications/domain/notification/delivery_strategy.py]
   ARCH-MAP-IS-REAL:
     references: [tools/conventions.py]
   ARCH-ONE-APPLICATION:
