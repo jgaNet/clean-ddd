@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "project": "f8-a",
+  "ref": "main",
+  "commit": "82f74b43bbf3646475d0c7e54e8f11cf3f8b7e8b",
+  "base": "bbe2c78",
+  "M1": {
+    "verdict": "pass",
+    "failing": []
+  },
+  "features": [
+    {
+      "feature": "team-spaces",
+      "M2": {
+        "pass": true,
+        "tests": "8 passed, 8 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    }
+  ],
+  "gradedInMs": 70558
+}

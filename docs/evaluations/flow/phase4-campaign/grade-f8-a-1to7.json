@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "project": "f8-a-1to7",
+  "ref": "main",
+  "commit": "82f74b43bbf3646475d0c7e54e8f11cf3f8b7e8b",
+  "base": "bbe2c78",
+  "M1": {
+    "verdict": "pass",
+    "failing": []
+  },
+  "features": [
+    {
+      "feature": "accounts-and-notes",
+      "M2": {
+        "pass": true,
+        "tests": "5 passed, 5 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "pin-a-note",
+      "M2": {
+        "pass": true,
+        "tests": "3 passed, 3 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "tag-a-note",
+      "M2": {
+        "pass": true,
+        "tests": "3 passed, 3 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "share-a-note",
+      "M2": {
+        "pass": true,
+        "tests": "3 passed, 3 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "notify-on-archive",
+      "M2": {
+        "pass": true,
+        "tests": "3 passed, 3 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "plan-and-quota",
+      "M2": {
+        "pass": true,
+        "tests": "2 passed, 2 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "remind-a-note",
+      "M2": {
+        "pass": true,
+        "tests": "4 passed, 4 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    }
+  ],
+  "gradedInMs": 120153
+}
