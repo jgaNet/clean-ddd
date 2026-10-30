@@ -24,6 +24,9 @@ type UnitOfWork interface {
 	HasActiveTransaction() bool
 	// Outbox is the transactional outbox: what this transaction makes durable to be published after it commits (ADR 24).
 	Outbox() Outbox
+	// Another is a unit of work over the same stores and the same outbox, for a transaction of its
+	// own: the one a reaction runs in (ADR 30). With a database, another transaction from the same pool.
+	Another() UnitOfWork
 }
 
 // ExecutionContext travels with one request through every handler it reaches: who is calling
@@ -70,6 +73,24 @@ func NewExecutionContext(options Options) *ExecutionContext {
 	}
 }
 
+// ForReaction is the context a reaction to this request's facts runs in (ADR 30): the same
+// caller, trace, bus and logger, and a unit of work of its own. A reaction's transaction is its
+// own — not the one that published the fact, which may still be open in this context while it
+// relays, nor the one of another reaction to the same fact, running beside it.
+func (c *ExecutionContext) ForReaction() *ExecutionContext {
+	var unitOfWork UnitOfWork
+	if c.unitOfWork != nil {
+		unitOfWork = c.unitOfWork.Another()
+	}
+	return NewExecutionContext(Options{
+		TraceID:    c.traceID,
+		Auth:       c.auth,
+		EventBus:   c.eventBus,
+		UnitOfWork: unitOfWork,
+		Logger:     c.logger,
+	})
+}
+
 func (c *ExecutionContext) TraceID() string        { return c.traceID }
 func (c *ExecutionContext) Auth() Auth             { return c.auth }
 func (c *ExecutionContext) EventBus() EventBus     { return c.eventBus }
@@ -92,9 +113,9 @@ func (c *ExecutionContext) Log() Logger {
 // BeforeCommit runs step inside the current transaction, once the use case has succeeded and
 // just before the commit: where PublishDomainEvents appends the aggregate's events to the
 // outbox, so that they are durable with the state they describe and gone with it on a
-// rollback. Outside of any transaction (a reaction, after the command that set it off
-// committed) the step runs immediately and the outbox is relayed at once: there is no commit
-// ahead to relay after.
+// rollback. Outside of any transaction (a handler's unit test calling Execute directly) the
+// step runs immediately and the outbox is relayed at once: there is no commit ahead to relay
+// after. A reaction is inside one: the base handler opens it (ADR 30).
 func (c *ExecutionContext) BeforeCommit(step func()) {
 	c.mu.Lock()
 	if !c.inTransaction {
@@ -150,7 +171,8 @@ func Transaction[T any](c *ExecutionContext, fn func() (T, error)) (T, error) {
 		return value, err
 	}
 	// The context leaves its transaction before relaying: the bus dispatches in its own goroutine
-	// with this very context, and a reaction's BeforeCommit must find no transaction to join.
+	// with this very context, which must be clean for its next transaction. A reaction never
+	// joins it anyway: it runs in a context and a transaction of its own (ForReaction, ADR 30).
 	callbacks := c.leave()
 	c.relay()
 	for _, callback := range callbacks {

@@ -29,10 +29,10 @@ func (h *AccountCreatedHandler) Execute(event account.AccountCreatedEvent, ctx *
 	if err != nil {
 		return err
 	}
-	ctx.Publish(integrationevents.AccountCreatedIntegrationEvent{
+	application.PublishIntegrationEvent(integrationevents.AccountCreatedIntegrationEvent{
 		AccountID:       event.AccountID,
 		Email:           event.Email,
 		ValidationToken: validationToken,
-	})
+	}, ctx)
 	return nil
 }
