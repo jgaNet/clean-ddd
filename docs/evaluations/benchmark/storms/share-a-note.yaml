@@ -1,0 +1,39 @@
+# Feature 4 of the benchmark backlog (../backlog/4-share-a-note.md): the decisions of the phase-2
+# request, as the maintainer took them.
+schemaVersion: 1
+
+feature: share-a-note
+intent: >-
+  The owner of a note shares it with other accounts, which can then read it and list what is
+  shared with them.
+
+done: false
+
+hotSpots:
+  - question: Can a note be shared with an account that does not exist?
+    decision: No — Notes asks Accounts, through a port Notes owns (AccountDirectory), and refuses.
+  - question: Sharing twice with the same account, with oneself, or an archived note?
+    decision: Each is refused.
+  - question: What can an account a note is shared with do with it?
+    decision: Read it and list what is shared with it, with the owner beside each; nothing else.
+
+contexts:
+  - id: Notes
+    commands:
+      - name: ShareNote
+        actor: a signed-in account
+        route: POST /notes/{param}/share
+        aggregate: Note
+        events: [NoteShared]
+    queries:
+      - name: GetNotesSharedWithMe
+        actor: a signed-in account
+        route: GET /notes/shared
+    events: [NoteShared]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Accounts
+    downstream: Notes
+    contracts: [AccountDirectory]

@@ -1,0 +1,35 @@
+# Feature 3 of the benchmark backlog (../backlog/3-tag-a-note.md), as the session left it.
+schemaVersion: 1
+
+feature: tag-a-note
+intent: >-
+  The owner of a note adds tags to it and removes them, and lists their notes carrying one tag.
+
+done: false
+
+hotSpots:
+  - question: What is a tag, and what happens when a note gets the same tag twice?
+    decision: One lowercase word (a–z, digits, hyphens), 1 to 30 characters, at most 10 per note; a tag the note already has is refused, like sharing twice. Anything else is refused, never rewritten.
+  - question: Can an archived note be tagged or untagged?
+    decision: No, until it is restored — like an edit.
+  - question: Can the list be filtered by a tag?
+    decision: Yes, by one tag, in the list's own order; no new list, a filter on the existing one.
+
+contexts:
+  - id: Notes
+    commands:
+      - name: TagNote
+        actor: a signed-in account
+        route: POST /notes/{param}/tags
+        aggregate: Note
+        events: [NoteTagged]
+      - name: UntagNote
+        actor: a signed-in account
+        route: DELETE /notes/{param}/tags/{param}
+        aggregate: Note
+        events: [NoteUntagged]
+    queries: []
+    events: [NoteTagged, NoteUntagged]
+    policies: []
+
+links: []

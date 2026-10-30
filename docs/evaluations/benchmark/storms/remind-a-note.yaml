@@ -1,0 +1,71 @@
+# Feature 7 of the benchmark backlog (../backlog/7-remind-a-note.md): the reference's
+# remind-a-note storm, decided again for this product: the owner is told in the list of
+# notifications, once the moment has come, with no scheduler.
+schemaVersion: 1
+
+feature: remind-a-note
+intent: >-
+  The owner of a note schedules one reminder on it; once the moment has come, the owner finds a
+  notification. Scheduling again replaces it; archiving the note cancels it.
+
+done: false
+
+hotSpots:
+  - question: Who is told when the moment comes?
+    decision: The owner only; the accounts the note is shared with are not.
+  - question: Where does the reminder live?
+    decision: In Notes, a moment on a note with the note's rules; Notifications plans the telling from the published facts.
+  - question: How is the owner told?
+    decision: A notification of kind `reminder` in the list feature 5 made.
+  - question: Who notices that the moment has come? Nothing watches the clock.
+    decision: The list, when it is read — a planned notification is shown once its moment has passed; the current time is a parameter with a default. No scheduler, no administrator.
+  - question: How does the owner get rid of a reminder?
+    decision: One reminder per note; scheduling again replaces it, archiving the note cancels it. No cancel command.
+  - question: What does the note refuse?
+    decision: A moment in the past and an archived note; someone other than the owner, as for every change.
+  - question: Scheduling again, or archiving — what of the notification already planned?
+    decision: Notes says "a reminder was cancelled", then, when it replaces it, "a reminder was scheduled"; Notifications cancels the planned one and plans the new one. A notification whose moment had already come stays.
+
+contexts:
+  - id: Notes
+    commands:
+      - name: ScheduleReminder
+        actor: a signed-in account
+        route: POST /notes/{param}/reminders
+        aggregate: Note
+        events: [ReminderCancelled, ReminderScheduled]
+      - name: ArchiveNote
+        actor: a signed-in account
+        route: POST /notes/{param}/archive
+        aggregate: Note
+        events: [NoteArchived, ReminderCancelled]
+    queries: []
+    events: [ReminderCancelled, ReminderScheduled]
+    policies:
+      - on: ReminderScheduled
+        kind: domain-event
+        publishes: [ReminderScheduled]
+        events: []
+      - on: ReminderCancelled
+        kind: domain-event
+        publishes: [ReminderCancelled]
+        events: []
+  - id: Notifications
+    commands: []
+    queries: []
+    events: [NotificationCancelled, NotificationScheduled]
+    policies:
+      - on: ReminderScheduled
+        kind: integration-event
+        publishes: []
+        events: [NotificationScheduled]
+      - on: ReminderCancelled
+        kind: integration-event
+        publishes: []
+        events: [NotificationCancelled]
+
+links:
+  - mechanism: integration-event
+    upstream: Notes
+    downstream: Notifications
+    contracts: [ReminderCancelled, ReminderScheduled]

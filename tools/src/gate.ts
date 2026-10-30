@@ -4,6 +4,7 @@ import { join } from 'path';
 import { checkConventions } from './check';
 import { DEFAULT_LANGUAGE, loadArchitectureContract } from './load';
 import { changedFiles, checkMode } from './modes';
+import { ModeName } from './types';
 
 /**
  * The gate: one verdict, readable by a script, on whether a change is done (RFC 0001, phase 1).
@@ -15,6 +16,11 @@ import { changedFiles, checkMode } from './modes';
  * architecture come first and stop the gate when they fail: testing code the architecture
  * refuses is time spent on the wrong question. The quality and test steps after them all run, so
  * that one gate shows everything that is left to fix.
+ *
+ * A change that is an architecture task — a context declared, a relationship decided, by whoever
+ * has no person beside them to do it (RFC 0001, phase 4: one agent taking a whole backlog) — is
+ * held to the architecture mode instead (`--mode architecture`): it may touch the architecture,
+ * and must record the decision.
  *
  * The gate decides nothing new: every step is a command that already exists. What it adds is the
  * verdict as data, so that whoever starts an agent — a person, a script — reads the result from
@@ -81,10 +87,18 @@ export interface GateOptions {
   /** The commit the change started from; `working` for the uncommitted changes alone. */
   base: string;
   language?: string;
+  /** Which mode the change is held to; a feature by default. */
+  mode?: ModeName;
   exec?: Executor;
 }
 
-export async function runGate({ root, base, language, exec = shell }: GateOptions): Promise<GateReport> {
+export async function runGate({
+  root,
+  base,
+  language,
+  mode: held = 'feature',
+  exec = shell,
+}: GateOptions): Promise<GateReport> {
   const started = Date.now();
   const contract = loadArchitectureContract(root, language);
   const steps: GateStep[] = [];
@@ -98,13 +112,13 @@ export async function runGate({ root, base, language, exec = shell }: GateOption
   const skip = (name: string, stage: GateStage, command?: string) =>
     steps.push({ name, stage, ...(command && { command }), status: 'skipped', durationMs: 0 });
 
-  // 1. The feature mode: what the change touched, committed since the base and not yet committed.
+  // 1. The mode: what the change touched, committed since the base and not yet committed.
   const [mode, modeMs] = timed(() => {
     const changed = new Set(changedFiles(base, root));
     if (base !== 'working') for (const file of changedFiles('working', root)) changed.add(file);
-    return checkMode('feature', [...changed], contract, base);
+    return checkMode(held, [...changed], contract, base);
   });
-  record({ name: 'mode feature', stage: 'architecture', ok: mode.ok, durationMs: modeMs, lines: mode.problems });
+  record({ name: `mode ${held}`, stage: 'architecture', ok: mode.ok, durationMs: modeMs, lines: mode.problems });
 
   // 2. The conventions check. For the reference's own language it is the first of `checks`; for
   //    another, the language's tool holds its tree and this check holds the contract, the map and

@@ -1,0 +1,64 @@
+# Feature 1 of the benchmark backlog (../backlog/1-accounts-and-notes.md), as the session left it.
+# Logging in answers a token and records nothing: it is not a fact, and the storm does not name it.
+schemaVersion: 1
+
+feature: accounts-and-notes
+intent: >-
+  Anyone signs up; a signed-in account writes, edits, archives and restores its own notes, lists
+  them and reads one.
+
+done: false
+
+hotSpots:
+  - question: Is logging in a fact of the domain?
+    decision: No — it checks credentials and answers a token; nothing changes, nothing is recorded.
+  - question: Who owns a note?
+    decision: The account that wrote it, known from the request's caller; Notes needs nothing from Accounts to know it.
+
+contexts:
+  - id: Accounts
+    commands:
+      - name: SignUp
+        actor: anyone
+        route: POST /accounts
+        aggregate: Account
+        events: [AccountRegistered]
+    queries:
+      - name: GetMyAccount
+        actor: a signed-in account
+        route: GET /accounts/me
+    events: [AccountRegistered]
+    policies: []
+  - id: Notes
+    commands:
+      - name: CreateNote
+        actor: a signed-in account
+        route: POST /notes
+        aggregate: Note
+        events: [NoteCreated]
+      - name: EditNote
+        actor: a signed-in account
+        route: PUT /notes/{param}
+        aggregate: Note
+        events: [NoteEdited]
+      - name: ArchiveNote
+        actor: a signed-in account
+        route: POST /notes/{param}/archive
+        aggregate: Note
+        events: [NoteArchived]
+      - name: RestoreNote
+        actor: a signed-in account
+        route: POST /notes/{param}/restore
+        aggregate: Note
+        events: [NoteRestored]
+    queries:
+      - name: GetMyNotes
+        actor: a signed-in account
+        route: GET /notes
+      - name: GetNote
+        actor: a signed-in account
+        route: GET /notes/{param}
+    events: [NoteArchived, NoteCreated, NoteEdited, NoteRestored]
+    policies: []
+
+links: []
