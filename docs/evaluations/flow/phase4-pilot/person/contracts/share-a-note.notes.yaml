@@ -1,0 +1,49 @@
+schemaVersion: 1
+
+feature: share-a-note
+language: typescript
+context: Notes
+
+intent: >-
+  The owner of a note shares it with other accounts, which can then read it and list what is
+  shared with them, with the owner beside each. Notes asks whether an account exists through a
+  port it owns (AccountDirectory), answered by an adapter over Accounts' read model — the
+  `accountQueries` Accounts' wiring now exports (ADR 3). Write the port, the adapter and the
+  wiring in Notes; Accounts is not this slice's.
+
+changes:
+  - kind: aggregate
+    name: Note
+    new: false
+  - kind: domain-service
+    name: NoteSharing
+    aggregate: Note
+    new: true
+  - kind: command
+    name: ShareNote
+    verb: act
+    route: POST /notes/:id/share
+    new: true
+  - kind: query
+    name: GetNotesSharedWithMe
+    verb: read
+    route: GET /notes/shared
+    new: true
+
+invariants:
+  - Only the owner shares a note; with an account that exists, never with themselves, each account once; an archived note is not shared.
+  - An account a note is shared with reads it (GET /notes/:id answers it, with `ownerId`) and lists it under GET /notes/shared, most recent first; it changes nothing on it.
+  - The owner's GET /notes/:id shows `sharedWith`, the account ids.
+  - Notes asks for accounts through AccountDirectory, a port in its own words, used by the NoteSharing domain service; nothing in Notes' Domain imports Accounts.
+
+events:
+  - NoteSharedEvent
+
+crossContext:
+  context: Accounts
+  strategy: owned-port
+  why: >-
+    Sharing with an account that does not exist is refused, and only Accounts knows which accounts
+    exist. Notes asks in its own words; the adapter reads Accounts' read model.
+
+architectureChanges: false

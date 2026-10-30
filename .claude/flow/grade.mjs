@@ -3,7 +3,7 @@
  * The mechanical half of the benchmark's rubric (docs/evaluations/benchmark/rubric.md), on one
  * run's final tree, whatever the arm:
  *
- *   node .claude/flow/grade.mjs --project <dir> --ref <ref> --base <created commit> --kit <dir> [--out <file.json>]
+ *   node .claude/flow/grade.mjs --project <dir> --ref <ref> --base <created commit> --kit <dir> [--tooling <clean-ddd.tgz>] [--out <file.json>]
  *
  * In a worktree of its own at `ref`, it copies the kit's acceptance tests beside their support
  * into `src/Bootstrap/Fastify/Acceptance/`, then runs:
@@ -28,6 +28,7 @@ const kit = resolve(required('kit'));
 const yaml = createRequire(join(project, 'package.json'))('js-yaml');
 const backlog = yaml.load(readFileSync(join(kit, 'backlog/backlog.yaml'), 'utf8')).features;
 
+const cli = resolve(new URL('../../tools/dist/cli.js', import.meta.url).pathname);
 const git = (cwd, ...gitArgs) => execFileSync('git', gitArgs, { cwd, encoding: 'utf8' }).trim();
 const env = { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1', CI: '1' };
 const sh = (command, cwd, timeout = 600_000) => {
@@ -61,6 +62,15 @@ else {
   if (installed.code !== 0) process.stderr.write(`yarn install failed in ${tree}:\n${installed.out.slice(-2000)}\n`);
 }
 
+// Every arm graded by the same tooling: the package given, in place of whichever the tree installed.
+const tooling = option('tooling');
+if (tooling) {
+  const target = join(tree, 'node_modules/clean-ddd');
+  rmSync(target, { recursive: true, force: true });
+  mkdirSync(target, { recursive: true });
+  execFileSync('tar', ['-xzf', resolve(tooling), '-C', target, '--strip-components=1']);
+}
+
 const acceptanceDir = join(tree, 'src/Bootstrap/Fastify/Acceptance');
 mkdirSync(acceptanceDir, { recursive: true });
 for (const file of readdirSync(join(kit, 'acceptance')))
@@ -70,25 +80,12 @@ const gate = parse(sh(`yarn -s architecture gate --base ${base} --mode architect
 // The kit's storms, held as done: then whatever the code does not carry is a difference.
 const stormsDir = join(`${project}.flow`, 'grade', `${commit.slice(0, 12)}.storms`);
 mkdirSync(stormsDir, { recursive: true });
-// A later feature may change a command an earlier one brought (feature 7 has archiving cancel a
-// reminder): each storm is held to the code as the backlog leaves it, the later storm's shape of a
-// command taking the place of the earlier one's.
-const storms = backlog.map(f => yaml.load(readFileSync(join(kit, 'storms', `${f.id}.yaml`), 'utf8')));
-storms.forEach((storm, index) => {
-  for (const context of storm.contexts) {
-    context.commands = context.commands.map(command => {
-      for (const later of storms.slice(index + 1)) {
-        const same = later.contexts
-          .find(each => each.id === context.id)
-          ?.commands.find(each => each.name === command.name);
-        if (same) command = same;
-      }
-      return command;
-    });
-    context.events = [...new Set([...context.events, ...context.commands.flatMap(command => command.events)])].sort();
-  }
-  writeFileSync(join(stormsDir, `${backlog[index].id}.yaml`), yaml.dump({ ...storm, done: true }));
-});
+// The kit's storms held as done, by this repository's tooling for every arm: a storm is carried
+// when the code records at least what it said (a later feature may add a fact to a command).
+for (const f of backlog) {
+  const text = readFileSync(join(kit, 'storms', `${f.id}.yaml`), 'utf8').replace(/^done: false$/m, 'done: true');
+  writeFileSync(join(stormsDir, `${f.id}.yaml`), text);
+}
 const m1 = {
   verdict: gate?.verdict ?? 'unreadable',
   failing: (gate?.steps ?? [])
@@ -103,9 +100,7 @@ const features = backlog.map(f => {
   const failed = [...run.out.matchAll(/^\s+● (.+)$/gm)]
     .map(match => match[1])
     .filter(name => name !== 'Test suite failed to run');
-  const storm = parse(
-    sh(`yarn -s architecture storm --expect ${join(stormsDir, `${f.id}.yaml`)} --json`, tree, 300_000).out,
-  );
+  const storm = parse(sh(`node ${cli} storm --expect ${join(stormsDir, `${f.id}.yaml`)} --json`, tree, 300_000).out);
   const owed = storm?.problems ?? ['the storm could not be read'];
   return {
     feature: f.id,

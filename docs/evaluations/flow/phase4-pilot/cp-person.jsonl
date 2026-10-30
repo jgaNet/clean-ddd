@@ -1,0 +1,19 @@
+{"event":"person-start","feature":"accounts-and-notes","task":"architecture","at":"2026-10-30T08:54:34.514Z","note":"the same text as C's, applied"}
+{"event":"person-end","feature":"accounts-and-notes","task":"architecture","at":"2026-10-30T08:54:57.481Z"}
+{"event":"person-start","feature":"accounts-and-notes","task":"contract","at":"2026-10-30T08:54:57.513Z","note":"the same text as C's, applied"}
+{"event":"person-end","feature":"accounts-and-notes","task":"contract","at":"2026-10-30T08:55:16.602Z"}
+{"event":"person-end","feature":"accounts-and-notes","task":"contract","at":"2026-10-30T08:55:28.694Z"}
+{"event":"person-start","feature":"pin-a-note","task":"contract","at":"2026-10-30T09:04:30.534Z","note":"the plan C's person wrote"}
+{"event":"person-end","feature":"pin-a-note","task":"contract","at":"2026-10-30T09:04:32.575Z"}
+{"event":"person-start","feature":"tag-a-note","task":"contract","at":"2026-10-30T09:12:32.317Z","note":"the plan C's person wrote"}
+{"event":"person-end","feature":"tag-a-note","task":"contract","at":"2026-10-30T09:12:34.076Z"}
+{"event":"person-start","feature":"share-a-note","task":"contract","at":"2026-10-30T09:19:48.893Z","note":"the plan C's person wrote"}
+{"event":"person-end","feature":"share-a-note","task":"contract","at":"2026-10-30T09:19:51.267Z"}
+{"event":"person-start","feature":"notify-on-archive","task":"contract","at":"2026-10-30T09:28:04.950Z","note":"the contract C's person wrote"}
+{"event":"person-end","feature":"notify-on-archive","task":"contract","at":"2026-10-30T09:28:07.295Z"}
+{"event":"person-start","feature":"plan-and-quota","task":"contract","at":"2026-10-30T09:36:15.831Z","note":"the contract C's person wrote"}
+{"event":"person-end","feature":"plan-and-quota","task":"contract","at":"2026-10-30T09:36:18.947Z"}
+{"event":"person-start","feature":"remind-a-note","task":"frozen-events","at":"2026-10-30T09:51:40.603Z","note":"C's text"}
+{"event":"person-end","feature":"remind-a-note","task":"frozen-events","at":"2026-10-30T09:51:44.403Z"}
+{"event":"person-start","feature":"remind-a-note","task":"contract","at":"2026-10-30T09:51:44.446Z","note":"the contract C's person wrote"}
+{"event":"person-end","feature":"remind-a-note","task":"contract","at":"2026-10-30T09:51:47.009Z"}

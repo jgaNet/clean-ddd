@@ -1,0 +1,37 @@
+schemaVersion: 1
+
+feature: pin-a-note
+language: typescript
+context: Notes
+
+intent: >-
+  The owner of a note pins it, so that it comes first in their notes, and unpins it later; an
+  archived note cannot be pinned, and keeps its pin when archived. The list says which notes are
+  pinned and puts them first, each group most recent first.
+
+changes:
+  - kind: aggregate
+    name: Note
+    new: false
+  - kind: command
+    name: PinNote
+    verb: act
+    route: POST /notes/:id/pin
+    new: true
+  - kind: command
+    name: UnpinNote
+    verb: act
+    route: POST /notes/:id/unpin
+    new: true
+
+invariants:
+  - Only the owner pins or unpins a note.
+  - An archived note cannot be pinned; it can be unpinned, and archiving does not unpin it.
+  - Pinning a pinned note, or unpinning a note that is not pinned, is refused.
+  - GET /notes and GET /notes/:id say `pinned`; the list puts pinned notes first, each group most recent first.
+
+events:
+  - NotePinnedEvent
+  - NoteUnpinnedEvent
+
+architectureChanges: false

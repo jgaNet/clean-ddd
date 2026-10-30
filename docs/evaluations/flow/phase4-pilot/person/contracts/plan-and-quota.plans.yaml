@@ -1,0 +1,36 @@
+schemaVersion: 1
+
+feature: plan-and-quota
+language: typescript
+context: Plans
+
+intent: >-
+  A signed-in person is on Free (ten notes) until they switch to Unlimited, and back, themselves;
+  they read their plan and its limit. Plans' read model, `IPlanQueries` in its Domain, is frozen:
+  the Notes slice, written at the same time, reads it through `planQueries`, which the wiring
+  exports — replace the architecture task's stub with the real one.
+
+changes:
+  - kind: aggregate
+    name: Plan
+    new: true
+  - kind: command
+    name: ChangePlan
+    verb: replace
+    route: PUT /plans/me
+    new: true
+  - kind: query
+    name: GetMyPlan
+    verb: read
+    route: GET /plans/me
+    new: true
+
+invariants:
+  - An account that never chose a plan is on Free, without anything having to create a plan for it.
+  - A plan is 'free' (noteLimit 10) or 'unlimited' (noteLimit null); anything else is refused.
+  - GET /plans/me answers exactly { plan, noteLimit }; an anonymous caller is refused (403).
+
+events:
+  - PlanChangedEvent
+
+architectureChanges: false

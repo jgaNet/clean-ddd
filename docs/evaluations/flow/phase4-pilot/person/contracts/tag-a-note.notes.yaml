@@ -1,0 +1,40 @@
+schemaVersion: 1
+
+feature: tag-a-note
+language: typescript
+context: Notes
+
+intent: >-
+  The owner of a note adds tags to it and removes them; each note shows its tags in the order
+  they were added; the owner lists their notes carrying one tag, in the list's own order.
+
+changes:
+  - kind: aggregate
+    name: Note
+    new: false
+  - kind: value-object
+    name: Tag
+    aggregate: Note
+    new: true
+  - kind: command
+    name: TagNote
+    verb: create
+    route: POST /notes/:id/tags
+    new: true
+  - kind: command
+    name: UntagNote
+    verb: remove
+    route: DELETE /notes/:id/tags/:tag
+    new: true
+
+invariants:
+  - A tag is one lowercase word — a to z, digits, hyphens — of 1 to 30 characters; anything else is refused, never rewritten.
+  - A note carries at most 10 tags; a tag it already has is refused; removing a tag it lacks is refused.
+  - An archived note cannot be tagged or untagged until it is restored. Only the owner tags.
+  - GET /notes and GET /notes/:id show `tags`, in the order added; GET /notes?tag=x lists the caller's notes carrying x, in the list's order.
+
+events:
+  - NoteTaggedEvent
+  - NoteUntaggedEvent
+
+architectureChanges: false

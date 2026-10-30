@@ -1,0 +1,54 @@
+schemaVersion: 1
+
+feature: remind-a-note
+language: typescript
+context: Notes
+
+intent: >-
+  The owner schedules one reminder on a note, at a moment in the future; scheduling again replaces
+  it, archiving the note cancels it. The note's details show `remindAt`. Notes publishes each
+  scheduling and each cancellation in its public words (ReminderScheduledIntegrationEvent,
+  ReminderCancelledIntegrationEvent, frozen in the shared kernel); Notifications, the other slice,
+  tells the owner when the moment comes.
+
+changes:
+  - kind: aggregate
+    name: Note
+    new: false
+  - kind: command
+    name: ScheduleReminder
+    verb: create
+    route: POST /notes/:id/reminders
+    new: true
+  - kind: integration-event
+    name: ReminderScheduledIntegrationEvent
+    aggregate: Note
+    new: false
+  - kind: integration-event
+    name: ReminderCancelledIntegrationEvent
+    aggregate: Note
+    new: false
+  - kind: event-handler
+    name: ReminderScheduled
+    new: true
+  - kind: event-handler
+    name: ReminderCancelled
+    new: true
+
+invariants:
+  - A moment in the past is refused, with the current time a parameter with a default; an archived note is refused; only the owner schedules.
+  - Scheduling again records ReminderCancelled for the earlier reminder, then ReminderScheduled; archiving a note with a reminder records ReminderCancelled.
+  - GET /notes/:id shows `remindAt` (ISO 8601) or null.
+
+events:
+  - ReminderScheduledEvent
+  - ReminderCancelledEvent
+
+crossContext:
+  context: Notifications
+  strategy: integration-event
+  why: >-
+    The owner is told when the moment comes; Notes holds the reminder and publishes what happens
+    to it, Notifications plans the telling.
+
+architectureChanges: false

@@ -1,0 +1,41 @@
+schemaVersion: 1
+
+feature: plan-and-quota
+language: typescript
+context: Notes
+
+intent: >-
+  Writing a note is refused once its writer owns as many notes as their plan keeps, archived ones
+  included. Notes asks the limit through a port it owns (PlanLimits), answered by an adapter over
+  Plans' frozen read model (`IPlanQueries`, exported by Plans' wiring as `planQueries`). The Plans
+  slice is written at the same time.
+
+changes:
+  - kind: aggregate
+    name: Note
+    new: false
+  - kind: domain-service
+    name: NoteQuota
+    aggregate: Note
+    new: true
+  - kind: command
+    name: CreateNote
+    verb: create
+    route: POST /notes
+    new: false
+
+invariants:
+  - Every note an account owns counts, archived ones included; at the limit, writing a new note is refused.
+  - The count comes from Notes' repository, the limit from the port; a null limit is no limit.
+  - Nothing in Notes' Domain imports Plans.
+
+events:
+  - NoteCreatedEvent
+
+crossContext:
+  context: Plans
+  strategy: owned-port
+  why: >-
+    The limit of a person's plan is Plans'; Notes asks it in its own words before writing a note.
+
+architectureChanges: false

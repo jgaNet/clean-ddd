@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "project": "b",
+  "ref": "main",
+  "commit": "e7771585fc5ae0b0c202b6fc2bd7f31595e72f40",
+  "base": "4e409c343cc6fe78e83a533e47b500c4f88a78d4",
+  "M1": {
+    "verdict": "pass",
+    "failing": []
+  },
+  "features": [
+    {
+      "feature": "accounts-and-notes",
+      "M2": {
+        "pass": true,
+        "tests": "5 passed, 5 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "pin-a-note",
+      "M2": {
+        "pass": true,
+        "tests": "3 passed, 3 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "tag-a-note",
+      "M2": {
+        "pass": true,
+        "tests": "3 passed, 3 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "share-a-note",
+      "M2": {
+        "pass": false,
+        "tests": "3 failed, 3 total",
+        "failed": [
+          "share a note › lets an account a note is shared with read it and list it, with its owner",
+          "share a note › leaves the note to its owner: a recipient cannot change it or share it",
+          "share a note › refuses sharing twice, with oneself, with an unknown account, and an archived note"
+        ]
+      },
+      "M3": {
+        "pass": false,
+        "owed": [
+          "storms/share-a-note.yaml is done, but Notes: typescript lacks the command expected by ../e7771585fc5a.storms/share-a-note.yaml has: ShareNote (a signed-in account, POST /notes/{param}/share, Note → NoteShared)",
+          "storms/share-a-note.yaml is done, but Notes: typescript lacks the query expected by ../e7771585fc5a.storms/share-a-note.yaml has: GetNotesSharedWithMe (a signed-in account, GET /notes/shared)",
+          "storms/share-a-note.yaml is done, but Notes: typescript lacks the domain event expected by ../e7771585fc5a.storms/share-a-note.yaml has: NoteShared",
+          "storms/share-a-note.yaml is done, but context map: typescript lacks the link expected by ../e7771585fc5a.storms/share-a-note.yaml has: Accounts → Notes over an owned-port (AccountDirectory)"
+        ]
+      },
+      "mechanical": false
+    },
+    {
+      "feature": "notify-on-archive",
+      "M2": {
+        "pass": false,
+        "tests": "3 failed, 3 total",
+        "failed": [
+          "notify on archive › tells every account a note is shared with, once per archiving, and nobody else",
+          "notify on archive › notifies nobody for a note shared with nobody",
+          "notify on archive › refuses an anonymous caller"
+        ]
+      },
+      "M3": {
+        "pass": false,
+        "owed": [
+          "storms/notify-on-archive.yaml is done, but Notes: typescript lacks the policy expected by ../e7771585fc5a.storms/notify-on-archive.yaml has: on NoteArchived (domain-event, publishes NoteArchived)",
+          "storms/notify-on-archive.yaml is done, but Notifications: typescript has no such context",
+          "storms/notify-on-archive.yaml is done, but context map: typescript lacks the link expected by ../e7771585fc5a.storms/notify-on-archive.yaml has: Notes → Notifications over an integration-event (NoteArchived)"
+        ]
+      },
+      "mechanical": false
+    },
+    {
+      "feature": "plan-and-quota",
+      "M2": {
+        "pass": true,
+        "tests": "2 passed, 2 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "remind-a-note",
+      "M2": {
+        "pass": false,
+        "tests": "4 failed, 4 total",
+        "failed": [
+          "remind a note at a time › tells the owner once the moment has come, and nobody else",
+          "remind a note at a time › replaces a reminder scheduled again, and cancels it when the note is archived",
+          "remind a note at a time › refuses a moment in the past, an archived note, and another account",
+          "remind a note at a time › keeps one list, most recent first: an archiving by when it happened, a reminder by its moment"
+        ]
+      },
+      "M3": {
+        "pass": false,
+        "owed": [
+          "storms/remind-a-note.yaml is done, but Notes: typescript lacks the command expected by ../e7771585fc5a.storms/remind-a-note.yaml has: ArchiveNote (a signed-in account, POST /notes/{param}/archive, Note → NoteArchived, ReminderCancelled)",
+          "storms/remind-a-note.yaml is done, but Notes: typescript lacks the command expected by ../e7771585fc5a.storms/remind-a-note.yaml has: ScheduleReminder (a signed-in account, POST /notes/{param}/reminders, Note → ReminderCancelled, ReminderScheduled)",
+          "storms/remind-a-note.yaml is done, but Notes: typescript has a command expected by ../e7771585fc5a.storms/remind-a-note.yaml does not: ArchiveNote (a signed-in account, POST /notes/{param}/archive, Note → NoteArchived)",
+          "storms/remind-a-note.yaml is done, but Notes: typescript lacks the domain event expected by ../e7771585fc5a.storms/remind-a-note.yaml has: ReminderCancelled",
+          "storms/remind-a-note.yaml is done, but Notes: typescript lacks the domain event expected by ../e7771585fc5a.storms/remind-a-note.yaml has: ReminderScheduled",
+          "storms/remind-a-note.yaml is done, but Notes: typescript lacks the policy expected by ../e7771585fc5a.storms/remind-a-note.yaml has: on ReminderCancelled (domain-event, publishes ReminderCancelled)",
+          "storms/remind-a-note.yaml is done, but Notes: typescript lacks the policy expected by ../e7771585fc5a.storms/remind-a-note.yaml has: on ReminderScheduled (domain-event, publishes ReminderScheduled)",
+          "storms/remind-a-note.yaml is done, but Notifications: typescript has no such context",
+          "storms/remind-a-note.yaml is done, but context map: typescript lacks the link expected by ../e7771585fc5a.storms/remind-a-note.yaml has: Notes → Notifications over an integration-event (ReminderCancelled, ReminderScheduled)"
+        ]
+      },
+      "mechanical": false
+    }
+  ],
+  "gradedInMs": 81857
+}

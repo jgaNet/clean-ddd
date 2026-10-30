@@ -1,0 +1,9 @@
+run: pilot-b
+arm: B
+kit: /home/user/clean-ddd/docs/evaluations/benchmark
+base: main
+agent: { runner: claude-cli, timeoutMinutes: 90 }
+parallelism: 3
+retry: { perFeature: 1 }
+budgetUsd: 40
+ports: { base: 18200 }
