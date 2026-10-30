@@ -1,0 +1,18 @@
+# The execution plan of the phase-3 runs: run p3-cli-2 (killed, then resumed) and run p3-sdk (whole).
+# Only `run`, `agent.runner` and `ports.base` differed between them (p3-sdk: claude-sdk, 17100).
+# Both named the same model in `agent.model`, left out of this copy: the runner's default was one the
+# account could no longer use that day.
+run: p3-cli-2
+base: 9c4da43
+request: ../requests/5-notify-on-archive.md
+storm: conventions/storms/notify-on-archive.yaml
+acceptance:
+  file: src/Bootstrap/Fastify/Acceptance/notify-on-archive.acceptance.ts
+  command: yarn -s test --testMatch '**/notify-on-archive.acceptance.ts'
+slices:
+  - { id: notes, context: Notes, plan: conventions/plans/notify-on-archive.notes.yaml }
+  - { id: notifications, context: Notifications, plan: conventions/plans/notify-on-archive.notifications.yaml }
+agent: { runner: claude-cli, timeoutMinutes: 60 }
+parallelism: 2
+retry: { perSlice: 1 }
+ports: { base: 16200 }
