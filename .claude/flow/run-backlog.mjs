@@ -13,6 +13,8 @@
  *   parallelism: 3              # B only: features at once
  *   retry: { perFeature: 1 }
  *   budgetUsd: 40
+ *   agentBudgetUsd: 10          # optional: the most one agent may spend, reserved before it starts (default: budgetUsd)
+ *   dependencies: copy          # copy (default): each worktree its own node_modules; link: hard links, checked after each agent
  *   ports: { base: 18100 }
  *   brief: '…'                  # optional: a paragraph added to every brief (E2: the contract a fan-out had)
  *   priority: cost              # what `clean-ddd strategy` weighs, logged beside each feature (cost | time)
@@ -36,9 +38,12 @@
  * architecture with its tooling taken out. The agent is given the request alone, no storm; the
  * driver's verdict is the project's own `yarn verify` (typecheck, lint, format, tests), one retry.
  *
- * Every step is appended to `<project>.flow/<run>.jsonl`. A run whose reported cost passes the
- * budget starts no more agents and ends FAILED. The integrated head is the project's `main`.
- * Processes are controlled by process group, never by name.
+ * Every step is appended to `<project>.flow/<run>.jsonl`. The budget is reserved before an agent
+ * starts (supervision.mjs): an agent runs with a cap it may not spend past, and a run that cannot
+ * reserve one starts no more agents and ends FAILED. After each agent, whatever still listens on
+ * its port is stopped and recorded. With `dependencies: link`, a file the agent wrote into the
+ * project's node_modules through a link fails the feature. The integrated head is the project's
+ * `main`. Processes are controlled by process group, never by name.
  */
 import { execFileSync, spawn } from 'node:child_process';
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -46,6 +51,7 @@ import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 
 import { runners } from './runners.mjs';
+import { budget, DEPENDENCY_MODES, fingerprint, freePort, provideDependencies } from './supervision.mjs';
 
 const args = process.argv.slice(2);
 const option = (name, fallback) => (args.includes(`--${name}`) ? args[args.indexOf(`--${name}`) + 1] : fallback);
@@ -74,6 +80,8 @@ const timeoutMs = (plan.agent?.timeoutMinutes ?? 90) * 60_000;
 const parallelism = sequential ? 1 : (plan.parallelism ?? 3);
 const retries = plan.retry?.perFeature ?? 1;
 const budgetUsd = plan.budgetUsd ?? 40;
+const dependencies = plan.dependencies ?? 'copy';
+if (!DEPENDENCY_MODES.includes(dependencies)) fail(`${planFile}: dependencies is ${DEPENDENCY_MODES.join(' or ')}`);
 const portBase = plan.ports?.base ?? 18100;
 
 const flowDir = `${project}.flow`;
@@ -161,12 +169,11 @@ const started = Date.now();
 if (resuming) event('resumed', { finished: [...finishedBefore] });
 else event('started', { arm: plan.arm, project, baseCommit, runner: runner.name, model, parallelism, budgetUsd });
 
-/** A worktree beside the project, at a commit, with its own hard-linked node_modules. */
+/** A worktree beside the project, at a commit, with its dependencies as the plan says (copied by default). */
 function worktree(id, at) {
   const path = join(runDir, id);
   git(project, 'worktree', 'add', '-q', '-b', `run/${run}/${id}`, path, at);
-  if (existsSync(join(project, 'node_modules')))
-    execFileSync('cp', ['-al', join(project, 'node_modules'), join(path, 'node_modules')]);
+  provideDependencies(project, path, dependencies);
   return path;
 }
 
@@ -245,19 +252,21 @@ async function verdict(feature, cwd, from) {
   return problems;
 }
 
-// The agents, their conversations, and what they reported.
-const conversations = new Map(); // cwd → latest reported cost of the conversation in it
+// The agents, their conversations (cwd → the latest cost reported in it), and what they reported.
+const money = budget({ totalUsd: budgetUsd, perAgentUsd: plan.agentBudgetUsd ?? budgetUsd });
 const running = new Map();
 let overBudget = false;
-const spent = () => Number([...conversations.values()].reduce((sum, cost) => sum + cost, 0).toFixed(4));
+const spent = () => money.spent();
 
 async function agent(feature, cwd, prompt, again, port) {
-  if (spent() >= budgetUsd) {
+  const cap = money.reserve(cwd);
+  if (cap === undefined) {
     overBudget = true;
-    event('budget', { feature: feature.id, spentUsd: spent(), budgetUsd });
+    event('budget', { feature: feature.id, spentUsd: spent(), reservedUsd: money.reserved(), budgetUsd });
     return undefined;
   }
-  event('feature', { feature: feature.id, state: 'RUNNING', again: Boolean(again) });
+  event('feature', { feature: feature.id, state: 'RUNNING', again: Boolean(again), reservedUsd: cap });
+  const before = dependencies === 'link' ? fingerprint(join(project, 'node_modules')) : undefined;
   const result = await runner.run({
     prompt,
     cwd,
@@ -266,12 +275,20 @@ async function agent(feature, cwd, prompt, again, port) {
     again,
     env: { ...env, PORT: String(port) },
     timeoutMs,
+    maxBudgetUsd: cap,
     onProcess: handle => running.set(feature.id, handle),
   });
   running.delete(feature.id);
   // A continued conversation reports its running total: the latest figure is the conversation's.
-  if (result.costUsd !== undefined) conversations.set(cwd, Math.max(conversations.get(cwd) ?? 0, result.costUsd));
+  money.settle(cwd, result.costUsd);
   event('agent-finished', { feature: feature.id, runner: runner.name, ...result });
+  // What the agent left running on its port (a server started in the background) is stopped.
+  const stopped = freePort(port);
+  if (stopped.length) event('port-freed', { feature: feature.id, port, processes: stopped });
+  if (before !== undefined && fingerprint(join(project, 'node_modules')) !== before) {
+    event('dependencies-changed', { feature: feature.id });
+    return { ...result, dependenciesChanged: true };
+  }
   return result;
 }
 
@@ -330,10 +347,12 @@ async function deliver(feature, cwd, from, port, { again = false, continuing = f
     : brief(feature, from, port);
   let result = await agent(feature, cwd, prompt, again, port);
   if (!result) return { ok: false, reason: 'budget' };
+  if (result.dependenciesChanged) return { ok: false, reason: 'dependencies' };
   let problems = await verdict(feature, cwd, from);
   for (let attempt = 0; problems.length && attempt < retries; attempt++) {
     result = await agent(feature, cwd, feedback(problems), true, port);
     if (!result) return { ok: false, reason: 'budget' };
+    if (result.dependenciesChanged) return { ok: false, reason: 'dependencies' };
     problems = await verdict(feature, cwd, from);
   }
   return { ok: !problems.length, problems };

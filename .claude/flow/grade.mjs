@@ -24,6 +24,8 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync,
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 
+import { provideDependencies } from './supervision.mjs';
+
 const args = process.argv.slice(2);
 const option = name => (args.includes(`--${name}`) ? args[args.indexOf(`--${name}`) + 1] : undefined);
 const required = name => option(name) ?? (process.stderr.write(`--${name} is required\n`), process.exit(2));
@@ -62,9 +64,10 @@ const manifests = ['package.json', 'yarn.lock'];
 const sameDependencies = manifests.every(
   file => sh(`git diff --quiet ${base} ${commit} -- ${file}`, project).code === 0,
 );
-if (sameDependencies) execFileSync('cp', ['-al', join(project, 'node_modules'), join(tree, 'node_modules')]);
+// Linked when unchanged: grading runs no agent, and the tests it runs install nothing.
+if (sameDependencies) provideDependencies(project, tree, 'link');
 else {
-  execFileSync('cp', ['-a', join(project, 'node_modules'), join(tree, 'node_modules')]);
+  provideDependencies(project, tree, 'copy');
   const installed = sh('yarn install --silent', tree, 600_000);
   if (installed.code !== 0) process.stderr.write(`yarn install failed in ${tree}:\n${installed.out.slice(-2000)}\n`);
 }
