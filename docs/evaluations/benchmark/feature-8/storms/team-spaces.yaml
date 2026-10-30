@@ -1,0 +1,172 @@
+# Feature 8 of the benchmark (../backlog/8-team-spaces.md), as the session left it on 2026-10-30:
+# the experiment that asks whether a feature large across contexts favours the fan-out.
+schemaVersion: 1
+
+feature: team-spaces
+intent: >-
+  A team has a space: members with roles, invited by its admins; its own notes, plan and seats; its
+  activity, which admins read. Members find the notes they can read, the space's among them, by
+  searching; the invited and the removed are told.
+
+done: false
+
+hotSpots:
+  - question: What can each role do in a space?
+    decision: A reader reads the space's notes; an editor also writes, edits, archives and restores any of them; an admin also invites, removes members and changes roles. A space always keeps at least one admin.
+  - question: What becomes of the notes of a member who leaves or is removed?
+    decision: They stay with the space; the author is kept for the record.
+  - question: How are seats counted and billed?
+    decision: Free has 3 seats; Team has the number of seats an admin chooses, no payment. Members take seats, a pending invitation does not; accepting is refused when no seat is left.
+  - question: Do a space's notes count against anyone's quota?
+    decision: No — a space has its own limit, 50 notes on Free, none on Team.
+  - question: What does search cover, and in what order?
+    decision: The caller's own notes, those shared with them and their spaces' notes; every word, in title or text, ignoring case; archived excluded; most recently changed first. A removed member stops finding a space's notes.
+  - question: What does a space's activity record, and who reads it?
+    decision: Members invited, joined, removed, left, their role changed; notes written, edited, archived, restored in the space; who and when. The space's admins read it.
+  - question: Who is told what?
+    decision: The invited account of the invitation; a member of their removal and of a change of their role — in the notifications list.
+  - question: How is someone invited, and for how long?
+    decision: By account id, an existing account; unanswered for 7 days, the invitation expires (the time is a parameter with a default). Inviting a member or a pending invitee again is refused.
+  - question: Where does each part live?
+    decision: Spaces, members and invitations in a Teams context; the space's plan and seats in Plans; its notes in Notes; search in a Search context fed by what Notes and Teams publish; the activity in an Audit context fed the same way; telling in Notifications.
+
+contexts:
+  - id: Teams
+    commands:
+      - name: CreateSpace
+        actor: a signed-in account
+        route: POST /spaces
+        aggregate: Space
+        events: [SpaceCreated]
+      - name: InviteMember
+        actor: a signed-in account
+        route: POST /spaces/{param}/invitations
+        aggregate: Space
+        events: [MemberInvited]
+      - name: AcceptInvitation
+        actor: a signed-in account
+        route: POST /spaces/{param}/accept
+        aggregate: Space
+        events: [MemberJoined]
+      - name: DeclineInvitation
+        actor: a signed-in account
+        route: POST /spaces/{param}/decline
+        aggregate: Space
+        events: [InvitationDeclined]
+      - name: RemoveMember
+        actor: a signed-in account
+        route: POST /spaces/{param}/members/{param}/remove
+        aggregate: Space
+        events: [MemberRemoved]
+      - name: ChangeMemberRole
+        actor: a signed-in account
+        route: POST /spaces/{param}/members/{param}/role
+        aggregate: Space
+        events: [MemberRoleChanged]
+      - name: LeaveSpace
+        actor: a signed-in account
+        route: POST /spaces/{param}/leave
+        aggregate: Space
+        events: [MemberLeft]
+    queries:
+      - name: GetMySpaces
+        actor: a signed-in account
+        route: GET /spaces
+      - name: GetSpace
+        actor: a signed-in account
+        route: GET /spaces/{param}
+    events: [InvitationDeclined, MemberInvited, MemberJoined, MemberLeft, MemberRemoved, MemberRoleChanged, SpaceCreated]
+    policies:
+      - { on: SpaceCreated, kind: domain-event, publishes: [SpaceCreated], events: [] }
+      - { on: MemberInvited, kind: domain-event, publishes: [MemberInvited], events: [] }
+      - { on: MemberJoined, kind: domain-event, publishes: [MemberJoined], events: [] }
+      - { on: MemberRemoved, kind: domain-event, publishes: [MemberRemoved], events: [] }
+      - { on: MemberLeft, kind: domain-event, publishes: [MemberLeft], events: [] }
+      - { on: MemberRoleChanged, kind: domain-event, publishes: [MemberRoleChanged], events: [] }
+  - id: Plans
+    commands:
+      - name: ChangeSpacePlan
+        actor: a signed-in account
+        route: PUT /plans/spaces/{param}
+        aggregate: SpacePlan
+        events: [SpacePlanChanged]
+    queries:
+      - name: GetSpacePlan
+        actor: a signed-in account
+        route: GET /plans/spaces/{param}
+    events: [SpacePlanChanged]
+    policies:
+      - { on: SpaceCreated, kind: integration-event, publishes: [], events: [] }
+      - { on: MemberJoined, kind: integration-event, publishes: [], events: [] }
+      - { on: MemberRemoved, kind: integration-event, publishes: [], events: [] }
+      - { on: MemberLeft, kind: integration-event, publishes: [], events: [] }
+      - { on: MemberRoleChanged, kind: integration-event, publishes: [], events: [] }
+  - id: Notes
+    commands: []
+    queries: []
+    events: []
+    policies:
+      - { on: NoteCreated, kind: domain-event, publishes: [NoteChanged], events: [] }
+      - { on: NoteEdited, kind: domain-event, publishes: [NoteChanged], events: [] }
+      - { on: NoteArchived, kind: domain-event, publishes: [NoteChanged], events: [] }
+      - { on: NoteRestored, kind: domain-event, publishes: [NoteChanged], events: [] }
+      - { on: NoteShared, kind: domain-event, publishes: [NoteChanged], events: [] }
+  - id: Search
+    commands: []
+    queries:
+      - name: SearchNotes
+        actor: a signed-in account
+        route: GET /search
+    events: []
+    policies:
+      - { on: NoteChanged, kind: integration-event, publishes: [], events: [] }
+      - { on: SpaceCreated, kind: integration-event, publishes: [], events: [] }
+      - { on: MemberJoined, kind: integration-event, publishes: [], events: [] }
+      - { on: MemberRemoved, kind: integration-event, publishes: [], events: [] }
+      - { on: MemberLeft, kind: integration-event, publishes: [], events: [] }
+  - id: Audit
+    commands: []
+    queries:
+      - name: GetSpaceActivity
+        actor: a signed-in account
+        route: GET /audit/spaces/{param}
+    events: [ActivityRecorded]
+    policies:
+      - { on: SpaceCreated, kind: integration-event, publishes: [], events: [] }
+      - { on: MemberInvited, kind: integration-event, publishes: [], events: [ActivityRecorded] }
+      - { on: MemberJoined, kind: integration-event, publishes: [], events: [ActivityRecorded] }
+      - { on: MemberRemoved, kind: integration-event, publishes: [], events: [ActivityRecorded] }
+      - { on: MemberLeft, kind: integration-event, publishes: [], events: [ActivityRecorded] }
+      - { on: MemberRoleChanged, kind: integration-event, publishes: [], events: [ActivityRecorded] }
+      - { on: NoteChanged, kind: integration-event, publishes: [], events: [ActivityRecorded] }
+  - id: Notifications
+    commands: []
+    queries: []
+    events: []
+    policies:
+      - { on: MemberInvited, kind: integration-event, publishes: [], events: [NotificationCreated] }
+      - { on: MemberRemoved, kind: integration-event, publishes: [], events: [NotificationCreated] }
+      - { on: MemberRoleChanged, kind: integration-event, publishes: [], events: [NotificationCreated] }
+
+links:
+  - { mechanism: owned-port, upstream: Accounts, downstream: Teams, contracts: [AccountDirectory] }
+  - { mechanism: owned-port, upstream: Teams, downstream: Notes, contracts: [SpaceMembership] }
+  - { mechanism: owned-port, upstream: Plans, downstream: Teams, contracts: [SeatLimits] }
+  - mechanism: integration-event
+    upstream: Teams
+    downstream: Plans
+    contracts: [MemberJoined, MemberLeft, MemberRemoved, MemberRoleChanged, SpaceCreated]
+  - mechanism: integration-event
+    upstream: Teams
+    downstream: Notifications
+    contracts: [MemberInvited, MemberRemoved, MemberRoleChanged]
+  - mechanism: integration-event
+    upstream: Teams
+    downstream: Search
+    contracts: [MemberJoined, MemberLeft, MemberRemoved, SpaceCreated]
+  - { mechanism: integration-event, upstream: Notes, downstream: Search, contracts: [NoteChanged] }
+  - mechanism: integration-event
+    upstream: Teams
+    downstream: Audit
+    contracts: [MemberInvited, MemberJoined, MemberLeft, MemberRemoved, MemberRoleChanged, SpaceCreated]
+  - { mechanism: integration-event, upstream: Notes, downstream: Audit, contracts: [NoteChanged] }
