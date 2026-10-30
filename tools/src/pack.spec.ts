@@ -2,7 +2,14 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-import { createApplication, loadArchitectureContract, loadFeaturePlan, packSlice, repositoryRoot } from './index';
+import {
+  createApplication,
+  describePack,
+  loadArchitectureContract,
+  loadFeaturePlan,
+  packSlice,
+  repositoryRoot,
+} from './index';
 
 /**
  * What one slice of a feature is given (RFC 0001, phase 3): its own part to write, the other
@@ -79,6 +86,17 @@ describe('clean-ddd pack', () => {
         from: 'reference',
       });
       expect(pack.gate).toBe('yarn architecture gate --base <the commit the slice started from>');
+      // Just created, its building blocks are the reference's.
+      expect(pack.drift).toBeUndefined();
+
+      // Created by an older package: an example may call what the project does not have.
+      writeFileSync(join(directory, 'src/Architecture/Application/DomainEvents.ts'), 'export {};\n');
+      const older = packSlice(plan, contract, directory, 'conventions/plans/write-a-note.yaml', root);
+      expect(older.drift).toEqual({
+        tree: 'src/Architecture',
+        files: ['src/Architecture/Application/DomainEvents.ts'],
+      });
+      expect(describePack(older)).toContain('call only what this project has');
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

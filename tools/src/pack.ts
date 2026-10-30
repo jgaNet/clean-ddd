@@ -64,6 +64,13 @@ export interface SlicePack {
   rules: Pick<Rule, 'id' | 'statement' | 'remediation'>[];
   /** What says the slice is done. */
   gate: string;
+  /**
+   * When an example comes from the reference: the building blocks it is written against and the
+   * project's are not the same files. A project's building blocks are a copy made at `create`; the
+   * package that shows the examples may carry newer ones (phase 3: an example published through
+   * a function the project did not have). An example then shows a shape, not what the project can call.
+   */
+  drift?: { tree: string; files: string[] };
 }
 
 const isFile = (path: string) => existsSync(path) && statSync(path).isFile();
@@ -97,14 +104,12 @@ function stormOf(plan: FeaturePlan, root: string): ExpectedStorm | undefined {
  * read from the project when the project has the same file, else from the reference the package
  * carries (or this checkout, when the pack is asked of the reference itself).
  */
-function examplesFor(kind: string, contract: ArchitectureContract, root: string, referenceRoot: string): PackExample[] {
-  let reference: ArchitectureContract;
-  try {
-    reference = loadArchitectureContract(referenceRoot, contract.language.id);
-  } catch {
-    referenceRoot = root;
-    reference = contract;
-  }
+function examplesFor(
+  kind: string,
+  reference: ArchitectureContract,
+  root: string,
+  referenceRoot: string,
+): PackExample[] {
   const concept = getConcept(reference, getChecklist(reference, kind)?.concept ?? '');
   if (!concept) return [];
   const prefix = reference.language.root === '.' ? '' : `${reference.language.root}/`;
@@ -120,6 +125,26 @@ function examplesFor(kind: string, contract: ArchitectureContract, root: string,
     }
   }
   return examples.filter((example, index) => examples.findIndex(each => each.path === example.path) === index);
+}
+
+/** The reference's contract, or the project's own when no reference can be read. */
+function loadReference(contract: ArchitectureContract, root: string, referenceRoot: string) {
+  try {
+    return { reference: loadArchitectureContract(referenceRoot, contract.language.id), referenceRoot };
+  } catch {
+    return { reference: contract, referenceRoot: root };
+  }
+}
+
+/** The project's building blocks that are not the reference's: missing, or not the same bytes. */
+function driftOf(contract: ArchitectureContract, root: string, reference: ArchitectureContract, referenceRoot: string) {
+  const files: string[] = [];
+  for (const file of filesUnder(referenceRoot, reference.architecture.path)) {
+    const inProject = join(contract.architecture.path, relative(reference.architecture.path, file));
+    const theirs = readFileSync(join(referenceRoot, file));
+    if (!isFile(join(root, inProject)) || !readFileSync(join(root, inProject)).equals(theirs)) files.push(inProject);
+  }
+  return files.length ? { tree: contract.architecture.path, files } : undefined;
 }
 
 /** Where the examples are read from when the project has none: this checkout, or the reference the package carries. */
@@ -139,6 +164,7 @@ export function packSlice(
   reference: string = defaultReference(root),
 ): SlicePack {
   const explained = explainPlan(plan, contract);
+  const { reference: referenceContract, referenceRoot } = loadReference(contract, root, reference);
   const own = `${contract.contextsTree.path}/${plan.context}/`;
   const storm = stormOf(plan, root);
   const yoursInStorm = storm?.contexts.find(context => context.id === plan.context);
@@ -161,7 +187,7 @@ export function packSlice(
       rules: change.rules,
       ...(change.route && { route: change.route }),
       ...(change.verb && { verb: change.verb }),
-      examples: examplesFor(change.kind, contract, root, reference),
+      examples: examplesFor(change.kind, referenceContract, root, referenceRoot),
     });
   }
   for (const other of storm?.contexts.filter(context => context.id !== plan.context) ?? []) {
@@ -224,6 +250,9 @@ export function packSlice(
     ].filter((path, index, all) => all.indexOf(path) === index),
     rules: explained.rules,
     gate: `${tool} gate --base <the commit the slice started from>`,
+    ...(yours.some(change => change.examples.some(example => example.from === 'reference')) && {
+      drift: driftOf(contract, root, referenceContract, referenceRoot),
+    }),
   };
 }
 
@@ -244,6 +273,13 @@ export function describePack(pack: SlicePack): string {
       lines.push(
         `    Read for its shape: ${example.path}${example.from === 'reference' ? ' (from the reference)' : ''}`,
       );
+  }
+  if (pack.drift) {
+    lines.push(
+      '',
+      `The examples from the reference are written against its building blocks, and ${pack.drift.files.length} of this project's (${pack.drift.tree}) are not the same: ${pack.drift.files.join(', ')}.`,
+      'Read an example for its shape; call only what this project has. What it lacks is an architecture task, not something to write in a slice — say so in your report.',
+    );
   }
   if (pack.contracts.length) {
     lines.push('', 'The contracts between the slices (frozen):');
