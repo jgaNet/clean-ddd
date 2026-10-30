@@ -1,0 +1,823 @@
+{
+  "features": [
+    "accounts-and-notes",
+    "pin-a-note",
+    "tag-a-note",
+    "share-a-note",
+    "notify-on-archive",
+    "plan-and-quota",
+    "remind-a-note"
+  ],
+  "backlog": {
+    "A": [
+      {
+        "run": "pilot",
+        "features": [
+          {
+            "feature": "accounts-and-notes",
+            "minutes": 11.204033333333333,
+            "usd": 3.4417842999999997,
+            "attempts": 1
+          },
+          {
+            "feature": "pin-a-note",
+            "minutes": 2.99585,
+            "usd": 0.5627103999999998,
+            "attempts": 1
+          },
+          {
+            "feature": "tag-a-note",
+            "minutes": 4.516916666666666,
+            "usd": 1.0345943999999996,
+            "attempts": 1
+          },
+          {
+            "feature": "share-a-note",
+            "minutes": 5.349333333333333,
+            "usd": 1.4972164000000001,
+            "attempts": 1
+          },
+          {
+            "feature": "notify-on-archive",
+            "minutes": 5.7866333333333335,
+            "usd": 1.3610786,
+            "attempts": 1
+          },
+          {
+            "feature": "plan-and-quota",
+            "minutes": 5.8924666666666665,
+            "usd": 1.2475919999999983,
+            "attempts": 1
+          },
+          {
+            "feature": "remind-a-note",
+            "minutes": 9.8472,
+            "usd": 2.703914000000001,
+            "attempts": 1
+          }
+        ],
+        "minutes": 45.59243333333333,
+        "usd": 11.848890099999998,
+        "checks": "pass",
+        "accepted": 7,
+        "failing": [],
+        "written": {
+          "project": "/runs/phase4/a/app",
+          "base": "53ed9f19ff4c5725bdbc2b4572b32f31fe11adaa",
+          "ref": "main",
+          "added": {
+            "source": 3335,
+            "tests": 2817
+          },
+          "removed": {
+            "source": 4,
+            "tests": 0
+          },
+          "filesTouched": 153,
+          "sourceFiles": 167,
+          "testFiles": 52,
+          "testCases": 202,
+          "largestSource": {
+            "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+            "lines": 352
+          }
+        }
+      },
+      {
+        "run": "run 2",
+        "features": [
+          {
+            "feature": "accounts-and-notes",
+            "minutes": 11.17585,
+            "usd": 3.9940644000000005,
+            "attempts": 1
+          },
+          {
+            "feature": "pin-a-note",
+            "minutes": 2.1461,
+            "usd": 0.6201185999999992,
+            "attempts": 1
+          },
+          {
+            "feature": "tag-a-note",
+            "minutes": 3.3356166666666667,
+            "usd": 0.9270213999999992,
+            "attempts": 1
+          },
+          {
+            "feature": "share-a-note",
+            "minutes": 4.7306,
+            "usd": 1.3073360000000003,
+            "attempts": 1
+          },
+          {
+            "feature": "notify-on-archive",
+            "minutes": 5.476333333333333,
+            "usd": 1.502390000000002,
+            "attempts": 1
+          },
+          {
+            "feature": "plan-and-quota",
+            "minutes": 5.426766666666667,
+            "usd": 1.3617744000000016,
+            "attempts": 1
+          },
+          {
+            "feature": "remind-a-note",
+            "minutes": 7.831466666666667,
+            "usd": 2.396300199999999,
+            "attempts": 1
+          }
+        ],
+        "minutes": 40.12273333333333,
+        "usd": 12.109005000000002,
+        "checks": "pass",
+        "accepted": 7,
+        "failing": [],
+        "written": {
+          "project": "/runs/phase4/r2/a/app",
+          "base": "a9daf9a8416dae508780921c9986bdece32e2495",
+          "ref": "main",
+          "added": {
+            "source": 3766,
+            "tests": 2077
+          },
+          "removed": {
+            "source": 5,
+            "tests": 0
+          },
+          "filesTouched": 146,
+          "sourceFiles": 167,
+          "testFiles": 45,
+          "testCases": 179,
+          "largestSource": {
+            "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+            "lines": 442
+          }
+        }
+      },
+      {
+        "run": "run 3",
+        "features": [
+          {
+            "feature": "accounts-and-notes",
+            "minutes": 9.008083333333333,
+            "usd": 3.2888695999999995,
+            "attempts": 1
+          },
+          {
+            "feature": "pin-a-note",
+            "minutes": 2.3087999999999997,
+            "usd": 0.6244786000000002,
+            "attempts": 1
+          },
+          {
+            "feature": "tag-a-note",
+            "minutes": 2.6841,
+            "usd": 0.5739993999999999,
+            "attempts": 1
+          },
+          {
+            "feature": "share-a-note",
+            "minutes": 4.746083333333334,
+            "usd": 1.4802572000000005,
+            "attempts": 1
+          },
+          {
+            "feature": "notify-on-archive",
+            "minutes": 4.471433333333334,
+            "usd": 1.197526400000001,
+            "attempts": 1
+          },
+          {
+            "feature": "plan-and-quota",
+            "minutes": 4.906316666666666,
+            "usd": 1.2579198000000016,
+            "attempts": 1
+          },
+          {
+            "feature": "remind-a-note",
+            "minutes": 7.180766666666666,
+            "usd": 1.9664595999999985,
+            "attempts": 1
+          }
+        ],
+        "minutes": 35.30558333333333,
+        "usd": 10.389510600000001,
+        "checks": "pass",
+        "accepted": 7,
+        "failing": [],
+        "written": {
+          "project": "/runs/phase4/r3/a/app",
+          "base": "e7b119b3ce369b49c78b9b5ecdabf73ec0db9dd1",
+          "ref": "main",
+          "added": {
+            "source": 3723,
+            "tests": 2249
+          },
+          "removed": {
+            "source": 5,
+            "tests": 0
+          },
+          "filesTouched": 147,
+          "sourceFiles": 167,
+          "testFiles": 46,
+          "testCases": 198,
+          "largestSource": {
+            "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+            "lines": 414
+          }
+        }
+      }
+    ],
+    "P": [
+      {
+        "run": "run 1",
+        "features": [
+          {
+            "feature": "accounts-and-notes",
+            "minutes": 3.2270166666666666,
+            "usd": 0.7220578999999999,
+            "attempts": 1
+          },
+          {
+            "feature": "pin-a-note",
+            "minutes": 1.30455,
+            "usd": 0.22493920000000012,
+            "attempts": 1
+          },
+          {
+            "feature": "tag-a-note",
+            "minutes": 1.6380833333333333,
+            "usd": 0.293052,
+            "attempts": 1
+          },
+          {
+            "feature": "share-a-note",
+            "minutes": 1.9364166666666667,
+            "usd": 0.3262726,
+            "attempts": 1
+          },
+          {
+            "feature": "notify-on-archive",
+            "minutes": 2.2372,
+            "usd": 0.23609360000000001,
+            "attempts": 1
+          },
+          {
+            "feature": "plan-and-quota",
+            "minutes": 1.8438333333333334,
+            "usd": 0.23382459999999994,
+            "attempts": 1
+          },
+          {
+            "feature": "remind-a-note",
+            "minutes": 4.0638000000000005,
+            "usd": 0.45280660000000017,
+            "attempts": 1
+          }
+        ],
+        "minutes": 16.2509,
+        "usd": 2.4890465,
+        "checks": "pass",
+        "accepted": 7,
+        "failing": [],
+        "written": {
+          "project": "/runs/control/p1/app",
+          "base": "21655db89edafe712944238f8ae55b9f03b08f10",
+          "ref": "main",
+          "added": {
+            "source": 893,
+            "tests": 1071
+          },
+          "removed": {
+            "source": 5,
+            "tests": 0
+          },
+          "filesTouched": 25,
+          "sourceFiles": 17,
+          "testFiles": 10,
+          "testCases": 76,
+          "largestSource": {
+            "path": "src/notes/notes.ts",
+            "lines": 311
+          }
+        }
+      },
+      {
+        "run": "run 2",
+        "features": [
+          {
+            "feature": "accounts-and-notes",
+            "minutes": 3.6765,
+            "usd": 0.8947999000000001,
+            "attempts": 1
+          },
+          {
+            "feature": "pin-a-note",
+            "minutes": 1.5552333333333332,
+            "usd": 0.3020724,
+            "attempts": 1
+          },
+          {
+            "feature": "tag-a-note",
+            "minutes": 1.6960166666666667,
+            "usd": 0.31319859999999977,
+            "attempts": 1
+          },
+          {
+            "feature": "share-a-note",
+            "minutes": 2.275116666666667,
+            "usd": 0.4354290000000003,
+            "attempts": 1
+          },
+          {
+            "feature": "notify-on-archive",
+            "minutes": 1.8760999999999999,
+            "usd": 0.3370280000000001,
+            "attempts": 1
+          },
+          {
+            "feature": "plan-and-quota",
+            "minutes": 2.5455166666666664,
+            "usd": 0.3535391999999997,
+            "attempts": 1
+          },
+          {
+            "feature": "remind-a-note",
+            "minutes": 4.97955,
+            "usd": 0.7219442000000003,
+            "attempts": 1
+          }
+        ],
+        "minutes": 18.604033333333334,
+        "usd": 3.3580113000000003,
+        "checks": "pass",
+        "accepted": 7,
+        "failing": [],
+        "written": {
+          "project": "/runs/control/p2/app",
+          "base": "b69f6fb94b73cc94f98a33ec5ac21e2d54b21c8e",
+          "ref": "main",
+          "added": {
+            "source": 888,
+            "tests": 1109
+          },
+          "removed": {
+            "source": 5,
+            "tests": 0
+          },
+          "filesTouched": 16,
+          "sourceFiles": 12,
+          "testFiles": 6,
+          "testCases": 94,
+          "largestSource": {
+            "path": "src/notes/notes.ts",
+            "lines": 308
+          }
+        }
+      },
+      {
+        "run": "run 3",
+        "features": [
+          {
+            "feature": "accounts-and-notes",
+            "minutes": 2.7144333333333335,
+            "usd": 0.6402418999999999,
+            "attempts": 1
+          },
+          {
+            "feature": "pin-a-note",
+            "minutes": 1.1965666666666666,
+            "usd": 0.17379900000000004,
+            "attempts": 1
+          },
+          {
+            "feature": "tag-a-note",
+            "minutes": 1.6033,
+            "usd": 0.2534867999999999,
+            "attempts": 1
+          },
+          {
+            "feature": "share-a-note",
+            "minutes": 1.9997333333333334,
+            "usd": 0.3289118,
+            "attempts": 1
+          },
+          {
+            "feature": "notify-on-archive",
+            "minutes": 1.7137333333333333,
+            "usd": 0.21555839999999993,
+            "attempts": 1
+          },
+          {
+            "feature": "plan-and-quota",
+            "minutes": 1.9534333333333334,
+            "usd": 0.24912340000000022,
+            "attempts": 1
+          },
+          {
+            "feature": "remind-a-note",
+            "minutes": 2.8687,
+            "usd": 0.4359287999999999,
+            "attempts": 1
+          }
+        ],
+        "minutes": 14.049900000000001,
+        "usd": 2.2970501,
+        "checks": "pass",
+        "accepted": 7,
+        "failing": [],
+        "written": {
+          "project": "/runs/control/p3/app",
+          "base": "ab8dd46de114a74ad3370d943cd0f39dc8289ae1",
+          "ref": "main",
+          "added": {
+            "source": 680,
+            "tests": 967
+          },
+          "removed": {
+            "source": 8,
+            "tests": 0
+          },
+          "filesTouched": 18,
+          "sourceFiles": 9,
+          "testFiles": 11,
+          "testCases": 72,
+          "largestSource": {
+            "path": "src/notes.ts",
+            "lines": 248
+          }
+        }
+      }
+    ],
+    "D": [
+      {
+        "run": "run 1",
+        "features": [
+          {
+            "feature": "accounts-and-notes",
+            "minutes": 8.97835,
+            "usd": 2.8655514999999996,
+            "attempts": 1
+          },
+          {
+            "feature": "pin-a-note",
+            "minutes": 1.8056833333333333,
+            "usd": 0.6468444,
+            "attempts": 1
+          },
+          {
+            "feature": "tag-a-note",
+            "minutes": 2.5363333333333333,
+            "usd": 0.7570068000000001,
+            "attempts": 1
+          },
+          {
+            "feature": "share-a-note",
+            "minutes": 4.2317,
+            "usd": 1.3605793999999998,
+            "attempts": 1
+          },
+          {
+            "feature": "notify-on-archive",
+            "minutes": 3.9195333333333333,
+            "usd": 1.1518646000000006,
+            "attempts": 1
+          },
+          {
+            "feature": "plan-and-quota",
+            "minutes": 3.9275666666666664,
+            "usd": 1.0500756000000013,
+            "attempts": 1
+          },
+          {
+            "feature": "remind-a-note",
+            "minutes": 7.3407333333333336,
+            "usd": 2.033524400000002,
+            "attempts": 1
+          }
+        ],
+        "minutes": 32.739900000000006,
+        "usd": 9.865446700000003,
+        "checks": "pass",
+        "accepted": 7,
+        "failing": [],
+        "drift": {
+          "contexts": [
+            "Accounts",
+            "Notes",
+            "Notifications",
+            "Plans",
+            "Tracker"
+          ],
+          "refusals": 0,
+          "files": 0,
+          "sample": []
+        },
+        "written": {
+          "project": "/runs/control/d1/app",
+          "base": "45efad18425e3fac787c522c55da3f82f4e3b41e",
+          "ref": "main",
+          "added": {
+            "source": 3544,
+            "tests": 1805
+          },
+          "removed": {
+            "source": 7,
+            "tests": 0
+          },
+          "filesTouched": 103,
+          "sourceFiles": 139,
+          "testFiles": 30,
+          "testCases": 163,
+          "largestSource": {
+            "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+            "lines": 371
+          }
+        }
+      },
+      {
+        "run": "run 2",
+        "features": [
+          {
+            "feature": "accounts-and-notes",
+            "minutes": 10.010233333333332,
+            "usd": 3.0510241000000002,
+            "attempts": 1
+          },
+          {
+            "feature": "pin-a-note",
+            "minutes": 1.9546000000000001,
+            "usd": 0.48515980000000036,
+            "attempts": 1
+          },
+          {
+            "feature": "tag-a-note",
+            "minutes": 2.88585,
+            "usd": 0.6674748000000004,
+            "attempts": 1
+          },
+          {
+            "feature": "share-a-note",
+            "minutes": 3.5655,
+            "usd": 0.9434193999999989,
+            "attempts": 1
+          },
+          {
+            "feature": "notify-on-archive",
+            "minutes": 3.6813333333333333,
+            "usd": 0.978044399999999,
+            "attempts": 1
+          },
+          {
+            "feature": "plan-and-quota",
+            "minutes": 4.130683333333334,
+            "usd": 0.9990316000000004,
+            "attempts": 1
+          },
+          {
+            "feature": "remind-a-note",
+            "minutes": 6.553800000000001,
+            "usd": 1.579167599999999,
+            "attempts": 1
+          }
+        ],
+        "minutes": 32.782,
+        "usd": 8.703321699999998,
+        "checks": "pass",
+        "accepted": 7,
+        "failing": [],
+        "drift": {
+          "contexts": [
+            "Notes",
+            "Notifications",
+            "Plans",
+            "Security",
+            "Tracker"
+          ],
+          "refusals": 20,
+          "files": 10,
+          "sample": [
+            {
+              "file": "src/Contexts/Notes/Domain/Note/NoteSharing.spec.ts",
+              "line": 5,
+              "message": "'./Ports/IAccountDirectory' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Notes/Domain/Note/NoteSharing.ts",
+              "line": 4,
+              "message": "'./Ports/IAccountDirectory' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Notes/Domain/Note/NoteWriting.spec.ts",
+              "line": 2,
+              "message": "'@Architecture/Infrastructure/DataSources/InMemoryDataSource' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Notes/Domain/Note/NoteWriting.spec.ts",
+              "line": 4,
+              "message": "'@Contexts/Notes/Infrastructure/InMemoryNoteRepository' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Notes/Domain/Note/NoteWriting.spec.ts",
+              "line": 7,
+              "message": "'./Ports/INoteLimits' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Notes/Domain/Note/NoteWriting.ts",
+              "line": 5,
+              "message": "'./Ports/INoteLimits' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Notes/Domain/Note/NoteWriting.ts",
+              "line": 6,
+              "message": "'./Ports/INoteRepository' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Notifications/Domain/Notification/NoteArchivedNotices.spec.ts",
+              "line": 1,
+              "message": "'@Architecture/Infrastructure/DataSources/InMemoryDataSource' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Notifications/Domain/Notification/NoteArchivedNotices.spec.ts",
+              "line": 3,
+              "message": "'@Contexts/Notifications/Infrastructure/InMemoryNotificationRepository' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Notifications/Domain/Notification/NoteArchivedNotices.ts",
+              "line": 4,
+              "message": "'./Ports/INotificationRepository' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Notifications/Domain/Notification/Notification.spec.ts",
+              "line": 1,
+              "message": "'@Architecture/Infrastructure/DataSources/InMemoryDataSource' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Notifications/Domain/Notification/Notification.spec.ts",
+              "line": 3,
+              "message": "'@Contexts/Notifications/Infrastructure/InMemoryNotificationQueries' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Notifications/Domain/Notification/Notification.spec.ts",
+              "line": 4,
+              "message": "'@Contexts/Notifications/Infrastructure/InMemoryNotificationRepository' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Security/Domain/Account/AccountAuthentication.ts",
+              "line": 6,
+              "message": "'./Ports/IAccountRepository' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Security/Domain/Account/AccountAuthentication.ts",
+              "line": 7,
+              "message": "'./Ports/IPasswordHasher' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Security/Domain/Account/AccountRegistration.spec.ts",
+              "line": 2,
+              "message": "'@Architecture/Infrastructure/DataSources/InMemoryDataSource' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Security/Domain/Account/AccountRegistration.spec.ts",
+              "line": 8,
+              "message": "'@Contexts/Security/Infrastructure/InMemoryAccountRepository' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Security/Domain/Account/AccountRegistration.spec.ts",
+              "line": 9,
+              "message": "'@Contexts/Security/Infrastructure/ScryptPasswordHasher' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Security/Domain/Account/AccountRegistration.ts",
+              "line": 7,
+              "message": "'./Ports/IAccountRepository' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Security/Domain/Account/AccountRegistration.ts",
+              "line": 8,
+              "message": "'./Ports/IPasswordHasher' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            }
+          ]
+        },
+        "written": {
+          "project": "/runs/control/d2/app",
+          "base": "65a3176d001778e77808d52e97bb9c63dd7942d6",
+          "ref": "main",
+          "added": {
+            "source": 3694,
+            "tests": 1744
+          },
+          "removed": {
+            "source": 7,
+            "tests": 0
+          },
+          "filesTouched": 135,
+          "sourceFiles": 169,
+          "testFiles": 32,
+          "testCases": 160,
+          "largestSource": {
+            "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+            "lines": 409
+          }
+        }
+      }
+    ],
+    "Cp": [
+      {
+        "run": "pilot",
+        "minutes": 52,
+        "usd": 17.54,
+        "accepted": 7,
+        "source": "docs/evaluations/2026-10-30-flow-phase-4-pilot.md"
+      },
+      {
+        "run": "run 2",
+        "minutes": 42.6,
+        "usd": 16.39,
+        "accepted": 7,
+        "source": "docs/evaluations/2026-10-30-flow-phase-4-campaign.md"
+      },
+      {
+        "run": "run 3",
+        "minutes": 43.6,
+        "usd": 16.41,
+        "accepted": 7,
+        "source": "docs/evaluations/2026-10-30-flow-phase-4-campaign.md"
+      }
+    ]
+  },
+  "feature8": {
+    "A": {
+      "minutes": 23.8,
+      "usd": 8.67,
+      "accepted": true,
+      "regressions": 0,
+      "readFailures": 1,
+      "source": "docs/evaluations/2026-10-30-flow-phase-4-campaign.md"
+    },
+    "Cp": {
+      "minutes": 18.9,
+      "usd": 15.07,
+      "accepted": true,
+      "regressions": 0,
+      "readFailures": 0,
+      "source": "docs/evaluations/2026-10-30-flow-phase-4-campaign.md"
+    },
+    "P": {
+      "minutes": 8.617316666666667,
+      "usd": 1.7125588,
+      "accepted": true,
+      "regressions": 0,
+      "written": {
+        "project": "/runs/control/p1/app",
+        "base": "950e581ed8cc01f4371edf5c2597487d9861486c",
+        "ref": "main",
+        "added": {
+          "source": 696,
+          "tests": 679
+        },
+        "removed": {
+          "source": 24,
+          "tests": 1
+        },
+        "filesTouched": 11,
+        "sourceFiles": 19,
+        "testFiles": 12,
+        "testCases": 117,
+        "largestSource": {
+          "path": "src/notes/notes.ts",
+          "lines": 448
+        }
+      }
+    },
+    "D": {
+      "minutes": 19.3264,
+      "usd": 6.857805900000001,
+      "accepted": false,
+      "regressions": 0,
+      "written": {
+        "project": "/runs/control/d1/app",
+        "base": "27e13c8518050e8321cb28efeae0d6e08ead4475",
+        "ref": "main",
+        "added": {
+          "source": 3088,
+          "tests": 906
+        },
+        "removed": {
+          "source": 89,
+          "tests": 11
+        },
+        "filesTouched": 83,
+        "sourceFiles": 192,
+        "testFiles": 32,
+        "testCases": 209,
+        "largestSource": {
+          "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+          "lines": 481
+        }
+      }
+    }
+  }
+}

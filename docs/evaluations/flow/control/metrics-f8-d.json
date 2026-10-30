@@ -1,0 +1,21 @@
+{
+  "project": "/runs/control/d1/app",
+  "base": "27e13c8518050e8321cb28efeae0d6e08ead4475",
+  "ref": "main",
+  "added": {
+    "source": 3088,
+    "tests": 906
+  },
+  "removed": {
+    "source": 89,
+    "tests": 11
+  },
+  "filesTouched": 83,
+  "sourceFiles": 192,
+  "testFiles": 32,
+  "testCases": 209,
+  "largestSource": {
+    "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+    "lines": 481
+  }
+}

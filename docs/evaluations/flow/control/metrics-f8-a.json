@@ -1,0 +1,21 @@
+{
+  "project": "/runs/phase4/f8/a/app",
+  "base": "bbe2c78204357f5d2a1e87c89a06f6c55871c91d",
+  "ref": "main",
+  "added": {
+    "source": 3747,
+    "tests": 903
+  },
+  "removed": {
+    "source": 100,
+    "tests": 53
+  },
+  "filesTouched": 159,
+  "sourceFiles": 270,
+  "testFiles": 57,
+  "testCases": 233,
+  "largestSource": {
+    "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+    "lines": 412
+  }
+}
