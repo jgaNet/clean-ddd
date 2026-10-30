@@ -1,0 +1,21 @@
+{
+  "project": "/runs/control/p1/app",
+  "base": "950e581ed8cc01f4371edf5c2597487d9861486c",
+  "ref": "main",
+  "added": {
+    "source": 696,
+    "tests": 679
+  },
+  "removed": {
+    "source": 24,
+    "tests": 1
+  },
+  "filesTouched": 11,
+  "sourceFiles": 19,
+  "testFiles": 12,
+  "testCases": 117,
+  "largestSource": {
+    "path": "src/notes/notes.ts",
+    "lines": 448
+  }
+}

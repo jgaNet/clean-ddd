@@ -1,0 +1,2 @@
+{"run":"c-d1","event":"started","at":"2026-10-30T13:43:21.448Z","arm":"D","project":"/runs/control/d1/app","baseCommit":"be7fd8b53fd41164c331c655d962ad810148303e","runner":"claude-cli","model":"main","parallelism":1,"budgetUsd":40}
+{"run":"c-d1","event":"feature","at":"2026-10-30T13:43:21.759Z","feature":"accounts-and-notes","state":"RUNNING","again":false}

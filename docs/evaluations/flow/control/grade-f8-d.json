@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "control": "prose",
+  "drift": {
+    "contexts": [
+      "Accounts",
+      "Audit",
+      "Notes",
+      "Notifications",
+      "Plans",
+      "Spaces",
+      "Tracker"
+    ],
+    "refusals": 0,
+    "files": 0,
+    "sample": []
+  },
+  "project": "/runs/control/d1/app",
+  "ref": "main",
+  "commit": "7a498a2705059c7853723a4c8127395339330686",
+  "base": "27e13c8518050e8321cb28efeae0d6e08ead4475",
+  "M1": {
+    "verdict": "pass",
+    "failing": []
+  },
+  "features": [
+    {
+      "feature": "team-spaces",
+      "M2": {
+        "pass": false,
+        "tests": "1 failed, 7 passed, 8 total",
+        "failed": [
+          "team spaces › records a space’s activity for its admins"
+        ]
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": false
+    }
+  ],
+  "gradedInMs": 14351
+}
