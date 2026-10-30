@@ -1,0 +1,48 @@
+schemaVersion: 1
+
+feature: remind-a-note
+language: typescript
+context: Notifications
+
+intent: >-
+  When Notes publishes that a reminder was scheduled, Notifications plans a notification for the
+  owner; when it publishes that one was cancelled, the planned notification is cancelled unless
+  its moment had come by then. The list of notifications shows a planned one once its moment has
+  passed — the current time a parameter with a default — as { id, kind: 'reminder', noteId,
+  noteTitle, remindAt }, among the archivings, most recent first by their own time.
+
+changes:
+  - kind: integration-event
+    name: ReminderScheduledIntegrationEvent
+    aggregate: Note
+    new: false
+  - kind: integration-event
+    name: ReminderCancelledIntegrationEvent
+    aggregate: Note
+    new: false
+  - kind: aggregate
+    name: Notification
+    new: false
+  - kind: event-handler
+    name: ReminderScheduled
+    new: true
+  - kind: event-handler
+    name: ReminderCancelled
+    new: true
+
+invariants:
+  - Only the owner is told of their reminder.
+  - A reminder cancelled before its moment is never shown; one whose moment had come when it was cancelled stays.
+  - The list orders an archiving by when it happened and a reminder by its moment, most recent first.
+
+events:
+  - NotificationScheduledEvent
+  - NotificationCancelledEvent
+
+crossContext:
+  context: Notes
+  strategy: integration-event
+  why: >-
+    Notes says what happens to a reminder; Notifications decides what the owner is told, and when.
+
+architectureChanges: false

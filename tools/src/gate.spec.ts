@@ -1,5 +1,5 @@
 import { execFileSync } from 'child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -111,6 +111,26 @@ describe('the gate', () => {
       expect(report.steps.slice(1).every(step => step.status === 'skipped')).toBe(true);
     } finally {
       rmSync(join(directory, 'src/architecture/domain/added.py'));
+    }
+  });
+
+  it('holds an architecture task to the architecture mode: it may touch the architecture if it records why', async () => {
+    writeFileSync(
+      join(directory, 'src/architecture/domain/added.py'),
+      '"""A building block an architecture task adds."""\n',
+    );
+    try {
+      const unrecorded = await runGate({ root: directory, base, mode: 'architecture', exec: recorder().exec });
+      expect(unrecorded.steps[0]).toMatchObject({ name: 'mode architecture', status: 'fail' });
+      expect(unrecorded.steps[0].lines?.[0]).toMatch(/records no decision/);
+
+      mkdirSync(join(directory, 'docs/adr'), { recursive: true });
+      writeFileSync(join(directory, 'docs/adr/0099-a-building-block.md'), '# 99. A building block\n');
+      const recorded = await runGate({ root: directory, base, mode: 'architecture', exec: recorder().exec });
+      expect(recorded.steps[0]).toMatchObject({ name: 'mode architecture', status: 'pass' });
+    } finally {
+      rmSync(join(directory, 'src/architecture/domain/added.py'));
+      rmSync(join(directory, 'docs/adr/0099-a-building-block.md'), { force: true });
     }
   });
 

@@ -277,6 +277,24 @@ export function validateExpectedStorm(
 }
 
 /** The inventory the code must say once the storm is carried: the current one plus the delta. */
+/**
+ * Whether what the code has carries what a storm expects of one command or one policy: the same
+ * one, recording or publishing at least what the storm said. A later feature may have a command
+ * record one more fact (archiving a note that also cancels its reminder); what the code adds
+ * beyond the storm is not the storm's question.
+ */
+const carriesCommand = (actual: InventoryCommand, expected: InventoryCommand) =>
+  actual.name === expected.name &&
+  actual.actor === expected.actor &&
+  actual.route === expected.route &&
+  actual.aggregate === expected.aggregate &&
+  expected.events.every(event => actual.events.includes(event));
+const carriesPolicy = (actual: InventoryPolicy, expected: InventoryPolicy) =>
+  actual.on === expected.on &&
+  actual.kind === expected.kind &&
+  expected.publishes.every(name => actual.publishes.includes(name)) &&
+  expected.events.every(event => actual.events.includes(event));
+
 export function expectedInventory(current: Inventory, storm: ExpectedStorm): Inventory {
   const expected: Inventory = JSON.parse(JSON.stringify(current));
   expected.language = `expected by ${storm.source}`;
@@ -290,10 +308,14 @@ export function expectedInventory(current: Inventory, storm: ExpectedStorm): Inv
       ...list.filter(each => each.name !== item.name),
       item,
     ];
-    for (const command of delta.commands) context.commands = replace(context.commands, command);
+    for (const command of delta.commands) {
+      if (!context.commands.some(each => carriesCommand(each, command)))
+        context.commands = replace(context.commands, command);
+    }
     for (const query of delta.queries) context.queries = replace(context.queries, query);
     context.events = [...new Set([...context.events, ...delta.events])];
     for (const policy of delta.policies) {
+      if (context.policies.some(each => carriesPolicy(each, policy))) continue;
       context.policies = [
         ...context.policies.filter(each => !(each.on === policy.on && each.kind === policy.kind)),
         policy,
@@ -319,10 +341,7 @@ function carried(storm: ExpectedStorm, actual: Inventory): { present: string[]; 
   for (const delta of storm.contexts) {
     const context = actual.contexts.find(candidate => candidate.id === delta.id);
     for (const command of delta.commands) {
-      note(
-        !!context?.commands.some(each => JSON.stringify(each) === JSON.stringify(command)),
-        `${delta.id}: the command ${command.name}`,
-      );
+      note(!!context?.commands.some(each => carriesCommand(each, command)), `${delta.id}: the command ${command.name}`);
     }
     for (const query of delta.queries)
       note(
@@ -331,10 +350,7 @@ function carried(storm: ExpectedStorm, actual: Inventory): { present: string[]; 
       );
     for (const event of delta.events) note(!!context?.events.includes(event), `${delta.id}: the event ${event}`);
     for (const policy of delta.policies) {
-      note(
-        !!context?.policies.some(each => JSON.stringify(each) === JSON.stringify(policy)),
-        `${delta.id}: the policy on ${policy.on}`,
-      );
+      note(!!context?.policies.some(each => carriesPolicy(each, policy)), `${delta.id}: the policy on ${policy.on}`);
     }
   }
   for (const link of storm.links) {

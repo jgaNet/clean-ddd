@@ -21,7 +21,8 @@
  *   slices:
  *     - { id: notes, context: Notes, plan: conventions/plans/notify-on-archive.notes.yaml }
  *     - { id: notifications, context: Notifications, plan: conventions/plans/notify-on-archive.notifications.yaml }
- *   agent: { runner: claude-cli, timeoutMinutes: 60 }   # and `model: <id>` to name one; the runner's default otherwise
+ *   agent: { runner: claude-cli, timeoutMinutes: 60 }   # and `model: <id>` to name one; the runner's default otherwise;
+ *                                                       # `pack: false` tells the agents to read the guide instead of the pack
  *   parallelism: 2
  *   retry: { perSlice: 1 }
  *   ports: { base: 10100 }
@@ -262,7 +263,9 @@ if (!contractBefore) {
   checks.push({ name: 'acceptance exists', ok: acceptanceExists });
   checks.push({ name: 'acceptance red at the base', ok: acceptanceExists && red.code !== 0 });
   // The slice's own view of the feature, when the project's tooling has it (RFC gap G7).
-  packs = (await sh(`${tool} pack --plan ${plan.slices[0].plan} --json`, project, 120_000)).code === 0;
+  packs =
+    plan.agent?.pack !== false &&
+    (await sh(`${tool} pack --plan ${plan.slices[0].plan} --json`, project, 120_000)).code === 0;
   event('contract', { checks, packs });
   if (checks.some(check => !check.ok)) {
     event('finished', { state: 'BLOCKED', reason: 'the contract does not hold' });
@@ -275,7 +278,9 @@ if (!contractBefore) {
 const brief = (slice, port) => {
   const others = plan.slices.filter(other => other.id !== slice.id).map(other => other.context);
   return [
-    `You are one of ${plan.slices.length} agents writing one feature at the same time, each in its own bounded context and its own git worktree. Yours is the ${slice.context} context; ${others.join(' and ')} ${others.length > 1 ? 'are' : 'is'} being written by the other agent${others.length > 1 ? 's' : ''}, against the same contract. You will not see their work; it is integrated after yours.`,
+    others.length
+      ? `You are one of ${plan.slices.length} agents writing one feature at the same time, each in its own bounded context and its own git worktree. Yours is the ${slice.context} context; ${others.join(' and ')} ${others.length > 1 ? 'are' : 'is'} being written by the other agent${others.length > 1 ? 's' : ''}, against the same contract. You will not see their work; it is integrated after yours.`
+      : `You are writing one feature, in the ${slice.context} context, in your own git worktree, against a contract decided before you started. It is integrated after you finish.`,
     'Follow `.claude/agents/feature-author.md` of this project, which says what you may change and when you are done. Read `CLAUDE.md` first. Do not ask questions: decide, and say in your final report what was unclear.',
     '',
     ...(packs
@@ -285,10 +290,17 @@ const brief = (slice, port) => {
         ]
       : []),
     'The contract, decided and frozen before you started. Do not change any of it. If it is wrong or cannot be honoured, stop, and start your final report with the word BLOCKED and what you found.',
+    ...(others.length
+      ? []
+      : [
+          `You are the only slice, so the feature is whole in your worktree: once the code carries the storm, mark the contract carried — \`done: true\` in the storm, \`new: false\` on the plan's parts that now exist (ADR 29). Those two flags are the only change you may make outside your context's folder.`,
+        ]),
     `- The storm: \`${plan.storm}\` (\`yarn architecture storm --expect ${plan.storm}\` says what the code still owes it).`,
     `- Your plan: \`${slice.plan}\`.`,
     '- The integration contracts in `src/SharedKernel/Application/IntegrationEvents/`: the messages between the contexts, already written.',
-    `- The acceptance test: \`${plan.acceptance.file}\`. It speaks HTTP to the whole application and passes only once every slice is integrated: do not edit it and do not expect it to pass in your worktree. Your own tests must not depend on the other slices.`,
+    others.length
+      ? `- The acceptance test: \`${plan.acceptance.file}\`. It speaks HTTP to the whole application and passes only once every slice is integrated: do not edit it and do not expect it to pass in your worktree. Your own tests must not depend on the other slices.`
+      : `- The acceptance test: \`${plan.acceptance.file}\`. It speaks HTTP to the whole application: do not edit it; it should pass once you are done (\`${plan.acceptance.command}\`).`,
     '',
     `Change files under \`src/Contexts/${slice.context}/\` and nowhere else: not the composition root, not package.json, not the shared kernel, not the conventions. The composition root already registers your context's module and routes. If your slice cannot be done inside that folder, stop and report BLOCKED.`,
     `Commit your work on the current branch; do not push. The commit you start from is ${baseCommit}: pass it to the gate as --base. If you start a server, use port ${port}.`,
@@ -316,7 +328,9 @@ function scope(slice, path) {
     event('committed-leftovers', { slice: slice.id });
   }
   const changed = git(path, 'diff', '--name-only', baseCommit).split('\n').filter(Boolean);
-  const outside = changed.filter(file => !file.startsWith(`src/Contexts/${slice.context}/`));
+  // A feature of one slice is whole in its worktree: its contract's flags are its to set (ADR 29).
+  const flags = plan.slices.length === 1 ? [plan.storm, slice.plan] : [];
+  const outside = changed.filter(file => !file.startsWith(`src/Contexts/${slice.context}/`) && !flags.includes(file));
   return { changed, outside };
 }
 

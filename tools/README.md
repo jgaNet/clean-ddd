@@ -58,7 +58,8 @@ clean-ddd inventory [<language>]  what the tree says the application is; with a 
 clean-ddd plan validate|explain <file>      a feature plan, before the code
 clean-ddd mode feature|architecture [--base <ref>|--base working]   which rules this change is held to
 clean-ddd gate [--base <ref>]      is this change done: the feature mode, the conventions check and the language's
-                                  `checks`, one verdict; --json for a script, exit 1 when it fails
+                                  `checks`, one verdict; --json for a script, exit 1 when it fails; --mode architecture
+                                  holds an architecture task instead (it may touch the architecture, and records an ADR)
 clean-ddd pack --plan <file>      one slice of a feature: what is its own to write, what another slice writes, the frozen
                                   contracts, the storm's part, the files that show each shape (from the bundled reference
                                   when the project has none yet, with the project's building blocks that differ from

@@ -1,0 +1,12 @@
+# The backlog as a driver reads it: each feature in order, its request, its storm, its acceptance
+# test, the contexts it touches, and the features it needs integrated first.
+schemaVersion: 1
+features:
+  - { id: accounts-and-notes, n: 1, contexts: [Accounts, Notes], needs: [] }
+  - { id: pin-a-note, n: 2, contexts: [Notes], needs: [accounts-and-notes] }
+  - { id: tag-a-note, n: 3, contexts: [Notes], needs: [accounts-and-notes] }
+  - { id: share-a-note, n: 4, contexts: [Notes], needs: [accounts-and-notes] }
+  - { id: notify-on-archive, n: 5, contexts: [Notes, Notifications], needs: [share-a-note] }
+  - { id: plan-and-quota, n: 6, contexts: [Plans, Notes], needs: [accounts-and-notes] }
+  - { id: remind-a-note, n: 7, contexts: [Notes, Notifications], needs: [notify-on-archive] }
+# For feature <n>-<id>: backlog/<n>-<id>.md, storms/<id>.yaml, acceptance/<n>-<id>.acceptance.ts.

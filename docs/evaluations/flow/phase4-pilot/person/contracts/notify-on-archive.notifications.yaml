@@ -1,0 +1,45 @@
+schemaVersion: 1
+
+feature: notify-on-archive
+language: typescript
+context: Notifications
+
+intent: >-
+  Each account a note was shared with when its owner archived it receives a notification, and
+  lists its own, most recent first: `{ id, kind: 'note-archived', noteId, noteTitle, archivedAt }`.
+  The fact arrives as NoteArchivedIntegrationEvent, published by the Notes slice, written at the
+  same time. Fill the module and the routes the architecture task left empty.
+
+changes:
+  - kind: integration-event
+    name: NoteArchivedIntegrationEvent
+    aggregate: Note
+    new: false
+  - kind: aggregate
+    name: Notification
+    new: true
+  - kind: query
+    name: GetMyNotifications
+    verb: read
+    route: GET /notifications
+    new: true
+  - kind: event-handler
+    name: NoteArchived
+    new: true
+
+invariants:
+  - One notification per recipient per archiving; never one for the owner.
+  - A person lists only their own notifications, most recent first; an anonymous caller is refused (403).
+  - Each notification is exactly { id, kind, noteId, noteTitle, archivedAt }, with kind 'note-archived'.
+
+events:
+  - NotificationCreatedEvent
+
+crossContext:
+  context: Notes
+  strategy: integration-event
+  why: >-
+    Notes publishes that a note was archived, with its recipients; Notifications restates it as a
+    notification for each, in its own words.
+
+architectureChanges: false

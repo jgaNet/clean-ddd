@@ -1,0 +1,38 @@
+# Feature 6 of the benchmark backlog (../backlog/6-plan-and-quota.md), as the session left it.
+schemaVersion: 1
+
+feature: plan-and-quota
+intent: >-
+  A person is on Free (ten notes) or Unlimited, switches between them, and cannot write a note
+  past the limit of their plan.
+
+done: false
+
+hotSpots:
+  - question: Where does a person's plan live?
+    decision: In a Plans context of its own; Notes asks it the limit through a port Notes owns (PlanLimits) before writing a note.
+  - question: What counts toward the ten notes?
+    decision: Every note owned, archived included.
+  - question: How does someone get past the quota, and what if they come back to Free?
+    decision: They switch to Unlimited themselves, no payment. Back on Free over the limit, their notes stay; writing a new one is refused.
+
+contexts:
+  - id: Plans
+    commands:
+      - name: ChangePlan
+        actor: a signed-in account
+        route: PUT /plans/me
+        aggregate: Plan
+        events: [PlanChanged]
+    queries:
+      - name: GetMyPlan
+        actor: a signed-in account
+        route: GET /plans/me
+    events: [PlanChanged]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Plans
+    downstream: Notes
+    contracts: [PlanLimits]

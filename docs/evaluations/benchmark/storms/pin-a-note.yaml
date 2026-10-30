@@ -1,0 +1,39 @@
+# Feature 2 of the benchmark backlog (../backlog/2-pin-a-note.md): the reference's pin-a-note
+# storm, its hot spots as the maintainer decided them.
+schemaVersion: 1
+
+feature: pin-a-note
+intent: >-
+  The owner of a note pins it, so that it comes first in their notes, and unpins it later; an
+  archived note cannot be pinned.
+
+done: false
+
+hotSpots:
+  - question: Does archiving a pinned note unpin it?
+    decision: No — archiving touches the status only; an archived note can still be unpinned, and keeps its pin until then.
+  - question: Is a second pin a refusal or a no-op?
+    decision: A refusal, like sharing twice; the client learns it on the operation.
+  - question: Does the list say which notes are pinned, or only order them?
+    decision: It says it — a list ordered by a fact it hides is useless to a client.
+  - question: Who else cares that a note was pinned?
+    decision: Nobody yet; the facts are recorded, no policy reacts, no integration event is published.
+
+contexts:
+  - id: Notes
+    commands:
+      - name: PinNote
+        actor: a signed-in account
+        route: POST /notes/{param}/pin
+        aggregate: Note
+        events: [NotePinned]
+      - name: UnpinNote
+        actor: a signed-in account
+        route: POST /notes/{param}/unpin
+        aggregate: Note
+        events: [NoteUnpinned]
+    queries: []
+    events: [NotePinned, NoteUnpinned]
+    policies: []
+
+links: []
