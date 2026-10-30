@@ -153,7 +153,14 @@ if (control === 'prose') {
   execFileSync(process.execPath, [cli, 'create', created, '--name', 'drift'], { encoding: 'utf8', stdio: 'pipe' });
   rmSync(join(tree, 'conventions'), { recursive: true, force: true });
   execFileSync('cp', ['-a', join(created, 'conventions'), join(tree, 'conventions')]);
-  copyFileSync(join(created, 'eslint.config.js'), join(tree, 'eslint.config.js'));
+  // The generated config, loading js-yaml whichever module format the copy below has.
+  writeFileSync(
+    join(tree, 'eslint.config.js'),
+    readFileSync(join(created, 'eslint.config.js'), 'utf8').replace(
+      "import { load } from 'js-yaml';",
+      "import yaml from 'js-yaml';\nconst { load } = yaml;",
+    ),
+  );
   const yamlDir = join(tree, 'node_modules/js-yaml');
   if (!existsSync(yamlDir))
     execFileSync('cp', ['-a', resolve(new URL('../../node_modules/js-yaml', import.meta.url).pathname), yamlDir]);
@@ -165,7 +172,10 @@ if (control === 'prose') {
     binding,
     readFileSync(binding, 'utf8').replace(/^contexts:.*(\n\s+-.*)*$/m, `contexts: [${contexts.join(', ')}]`),
   );
-  const linted = parse(sh('npx eslint src --format json', tree, 600_000).out) ?? [];
+  const eslint = sh('npx eslint src --format json', tree, 600_000);
+  const linted = parse(eslint.out.slice(eslint.out.indexOf('[')));
+  // A linter that did not run is not a tree with no refusals.
+  if (!Array.isArray(linted)) throw new Error(`the generated import rules did not run:\n${eslint.out.slice(0, 2000)}`);
   const refusals = linted.flatMap(file =>
     file.messages
       .filter(message => message.ruleId === 'no-restricted-imports')
