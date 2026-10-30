@@ -12,7 +12,10 @@ describe('comments', () => {
     const id = await note(owner.token, 'Discussed');
     expect(await command('POST', `/notes/${id}/share`, owner.token, { accountId: reader.id })).toBe('SUCCESS');
 
-    const first = await outcome(await call('POST', `/notes/${id}/comments`, owner.token, { text: 'First' }), owner.token);
+    const first = await outcome(
+      await call('POST', `/notes/${id}/comments`, owner.token, { text: 'First' }),
+      owner.token,
+    );
     expect(first.status).toBe('SUCCESS');
     expect(await command('POST', `/notes/${id}/comments`, reader.token, { text: 'Second' })).toBe('SUCCESS');
 

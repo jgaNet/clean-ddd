@@ -82,3 +82,10 @@ The features change what is already there, they do not merely add to it:
 - **Sample size.** E2 and E1 have two runs per arm. E3 has one tree per arm; E4 has two.
 - **The longer horizon is still short.** Twelve features are not a product's lifetime.
 - **The weaker model is the family's smallest.** A different family might behave differently.
+
+## Amendments
+
+Defects of the kit found while grading, fixed before any tree was graded with the fixed version, and applied to every tree alike.
+
+1. **The hidden tests failed the project's own gate.** The project's typecheck, linter and formatter run over the hidden tests once they are copied in, and the first version of the horizon tests had an unused variable and lines the formatter rewraps. Measure M1 failed on the kit, not on the agent's code. The tests are now formatted with the project's formatter configuration and have no unused variable; no assertion changed.
+2. **The deletion test followed its outcome with the token it deletes.** `12-delete-account` waited for the deletion's operation to succeed, reading it with the deleted account's token. Once the account is gone that token no longer reads anything, so a correct deletion looked like an operation that never ended. The test now checks that the deletion is accepted (202), then waits until the deleted account's token is refused (403), which is the outcome the feature asks for.
