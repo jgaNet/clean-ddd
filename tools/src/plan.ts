@@ -46,6 +46,13 @@ export interface FeaturePlan {
   crossContext?: { context: string; strategy: 'integration-event' | 'owned-port'; why?: string };
   /** True only when the plan means to change the building blocks, the shared kernel or the conventions. */
   architectureChanges?: boolean;
+  /**
+   * Files this plan's work reads and must not change, wherever they live: what the contract stage
+   * froze for the other slices — a read model another context's adapter imports, a stub's
+   * signature. A slice that needs more adds a port of its own beside them, or asks for an
+   * amendment; it never edits them (phase 4 found one moved and extended in place).
+   */
+  frozen?: string[];
 }
 
 const STRATEGIES = ['integration-event', 'owned-port'];
@@ -90,6 +97,7 @@ export function loadFeaturePlan(file: string, root: string): FeaturePlan {
     events: plan.events ?? [],
     crossContext: plan.crossContext,
     architectureChanges: plan.architectureChanges ?? false,
+    frozen: Array.isArray(plan.frozen) ? plan.frozen.map(String) : [],
   };
 }
 
@@ -153,6 +161,9 @@ export function validatePlan(
 ): string[] {
   const problems: string[] = [];
   const where = `${plan.feature}`;
+  for (const file of plan.frozen ?? []) {
+    if (!existsSync(join(root, file))) problems.push(`${where}: "${file}" is frozen, but there is no such file`);
+  }
   const written: string[] = [];
   let unwritten = 0;
 

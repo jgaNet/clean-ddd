@@ -246,6 +246,7 @@ export function packSlice(
     frozen: [
       ...(storm ? [storm.source] : []),
       file,
+      ...(plan.frozen ?? []),
       ...contracts.map(each => each.file).filter((path): path is string => Boolean(path)),
     ].filter((path, index, all) => all.indexOf(path) === index),
     rules: explained.rules,
@@ -303,7 +304,11 @@ export function describePack(pack: SlicePack): string {
         `  the policy on ${policy.on} (${policy.kind})${policy.publishes.length ? `, publishing ${policy.publishes.join(', ')}` : ''}${policy.events.length ? `, recording ${policy.events.join(', ')}` : ''}`,
       );
   }
-  lines.push('', `Frozen — decided before you started, not yours to change: ${pack.frozen.join(', ')}.`);
+  lines.push(
+    '',
+    `Frozen — decided before you started, not yours to change, even inside your context: ${pack.frozen.join(', ')}.`,
+    'If you need more than a frozen file gives — another method on a read model, another field — add a port or a file of your own beside it; if that cannot work, say so in your report: the contract is amended by the person who froze it, never in a slice.',
+  );
   lines.push('', 'Rules this slice is bound by:', ...pack.rules.map(rule => `  ${rule.id}: ${rule.statement}`));
   lines.push('', `Done when the gate passes: ${pack.gate}.`);
   return lines.join('\n');
