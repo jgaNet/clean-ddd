@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "control": "prose",
+  "drift": {
+    "contexts": [
+      "Accounts",
+      "Notes",
+      "Notifications",
+      "Plans",
+      "Tracker"
+    ],
+    "refusals": 0,
+    "files": 0,
+    "sample": []
+  },
+  "project": "/runs/e4/d1/app",
+  "ref": "main",
+  "commit": "76fdcb72315ec5fa1a7e84a46866a5da1b0aa263",
+  "base": "27e13c8",
+  "M1": {
+    "verdict": "pass",
+    "failing": []
+  },
+  "features": [
+    {
+      "feature": "persist",
+      "M2": {
+        "pass": true,
+        "tests": "1 passed, 1 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    }
+  ],
+  "gradedInMs": 18836
+}

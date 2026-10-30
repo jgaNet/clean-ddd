@@ -1,0 +1,8 @@
+run: e4-p3
+arm: P
+kit: ./docs/evaluations/benchmark/extensions/persist
+base: main
+agent: { runner: claude-cli, model: main, timeoutMinutes: 120 }
+retry: { perFeature: 1 }
+budgetUsd: 40
+ports: { base: 22800 }

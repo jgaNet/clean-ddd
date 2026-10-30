@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "control": null,
+  "project": "/runs/e2/a2/app",
+  "ref": "main",
+  "commit": "db20389ac4ca072f993c77379cfae94ffdee3676",
+  "base": "160856f",
+  "M1": {
+    "verdict": "pass",
+    "failing": []
+  },
+  "features": [
+    {
+      "feature": "team-spaces",
+      "M2": {
+        "pass": true,
+        "tests": "8 passed, 8 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    }
+  ],
+  "gradedInMs": 92729
+}

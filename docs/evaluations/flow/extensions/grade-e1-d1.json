@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "control": "prose",
+  "drift": {
+    "contexts": [
+      "Accounts",
+      "Notes",
+      "Notifications",
+      "Plans",
+      "Tracker"
+    ],
+    "refusals": 2,
+    "files": 1,
+    "sample": [
+      {
+        "file": "src/Contexts/Notes/Domain/Note/Note.spec.ts",
+        "line": 2,
+        "message": "'@Architecture/Infrastructure/DataSources/InMemoryDataSource' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+      },
+      {
+        "file": "src/Contexts/Notes/Domain/Note/Note.spec.ts",
+        "line": 35,
+        "message": "'@Contexts/Notes/Infrastructure/InMemoryNoteRepository' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+      }
+    ]
+  },
+  "project": "/runs/e1/d1/app",
+  "ref": "main",
+  "commit": "128ee4045b2790167e04e27d005bd82040f8aeab",
+  "base": "af9dda7f8a073f545bb8e2b5afb8d624b60539bc",
+  "M1": {
+    "verdict": "pass",
+    "failing": []
+  },
+  "features": [
+    {
+      "feature": "accounts-and-notes",
+      "M2": {
+        "pass": true,
+        "tests": "5 passed, 5 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "pin-a-note",
+      "M2": {
+        "pass": true,
+        "tests": "3 passed, 3 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "tag-a-note",
+      "M2": {
+        "pass": true,
+        "tests": "3 passed, 3 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "share-a-note",
+      "M2": {
+        "pass": true,
+        "tests": "3 passed, 3 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "notify-on-archive",
+      "M2": {
+        "pass": true,
+        "tests": "3 passed, 3 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "plan-and-quota",
+      "M2": {
+        "pass": true,
+        "tests": "2 passed, 2 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "remind-a-note",
+      "M2": {
+        "pass": true,
+        "tests": "4 passed, 4 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    }
+  ],
+  "gradedInMs": 68185
+}

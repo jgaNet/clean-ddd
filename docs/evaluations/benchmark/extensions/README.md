@@ -1,6 +1,8 @@
 # What the control could not show: four more experiments
 
-[The control](../../2026-10-30-flow-control.md) found that, on the seven-feature backlog with a strong model, Clean Architecture and DDD did not improve one agent's development. It named five things it could not show. This kit tests four of them; the fifth, people maintaining the code, needs people. Each experiment is written here before it runs, with its prediction, and keeps the control's rules:
+[The control](../../2026-10-30-flow-control.md) found that, on the seven-feature backlog with a strong model, Clean Architecture and DDD did not improve one agent's development. It named five things it could not show. This kit tests four of them; the fifth, people maintaining the code, needs people. **Ran:** [the record](../../2026-10-30-flow-extensions.md), with the logs, plans and grades in [`flow/extensions/`](../../flow/extensions).
+
+Each experiment is written here before it runs, with its prediction, and keeps the control's rules:
 
 - **The same driver and grader.**
 - **Hidden acceptance tests no agent sees.**

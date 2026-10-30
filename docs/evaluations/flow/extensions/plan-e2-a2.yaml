@@ -1,0 +1,19 @@
+run: e2-a2
+arm: A
+kit: ./docs/evaluations/benchmark/feature-8
+base: main
+agent: { runner: claude-cli, model: main, timeoutMinutes: 120 }
+retry: { perFeature: 1 }
+budgetUsd: 40
+ports: { base: 21200 }
+brief: >-
+  This feature's contract was decided before you started, as it was for six agents that would each
+  have written one context: the architecture task is done (Teams, Search and Audit declared, nine
+  relationships in conventions/domain.yaml, ADR 6, the composition root); the integration events are
+  frozen in src/SharedKernel/Application/IntegrationEvents/ (NoteIntegrationEvents.ts,
+  SpaceIntegrationEvents.ts), and so are the read models src/Contexts/Plans/Domain/Plan/Ports/ISpacePlanQueries.ts
+  and src/Contexts/Teams/Domain/Space/Ports/ISpaceQueries.ts; each context has a plan,
+  conventions/plans/team-spaces.<context>.yaml (yarn architecture plan explain <file> lists what it
+  implies); and the acceptance test src/Bootstrap/Fastify/Acceptance/8-team-spaces.acceptance.ts fails
+  now and passes when the feature is done (yarn -s test --testMatch '**/Acceptance/8-team-spaces.acceptance.ts').
+  Do not change the contract. You write all six contexts.
