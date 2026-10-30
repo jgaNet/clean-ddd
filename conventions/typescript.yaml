@@ -206,7 +206,7 @@ checklists:
     parts:
       - 'A class extending `IntegrationEvent<Payload>`, named for the fact in the publishing context''s public words, in that context''s file.'
       - 'A payload carrying everything a consumer needs, so it never queries back.'
-      - 'A domain event handler in the publishing context that translates the domain event into it — that is where a fact leaves its context.'
+      - 'A domain event handler in the publishing context that translates the domain event into it and calls `publishIntegrationEvent()` — that is where a fact leaves its context, through the outbox, never straight to the bus.'
       - 'An anti-corruption handler in each consuming context, registered in its `module.local.ts`.'
       - 'Adding one is not an architecture change: the folder is where a context publishes, and a feature may publish.'
   event-handler:
@@ -214,6 +214,8 @@ checklists:
     parts:
       - 'Extends `EventHandler<TheEvent>`; `execute()` returns an `IResult`; no guard — the fact was already allowed.'
       - 'A reaction inside its own context, or the translation of a domain event into an integration event, or an anti-corruption layer over another context''s contract.'
+      - 'It runs in a transaction of its own, opened by the base class (ADR 30): save what it changes, call `publishDomainEvents()` for an aggregate it changed and `publishIntegrationEvent()` for a fact it tells other contexts, and return a failed `Result` to undo all of it. It is not made idempotent by hand: a fan-out that fails half-way is undone whole, and the bus hands a fact to it once.'
+      - 'The facts it publishes carry what the consumer needs as it was at that moment (who the note was shared with when it was archived), in the domain event, rather than read back later; a time in an integration event''s payload is an ISO 8601 string.'
       - 'Registered in `module.local.ts` under `domainEvents` or `integrationEvents`.'
       - '`<Name>Handler.spec.ts` beside it.'
   context:

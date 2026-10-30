@@ -49,6 +49,12 @@ export interface UnitOfWork {
 
   /** The transactional outbox: what this transaction makes durable to be published after it commits (ADR 24). */
   readonly outbox: Outbox;
+
+  /**
+   * A unit of work over the same stores and the same outbox, for a transaction of its own: the one
+   * a reaction runs in (ADR 30). With a database, another transaction from the same pool.
+   */
+  another(): UnitOfWork;
 }
 
 /**
@@ -164,8 +170,8 @@ export class ExecutionContext {
    * Runs `step` inside the current transaction, once the use case has succeeded and just before
    * the commit: where `publishDomainEvents()` appends the aggregate's events to the outbox, so
    * that they are durable with the state they describe and gone with it on a rollback.
-   * Outside of any transaction (a reaction, after the command's commit) there is nothing to wait
-   * for: the step runs immediately and what it stored is relayed at once.
+   * Outside of any transaction (a handler's unit spec calling `execute()` directly) there is
+   * nothing to wait for: the step runs immediately and what it stored is relayed at once.
    */
   beforeCommit(step: () => void): void {
     if (!this.#inTransaction) {
@@ -242,6 +248,22 @@ export class ExecutionContext {
       await this.#unitOfWork.rollbackTransaction();
       return failed(error);
     }
+  }
+
+  /**
+   * The context a reaction to this request's facts runs in (ADR 30): the same caller, trace, bus
+   * and logger, and a unit of work of its own. A reaction's transaction is its own — not the one
+   * that published the fact, which has committed, nor the one of another reaction to the same
+   * fact, running beside it.
+   */
+  forReaction(): ExecutionContext {
+    return new ExecutionContext({
+      traceId: this.#traceId,
+      auth: this.#auth,
+      eventBus: this.#eventBus,
+      unitOfWork: this.#unitOfWork?.another(),
+      logger: this.#logger,
+    });
   }
 
   /**

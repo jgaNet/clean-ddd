@@ -33,5 +33,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0027](0027-a-created-application-starts-with-the-tracker.md) | A created application starts with the Tracker and a composition root that serves it |
 | [0028](0028-a-relationship-is-decided-before-its-code.md) | A relationship between two contexts is decided before its code, and says so |
 | [0029](0029-a-contract-may-be-in-progress.md) | A feature's contract may be in progress, and is marked carried when all of it is |
+| [0030](0030-a-reaction-is-a-transaction-of-its-own.md) | A reaction is a transaction of its own, publishes through the outbox, and is not made idempotent by hand |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

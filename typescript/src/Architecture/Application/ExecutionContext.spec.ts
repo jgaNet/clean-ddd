@@ -27,6 +27,9 @@ class FakeUnitOfWork implements UnitOfWork {
   hasActiveTransaction() {
     return this.active;
   }
+  another(): UnitOfWork {
+    return new FakeUnitOfWork();
+  }
 }
 
 beforeEach(() => jest.resetAllMocks());
