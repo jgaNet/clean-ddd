@@ -4,6 +4,7 @@ One small application — notes you can share, accounts, notifications, operatio
 
 The reference is written in several programming languages from **one architecture**. The architecture is data, in [`conventions/`](conventions/README.md): the layers and what each may import, every rule under a stable id, the HTTP grammar, the vocabulary. Each language is a directory with its own toolchain, its own guide, and a **binding** that says where its trees are, which of its files shows each concept and which tool holds each rule. A language never carries a rule of its own; what it cannot show yet, the map below shows as a gap ([ADR 11](docs/adr/0011-one-reference-several-languages.md)).
 
+- [What it buys, and what it costs, measured with AI agents](#what-it-buys-and-what-it-costs-measured-with-ai-agents)
 - [Get started](#get-started)
 - [The domain](#the-domain)
 - [The languages](#the-languages)
@@ -12,6 +13,33 @@ The reference is written in several programming languages from **one architectur
 - [How the repository is organised](#how-the-repository-is-organised)
 - [Adding a language](#adding-a-language)
 - [Decisions](#decisions)
+
+## What it buys, and what it costs, measured with AI agents
+
+This repository was built on a bet: an architecture made explicit and enforced makes AI agents better at building software, alone and together. The bet was then measured. A controlled benchmark ran one application, built by coding agents, in three arms, against hidden acceptance tests no agent saw:
+- this architecture with its tooling;
+- the same architecture as prose, without the tooling;
+- a plain TypeScript project.
+
+It ran a seven-feature backlog, a feature across six contexts, five more features on grown trees, a move to SQLite, and a weaker model. The results, with every log and grade, are in the article [Does Clean Architecture help an AI agent write software?](https://jganet.github.io/clean-ddd/) and in [the records](docs/evaluations/README.md).
+
+**It does not make an agent faster or better.**
+- In every experiment, the plain project delivered as much.
+- The architecture arms took 1.4–2.8 times its time and 3.1–6.0 times its cost.
+- Two independent readers found no difference in quality.
+- A weaker model was not helped either.
+
+**It buys three things, each measured:**
+
+| | What was measured |
+| --- | --- |
+| **Changes stay in their layer** | Moving every tree to SQLite touched no file of a context's Domain or Application. Adapters, wiring and the building blocks took it all. The plain trees changed the code of every module. |
+| **The structure does not drift, with the tooling** | Two trees held to the rules by prose alone had 0 and 20 import violations after the backlog. Five features later, the second had 24. Trees held by the tooling have none. |
+| **Agents can work in parallel safely** | One agent per bounded context, against a frozen contract, integrated by one writer, lost no feature where naive parallel agents lost three. On a six-context feature it was 21% sooner than one agent, at 1.7 times the cost. |
+
+**So the project is offered as a guardrail and a coordinator for agents, not as an accelerator** ([ADR 31](docs/adr/0031-the-architecture-is-a-guardrail-and-a-coordinator-not-an-accelerator.md)). It is for a team that has chosen Clean Architecture and DDD for what they do to the code, and wants its agents to keep to them as the code grows. It is also for running several agents on one codebase without conflicts. For a small application with no team and no long horizon in view, a plain project serves an agent better.
+
+The next work is ordered by what could change that verdict. First, narrowing the cost: generating from the storm what the architecture already decides, and a lighter profile with ports only at the edges. Then, closing what the tooling does not yet check: the HTTP grammar's refusals.
 
 ## Get started
 
@@ -401,6 +429,7 @@ Non-obvious choices are recorded as short ADRs in [`docs/adr`](docs/adr):
 28. [A relationship between two contexts is decided before its code, and says so](docs/adr/0028-a-relationship-is-decided-before-its-code.md)
 29. [A feature's contract may be in progress, and is marked carried when all of it is](docs/adr/0029-a-contract-may-be-in-progress.md)
 30. [A reaction is a transaction of its own, publishes through the outbox, and is not made idempotent by hand](docs/adr/0030-a-reaction-is-a-transaction-of-its-own.md)
+31. [The architecture is offered to agents as a guardrail and a coordinator, not as an accelerator](docs/adr/0031-the-architecture-is-a-guardrail-and-a-coordinator-not-an-accelerator.md)
 
 What is deliberately *not* here — a DI container, an ORM, a message broker, a generic saga — is listed with its reason and the day it would come in the TypeScript README's [What is deliberately not here](typescript/README.md#what-is-deliberately-not-here); the known gaps of each language are at the end of its README.
 
