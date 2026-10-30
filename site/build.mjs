@@ -33,6 +33,19 @@ const range = (runs, key, digits = 1) => {
 const mean = values => values.reduce((a, b) => a + b, 0) / values.length;
 const ratio = (a, b) => (mean(a) / mean(b)).toFixed(1);
 const short = ['Accounts & notes', 'Pin', 'Tags', 'Share', 'Notify', 'Plan & quota', 'Remind'];
+// Each architecture arm's time and cost as a multiple of the plain project's, experiment by experiment.
+const experiments = [
+  { name: 'Backlog', runs: { A, D, P } },
+  { name: 'Backlog, weaker model', runs: X.E1 },
+  { name: 'Feature 8', runs: { A: [f8.A], D: [f8.D], P: [f8.P] } },
+  { name: 'Features 9–13', runs: { A: [X.E3.A], D: [X.E3.D], P: [X.E3.P] } },
+  { name: 'Move to SQLite', runs: X.E4 },
+];
+const times = (e, arm, key = 'minutes') => mean(e.runs[arm].map(r => r[key])) / mean(e.runs.P.map(r => r[key]));
+const graded = 11 + 4 + [X.E1.A, X.E1.D, X.E1.P, X.E2, X.E4.A, X.E4.D, X.E4.P].flat().length + 3;
+const allTimes = experiments.flatMap(e => ['A', 'D'].map(arm => times(e, arm)));
+const allCosts = experiments.flatMap(e => ['A', 'D'].map(arm => times(e, arm, 'usd')));
+const span = values => `${Math.min(...values).toFixed(1)}–${Math.max(...values).toFixed(1)}`;
 
 // The reading, harmonized (docs/evaluations/flow/control/reading/README.md).
 const reading = {
@@ -55,6 +68,20 @@ const reading = {
 };
 
 const charts = {
+  summaryTime: groupedColumns({
+    id: 'chart-summary-time',
+    title: 'Every experiment: time each architecture arm took, as a multiple of the plain project’s',
+    unit: '× P’s time',
+    categories: experiments.map(e => e.name),
+    series: ['A', 'D'].map(arm => ({ arm, values: experiments.map(e => times(e, arm)) })),
+  }),
+  summaryCost: groupedColumns({
+    id: 'chart-summary-cost',
+    title: 'Every experiment: reported cost of each architecture arm, as a multiple of the plain project’s',
+    unit: '× P’s cost',
+    categories: experiments.map(e => e.name),
+    series: ['A', 'D'].map(arm => ({ arm, values: experiments.map(e => times(e, arm, 'usd')) })),
+  }),
   lead: dotRange({
     id: 'chart-lead',
     title: 'Time to deliver the seven-feature backlog, per run (minutes of agent activity)',
@@ -208,6 +235,17 @@ const charts = {
 };
 
 const tables = {
+  summary: table(
+    'Every experiment, as a multiple of the plain project',
+    ['Experiment', 'A, time', 'D, time', 'A, cost', 'D, cost'],
+    experiments.map(e => [
+      e.name,
+      `${times(e, 'A').toFixed(1)}×`,
+      `${times(e, 'D').toFixed(1)}×`,
+      `${times(e, 'A', 'usd').toFixed(1)}×`,
+      `${times(e, 'D', 'usd').toFixed(1)}×`,
+    ]),
+  ),
   lead: table(
     'Backlog runs',
     ['Arm', 'Run', 'Minutes', 'Cost', 'Features passing'],
@@ -314,7 +352,7 @@ const readingRows = reading.rows
 const body = `
 <header class="title">
 <h1>Does Clean Architecture help an AI agent write software?</h1>
-<p class="dek">We built a reference implementation of Clean Architecture and Domain-Driven Design whose rules are data, a tool that holds code to them, and a flow that lets several agents build features in parallel. Then we measured whether any of it helps an agent deliver. On our benchmark, it did not.</p>
+<p class="dek">We built a reference implementation of Clean Architecture and Domain-Driven Design whose rules are data, a tool that holds code to them, and a flow that lets several agents build features in parallel. Then we measured whether any of it helps an agent deliver, including where it should help most: a weaker model, a growing codebase, a change of storage. On our benchmark, it did not. It did keep changes in their place, and only the tool kept the structure from drifting.</p>
 <p class="byline">30 October 2026 · The <a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> experiments · Every number below is read from the records in the repository.</p>
 </header>
 
@@ -327,19 +365,27 @@ const body = `
   P.map(r => r.usd),
 )} times cheaper. It also took the largest change of the benchmark sooner and cheaper. Two independent readers found no difference in quality between the trees.</p>
 <p><strong>Our tool</strong> does what it claims: it holds code to the architecture exactly, and it made a parallel fan-out of agents safe where naive parallelism failed. On this benchmark neither bought anything a plain single agent did not already deliver.</p>
-<p><strong>Four more experiments</strong> tested the control's own limits: a weaker model, one agent given the fan-out's contract, five more features, and a move to real storage. None reversed the answer. What the architecture did buy is now measured: a storage change stayed out of the domain, and only the tool kept the structure from drifting as the code grew.</p>
+<p><strong>Then we tested where the architecture should pay.</strong> Four more experiments, written down before they ran, each took a condition the first answer could not rule out:</p>
+<ul>
+<li><strong>A weaker model.</strong> The plain project still delivered everything, and the architecture did not help.</li>
+<li><strong>Five more features</strong> on grown trees. Every arm kept delivering, and the plain project stayed the soonest.</li>
+<li><strong>A move to real storage.</strong> In the architecture trees the change stayed out of the domain, as promised, yet it still took twice as long as in the plain project.</li>
+<li><strong>The fan-out's contract given to one agent.</strong> It did not make that agent sooner: the fan-out's speed is its parallelism.</li>
+</ul>
+<p>In every experiment that had a plain arm, the architecture arms took ${span(allTimes)} times the plain project's time and ${span(allCosts)} times its cost. What the architecture did buy is now measured: changes kept in their layer, and, with our tool only, a structure that does not drift as the code grows.</p>
 <p><strong>The limits of this answer:</strong> one model family, one application of twelve features, a handful of runs, and graders who are agents.</p>
 </div>
 
 <div class="stats">
-<div class="stat"><div class="figure">${A.length + D.length + P.length + Cp.length}</div><div class="what">backlog runs graded, every one passing all 7 features</div></div>
-<div class="stat"><div class="figure">${ratio(
-  A.map(r => r.usd),
-  P.map(r => r.usd),
-)}×</div><div class="what">what the architecture with tooling cost over a plain project</div></div>
-<div class="stat"><div class="figure">0</div><div class="what">differences in reviewed quality the readers could show between arms</div></div>
-<div class="stat"><div class="figure">${f8.P.minutes.toFixed(1)} min</div><div class="what">for the six-context feature on the plain tree, against ${f8.A.minutes.toFixed(1)} on the architecture</div></div>
+<div class="stat"><div class="figure">${graded}</div><div class="what">agent runs graded against hidden tests, in six experiments</div></div>
+<div class="stat"><div class="figure">${span(allTimes)}×</div><div class="what">the plain project’s time, taken by the architecture arms in each experiment</div></div>
+<div class="stat"><div class="figure">0</div><div class="what">experiments in which the architecture delivered more, sooner or cheaper</div></div>
+<div class="stat"><div class="figure">0</div><div class="what">domain files the move to SQLite touched in the architecture trees</div></div>
 </div>
+${charts.summaryTime}
+${charts.summaryCost}
+${tables.summary}
+<p class="note">1 is the plain project. Feature 8 and features 9–13 are one tree per arm; the other experiments are means of two or three runs. Features 9–13 started a fresh conversation, so their cost is not comparable to the backlog’s.</p>
 
 <h2>What we built</h2>
 <p><a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> is a reference implementation of Clean Architecture with DDD, in four languages. The architecture is data: layers, who may import whom, and every rule under a stable id live in YAML files. Linters, a conventions check and the documentation are generated from them. Around it we built the tooling an AI agent would use:</p>
@@ -423,22 +469,23 @@ ${tables.probes}
 <h2>6. Is our tool relevant?</h2>
 <p>We separate what it did from what it bought.</p>
 <ul>
-<li><strong>It holds the architecture exactly.</strong> No production import crossed a boundary in any A tree. Without the tool, D's two trees had 0 and 20 refusals, all of the 20 in tests or in the form of an import, none in production code. A strong model, told the rules in prose, kept them nearly as well. The enforcement was real; what it prevented here was small.</li>
+<li><strong>It holds the architecture exactly, and the gap grows with the code.</strong> No import crossed a boundary in any A tree. Without the tool, D's trees had 0 and 20 refusals after the backlog, none in production code. Five features later, D's grown tree had ${X.E3.D.drift.refusals}. A model told the rules in prose keeps them nearly, not exactly, and the difference accumulates. The weaker model kept them as well as the strong one: 2 and 0 refusals.</li>
+<li><strong>It does not catch everything the architecture says.</strong> With the weaker model, one A run answered a refusal with a 400 from the request schema, where the architecture says a refusal is an outcome. The gate and the storm check both passed it. The tool holds the structure; it does not hold every rule.</li>
 <li><strong>Its storms and context map are ceremony a single agent pays for.</strong> In A's transcripts, most of what the tool caught was its own bookkeeping: a storm not marked done, a document to regenerate, a context missing from the map. It caught one substantive thing: a later feature reshaped an earlier command, and the storm check said so.</li>
-<li><strong>It made a parallel fan-out work.</strong> Naive parallel agents lost three of seven features to conflicts in one context. With the context as the conflict key, a frozen contract and one integrating writer, every feature landed. On the six-context feature, that fan-out was 21% sooner than one agent on the architecture, at 1.7 times the cost. It was still slower than one agent on a plain project.</li>
+<li><strong>It made a parallel fan-out work.</strong> Naive parallel agents lost three of seven features to conflicts in one context. With the context as the conflict key, a frozen contract and one integrating writer, every feature landed. On the six-context feature, that fan-out was 21% sooner than one agent on the architecture, at 1.7 times the cost. Giving one agent the same contract did not make it sooner (E2), so the gain is the parallelism, and the contract is what makes the parallelism safe. It was still slower than one agent on a plain project.</li>
 <li><strong>Its strategy command</strong> recommends one agent unless a feature is wide and its time matters more than its cost. That rule is right as far as it goes. It should now also say that a small backlog does not need the architecture at all.</li>
 </ul>
-<p><strong>Our verdict:</strong> on work like this backlog, the tool is relevant as a coordination layer for several agents and as an enforcement layer for teams that have already chosen this architecture. It is not a productivity aid for a single strong agent, and choosing Clean Architecture with DDD for an AI agent's sake is not supported by these results.</p>
+<p><strong>Our verdict:</strong> the tool is relevant in two places. It coordinates several agents working in parallel. It enforces the architecture for teams that have already chosen it, and the longer they work, the more it matters. It is not a productivity aid for a single agent, strong or weak. Choosing Clean Architecture with DDD for an AI agent's sake is not supported by these results. Choosing it for what it does to the code — changes kept in their layer — is a choice these results can price: about twice the agent's time.</p>
 
 <h2>7. How this fits what others found</h2>
 <p>The results agree with most of the literature we reviewed (${link('docs/research/related-work.md', 'related work')}):</p>
 <ul>
-<li>Strong models conform to an architecture given as prose: a hexagonal pilot found 0% forbidden imports for a frontier model, against 80% for a small one.</li>
+<li>Strong models conform to an architecture given as prose: a hexagonal pilot found 0% forbidden imports for a frontier model, against 80% for a small one. Here the smallest model of the family conformed almost as well as the strong one. Its prose-only trees had 2 and 0 refusals, so this gap may depend on the model family more than on size.</li>
 <li>Stacking Clean Architecture constraints on agents costs correctness points rather than adding them.</li>
 <li>Repository instruction files are followed but rarely raise task success.</li>
 <li>Multi-agent systems beat a strong single agent only on work that decomposes cleanly.</li>
 </ul>
-<p>Our contribution is the control: the same backlog, the same model and the same hidden tests, with and without the architecture, and with and without the tool that enforces it.</p>
+<p>Our contribution is the control. The same backlog, the same model and the same hidden tests were run with and without the architecture, and with and without the tool that enforces it. Four further tests followed, each on a condition where the architecture is claimed to pay.</p>
 
 <h2>8. Four more experiments</h2>
 <p>The control named what it could not show. We wrote four more experiments, with their predictions, before running them (${link('docs/evaluations/benchmark/extensions/README.md', 'the protocol')}). Same driver, same grader, hidden tests no agent saw. Grading found three defects in our own kit, all recorded as amendments and applied to every tree alike.</p>
@@ -505,7 +552,7 @@ writeFileSync(
   page({
     title: 'Architecture and AI agents',
     description:
-      'Does Clean Architecture and DDD help an AI coding agent? A controlled benchmark with and without the architecture.',
+      'Does Clean Architecture and DDD help an AI coding agent? A controlled benchmark with and without the architecture, on a strong and a weaker model, over a growing codebase and a change of storage.',
     body,
   }),
 );
