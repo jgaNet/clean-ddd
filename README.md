@@ -39,7 +39,11 @@ It ran a seven-feature backlog, a feature across six contexts, five more feature
 
 **So the project is offered as a guardrail and a coordinator for agents, not as an accelerator** ([ADR 31](docs/adr/0031-the-architecture-is-a-guardrail-and-a-coordinator-not-an-accelerator.md)). It is for a team that has chosen Clean Architecture and DDD for what they do to the code, and wants its agents to keep to them as the code grows. It is also for running several agents on one codebase without conflicts. For a small application with no team and no long horizon in view, a plain project serves an agent better.
 
-The next work is ordered by what could change that verdict. First, narrowing the cost: generating from the storm what the architecture already decides, and a lighter profile with ports only at the edges. Then, closing what the tooling does not yet check: the HTTP grammar's refusals.
+The next work is ordered by what could change that verdict:
+1. **Failures and concurrency under test.** A crash between a commit and a publication, two writers at once, a consumer that fails. These are what the outbox and the version check are for. Every arm gets the same requirements, so the plain one must build the guarantees itself.
+2. **Grading kept apart on four scores:** correctness, robustness, maintainability, cost of change.
+3. **Closing what the tooling does not yet check:** the HTTP grammar's refusals.
+4. **Narrowing the cost:** a small generator from the storm, measured on what it saves in total, and a lighter profile with ports only at the edges.
 
 ## Get started
 
