@@ -36,7 +36,7 @@ mod tests {
             recipient_id: recipient_id.into(),
             title: "Hello".into(),
             content: "World".into(),
-            channels: vec![Channel::WebSocket],
+            channels: vec!["WEBSOCKET".into()],
             metadata: Metadata::new(),
         }
     }

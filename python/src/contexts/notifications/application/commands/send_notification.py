@@ -1,5 +1,6 @@
 """A notification sent by hand, by an administrator. Reactions to other contexts do not go through it."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -9,7 +10,6 @@ from architecture.domain.common_exceptions import NotAllowedException
 from architecture.domain.event import CommandEvent
 from architecture.domain.result import Failure, Result
 from contexts.notifications.application.delivery import NotificationDelivery
-from contexts.notifications.domain.notification.channel import Channel
 from contexts.notifications.domain.notification.dtos import NewNotification
 from contexts.notifications.domain.notification.notification_exceptions import SERVICE
 from shared_kernel.domain.role import Role
@@ -20,7 +20,7 @@ class SendNotificationCommandEvent(CommandEvent):
     recipient_id: str
     title: str
     content: str
-    channels: list[Channel]
+    channels: Sequence[str]
     metadata: dict[str, Any] = field(default_factory=dict)
 
 

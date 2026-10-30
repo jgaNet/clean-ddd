@@ -223,7 +223,8 @@ async function verdict(feature, cwd, from) {
     });
     return problems;
   }
-  const gated = parse((await sh(`${tool} gate --base ${from} --mode architecture --json`, cwd)).stdout);
+  // --fix: the bookkeeping (a carried storm marked done, stale documents) is the tooling's, not a turn of the agent's.
+  const gated = parse((await sh(`${tool} gate --base ${from} --mode architecture --fix --json`, cwd)).stdout);
   const failing = (gated?.steps ?? []).filter(step => step.status === 'fail');
   // The kit's storm held as done: whatever the code does not carry yet is a difference.
   let owed = [];
@@ -325,11 +326,11 @@ const brief = (feature, from, port) =>
         '',
         ...(hasStorm(feature)
           ? [
-              `The feature's storm, decided with the product's owner before you started, is \`conventions/storms/${feature.id}.yaml\`: its hot spots are decided, do not change them. \`yarn architecture storm --expect conventions/storms/${feature.id}.yaml\` says what the code still owes it; when it owes nothing, set \`done: true\` in it.`,
+              `The feature's storm, decided with the product's owner before you started, is \`conventions/storms/${feature.id}.yaml\`: its hot spots are decided, do not change them. \`yarn architecture storm --expect conventions/storms/${feature.id}.yaml\` says what the code still owes it; once it owes nothing, \`yarn architecture gate --fix\` marks it done.`,
             ]
           : []),
         'If the feature needs a context or a relationship between contexts that the application does not have yet, that is an architecture task, and it is yours: declare it, record the decision in an ADR under `docs/adr/`, then write the feature (`yarn architecture mode architecture` says what that takes).',
-        `You are done when \`yarn architecture gate --base ${from} --mode architecture\` passes${hasStorm(feature) ? ' and the storm owes nothing' : ''}. Commit your work on the current branch; do not push. If you start a server, use port ${port}.`,
+        `You are done when \`yarn architecture gate --base ${from} --mode architecture --fix\` passes${hasStorm(feature) ? ' and the storm owes nothing' : ''}; \`--fix\` does the bookkeeping (a storm the code carries marked done, the documents rendered again). Commit your work on the current branch; do not push. If you start a server, use port ${port}.`,
         // What the execution plan adds for this run (the contract a fan-out would have had, E2).
         ...(plan.brief ? ['', String(plan.brief).trim()] : []),
         '',
@@ -418,7 +419,7 @@ if (sequential) {
     commitAll(path, `${feature.id}: integrated`);
     await sh('yarn -s conventions:write', path, 300_000);
     commitAll(path, `${feature.id}: documents regenerated`);
-    const gated = parse((await sh(`${tool} gate --base ${head} --mode architecture --json`, path)).stdout);
+    const gated = parse((await sh(`${tool} gate --base ${head} --mode architecture --fix --json`, path)).stdout);
     const failing = (gated?.steps ?? []).filter(step => step.status === 'fail');
     if (gated?.verdict !== 'pass') {
       const kind = failing.some(step => step.stage === 'architecture') ? 'architectural' : 'regression';

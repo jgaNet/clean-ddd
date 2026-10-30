@@ -74,6 +74,17 @@ func TestCreatingRefusesABlankTitleAndAnEmptyStrategy(t *testing.T) {
 	}
 }
 
+func TestParseChannelsRefusesAChannelItDoesNotKnowByName(t *testing.T) {
+	_, err := ParseChannels([]string{"EMAIL", "FAX"})
+	if refusalType(t, err) != "UnknownChannel" {
+		t.Fatalf("unknown channel: %v", err)
+	}
+	channels, err := ParseChannels([]string{"WEBSOCKET", "EMAIL"})
+	if err != nil || len(channels) != 2 || channels[0] != ChannelWebSocket {
+		t.Fatalf("known channels: %v %v", channels, err)
+	}
+}
+
 func TestIsSentByTheFirstChannelThatAcceptsItAndRecordsNotificationSent(t *testing.T) {
 	n := aNotification(t)
 

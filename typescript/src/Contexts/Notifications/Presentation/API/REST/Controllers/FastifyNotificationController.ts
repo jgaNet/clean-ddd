@@ -3,7 +3,6 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { Exception, NotAllowedException } from '@Architecture/Domain';
 import { Module } from '@Architecture/Application';
 
-import { Channel } from '@Contexts/Notifications/Domain/Notification/Channel';
 import { NotificationNotFoundException } from '@Contexts/Notifications/Domain/Notification/NotificationExceptions';
 import { SendNotificationCommandEvent } from '@Contexts/Notifications/Application/Commands/SendNotification/SendNotificationCommandEvent';
 import { MarkAsReadNotificationCommandEvent } from '@Contexts/Notifications/Application/Commands/MarkAsRead/MarkAsReadNotificationCommandEvent';
@@ -43,7 +42,7 @@ export class FastifyNotificationController {
         recipientId: string;
         title: string;
         content: string;
-        channels: Channel[];
+        channels: string[];
         metadata?: Record<string, unknown>;
       };
     }>,

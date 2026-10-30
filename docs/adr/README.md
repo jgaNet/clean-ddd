@@ -35,5 +35,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0029](0029-a-contract-may-be-in-progress.md) | A feature's contract may be in progress, and is marked carried when all of it is |
 | [0030](0030-a-reaction-is-a-transaction-of-its-own.md) | A reaction is a transaction of its own, publishes through the outbox, and is not made idempotent by hand |
 | [0031](0031-the-architecture-is-a-guardrail-and-a-coordinator-not-an-accelerator.md) | The architecture is offered to agents as a guardrail and a coordinator, not as an accelerator |
+| [0032](0032-a-command-body-is-refused-for-its-shape-only.md) | A command's body is refused for its shape only; whether a value is allowed is the domain's |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

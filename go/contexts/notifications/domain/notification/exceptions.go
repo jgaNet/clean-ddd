@@ -25,6 +25,10 @@ func EmptyDeliveryStrategy() *domain.Exception {
 	return exception("EmptyDeliveryStrategy", "A notification needs at least one channel", nil)
 }
 
+func UnknownChannel(channel string) *domain.Exception {
+	return exception("UnknownChannel", "No notification is sent by "+channel, map[string]any{"channel": channel})
+}
+
 func NotificationNotFound(notificationID string) *domain.Exception {
 	return exception("NotificationNotFound", "Notification not found", map[string]any{"notificationId": notificationID})
 }

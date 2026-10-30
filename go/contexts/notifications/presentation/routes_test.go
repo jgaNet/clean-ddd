@@ -106,7 +106,9 @@ func TestAnInboxIsTheRecipientsOrAnAdministratorsAndOmitsWhatDidNotHappen(t *tes
 	}
 }
 
-func TestCommandsAreAcceptedAndAnUnknownChannelIsRefusedByTheRoute(t *testing.T) {
+// An unknown channel is accepted like any value: whether it is a channel is the domain's to say,
+// on the operation (API-BODY-SHAPE), not the route's.
+func TestCommandsAreAcceptedAndAnUnknownChannelIsLeftToTheDomain(t *testing.T) {
 	handler := serve()
 
 	accepted := call(handler, http.MethodPatch, "/v1/notifications/n1/read", "carol", "USER", "")
@@ -122,7 +124,7 @@ func TestCommandsAreAcceptedAndAnUnknownChannelIsRefusedByTheRoute(t *testing.T)
 
 	unknown := call(handler, http.MethodPost, "/v1/notifications", "admin", "ADMIN",
 		`{"recipientId":"carol","title":"Hi","content":"there","channels":["PIGEON"]}`)
-	if unknown.Code != http.StatusBadRequest || !strings.Contains(unknown.Body.String(), `"message"`) {
+	if unknown.Code != http.StatusAccepted || !strings.Contains(unknown.Body.String(), "operationId") {
 		t.Fatalf("unknown channel: %d %s", unknown.Code, unknown.Body)
 	}
 }

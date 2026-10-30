@@ -70,7 +70,8 @@ export const notificationSchema = {
         recipientId: { type: 'string' },
         title: { type: 'string' },
         content: { type: 'string' },
-        channels: { type: 'array', minItems: 1, items: { type: 'string', enum: ['WEBSOCKET', 'EMAIL'] } },
+        // Shape only (API-BODY-SHAPE): an unknown channel or none at all is the domain's refusal, on the operation.
+        channels: { type: 'array', items: { type: 'string' } },
         metadata: { type: 'object', additionalProperties: true },
       },
     },

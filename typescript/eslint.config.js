@@ -5,8 +5,11 @@
  * this language's trees in conventions/typescript.yaml: the contexts, the aliases, the wiring
  * file, the libraries. Both sit in the repository's `conventions/`, found by walking up from this
  * file (one level up here; the same directory in an application `yarn architecture create` made).
- * This file only translates them into `no-restricted-imports` rules, one block per context and
- * per layer, so that every context is held to the same standard.
+ * This file translates them into `no-restricted-imports` rules, one block per context and
+ * per layer, so that every context is held to the same standard. One more block holds a rule of
+ * the contract that is not about imports: a command's body is refused for its shape only
+ * (API-BODY-SHAPE), so a request schema's `body` declares types and required fields and no value
+ * rule.
  *
  * The translation: the YAML says what a layer MAY import; ESLint wants what it may NOT. So we
  * enumerate every "unit" a file could import (each layer of its own context, of the building
@@ -148,6 +151,23 @@ function rulesFor(root, alias, others, trees) {
 
 const CONTEXTS_TREE = binding.contexts_tree;
 const contextAlias = context => `${CONTEXTS_TREE.alias}/${context}`;
+/** The JSON Schema keywords that decide whether a value is allowed, not what shape it has. */
+const VALUE_RULES = [
+  'enum',
+  'const',
+  'pattern',
+  'format',
+  'minLength',
+  'maxLength',
+  'minimum',
+  'maximum',
+  'exclusiveMinimum',
+  'exclusiveMaximum',
+  'multipleOf',
+  'minItems',
+  'maxItems',
+  'uniqueItems',
+];
 const CONTEXTS = binding.contexts;
 const ARCHITECTURE = binding.architecture;
 const KERNEL = binding.kernel;
@@ -162,6 +182,21 @@ export default tseslint.config(
       '@typescript-eslint/no-dupe-class-members': ['error'],
       '@typescript-eslint/no-useless-constructor': ['error'],
       '@typescript-eslint/no-inferrable-types': ['off'],
+    },
+  },
+  // API-BODY-SHAPE: a request body's schema says its shape; whether a value is allowed is the domain's,
+  // refused on the operation with the rule's exception, never as a 400 from the schema.
+  {
+    files: [`${CONTEXTS_TREE.path}/*/Presentation/**/*.ts`],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: `Property[key.name='body'] Property[key.name=/^(${VALUE_RULES.join('|')})$/]`,
+          message:
+            "API-BODY-SHAPE: a command's body is refused for its shape only (`type`, `required`); whether a value is allowed is the domain's to decide, on the operation. Remove the keyword and let the value object refuse the value (`yarn architecture rule API-BODY-SHAPE`).",
+        },
+      ],
     },
   },
   // The building blocks know no context and not even the shared kernel: mechanics, no vocabulary.

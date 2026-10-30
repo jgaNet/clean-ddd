@@ -377,6 +377,14 @@ rules:
     enforcement: tests
     references: [docs/adr/0016-one-api-for-every-language.md]
 
+  - id: API-BODY-SHAPE
+    name: a-command-body-is-refused-for-its-shape-only
+    statement: A command's request body is refused by the transport for its shape only — a field missing or of the wrong type answers 400; whether a value is allowed (one of a list, a format, a length, a range, a count) is the domain's to decide, and its refusal is the operation's ERROR behind the 202, named by the rule's exception.
+    why: Which values are allowed is a business rule. It lives once, in the domain, has a name the client can act on, and changes with the business; a schema that refuses it answers a 400 with no name, and is a second copy of the rule that drifts from the first.
+    remediation: Keep `type` and `required` in the body's schema and remove any keyword that rules on a value; let the value object or the aggregate refuse the value with its exception, from the string the body sent.
+    enforcement: tests
+    references: [docs/adr/0032-a-command-body-is-refused-for-its-shape-only.md]
+
   - id: CTX-MAP-DECLARED
     name: the-context-map-is-declared-and-true
     statement: Every relationship between two contexts is declared once in the context map, with the strategic pattern it follows, the mechanism that carries it and why; the contracts it carries are read from the code, and the check refuses a link in the code the map does not declare and a declared relationship nothing in the code carries, unless it is declared `planned` — decided before the code that carries it.

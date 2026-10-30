@@ -15,7 +15,6 @@ from architecture.presentation.http import accept, context_of, jsonable, refuse,
 from contexts.notifications.application.commands.mark_as_read import MarkAsReadNotificationCommandEvent
 from contexts.notifications.application.commands.send_notification import SendNotificationCommandEvent
 from contexts.notifications.application.queries.get_notifications import GetNotificationsQueryHandler, InboxQuery
-from contexts.notifications.domain.notification.channel import Channel
 from contexts.notifications.domain.notification.notification_exceptions import NotificationNotFoundException
 from contexts.notifications.domain.notification.ports.notification_queries import InboxFilters, NotificationListItem
 
@@ -24,7 +23,8 @@ class SendNotificationBody(BaseModel):
     recipientId: str  # noqa: N815
     title: str
     content: str
-    channels: list[Channel] = Field(min_length=1)
+    # Shape only (API-BODY-SHAPE): an unknown channel or none at all is the domain's refusal, on the operation.
+    channels: list[str]
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

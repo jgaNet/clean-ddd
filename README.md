@@ -42,7 +42,7 @@ It ran a seven-feature backlog, a feature across six contexts, five more feature
 The next work is ordered by what could change that verdict:
 1. **Failures and concurrency under test.** A crash between a commit and a publication, two writers at once, a consumer that fails. These are what the outbox and the version check are for. Every arm gets the same requirements, so the plain one must build the guarantees itself.
 2. **Grading kept apart on four scores:** correctness, robustness, maintainability, cost of change.
-3. **Closing what the tooling does not yet check:** the HTTP grammar's refusals.
+3. **Taking bookkeeping off the agents:** the gate regenerates the documents and marks a carried storm done itself. The rule on refusals that the weaker model's failure exposed is now in the contract ([ADR 32](docs/adr/0032-a-command-body-is-refused-for-its-shape-only.md)).
 4. **Narrowing the cost:** a small generator from the storm, measured on what it saves in total, and a lighter profile with ports only at the edges.
 
 ## Get started
@@ -61,7 +61,7 @@ Ten minutes, three moves: run it, ask it, change it. Every command below runs fr
 Every server listens on `http://127.0.0.1:10000` and answers the API under `/v1` (`GET /v1/health` says it is up). It seeds an administrator only when given one: set `ADMIN_IDENTIFIER` and `ADMIN_PASSWORD` in its environment (`ADMIN_IDENTIFIER=admin@admin.fr ADMIN_PASSWORD=admin` before the command above, the credentials the scenario below signs in with). There is no default, so a deployment that forgets them has no administrator rather than a known one. The four answer **one API**, and the proof is one command, against whichever server is up:
 
 ```bash
-node api/scenario.mjs http://127.0.0.1:10000      # 31 steps: sign up, share a note, follow an operation, the websocket…
+node api/scenario.mjs http://127.0.0.1:10000      # 32 steps: sign up, share a note, follow an operation, the websocket…
 ```
 
 The front end is a static folder, a client like any other. Start the server with `WEB_ORIGINS=http://127.0.0.1:8080`, then:
@@ -344,6 +344,7 @@ Every rule has a stable id, a reason, a remediation and says how it is held: by 
 | **ARCH-LEARNABLE** — A newcomer, or an agent, can add a feature in the right shape from the documentation alone. | evaluations · [README.md](docs/evaluations/README.md) |
 | **ARCH-ONE-CONTRACT** — Every language the reference is written in is held to this file — the same layers, the same rules under the same ids, the same HTTP grammar — through a binding that says where its trees are and which file shows each concept; a language never carries a rule of its own. | check · [0011-one-reference-several-languages.md](docs/adr/0011-one-reference-several-languages.md), [README.md](conventions/README.md) |
 | **API-ONE-SURFACE** — Every language answers the same HTTP API — the same routes, status codes, body shapes and public names — so one black-box scenario, run against each server, passes unchanged; the public name of an operation is its intent or its fact without the suffix of its kind (`ShareNote`, `NoteShared`). | tests · [0016-one-api-for-every-language.md](docs/adr/0016-one-api-for-every-language.md) |
+| **API-BODY-SHAPE** — A command's request body is refused by the transport for its shape only — a field missing or of the wrong type answers 400; whether a value is allowed (one of a list, a format, a length, a range, a count) is the domain's to decide, and its refusal is the operation's ERROR behind the 202, named by the rule's exception. | tests · [0032-a-command-body-is-refused-for-its-shape-only.md](docs/adr/0032-a-command-body-is-refused-for-its-shape-only.md) |
 | **CTX-MAP-DECLARED** — Every relationship between two contexts is declared once in the context map, with the strategic pattern it follows, the mechanism that carries it and why; the contracts it carries are read from the code, and the check refuses a link in the code the map does not declare and a declared relationship nothing in the code carries, unless it is declared `planned` — decided before the code that carries it. | check · [0019-the-domain-is-data.md](docs/adr/0019-the-domain-is-data.md), [0028-a-relationship-is-decided-before-its-code.md](docs/adr/0028-a-relationship-is-decided-before-its-code.md), [README.md](conventions/README.md) |
 | **ARCH-ONE-APPLICATION** — Every language's tree says the same application, in words every language shares — the commands of each context with who may call them, their route, the aggregate they reach and the events it records; the queries; the domain events; the policies and what they publish or reach; the links between contexts; each language's tool writes that inventory from its own tree, and the check holds the inventories equal. | check · [0021-one-application-every-language-writes-the-same-inventory.md](docs/adr/0021-one-application-every-language-writes-the-same-inventory.md), [README.md](conventions/README.md) |
 <!-- end generated -->
@@ -434,6 +435,7 @@ Non-obvious choices are recorded as short ADRs in [`docs/adr`](docs/adr):
 29. [A feature's contract may be in progress, and is marked carried when all of it is](docs/adr/0029-a-contract-may-be-in-progress.md)
 30. [A reaction is a transaction of its own, publishes through the outbox, and is not made idempotent by hand](docs/adr/0030-a-reaction-is-a-transaction-of-its-own.md)
 31. [The architecture is offered to agents as a guardrail and a coordinator, not as an accelerator](docs/adr/0031-the-architecture-is-a-guardrail-and-a-coordinator-not-an-accelerator.md)
+32. [A command's body is refused for its shape only; whether a value is allowed is the domain's](docs/adr/0032-a-command-body-is-refused-for-its-shape-only.md)
 
 What is deliberately *not* here — a DI container, an ORM, a message broker, a generic saga — is listed with its reason and the day it would come in the TypeScript README's [What is deliberately not here](typescript/README.md#what-is-deliberately-not-here); the known gaps of each language are at the end of its README.
 

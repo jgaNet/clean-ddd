@@ -18,7 +18,7 @@ This repository was built on a bet: an architecture made explicit and enforced m
 
 **Two weaknesses of the tooling were found:**
 
-- **The gate holds the structure, not every rule.** One run with the weaker model answered a refusal with a 400 from the request schema. The contract says a refusal is an outcome behind a 202. The gate and the storm check both passed it.
+- **The guide and the contract left a gap the gate could not hold.** One run with the weaker model answered an unknown plan with a 400 from its request schema, where the request wanted a 202 and an `ERROR`. The TypeScript guide then called an enum of allowed values "shape", so the agent followed it, and the gate passed it rightly. [ADR 32](0032-a-command-body-is-refused-for-its-shape-only.md) closes the gap in the contract.
 - **Much of what the tooling caught was its own bookkeeping.** A storm not marked done, a document to regenerate, a context missing from the map: each costs an agent a turn and protects nothing.
 
 ## Decision
@@ -42,7 +42,7 @@ The work that follows is ordered by what could change that verdict. What the arc
 
    Passing the acceptance tests says nothing about the other three.
 3. **Close the enforcement gaps.**
-   - The HTTP grammar in the contract becomes executable checks. Every command answers 202, and a refusal is a failed outcome, not a 400. The gate runs these checks on every route a module lists. The weaker model's failure is the first test case.
+   - **Done:** the rule the weaker model's failure exposed is in the contract (API-BODY-SHAPE, [ADR 32](0032-a-command-body-is-refused-for-its-shape-only.md)): a command's body is refused for its shape only. TypeScript's linter holds it, so the gate does in a TypeScript tree. Every language holds it through the shared scenario.
    - The bookkeeping the tooling asks of an agent is done by the tooling where it can be: documents regenerated, a carried storm marked done. An agent should spend no turn on bookkeeping.
 4. **A long horizon:** several trees per arm and dozens of features, with the cost of each change measured as the code grows. E3's direction is a plain tree's time per feature growing while A's stayed flat, on one tree per arm. It becomes a result or disappears.
 5. **Narrow the cost, once robustness is measured: let the architecture write what it already knows.**
@@ -87,3 +87,5 @@ Revised the same day, after an external review of the records. The verdict and t
 - **A hardened harness is the campaign's precondition.**
 
 The same review found that every server seeded a known default administrator. That was removed in every language: an administrator is now seeded only when both of its variables are set.
+
+A second revision corrects the context. The weaker model's 400 was first described here as a rule the gate missed. It followed the guide of the time, which called an enum of allowed values "shape". [ADR 32](0032-a-command-body-is-refused-for-its-shape-only.md) settles the rule, and item 3's first point is done.

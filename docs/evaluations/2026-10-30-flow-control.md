@@ -46,7 +46,7 @@ Two agents that had not run the benchmark read the eight trees, under neutral na
 
 - **No difference is shown under either reading.** The failures differ in kind:
   - Layered trees duplicated a rule across two contexts: the reminder's due check, in Notes and again in Notifications (A run 2, D run 2).
-  - A layered tree answered a missing field with a 400 instead of an `ERROR` outcome (A run 3).
+  - A layered tree answered a missing field with a 400 instead of an `ERROR` outcome (A run 3). [ADR 32](../adr/0032-a-command-body-is-refused-for-its-shape-only.md), written later, makes a missing field the body's shape and a 400 the expected answer. The rubric counted it against the tree.
   - Plain trees coupled notes and notifications through internal types (P runs 1 and 2).
 - **Changes were more local in the plain trees.** These counts come from the change probes: the files a developer would edit, without making the change.
 

@@ -421,6 +421,13 @@ await step('an inbox is private; sending by hand is an administrator\'s', async 
   const unread = (await state.carol.get(`/notifications/account/${state.carolId}?onlyUnread=true`)).json;
   ok(unread.notifications.every((n) => n.status !== 'READ'), 'onlyUnread filters the read ones');
 });
+await step('a channel is the domain\'s to judge: an unknown one, or none, is refused on the operation (API-BODY-SHAPE)', async () => {
+  const body = (channels) => ({ recipientId: state.carolId, title: 'Hello', content: 'there', channels });
+  const unknown = await accepted(state.admin, await state.admin.post('/notifications', body(['PIGEON'])));
+  eq([unknown.status, unknown.error?.type], ['ERROR', 'UnknownChannel'], 'an unknown channel');
+  const none = await accepted(state.admin, await state.admin.post('/notifications', body([])));
+  eq([none.status, none.error?.type], ['ERROR', 'EmptyDeliveryStrategy'], 'no channel');
+});
 
 describe('The live channel');
 await step('a connected browser is told how its commands went', async () => {

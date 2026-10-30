@@ -10,6 +10,7 @@ pub const SERVICE: &str = "Notifications";
 pub const BLANK_NOTIFICATION_TITLE: &str = "BlankNotificationTitle";
 pub const BLANK_NOTIFICATION_CONTENT: &str = "BlankNotificationContent";
 pub const EMPTY_DELIVERY_STRATEGY: &str = "EmptyDeliveryStrategy";
+pub const UNKNOWN_CHANNEL: &str = "UnknownChannel";
 pub const NOTIFICATION_NOT_FOUND: &str = "NotificationNotFound";
 pub const NOT_NOTIFICATION_RECIPIENT: &str = "NotNotificationRecipient";
 pub const NOTIFICATION_NOT_DELIVERED: &str = "NotificationNotDelivered";
@@ -30,6 +31,10 @@ pub fn blank_notification_content() -> Exception {
 
 pub fn empty_delivery_strategy() -> Exception {
     refusal(EMPTY_DELIVERY_STRATEGY, "A notification needs at least one channel")
+}
+
+pub fn unknown_channel(channel: &str) -> Exception {
+    refusal(UNKNOWN_CHANNEL, &format!("No notification is sent by {channel}")).with("channel", channel)
 }
 
 pub fn notification_not_found(notification_id: &str) -> Exception {

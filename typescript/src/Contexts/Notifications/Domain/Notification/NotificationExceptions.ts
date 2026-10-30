@@ -24,6 +24,12 @@ export class EmptyDeliveryStrategyException extends NotificationDomainException 
   }
 }
 
+export class UnknownChannelException extends NotificationDomainException {
+  constructor(channel: string) {
+    super({ type: 'UnknownChannel', message: `No notification is sent by ${channel}`, context: { channel } });
+  }
+}
+
 export class NotificationNotFoundException extends NotificationDomainException {
   constructor(notificationId: string) {
     super({ type: 'NotificationNotFound', message: 'Notification not found', context: { notificationId } });

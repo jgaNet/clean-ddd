@@ -45,6 +45,12 @@ class TestCreating:
         assert isinstance(blank, Failure) and blank.error.type == "BlankNotificationTitle"
         assert isinstance(empty, Failure) and empty.error.type == "EmptyDeliveryStrategy"
 
+    def test_refuses_a_channel_it_does_not_know_by_name(self) -> None:
+        refused = Notification.create(
+            NewNotification(recipient_id="bob", title="x", content="x", channels=["EMAIL", "FAX"])
+        )
+        assert isinstance(refused, Failure) and refused.error.type == "UnknownChannel"
+
 
 class TestDeliveryAttempts:
     def test_is_sent_by_the_first_channel_that_accepts_it_and_records_notification_sent(self) -> None:

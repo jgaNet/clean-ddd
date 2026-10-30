@@ -27,6 +27,11 @@ class EmptyDeliveryStrategyException(NotificationDomainException):
         super().__init__("EmptyDeliveryStrategy", "A notification needs at least one channel")
 
 
+class UnknownChannelException(NotificationDomainException):
+    def __init__(self, channel: str) -> None:
+        super().__init__("UnknownChannel", f"No notification is sent by {channel}", {"channel": channel})
+
+
 class NotificationNotFoundException(NotificationDomainException):
     def __init__(self, notification_id: str) -> None:
         super().__init__("NotificationNotFound", "Notification not found", {"notificationId": notification_id})
