@@ -26,6 +26,7 @@
  *   parallelism: 2
  *   retry: { perSlice: 1 }
  *   ports: { base: 10100 }
+ *   frozen: [src/Contexts/Plans/Domain/Plan/Ports/ISpacePlanQueries.ts]   # beside each plan's own `frozen`
  *
  * What it does, in order, every step appended to a JSONL log, the run's only state:
  *   1. holds the contract to the tooling: the storm and every plan validate, the acceptance test
@@ -36,7 +37,8 @@
  *      driver and the agent's process group;
  *   3. per slice, the driver's verdict, never the agent's: the gate, and the slice's scope — a slice
  *      changes its own context's folder and nothing else (the composition root, the shared kernel's
- *      contracts, the conventions and the manifest belong to the contract stage); a failure sends
+ *      contracts, the conventions and the manifest belong to the contract stage), and never a file
+ *      the contract stage froze, even inside that folder (a read model another slice imports); a failure sends
  *      the slice back once, in the same conversation, with the lines to read; an agent that says
  *      the contract is wrong (its report starts with BLOCKED) stops the feature;
  *   4. the single writer: an integration worktree from the base, each slice's patch applied, the
@@ -275,6 +277,21 @@ if (!contractBefore) {
 }
 
 // 2. and 3. The slices, at once, each held to its gate and its scope by the driver.
+// What the contract stage froze for the slices, wherever it lives — a read model in one slice's own
+// context that another slice's adapter imports is frozen for that slice too (phase 4 found one moved
+// and extended in place, invisible from its worktree): the execution plan's list and each plan's.
+const frozen = [
+  ...new Set([
+    ...(plan.frozen ?? []),
+    ...plan.slices.flatMap(slice => {
+      try {
+        return yaml.load(readFileSync(join(project, slice.plan), 'utf8'))?.frozen ?? [];
+      } catch {
+        return [];
+      }
+    }),
+  ]),
+];
 const brief = (slice, port) => {
   const others = plan.slices.filter(other => other.id !== slice.id).map(other => other.context);
   return [
@@ -297,6 +314,11 @@ const brief = (slice, port) => {
         ]),
     `- The storm: \`${plan.storm}\` (\`yarn architecture storm --expect ${plan.storm}\` says what the code still owes it).`,
     `- Your plan: \`${slice.plan}\`.`,
+    ...(frozen.length
+      ? [
+          `- Files frozen for every slice, even inside your own context: ${frozen.map(file => `\`${file}\``).join(', ')}. Do not move, rename or edit them. If you need more than one gives — another method, another field — add a port or a file of your own beside it; if that cannot work, say so in your report: the contract is amended by the person who froze it.`,
+        ]
+      : []),
     '- The integration contracts in `src/SharedKernel/Application/IntegrationEvents/`: the messages between the contexts, already written.',
     others.length
       ? `- The acceptance test: \`${plan.acceptance.file}\`. It speaks HTTP to the whole application and passes only once every slice is integrated: do not edit it and do not expect it to pass in your worktree. Your own tests must not depend on the other slices.`
@@ -331,7 +353,9 @@ function scope(slice, path) {
   // A feature of one slice is whole in its worktree: its contract's flags are its to set (ADR 29).
   const flags = plan.slices.length === 1 ? [plan.storm, slice.plan] : [];
   const outside = changed.filter(file => !file.startsWith(`src/Contexts/${slice.context}/`) && !flags.includes(file));
-  return { changed, outside };
+  // A frozen file is out of scope wherever it lives; one that no longer exists was moved or deleted.
+  const touchedFrozen = frozen.filter(file => changed.includes(file) || !existsSync(join(path, file)));
+  return { changed, outside, touchedFrozen };
 }
 
 /** The lease a running slice holds: the driver, the agent's process group, refreshed while it runs. */
@@ -388,10 +412,24 @@ async function agent(slice, prompt, again) {
 
 async function validate(slice) {
   event('slice', { slice: slice.id, state: 'VALIDATING' });
-  const { changed, outside } = scope(slice, slice.path);
+  const { changed, outside, touchedFrozen } = scope(slice, slice.path);
   const verdict = await gate(slice.path);
-  event('gate', { slice: slice.id, verdict: verdict.verdict, changedFiles: changed.length, outside, ...verdict });
+  event('gate', {
+    slice: slice.id,
+    verdict: verdict.verdict,
+    changedFiles: changed.length,
+    outside,
+    touchedFrozen,
+    ...verdict,
+  });
   return [
+    ...(touchedFrozen.length
+      ? [
+          'Frozen files this slice changed, moved or deleted — the other slices import them as they were:',
+          ...touchedFrozen.map(file => `  ${file}`),
+          'Put each back exactly as it was frozen. If you need more than it gives, add a port or a file of your own beside it.',
+        ]
+      : []),
     ...(outside.length
       ? [
           `Files outside src/Contexts/${slice.context}/, which this slice may not change:`,

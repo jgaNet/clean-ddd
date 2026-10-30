@@ -43,6 +43,16 @@ describe('clean-ddd pack', () => {
       ]),
     );
     expect(pack.storm?.yours?.commands.map(command => command.name)).toEqual(['ShareNote']);
+    // What the contract stage froze for the other slices, even inside this slice's context, is frozen too.
+    const readModel = 'typescript/src/Contexts/Notes/Domain/Note/Ports/INoteQueries.ts';
+    const withFrozen = packSlice(
+      { ...plan, frozen: [readModel] },
+      contract,
+      root,
+      'conventions/plans/share-a-note.yaml',
+    );
+    expect(withFrozen.frozen).toContain(readModel);
+    expect(describePack(withFrozen)).toContain('even inside your context');
     // In the reference, every example is the project's own file.
     const command = pack.yours.find(change => change.kind === 'command')!;
     expect(command.examples).toContainEqual({

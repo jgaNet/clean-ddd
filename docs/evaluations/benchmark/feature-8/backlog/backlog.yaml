@@ -1,0 +1,4 @@
+# Feature 8 alone, on a project that already carries features 1 to 7.
+schemaVersion: 1
+features:
+  - { id: team-spaces, n: 8, contexts: [Teams, Plans, Notes, Search, Audit, Notifications], needs: [] }

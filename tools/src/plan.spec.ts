@@ -46,6 +46,14 @@ describe('a feature plan', () => {
     expect(validatePlan(plan, contract, root)).toEqual([]);
   });
 
+  it('names the files it froze for the other slices, which must exist', () => {
+    const frozen = 'typescript/src/Contexts/Notes/Domain/Note/Ports/IAccountDirectory.ts';
+    expect(validatePlan(aPlan({ frozen: [frozen] }), contract, root)).toEqual([]);
+    expect(validatePlan(aPlan({ frozen: ['typescript/src/Nowhere.ts'] }), contract, root)).toEqual([
+      expect.stringContaining('"typescript/src/Nowhere.ts" is frozen, but there is no such file'),
+    ]);
+  });
+
   it('says so when a plan written for another language is checked against this binding', () => {
     expect(validatePlan(aPlan({ language: 'rust' }), contract, root)).toEqual(
       expect.arrayContaining([expect.stringContaining('written for rust')]),
