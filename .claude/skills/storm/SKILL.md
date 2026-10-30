@@ -82,7 +82,9 @@ is none of the three, a pivot the map does not declare, an event nobody brings.
 
 The storm is language-neutral; the feature is written in one language at a time, under the
 `feature` skill, by the `feature-author` subagent or by hand, with a plan per language if it is
-worth stating first. When the work is done:
+worth stating first. Whether one agent writes it or one agent per context does,
+`yarn architecture strategy --storm ../conventions/storms/<feature>.yaml` answers from the storm's
+size and spread, with `--priority time` when its time matters more than its cost. When the work is done:
 
 ```bash
 yarn architecture storm --expect conventions/storms/<feature>.yaml

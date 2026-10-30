@@ -27,6 +27,7 @@
  *   retry: { perSlice: 1 }
  *   ports: { base: 10100 }
  *   frozen: [src/Contexts/Plans/Domain/Plan/Ports/ISpacePlanQueries.ts]   # beside each plan's own `frozen`
+ *   priority: cost                                    # what `clean-ddd strategy` weighs, logged with the contract (cost | time)
  *
  * What it does, in order, every step appended to a JSONL log, the run's only state:
  *   1. holds the contract to the tooling: the storm and every plan validate, the acceptance test
@@ -269,6 +270,16 @@ if (!contractBefore) {
     plan.agent?.pack !== false &&
     (await sh(`${tool} pack --plan ${plan.slices[0].plan} --json`, project, 120_000)).code === 0;
   event('contract', { checks, packs });
+  // What `clean-ddd strategy` recommends for this feature, logged beside the fan-out this run is
+  // (RFC 0001, phase 6); tooling older than the command logs nothing.
+  const advice = parse(
+    (await sh(`${tool} strategy --storm ${plan.storm} --priority ${plan.priority ?? 'cost'} --json`, project, 120_000))
+      .stdout,
+  );
+  if (advice?.strategy) {
+    const { strategy: recommended, estimate, inputs } = advice;
+    event('strategy', { ran: 'fan-out-by-context', recommended, estimate, inputs });
+  }
   if (checks.some(check => !check.ok)) {
     event('finished', { state: 'BLOCKED', reason: 'the contract does not hold' });
     rmSync(lockFile, { force: true });

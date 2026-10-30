@@ -43,4 +43,9 @@ node .claude/flow/run-slices.mjs --project <dir> --plan <execution-plan.yaml> --
 
 The SDK's agent process is not in a process group of its own: if the driver is killed with SIGKILL while a `claude-sdk` slice runs, its agent may outlive it, and the lease, which has no group to name, cannot stop it. Cancel stops it through its abort signal; a crash does not.
 
+## Phase 4 and after: the backlog, and the strategy logged
+
+- **[`run-backlog.mjs`](run-backlog.mjs)** runs the benchmark's arms A (one agent, the features in order) and B (one agent per feature, in parallel); [`grade.mjs`](grade.mjs) grades any arm's final tree with one tooling; [`person.mjs`](person.mjs) logs the person's time in the contract stage.
+- **The strategy, logged.** Each feature's log carries a `strategy` event: what `clean-ddd strategy` recommends for its storm (one agent or the fan-out by context), with its estimate and inputs, beside what the run actually does — so the rule of RFC phase 6 is evaluated against the runs it was asked about. The execution plan's `priority` (`cost` by default, or `time`) is what it weighs. Tooling older than the command logs nothing.
+
 It is a script on purpose. It holds no state but the log (and, while it runs, a lock and the leases); several features at once is a later phase of the RFC, and comes only if the measurements justify it.

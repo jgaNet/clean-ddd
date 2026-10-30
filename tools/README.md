@@ -64,6 +64,9 @@ clean-ddd pack --plan <file>      one slice of a feature: what is its own to wri
                                   contracts, the storm's part, the files that show each shape (from the bundled reference
                                   when the project has none yet, with the project's building blocks that differ from
                                   the ones those examples are written against); --json for a driver
+clean-ddd strategy --storm <file> [--priority cost|time] [--contract-minutes <n>]   one agent or a fan-out by context
+                                  for this feature, from what phase 4 of the flow measured, with its inputs and the
+                                  architecture task it needs first; --json for a driver to log beside its run
 clean-ddd create <dir> [--name <app>] [--language <id>]   a new application on this architecture, in that language
 clean-ddd check [--write]         the conventions check; --write regenerates what it holds
 ```
@@ -73,6 +76,19 @@ Every command takes `--json` (valid JSON only, a structured error and exit 1 on 
 ## The gate
 
 `clean-ddd gate --base <ref>` is the completion contract of a feature ([RFC 0001](../docs/rfc/0001-architecture-aware-multi-agent-flow.md)): one verdict, as data, that whoever starts an agent reads instead of the agent's report. It runs the feature mode against the base — the changes committed since it and the ones not committed yet alike — then the conventions check, then the commands the language's binding lists under `checks`, in CI's order, in the language's directory. The steps that hold the architecture (the mode, the conventions check, the first of `checks`, which is the language's own) stop it when they fail; the quality and test steps after them all run, so one gate shows everything left to fix. It adds no check: every step is a command that already exists. `--json` prints the report (`verdict`, and per step its `stage`, `status`, duration and, on a failure, the lines to read).
+
+## The strategy
+
+`clean-ddd strategy --storm <file>` says how to staff a feature with agents ([RFC 0001](../docs/rfc/0001-architecture-aware-multi-agent-flow.md), phase 6): one agent, or one agent per bounded context against a frozen contract, integrated by one writer. It reads the storm, the binding and the context map, and decides nothing: its answer is a recommendation with the inputs it used.
+
+The rule is the one phase 4 measured ([the campaign](../docs/evaluations/2026-10-30-flow-phase-4-campaign.md)), and it reproduces every verdict of it:
+
+- **Cost first, by default.** The fan-out cost 1.35 to 1.74 times one agent in every measured run: each slice is a fresh agent that reads before it writes, where one agent keeps its context cached. So the answer is one agent, and it says when the fan-out would be sooner.
+- **Time first (`--priority time`).** The fan-out is sooner only when the stickies outside the largest context (a sticky is a command, a query or a policy) outweigh the contract stage and the integration. On the backlog's features they never did; on team spaces, 29 stickies outside Teams, they did.
+- **The contract stage counts against the fan-out.** By default it is what an agent playing the person took; `--contract-minutes` gives a person's own time, and each minute moves the break-even by two stickies.
+- **One context has nothing to split**, and **what the binding or the map lacks** (a context, a relationship) is an architecture task that runs first and alone in either strategy.
+
+The minutes are in `CALIBRATION` ([`strategy.ts`](src/strategy.ts)) and change with the record that measures new ones. What nobody has measured — a split by layer, features in parallel — is named as such, with its prediction.
 
 ## What is the tool's and what is a language's
 
