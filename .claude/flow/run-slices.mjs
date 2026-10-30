@@ -44,10 +44,10 @@
  *      acceptance test; a failure that names one slice's context sends that slice back once.
  *
  * Interrupted, it resumes (`--resume`, phase 3): the log is folded into each slice's state; a slice
- * that passed stays passed; one that was running when its driver died — its lease gone stale —
- * has its agent's process group stopped if it outlived the driver, then is checked as it stands
- * (scope and gate) and, if not done, is continued in the same conversation, told it was
- * interrupted; the integration is redone in a new worktree. Resuming a finished run changes
+ * that passed stays passed; one whose agent was running when its driver died has the agent's
+ * process group stopped if it outlived the driver, and is continued in the same conversation,
+ * told it was interrupted; one whose agent had finished is checked again; the integration is
+ * redone in a new worktree. Resuming a finished run changes
  * nothing. `--cancel` stops a running driver: every agent is stopped, every running slice and the
  * run are recorded CANCELLED, which is final.
  *
@@ -438,8 +438,10 @@ async function resumeSlice(slice) {
   const reclaimed = reclaim(slice);
   event('slice', { slice: slice.id, state: 'RESUMING', from: slice.state, ...(reclaimed && { lease: reclaimed }) });
   if (slice.state === 'READY') return work(slice);
-  const problems = await validate(slice);
-  if (!problems.length) return settle(slice, problems);
+  // Its agent had finished, and the driver was checking it: the check is redone.
+  if (slice.state === 'VALIDATING') return settle(slice, await validate(slice));
+  // Its agent was writing: only the agent knows what is left, so it continues. A gate that
+  // passes on half a slice says the code is sound, not that the slice is done (phase 3).
   return work(slice, { interrupted: true });
 }
 
@@ -466,8 +468,10 @@ function fold(slice) {
   const mine = history.filter(each => each.slice === slice.id);
   const states = mine.filter(each => each.event === 'slice');
   const ready = states.find(each => each.state === 'READY');
+  // A resume that was itself interrupted resumes from where the slice was before it.
+  const last = states.filter(each => each.state !== 'RESUMING').at(-1);
   return {
-    state: states.at(-1)?.state ?? 'PENDING',
+    state: last?.state ?? 'PENDING',
     path: ready?.worktree,
     attempts: states.filter(each => each.state === 'RUNNING').length,
     retries: states.filter(each => each.state === 'RUNNING' && each.retry).length,
@@ -525,7 +529,12 @@ async function integrate() {
   event('integration', { state: 'INTEGRATING', attempt: integrations, worktree: path });
   for (const slice of slices) {
     const patch = join(runDir, `${slice.id}-${integrations}.patch`);
-    writeFileSync(patch, git(slice.path, 'diff', '--binary', baseCommit, 'HEAD') + '\n');
+    const diff = git(slice.path, 'diff', '--binary', baseCommit, 'HEAD');
+    if (!diff) {
+      event('integration', { slice: slice.id, empty: true });
+      continue;
+    }
+    writeFileSync(patch, diff + '\n');
     try {
       execFileSync('git', ['apply', '--3way', '--index', patch], { cwd: path, encoding: 'utf8', stdio: 'pipe' });
     } catch (error) {
