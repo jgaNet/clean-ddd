@@ -388,6 +388,19 @@ export async function checkConventions(
   // 6. Every feature plan is legal, against the binding it is written for
 
   const plansDir = join(root, 'conventions/plans');
+  // The features whose storm is not done yet: their plans are in progress, whichever of their own
+  // parts are written — a slice writes all of its plan and only part of the feature (ADR 29).
+  const featuresInProgress = new Set<string>();
+  if (existsSync(stormsDir)) {
+    for (const entry of readdirSync(stormsDir).filter(name => name.endsWith('.yaml'))) {
+      try {
+        const storm = loadExpectedStorm(`${STORMS_DIR}/${entry}`, root);
+        if (!storm.done) featuresInProgress.add(storm.feature);
+      } catch {
+        // reported with the storms
+      }
+    }
+  }
   if (existsSync(plansDir)) {
     for (const entry of readdirSync(plansDir).filter(name => name.endsWith('.yaml'))) {
       const file = `conventions/plans/${entry}`;
@@ -398,7 +411,13 @@ export async function checkConventions(
           problem(`${file}: is written for ${plan.language}, which is not one of ${contract.languages.join(', ')}`);
           continue;
         }
-        for (const wrong of validatePlan(plan, bound, root)) problem(`${file}: ${wrong}`);
+        for (const wrong of validatePlan(
+          plan,
+          bound,
+          root,
+          featuresInProgress.has(plan.feature) ? 'in-progress' : 'held',
+        ))
+          problem(`${file}: ${wrong}`);
         explainPlan(plan, bound); // it must expand without throwing
       } catch (error) {
         problem(`${file}: ${error instanceof Error ? error.message : String(error)}`);

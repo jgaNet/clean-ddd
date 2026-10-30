@@ -126,14 +126,19 @@ describe('the storm against the code', () => {
     });
   });
 
-  it('holds a done storm to the code and a planned one to its absence', () => {
+  it('holds a done storm to the code, and a planned one until the code carries all of it', () => {
     expect(checkExpectedStorm(share, actual)).toEqual([]);
     expect(checkExpectedStorm(pin, actual)).toEqual([]);
     const stale = clone(share);
     stale.done = false;
-    expect(checkExpectedStorm(stale, actual)).toContainEqual(
-      expect.stringContaining('is not done, yet the code already carries Notes: the command ShareNote'),
-    );
+    expect(checkExpectedStorm(stale, actual)).toEqual([
+      expect.stringContaining('is not done, yet the code carries all of it (Notes: the command ShareNote'),
+    ]);
+    // In progress: part of it carried, the rest not yet — as when one slice of a feature is written.
+    const halfway = clone(share);
+    halfway.done = false;
+    halfway.contexts[0].commands.push({ ...halfway.contexts[0].commands[0], name: 'UnshareNote' });
+    expect(checkExpectedStorm(halfway, actual)).toEqual([]);
     const premature = clone(pin);
     premature.done = true;
     expect(checkExpectedStorm(premature, actual)).toContainEqual(

@@ -126,6 +126,24 @@ describe('the code behind the map', () => {
       ),
     );
   });
+
+  it('lets a relationship be decided before its code, and holds it like any other once the code carries it', () => {
+    const planned = clone();
+    const [carried] = planned.relationships;
+    planned.relationships.push({ ...carried, upstream: 'Notifications', downstream: 'Tracker', planned: true });
+    expect(checkDomainAgainstLinks(planned, links, 'TypeScript')).toEqual([]);
+
+    // Planned, and now carried: the same relationship, nothing to refuse.
+    planned.relationships[0] = { ...carried, planned: true };
+    expect(checkDomainAgainstLinks(planned, links, 'TypeScript')).toEqual([]);
+
+    // Planned names the decision, not the pair: a link nothing declares is still refused.
+    const undeclared = clone();
+    undeclared.relationships = undeclared.relationships.filter(
+      relationship => relationship !== undeclared.relationships[0],
+    );
+    expect(checkDomainAgainstLinks(undeclared, links, 'TypeScript')).toHaveLength(1);
+  });
 });
 
 describe('the rendered map', () => {

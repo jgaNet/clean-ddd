@@ -1,0 +1,14 @@
+run: notify-4
+base: c67fe6d
+request: ../requests/5-notify-on-archive.md
+storm: conventions/storms/notify-on-archive.yaml
+acceptance:
+  file: src/Bootstrap/Fastify/Acceptance/notify-on-archive.acceptance.ts
+  command: yarn -s test --testMatch '**/notify-on-archive.acceptance.ts'
+slices:
+  - { id: notes, context: Notes, plan: conventions/plans/notify-on-archive.notes.yaml }
+  - { id: notifications, context: Notifications, plan: conventions/plans/notify-on-archive.notifications.yaml }
+agent: { timeoutMinutes: 60 }   # model: the runner's default unless named here
+parallelism: 2
+retry: { perSlice: 1 }
+ports: { base: 14100 }

@@ -376,11 +376,11 @@ rules:
 
   - id: CTX-MAP-DECLARED
     name: the-context-map-is-declared-and-true
-    statement: Every relationship between two contexts is declared once in the context map, with the strategic pattern it follows, the mechanism that carries it and why; the contracts it carries are read from the code, and the check refuses a link in the code the map does not declare and a declared relationship nothing in the code carries.
+    statement: Every relationship between two contexts is declared once in the context map, with the strategic pattern it follows, the mechanism that carries it and why; the contracts it carries are read from the code, and the check refuses a link in the code the map does not declare and a declared relationship nothing in the code carries, unless it is declared `planned` — decided before the code that carries it.
     why: A context map drawn by hand and never checked is a wish; one read from the code alone is an inventory with no intent in it. Declaring the pair, the pattern and the reason, and deriving the contracts, keeps both honest, and makes a new relationship between two contexts a decision written down before it is merged.
-    remediation: Add the relationship to `relationships` in the domain map with its pattern and its reason — or remove the link in the code, if the coupling was not meant; never widen the check.
+    remediation: Add the relationship to `relationships` in the domain map with its pattern and its reason — declared `planned` when it is decided before the code that carries it — or remove the link in the code, if the coupling was not meant; never widen the check.
     enforcement: check
-    references: [docs/adr/0019-the-domain-is-data.md, conventions/README.md]
+    references: [docs/adr/0019-the-domain-is-data.md, docs/adr/0028-a-relationship-is-decided-before-its-code.md, conventions/README.md]
 
   - id: ARCH-ONE-APPLICATION
     name: every-language-is-the-same-application
