@@ -224,7 +224,7 @@ const request = feature => readFileSync(join(kit, 'backlog', `${feature.n}-${fea
 const brief = (feature, from, port) =>
   [
     plan.arm === 'A'
-      ? `You are writing an application built on the clean-ddd architecture, one feature at a time, in this conversation. This is feature ${feature.n} of ${backlog.length}.`
+      ? `You are writing an application built on the clean-ddd architecture, one feature at a time, in this conversation. This is feature ${feature.n} of ${Math.max(...backlog.map(each => each.n))}.`
       : `You are writing one feature of an application built on the clean-ddd architecture. Other agents are writing other features at the same time, each in its own git worktree; you will not see their work, which is integrated with yours afterwards.`,
     'Read `CLAUDE.md` first and follow it. Do not ask questions: decide, and say in your final report what was unclear.',
     '',
