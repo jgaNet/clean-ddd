@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture and AI agents</title>
+<meta name="description" content="Does Clean Architecture and DDD help an AI coding agent? A controlled benchmark with and without the architecture.">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface-1: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+  --link: #1c5cab;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --good: #006300;
+  --critical: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface-1: #1a1a19;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+    --link: #86b6ef;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --good: #0ca30c;
+    --critical: #e66767;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface-1: #1a1a19;
+  --text-primary: #f0efec;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255, 255, 255, 0.1);
+  --link: #86b6ef;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --good: #0ca30c;
+  --critical: #e66767;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font: 17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 760px; margin: 0 auto; padding: 48px 16px 96px; }
+header.title { margin-bottom: 40px; }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.01em; }
+.dek { color: var(--text-secondary); font-size: 1.15rem; margin: 0 0 16px; }
+.byline { color: var(--text-muted); font-size: 0.9rem; }
+h2 { font-size: 1.4rem; margin: 56px 0 12px; line-height: 1.3; }
+h3 { font-size: 1.1rem; margin: 32px 0 8px; }
+p, li { color: var(--text-primary); }
+a { color: var(--link); }
+code { font: 0.88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--surface-1); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+blockquote { margin: 24px 0; padding: 4px 0 4px 16px; border-left: 3px solid var(--axis); color: var(--text-secondary); }
+.answer { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; margin: 24px 0; }
+.answer p { margin: 8px 0; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 24px 0; }
+.stat { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.stat .figure { font-size: 1.7rem; font-weight: 600; line-height: 1.2; }
+.stat .what { color: var(--text-secondary); font-size: 0.85rem; }
+figure.chart { margin: 28px 0 8px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 16px 8px; }
+figure.chart figcaption { font-weight: 600; margin-bottom: 8px; }
+figure.chart .plot { overflow-x: auto; }
+figure.chart .swipe { display: none; color: var(--text-muted); font-size: 0.8rem; margin: 0 0 6px; }
+@media (max-width: 640px) { figure.chart .swipe { display: block; } }
+figure.chart .plot svg { width: 100%; min-width: 600px; height: auto; display: block; overflow: visible; }
+.legend svg { flex: none; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 4px; }
+.legend .key { display: inline-flex; align-items: center; gap: 6px; }
+svg .grid { stroke: var(--grid); stroke-width: 1; }
+svg .axis { stroke: var(--axis); stroke-width: 1; }
+svg .tick { fill: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+svg .label { fill: var(--text-secondary); font-size: 13px; }
+svg .value { fill: var(--text-primary); font-size: 13px; font-variant-numeric: tabular-nums; }
+svg .dot { stroke: var(--surface-1); stroke-width: 2; cursor: default; }
+svg .bar { cursor: default; }
+svg .dot:hover, svg .dot:focus, svg .bar:hover, svg .bar:focus { opacity: 0.8; outline: none; }
+.note { color: var(--text-muted); font-size: 0.85rem; margin: 4px 0 24px; }
+details.table-view { margin: 4px 0 24px; font-size: 0.9rem; }
+details.table-view summary { color: var(--text-muted); cursor: pointer; }
+table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 0.9rem; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+th { color: var(--text-secondary); font-weight: 600; }
+.scroll { overflow-x: auto; }
+.pass { color: var(--good); }
+.fail { color: var(--critical); }
+#tip { position: fixed; pointer-events: none; background: var(--surface-1); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 0.85rem; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12); display: none; max-width: 320px; z-index: 10; }
+footer { margin-top: 64px; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--grid); padding-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+
+<header class="title">
+<h1>Does Clean Architecture help an AI agent write software?</h1>
+<p class="dek">We built a reference implementation of Clean Architecture and Domain-Driven Design whose rules are data, a tool that holds code to them, and a flow that lets several agents build features in parallel. Then we measured whether any of it helps an agent deliver. On our benchmark, it did not.</p>
+<p class="byline">30 October 2026 · The <a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> experiments · Every number below is read from the records in the repository.</p>
+</header>
+
+<div class="answer">
+<p><strong>The short answer.</strong> A coding agent given a plain TypeScript project delivered the same seven features, and passed the same hidden acceptance tests, as an agent given Clean Architecture, DDD and our tooling. It was about 2.5 times sooner and 4.2 times cheaper. It also took the largest change of the benchmark sooner and cheaper. Two independent readers found no difference in quality between the trees.</p>
+<p><strong>Our tool</strong> does what it claims: it holds code to the architecture exactly, and it made a parallel fan-out of agents safe where naive parallelism failed. On this benchmark neither bought anything a plain single agent did not already deliver.</p>
+<p><strong>The limits of this answer:</strong> it is one model, one small backlog, in-memory infrastructure, a handful of runs, and graders who are agents.</p>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="figure">11</div><div class="what">backlog runs graded, every one passing all 7 features</div></div>
+<div class="stat"><div class="figure">4.2×</div><div class="what">what the architecture with tooling cost over a plain project</div></div>
+<div class="stat"><div class="figure">0</div><div class="what">differences in reviewed quality the readers could show between arms</div></div>
+<div class="stat"><div class="figure">8.6 min</div><div class="what">for the six-context feature on the plain tree, against 23.8 on the architecture</div></div>
+</div>
+
+<h2>What we built</h2>
+<p><a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> is a reference implementation of Clean Architecture with DDD, in four languages. The architecture is data: layers, who may import whom, and every rule under a stable id live in YAML files. Linters, a conventions check and the documentation are generated from them. Around it we built the tooling an AI agent would use:</p>
+<ul>
+<li>a <strong>gate</strong>: one verdict on whether a change stayed inside the architecture;</li>
+<li><strong>expected event storms</strong>, which hold the code to the model a feature was decided to have;</li>
+<li>a <strong>checked context map</strong>, which refuses a coupling between two contexts nobody declared;</li>
+<li>a <strong>multi-agent flow</strong>: one agent per bounded context, against a frozen contract, integrated by a single writer.</li>
+</ul>
+<p>The bet was that an architecture made explicit and enforced would make AI agents better at building software, alone and together. This article is the test of that bet.</p>
+
+<h2>How we measured</h2>
+<p>A backlog of seven features of a notes application, from accounts and notes to sharing, notifications, a plan with a quota, and reminders. Each feature was written in product words, with the HTTP API it must answer. For each feature, a black-box acceptance test over HTTP was written <em>before any run</em>, and no agent ever saw it. The same model, through the same headless runner, built the backlog in every arm. Each arm's starting point and instructions differed:</p>
+<div class="scroll"><table>
+<thead><tr><th>Arm</th><th>Starts from</th><th>Is given</th><th>Is held to</th></tr></thead>
+<tbody>
+<tr><td><div class="legend"><span class="key"><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="var(--series-1)"/></svg>A — architecture + tool</span></div></td><td>a project our tool created: building blocks, contract, linters</td><td>the request and its event storm</td><td>the gate</td></tr>
+<tr><td><div class="legend"><span class="key"><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="var(--series-3)"/></svg>D — architecture, no tool</span></div></td><td>the same project with the tool taken out; the rules as prose</td><td>the request</td><td>typecheck, lint, tests</td></tr>
+<tr><td><div class="legend"><span class="key"><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="var(--series-2)"/></svg>P — plain project</span></div></td><td>a plain TypeScript/Fastify project, same toolchain</td><td>the request</td><td>typecheck, lint, tests</td></tr>
+<tr><td><div class="legend"><span class="key"><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="var(--series-4)"/></svg>C′ — fan-out by context</span></div></td><td>as A, one agent per bounded context in parallel</td><td>a frozen contract per slice</td><td>the gate, then one integrator</td></tr>
+</tbody></table></div>
+<p>Each arm is one agent in one conversation, taking the features in order, except C′. The protocols, predictions and biases were committed before the runs: <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/README.md">the benchmark</a>, <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/control/README.md">the control</a>. One defect in our harness, found after two runs, was fixed and recorded as an amendment before the counted runs. A difference between arms is called a difference only when their ranges of runs do not overlap.</p>
+
+<h2>1. Everyone delivered</h2>
+<p>All 11 runs passed all seven hidden acceptance tests, on every arm. Correctness, as a client sees it, did not separate the arms at all.</p>
+
+<h2>2. The plain project was sooner and cheaper</h2>
+<figure class="chart" id="chart-lead"><figcaption>Time to deliver the seven-feature backlog, per run (minutes of agent activity)</figcaption><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 218" role="img" aria-label="Time to deliver the seven-feature backlog, per run (minutes of agent activity)"><line x1="190" x2="190" y1="8" y2="192" class="grid"/><text x="190" y="210" class="tick" text-anchor="middle">0</text><line x1="295" x2="295" y1="8" y2="192" class="grid"/><text x="295" y="210" class="tick" text-anchor="middle">15</text><line x1="400" x2="400" y1="8" y2="192" class="grid"/><text x="400" y="210" class="tick" text-anchor="middle">30</text><line x1="505" x2="505" y1="8" y2="192" class="grid"/><text x="505" y="210" class="tick" text-anchor="middle">45</text><line x1="610" x2="610" y1="8" y2="192" class="grid"/><text x="610" y="210" class="tick" text-anchor="middle">60</text><g><text x="176" y="38" class="label" text-anchor="end">A — architecture + tool</text>
+<line x1="437.13908333333336" x2="509.1470333333333" y1="34" y2="34" stroke="var(--series-1)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="509.1470333333333" cy="34" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="A, pilot: 45.6 min"/><circle cx="470.8591333333333" cy="34" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="A, run 2: 40.1 min"/><circle cx="437.13908333333336" cy="34" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="A, run 3: 35.3 min"/>
+<text x="620" y="38" class="value">35.3–45.6</text></g><g><text x="176" y="82" class="label" text-anchor="end">D — architecture, no tool</text>
+<line x1="419.1793" x2="419.47399999999993" y1="78" y2="78" stroke="var(--series-3)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="419.1793" cy="78" r="5.5" fill="var(--series-3)" class="dot" tabindex="0" data-tip="D, run 1: 32.7 min"/><circle cx="419.47399999999993" cy="78" r="5.5" fill="var(--series-3)" class="dot" tabindex="0" data-tip="D, run 2: 32.8 min"/>
+<text x="620" y="82" class="value">32.7–32.8</text></g><g><text x="176" y="126" class="label" text-anchor="end">P — plain project</text>
+<line x1="288.34929999999997" x2="320.2282333333333" y1="122" y2="122" stroke="var(--series-2)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="303.7563" cy="122" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="P, run 1: 16.3 min"/><circle cx="320.2282333333333" cy="122" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="P, run 2: 18.6 min"/><circle cx="288.34929999999997" cy="122" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="P, run 3: 14.0 min"/>
+<text x="620" y="126" class="value">14.0–18.6</text></g><g><text x="176" y="170" class="label" text-anchor="end">C′ — fan-out by context</text>
+<line x1="488.20000000000005" x2="554" y1="166" y2="166" stroke="var(--series-4)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="554" cy="166" r="5.5" fill="var(--series-4)" class="dot" tabindex="0" data-tip="C′, pilot: 52.0 min"/><circle cx="488.20000000000005" cy="166" r="5.5" fill="var(--series-4)" class="dot" tabindex="0" data-tip="C′, run 2: 42.6 min"/><circle cx="495.2" cy="166" r="5.5" fill="var(--series-4)" class="dot" tabindex="0" data-tip="C′, run 3: 43.6 min"/>
+<text x="620" y="170" class="value">42.6–52.0</text></g></svg></div></figure>
+<details class="table-view"><summary>Backlog runs — table</summary><table><thead><tr><th>Arm</th><th>Run</th><th>Minutes</th><th>Cost</th><th>Features passing</th></tr></thead><tbody><tr><td>A</td><td>pilot</td><td>45.6</td><td>$11.85</td><td>7/7</td></tr><tr><td>A</td><td>run 2</td><td>40.1</td><td>$12.11</td><td>7/7</td></tr><tr><td>A</td><td>run 3</td><td>35.3</td><td>$10.39</td><td>7/7</td></tr><tr><td>D</td><td>run 1</td><td>32.7</td><td>$9.87</td><td>7/7</td></tr><tr><td>D</td><td>run 2</td><td>32.8</td><td>$8.70</td><td>7/7</td></tr><tr><td>P</td><td>run 1</td><td>16.3</td><td>$2.49</td><td>7/7</td></tr><tr><td>P</td><td>run 2</td><td>18.6</td><td>$3.36</td><td>7/7</td></tr><tr><td>P</td><td>run 3</td><td>14.0</td><td>$2.30</td><td>7/7</td></tr><tr><td>C′</td><td>pilot</td><td>52.0</td><td>$17.54</td><td>7/7</td></tr><tr><td>C′</td><td>run 2</td><td>42.6</td><td>$16.39</td><td>7/7</td></tr><tr><td>C′</td><td>run 3</td><td>43.6</td><td>$16.41</td><td>7/7</td></tr></tbody></table></details>
+<figure class="chart" id="chart-cost"><figcaption>Reported cost of the seven-feature backlog, per run (US dollars)</figcaption><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 218" role="img" aria-label="Reported cost of the seven-feature backlog, per run (US dollars)"><line x1="190" x2="190" y1="8" y2="192" class="grid"/><text x="190" y="210" class="tick" text-anchor="middle">$0</text><line x1="295" x2="295" y1="8" y2="192" class="grid"/><text x="295" y="210" class="tick" text-anchor="middle">$5</text><line x1="400" x2="400" y1="8" y2="192" class="grid"/><text x="400" y="210" class="tick" text-anchor="middle">$10</text><line x1="505" x2="505" y1="8" y2="192" class="grid"/><text x="505" y="210" class="tick" text-anchor="middle">$15</text><line x1="610" x2="610" y1="8" y2="192" class="grid"/><text x="610" y="210" class="tick" text-anchor="middle">$20</text><g><text x="176" y="38" class="label" text-anchor="end">A — architecture + tool</text>
+<line x1="408.1797226" x2="444.28910500000006" y1="34" y2="34" stroke="var(--series-1)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="438.82669209999995" cy="34" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="A, pilot: $11.85"/><circle cx="444.28910500000006" cy="34" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="A, run 2: $12.11"/><circle cx="408.1797226" cy="34" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="A, run 3: $10.39"/>
+<text x="620" y="38" class="value">$10.39–12.11</text></g><g><text x="176" y="82" class="label" text-anchor="end">D — architecture, no tool</text>
+<line x1="372.76975569999996" x2="397.1743807000001" y1="78" y2="78" stroke="var(--series-3)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="397.1743807000001" cy="78" r="5.5" fill="var(--series-3)" class="dot" tabindex="0" data-tip="D, run 1: $9.87"/><circle cx="372.76975569999996" cy="78" r="5.5" fill="var(--series-3)" class="dot" tabindex="0" data-tip="D, run 2: $8.70"/>
+<text x="620" y="82" class="value">$8.70–9.87</text></g><g><text x="176" y="126" class="label" text-anchor="end">P — plain project</text>
+<line x1="238.2380521" x2="260.5182373" y1="122" y2="122" stroke="var(--series-2)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="242.26997649999998" cy="122" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="P, run 1: $2.49"/><circle cx="260.5182373" cy="122" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="P, run 2: $3.36"/><circle cx="238.2380521" cy="122" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="P, run 3: $2.30"/>
+<text x="620" y="126" class="value">$2.30–3.36</text></g><g><text x="176" y="170" class="label" text-anchor="end">C′ — fan-out by context</text>
+<line x1="534.19" x2="558.3399999999999" y1="166" y2="166" stroke="var(--series-4)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="558.3399999999999" cy="166" r="5.5" fill="var(--series-4)" class="dot" tabindex="0" data-tip="C′, pilot: $17.54"/><circle cx="534.19" cy="166" r="5.5" fill="var(--series-4)" class="dot" tabindex="0" data-tip="C′, run 2: $16.39"/><circle cx="534.61" cy="166" r="5.5" fill="var(--series-4)" class="dot" tabindex="0" data-tip="C′, run 3: $16.41"/>
+<text x="620" y="170" class="value">$16.39–17.54</text></g></svg></div></figure>
+<p class="note">Each dot is a run; the line spans an arm’s runs. C′’s pilot is shown without the minutes our harness’s own defects cost it.</p>
+<p>The plain project (P) took 14.0–18.6 minutes and $2.30–3.36. The architecture with the tool (A) took 35.3–45.6 minutes and $10.39–12.11, and the architecture as prose (D) 32.7–32.8 minutes and $8.70–9.87. P's ranges do not overlap A's or D's. A's and D's overlap on time. D's cost sits below A's in both of its runs, but two runs are too few to call that a difference. <strong>The cost is the architecture's, not the tool's.</strong></p>
+<figure class="chart" id="chart-features"><figcaption>Minutes per feature, mean of each arm’s runs</figcaption><div class="legend"><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-1)"/></svg>A — architecture + tool</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-3)"/></svg>D — architecture, no tool</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-2)"/></svg>P — plain project</span></div><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 258" role="img" aria-label="Minutes per feature, mean of each arm’s runs"><line x1="48" x2="708" y1="216" y2="216" class="axis"/><text x="40" y="220" class="tick" text-anchor="end">0</text><line x1="48" x2="708" y1="176" y2="176" class="grid"/><text x="40" y="180" class="tick" text-anchor="end">3</text><line x1="48" x2="708" y1="136" y2="136" class="grid"/><text x="40" y="140" class="tick" text-anchor="end">6</text><line x1="48" x2="708" y1="96" y2="96" class="grid"/><text x="40" y="100" class="tick" text-anchor="end">9</text><line x1="48" x2="708" y1="56" y2="56" class="grid"/><text x="40" y="60" class="tick" text-anchor="end">12</text><line x1="48" x2="708" y1="16" y2="16" class="grid"/><text x="40" y="20" class="tick" text-anchor="end">15</text><path d="M60.142857142857146,216 V80.49792592592593 Q60.142857142857146,76.49792592592593 64.14285714285714,76.49792592592593 H78.14285714285714 Q82.14285714285714,76.49792592592593 82.14285714285714,80.49792592592593 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Accounts &amp; notes: 10.5 min"/><path d="M84.14285714285714,216 V93.40944444444446 Q84.14285714285714,89.40944444444446 88.14285714285714,89.40944444444446 H102.14285714285714 Q106.14285714285714,89.40944444444446 106.14285714285714,93.40944444444446 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Accounts &amp; notes: 9.5 min"/><path d="M108.14285714285714,216 V177.25355555555555 Q108.14285714285714,173.25355555555555 112.14285714285714,173.25355555555555 H126.14285714285714 Q130.14285714285714,173.25355555555555 130.14285714285714,177.25355555555555 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Accounts &amp; notes: 3.2 min"/><text x="95.14285714285714" y="234" class="tick" text-anchor="middle">Accounts &amp; notes</text><path d="M154.42857142857142,216 V186.88555555555556 Q154.42857142857142,182.88555555555556 158.42857142857142,182.88555555555556 H172.42857142857142 Q176.42857142857142,182.88555555555556 176.42857142857142,186.88555555555556 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Pin: 2.5 min"/><path d="M178.42857142857142,216 V194.93144444444445 Q178.42857142857142,190.93144444444445 182.42857142857142,190.93144444444445 H196.42857142857142 Q200.42857142857142,190.93144444444445 200.42857142857142,194.93144444444445 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Pin: 1.9 min"/><path d="M202.42857142857142,216 V201.9717777777778 Q202.42857142857142,197.9717777777778 206.42857142857142,197.9717777777778 H220.42857142857142 Q224.42857142857142,197.9717777777778 224.42857142857142,201.9717777777778 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Pin: 1.4 min"/><text x="189.42857142857142" y="234" class="tick" text-anchor="middle">Pin</text><path d="M248.71428571428572,216 V173.17051851851852 Q248.71428571428572,169.17051851851852 252.71428571428572,169.17051851851852 H266.7142857142857 Q270.7142857142857,169.17051851851852 270.7142857142857,173.17051851851852 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Tags: 3.5 min"/><path d="M272.7142857142857,216 V183.85211111111113 Q272.7142857142857,179.85211111111113 276.7142857142857,179.85211111111113 H290.7142857142857 Q294.7142857142857,179.85211111111113 294.7142857142857,183.85211111111113 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Tags: 2.7 min"/><path d="M296.7142857142857,216 V198.05599999999998 Q296.7142857142857,194.05599999999998 300.7142857142857,194.05599999999998 H314.7142857142857 Q318.7142857142857,194.05599999999998 318.7142857142857,198.05599999999998 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Tags: 1.6 min"/><text x="283.7142857142857" y="234" class="tick" text-anchor="middle">Tags</text><path d="M343.00000000000006,216 V154.1065925925926 Q343.00000000000006,150.1065925925926 347.00000000000006,150.1065925925926 H361.00000000000006 Q365.00000000000006,150.1065925925926 365.00000000000006,154.1065925925926 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Share: 4.9 min"/><path d="M367.00000000000006,216 V168.01866666666666 Q367.00000000000006,164.01866666666666 371.00000000000006,164.01866666666666 H385.00000000000006 Q389.00000000000006,164.01866666666666 389.00000000000006,168.01866666666666 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Share: 3.9 min"/><path d="M391.00000000000006,216 V192.39437037037038 Q391.00000000000006,188.39437037037038 395.00000000000006,188.39437037037038 H409.00000000000006 Q413.00000000000006,188.39437037037038 413.00000000000006,192.39437037037038 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Share: 2.1 min"/><text x="378.00000000000006" y="234" class="tick" text-anchor="middle">Share</text><path d="M437.28571428571433,216 V150.06933333333333 Q437.28571428571433,146.06933333333333 441.28571428571433,146.06933333333333 H455.28571428571433 Q459.28571428571433,146.06933333333333 459.28571428571433,150.06933333333333 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Notify: 5.2 min"/><path d="M461.28571428571433,216 V169.32755555555556 Q461.28571428571433,165.32755555555556 465.28571428571433,165.32755555555556 H479.28571428571433 Q483.28571428571433,165.32755555555556 483.28571428571433,169.32755555555556 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Notify: 3.8 min"/><path d="M485.28571428571433,216 V194.10207407407407 Q485.28571428571433,190.10207407407407 489.28571428571433,190.10207407407407 H503.28571428571433 Q507.28571428571433,190.10207407407407 507.28571428571433,194.10207407407407 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Notify: 1.9 min"/><text x="472.28571428571433" y="234" class="tick" text-anchor="middle">Notify</text><path d="M531.5714285714286,216 V147.88644444444446 Q531.5714285714286,143.88644444444446 535.5714285714286,143.88644444444446 H549.5714285714286 Q553.5714285714286,143.88644444444446 553.5714285714286,147.88644444444446 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Plan &amp; quota: 5.4 min"/><path d="M555.5714285714286,216 V166.2783333333333 Q555.5714285714286,162.2783333333333 559.5714285714286,162.2783333333333 H573.5714285714286 Q577.5714285714286,162.2783333333333 577.5714285714286,166.2783333333333 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Plan &amp; quota: 4.0 min"/><path d="M579.5714285714286,216 V191.80985185185185 Q579.5714285714286,187.80985185185185 583.5714285714286,187.80985185185185 H597.5714285714286 Q601.5714285714286,187.80985185185185 601.5714285714286,191.80985185185185 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Plan &amp; quota: 2.1 min"/><text x="566.5714285714286" y="234" class="tick" text-anchor="middle">Plan &amp; quota</text><path d="M625.8571428571429,216 V109.51362962962963 Q625.8571428571429,105.51362962962963 629.8571428571429,105.51362962962963 H643.8571428571429 Q647.8571428571429,105.51362962962963 647.8571428571429,109.51362962962963 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Remind: 8.3 min"/><path d="M649.8571428571429,216 V127.36977777777777 Q649.8571428571429,123.36977777777777 653.8571428571429,123.36977777777777 H667.8571428571429 Q671.8571428571429,123.36977777777777 671.8571428571429,127.36977777777777 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Remind: 6.9 min"/><path d="M673.8571428571429,216 V167.05755555555555 Q673.8571428571429,163.05755555555555 677.8571428571429,163.05755555555555 H691.8571428571429 Q695.8571428571429,163.05755555555555 695.8571428571429,167.05755555555555 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Remind: 4.0 min"/><text x="660.8571428571429" y="234" class="tick" text-anchor="middle">Remind</text></svg></div></figure>
+<details class="table-view"><summary>Minutes per feature — table</summary><table><thead><tr><th>Feature</th><th>A</th><th>D</th><th>P</th></tr></thead><tbody><tr><td>Accounts &amp; notes</td><td>10.5</td><td>9.5</td><td>3.2</td></tr><tr><td>Pin</td><td>2.5</td><td>1.9</td><td>1.4</td></tr><tr><td>Tags</td><td>3.5</td><td>2.7</td><td>1.6</td></tr><tr><td>Share</td><td>4.9</td><td>3.9</td><td>2.1</td></tr><tr><td>Notify</td><td>5.2</td><td>3.8</td><td>1.9</td></tr><tr><td>Plan &amp; quota</td><td>5.4</td><td>4.0</td><td>2.1</td></tr><tr><td>Remind</td><td>8.3</td><td>6.9</td><td>4.0</td></tr></tbody></table></details>
+<p>The gap is largest on feature 1, which sets up two bounded contexts in the architecture arms, and it persists on every later feature. Feature 1 is where the plain project had to write its own asynchronous command protocol, which the architecture arms found ready-made. It still finished first.</p>
+
+<h2>3. The architecture wrote four times the code</h2>
+<figure class="chart" id="chart-written"><figcaption>Lines the agent added to deliver the backlog, mean of each arm’s runs</figcaption><div class="legend"><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-1)"/></svg>A — architecture + tool</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-3)"/></svg>D — architecture, no tool</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-2)"/></svg>P — plain project</span></div><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 258" role="img" aria-label="Lines the agent added to deliver the backlog, mean of each arm’s runs"><line x1="48" x2="708" y1="216" y2="216" class="axis"/><text x="40" y="220" class="tick" text-anchor="end">0</text><line x1="48" x2="708" y1="166" y2="166" class="grid"/><text x="40" y="170" class="tick" text-anchor="end">1,000</text><line x1="48" x2="708" y1="116" y2="116" class="grid"/><text x="40" y="120" class="tick" text-anchor="end">2,000</text><line x1="48" x2="708" y1="66" y2="66" class="grid"/><text x="40" y="70" class="tick" text-anchor="end">3,000</text><line x1="48" x2="708" y1="16" y2="16" class="grid"/><text x="40" y="20" class="tick" text-anchor="end">4,000</text><path d="M178,216 V39.599999999999994 Q178,35.599999999999994 182,35.599999999999994 H196 Q200,35.599999999999994 200,39.599999999999994 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Source: 3,608 lines"/><path d="M202,216 V39.04999999999998 Q202,35.04999999999998 206,35.04999999999998 H220 Q224,35.04999999999998 224,39.04999999999998 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Source: 3,619 lines"/><path d="M226,216 V178.98333333333335 Q226,174.98333333333335 230,174.98333333333335 H244 Q248,174.98333333333335 248,178.98333333333335 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Source: 820 lines"/><text x="213" y="234" class="tick" text-anchor="middle">Source</text><path d="M508,216 V100.95000000000002 Q508,96.95000000000002 512,96.95000000000002 H526 Q530,96.95000000000002 530,100.95000000000002 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Tests: 2,381 lines"/><path d="M532,216 V131.275 Q532,127.275 536,127.275 H550 Q554,127.275 554,131.275 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Tests: 1,775 lines"/><path d="M556,216 V167.55 Q556,163.55 560,163.55 H574 Q578,163.55 578,167.55 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Tests: 1,049 lines"/><text x="543" y="234" class="tick" text-anchor="middle">Tests</text></svg></div></figure>
+<details class="table-view"><summary>Lines added and test cases — table</summary><table><thead><tr><th>Arm</th><th>Run</th><th>Source lines</th><th>Test lines</th><th>Test cases</th><th>Files touched</th></tr></thead><tbody><tr><td>A</td><td>pilot</td><td>3335</td><td>2817</td><td>202</td><td>153</td></tr><tr><td>A</td><td>run 2</td><td>3766</td><td>2077</td><td>179</td><td>146</td></tr><tr><td>A</td><td>run 3</td><td>3723</td><td>2249</td><td>198</td><td>147</td></tr><tr><td>D</td><td>run 1</td><td>3544</td><td>1805</td><td>163</td><td>103</td></tr><tr><td>D</td><td>run 2</td><td>3694</td><td>1744</td><td>160</td><td>135</td></tr><tr><td>P</td><td>run 1</td><td>893</td><td>1071</td><td>76</td><td>25</td></tr><tr><td>P</td><td>run 2</td><td>888</td><td>1109</td><td>94</td><td>16</td></tr><tr><td>P</td><td>run 3</td><td>680</td><td>967</td><td>72</td><td>18</td></tr></tbody></table></details>
+<p>For the same behaviour, the architecture arms added about four times the source lines and about twice the test lines of the plain project. Aggregates, value objects, ports, adapters, handlers and wiring are the architecture's vocabulary, and an agent pays for every token it reads and writes. That is most of the cost difference.</p>
+
+<h2>4. The large change did not favour the architecture</h2>
+<p>Feature 8 adds team spaces to the finished application: members, roles, invitations, seats, search and an audit trail, across six contexts, three of them new. We predicted, before the runs, that if the architecture pays anywhere, it is here. One fresh agent took it on one finished tree of each arm. C′ ran six agents in parallel.</p>
+<figure class="chart" id="chart-f8-time"><figcaption>Feature 8, team spaces across six contexts: active minutes (one run per arm)</figcaption><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 152" role="img" aria-label="Feature 8, team spaces across six contexts: active minutes (one run per arm)"><line x1="190" x2="190" y1="8" y2="144" class="axis"/><text x="176" y="29" class="label" text-anchor="end">A — architecture + tool</text><path d="M190,14 H604.8800000000001 Q608.8800000000001,14 608.8800000000001,18 V30 Q608.8800000000001,34 604.8800000000001,34 H190 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool: 23.8 min — 8/8 tests"/><text x="616.8800000000001" y="29" class="value">23.8 min</text><text x="176" y="63" class="label" text-anchor="end">C′ — fan-out by context</text><path d="M190,48 H518.6399999999999 Q522.6399999999999,48 522.6399999999999,52 V64 Q522.6399999999999,68 518.6399999999999,68 H190 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="C′ — fan-out by context: 18.9 min — 8/8 tests, six slices"/><text x="530.6399999999999" y="63" class="value">18.9 min</text><text x="176" y="97" class="label" text-anchor="end">D — architecture, no tool</text><path d="M190,82 H526.14464 Q530.14464,82 530.14464,86 V98 Q530.14464,102 526.14464,102 H190 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool: 19.3 min — 7/8 tests"/><text x="538.14464" y="97" class="value">19.3 min</text><text x="176" y="131" class="label" text-anchor="end">P — plain project</text><path d="M190,116 H337.66477333333336 Q341.66477333333336,116 341.66477333333336,120 V132 Q341.66477333333336,136 337.66477333333336,136 H190 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project: 8.6 min — 8/8 tests"/><text x="349.66477333333336" y="131" class="value">8.6 min</text></svg></div></figure>
+<figure class="chart" id="chart-f8-cost"><figcaption>Feature 8: reported cost (one run per arm)</figcaption><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 152" role="img" aria-label="Feature 8: reported cost (one run per arm)"><line x1="190" x2="190" y1="8" y2="144" class="axis"/><text x="176" y="29" class="label" text-anchor="end">A — architecture + tool</text><path d="M190,14 H376.74 Q380.74,14 380.74,18 V30 Q380.74,34 376.74,34 H190 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool: $8.67"/><text x="388.74" y="29" class="value">$8.67</text><text x="176" y="63" class="label" text-anchor="end">C′ — fan-out by context</text><path d="M190,48 H517.54 Q521.54,48 521.54,52 V64 Q521.54,68 517.54,68 H190 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="C′ — fan-out by context: $15.07"/><text x="529.54" y="63" class="value">$15.07</text><text x="176" y="97" class="label" text-anchor="end">D — architecture, no tool</text><path d="M190,82 H336.8717298 Q340.8717298,82 340.8717298,86 V98 Q340.8717298,102 336.8717298,102 H190 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool: $6.86"/><text x="348.8717298" y="97" class="value">$6.86</text><text x="176" y="131" class="label" text-anchor="end">P — plain project</text><path d="M190,116 H223.6762936 Q227.6762936,116 227.6762936,120 V132 Q227.6762936,136 223.6762936,136 H190 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project: $1.71"/><text x="235.6762936" y="131" class="value">$1.71</text></svg></div></figure>
+<details class="table-view"><summary>Feature 8 — table</summary><table><thead><tr><th>Arm</th><th>Minutes</th><th>Cost</th><th>Feature 8 tests</th><th>Features 1–7 afterwards</th></tr></thead><tbody><tr><td>A</td><td>23.8</td><td>$8.67</td><td>8/8</td><td>no regression</td></tr><tr><td>C′</td><td>18.9</td><td>$15.07</td><td>8/8</td><td>no regression</td></tr><tr><td>D</td><td>19.3</td><td>$6.86</td><td>7/8</td><td>no regression</td></tr><tr><td>P</td><td>8.6</td><td>$1.71</td><td>8/8</td><td>no regression</td></tr></tbody></table></details>
+<p>The plain tree took it in 8.6 minutes for $1.71, changing 696 source lines and removing 24, with no regression. The architecture arms took two to three times as long.</p>
+<p>D failed one of the eight tests. It recorded a space's creator as having "joined", a point the request leaves open and the storm given to A had settled. These are single runs: they show a direction, not a result.</p>
+
+<h2>5. What the tests cannot see</h2>
+<p>Black-box tests do not see where a rule lives, whether a password is hashed, or how far a change spreads. Two agents that had not run the benchmark read all eight trees, under neutral names, against a rubric written before the reading. The rubric's seven items apply to any structure:</p>
+<ul>
+<li>passwords;</li>
+<li>the owner taken from the caller;</li>
+<li>each rule in one place;</li>
+<li>refusals as outcomes;</li>
+<li>injectable time;</li>
+<li>parts that change apart;</li>
+<li>rules under test.</li>
+</ul>
+<p>The two readers read one item differently, so the table gives both readings.</p>
+<div class="scroll"><table>
+<thead><tr><th>Arm</th><th>Run</th><th>Items passed (one decision per behaviour)</th><th>Items passed (one function per rule)</th></tr></thead>
+<tbody><tr><td>A — architecture + tool</td><td>pilot</td><td>7/7</td><td>6/7</td></tr><tr><td>A — architecture + tool</td><td>run 2</td><td>6/7</td><td>6/7</td></tr><tr><td>A — architecture + tool</td><td>run 3</td><td>6/7</td><td>5/7</td></tr><tr><td>D — architecture, no tool</td><td>run 1</td><td>7/7</td><td>7/7</td></tr><tr><td>D — architecture, no tool</td><td>run 2</td><td>6/7</td><td>6/7</td></tr><tr><td>P — plain project</td><td>run 1</td><td>6/7</td><td>5/7</td></tr><tr><td>P — plain project</td><td>run 2</td><td>6/7</td><td>5/7</td></tr><tr><td>P — plain project</td><td>run 3</td><td>7/7</td><td>6/7</td></tr></tbody></table></div>
+<p><strong>No difference in quality was shown, under either reading.</strong> The failures differed in kind:</p>
+<ul>
+<li>Two layered trees decided one rule in two contexts (a reminder's due check, in notes and again in notifications).</li>
+<li>One layered tree answered a missing field with a 400 instead of a refusal.</li>
+<li>Two plain trees coupled notes and notifications through internal types.</li>
+</ul>
+<p>The readers also named, for three change requests, every file a developer would edit:</p>
+<figure class="chart" id="chart-probes"><figcaption>Files a developer would edit for each change request, mean of each arm’s trees</figcaption><div class="legend"><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-1)"/></svg>A — architecture + tool</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-3)"/></svg>D — architecture, no tool</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-2)"/></svg>P — plain project</span></div><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 258" role="img" aria-label="Files a developer would edit for each change request, mean of each arm’s trees"><line x1="48" x2="708" y1="216" y2="216" class="axis"/><text x="40" y="220" class="tick" text-anchor="end">0</text><line x1="48" x2="708" y1="176" y2="176" class="grid"/><text x="40" y="180" class="tick" text-anchor="end">3</text><line x1="48" x2="708" y1="136" y2="136" class="grid"/><text x="40" y="140" class="tick" text-anchor="end">6</text><line x1="48" x2="708" y1="96" y2="96" class="grid"/><text x="40" y="100" class="tick" text-anchor="end">9</text><line x1="48" x2="708" y1="56" y2="56" class="grid"/><text x="40" y="60" class="tick" text-anchor="end">12</text><line x1="48" x2="708" y1="16" y2="16" class="grid"/><text x="40" y="20" class="tick" text-anchor="end">15</text><path d="M123,216 V178.66666666666666 Q123,174.66666666666666 127,174.66666666666666 H141 Q145,174.66666666666666 145,178.66666666666666 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Titles up to 200 chars: 3.1 files"/><path d="M147,216 V180 Q147,176 151,176 H165 Q169,176 169,180 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Titles up to 200 chars: 3.0 files"/><path d="M171,216 V193.33333333333334 Q171,189.33333333333334 175,189.33333333333334 H189 Q193,189.33333333333334 193,193.33333333333334 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Titles up to 200 chars: 2.0 files"/><text x="158" y="234" class="tick" text-anchor="middle">Titles up to 200 chars</text><path d="M343,216 V153.33333333333334 Q343,149.33333333333334 347,149.33333333333334 H361 Q365,149.33333333333334 365,153.33333333333334 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Case-insensitive tags: 5.0 files"/><path d="M367,216 V180 Q367,176 371,176 H385 Q389,176 389,180 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Case-insensitive tags: 3.0 files"/><path d="M391,216 V193.33333333333334 Q391,189.33333333333334 395,189.33333333333334 H409 Q413,189.33333333333334 413,193.33333333333334 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Case-insensitive tags: 2.0 files"/><text x="378" y="234" class="tick" text-anchor="middle">Case-insensitive tags</text><path d="M563,216 V77.33333333333334 Q563,73.33333333333334 567,73.33333333333334 H581 Q585,73.33333333333334 585,77.33333333333334 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Email a due reminder: 10.7 files"/><path d="M587,216 V60 Q587,56 591,56 H605 Q609,56 609,60 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Email a due reminder: 12.0 files"/><path d="M611,216 V153.33333333333334 Q611,149.33333333333334 615,149.33333333333334 H629 Q633,149.33333333333334 633,153.33333333333334 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Email a due reminder: 5.0 files"/><text x="598" y="234" class="tick" text-anchor="middle">Email a due reminder</text></svg></div></figure>
+<details class="table-view"><summary>Files to edit per change request — table</summary><table><thead><tr><th>Arm</th><th>Titles</th><th>Tags</th><th>Email</th></tr></thead><tbody><tr><td>A</td><td>3.1</td><td>5.0</td><td>10.7</td></tr><tr><td>D</td><td>3.0</td><td>3.0</td><td>12.0</td></tr><tr><td>P</td><td>2.0</td><td>2.0</td><td>5.0</td></tr></tbody></table></details>
+<p>On this proxy, changes were more local in the plain trees. A layered change spreads across more, smaller files: a domain object, a handler, a port, an adapter, the wiring, and their tests. Finding them meant reading about twice as many lines.</p>
+<p>The readers' security findings went both ways:</p>
+<ul>
+<li>The plain trees' login tokens never expire. The architecture trees sign theirs and expire them.</li>
+<li>One architecture tree signs tokens with a fixed fallback secret. The agent copied that pattern from our own reference, which has the same fallback. It is a defect we will fix.</li>
+</ul>
+
+<h2>6. Is our tool relevant?</h2>
+<p>We separate what it did from what it bought.</p>
+<ul>
+<li><strong>It holds the architecture exactly.</strong> No production import crossed a boundary in any A tree. Without the tool, D's two trees had 0 and 20 refusals, all of the 20 in tests or in the form of an import, none in production code. A strong model, told the rules in prose, kept them nearly as well. The enforcement was real; what it prevented here was small.</li>
+<li><strong>Its storms and context map are ceremony a single agent pays for.</strong> In A's transcripts, most of what the tool caught was its own bookkeeping: a storm not marked done, a document to regenerate, a context missing from the map. It caught one substantive thing: a later feature reshaped an earlier command, and the storm check said so.</li>
+<li><strong>It made a parallel fan-out work.</strong> Naive parallel agents lost three of seven features to conflicts in one context. With the context as the conflict key, a frozen contract and one integrating writer, every feature landed. On the six-context feature, that fan-out was 21% sooner than one agent on the architecture, at 1.7 times the cost. It was still slower than one agent on a plain project.</li>
+<li><strong>Its strategy command</strong> recommends one agent unless a feature is wide and its time matters more than its cost. That rule is right as far as it goes. It should now also say that a small backlog does not need the architecture at all.</li>
+</ul>
+<p><strong>Our verdict:</strong> on work like this backlog, the tool is relevant as a coordination layer for several agents and as an enforcement layer for teams that have already chosen this architecture. It is not a productivity aid for a single strong agent, and choosing Clean Architecture with DDD for an AI agent's sake is not supported by these results.</p>
+
+<h2>7. How this fits what others found</h2>
+<p>The results agree with most of the literature we reviewed (<a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/research/related-work.md">related work</a>):</p>
+<ul>
+<li>Strong models conform to an architecture given as prose: a hexagonal pilot found 0% forbidden imports for a frontier model, against 80% for a small one.</li>
+<li>Stacking Clean Architecture constraints on agents costs correctness points rather than adding them.</li>
+<li>Repository instruction files are followed but rarely raise task success.</li>
+<li>Multi-agent systems beat a strong single agent only on work that decomposes cleanly.</li>
+</ul>
+<p>Our contribution is the control: the same backlog, the same model and the same hidden tests, with and without the architecture, and with and without the tool that enforces it.</p>
+
+<h2>8. What this does not show</h2>
+<ul>
+<li><strong>A long horizon.</strong> Eight features and about four thousand lines are small. Architectural decay grows with code size, and this backlog never got big enough to suffer from it.</li>
+<li><strong>Real infrastructure.</strong> Every adapter was in memory. The transactional outbox, optimistic concurrency and retries the architecture provides were never exercised.</li>
+<li><strong>Weaker models</strong>, for which architecture documentation helps most.</li>
+<li><strong>People.</strong> Agents read the code here, not developers who must maintain it for years.</li>
+<li><strong>Independence.</strong> One person designed the architecture, the benchmark and the rubric, and agents graded the trees. The API's asynchronous protocol came from the architecture, which, if anything, favoured it.</li>
+<li><strong>Sample size.</strong> Three runs of A and P, two of D, and one per arm on feature 8.</li>
+</ul>
+<p>Any of these could change the answer. They are the next experiments: a backlog of fifty features, real persistence, a weaker model, and a human maintainer timed on the change probes.</p>
+
+<h2>Reproduce it</h2>
+<p>Everything is in the repository:</p>
+<ul>
+<li>the kits, written before the runs: <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark">benchmark/</a>;</li>
+<li>the drivers and the grader: <a href="https://github.com/jgaNet/clean-ddd/blob/main/.claude/flow">.claude/flow/</a>;</li>
+<li>the records: <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/2026-10-30-flow-phase-4-pilot.md">the pilot</a>, <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/2026-10-30-flow-phase-4-campaign.md">the campaign</a> and <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/2026-10-30-flow-control.md">the control</a>;</li>
+<li>the logs, grades and readings: <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/flow">flow/</a>.</li>
+</ul>
+<p>The figures on this page are read from those files by <a href="https://github.com/jgaNet/clean-ddd/blob/main/site/collect.mjs">site/collect.mjs</a>.</p>
+
+<footer>clean-ddd · experiments run and written up with an AI assistant. Corrections welcome as issues on the repository.</footer>
+
+</main>
+<div id="tip" role="tooltip"></div>
+<script>
+// One tooltip for every mark: the value first, from the mark's data-tip, set as text (never as HTML).
+const tip = document.getElementById('tip');
+const show = (mark, x, y) => {
+  tip.textContent = mark.getAttribute('data-tip');
+  tip.style.display = 'block';
+  const width = tip.offsetWidth;
+  tip.style.left = Math.min(x + 12, window.innerWidth - width - 8) + 'px';
+  tip.style.top = (y + 14) + 'px';
+};
+const hide = () => { tip.style.display = 'none'; };
+document.querySelectorAll('[data-tip]').forEach(mark => {
+  mark.addEventListener('pointermove', event => show(mark, event.clientX, event.clientY));
+  mark.addEventListener('pointerleave', hide);
+  mark.addEventListener('focus', () => { const box = mark.getBoundingClientRect(); show(mark, box.right, box.top); });
+  mark.addEventListener('blur', hide);
+});
+</script>
+</body>
+</html>

@@ -22,10 +22,18 @@ const fmt = (value, digits = 1) =>
   Number(value).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const niceMax = value => {
   const step = 10 ** Math.floor(Math.log10(value || 1));
-  for (const factor of [1, 2, 2.5, 5, 10]) if (factor * step >= value) return factor * step;
+  for (const factor of [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (factor * step >= value) return factor * step;
   return 10 * step;
 };
-const ticks = (max, count = 4) => Array.from({ length: count + 1 }, (_, index) => (max * index) / count);
+/** Ticks on round values: the first count whose step is a whole number (or a half, under ten). */
+const ticks = max => {
+  const count =
+    [4, 5, 3, 2].find(n => {
+      const step = max / n;
+      return max >= 10 ? Number.isInteger(step) : Number.isInteger(step * 2);
+    }) ?? 4;
+  return Array.from({ length: count + 1 }, (_, index) => (max * index) / count);
+};
 const color = arm => `var(--series-${ARMS[arm].slot})`;
 
 /** The legend: a swatch beside each arm's name, text in ink, never in the series color. */
@@ -58,7 +66,7 @@ export function table(caption, head, rows) {
 export function dotRange({ id, title, unit, rows, max, digits = 1, prefix = '' }) {
   const width = 720;
   const left = 190;
-  const right = 70;
+  const right = 110;
   const rowHeight = 44;
   const top = 12;
   const plot = width - left - right;
@@ -89,7 +97,7 @@ ${row.values
 <text x="${width - right + 10}" y="${y + 4}" class="value">${values.length > 1 ? `${prefix}${fmt(low, digits)}–${fmt(high, digits)}` : `${prefix}${fmt(median, digits)}`}</text></g>`;
     })
     .join('');
-  return `<figure class="chart" id="${id}"><figcaption>${escape(title)}</figcaption><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(title)}">${grid}${marks}</svg></figure>`;
+  return `<figure class="chart" id="${id}"><figcaption>${escape(title)}</figcaption><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(title)}">${grid}${marks}</svg></div></figure>`;
 }
 
 /** Columns grouped by category, one per arm, from one baseline. */
@@ -133,7 +141,7 @@ export function groupedColumns({ id, title, unit, categories, series, digits = 1
   return `<figure class="chart" id="${id}"><figcaption>${escape(title)}</figcaption>${legend(
     series.map(s => s.arm),
     'rect',
-  )}<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(title)}">${grid}${groups}</svg></figure>`;
+  )}<p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(title)}">${grid}${groups}</svg></div></figure>`;
 }
 
 /** Horizontal bars, one per item, the value at the tip. */
@@ -156,5 +164,5 @@ export function bars({ id, title, unit, items, digits = 1, prefix = '' }) {
       return `<text x="${left - 14}" y="${y0 + 15}" class="label" text-anchor="end">${escape(item.label ?? ARMS[item.arm].name)}</text><path d="${path}" fill="${color(item.arm)}" class="bar" tabindex="0" data-tip="${escape(`${item.label ?? ARMS[item.arm].name}: ${prefix}${fmt(item.value, digits)}${unit ? ` ${unit}` : ''}${item.note ? ` — ${item.note}` : ''}`)}"/><text x="${left + w + 8}" y="${y0 + 15}" class="value">${prefix}${fmt(item.value, digits)}${unit ? ` ${unit}` : ''}</text>`;
     })
     .join('');
-  return `<figure class="chart" id="${id}"><figcaption>${escape(title)}</figcaption><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(title)}"><line x1="${left}" x2="${left}" y1="${top}" y2="${height - 8}" class="axis"/>${marks}</svg></figure>`;
+  return `<figure class="chart" id="${id}"><figcaption>${escape(title)}</figcaption><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(title)}"><line x1="${left}" x2="${left}" y1="${top}" y2="${height - 8}" class="axis"/>${marks}</svg></div></figure>`;
 }

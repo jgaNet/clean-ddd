@@ -91,7 +91,11 @@ blockquote { margin: 24px 0; padding: 4px 0 4px 16px; border-left: 3px solid var
 .stat .what { color: var(--text-secondary); font-size: 0.85rem; }
 figure.chart { margin: 28px 0 8px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 16px 8px; }
 figure.chart figcaption { font-weight: 600; margin-bottom: 8px; }
-figure.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+figure.chart .plot { overflow-x: auto; }
+figure.chart .swipe { display: none; color: var(--text-muted); font-size: 0.8rem; margin: 0 0 6px; }
+@media (max-width: 640px) { figure.chart .swipe { display: block; } }
+figure.chart .plot svg { width: 100%; min-width: 600px; height: auto; display: block; overflow: visible; }
+.legend svg { flex: none; display: block; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 4px; }
 .legend .key { display: inline-flex; align-items: center; gap: 6px; }
 svg .grid { stroke: var(--grid); stroke-width: 1; }
