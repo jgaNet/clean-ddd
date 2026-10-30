@@ -42,7 +42,7 @@ It ran a seven-feature backlog, a feature across six contexts, five more feature
 The next work is ordered by what could change that verdict:
 1. **Failures and concurrency under test.** A crash between a commit and a publication, two writers at once, a consumer that fails. These are what the outbox and the version check are for. Every arm gets the same requirements, so the plain one must build the guarantees itself.
 2. **Grading kept apart on four scores:** correctness, robustness, maintainability, cost of change.
-3. **Closing what the tooling does not yet check:** the HTTP grammar's refusals.
+3. **Taking bookkeeping off the agents:** the gate regenerates the documents and marks a carried storm done itself. The rule on refusals that the weaker model's failure exposed is now in the contract ([ADR 32](docs/adr/0032-a-command-body-is-refused-for-its-shape-only.md)).
 4. **Narrowing the cost:** a small generator from the storm, measured on what it saves in total, and a lighter profile with ports only at the edges.
 
 ## Get started

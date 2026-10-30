@@ -453,7 +453,7 @@ ${tables.f8}
 <p><strong>No difference in quality was shown, under either reading.</strong> The failures differed in kind:</p>
 <ul>
 <li>Two layered trees decided one rule in two contexts (a reminder's due check, in notes and again in notifications).</li>
-<li>One layered tree answered a missing field with a 400 instead of a refusal.</li>
+<li>One layered tree answered a missing field with a 400 instead of a refusal. ${link('docs/adr/0032-a-command-body-is-refused-for-its-shape-only.md', 'ADR 32')}, written later, makes that the expected answer: a missing field is the body's shape.</li>
 <li>Two plain trees coupled notes and notifications through internal types.</li>
 </ul>
 <p>The readers also named, for three change requests, every file a developer would edit:</p>
@@ -470,7 +470,7 @@ ${tables.probes}
 <p>We separate what it did from what it bought.</p>
 <ul>
 <li><strong>It holds the architecture exactly, and the gap grows with the code.</strong> No import crossed a boundary in any A tree. Without the tool, D's trees had 0 and 20 refusals after the backlog, none in production code. Five features later, D's grown tree had ${X.E3.D.drift.refusals}. A model told the rules in prose keeps them nearly, not exactly, and the difference accumulates. The weaker model kept them as well as the strong one: 2 and 0 refusals.</li>
-<li><strong>It does not catch everything the architecture says.</strong> With the weaker model, one A run answered a refusal with a 400 from the request schema, where the architecture says a refusal is an outcome. The gate and the storm check both passed it. The tool holds the structure; it does not hold every rule.</li>
+<li><strong>It holds what the contract says, no more.</strong> With the weaker model, one A run answered an unknown plan with a 400 from its request schema, where the request wanted a refusal on the operation. Our own guide called a list of allowed values "shape", so the agent followed it and the gate rightly passed it. The gap was in the contract, and ${link('docs/adr/0032-a-command-body-is-refused-for-its-shape-only.md', 'ADR 32')} has since closed it: a command's body is refused for its shape only.</li>
 <li><strong>Its storms and context map are ceremony a single agent pays for.</strong> In A's transcripts, most of what the tool caught was its own bookkeeping: a storm not marked done, a document to regenerate, a context missing from the map. It caught one substantive thing: a later feature reshaped an earlier command, and the storm check said so.</li>
 <li><strong>It made a parallel fan-out work.</strong> Naive parallel agents lost three of seven features to conflicts in one context. With the context as the conflict key, a frozen contract and one integrating writer, every feature landed. On the six-context feature, that fan-out was 21% sooner than one agent on the architecture, at 1.7 times the cost. Giving one agent the same contract did not make it sooner (E2), so the gain is the parallelism, and the contract is what makes the parallelism safe. It was still slower than one agent on a plain project.</li>
 <li><strong>Its strategy command</strong> recommends one agent unless a feature is wide and its time matters more than its cost. That rule is right as far as it goes. It should now also say that a small backlog does not need the architecture at all.</li>
@@ -495,7 +495,7 @@ ${tables.probes}
 ${charts.e1time}
 ${charts.e1cost}
 ${tables.e1}
-<p>The plain project delivered 7/7 twice, in ${range(X.E1.P, 'minutes')} minutes for $${range(X.E1.P, 'usd', 2)}. The architecture with the tool delivered 6/7 and 7/7 in ${range(X.E1.A, 'minutes')} minutes. Its one failure breaks a rule of the architecture itself: a refusal answered with a 400 from the request schema, where the API promises a 202 and a refused outcome. Neither the gate nor the storm caught it. <strong>The architecture did not help the weaker model deliver</strong>, and the weaker model paid relatively more to read it: about ${ratio(
+<p>The plain project delivered 7/7 twice, in ${range(X.E1.P, 'minutes')} minutes for $${range(X.E1.P, 'usd', 2)}. The architecture with the tool delivered 6/7 and 7/7 in ${range(X.E1.A, 'minutes')} minutes. Its one failure is a 400 from the request schema, where the request wanted a 202 and a refused outcome. Our own guide then told the agent to put the list of allowed values in the schema. That was a gap in the architecture, since closed, not a slip of the agent. <strong>The architecture did not help the weaker model deliver</strong>, and the weaker model paid relatively more to read it: about ${ratio(
   X.E1.A.map(r => r.usd),
   X.E1.P.map(r => r.usd),
 )} times P's cost, against ${ratio(

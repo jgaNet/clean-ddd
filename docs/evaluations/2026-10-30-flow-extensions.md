@@ -44,7 +44,8 @@ The smallest model of the same family ran the seven-feature backlog, two runs pe
 | *P, strong model (control)* | *7/7 ×3* | *14.0–18.6 min* | *$2.30–3.36* | | |
 
 - **The prediction allowed two outcomes, and neither happened.** The architecture arms did not pass more features than P. They did not clearly pass fewer: A's one failure is a single run.
-- **The failure is real, and it breaks a rule of the architecture.** On `plan-and-quota`, A's first run answers `PUT /plans/me` with an unknown plan by a 400 from the request schema. The request asks for a 202 and an `ERROR` outcome. The contract's own rule says a refusal is a result, and the API grammar gives every command a 202. Neither the gate nor the storm check catches a refusal moved into the schema.
+- **The failure is real, and the guide caused it.** On `plan-and-quota`, A's first run answers `PUT /plans/me` with an unknown plan by a 400 from the request schema. The request asks for a 202 and an `ERROR` outcome. The TypeScript guide said at the time that "an enum of allowed values is shape", to be listed in the schema. The agent did exactly that, and the gate rightly passed it. The gap was a contradiction between the guide and what a client needs. [ADR 32](../adr/0032-a-command-body-is-refused-for-its-shape-only.md) has since settled it: a command's body is refused for its shape only.
+  - *Corrected after this record was first published.* It said the 400 broke a rule of the architecture that neither the gate nor the storm check caught. No rule said so then.
 - **P differs from A and D on time and cost, and A and D differ on time.** No range overlaps. With the weaker model, P was 2.2–2.9 times sooner than A and 4–9 times cheaper. With the strong model it was about 2.5 times sooner and about 4 times cheaper. The weaker model paid more, relatively, for reading the architecture.
 - **D's drift stayed small.** D1 has 2 refusals of the generated import rules, in 1 file. D2 has none.
 
