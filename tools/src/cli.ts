@@ -18,6 +18,9 @@
  *                                             language's checks, one verdict (--json for a script; exit 1 when it fails)
  *   yarn architecture pack --plan <file>      one slice of a feature: what is its to write, what is another slice's,
  *                                             the frozen contracts, the storm's part, the examples to read
+ *   yarn architecture strategy --storm <file> [--priority cost|time] [--contract-minutes <n>]
+ *                                             one agent or a fan-out by context for this feature, from what phase 4
+ *                                             measured, with its inputs
  *   yarn architecture plan validate <file>    is this intended change legal, before writing it
  *   yarn architecture plan explain <file>     the files, rules and examples it implies
  *   yarn architecture domain                  the subdomains and the context map, its contracts read from the code
@@ -65,6 +68,7 @@ import {
 } from './storms';
 import { createApplication, referenceSource } from './create';
 import { describeGate, runGate } from './gate';
+import { adviseStrategy, describeStrategy } from './strategy';
 import type { ModeName } from './types';
 
 const args = process.argv.slice(2);
@@ -480,6 +484,26 @@ async function main(): Promise<void> {
       const report = await runGate({ root, base, language: contract.language.id, mode: held });
       out(report, () => describeGate(report));
       return process.exit(report.verdict === 'pass' ? 0 : 1);
+    }
+    case 'strategy': {
+      const valueOf = (flag: string) => (rest.includes(flag) ? rest[rest.indexOf(flag) + 1] : undefined);
+      const file = valueOf('--storm') ?? rest[0];
+      const usage = 'usage: yarn architecture strategy --storm <file> [--priority cost|time] [--contract-minutes <n>]';
+      if (!file) return fail('usage', usage);
+      const priority = valueOf('--priority') ?? 'cost';
+      if (priority !== 'cost' && priority !== 'time') return fail('usage', usage);
+      const minutes = valueOf('--contract-minutes');
+      const contractMinutes = minutes === undefined ? undefined : Number(minutes);
+      if (contractMinutes !== undefined && !(contractMinutes >= 0)) return fail('usage', usage);
+      let storm;
+      try {
+        storm = loadExpectedStorm(fromHere(file), root);
+      } catch (error) {
+        if (error instanceof ContractError) return fail(error.code, error.message);
+        throw error;
+      }
+      const advice = adviseStrategy(storm, contract, loadDomainMap(root), { priority, contractMinutes });
+      return out(advice, () => describeStrategy(advice));
     }
     case 'pack': {
       const file = rest.includes('--plan') ? rest[rest.indexOf('--plan') + 1] : rest[0];
