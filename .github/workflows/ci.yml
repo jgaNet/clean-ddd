@@ -181,7 +181,11 @@ jobs:
 
       - name: The API every language answers
         run: |
-          PORT=10000 WEB_ORIGINS=http://127.0.0.1:8080 uv run python -m bootstrap > server.log 2>&1 &
+          # The server runs from the environment uv sync built, not under uv run: a uv process left running
+          # holds the cache lock, and setup-uv's cache pruning waits on it until the job fails.
+          PORT=10000 WEB_ORIGINS=http://127.0.0.1:8080 .venv/bin/python -m bootstrap > server.log 2>&1 &
+          SERVER=$!
+          trap 'kill $SERVER' EXIT
           ../.github/wait-for-health.sh http://127.0.0.1:10000 || (cat server.log; exit 1)
           node ../api/scenario.mjs http://127.0.0.1:10000 --origin http://127.0.0.1:8080 || (cat server.log; exit 1)
 
