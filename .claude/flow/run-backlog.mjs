@@ -13,6 +13,7 @@
  *   retry: { perFeature: 1 }
  *   budgetUsd: 40
  *   ports: { base: 18100 }
+ *   priority: cost              # what `clean-ddd strategy` weighs, logged beside each feature (cost | time)
  *
  * Arm A — one agent. One conversation takes the features in order. For each: the driver puts the
  * feature's storm, decided before the run, into the project and commits it; the agent writes the
@@ -151,6 +152,22 @@ function placeStorm(feature, cwd) {
   commitAll(cwd, `storm: ${feature.id}, decided before the run`);
 }
 
+/**
+ * What `clean-ddd strategy` recommends for the feature, logged beside what this arm does with it
+ * (RFC 0001, phase 6: a rule is evaluated against the runs it was asked about). Tooling older than
+ * the command logs nothing.
+ */
+async function logStrategy(feature, cwd) {
+  const storm = `conventions/storms/${feature.id}.yaml`;
+  const advice = parse(
+    (await sh(`${tool} strategy --storm ${storm} --priority ${plan.priority ?? 'cost'} --json`, cwd, 120_000)).stdout,
+  );
+  if (advice?.strategy) {
+    const { strategy: recommended, estimate, inputs } = advice;
+    event('strategy', { feature: feature.id, arm: plan.arm, recommended, estimate, inputs });
+  }
+}
+
 /** The driver's verdict on a feature in a tree: the gate from where it started, and the storm. */
 async function verdict(feature, cwd, from) {
   if (commitAll(cwd, `${feature.id}: work the agent left uncommitted`))
@@ -263,6 +280,7 @@ if (plan.arm === 'A') {
       continue;
     }
     placeStorm(feature, cwd);
+    await logStrategy(feature, cwd);
     const from = git(cwd, 'rev-parse', 'HEAD');
     const done = await deliver(feature, cwd, from, portBase, { again: index > 0 });
     outcomes[feature.id] = done.ok ? 'COMPLETED' : done.reason === 'budget' ? 'NOT STARTED' : 'FAILED';
@@ -315,6 +333,7 @@ if (plan.arm === 'A') {
     const start = git(project, 'rev-parse', 'HEAD');
     const cwd = worktree(f.id, start);
     placeStorm(f, cwd);
+    await logStrategy(f, cwd);
     const state = { cwd, start, from: git(cwd, 'rev-parse', 'HEAD'), integrations: 1 };
     const done = await deliver(f, cwd, state.from, port);
     if (!done.ok) return done.reason === 'budget' ? 'NOT STARTED' : 'FAILED';
