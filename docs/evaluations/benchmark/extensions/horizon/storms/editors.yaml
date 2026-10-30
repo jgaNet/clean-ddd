@@ -1,0 +1,27 @@
+# Feature 11 of the extended backlog (../backlog/11-editors.md), decided by the kit's author before any run.
+schemaVersion: 1
+
+feature: editors
+intent: >-
+  The owner shares a note as a reader or an editor; an editor writes in it, restores its versions and
+  comments; sharing again changes the role.
+
+done: false
+
+hotSpots:
+  - question: Is changing a role a fact of its own?
+    decision: No — sharing again is sharing, with the new role, and records what sharing records.
+
+contexts:
+  - id: Notes
+    commands:
+      - name: ShareNote
+        actor: a signed-in account
+        route: POST /notes/{param}/share
+        aggregate: Note
+        events: [NoteShared]
+    queries: []
+    events: []
+    policies: []
+
+links: []

@@ -1,0 +1,30 @@
+# Feature 10 of the extended backlog (../backlog/10-note-history.md), decided by the kit's author before any run.
+schemaVersion: 1
+
+feature: note-history
+intent: >-
+  Every edit of a note keeps the content it replaces; the owner lists a note's versions and restores
+  one, which is an edit.
+
+done: false
+
+hotSpots:
+  - question: Is restoring a version a fact of its own?
+    decision: No — it is an edit, and records what an edit records.
+
+contexts:
+  - id: Notes
+    commands:
+      - name: RestoreNoteVersion
+        actor: a signed-in account
+        route: POST /notes/{param}/versions/{param}/restore
+        aggregate: Note
+        events: [NoteEdited]
+    queries:
+      - name: GetNoteVersions
+        actor: a signed-in account
+        route: GET /notes/{param}/versions
+    events: []
+    policies: []
+
+links: []

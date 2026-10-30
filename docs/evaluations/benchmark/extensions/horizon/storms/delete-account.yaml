@@ -1,0 +1,62 @@
+# Feature 12 of the extended backlog (../backlog/12-delete-account.md), decided by the kit's author before any run.
+schemaVersion: 1
+
+feature: delete-account
+intent: >-
+  A person deletes their own account; every context forgets what it held for that account.
+
+done: false
+
+hotSpots:
+  - question: How do Notes, Notifications and Plans learn that an account is gone?
+    decision: From one fact Accounts publishes, AccountDeleted; each forgets what it holds for that account in a reaction of its own.
+  - question: What becomes of the comments the account wrote on other people's notes?
+    decision: They go with it.
+
+contexts:
+  - id: Accounts
+    commands:
+      - name: DeleteMyAccount
+        actor: a signed-in account
+        route: DELETE /accounts/me
+        aggregate: Account
+        events: [AccountDeleted]
+    queries: []
+    events: [AccountDeleted]
+    policies:
+      - on: AccountDeleted
+        kind: domain-event
+        publishes: [AccountDeleted]
+        events: []
+  - id: Notes
+    commands: []
+    queries: []
+    events: []
+    policies:
+      - on: AccountDeleted
+        kind: integration-event
+        publishes: []
+        events: []
+  - id: Notifications
+    commands: []
+    queries: []
+    events: []
+    policies:
+      - on: AccountDeleted
+        kind: integration-event
+        publishes: []
+        events: []
+  - id: Plans
+    commands: []
+    queries: []
+    events: []
+    policies:
+      - on: AccountDeleted
+        kind: integration-event
+        publishes: []
+        events: []
+
+links:
+  - { mechanism: integration-event, upstream: Accounts, downstream: Notes, contracts: [AccountDeleted] }
+  - { mechanism: integration-event, upstream: Accounts, downstream: Notifications, contracts: [AccountDeleted] }
+  - { mechanism: integration-event, upstream: Accounts, downstream: Plans, contracts: [AccountDeleted] }

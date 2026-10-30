@@ -40,7 +40,7 @@ Two runs.
 
 **Hypothesis.** Architectural decay grows with code size. A plain tree may cost more per feature as it grows, where a layered one stays flat.
 
-**Runs.** Five more features, 9 to 13 ([`backlog/`](backlog)), each with a hidden acceptance test ([`acceptance/`](acceptance)) and a storm for arm A ([`storms/`](storms)). They are taken in order, in one conversation, on one finished backlog tree of each arm:
+**Runs.** Five more features, 9 to 13 ([`horizon/backlog/`](horizon/backlog)), each with a hidden acceptance test ([`horizon/acceptance/`](horizon/acceptance)) and a storm for arm A ([`horizon/storms/`](horizon/storms)). They are taken in order, in one conversation, on one finished backlog tree of each arm:
 - A: run 3;
 - D: run 2;
 - P: run 2.
@@ -63,7 +63,7 @@ The features change what is already there, they do not merely add to it:
 
 **Hypothesis.** The architecture's ports and adapters exist so that storage can change in one place. Every adapter in the backlog is in memory, so that promise was never tested.
 
-**Runs.** One feature, [`persistence`](backlog/persist.md): everything survives a restart, in SQLite at `DATABASE_PATH`. It runs on two finished backlog trees of each arm, one fresh agent each:
+**Runs.** One feature, [`persistence`](persist/backlog/14-persist.md), with its hidden test in [`persist/acceptance/`](persist/acceptance): everything survives a restart, in SQLite at `DATABASE_PATH`. It runs on two finished backlog trees of each arm, one fresh agent each:
 - A: runs 2 and 3;
 - D: runs 1 and 2, the first at its backlog head;
 - P: runs 2 and 3.
