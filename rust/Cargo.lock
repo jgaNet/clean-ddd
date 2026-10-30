@@ -13,7 +13,7 @@ dependencies = [
 
 [[package]]
 name = "architecture-application"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-domain",
  "futures",
@@ -24,14 +24,14 @@ dependencies = [
 
 [[package]]
 name = "architecture-domain"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "uuid",
 ]
 
 [[package]]
 name = "architecture-infrastructure"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-domain",
@@ -42,7 +42,7 @@ dependencies = [
 
 [[package]]
 name = "architecture-presentation"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-domain",
@@ -171,7 +171,7 @@ dependencies = [
 
 [[package]]
 name = "bootstrap"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-infrastructure",
@@ -197,7 +197,7 @@ dependencies = [
 
 [[package]]
 name = "bootstrap-starter"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-infrastructure",
@@ -211,7 +211,7 @@ dependencies = [
 
 [[package]]
 name = "bootstrap-transport"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-domain",
@@ -282,7 +282,7 @@ dependencies = [
 
 [[package]]
 name = "conventions"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -889,7 +889,7 @@ dependencies = [
 
 [[package]]
 name = "notes-application"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-domain",
@@ -905,7 +905,7 @@ dependencies = [
 
 [[package]]
 name = "notes-domain"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-domain",
  "pollster",
@@ -914,7 +914,7 @@ dependencies = [
 
 [[package]]
 name = "notes-infrastructure"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-domain",
@@ -929,7 +929,7 @@ dependencies = [
 
 [[package]]
 name = "notes-presentation"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-domain",
@@ -942,7 +942,7 @@ dependencies = [
 
 [[package]]
 name = "notes-wiring"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-infrastructure",
@@ -953,7 +953,7 @@ dependencies = [
 
 [[package]]
 name = "notifications-application"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-domain",
@@ -968,7 +968,7 @@ dependencies = [
 
 [[package]]
 name = "notifications-domain"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-domain",
  "pollster",
@@ -977,7 +977,7 @@ dependencies = [
 
 [[package]]
 name = "notifications-infrastructure"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-domain",
@@ -990,7 +990,7 @@ dependencies = [
 
 [[package]]
 name = "notifications-presentation"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-domain",
@@ -1004,7 +1004,7 @@ dependencies = [
 
 [[package]]
 name = "notifications-wiring"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-infrastructure",
@@ -1246,7 +1246,7 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "security-application"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-domain",
@@ -1261,7 +1261,7 @@ dependencies = [
 
 [[package]]
 name = "security-domain"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-domain",
  "pollster",
@@ -1270,7 +1270,7 @@ dependencies = [
 
 [[package]]
 name = "security-infrastructure"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-domain",
  "architecture-infrastructure",
@@ -1283,7 +1283,7 @@ dependencies = [
 
 [[package]]
 name = "security-presentation"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-domain",
@@ -1299,7 +1299,7 @@ dependencies = [
 
 [[package]]
 name = "security-wiring"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-domain",
@@ -1412,7 +1412,7 @@ dependencies = [
 
 [[package]]
 name = "shared-kernel-application"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-domain",
@@ -1422,7 +1422,7 @@ dependencies = [
 
 [[package]]
 name = "shared-kernel-domain"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-domain",
 ]
@@ -1739,7 +1739,7 @@ dependencies = [
 
 [[package]]
 name = "tracker-application"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-domain",
@@ -1754,7 +1754,7 @@ dependencies = [
 
 [[package]]
 name = "tracker-infrastructure"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-domain",
@@ -1767,7 +1767,7 @@ dependencies = [
 
 [[package]]
 name = "tracker-presentation"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-domain",
@@ -1779,7 +1779,7 @@ dependencies = [
 
 [[package]]
 name = "tracker-wiring"
-version = "3.1.0"
+version = "4.0.0"
 dependencies = [
  "architecture-application",
  "architecture-infrastructure",

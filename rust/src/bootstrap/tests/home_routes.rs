@@ -14,7 +14,7 @@ async fn the_home_answers_json_to_a_client_and_the_page_shell_to_htmx() {
 
     let home = client.get(&api).send().await.expect("answers");
     assert_eq!(home.status(), 200);
-    assert_eq!(home.json::<Value>().await.expect("JSON"), json!({ "name": "clean-ddd", "version": "3.1.0" }));
+    assert_eq!(home.json::<Value>().await.expect("JSON"), json!({ "name": "clean-ddd", "version": "4.0.0" }));
 
     let shell = client.get(&api).header("HX-Request", "true").send().await.expect("answers");
     assert_eq!(shell.status(), 200);

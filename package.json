@@ -1,6 +1,6 @@
 {
   "name": "clean-ddd",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The architecture of the clean-ddd reference, as a tool: ask the contract, hold a tree to it, read the domain, the event storm and the inventory from the code, create an application on it.",
   "license": "MIT",
   "repository": {

@@ -36,7 +36,7 @@ type AdminAccount struct {
 
 const (
 	Name    = "clean-ddd"
-	Version = "3.1.0"
+	Version = "4.0.0"
 )
 
 func SettingsFromEnv() Settings {
