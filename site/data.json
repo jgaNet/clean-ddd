@@ -819,5 +819,1363 @@
         }
       }
     }
+  },
+  "extensions": {
+    "E1": {
+      "A": [
+        {
+          "run": "run 1",
+          "id": "e1-a1",
+          "features": [
+            {
+              "feature": "accounts-and-notes",
+              "minutes": 11.947766666666668,
+              "usd": 0.9482584500000001,
+              "attempts": 1
+            },
+            {
+              "feature": "pin-a-note",
+              "minutes": 3.5485333333333333,
+              "usd": 0.22199559999999996,
+              "attempts": 1
+            },
+            {
+              "feature": "tag-a-note",
+              "minutes": 3.3086666666666664,
+              "usd": 0.24283535,
+              "attempts": 1
+            },
+            {
+              "feature": "share-a-note",
+              "minutes": 5.8589166666666666,
+              "usd": 0.44703749999999975,
+              "attempts": 1
+            },
+            {
+              "feature": "notify-on-archive",
+              "minutes": 7.5354833333333335,
+              "usd": 0.41496180000000016,
+              "attempts": 1
+            },
+            {
+              "feature": "plan-and-quota",
+              "minutes": 5.02355,
+              "usd": 0.43504590000000043,
+              "attempts": 1
+            },
+            {
+              "feature": "remind-a-note",
+              "minutes": 11.140583333333332,
+              "usd": 1.07775995,
+              "attempts": 1
+            }
+          ],
+          "minutes": 48.3635,
+          "usd": 3.7878945500000003,
+          "checks": "pass",
+          "accepted": 6,
+          "failing": [
+            {
+              "feature": "plan-and-quota",
+              "failed": [
+                "a plan and a ten-note quota › counts each person on their own, refuses a plan that does not exist and an anonymous caller"
+              ]
+            }
+          ],
+          "written": {
+            "project": "/runs/e1/a1/app",
+            "base": "308472d3340f765e2250c828d888118d7e8f0f84",
+            "ref": "main",
+            "added": {
+              "source": 3729,
+              "tests": 1625
+            },
+            "removed": {
+              "source": 9,
+              "tests": 0
+            },
+            "filesTouched": 136,
+            "sourceFiles": 168,
+            "testFiles": 34,
+            "testCases": 158,
+            "largestSource": {
+              "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+              "lines": 423
+            }
+          }
+        },
+        {
+          "run": "run 2",
+          "id": "e1-a2",
+          "features": [
+            {
+              "feature": "accounts-and-notes",
+              "minutes": 11.649033333333334,
+              "usd": 1.04754953,
+              "attempts": 1
+            },
+            {
+              "feature": "pin-a-note",
+              "minutes": 2.6411000000000002,
+              "usd": 0.3297591500000001,
+              "attempts": 1
+            },
+            {
+              "feature": "tag-a-note",
+              "minutes": 3.346616666666667,
+              "usd": 0.44444525000000046,
+              "attempts": 1
+            },
+            {
+              "feature": "share-a-note",
+              "minutes": 4.821083333333333,
+              "usd": 0.6587396000000003,
+              "attempts": 1
+            },
+            {
+              "feature": "notify-on-archive",
+              "minutes": 4.351733333333334,
+              "usd": 0.4831212999999992,
+              "attempts": 1
+            },
+            {
+              "feature": "plan-and-quota",
+              "minutes": 23.152433333333335,
+              "usd": 1.0589663000000016,
+              "attempts": 1
+            },
+            {
+              "feature": "remind-a-note",
+              "minutes": 6.527049999999999,
+              "usd": 0.8015319499999984,
+              "attempts": 1
+            }
+          ],
+          "minutes": 56.489050000000006,
+          "usd": 4.82411308,
+          "checks": "pass",
+          "accepted": 7,
+          "failing": [],
+          "written": {
+            "project": "/runs/e1/a2/app",
+            "base": "1837dfc8c810b69765be7ee712139be177d2aea3",
+            "ref": "main",
+            "added": {
+              "source": 3619,
+              "tests": 2230
+            },
+            "removed": {
+              "source": 10,
+              "tests": 0
+            },
+            "filesTouched": 147,
+            "sourceFiles": 165,
+            "testFiles": 48,
+            "testCases": 174,
+            "largestSource": {
+              "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+              "lines": 407
+            }
+          }
+        }
+      ],
+      "D": [
+        {
+          "run": "run 1",
+          "id": "e1-d1",
+          "features": [
+            {
+              "feature": "accounts-and-notes",
+              "minutes": 8.7341,
+              "usd": 0.5260893300000002,
+              "attempts": 1
+            },
+            {
+              "feature": "pin-a-note",
+              "minutes": 3.4038833333333334,
+              "usd": 0.2965674500000002,
+              "attempts": 1
+            },
+            {
+              "feature": "tag-a-note",
+              "minutes": 2.433766666666667,
+              "usd": 0.24047735000000015,
+              "attempts": 1
+            },
+            {
+              "feature": "share-a-note",
+              "minutes": 3.6683833333333333,
+              "usd": 0.33283335000000003,
+              "attempts": 1
+            },
+            {
+              "feature": "notify-on-archive",
+              "minutes": 3.219883333333333,
+              "usd": 0.2511555000000001,
+              "attempts": 1
+            },
+            {
+              "feature": "plan-and-quota",
+              "minutes": 3.6846166666666664,
+              "usd": 0.2875568500000001,
+              "attempts": 1
+            },
+            {
+              "feature": "remind-a-note",
+              "minutes": 7.119866666666667,
+              "usd": 0.67766685,
+              "attempts": 1
+            }
+          ],
+          "minutes": 32.2645,
+          "usd": 2.612346680000001,
+          "checks": "pass",
+          "accepted": 7,
+          "failing": [],
+          "drift": {
+            "contexts": [
+              "Accounts",
+              "Notes",
+              "Notifications",
+              "Plans",
+              "Tracker"
+            ],
+            "refusals": 2,
+            "files": 1,
+            "sample": [
+              {
+                "file": "src/Contexts/Notes/Domain/Note/Note.spec.ts",
+                "line": 2,
+                "message": "'@Architecture/Infrastructure/DataSources/InMemoryDataSource' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+              },
+              {
+                "file": "src/Contexts/Notes/Domain/Note/Note.spec.ts",
+                "line": 35,
+                "message": "'@Contexts/Notes/Infrastructure/InMemoryNoteRepository' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+              }
+            ]
+          },
+          "written": {
+            "project": "/runs/e1/d1/app",
+            "base": "af9dda7f8a073f545bb8e2b5afb8d624b60539bc",
+            "ref": "main",
+            "added": {
+              "source": 3139,
+              "tests": 1512
+            },
+            "removed": {
+              "source": 10,
+              "tests": 0
+            },
+            "filesTouched": 125,
+            "sourceFiles": 160,
+            "testFiles": 30,
+            "testCases": 153,
+            "largestSource": {
+              "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+              "lines": 361
+            }
+          }
+        },
+        {
+          "run": "run 2",
+          "id": "e1-d2",
+          "features": [
+            {
+              "feature": "accounts-and-notes",
+              "minutes": 15.710066666666668,
+              "usd": 1.0084349700000004,
+              "attempts": 1
+            },
+            {
+              "feature": "pin-a-note",
+              "minutes": 2.2305,
+              "usd": 0.261609,
+              "attempts": 1
+            },
+            {
+              "feature": "tag-a-note",
+              "minutes": 2.827733333333333,
+              "usd": 0.3436131499999997,
+              "attempts": 1
+            },
+            {
+              "feature": "share-a-note",
+              "minutes": 3.5557666666666665,
+              "usd": 0.4151456000000002,
+              "attempts": 1
+            },
+            {
+              "feature": "notify-on-archive",
+              "minutes": 3.4966666666666666,
+              "usd": 0.43416304999999955,
+              "attempts": 1
+            },
+            {
+              "feature": "plan-and-quota",
+              "minutes": 3.641,
+              "usd": 0.3171682500000008,
+              "attempts": 1
+            },
+            {
+              "feature": "remind-a-note",
+              "minutes": 7.592783333333333,
+              "usd": 0.6616530499999995,
+              "attempts": 1
+            }
+          ],
+          "minutes": 39.05451666666667,
+          "usd": 3.44178707,
+          "checks": "pass",
+          "accepted": 7,
+          "failing": [],
+          "drift": {
+            "contexts": [
+              "Accounts",
+              "Notes",
+              "Notifications",
+              "Plans",
+              "Tracker"
+            ],
+            "refusals": 0,
+            "files": 0,
+            "sample": []
+          },
+          "written": {
+            "project": "/runs/e1/d2/app",
+            "base": "3b9cc7b549bfc3b286d151868fd019306465fe07",
+            "ref": "main",
+            "added": {
+              "source": 3345,
+              "tests": 2048
+            },
+            "removed": {
+              "source": 10,
+              "tests": 0
+            },
+            "filesTouched": 130,
+            "sourceFiles": 157,
+            "testFiles": 38,
+            "testCases": 185,
+            "largestSource": {
+              "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+              "lines": 348
+            }
+          }
+        }
+      ],
+      "P": [
+        {
+          "run": "run 1",
+          "id": "e1-p1",
+          "features": [
+            {
+              "feature": "accounts-and-notes",
+              "minutes": 3.8091,
+              "usd": 0.04209755000000001,
+              "attempts": 1
+            },
+            {
+              "feature": "pin-a-note",
+              "minutes": 1.61925,
+              "usd": 0.03809878,
+              "attempts": 1
+            },
+            {
+              "feature": "tag-a-note",
+              "minutes": 1.6278166666666667,
+              "usd": 0.06194080000000002,
+              "attempts": 1
+            },
+            {
+              "feature": "share-a-note",
+              "minutes": 2.4078833333333334,
+              "usd": 0.10219845000000002,
+              "attempts": 1
+            },
+            {
+              "feature": "notify-on-archive",
+              "minutes": 2.3885,
+              "usd": 0.06504309999999996,
+              "attempts": 1
+            },
+            {
+              "feature": "plan-and-quota",
+              "minutes": 2.7266666666666666,
+              "usd": 0.07723669999999994,
+              "attempts": 1
+            },
+            {
+              "feature": "remind-a-note",
+              "minutes": 4.815666666666667,
+              "usd": 0.16821530000000007,
+              "attempts": 1
+            }
+          ],
+          "minutes": 19.394883333333333,
+          "usd": 0.55483068,
+          "checks": "pass",
+          "accepted": 7,
+          "failing": [],
+          "written": {
+            "project": "/runs/e1/p1/app",
+            "base": "29f37a28661e900e9e194d81c87a6dfe1599fc2a",
+            "ref": "main",
+            "added": {
+              "source": 811,
+              "tests": 1245
+            },
+            "removed": {
+              "source": 5,
+              "tests": 0
+            },
+            "filesTouched": 16,
+            "sourceFiles": 10,
+            "testFiles": 8,
+            "testCases": 106,
+            "largestSource": {
+              "path": "src/notes.ts",
+              "lines": 391
+            }
+          }
+        },
+        {
+          "run": "run 2",
+          "id": "e1-p2",
+          "features": [
+            {
+              "feature": "accounts-and-notes",
+              "minutes": 4.860833333333334,
+              "usd": 0.09457826999999999,
+              "attempts": 1
+            },
+            {
+              "feature": "pin-a-note",
+              "minutes": 1.7493333333333334,
+              "usd": 0.08261175000000001,
+              "attempts": 1
+            },
+            {
+              "feature": "tag-a-note",
+              "minutes": 2.45325,
+              "usd": 0.10603459999999998,
+              "attempts": 1
+            },
+            {
+              "feature": "share-a-note",
+              "minutes": 4.776366666666667,
+              "usd": 0.17599874999999993,
+              "attempts": 1
+            },
+            {
+              "feature": "notify-on-archive",
+              "minutes": 2.101566666666667,
+              "usd": 0.09006239999999999,
+              "attempts": 1
+            },
+            {
+              "feature": "plan-and-quota",
+              "minutes": 2.2355333333333336,
+              "usd": 0.09940585000000002,
+              "attempts": 1
+            },
+            {
+              "feature": "remind-a-note",
+              "minutes": 4.261916666666667,
+              "usd": 0.22997745000000014,
+              "attempts": 1
+            }
+          ],
+          "minutes": 22.4388,
+          "usd": 0.87866907,
+          "checks": "pass",
+          "accepted": 7,
+          "failing": [],
+          "written": {
+            "project": "/runs/e1/p2/app",
+            "base": "dc82fdb9d4bbcf0d697e6ae75855f29f085fea3b",
+            "ref": "main",
+            "added": {
+              "source": 889,
+              "tests": 1465
+            },
+            "removed": {
+              "source": 5,
+              "tests": 0
+            },
+            "filesTouched": 23,
+            "sourceFiles": 15,
+            "testFiles": 10,
+            "testCases": 108,
+            "largestSource": {
+              "path": "src/notes/notes.ts",
+              "lines": 282
+            }
+          }
+        }
+      ]
+    },
+    "E2": [
+      {
+        "run": "run 1",
+        "id": "e2-a1",
+        "features": [
+          {
+            "feature": "team-spaces",
+            "minutes": 24.7728,
+            "usd": 8.525714299999999,
+            "attempts": 1
+          }
+        ],
+        "minutes": 24.7728,
+        "usd": 8.525714299999999,
+        "checks": "pass",
+        "accepted": 1,
+        "failing": [],
+        "regressions": 0
+      },
+      {
+        "run": "run 2",
+        "id": "e2-a2",
+        "features": [
+          {
+            "feature": "team-spaces",
+            "minutes": 22.4788,
+            "usd": 8.235408499999997,
+            "attempts": 1
+          }
+        ],
+        "minutes": 22.4788,
+        "usd": 8.235408499999997,
+        "checks": "pass",
+        "accepted": 1,
+        "failing": [],
+        "regressions": 0
+      }
+    ],
+    "E3": {
+      "A": {
+        "tree": "run 3",
+        "id": "e3-a3",
+        "features": [
+          {
+            "feature": "comments",
+            "minutes": 5.75305,
+            "usd": 1.6111742999999996,
+            "attempts": 1
+          },
+          {
+            "feature": "note-history",
+            "minutes": 3.4845833333333336,
+            "usd": 0.6961573999999997,
+            "attempts": 1
+          },
+          {
+            "feature": "editors",
+            "minutes": 4.0601666666666665,
+            "usd": 0.8890141999999996,
+            "attempts": 1
+          },
+          {
+            "feature": "delete-account",
+            "minutes": 6.5464,
+            "usd": 2.0113830000000004,
+            "attempts": 1
+          },
+          {
+            "feature": "search",
+            "minutes": 3.104633333333333,
+            "usd": 0.46126160000000027,
+            "attempts": 1
+          }
+        ],
+        "minutes": 22.948833333333333,
+        "usd": 5.6689905,
+        "checks": "pass",
+        "accepted": 5,
+        "failing": [],
+        "regressions": 0,
+        "written": {
+          "project": "/runs/e3/a3/app",
+          "base": "0aa7932",
+          "ref": "main",
+          "added": {
+            "source": 1307,
+            "tests": 957
+          },
+          "removed": {
+            "source": 53,
+            "tests": 7
+          },
+          "filesTouched": 75,
+          "sourceFiles": 193,
+          "testFiles": 54,
+          "testCases": 247,
+          "largestSource": {
+            "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+            "lines": 521
+          }
+        },
+        "before": [
+          {
+            "feature": "accounts-and-notes",
+            "minutes": 9.008083333333333,
+            "usd": 3.2888695999999995,
+            "attempts": 1
+          },
+          {
+            "feature": "pin-a-note",
+            "minutes": 2.3087999999999997,
+            "usd": 0.6244786000000002,
+            "attempts": 1
+          },
+          {
+            "feature": "tag-a-note",
+            "minutes": 2.6841,
+            "usd": 0.5739993999999999,
+            "attempts": 1
+          },
+          {
+            "feature": "share-a-note",
+            "minutes": 4.746083333333334,
+            "usd": 1.4802572000000005,
+            "attempts": 1
+          },
+          {
+            "feature": "notify-on-archive",
+            "minutes": 4.471433333333334,
+            "usd": 1.197526400000001,
+            "attempts": 1
+          },
+          {
+            "feature": "plan-and-quota",
+            "minutes": 4.906316666666666,
+            "usd": 1.2579198000000016,
+            "attempts": 1
+          },
+          {
+            "feature": "remind-a-note",
+            "minutes": 7.180766666666666,
+            "usd": 1.9664595999999985,
+            "attempts": 1
+          }
+        ]
+      },
+      "D": {
+        "tree": "run 2",
+        "id": "e3-d2",
+        "features": [
+          {
+            "feature": "comments",
+            "minutes": 5.05845,
+            "usd": 1.4784116,
+            "attempts": 1
+          },
+          {
+            "feature": "note-history",
+            "minutes": 3.66765,
+            "usd": 0.7006477999999998,
+            "attempts": 1
+          },
+          {
+            "feature": "editors",
+            "minutes": 6.03085,
+            "usd": 1.3419152000000008,
+            "attempts": 1
+          },
+          {
+            "feature": "delete-account",
+            "minutes": 7.395366666666666,
+            "usd": 1.849591799999998,
+            "attempts": 1
+          },
+          {
+            "feature": "search",
+            "minutes": 2.9532333333333334,
+            "usd": 0.5033247999999997,
+            "attempts": 1
+          }
+        ],
+        "minutes": 25.105549999999997,
+        "usd": 5.873891199999998,
+        "checks": "pass",
+        "accepted": 5,
+        "failing": [],
+        "drift": {
+          "contexts": [
+            "Notes",
+            "Notifications",
+            "Plans",
+            "Security",
+            "Tracker"
+          ],
+          "refusals": 24,
+          "files": 12,
+          "sample": [
+            {
+              "file": "src/Contexts/Notes/Domain/Note/AccountDeparture.spec.ts",
+              "line": 2,
+              "message": "'@Architecture/Infrastructure/DataSources/InMemoryDataSource' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Notes/Domain/Note/AccountDeparture.spec.ts",
+              "line": 6,
+              "message": "'@Contexts/Notes/Infrastructure/InMemoryCommentRepository' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Notes/Domain/Note/AccountDeparture.spec.ts",
+              "line": 7,
+              "message": "'@Contexts/Notes/Infrastructure/InMemoryNoteRepository' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Notes/Domain/Note/AccountDeparture.ts",
+              "line": 6,
+              "message": "'./Ports/INoteRepository' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Notes/Domain/Note/NoteSharing.spec.ts",
+              "line": 5,
+              "message": "'./Ports/IAccountDirectory' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Notes/Domain/Note/NoteSharing.ts",
+              "line": 4,
+              "message": "'./Ports/IAccountDirectory' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Notes/Domain/Note/NoteWriting.spec.ts",
+              "line": 2,
+              "message": "'@Architecture/Infrastructure/DataSources/InMemoryDataSource' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Notes/Domain/Note/NoteWriting.spec.ts",
+              "line": 4,
+              "message": "'@Contexts/Notes/Infrastructure/InMemoryNoteRepository' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Notes/Domain/Note/NoteWriting.spec.ts",
+              "line": 7,
+              "message": "'./Ports/INoteLimits' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Notes/Domain/Note/NoteWriting.ts",
+              "line": 5,
+              "message": "'./Ports/INoteLimits' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Notes/Domain/Note/NoteWriting.ts",
+              "line": 6,
+              "message": "'./Ports/INoteRepository' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Notifications/Domain/Notification/NoteArchivedNotices.spec.ts",
+              "line": 1,
+              "message": "'@Architecture/Infrastructure/DataSources/InMemoryDataSource' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Notifications/Domain/Notification/NoteArchivedNotices.spec.ts",
+              "line": 3,
+              "message": "'@Contexts/Notifications/Infrastructure/InMemoryNotificationRepository' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Notifications/Domain/Notification/NoteArchivedNotices.ts",
+              "line": 4,
+              "message": "'./Ports/INotificationRepository' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Notifications/Domain/Notification/Notification.spec.ts",
+              "line": 1,
+              "message": "'@Architecture/Infrastructure/DataSources/InMemoryDataSource' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Notifications/Domain/Notification/Notification.spec.ts",
+              "line": 3,
+              "message": "'@Contexts/Notifications/Infrastructure/InMemoryNotificationQueries' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Notifications/Domain/Notification/Notification.spec.ts",
+              "line": 4,
+              "message": "'@Contexts/Notifications/Infrastructure/InMemoryNotificationRepository' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Security/Domain/Account/AccountAuthentication.ts",
+              "line": 6,
+              "message": "'./Ports/IAccountRepository' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Security/Domain/Account/AccountAuthentication.ts",
+              "line": 7,
+              "message": "'./Ports/IPasswordHasher' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Security/Domain/Account/AccountRegistration.spec.ts",
+              "line": 2,
+              "message": "'@Architecture/Infrastructure/DataSources/InMemoryDataSource' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Security/Domain/Account/AccountRegistration.spec.ts",
+              "line": 8,
+              "message": "'@Contexts/Security/Infrastructure/InMemoryAccountRepository' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Security/Domain/Account/AccountRegistration.spec.ts",
+              "line": 9,
+              "message": "'@Contexts/Security/Infrastructure/ScryptPasswordHasher' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+            },
+            {
+              "file": "src/Contexts/Security/Domain/Account/AccountRegistration.ts",
+              "line": 7,
+              "message": "'./Ports/IAccountRepository' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            },
+            {
+              "file": "src/Contexts/Security/Domain/Account/AccountRegistration.ts",
+              "line": 8,
+              "message": "'./Ports/IPasswordHasher' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+            }
+          ]
+        },
+        "regressions": 0,
+        "written": {
+          "project": "/runs/e3/d2/app",
+          "base": "4d9d5fd",
+          "ref": "main",
+          "added": {
+            "source": 1453,
+            "tests": 1176
+          },
+          "removed": {
+            "source": 72,
+            "tests": 11
+          },
+          "filesTouched": 84,
+          "sourceFiles": 200,
+          "testFiles": 44,
+          "testCases": 211,
+          "largestSource": {
+            "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+            "lines": 572
+          }
+        },
+        "before": [
+          {
+            "feature": "accounts-and-notes",
+            "minutes": 10.010233333333332,
+            "usd": 3.0510241000000002,
+            "attempts": 1
+          },
+          {
+            "feature": "pin-a-note",
+            "minutes": 1.9546000000000001,
+            "usd": 0.48515980000000036,
+            "attempts": 1
+          },
+          {
+            "feature": "tag-a-note",
+            "minutes": 2.88585,
+            "usd": 0.6674748000000004,
+            "attempts": 1
+          },
+          {
+            "feature": "share-a-note",
+            "minutes": 3.5655,
+            "usd": 0.9434193999999989,
+            "attempts": 1
+          },
+          {
+            "feature": "notify-on-archive",
+            "minutes": 3.6813333333333333,
+            "usd": 0.978044399999999,
+            "attempts": 1
+          },
+          {
+            "feature": "plan-and-quota",
+            "minutes": 4.130683333333334,
+            "usd": 0.9990316000000004,
+            "attempts": 1
+          },
+          {
+            "feature": "remind-a-note",
+            "minutes": 6.553800000000001,
+            "usd": 1.579167599999999,
+            "attempts": 1
+          }
+        ]
+      },
+      "P": {
+        "tree": "run 2",
+        "id": "e3-p2",
+        "features": [
+          {
+            "feature": "comments",
+            "minutes": 2.6938,
+            "usd": 0.46434069999999994,
+            "attempts": 1
+          },
+          {
+            "feature": "note-history",
+            "minutes": 2.713633333333333,
+            "usd": 0.22899099999999994,
+            "attempts": 1
+          },
+          {
+            "feature": "editors",
+            "minutes": 3.3627166666666666,
+            "usd": 0.4007449999999999,
+            "attempts": 1
+          },
+          {
+            "feature": "delete-account",
+            "minutes": 3.2798499999999997,
+            "usd": 0.34076059999999964,
+            "attempts": 1
+          },
+          {
+            "feature": "search",
+            "minutes": 4.381766666666667,
+            "usd": 0.24111620000000022,
+            "attempts": 1
+          }
+        ],
+        "minutes": 16.431766666666668,
+        "usd": 1.6759534999999997,
+        "checks": "pass",
+        "accepted": 5,
+        "failing": [],
+        "regressions": 0,
+        "written": {
+          "project": "/runs/e3/p2/app",
+          "base": "d23bdd0",
+          "ref": "main",
+          "added": {
+            "source": 264,
+            "tests": 691
+          },
+          "removed": {
+            "source": 13,
+            "tests": 5
+          },
+          "filesTouched": 13,
+          "sourceFiles": 12,
+          "testFiles": 11,
+          "testCases": 149,
+          "largestSource": {
+            "path": "src/notes/notes.ts",
+            "lines": 482
+          }
+        },
+        "before": [
+          {
+            "feature": "accounts-and-notes",
+            "minutes": 3.6765,
+            "usd": 0.8947999000000001,
+            "attempts": 1
+          },
+          {
+            "feature": "pin-a-note",
+            "minutes": 1.5552333333333332,
+            "usd": 0.3020724,
+            "attempts": 1
+          },
+          {
+            "feature": "tag-a-note",
+            "minutes": 1.6960166666666667,
+            "usd": 0.31319859999999977,
+            "attempts": 1
+          },
+          {
+            "feature": "share-a-note",
+            "minutes": 2.275116666666667,
+            "usd": 0.4354290000000003,
+            "attempts": 1
+          },
+          {
+            "feature": "notify-on-archive",
+            "minutes": 1.8760999999999999,
+            "usd": 0.3370280000000001,
+            "attempts": 1
+          },
+          {
+            "feature": "plan-and-quota",
+            "minutes": 2.5455166666666664,
+            "usd": 0.3535391999999997,
+            "attempts": 1
+          },
+          {
+            "feature": "remind-a-note",
+            "minutes": 4.97955,
+            "usd": 0.7219442000000003,
+            "attempts": 1
+          }
+        ]
+      }
+    },
+    "E4": {
+      "A": [
+        {
+          "run": "run 2",
+          "id": "e4-a2",
+          "features": [
+            {
+              "feature": "persist",
+              "minutes": 9.44775,
+              "usd": 2.153413799999999,
+              "attempts": 1
+            }
+          ],
+          "minutes": 9.44775,
+          "usd": 2.153413799999999,
+          "checks": "pass",
+          "accepted": 1,
+          "failing": [],
+          "regressions": 0,
+          "written": {
+            "project": "/runs/e4/a2/app",
+            "base": "2310323",
+            "ref": "main",
+            "added": {
+              "source": 381,
+              "tests": 88
+            },
+            "removed": {
+              "source": 40,
+              "tests": 0
+            },
+            "filesTouched": 27,
+            "sourceFiles": 175,
+            "testFiles": 46,
+            "testCases": 183,
+            "largestSource": {
+              "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+              "lines": 442
+            }
+          }
+        },
+        {
+          "run": "run 3",
+          "id": "e4-a3",
+          "features": [
+            {
+              "feature": "persist",
+              "minutes": 12.474466666666666,
+              "usd": 3.668075800000001,
+              "attempts": 1
+            }
+          ],
+          "minutes": 12.474466666666666,
+          "usd": 3.668075800000001,
+          "checks": "pass",
+          "accepted": 1,
+          "failing": [],
+          "regressions": 0,
+          "written": {
+            "project": "/runs/e4/a3/app",
+            "base": "0aa7932",
+            "ref": "main",
+            "added": {
+              "source": 950,
+              "tests": 368
+            },
+            "removed": {
+              "source": 20,
+              "tests": 6
+            },
+            "filesTouched": 28,
+            "sourceFiles": 184,
+            "testFiles": 49,
+            "testCases": 208,
+            "largestSource": {
+              "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+              "lines": 414
+            }
+          }
+        }
+      ],
+      "D": [
+        {
+          "run": "run 1",
+          "id": "e4-d1",
+          "features": [
+            {
+              "feature": "persist",
+              "minutes": 12.477766666666668,
+              "usd": 3.7378041,
+              "attempts": 1
+            }
+          ],
+          "minutes": 12.477766666666668,
+          "usd": 3.7378041,
+          "checks": "pass",
+          "accepted": 1,
+          "failing": [],
+          "drift": {
+            "contexts": [
+              "Accounts",
+              "Notes",
+              "Notifications",
+              "Plans",
+              "Tracker"
+            ],
+            "refusals": 0,
+            "files": 0,
+            "sample": []
+          },
+          "regressions": 0,
+          "written": {
+            "project": "/runs/e4/d1/app",
+            "base": "27e13c8",
+            "ref": "main",
+            "added": {
+              "source": 1090,
+              "tests": 411
+            },
+            "removed": {
+              "source": 20,
+              "tests": 0
+            },
+            "filesTouched": 23,
+            "sourceFiles": 152,
+            "testFiles": 33,
+            "testCases": 174,
+            "largestSource": {
+              "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+              "lines": 371
+            }
+          }
+        },
+        {
+          "run": "run 2",
+          "id": "e4-d2",
+          "features": [
+            {
+              "feature": "persist",
+              "minutes": 12.834566666666667,
+              "usd": 2.9500577000000003,
+              "attempts": 1
+            }
+          ],
+          "minutes": 12.834566666666667,
+          "usd": 2.9500577000000003,
+          "checks": "pass",
+          "accepted": 1,
+          "failing": [],
+          "drift": {
+            "contexts": [
+              "Notes",
+              "Notifications",
+              "Plans",
+              "Security",
+              "Tracker"
+            ],
+            "refusals": 20,
+            "files": 10,
+            "sample": [
+              {
+                "file": "src/Contexts/Notes/Domain/Note/NoteSharing.spec.ts",
+                "line": 5,
+                "message": "'./Ports/IAccountDirectory' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+              },
+              {
+                "file": "src/Contexts/Notes/Domain/Note/NoteSharing.ts",
+                "line": 4,
+                "message": "'./Ports/IAccountDirectory' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+              },
+              {
+                "file": "src/Contexts/Notes/Domain/Note/NoteWriting.spec.ts",
+                "line": 2,
+                "message": "'@Architecture/Infrastructure/DataSources/InMemoryDataSource' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+              },
+              {
+                "file": "src/Contexts/Notes/Domain/Note/NoteWriting.spec.ts",
+                "line": 4,
+                "message": "'@Contexts/Notes/Infrastructure/InMemoryNoteRepository' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+              },
+              {
+                "file": "src/Contexts/Notes/Domain/Note/NoteWriting.spec.ts",
+                "line": 7,
+                "message": "'./Ports/INoteLimits' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+              },
+              {
+                "file": "src/Contexts/Notes/Domain/Note/NoteWriting.ts",
+                "line": 5,
+                "message": "'./Ports/INoteLimits' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+              },
+              {
+                "file": "src/Contexts/Notes/Domain/Note/NoteWriting.ts",
+                "line": 6,
+                "message": "'./Ports/INoteRepository' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+              },
+              {
+                "file": "src/Contexts/Notifications/Domain/Notification/NoteArchivedNotices.spec.ts",
+                "line": 1,
+                "message": "'@Architecture/Infrastructure/DataSources/InMemoryDataSource' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+              },
+              {
+                "file": "src/Contexts/Notifications/Domain/Notification/NoteArchivedNotices.spec.ts",
+                "line": 3,
+                "message": "'@Contexts/Notifications/Infrastructure/InMemoryNotificationRepository' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+              },
+              {
+                "file": "src/Contexts/Notifications/Domain/Notification/NoteArchivedNotices.ts",
+                "line": 4,
+                "message": "'./Ports/INotificationRepository' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+              },
+              {
+                "file": "src/Contexts/Notifications/Domain/Notification/Notification.spec.ts",
+                "line": 1,
+                "message": "'@Architecture/Infrastructure/DataSources/InMemoryDataSource' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+              },
+              {
+                "file": "src/Contexts/Notifications/Domain/Notification/Notification.spec.ts",
+                "line": 3,
+                "message": "'@Contexts/Notifications/Infrastructure/InMemoryNotificationQueries' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+              },
+              {
+                "file": "src/Contexts/Notifications/Domain/Notification/Notification.spec.ts",
+                "line": 4,
+                "message": "'@Contexts/Notifications/Infrastructure/InMemoryNotificationRepository' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+              },
+              {
+                "file": "src/Contexts/Security/Domain/Account/AccountAuthentication.ts",
+                "line": 6,
+                "message": "'./Ports/IAccountRepository' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+              },
+              {
+                "file": "src/Contexts/Security/Domain/Account/AccountAuthentication.ts",
+                "line": 7,
+                "message": "'./Ports/IPasswordHasher' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+              },
+              {
+                "file": "src/Contexts/Security/Domain/Account/AccountRegistration.spec.ts",
+                "line": 2,
+                "message": "'@Architecture/Infrastructure/DataSources/InMemoryDataSource' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+              },
+              {
+                "file": "src/Contexts/Security/Domain/Account/AccountRegistration.spec.ts",
+                "line": 8,
+                "message": "'@Contexts/Security/Infrastructure/InMemoryAccountRepository' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+              },
+              {
+                "file": "src/Contexts/Security/Domain/Account/AccountRegistration.spec.ts",
+                "line": 9,
+                "message": "'@Contexts/Security/Infrastructure/ScryptPasswordHasher' import is restricted from being used by a pattern. ARCH-DOMAIN: The Domain layer depends on nothing outside its own Domain, the building blocks' Domain and the shared kernel's Domain. Fix: Whatever the domain needs from outside, declare it as a port in Domain/<Aggregate>/Ports and let the infrastructure implement it; a fact from another context arrives as a value through such a port."
+              },
+              {
+                "file": "src/Contexts/Security/Domain/Account/AccountRegistration.ts",
+                "line": 7,
+                "message": "'./Ports/IAccountRepository' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+              },
+              {
+                "file": "src/Contexts/Security/Domain/Account/AccountRegistration.ts",
+                "line": 8,
+                "message": "'./Ports/IPasswordHasher' import is restricted from being used by a pattern. ARCH-RELATIVE: The import rules are written against those paths (an alias, a crate path); a relative path across directories would bypass them. Fix: Import through the path the rules match on; the binding names it."
+              }
+            ]
+          },
+          "regressions": 0,
+          "written": {
+            "project": "/runs/e4/d2/app",
+            "base": "4d9d5fd",
+            "ref": "main",
+            "added": {
+              "source": 394,
+              "tests": 263
+            },
+            "removed": {
+              "source": 23,
+              "tests": 0
+            },
+            "filesTouched": 17,
+            "sourceFiles": 173,
+            "testFiles": 34,
+            "testCases": 167,
+            "largestSource": {
+              "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+              "lines": 409
+            }
+          }
+        }
+      ],
+      "P": [
+        {
+          "run": "run 2",
+          "id": "e4-p2",
+          "features": [
+            {
+              "feature": "persist",
+              "minutes": 4.9488,
+              "usd": 0.9979179999999997,
+              "attempts": 1
+            }
+          ],
+          "minutes": 4.9488,
+          "usd": 0.9979179999999997,
+          "checks": "pass",
+          "accepted": 1,
+          "failing": [],
+          "regressions": 0,
+          "written": {
+            "project": "/runs/e4/p2/app",
+            "base": "d23bdd0",
+            "ref": "main",
+            "added": {
+              "source": 208,
+              "tests": 183
+            },
+            "removed": {
+              "source": 11,
+              "tests": 0
+            },
+            "filesTouched": 9,
+            "sourceFiles": 13,
+            "testFiles": 7,
+            "testCases": 101,
+            "largestSource": {
+              "path": "src/notes/notes.ts",
+              "lines": 352
+            }
+          }
+        },
+        {
+          "run": "run 3",
+          "id": "e4-p3",
+          "features": [
+            {
+              "feature": "persist",
+              "minutes": 4.9131833333333335,
+              "usd": 0.8981992,
+              "attempts": 1
+            }
+          ],
+          "minutes": 4.9131833333333335,
+          "usd": 0.8981992,
+          "checks": "pass",
+          "accepted": 1,
+          "failing": [],
+          "regressions": 0,
+          "written": {
+            "project": "/runs/e4/p3/app",
+            "base": "a0f9517",
+            "ref": "main",
+            "added": {
+              "source": 209,
+              "tests": 149
+            },
+            "removed": {
+              "source": 25,
+              "tests": 0
+            },
+            "filesTouched": 9,
+            "sourceFiles": 10,
+            "testFiles": 12,
+            "testCases": 78,
+            "largestSource": {
+              "path": "src/notes.ts",
+              "lines": 276
+            }
+          }
+        }
+      ]
+    },
+    "source": "docs/evaluations/2026-10-30-flow-extensions.md"
   }
 }

@@ -33,7 +33,7 @@ const FEATURES = [
  * A session a restart killed reports nothing; its cost, priced from its transcript's tokens, is
  * given in `lost`.
  */
-function sequential(log, { lost = {} } = {}) {
+function sequential(log, { lost = {}, features: ids = FEATURES } = {}) {
   const per = {};
   let previous = 0;
   for (const entry of lines(log)) {
@@ -49,7 +49,7 @@ function sequential(log, { lost = {} } = {}) {
     if (entry.event === 'gate') per[entry.feature].minutes += (entry.wallClockMs ?? 0) / 60000;
   }
   for (const [feature, usd] of Object.entries(lost)) per[feature].usd += usd;
-  const features = FEATURES.map(id => ({ feature: id, ...(per[id] ?? { minutes: 0, usd: 0, attempts: 0 }) }));
+  const features = ids.map(id => ({ feature: id, ...(per[id] ?? { minutes: 0, usd: 0, attempts: 0 }) }));
   return {
     features,
     minutes: features.reduce((sum, f) => sum + f.minutes, 0),
@@ -165,7 +165,47 @@ for (const arm of ['p', 'd']) {
   };
 }
 
-const data = { features: FEATURES, backlog: { A, P: control('p'), D: control('d'), Cp }, feature8 };
+/**
+ * The four experiments the control could not run (docs/evaluations/2026-10-30-flow-extensions.md):
+ * E1 the backlog on a weaker model, E2 feature 8 by one agent given the fan-out's contract, E3 five
+ * more features on one finished tree per arm, E4 a change of storage on two trees per arm. A
+ * regression E3's amendment 3 explains (a rule feature 11 changes on purpose) is not counted.
+ */
+const ext = path => `extensions/${path}`;
+const regressions = path => {
+  if (!existsSync(join(flow, ext(path)))) return undefined;
+  const grade = read(ext(path));
+  return grade.features.filter(f => !f.M2.pass && grade.amendment3?.feature !== f.feature).length;
+};
+const run = (id, features) => ({
+  id,
+  ...sequential(ext(`${id}.jsonl`), { features }),
+  ...graded(ext(`grade-${id}.json`)),
+  regressions: regressions(`grade-${id}-1to7.json`),
+  written: metrics(ext(`metrics-${id}.json`)),
+});
+const HORIZON = ['comments', 'note-history', 'editors', 'delete-account', 'search'];
+const extensions = {
+  E1: Object.fromEntries(
+    ['a', 'd', 'p'].map(arm => [arm.toUpperCase(), [1, 2].map(n => ({ run: `run ${n}`, ...run(`e1-${arm}${n}`) }))]),
+  ),
+  E2: [1, 2].map(n => ({ run: `run ${n}`, ...run(`e2-a${n}`, ['team-spaces']) })),
+  E3: {
+    A: { tree: 'run 3', ...run('e3-a3', HORIZON), before: A[2].features },
+    D: { tree: 'run 2', ...run('e3-d2', HORIZON), before: control('d')[1].features },
+    P: { tree: 'run 2', ...run('e3-p2', HORIZON), before: control('p')[1].features },
+  },
+  E4: Object.fromEntries(
+    [
+      ['A', [2, 3]],
+      ['D', [1, 2]],
+      ['P', [2, 3]],
+    ].map(([arm, ns]) => [arm, ns.map(n => ({ run: `run ${n}`, ...run(`e4-${arm.toLowerCase()}${n}`, ['persist']) }))]),
+  ),
+  source: 'docs/evaluations/2026-10-30-flow-extensions.md',
+};
+
+const data = { features: FEATURES, backlog: { A, P: control('p'), D: control('d'), Cp }, feature8, extensions };
 writeFileSync(join(root, 'site/data.json'), `${JSON.stringify(data, null, 2)}\n`);
 process.stdout.write(
   `site/data.json: A ${A.length}, P ${data.backlog.P.length}, D ${data.backlog.D.length} runs; feature 8: ${Object.keys(feature8).join(', ')}\n`,

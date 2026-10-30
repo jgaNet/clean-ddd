@@ -1,0 +1,21 @@
+{
+  "project": "/runs/e3/a3/app",
+  "base": "0aa7932",
+  "ref": "main",
+  "added": {
+    "source": 1307,
+    "tests": 957
+  },
+  "removed": {
+    "source": 53,
+    "tests": 7
+  },
+  "filesTouched": 75,
+  "sourceFiles": 193,
+  "testFiles": 54,
+  "testCases": 247,
+  "largestSource": {
+    "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+    "lines": 521
+  }
+}

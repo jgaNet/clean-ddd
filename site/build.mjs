@@ -17,9 +17,18 @@ const link = (path, text) => `<a href="${repo}/${path}">${text}</a>`;
 
 const { A, P, D, Cp } = data.backlog;
 const f8 = data.feature8;
+const X = data.extensions;
+const sum = (features, from = 0) => features.slice(from).reduce((total, f) => total + f.minutes, 0);
+const perFeature = {
+  before: arm => sum(X.E3[arm].before, 1) / (X.E3[arm].before.length - 1),
+  after: arm => X.E3[arm].minutes / X.E3[arm].features.length,
+};
+const growth = arm => Math.round((perFeature.after(arm) / perFeature.before(arm) - 1) * 100);
+const horizon = ['Comments', 'History', 'Editors', 'Delete account', 'Search'];
 const range = (runs, key, digits = 1) => {
   const values = runs.map(run => run[key]);
-  return `${Math.min(...values).toFixed(digits)}–${Math.max(...values).toFixed(digits)}`;
+  const [low, high] = [Math.min(...values).toFixed(digits), Math.max(...values).toFixed(digits)];
+  return low === high ? low : `${low}–${high}`;
 };
 const mean = values => values.reduce((a, b) => a + b, 0) / values.length;
 const ratio = (a, b) => (mean(a) / mean(b)).toFixed(1);
@@ -117,6 +126,78 @@ const charts = {
       { arm: 'P', value: f8.P.usd },
     ],
   }),
+  e1time: dotRange({
+    id: 'chart-e1-time',
+    title: 'E1, a weaker model: time to deliver the seven-feature backlog (minutes), beside the strong model',
+    unit: 'min',
+    rows: [
+      ...['A', 'D', 'P'].map(arm => ({
+        arm,
+        label: `${arm}, weaker model`,
+        values: X.E1[arm].map(r => ({ label: `${arm} weaker, ${r.run} (${r.accepted}/7)`, value: r.minutes })),
+      })),
+      { arm: 'A', label: 'A, strong model', values: A.map(r => ({ label: `A strong, ${r.run}`, value: r.minutes })) },
+      { arm: 'P', label: 'P, strong model', values: P.map(r => ({ label: `P strong, ${r.run}`, value: r.minutes })) },
+    ],
+  }),
+  e1cost: dotRange({
+    id: 'chart-e1-cost',
+    title: 'E1, a weaker model: reported cost of the backlog (US dollars)',
+    prefix: '$',
+    digits: 2,
+    rows: ['A', 'D', 'P'].map(arm => ({
+      arm,
+      label: `${arm}, weaker model`,
+      values: X.E1[arm].map(r => ({ label: `${arm} weaker, ${r.run}`, value: r.usd })),
+    })),
+  }),
+  e2: bars({
+    id: 'chart-e2',
+    title: 'E2, feature 8: active minutes of one agent with the fan-out’s whole contract (A+)',
+    unit: 'min',
+    items: [
+      { arm: 'A', label: 'A, request and storm', value: f8.A.minutes, note: 'campaign' },
+      ...X.E2.map(r => ({ arm: 'A', label: `A+, ${r.run}`, value: r.minutes, note: '8/8 tests, no regression' })),
+      { arm: 'Cp', label: 'C′, six slices', value: f8.Cp.minutes, note: 'campaign' },
+    ],
+  }),
+  e3features: groupedColumns({
+    id: 'chart-e3-features',
+    title: 'E3, five more features: minutes per feature, one tree per arm',
+    unit: 'min',
+    categories: horizon,
+    series: ['A', 'D', 'P'].map(arm => ({ arm, values: X.E3[arm].features.map(f => f.minutes) })),
+  }),
+  e3growth: groupedColumns({
+    id: 'chart-e3-growth',
+    title: 'E3: mean minutes per feature, on the same tree, before and after it grew',
+    unit: 'min',
+    categories: ['Features 2–7', 'Features 9–13'],
+    series: ['A', 'D', 'P'].map(arm => ({ arm, values: [perFeature.before(arm), perFeature.after(arm)] })),
+  }),
+  e4time: dotRange({
+    id: 'chart-e4-time',
+    title: 'E4, storage moved to SQLite: active minutes, two trees per arm',
+    unit: 'min',
+    rows: ['A', 'D', 'P'].map(arm => ({
+      arm,
+      values: X.E4[arm].map(r => ({ label: `${arm}, ${r.run}`, value: r.minutes })),
+    })),
+  }),
+  e4lines: bars({
+    id: 'chart-e4-lines',
+    title: 'E4: source lines the storage change added, per tree',
+    unit: 'lines',
+    digits: 0,
+    items: ['A', 'D', 'P'].flatMap(arm =>
+      X.E4[arm].map(r => ({
+        arm,
+        label: `${arm}, ${r.run}`,
+        value: r.written.added.source,
+        note: `${r.written.filesTouched} files touched`,
+      })),
+    ),
+  }),
   probes: groupedColumns({
     id: 'chart-probes',
     title: 'Files a developer would edit for each change request, mean of each arm’s trees',
@@ -164,6 +245,58 @@ const tables = {
       ['P', f8.P.minutes.toFixed(1), `$${f8.P.usd.toFixed(2)}`, '8/8', 'no regression'],
     ],
   ),
+  e1: table(
+    'E1, a weaker model',
+    ['Arm', 'Run', 'Minutes', 'Cost', 'Features passing', 'Import refusals'],
+    ['A', 'D', 'P'].flatMap(arm =>
+      X.E1[arm].map(r => [
+        arm,
+        r.run,
+        r.minutes.toFixed(1),
+        `$${r.usd.toFixed(2)}`,
+        `${r.accepted}/7`,
+        r.drift ? r.drift.refusals : '—',
+      ]),
+    ),
+  ),
+  e2: table(
+    'E2, feature 8',
+    ['Agent', 'Minutes', 'Cost', 'Feature 8 tests', 'Features 1–7 afterwards'],
+    [
+      ['A, request and storm', f8.A.minutes.toFixed(1), `$${f8.A.usd.toFixed(2)}`, '8/8', 'no regression'],
+      ...X.E2.map(r => [`A+, ${r.run}`, r.minutes.toFixed(1), `$${r.usd.toFixed(2)}`, '8/8', 'no regression']),
+      ['C′, six slices', f8.Cp.minutes.toFixed(1), `$${f8.Cp.usd.toFixed(2)}`, '8/8', 'no regression'],
+    ],
+  ),
+  e3: table(
+    'E3, five more features',
+    ['Arm', 'Tree', ...horizon, 'Per feature, 2–7', 'Per feature, 9–13', 'Cost, 9–13', 'Tests passing'],
+    ['A', 'D', 'P'].map(arm => [
+      arm,
+      X.E3[arm].tree,
+      ...X.E3[arm].features.map(f => f.minutes.toFixed(1)),
+      perFeature.before(arm).toFixed(1),
+      perFeature.after(arm).toFixed(1),
+      `$${X.E3[arm].usd.toFixed(2)}`,
+      `${X.E3[arm].accepted}/5`,
+    ]),
+  ),
+  e4: table(
+    'E4, storage in SQLite',
+    ['Arm', 'Tree', 'Minutes', 'Cost', 'Hidden test', 'Regressions', 'Source lines added', 'Files touched'],
+    ['A', 'D', 'P'].flatMap(arm =>
+      X.E4[arm].map(r => [
+        arm,
+        r.run,
+        r.minutes.toFixed(1),
+        `$${r.usd.toFixed(2)}`,
+        r.accepted ? 'pass' : 'fail',
+        r.regressions,
+        r.written.added.source,
+        r.written.filesTouched,
+      ]),
+    ),
+  ),
   probes: table(
     'Files to edit per change request',
     ['Arm', 'Titles', 'Tags', 'Email'],
@@ -194,7 +327,8 @@ const body = `
   P.map(r => r.usd),
 )} times cheaper. It also took the largest change of the benchmark sooner and cheaper. Two independent readers found no difference in quality between the trees.</p>
 <p><strong>Our tool</strong> does what it claims: it holds code to the architecture exactly, and it made a parallel fan-out of agents safe where naive parallelism failed. On this benchmark neither bought anything a plain single agent did not already deliver.</p>
-<p><strong>The limits of this answer:</strong> it is one model, one small backlog, in-memory infrastructure, a handful of runs, and graders who are agents.</p>
+<p><strong>Four more experiments</strong> tested the control's own limits: a weaker model, one agent given the fan-out's contract, five more features, and a move to real storage. None reversed the answer. What the architecture did buy is now measured: a storage change stayed out of the domain, and only the tool kept the structure from drifting as the code grew.</p>
+<p><strong>The limits of this answer:</strong> one model family, one application of twelve features, a handful of runs, and graders who are agents.</p>
 </div>
 
 <div class="stats">
@@ -306,23 +440,59 @@ ${tables.probes}
 </ul>
 <p>Our contribution is the control: the same backlog, the same model and the same hidden tests, with and without the architecture, and with and without the tool that enforces it.</p>
 
-<h2>8. What this does not show</h2>
+<h2>8. Four more experiments</h2>
+<p>The control named what it could not show. We wrote four more experiments, with their predictions, before running them (${link('docs/evaluations/benchmark/extensions/README.md', 'the protocol')}). Same driver, same grader, hidden tests no agent saw. Grading found three defects in our own kit, all recorded as amendments and applied to every tree alike.</p>
+
+<h3>E1. A weaker model</h3>
+<p>The literature finds that architecture documentation helps weaker models most. We ran the backlog with the smallest model of the same family, two runs per arm.</p>
+${charts.e1time}
+${charts.e1cost}
+${tables.e1}
+<p>The plain project delivered 7/7 twice, in ${range(X.E1.P, 'minutes')} minutes for $${range(X.E1.P, 'usd', 2)}. The architecture with the tool delivered 6/7 and 7/7 in ${range(X.E1.A, 'minutes')} minutes. Its one failure breaks a rule of the architecture itself: a refusal answered with a 400 from the request schema, where the API promises a 202 and a refused outcome. Neither the gate nor the storm caught it. <strong>The architecture did not help the weaker model deliver</strong>, and the weaker model paid relatively more to read it: about ${ratio(
+  X.E1.A.map(r => r.usd),
+  X.E1.P.map(r => r.usd),
+)} times P's cost, against ${ratio(
+  A.map(r => r.usd),
+  P.map(r => r.usd),
+)} times with the strong model.</p>
+
+<h3>E2. Was the fan-out's speed its contract?</h3>
+<p>On feature 8, the fan-out C′ was 21% sooner than one agent. But C′ also had a contract stage: a plan per context, frozen events and read models, and the acceptance test. We gave one agent all of it, from the same commit.</p>
+${charts.e2}
+${tables.e2}
+<p>With the whole contract, one agent took ${range(X.E2, 'minutes')} minutes, as long as without it. <strong>The fan-out's gain was parallelism, not the contract.</strong> The contract is what makes the parallelism safe; on its own it bought nothing measurable.</p>
+
+<h3>E3. Five more features</h3>
+<p>Architectural decay is said to grow with code size. One finished tree per arm took five more features that change what exists: comments, a note's history with a restore, editors on a shared note, deleting an account and everything it owns, and search.</p>
+${charts.e3features}
+${charts.e3growth}
+${tables.e3}
+<p>Every arm passed every new test, with no regression. Feature 11 changed a rule of feature 4 on purpose, and only the old assertion of that rule failed. P was the soonest on four of five features. Its time per feature grew by ${growth('P')}%, and D's by ${growth('D')}%, while A's moved ${growth('A')}%. That is the shape the hypothesis predicted for the plain tree, but D shows it too, and each arm has one tree. <strong>It is a direction to measure over a longer horizon, not a result.</strong></p>
+<p>Without the tool, the structure drifted as the code grew: D's tree went from 20 refusals of the generated import rules in 10 files to ${X.E3.D.drift.refusals} in ${X.E3.D.drift.files}. A's tree cannot drift, since the tool refuses the violation.</p>
+
+<h3>E4. Real storage</h3>
+<p>Ports and adapters exist so that storage can change in one place. One fresh agent per tree moved everything to SQLite. A hidden test then restarted the server on the same file and read everything back.</p>
+${charts.e4time}
+${charts.e4lines}
+${tables.e4}
+<p>All six trees passed, with no regression. <strong>The prediction on where the change lands held:</strong> no architecture run touched a context's domain or use cases, only adapters, wiring and the building blocks. The plain runs changed every module, since storage is not apart from the rules there. <strong>It did not make the change cheaper.</strong> P took ${range(X.E4.P, 'minutes')} minutes, against ${range(X.E4.A, 'minutes')} for A and ${range(X.E4.D, 'minutes')} for D. Within the architecture arms, the size of the change followed a design choice, a table per aggregate or one document each, and not the arm.</p>
+
+<h2>9. What this still does not show</h2>
 <ul>
-<li><strong>A long horizon.</strong> Eight features and about four thousand lines are small. Architectural decay grows with code size, and this backlog never got big enough to suffer from it.</li>
-<li><strong>Real infrastructure.</strong> Every adapter was in memory. The transactional outbox, optimistic concurrency and retries the architecture provides were never exercised.</li>
-<li><strong>Weaker models</strong>, for which architecture documentation helps most.</li>
-<li><strong>People.</strong> Agents read the code here, not developers who must maintain it for years.</li>
+<li><strong>A product's lifetime.</strong> Twelve features are still small. E3's direction needs several trees and many more features to become a result.</li>
+<li><strong>Concurrency and crashes under test.</strong> The outbox and the optimistic concurrency now run on real storage, but no test makes two writers race or kills the server between a commit and a publication.</li>
+<li><strong>People.</strong> Agents read the code here, not developers who must maintain it for years. The locality E4 shows matters to a reviewer; we did not price it.</li>
+<li><strong>Another model family.</strong> The weaker model was the smallest of the same family.</li>
 <li><strong>Independence.</strong> One person designed the architecture, the benchmark and the rubric, and agents graded the trees. The API's asynchronous protocol came from the architecture, which, if anything, favoured it.</li>
-<li><strong>Sample size.</strong> Three runs of A and P, two of D, and one per arm on feature 8.</li>
+<li><strong>Sample size.</strong> Two or three runs per arm, and one tree per arm in E3.</li>
 </ul>
-<p>Any of these could change the answer. They are the next experiments: a backlog of fifty features, real persistence, a weaker model, and a human maintainer timed on the change probes.</p>
 
 <h2>Reproduce it</h2>
 <p>Everything is in the repository:</p>
 <ul>
 <li>the kits, written before the runs: ${link('docs/evaluations/benchmark', 'benchmark/')};</li>
 <li>the drivers and the grader: ${link('.claude/flow', '.claude/flow/')};</li>
-<li>the records: ${link('docs/evaluations/2026-10-30-flow-phase-4-pilot.md', 'the pilot')}, ${link('docs/evaluations/2026-10-30-flow-phase-4-campaign.md', 'the campaign')} and ${link('docs/evaluations/2026-10-30-flow-control.md', 'the control')};</li>
+<li>the records: ${link('docs/evaluations/2026-10-30-flow-phase-4-pilot.md', 'the pilot')}, ${link('docs/evaluations/2026-10-30-flow-phase-4-campaign.md', 'the campaign')}, ${link('docs/evaluations/2026-10-30-flow-control.md', 'the control')} and ${link(X.source, 'the four experiments after it')};</li>
 <li>the logs, grades and readings: ${link('docs/evaluations/flow', 'flow/')}.</li>
 </ul>
 <p>The figures on this page are read from those files by ${link('site/collect.mjs', 'site/collect.mjs')}.</p>

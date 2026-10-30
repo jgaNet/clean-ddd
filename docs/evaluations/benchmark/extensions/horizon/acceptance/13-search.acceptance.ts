@@ -6,7 +6,7 @@ afterAll(stop);
 
 describe('search', () => {
   it('finds the readable notes that contain every word, most recent first', async () => {
-    const { call, command, account, note, list } = client();
+    const { command, account, note, list } = client();
     const ada = await account('search-ada@acceptance.test');
     const bob = await account('search-bob@acceptance.test');
     const old = await note(ada.token, 'Garden plans', 'Tomatoes and basil');

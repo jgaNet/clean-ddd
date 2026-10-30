@@ -1,0 +1,8 @@
+run: e1-d1
+arm: D
+kit: ./docs/evaluations/benchmark
+base: main
+agent: { runner: claude-cli, model: helper, timeoutMinutes: 90 }
+retry: { perFeature: 1 }
+budgetUsd: 40
+ports: { base: 20100 }

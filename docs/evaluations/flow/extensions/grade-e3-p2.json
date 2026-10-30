@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "control": "plain",
+  "project": "/runs/e3/p2/app",
+  "ref": "main",
+  "commit": "19185e64dc257af9a27d1f8486a0a1fb9cfd417a",
+  "base": "d23bdd0",
+  "M1": {
+    "verdict": "pass",
+    "failing": []
+  },
+  "features": [
+    {
+      "feature": "comments",
+      "M2": {
+        "pass": true,
+        "tests": "2 passed, 2 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "note-history",
+      "M2": {
+        "pass": true,
+        "tests": "2 passed, 2 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "editors",
+      "M2": {
+        "pass": true,
+        "tests": "3 passed, 3 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "delete-account",
+      "M2": {
+        "pass": true,
+        "tests": "2 passed, 2 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "search",
+      "M2": {
+        "pass": true,
+        "tests": "2 passed, 2 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    }
+  ],
+  "gradedInMs": 24655
+}

@@ -1,6 +1,8 @@
 # What the control could not show: four more experiments
 
-[The control](../../2026-10-30-flow-control.md) found that, on the seven-feature backlog with a strong model, Clean Architecture and DDD did not improve one agent's development. It named five things it could not show. This kit tests four of them; the fifth, people maintaining the code, needs people. Each experiment is written here before it runs, with its prediction, and keeps the control's rules:
+[The control](../../2026-10-30-flow-control.md) found that, on the seven-feature backlog with a strong model, Clean Architecture and DDD did not improve one agent's development. It named five things it could not show. This kit tests four of them; the fifth, people maintaining the code, needs people. **Ran:** [the record](../../2026-10-30-flow-extensions.md), with the logs, plans and grades in [`flow/extensions/`](../../flow/extensions).
+
+Each experiment is written here before it runs, with its prediction, and keeps the control's rules:
 
 - **The same driver and grader.**
 - **Hidden acceptance tests no agent sees.**
@@ -82,3 +84,11 @@ The features change what is already there, they do not merely add to it:
 - **Sample size.** E2 and E1 have two runs per arm. E3 has one tree per arm; E4 has two.
 - **The longer horizon is still short.** Twelve features are not a product's lifetime.
 - **The weaker model is the family's smallest.** A different family might behave differently.
+
+## Amendments
+
+Defects of the kit found while grading, fixed before any tree was graded with the fixed version, and applied to every tree alike.
+
+1. **The hidden tests failed the project's own gate.** The project's typecheck, linter and formatter run over the hidden tests once they are copied in, and the first version of the horizon tests had an unused variable and lines the formatter rewraps. Measure M1 failed on the kit, not on the agent's code. The tests are now formatted with the project's formatter configuration and have no unused variable; no assertion changed.
+2. **The deletion test followed its outcome with the token it deletes.** `12-delete-account` waited for the deletion's operation to succeed, reading it with the deleted account's token. Once the account is gone that token no longer reads anything, so a correct deletion looked like an operation that never ended. The test now checks that the deletion is accepted (202), then waits until the deleted account's token is refused (403), which is the outcome the feature asks for.
+3. **Feature 11 changes a rule feature 4's test still holds.** E3 checks features 1–7 for regressions with their own hidden tests. But [`11-editors`](horizon/backlog/11-editors.md) says that sharing again with the same account changes the role, where feature 4 refused it, and feature 4's test still asserts the refusal. A tree that follows feature 11 can fail that one assertion without regressing. In E3's regression check, that assertion does not count: a tree that fails only it is rerun without it, and both results are recorded.

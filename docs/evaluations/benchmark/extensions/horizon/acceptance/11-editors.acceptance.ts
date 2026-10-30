@@ -10,7 +10,9 @@ describe('editors', () => {
     const owner = await account('editors-owner@acceptance.test');
     const editor = await account('editors-editor@acceptance.test');
     const id = await note(owner.token, 'Shared draft', 'v1');
-    expect(await command('POST', `/notes/${id}/share`, owner.token, { accountId: editor.id, role: 'editor' })).toBe('SUCCESS');
+    expect(await command('POST', `/notes/${id}/share`, owner.token, { accountId: editor.id, role: 'editor' })).toBe(
+      'SUCCESS',
+    );
 
     const seen = (await call('GET', `/notes/${id}`, owner.token)).body;
     expect(seen.editors).toEqual([editor.id]);
@@ -31,7 +33,9 @@ describe('editors', () => {
     const reader = await account('editors-reader@acceptance.test');
     const other = await account('editors-other@acceptance.test');
     const id = await note(owner.token, 'Limits');
-    expect(await command('POST', `/notes/${id}/share`, owner.token, { accountId: editor.id, role: 'editor' })).toBe('SUCCESS');
+    expect(await command('POST', `/notes/${id}/share`, owner.token, { accountId: editor.id, role: 'editor' })).toBe(
+      'SUCCESS',
+    );
     expect(await command('POST', `/notes/${id}/share`, owner.token, { accountId: reader.id })).toBe('SUCCESS');
 
     expect(await command('PUT', `/notes/${id}`, reader.token, { title: 'No', text: '' })).toBe('ERROR');
@@ -50,10 +54,17 @@ describe('editors', () => {
     const id = await note(owner.token, 'Roles');
     expect(await command('POST', `/notes/${id}/share`, owner.token, { accountId: friend.id })).toBe('SUCCESS');
     expect(await command('PUT', `/notes/${id}`, friend.token, { title: 'Roles', text: 'no' })).toBe('ERROR');
-    expect(await command('POST', `/notes/${id}/share`, owner.token, { accountId: friend.id, role: 'editor' })).toBe('SUCCESS');
+    expect(await command('POST', `/notes/${id}/share`, owner.token, { accountId: friend.id, role: 'editor' })).toBe(
+      'SUCCESS',
+    );
     expect(await command('PUT', `/notes/${id}`, friend.token, { title: 'Roles', text: 'yes' })).toBe('SUCCESS');
-    expect(await command('POST', `/notes/${id}/share`, owner.token, { accountId: friend.id, role: 'reader' })).toBe('SUCCESS');
+    expect(await command('POST', `/notes/${id}/share`, owner.token, { accountId: friend.id, role: 'reader' })).toBe(
+      'SUCCESS',
+    );
     expect(await command('PUT', `/notes/${id}`, friend.token, { title: 'Roles', text: 'no again' })).toBe('ERROR');
-    expect((await call('GET', `/notes/${id}`, owner.token)).body).toMatchObject({ editors: [], sharedWith: [friend.id] });
+    expect((await call('GET', `/notes/${id}`, owner.token)).body).toMatchObject({
+      editors: [],
+      sharedWith: [friend.id],
+    });
   });
 });

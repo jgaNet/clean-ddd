@@ -110,8 +110,12 @@ describe('persistence', () => {
     let kept: string;
     let operationId: string;
     try {
-      const adaId = String((await command('POST', '/accounts', undefined, { email: 'ada@persist.test', password: 'secret123' })).result);
-      const bobId = String((await command('POST', '/accounts', undefined, { email: 'bob@persist.test', password: 'secret123' })).result);
+      const adaId = String(
+        (await command('POST', '/accounts', undefined, { email: 'ada@persist.test', password: 'secret123' })).result,
+      );
+      const bobId = String(
+        (await command('POST', '/accounts', undefined, { email: 'bob@persist.test', password: 'secret123' })).result,
+      );
       ada = await login('ada@persist.test');
       bob = await login('bob@persist.test');
       const written = await command('POST', '/notes', ada, { title: 'Kept', text: 'first' });
@@ -145,13 +149,22 @@ describe('persistence', () => {
       ada = await login('ada@persist.test');
       bob = await login('bob@persist.test');
       expect(await reads()).toEqual(before);
-      expect((await call('GET', `/notes/${kept}`, ada)).body).toMatchObject({ pinned: true, tags: ['work'], text: 'edited' });
-      expect((await call('GET', `/tracker/operations/${operationId}`, ada)).body).toMatchObject({ status: 'SUCCESS', result: kept });
+      expect((await call('GET', `/notes/${kept}`, ada)).body).toMatchObject({
+        pinned: true,
+        tags: ['work'],
+        text: 'edited',
+      });
+      expect((await call('GET', `/tracker/operations/${operationId}`, ada)).body).toMatchObject({
+        status: 'SUCCESS',
+        result: kept,
+      });
       // The reminder scheduled before the restart is told once its moment has come.
       let reminders: Json[] = [];
       for (let attempt = 0; attempt < 100 && !reminders.length; attempt++) {
         await new Promise(resolve => setTimeout(resolve, 100));
-        reminders = ((await call('GET', '/notifications', ada)).body as unknown as Json[]).filter(each => each.kind === 'reminder');
+        reminders = ((await call('GET', '/notifications', ada)).body as unknown as Json[]).filter(
+          each => each.kind === 'reminder',
+        );
       }
       expect(reminders).toEqual([expect.objectContaining({ kind: 'reminder', noteId: kept, noteTitle: 'Kept' })]);
       // And it keeps working.

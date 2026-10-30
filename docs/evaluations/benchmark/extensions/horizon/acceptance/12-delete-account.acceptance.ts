@@ -13,15 +13,25 @@ describe('deleting an account', () => {
     const theirs = await note(leaving.token, 'Leaving with me');
     expect(await command('POST', `/notes/${theirs}/share`, leaving.token, { accountId: staying.id })).toBe('SUCCESS');
     const mine = await note(staying.token, 'Staying');
-    expect(await command('POST', `/notes/${mine}/share`, staying.token, { accountId: leaving.id, role: 'editor' })).toBe('SUCCESS');
+    expect(
+      await command('POST', `/notes/${mine}/share`, staying.token, { accountId: leaving.id, role: 'editor' }),
+    ).toBe('SUCCESS');
     expect(await command('POST', `/notes/${mine}/comments`, leaving.token, { text: 'Bye' })).toBe('SUCCESS');
     expect(await command('POST', `/notes/${mine}/comments`, staying.token, { text: 'Stay' })).toBe('SUCCESS');
     expect(await command('PUT', '/plans/me', leaving.token, { plan: 'unlimited' })).toBe('SUCCESS');
 
-    expect(await command('DELETE', '/accounts/me', leaving.token)).toBe('SUCCESS');
+    // The deletion's outcome cannot be followed with a token that stops working: wait for the token to.
+    expect((await call('DELETE', '/accounts/me', leaving.token)).status).toBe(202);
+    await eventually(
+      async () => (await call('GET', '/accounts/me', leaving.token)).status,
+      status => status === 403,
+    );
 
     expect((await call('GET', '/accounts/me', leaving.token)).status).toBe(403);
-    expect((await call('POST', '/accounts/login', undefined, { email: 'leaving@acceptance.test', password: 'secret123' })).status).toBe(401);
+    expect(
+      (await call('POST', '/accounts/login', undefined, { email: 'leaving@acceptance.test', password: 'secret123' }))
+        .status,
+    ).toBe(401);
     const shared = await eventually(
       () => list('/notes/shared', staying.token),
       notes => !notes.some(each => each.id === theirs),
@@ -40,10 +50,14 @@ describe('deleting an account', () => {
   });
 
   it('frees the email for a new account, which starts with nothing', async () => {
-    const { call, command, account, note, list } = client();
+    const { call, account, note, list } = client();
     const first = await account('again@acceptance.test');
     await note(first.token, 'Old');
-    expect(await command('DELETE', '/accounts/me', first.token)).toBe('SUCCESS');
+    expect((await call('DELETE', '/accounts/me', first.token)).status).toBe(202);
+    await eventually(
+      async () => (await call('GET', '/accounts/me', first.token)).status,
+      status => status === 403,
+    );
     expect((await call('DELETE', '/accounts/me')).status).toBe(403);
 
     const second = await eventually(
