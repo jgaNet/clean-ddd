@@ -36,7 +36,30 @@ The reading the RFC asked to be possible is the one the pilot gives: *A is bette
 
 ## The rubric's read items
 
-_To be filled from the independent grader's report._
+A second agent, which had not run the benchmark, read the four final trees against the R items, with a file and a line for each verdict.
+
+| Item | A | B | C | C′ |
+| --- | --- | --- | --- | --- |
+| R0 — contexts and relationships declared, with an ADR | PASS | PASS | PASS | PASS |
+| R1.1 — the password hashed behind a port | PASS | PASS | PASS | PASS |
+| R1.2 — the owner from the caller | PASS | PASS | PASS | PASS |
+| R2.1 — the note refuses to pin when archived | PASS | PASS | PASS | PASS |
+| R3.1 — a tag is a value object; the note holds the limit | PASS | PASS | PASS | PASS |
+| R4.1 — an owned port over Accounts' read side | PASS | not delivered | PASS | PASS |
+| R5.1 — published through the outbox, with the recipients of the moment | PASS | not delivered | PASS | PASS |
+| R5.2 — the consumer in its reaction's transaction, no hand-made idempotency | PASS | not delivered | PASS | PASS |
+| R6.1 — the quota decided in Notes, from its repository and the port | PASS | PASS | PASS | PASS |
+| R6.2 — Free without anything creating a plan | PASS | PASS | PASS | PASS |
+| R7.1 — due by a time given as a parameter with a default | PASS | not delivered | PASS | PASS |
+| R7.2 — only a reminder not yet due is cancelled | PASS | not delivered | PASS | PASS |
+
+Nothing fails in a tree that delivered the feature. The four trees' reactions use the building blocks of ADR 30, byte for byte the same in each.
+
+The grader also noted what no item covers:
+
+- **C and C′ left their three relationships `planned: true` after the code came to carry them.** ADR 28 says a relationship is planned *until the feature that carries it lands*, and the check does not refuse a planned relationship the code carries. The single writer marks the storm and the plans carried (ADR 29), but not the relationship, and the person did not either. A, with no person and no writer, cleared its own flags.
+- **C′ orders an archiving notification by when the notification was created, not by `archivedAt`.** In one process these are the same moment, so the acceptance test cannot tell them apart, but the backlog says "by when it happened". C′ also writes the "is it due?" rule twice, once in the aggregate, unused, and once in the query adapter.
+- **A decides whether a reminder is due in its query adapter, not in its Domain.** C's read model of accounts, exported to Notes, also exposes the password hash, which only the login query should see.
 
 ## What the pilot found
 
@@ -65,6 +88,7 @@ _To be filled from the independent grader's report._
 
   Both times the driver's contract checks stopped the run before any agent started, in under twenty seconds. That is what the contract checks are for.
 - **The person did not foresee that feature 7 reshapes a command of feature 1.** A storm session that reads the earlier storms would have; the tooling now tolerates it.
+- **Nobody marks a relationship carried.** In C and C′, the three relationships the person declared `planned` stayed planned after their features landed. The single writer marks a feature's storm and plans carried (ADR 29), but not the map. The check accepts a planned relationship that the code carries. So `planned` says *declared before its code*, never *not yet carried*, and nothing makes it go away. Open: the writer, or the check, should close it.
 
 ## Cost
 
