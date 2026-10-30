@@ -6,15 +6,21 @@
 //! only when the facts are about to be durable; publishing them is the relay's, once they are.
 //!
 //! The handler hands the aggregate over: it has saved it and has nothing left to do with it,
-//! and the commit may come later than the call. Command handlers call this as their last step.
-//! A context without a unit of work (a handler's unit test) has no outbox: there the events go
-//! straight to the bus once the use case has succeeded, as `ExecutionContext::after_commit`
-//! promises. Outside any transaction (a reaction, after the command that set it off committed)
-//! the events are stored and relayed at once.
+//! and the commit may come later than the call. Command handlers call this as their last step;
+//! so does a reaction that changed an aggregate, in the transaction of its own the base event
+//! handler opens (ADR 30). A context without a unit of work (a handler's unit test) has no
+//! outbox: there the events go straight to the bus once the use case has succeeded, as
+//! `ExecutionContext::after_commit` promises. Outside any transaction (a handler's unit test
+//! calling `execute()` directly) the events are stored and relayed at once.
+//!
+//! `publish_integration_event()` does the same for a fact a reaction tells other contexts: the
+//! reaction that translates a domain event into the published contract calls it, and the fact
+//! goes out through the outbox when the reaction's transaction commits, under the entry's id —
+//! never straight to the bus, where a rollback could not take it back (ADR 30).
 
 use std::sync::Arc;
 
-use architecture_domain::Aggregate;
+use architecture_domain::{Aggregate, IntegrationEvent};
 
 use crate::event_bus::AnyEvent;
 use crate::execution_context::ExecutionContext;
@@ -24,12 +30,35 @@ where
     A: Aggregate + Send + 'static,
     A::Event: Send + Sync + 'static,
 {
+    durable(
+        move || aggregate.pull_domain_events().into_iter().map(|event| Arc::new(event) as Arc<dyn AnyEvent>).collect(),
+        context,
+    )
+    .await;
+}
+
+/// Tells other contexts a fact the way a domain event is told (ADR 30): appended to the outbox
+/// when the reaction's transaction commits, relayed after it, under the entry's id. The reaction
+/// that translates a domain event into the published contract calls it; nothing publishes an
+/// integration event straight to the bus, where a rollback could not take it back.
+pub async fn publish_integration_event<E>(event: E, context: &ExecutionContext)
+where
+    E: IntegrationEvent + Send + Sync + 'static,
+{
+    durable(move || vec![Arc::new(event) as Arc<dyn AnyEvent>], context).await;
+}
+
+/// At commit, the events are appended to the outbox; without a unit of work, published once the use case has succeeded.
+async fn durable<F>(events: F, context: &ExecutionContext)
+where
+    F: FnOnce() -> Vec<Arc<dyn AnyEvent>> + Send + 'static,
+{
     let Some(unit_of_work) = context.unit_of_work().cloned() else {
         let publisher = context.clone();
         context
             .after_commit(async move {
-                for event in aggregate.pull_domain_events() {
-                    publisher.publish(event).await;
+                for event in events() {
+                    publisher.event_bus().publish(event, publisher.clone()).await;
                 }
             })
             .await;
@@ -37,9 +66,7 @@ where
     };
     context
         .before_commit(async move {
-            let events: Vec<Arc<dyn AnyEvent>> =
-                aggregate.pull_domain_events().into_iter().map(|event| Arc::new(event) as Arc<dyn AnyEvent>).collect();
-            unit_of_work.outbox().append(events).await;
+            unit_of_work.outbox().append(events()).await;
         })
         .await;
 }
@@ -48,7 +75,9 @@ where
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use architecture_domain::{AggregateRoot, DomainEvent, DomainResult, Entity, Event, EventKind, Exception, Id};
+    use architecture_domain::{
+        AggregateRoot, DomainEvent, DomainResult, Entity, Event, EventKind, Exception, Id, IntegrationEvent,
+    };
 
     use super::*;
     use crate::BoxFuture;
@@ -71,6 +100,21 @@ mod tests {
         }
     }
     impl DomainEvent for Greeting {}
+
+    /// A fact told to other contexts: what a reaction publishes.
+    #[derive(Debug, Clone, PartialEq)]
+    struct Told {
+        who: String,
+    }
+    impl Event for Told {
+        fn name(&self) -> &'static str {
+            "Told"
+        }
+        fn kind(&self) -> EventKind {
+            EventKind::Integration
+        }
+    }
+    impl IntegrationEvent for Told {}
 
     struct Greeter(AggregateRoot<Greeting>);
     impl Greeter {
@@ -144,6 +188,9 @@ mod tests {
         }
         fn outbox(&self) -> &dyn Outbox {
             &self.outbox
+        }
+        fn another(&self) -> Arc<dyn UnitOfWork> {
+            Arc::new(OutboxOnly::default())
         }
     }
 
@@ -248,7 +295,7 @@ mod tests {
     }
 
     #[test]
-    fn stores_and_publishes_at_once_outside_any_transaction_a_reaction_after_the_command_that_set_it_off_committed() {
+    fn stores_and_publishes_at_once_outside_any_transaction_a_handler_s_execute_called_directly() {
         let recorder = Arc::new(Recorder::default());
         let uow = Arc::new(OutboxOnly::default());
         let context = context(&recorder, Some(&uow));
@@ -293,5 +340,55 @@ mod tests {
 
         assert!(result.is_err());
         assert!(recorder.events().is_empty());
+    }
+
+    #[test]
+    fn tells_other_contexts_through_the_outbox_at_commit_and_after_it_under_the_entry_id() {
+        let recorder = Arc::new(Recorder::default());
+        let uow = Arc::new(OutboxOnly::default());
+        let context = context(&recorder, Some(&uow));
+
+        pollster::block_on(context.with_transaction(|| async {
+            publish_integration_event(Told { who: "ann".into() }, &context).await;
+            assert!(uow.outbox.entries().is_empty()); // stored at the commit, not before
+            assert!(recorder.events().is_empty()); // nothing leaves before the commit
+            Ok(())
+        }))
+        .expect("committed");
+
+        assert_eq!(recorder.events(), ["Told { who: \"ann\" }"]);
+        assert_eq!(recorder.ids(), uow.outbox.appended());
+        assert!(uow.outbox.entries().is_empty());
+    }
+
+    #[test]
+    fn tells_nothing_when_the_transaction_rolls_back() {
+        let recorder = Arc::new(Recorder::default());
+        let uow = Arc::new(OutboxOnly::default());
+        let context = context(&recorder, Some(&uow));
+
+        let result: DomainResult = pollster::block_on(context.with_transaction(|| async {
+            publish_integration_event(Told { who: "ann".into() }, &context).await;
+            Err(Exception::not_allowed("Test", "refused"))
+        }));
+
+        assert!(result.is_err());
+        assert!(recorder.events().is_empty());
+        assert!(uow.outbox.appended().is_empty());
+    }
+
+    #[test]
+    fn tells_other_contexts_once_the_use_case_has_succeeded_when_there_is_no_unit_of_work() {
+        let recorder = Arc::new(Recorder::default());
+        let context = context(&recorder, None);
+
+        pollster::block_on(context.with_transaction(|| async {
+            publish_integration_event(Told { who: "ann".into() }, &context).await;
+            assert!(recorder.events().is_empty());
+            Ok(())
+        }))
+        .expect("succeeded");
+
+        assert_eq!(recorder.events(), ["Told { who: \"ann\" }"]);
     }
 }

@@ -10,6 +10,15 @@
 //! failure), so a listener that fails is visible in the trace instead of vanishing. It cannot
 //! undo the fact it reacted to: the event was published after the commit (ADR 3), and a failed
 //! reaction is the listener's problem to retry or report, never the publisher's.
+//!
+//! A reaction runs in a transaction of its own (ADR 30), opened here, in a context of its own
+//! (`context.for_reaction()`): what it saves, and the facts it records or publishes, commit
+//! together or not at all, and go out through the outbox after the commit, like a command's.
+//! So `execute()` saves, calls `publish_domain_events()` for an aggregate it changed and
+//! `publish_integration_event()` for a fact it tells other contexts, and returns an `Err` to
+//! undo all of it. It is not made idempotent by hand: all or nothing, one id per fact, and the
+//! bus's inbox hand a fact to a reaction once. Its tests over the in-memory pieces are in the
+//! Infrastructure's `unit_of_work.rs`.
 
 use std::any::{Any, type_name};
 use std::future::Future;
@@ -30,7 +39,8 @@ pub trait EventHandler: Send + Sync + 'static {
     /// The reaction. Implement it in each concrete handler.
     fn execute(&self, event: Self::Event, context: &ExecutionContext) -> impl Future<Output = DomainResult> + Send;
 
-    /// What the bus calls: the reaction, awaited, its outcome on the operation. Not meant to be overridden.
+    /// What the bus calls: the reaction, awaited, in a context and a transaction of its own (ADR
+    /// 30), its outcome on the operation. Not meant to be overridden.
     fn handle(&self, operation: Operation) -> impl Future<Output = Operation> + Send {
         async move {
             let name = operation.event().name();
@@ -41,10 +51,11 @@ pub trait EventHandler: Send + Sync + 'static {
                     name
                 )));
             };
-            let context = operation.context().clone();
+            let context = operation.context().for_reaction();
             let handler = type_name::<Self>();
 
-            match AssertUnwindSafe(self.execute(event, &context)).catch_unwind().await {
+            let reaction = context.with_transaction(|| self.execute(event, &context));
+            match AssertUnwindSafe(reaction).catch_unwind().await {
                 Ok(Ok(())) => operation.sent(),
                 Ok(Err(failure)) => {
                     if let Some(logger) = context.logger() {
@@ -160,6 +171,68 @@ mod tests {
 
         assert_eq!(done.status(), OperationStatus::Error);
         assert_eq!(done.error().expect("failed").message(), "Nothing to react to");
+    }
+
+    /// A unit of work that writes what happens to it in a shared log, under its name; the one it
+    /// hands a reaction is called "reaction".
+    struct Named {
+        name: &'static str,
+        log: Arc<Mutex<Vec<String>>>,
+        active: Mutex<bool>,
+        outbox: crate::outbox::testing::FakeOutbox,
+    }
+    impl Named {
+        fn new(name: &'static str, log: Arc<Mutex<Vec<String>>>) -> Self {
+            Self { name, log, active: Mutex::new(false), outbox: Default::default() }
+        }
+        fn write(&self, what: &str, active: bool) -> BoxFuture<'_, ()> {
+            *self.active.lock().unwrap() = active;
+            self.log.lock().unwrap().push(format!("{} {what}", self.name));
+            Box::pin(async {})
+        }
+    }
+    impl crate::execution_context::UnitOfWork for Named {
+        fn begin_transaction(&self) -> BoxFuture<'_, ()> {
+            self.write("begin", true)
+        }
+        fn commit_transaction(&self) -> BoxFuture<'_, ()> {
+            self.write("commit", false)
+        }
+        fn rollback_transaction(&self) -> BoxFuture<'_, ()> {
+            self.write("rollback", false)
+        }
+        fn has_active_transaction(&self) -> bool {
+            *self.active.lock().unwrap()
+        }
+        fn outbox(&self) -> &dyn crate::outbox::Outbox {
+            &self.outbox
+        }
+        fn another(&self) -> Arc<dyn crate::execution_context::UnitOfWork> {
+            Arc::new(Named::new("reaction", self.log.clone()))
+        }
+    }
+
+    fn operation_with_unit_of_work(then: Option<&'static str>, log: &Arc<Mutex<Vec<String>>>) -> Operation {
+        let context = ExecutionContext::new(ExecutionContextOptions {
+            trace_id: "trace".into(),
+            auth: Auth::anonymous(),
+            event_bus: Arc::new(NoBus),
+            unit_of_work: Some(Arc::new(Named::new("publisher", log.clone()))),
+            logger: None,
+        });
+        Operation::new(Arc::new(Greeted { then }), context)
+    }
+
+    #[test]
+    fn runs_the_reaction_in_a_transaction_of_its_own_on_another_unit_of_work_than_the_publisher_s() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+
+        let done = pollster::block_on(OnGreeted::default().handle(operation_with_unit_of_work(None, &log)));
+        let failed = pollster::block_on(OnGreeted::default().handle(operation_with_unit_of_work(Some("fail"), &log)));
+
+        assert_eq!(done.status(), OperationStatus::Sent);
+        assert_eq!(failed.status(), OperationStatus::Error);
+        assert_eq!(*log.lock().unwrap(), ["reaction begin", "reaction commit", "reaction begin", "reaction rollback"]);
     }
 
     #[test]

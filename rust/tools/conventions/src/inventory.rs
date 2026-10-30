@@ -344,11 +344,16 @@ fn reactions<'a>(wiring_text: &'a str, key: &str) -> Vec<(&'a str, &'a str)> {
         .collect()
 }
 
-/// The paths each `publish(…)` of a text is handed, directly (`publish(NoteIntegrationEvent::Shared { … })`)
-/// and through a local binding (`let notice = OperationCompleteIntegrationEvent { … }; … publish(Arc::new(notice), …)`).
+/// The paths each `publish(…)` or `publish_integration_event(…)` of a text is handed, in the order
+/// they are written: directly (`publish_integration_event(NoteIntegrationEvent::Shared { … }, context)`,
+/// what a reaction calls, through the outbox — ADR 30; `context.publish(PinNote { … })`) and through a
+/// local binding (`let notice = OperationCompleteIntegrationEvent { … }; … publish(Arc::new(notice), …)`).
 fn published_paths(text: &str) -> Vec<Vec<&str>> {
+    let mut calls: Vec<usize> =
+        ["publish(", "publish_integration_event("].iter().flat_map(|needle| after_each(text, needle)).collect();
+    calls.sort_unstable();
     let mut paths = Vec::new();
-    for at in after_each(text, "publish(") {
+    for at in calls {
         let at = at + text[at..].len() - text[at..].trim_start().len();
         let at = text[at..].strip_prefix("Arc::new(").map_or(at, |_| at + "Arc::new(".len());
         let Some((segments, _)) = path_at(text, at) else { continue };
@@ -583,8 +588,8 @@ impl IntegrationEvents {
         .unwrap_or_else(|| public_name(expression).to_string())
     }
 
-    /// What a text publishes: the integration event each `publish(…)` is handed, directly
-    /// (`publish(NoteIntegrationEvent::Shared { … })`) or through a local binding
+    /// What a text publishes: the integration event each `publish(…)` or `publish_integration_event(…)`
+    /// is handed, directly (`publish_integration_event(NoteIntegrationEvent::Shared { … }, context)`) or through a local binding
     /// (`let notice = OperationCompleteIntegrationEvent { … }; … publish(Arc::new(notice), …)`).
     fn published_by(&self, text: &str) -> Vec<String> {
         let mut names = Vec::new();
@@ -1347,6 +1352,14 @@ impl Event for AccountIntegrationEvent {
             integration.published_by("context.publish(AccountIntegrationEvent::Created { account_id }).await;"),
             ["AccountCreated"]
         );
+        // What a reaction calls (ADR 30): the fact through the outbox, the context last.
+        assert_eq!(
+            integration.published_by(
+                "publish_integration_event(\n    AccountIntegrationEvent::Created { account_id },\n    context,\n)\n.await;"
+            ),
+            ["AccountCreated"]
+        );
+        assert!(integration.published_by("publish_domain_events(account, context).await;").is_empty());
         assert!(integration.published_by("let AccountIntegrationEvent::Created { .. } = event;").is_empty());
     }
 

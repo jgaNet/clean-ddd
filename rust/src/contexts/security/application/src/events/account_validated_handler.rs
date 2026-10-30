@@ -1,6 +1,6 @@
 //! The account is usable: the other contexts may welcome it.
 
-use architecture_application::{EventHandler, ExecutionContext};
+use architecture_application::{EventHandler, ExecutionContext, publish_integration_event};
 use architecture_domain::DomainResult;
 use security_domain::account::AccountEvent;
 use shared_kernel_application::integration_events::account_integration_events::AccountIntegrationEvent;
@@ -15,7 +15,7 @@ impl EventHandler for AccountValidatedHandler {
         if let Some(logger) = context.logger() {
             logger.debug(context.trace_id(), &format!("Account {account_id} validated"));
         }
-        context.publish(AccountIntegrationEvent::Validated { account_id, email }).await;
+        publish_integration_event(AccountIntegrationEvent::Validated { account_id, email }, context).await;
         Ok(())
     }
 }

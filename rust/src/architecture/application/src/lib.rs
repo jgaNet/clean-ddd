@@ -27,7 +27,7 @@ pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 pub use application::Application;
 pub use command_handler::{AnyCommand, CommandHandler, CommandSubscriber};
-pub use domain_events::publish_domain_events;
+pub use domain_events::{publish_domain_events, publish_integration_event};
 pub use event_bus::{AnyEvent, AnyHandler, EventBus};
 pub use event_handler::{EventHandler, EventSubscriber};
 pub use execution_context::{Auth, ExecutionContext, ExecutionContextOptions, Logger, UnitOfWork};
