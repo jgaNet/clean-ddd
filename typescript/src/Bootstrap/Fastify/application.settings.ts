@@ -1,3 +1,5 @@
+import { randomBytes } from 'crypto';
+
 import packageJson from '../../../package.json' with { type: 'json' };
 
 const protocol = String(process.env.PROTOCOL || 'http');
@@ -22,7 +24,10 @@ export const SETTINGS = {
   },
   security: {
     jwt: {
-      secret: process.env.JWT_SECRET || 'default-development-secret-do-not-use-in-production',
+      // Without JWT_SECRET, a secret drawn at random for this process, never a fixed string: a fixed
+      // fallback signs tokens anyone who reads this file can forge, and it gets copied (the phase-4
+      // control found an agent's application doing so). Tokens then do not survive a restart.
+      secret: process.env.JWT_SECRET || randomBytes(32).toString('hex'),
       expiresIn: process.env.JWT_EXPIRES_IN || '24h',
     },
     adminAccount: {

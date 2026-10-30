@@ -1,0 +1,32 @@
+# Feature 9 of the extended backlog (../backlog/9-comments.md), decided by the kit's author before any run.
+schemaVersion: 1
+
+feature: comments
+intent: >-
+  The owner of a note and the accounts it is shared with comment on it and list its comments,
+  oldest first.
+
+done: false
+
+hotSpots:
+  - question: Is a comment part of the note, or a thing of its own?
+    decision: A thing of its own (a Comment), referring to its note by id; comments grow without bound and are written by others than the owner.
+  - question: Who may comment, and on what?
+    decision: Whoever can read the note; never on an archived note.
+
+contexts:
+  - id: Notes
+    commands:
+      - name: CommentOnNote
+        actor: a signed-in account
+        route: POST /notes/{param}/comments
+        aggregate: Comment
+        events: [NoteCommented]
+    queries:
+      - name: GetNoteComments
+        actor: a signed-in account
+        route: GET /notes/{param}/comments
+    events: [NoteCommented]
+    policies: []
+
+links: []

@@ -8,6 +8,7 @@ use std::time::Duration;
 use bootstrap_transport::TransportSettings;
 use notifications_wiring::NotificationsSettings;
 use security_wiring::SecuritySettings;
+use uuid::Uuid;
 
 const NAME: &str = "clean-ddd";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -49,8 +50,11 @@ impl Settings {
             },
             transport,
             security: SecuritySettings {
+                // Without JWT_SECRET, a secret drawn for this process (two v4 UUIDs, from the OS's
+                // randomness), never a fixed string anyone could sign with. Tokens then do not
+                // survive a restart.
                 jwt_secret: var("JWT_SECRET")
-                    .unwrap_or_else(|| "default-development-secret-do-not-use-in-production".into()),
+                    .unwrap_or_else(|| format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple())),
                 jwt_expires_in: Duration::from_secs(
                     var("JWT_EXPIRES_IN_SECONDS").and_then(|seconds| seconds.parse().ok()).unwrap_or(24 * 3600),
                 ),

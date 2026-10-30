@@ -85,9 +85,9 @@ const acceptanceDir = join(tree, control === 'plain' ? 'src/acceptance' : 'src/B
 mkdirSync(acceptanceDir, { recursive: true });
 for (const file of readdirSync(join(kit, 'acceptance')))
   copyFileSync(join(kit, 'acceptance', file), join(acceptanceDir, file));
-if (control === 'plain') {
+const support = join(acceptanceDir, 'support.ts');
+if (control === 'plain' && existsSync(support)) {
   // The same client, starting the plain project's application.
-  const support = join(acceptanceDir, 'support.ts');
   writeFileSync(
     support,
     readFileSync(support, 'utf8')
@@ -112,7 +112,9 @@ const stormsDir = join(`${project}.flow`, 'grade', `${commit.slice(0, 12)}.storm
 mkdirSync(stormsDir, { recursive: true });
 // The kit's storms held as done, by this repository's tooling for every arm: a storm is carried
 // when the code records at least what it said (a later feature may add a fact to a command).
-for (const f of backlog) {
+// A feature with no storm (one that adds no command, event or policy) has nothing to hold there.
+const stormed = f => existsSync(join(kit, 'storms', `${f.id}.yaml`));
+for (const f of backlog.filter(stormed)) {
   const text = readFileSync(join(kit, 'storms', `${f.id}.yaml`), 'utf8').replace(/^done: false$/m, 'done: true');
   writeFileSync(join(stormsDir, `${f.id}.yaml`), text);
 }
@@ -126,7 +128,8 @@ const m1 = {
 const features = backlog.map(f => {
   const file = `${f.n}-${f.id}.acceptance.ts`;
   const run = sh(
-    `yarn -s test --testMatch '**/${control === 'plain' ? 'acceptance' : 'Acceptance'}/${file}'`,
+    // A test that starts the server as a process of its own (the persistence experiment) is told its entry point.
+    `ACCEPTANCE_ENTRY=${control === 'plain' ? 'src/server.ts' : 'src/Bootstrap/Fastify/application.ts'} yarn -s test --testMatch '**/${control === 'plain' ? 'acceptance' : 'Acceptance'}/${file}'`,
     tree,
     300_000,
   );
@@ -134,9 +137,10 @@ const features = backlog.map(f => {
   const failed = [...run.out.matchAll(/^\s+● (.+)$/gm)]
     .map(match => match[1])
     .filter(name => name !== 'Test suite failed to run');
-  const storm = control
-    ? { problems: [] }
-    : parse(sh(`node ${cli} storm --expect ${join(stormsDir, `${f.id}.yaml`)} --json`, tree, 300_000).out);
+  const storm =
+    control || !stormed(f)
+      ? { problems: [] }
+      : parse(sh(`node ${cli} storm --expect ${join(stormsDir, `${f.id}.yaml`)} --json`, tree, 300_000).out);
   const owed = storm?.problems ?? ['the storm could not be read'];
   return {
     feature: f.id,

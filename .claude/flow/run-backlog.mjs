@@ -14,6 +14,7 @@
  *   retry: { perFeature: 1 }
  *   budgetUsd: 40
  *   ports: { base: 18100 }
+ *   brief: '…'                  # optional: a paragraph added to every brief (E2: the contract a fan-out had)
  *   priority: cost              # what `clean-ddd strategy` weighs, logged beside each feature (cost | time)
  *
  * Arm A — one agent. One conversation takes the features in order. For each: the driver puts the
@@ -169,8 +170,12 @@ function worktree(id, at) {
   return path;
 }
 
+/** A feature that adds no command, event or policy (persistence) has no storm. */
+const hasStorm = feature => existsSync(join(kit, 'storms', `${feature.id}.yaml`));
+
 /** The feature's storm, decided before the run, put where the agent and the check read it. */
 function placeStorm(feature, cwd) {
+  if (!hasStorm(feature)) return;
   const target = join(cwd, 'conventions/storms', `${feature.id}.yaml`);
   mkdirSync(dirname(target), { recursive: true });
   copyFileSync(join(kit, 'storms', `${feature.id}.yaml`), target);
@@ -214,14 +219,17 @@ async function verdict(feature, cwd, from) {
   const gated = parse((await sh(`${tool} gate --base ${from} --mode architecture --json`, cwd)).stdout);
   const failing = (gated?.steps ?? []).filter(step => step.status === 'fail');
   // The kit's storm held as done: whatever the code does not carry yet is a difference.
-  const done = join(runDir, 'storms', `${feature.id}.yaml`);
-  mkdirSync(dirname(done), { recursive: true });
-  writeFileSync(
-    done,
-    readFileSync(join(kit, 'storms', `${feature.id}.yaml`), 'utf8').replace(/^done: false$/m, 'done: true'),
-  );
-  const storm = parse((await sh(`${tool} storm --expect ${done} --json`, cwd, 300_000)).stdout);
-  const owed = storm?.problems ?? ['the storm could not be read'];
+  let owed = [];
+  if (hasStorm(feature)) {
+    const done = join(runDir, 'storms', `${feature.id}.yaml`);
+    mkdirSync(dirname(done), { recursive: true });
+    writeFileSync(
+      done,
+      readFileSync(join(kit, 'storms', `${feature.id}.yaml`), 'utf8').replace(/^done: false$/m, 'done: true'),
+    );
+    const storm = parse((await sh(`${tool} storm --expect ${done} --json`, cwd, 300_000)).stdout);
+    owed = storm?.problems ?? ['the storm could not be read'];
+  }
   const problems = [
     ...failing.flatMap(step => [`${step.name}:`, ...(step.lines ?? []).map(line => `  ${line}`)]),
     ...(owed.length ? ['The storm still owes:', ...owed.map(line => `  ${line}`)] : []),
@@ -298,9 +306,15 @@ const brief = (feature, from, port) =>
           : `You are writing one feature of an application built on the clean-ddd architecture. Other agents are writing other features at the same time, each in its own git worktree; you will not see their work, which is integrated with yours afterwards.`,
         'Read `CLAUDE.md` first and follow it. Do not ask questions: decide, and say in your final report what was unclear.',
         '',
-        `The feature's storm, decided with the product's owner before you started, is \`conventions/storms/${feature.id}.yaml\`: its hot spots are decided, do not change them. \`yarn architecture storm --expect conventions/storms/${feature.id}.yaml\` says what the code still owes it; when it owes nothing, set \`done: true\` in it.`,
+        ...(hasStorm(feature)
+          ? [
+              `The feature's storm, decided with the product's owner before you started, is \`conventions/storms/${feature.id}.yaml\`: its hot spots are decided, do not change them. \`yarn architecture storm --expect conventions/storms/${feature.id}.yaml\` says what the code still owes it; when it owes nothing, set \`done: true\` in it.`,
+            ]
+          : []),
         'If the feature needs a context or a relationship between contexts that the application does not have yet, that is an architecture task, and it is yours: declare it, record the decision in an ADR under `docs/adr/`, then write the feature (`yarn architecture mode architecture` says what that takes).',
-        `You are done when \`yarn architecture gate --base ${from} --mode architecture\` passes and the storm owes nothing. Commit your work on the current branch; do not push. If you start a server, use port ${port}.`,
+        `You are done when \`yarn architecture gate --base ${from} --mode architecture\` passes${hasStorm(feature) ? ' and the storm owes nothing' : ''}. Commit your work on the current branch; do not push. If you start a server, use port ${port}.`,
+        // What the execution plan adds for this run (the contract a fan-out would have had, E2).
+        ...(plan.brief ? ['', String(plan.brief).trim()] : []),
         '',
         'The feature, in product words, with the API it answers:',
         '',

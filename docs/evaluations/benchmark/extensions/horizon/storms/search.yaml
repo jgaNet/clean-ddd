@@ -1,0 +1,24 @@
+# Feature 13 of the extended backlog (../backlog/13-search.md), decided by the kit's author before any run.
+schemaVersion: 1
+
+feature: search
+intent: >-
+  A signed-in person finds the notes they can read whose title or text contains every word of a query.
+
+done: false
+
+hotSpots:
+  - question: Does search need a context of its own?
+    decision: No — it reads what Notes holds; a Search context would earn its place only with another index.
+
+contexts:
+  - id: Notes
+    commands: []
+    queries:
+      - name: SearchNotes
+        actor: a signed-in account
+        route: GET /notes/search
+    events: []
+    policies: []
+
+links: []

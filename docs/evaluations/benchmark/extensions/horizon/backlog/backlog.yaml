@@ -1,0 +1,7 @@
+# Experiment E3 of the extensions: five more features on finished backlog trees, in order.
+features:
+  - { id: comments, n: 9, contexts: [Notes], needs: [] }
+  - { id: note-history, n: 10, contexts: [Notes], needs: [] }
+  - { id: editors, n: 11, contexts: [Notes], needs: [note-history] }
+  - { id: delete-account, n: 12, contexts: [Accounts, Notes, Notifications, Plans], needs: [comments, editors] }
+  - { id: search, n: 13, contexts: [Notes], needs: [] }
