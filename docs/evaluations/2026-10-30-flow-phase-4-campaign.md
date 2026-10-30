@@ -38,7 +38,7 @@ One run of each arm, at the same time, from the same project: the pilot's arm-A 
 | Wall clock | 54.6 min: the agent wrote nothing from 12:06 to 12:35, then the container restarted | 26.9 min: the person took 8 minutes to see the blocked run |
 | **Cost** | **$8.67**: $7.47 reconstructed from the interrupted session's tokens, $1.20 reported after it | **$15.07** |
 
-**On this single point the fan-out wins on time and loses on cost.** C′ finished about 5 minutes (21%) sooner in active time and cost 1.74 times as much. The literature predicts this direction for work that decomposes cleanly with context separation: a gain in time, never in cost. Here the gain is modest. It is one run per arm, and it rests on the person's quick contract stage.
+**On this single point the fan-out wins on time and loses on cost.** C′ finished about 5 minutes (21%) sooner in active time and cost 1.74 times as much. On the read items it was also the better tree: A placed one rule in the wrong layer ([below](#the-read-items)). The literature predicts this direction for work that decomposes cleanly with context separation: a gain in time, never in cost. Here the gain is modest. It is one run per arm, and it rests on the person's quick contract stage.
 
 **Arm A's interruption.**
 
@@ -64,7 +64,30 @@ One run of each arm, at the same time, from the same project: the pilot's arm-A 
 
 ## The read items
 
-_To be filled from the independent grader's report._
+A second agent, which had not run the benchmark, read the six final trees against the R items, with a file and a line for each verdict. The one failure and the note on the intervention below were checked against the trees before they were written here.
+
+**The backlog.** Every item passes in all four trees of runs 2 and 3, as in the pilot's A, C and C′: R0, R1.1, R1.2, R2.1, R3.1, R4.1, R5.1, R5.2, R6.1, R6.2, R7.1, R7.2.
+
+**Feature 8.**
+
+| Item | A | C′ |
+| --- | --- | --- |
+| R8.0 — three contexts and nine relationships declared, with an ADR | PASS | PASS |
+| R8.1 — the space decides its rules; seats asked through a port Teams owns | PASS | PASS |
+| R8.2 — an invitation's expiry decided with the time as a parameter with a default | PASS | PASS |
+| R8.3 — Notes decides what a role may do, in its Domain or Application, through its own port | **FAIL** | PASS |
+| R8.4 — Search and Audit fed only by integration events, with their own stores | PASS | PASS |
+| R8.5 — published through the outbox; consumers in their own transaction, no hand-made idempotency | PASS | PASS |
+
+- **A's R8.3.** Writing, editing, archiving and restoring a space's note are decided in Notes' Domain. Whether a member may *read* one is decided in the query adapter, in Infrastructure: `findReadableBy` and `findBySpace` ask the role of the membership port and return the note or nothing. The query handlers pass that answer on. Notes' Domain imports nothing of Teams in either tree. C′ decides reading in its query handlers, in Application, through the port Notes owns.
+- **The grader also noted, outside the items:**
+  - **A** reads the clock (`new Date()`) inside a Notes domain service instead of taking the time as a parameter with a default. In both arms, whether a caller is a space's admin, for reading its activity, is decided in Audit's query adapter.
+  - **C′** left all nine new relationships `planned: true` after the code came to carry them, like its three of the backlog in runs 2 and 3. That is the pilot's open finding again: nobody marks a relationship carried. A, with no person and no writer, cleared its own flags each time.
+  - **r3-A's** reminder contract carries no cancellation time, so Notifications judges "not yet due" by its own clock when the reaction runs. A relay delayed past the moment would still tell a reminder cancelled before it. r2-A, r2-C′ and r3-C′ carry the time in the event.
+  - **r2-A** maps an unreadable stored plan name to Free instead of treating it as corrupted data.
+  - In three of the four backlog trees, as in the pilot's A, the "is a reminder due?" rule lives in the query adapter, not in the Domain. No item asks where it lives, only that the time is a parameter.
+
+**What it says about quality.** Twenty-six read items out of twenty-seven pass across the six trees. The only failure is one agent placing one rule of a large feature in the wrong layer. The fan-out's contract stage, which named the port and the layer of each decision in the slices' plans, is the likely reason C′ did not make the same mistake. That is one point, not a pattern. Each arm's characteristic omission stays the same as in the pilot: C′ leaves the map's `planned` flags behind, and A puts small rules in adapters.
 
 ## What the campaign found
 
@@ -77,7 +100,7 @@ _To be filled from the independent grader's report._
 
 **On a backlog of small features, one agent with the gate, the context map and the storms is the better choice.** It wins on cost every time and on time every time, at the same quality. The architecture's tooling serves it as well as it serves a fan-out.
 
-**On one feature that spreads across six contexts, the fan-out was sooner and dearer.** It saved 21% of active time for 1.74 times the cost, once, with one intervention a fix now prevents.
+**On one feature that spreads across six contexts, the fan-out was sooner and dearer.** It saved 21% of active time for 1.74 times the cost, once, with one intervention a fix now prevents. Its tree passed every read item, and A's failed one.
 
 That is a regime boundary, not a reversal. Read with the related work, it suggests a cascade: one agent by default, and a fan-out by context only for a feature whose contexts are many and whose time matters more than its cost. The RFC's phase 6 is about choosing between the two. Before that, feature 8 would need the two runs per arm the backlog had, to turn one point into a range.
 
