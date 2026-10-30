@@ -1,0 +1,498 @@
+From ef1403e3084295e71e57397a4f3f002dc14dcb77 Mon Sep 17 00:00:00 2001
+From: architect <architect@example.com>
+Date: Fri, 30 Oct 2026 11:50:34 +0000
+Subject: [PATCH 1/4] =?UTF-8?q?architecture:=20team=20spaces=20=E2=80=94?=
+ =?UTF-8?q?=20Teams,=20Search=20and=20Audit,=20nine=20relationships,=20the?=
+ =?UTF-8?q?=20frozen=20contracts=20(ADR=206)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ conventions/domain.yaml                       | 118 ++++++++++++++++++
+ conventions/typescript.yaml                   |   3 +
+ docs/adr/0006-team-spaces.md                  |  20 +++
+ docs/adr/README.md                            |   1 +
+ src/Bootstrap/Fastify/createApplication.ts    |  15 ++-
+ .../Presentation/API/REST/Routes/index.ts     |   5 +
+ src/Contexts/Audit/module.local.ts            |   4 +
+ .../Domain/Plan/Ports/ISpacePlanQueries.ts    |  15 +++
+ src/Contexts/Plans/module.local.ts            |   6 +
+ .../Presentation/API/REST/Routes/index.ts     |   5 +
+ src/Contexts/Search/module.local.ts           |   4 +
+ .../Teams/Domain/Space/Ports/ISpaceQueries.ts |  11 ++
+ .../Presentation/API/REST/Routes/index.ts     |   5 +
+ src/Contexts/Teams/module.local.ts            |  11 ++
+ .../NoteIntegrationEvents.ts                  |  22 ++++
+ .../SpaceIntegrationEvents.ts                 |  65 ++++++++++
+ 16 files changed, 309 insertions(+), 1 deletion(-)
+ create mode 100644 docs/adr/0006-team-spaces.md
+ create mode 100644 src/Contexts/Audit/Presentation/API/REST/Routes/index.ts
+ create mode 100644 src/Contexts/Audit/module.local.ts
+ create mode 100644 src/Contexts/Plans/Domain/Plan/Ports/ISpacePlanQueries.ts
+ create mode 100644 src/Contexts/Search/Presentation/API/REST/Routes/index.ts
+ create mode 100644 src/Contexts/Search/module.local.ts
+ create mode 100644 src/Contexts/Teams/Domain/Space/Ports/ISpaceQueries.ts
+ create mode 100644 src/Contexts/Teams/Presentation/API/REST/Routes/index.ts
+ create mode 100644 src/Contexts/Teams/module.local.ts
+ create mode 100644 src/SharedKernel/Application/IntegrationEvents/SpaceIntegrationEvents.ts
+
+diff --git a/conventions/domain.yaml b/conventions/domain.yaml
+index f67a333..4c7cb12 100644
+--- a/conventions/domain.yaml
++++ b/conventions/domain.yaml
+@@ -52,6 +52,24 @@ subdomains:
+       it to its outcome is plumbing any asynchronous application needs, and has no domain of its own.
+     contexts:
+       - Tracker
++  - id: collaboration
++    name: Collaboration
++    kind: core
++    why: Working on notes as a team — who belongs, with which role — is what makes the product worth paying for.
++    contexts:
++      - Teams
++  - id: discovery
++    name: Discovery
++    kind: supporting
++    why: Finding what one can read supports the product without being it; how it is indexed has reasons of its own.
++    contexts:
++      - Search
++  - id: compliance
++    name: Compliance
++    kind: supporting
++    why: What happened in a space, and who did it, is kept for its admins; the record is not the work.
++    contexts:
++      - Audit
+ contexts:
+   - id: Tracker
+     purpose: >-
+@@ -116,6 +134,25 @@ contexts:
+         meaning: what an account subscribed to — `free` or `unlimited`; an account that never chose is on Free.
+       - term: Note limit
+         meaning: how many notes a plan lets an account own, archived ones included; none for Unlimited.
++  - id: Teams
++    purpose: 'Spaces: who belongs to which team, with which role, and who is invited.'
++    language:
++      - term: Space
++        meaning: a team's place — its members, their roles, its invitations.
++      - term: Role
++        meaning: what a member may do — read, edit, or administer.
++      - term: Invitation
++        meaning: an admin's offer to an account to join, with a role; accepted, declined, or expired after 7 days.
++  - id: Search
++    purpose: 'Finding the notes a person can read, by words.'
++    language:
++      - term: Searchable note
++        meaning: a note as Search projects it, with who may find it.
++  - id: Audit
++    purpose: "A space's activity: what happened, who did it, when — for its admins."
++    language:
++      - term: Activity
++        meaning: one recorded fact of a space, with its actor and its subject.
+ relationships:
+   - upstream: Accounts
+     downstream: Notes
+@@ -152,3 +189,84 @@ relationships:
+       It asks in its own words, through PlanLimits, a port its domain declares; Notes' infrastructure answers it
+       over the Plans read model. The limit is read at the moment of writing, so a switch takes effect at once,
+       which a copy kept from events would not promise (ADR 4).
++  - upstream: Accounts
++    downstream: Teams
++    patterns:
++      - customer-supplier
++      - anti-corruption-layer
++    mechanism: owned-port
++    planned: true
++    why: >-
++      Inviting an account that does not exist is refused, and only Accounts knows which accounts exist. Teams asks in its own words, through a port it owns, answered over Accounts' read model.
++  - upstream: Teams
++    downstream: Notes
++    patterns:
++      - customer-supplier
++      - anti-corruption-layer
++    mechanism: owned-port
++    planned: true
++    why: >-
++      What a member may do to a space's note depends on their role, which only Teams knows. Notes asks in its own words, through a port it owns, answered over Teams' read model.
++  - upstream: Plans
++    downstream: Teams
++    patterns:
++      - customer-supplier
++      - anti-corruption-layer
++    mechanism: owned-port
++    planned: true
++    why: >-
++      Accepting an invitation is refused when the space has no seat left, and only Plans knows its seats. Teams asks through a port it owns, answered over Plans' read model of spaces.
++  - upstream: Teams
++    downstream: Plans
++    patterns:
++      - published-language
++      - anti-corruption-layer
++    mechanism: integration-event
++    planned: true
++    why: >-
++      Only a space's admins change its plan, and seats cannot fall below its members: Plans learns the admins and the members from what Teams publishes.
++  - upstream: Teams
++    downstream: Notifications
++    patterns:
++      - published-language
++      - anti-corruption-layer
++    mechanism: integration-event
++    planned: true
++    why: >-
++      The invited, the removed and those whose role changes are told; Teams publishes the facts, Notifications decides what each is told.
++  - upstream: Teams
++    downstream: Search
++    patterns:
++      - published-language
++      - anti-corruption-layer
++    mechanism: integration-event
++    planned: true
++    why: >-
++      Search finds a space's notes for its members only: it learns who belongs where from what Teams publishes.
++  - upstream: Notes
++    downstream: Search
++    patterns:
++      - published-language
++      - anti-corruption-layer
++    mechanism: integration-event
++    planned: true
++    why: >-
++      Search keeps its own projection of the notes, fed by what Notes publishes on every change.
++  - upstream: Teams
++    downstream: Audit
++    patterns:
++      - published-language
++      - anti-corruption-layer
++    mechanism: integration-event
++    planned: true
++    why: >-
++      A space's activity records its membership facts, and its admins read it: Audit learns both from what Teams publishes.
++  - upstream: Notes
++    downstream: Audit
++    patterns:
++      - published-language
++      - anti-corruption-layer
++    mechanism: integration-event
++    planned: true
++    why: >-
++      A space's activity records what happened to its notes, from what Notes publishes.
+diff --git a/conventions/typescript.yaml b/conventions/typescript.yaml
+index 3e441b7..8bde22f 100644
+--- a/conventions/typescript.yaml
++++ b/conventions/typescript.yaml
+@@ -22,6 +22,9 @@ contexts:
+   - Notes
+   - Notifications
+   - Plans
++  - Teams
++  - Search
++  - Audit
+ contexts_tree:
+   alias: '@Contexts'
+   path: src/Contexts
+diff --git a/docs/adr/0006-team-spaces.md b/docs/adr/0006-team-spaces.md
+new file mode 100644
+index 0000000..92969b4
+--- /dev/null
++++ b/docs/adr/0006-team-spaces.md
+@@ -0,0 +1,20 @@
++# 6. Team spaces: Teams, Search and Audit are contexts, and nine relationships carry the feature
++
++## Context
++
++People work in teams: a space with members and roles, its own notes, plan and seats, a search over everything a person can read, and an activity its admins read. Who belongs where, how notes are found and what is recorded each change for reasons of their own.
++
++## Decision
++
++Three contexts: `Teams` (spaces, members, roles, invitations; core subdomain *collaboration*), `Search` (a projection of the notes a person can read; supporting *discovery*) and `Audit` (a space's activity; supporting *compliance*), each declared, described in the map and registered in the composition root, empty.
++
++Nine relationships, declared `planned` until the feature carries them:
++
++- Accounts → Teams, Teams → Notes and Plans → Teams are ports the asking side owns. Each is answered over the other side's read model: Accounts' `accountReadModel`, Teams' `ISpaceQueries` (`spaceQueries`), and Plans' `ISpacePlanQueries` (`spacePlanReadModel`). This task freezes the last two.
++- Teams → Plans, Teams → Notifications, Teams → Search, Notes → Search, Teams → Audit and Notes → Audit are integration events, frozen in the shared kernel before the slices:
++  - Teams' `SpaceIntegrationEvents.ts`: created, invited, joined, removed, left, role changed.
++  - Notes' `NoteChangedIntegrationEvent`: the note as it is after any change.
++
++## Consequences
++
++Six slices are written at once, one per context, against those contracts. Search and Audit hold their own projections and read no other context's store. Plans learns a space's admins and members from Teams' facts; Teams asks Plans for seats.
+diff --git a/docs/adr/README.md b/docs/adr/README.md
+index ec3a9fb..940b749 100644
+--- a/docs/adr/README.md
++++ b/docs/adr/README.md
+@@ -10,6 +10,7 @@ why, what it costs, and when to revisit it.
+ | [3](0003-notifications-listen-to-what-notes-publishes.md) | Notifications is a context of its own, told by Notes through an integration event |
+ | [4](0004-plans-is-a-context-notes-asks-for-the-limit.md) | Plans is a context of its own; Notes asks it the note limit through a port Notes owns |
+ | [5](0005-a-reminder-is-told-when-the-list-is-read.md) | A reminder lives on its note, and is told when the list is read |
++| [6](0006-team-spaces.md) | Team spaces: Teams, Search and Audit are contexts, and nine relationships carry the feature |
+ 
+ The decisions behind the building blocks themselves are recorded in the reference:
+ https://github.com/jgaNet/clean-ddd/tree/main/docs/adr — copy the shape of one, number it, and link
+diff --git a/src/Bootstrap/Fastify/createApplication.ts b/src/Bootstrap/Fastify/createApplication.ts
+index ac10a47..d459867 100644
+--- a/src/Bootstrap/Fastify/createApplication.ts
++++ b/src/Bootstrap/Fastify/createApplication.ts
+@@ -13,6 +13,13 @@ import { notificationRoutes } from '@Contexts/Notifications/Presentation/API/RES
+ import { localPlansModule } from '@Contexts/Plans/module.local';
+ import { planRoutes } from '@Contexts/Plans/Presentation/API/REST/Routes';
+ 
++import { localTeamsModule } from '@Contexts/Teams/module.local';
++import { spaceRoutes } from '@Contexts/Teams/Presentation/API/REST/Routes';
++import { localSearchModule } from '@Contexts/Search/module.local';
++import { searchRoutes } from '@Contexts/Search/Presentation/API/REST/Routes';
++import { localAuditModule } from '@Contexts/Audit/module.local';
++import { auditRoutes } from '@Contexts/Audit/Presentation/API/REST/Routes';
++
+ import { FastifyApplication } from '@Bootstrap/Fastify/FastifyApplication';
+ 
+ /**
+@@ -41,11 +48,17 @@ export async function createApplication({
+     .registerModule(localNotesModule)
+     .registerModule(localNotificationsModule)
+     .registerModule(localPlansModule)
++    .registerModule(localTeamsModule)
++    .registerModule(localSearchModule)
++    .registerModule(localAuditModule)
+     .registerRoutes('/tracker/operations', operationRoutes, { operationsModule: localTrackerModule })
+     .registerRoutes('/accounts', accountRoutes, { accountsModule: localAccountsModule, authentication })
+     .registerRoutes('/notes', noteRoutes, { notesModule: localNotesModule })
+     .registerRoutes('/notifications', notificationRoutes, { notificationsModule: localNotificationsModule })
+-    .registerRoutes('/plans', planRoutes, { plansModule: localPlansModule });
++    .registerRoutes('/plans', planRoutes, { plansModule: localPlansModule })
++    .registerRoutes('/spaces', spaceRoutes, { teamsModule: localTeamsModule })
++    .registerRoutes('/search', searchRoutes, { searchModule: localSearchModule })
++    .registerRoutes('/audit', auditRoutes, { auditModule: localAuditModule });
+ 
+   await app.startModules();
+   // What a previous run made durable and did not publish goes out now (ADR 24): nothing, with
+diff --git a/src/Contexts/Audit/Presentation/API/REST/Routes/index.ts b/src/Contexts/Audit/Presentation/API/REST/Routes/index.ts
+new file mode 100644
+index 0000000..84bb845
+--- /dev/null
++++ b/src/Contexts/Audit/Presentation/API/REST/Routes/index.ts
+@@ -0,0 +1,5 @@
++import { Module } from '@Architecture/Application';
++import { FastifyPluginCallback } from 'fastify';
++
++/** The routes of Audit, under `/audit`; none until its feature. */
++export const auditRoutes: FastifyPluginCallback<{ auditModule: Module }> = (_fastify, _options, done) => done();
+diff --git a/src/Contexts/Audit/module.local.ts b/src/Contexts/Audit/module.local.ts
+new file mode 100644
+index 0000000..1d1e138
+--- /dev/null
++++ b/src/Contexts/Audit/module.local.ts
+@@ -0,0 +1,4 @@
++import { Module } from '@Architecture/Application';
++
++/** Audit, as the architecture task of team spaces declared it (ADR 6): an empty module its feature fills. */
++export const localAuditModule = new Module({ name: 'Audit' });
+diff --git a/src/Contexts/Plans/Domain/Plan/Ports/ISpacePlanQueries.ts b/src/Contexts/Plans/Domain/Plan/Ports/ISpacePlanQueries.ts
+new file mode 100644
+index 0000000..5ab5688
+--- /dev/null
++++ b/src/Contexts/Plans/Domain/Plan/Ports/ISpacePlanQueries.ts
+@@ -0,0 +1,15 @@
++/** A space's plan as other contexts may read it: its seats, and how many notes it keeps (null: no limit). */
++export interface SpacePlanView {
++  plan: 'free' | 'team';
++  seats: number;
++  noteLimit: number | null;
++}
++
++/**
++ * Plans' read model of spaces, frozen by the architecture task of team spaces (ADR 6) for the
++ * relationships Plans → Teams (seats) and Plans → Notes (a space's note limit). A space that never
++ * chose a plan is on Free: 3 seats, 50 notes.
++ */
++export interface ISpacePlanQueries {
++  spacePlanOf(spaceId: string): Promise<SpacePlanView>;
++}
+diff --git a/src/Contexts/Plans/module.local.ts b/src/Contexts/Plans/module.local.ts
+index f110e3f..0f3a797 100644
+--- a/src/Contexts/Plans/module.local.ts
++++ b/src/Contexts/Plans/module.local.ts
+@@ -1,3 +1,4 @@
++import { ISpacePlanQueries } from '@Contexts/Plans/Domain/Plan/Ports/ISpacePlanQueries';
+ import { Module } from '@Architecture/Application';
+ import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
+ 
+@@ -18,3 +19,8 @@ export const localPlansModule = new Module({
+   commands: [{ event: ChangePlanCommandEvent, handlers: [new ChangePlanCommandHandler(planRepository)] }],
+   queries: [new GetMyPlanQueryHandler(planReadModel)],
+ });
++
++/** Plans' read model of spaces (ADR 6): every space on Free until the team-spaces feature records a choice. */
++export const spacePlanReadModel: ISpacePlanQueries = {
++  spacePlanOf: async () => ({ plan: 'free', seats: 3, noteLimit: 50 }),
++};
+diff --git a/src/Contexts/Search/Presentation/API/REST/Routes/index.ts b/src/Contexts/Search/Presentation/API/REST/Routes/index.ts
+new file mode 100644
+index 0000000..a6282d7
+--- /dev/null
++++ b/src/Contexts/Search/Presentation/API/REST/Routes/index.ts
+@@ -0,0 +1,5 @@
++import { Module } from '@Architecture/Application';
++import { FastifyPluginCallback } from 'fastify';
++
++/** The routes of Search, under `/search`; none until its feature. */
++export const searchRoutes: FastifyPluginCallback<{ searchModule: Module }> = (_fastify, _options, done) => done();
+diff --git a/src/Contexts/Search/module.local.ts b/src/Contexts/Search/module.local.ts
+new file mode 100644
+index 0000000..579bf0d
+--- /dev/null
++++ b/src/Contexts/Search/module.local.ts
+@@ -0,0 +1,4 @@
++import { Module } from '@Architecture/Application';
++
++/** Search, as the architecture task of team spaces declared it (ADR 6): an empty module its feature fills. */
++export const localSearchModule = new Module({ name: 'Search' });
+diff --git a/src/Contexts/Teams/Domain/Space/Ports/ISpaceQueries.ts b/src/Contexts/Teams/Domain/Space/Ports/ISpaceQueries.ts
+new file mode 100644
+index 0000000..ce28b53
+--- /dev/null
++++ b/src/Contexts/Teams/Domain/Space/Ports/ISpaceQueries.ts
+@@ -0,0 +1,11 @@
++/** A member's role in a space. */
++export type SpaceRole = 'reader' | 'editor' | 'admin';
++
++/**
++ * Teams' read model, frozen by the architecture task of team spaces (ADR 6) for the relationship
++ * Teams → Notes: another context's adapter asks it what role an account has in a space.
++ */
++export interface ISpaceQueries {
++  /** The account's role in the space; undefined when it is not a member, or the space does not exist. */
++  roleOf(spaceId: string, accountId: string): Promise<SpaceRole | undefined>;
++}
+diff --git a/src/Contexts/Teams/Presentation/API/REST/Routes/index.ts b/src/Contexts/Teams/Presentation/API/REST/Routes/index.ts
+new file mode 100644
+index 0000000..bbd450e
+--- /dev/null
++++ b/src/Contexts/Teams/Presentation/API/REST/Routes/index.ts
+@@ -0,0 +1,5 @@
++import { Module } from '@Architecture/Application';
++import { FastifyPluginCallback } from 'fastify';
++
++/** The routes of Teams, under `/spaces`; none until its feature. */
++export const spaceRoutes: FastifyPluginCallback<{ teamsModule: Module }> = (_fastify, _options, done) => done();
+diff --git a/src/Contexts/Teams/module.local.ts b/src/Contexts/Teams/module.local.ts
+new file mode 100644
+index 0000000..4d817e6
+--- /dev/null
++++ b/src/Contexts/Teams/module.local.ts
+@@ -0,0 +1,11 @@
++import { Module } from '@Architecture/Application';
++
++import { ISpaceQueries } from '@Contexts/Teams/Domain/Space/Ports/ISpaceQueries';
++
++/**
++ * Teams, as the architecture task of team spaces declared it (ADR 6): an empty module its feature
++ * fills, and the read model other contexts may ask (`spaceQueries`), nobody a member until then.
++ */
++export const spaceQueries: ISpaceQueries = { roleOf: async () => undefined };
++
++export const localTeamsModule = new Module({ name: 'Teams' });
+diff --git a/src/SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts b/src/SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts
+index 0e606f0..9652713 100644
+--- a/src/SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts
++++ b/src/SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts
+@@ -39,3 +39,25 @@ export interface ReminderCancelledPayload {
+ 
+ /** Published by Notes when a reminder is replaced, or cancelled by archiving its note (ADR 5). */
+ export class ReminderCancelledIntegrationEvent extends IntegrationEvent<ReminderCancelledPayload> {}
++
++/** What a note is after a change, in Notes' public words, for the contexts that project notes (ADR 6). */
++export interface NoteChangedPayload {
++  noteId: string;
++  title: string;
++  text: string;
++  /** The account that wrote the note; for a space's note, its author. */
++  ownerId: string;
++  /** The space the note belongs to; null for a personal note. */
++  spaceId: string | null;
++  /** The accounts a personal note is shared with; empty for a space's note. */
++  sharedWith: string[];
++  archived: boolean;
++  change: 'written' | 'edited' | 'archived' | 'restored' | 'shared';
++  /** Who made the change. */
++  by: string;
++  /** ISO 8601. */
++  changedAt: string;
++}
++
++/** Published by Notes on every change of a note: written, edited, archived, restored, shared (ADR 6). */
++export class NoteChangedIntegrationEvent extends IntegrationEvent<NoteChangedPayload> {}
+diff --git a/src/SharedKernel/Application/IntegrationEvents/SpaceIntegrationEvents.ts b/src/SharedKernel/Application/IntegrationEvents/SpaceIntegrationEvents.ts
+new file mode 100644
+index 0000000..9253810
+--- /dev/null
++++ b/src/SharedKernel/Application/IntegrationEvents/SpaceIntegrationEvents.ts
+@@ -0,0 +1,65 @@
++import { IntegrationEvent } from '@Architecture/Domain/EventTypes';
++
++/** A member's role in a space, in Teams' public words. */
++export type SpaceRoleName = 'reader' | 'editor' | 'admin';
++
++export interface SpaceCreatedPayload {
++  spaceId: string;
++  name: string;
++  /** The account that created it, its first admin. */
++  adminId: string;
++  /** ISO 8601. */
++  createdAt: string;
++}
++export interface MemberInvitedPayload {
++  spaceId: string;
++  spaceName: string;
++  accountId: string;
++  role: SpaceRoleName;
++  invitedBy: string;
++  /** ISO 8601. */
++  invitedAt: string;
++}
++export interface MemberJoinedPayload {
++  spaceId: string;
++  accountId: string;
++  role: SpaceRoleName;
++  /** ISO 8601. */
++  joinedAt: string;
++}
++export interface MemberRemovedPayload {
++  spaceId: string;
++  spaceName: string;
++  accountId: string;
++  removedBy: string;
++  /** ISO 8601. */
++  removedAt: string;
++}
++export interface MemberLeftPayload {
++  spaceId: string;
++  accountId: string;
++  /** ISO 8601. */
++  leftAt: string;
++}
++export interface MemberRoleChangedPayload {
++  spaceId: string;
++  spaceName: string;
++  accountId: string;
++  role: SpaceRoleName;
++  changedBy: string;
++  /** ISO 8601. */
++  changedAt: string;
++}
++
++/** Published by Teams when an account creates a space, of which it is the first admin. */
++export class SpaceCreatedIntegrationEvent extends IntegrationEvent<SpaceCreatedPayload> {}
++/** Published by Teams when an admin invites an account into a space. */
++export class MemberInvitedIntegrationEvent extends IntegrationEvent<MemberInvitedPayload> {}
++/** Published by Teams when an invited account accepts, and so becomes a member. */
++export class MemberJoinedIntegrationEvent extends IntegrationEvent<MemberJoinedPayload> {}
++/** Published by Teams when an admin removes a member. */
++export class MemberRemovedIntegrationEvent extends IntegrationEvent<MemberRemovedPayload> {}
++/** Published by Teams when a member leaves a space. */
++export class MemberLeftIntegrationEvent extends IntegrationEvent<MemberLeftPayload> {}
++/** Published by Teams when an admin changes a member's role. */
++export class MemberRoleChangedIntegrationEvent extends IntegrationEvent<MemberRoleChangedPayload> {}
+-- 
+2.43.0
+

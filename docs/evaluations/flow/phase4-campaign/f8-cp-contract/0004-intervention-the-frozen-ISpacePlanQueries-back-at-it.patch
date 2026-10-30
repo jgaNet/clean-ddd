@@ -1,0 +1,116 @@
+From 47a43854c42f43699b59245f5173b90e45f22187 Mon Sep 17 00:00:00 2001
+From: architect <architect@example.com>
+Date: Fri, 30 Oct 2026 12:12:56 +0000
+Subject: [PATCH 4/4] intervention: the frozen ISpacePlanQueries back at its
+ path and shape; Plans' own query gets an interface of its own
+
+---
+ .../Queries/GetSpacePlan/GetSpacePlanQueryHandler.ts      | 5 +++--
+ .../Domain/{SpacePlan => Plan}/Ports/ISpacePlanQueries.ts | 2 --
+ .../Domain/SpacePlan/Ports/ISpacePlanMemberQueries.ts     | 7 +++++++
+ .../Plans/Infrastructure/InMemorySpacePlanQueries.ts      | 5 +++--
+ src/Contexts/Plans/module.local.ts                        | 8 +++++---
+ 5 files changed, 18 insertions(+), 9 deletions(-)
+ rename src/Contexts/Plans/Domain/{SpacePlan => Plan}/Ports/ISpacePlanQueries.ts (72%)
+ create mode 100644 src/Contexts/Plans/Domain/SpacePlan/Ports/ISpacePlanMemberQueries.ts
+
+diff --git a/src/Contexts/Plans/Application/Queries/GetSpacePlan/GetSpacePlanQueryHandler.ts b/src/Contexts/Plans/Application/Queries/GetSpacePlan/GetSpacePlanQueryHandler.ts
+index 2e3a54a..b1f82b1 100644
+--- a/src/Contexts/Plans/Application/Queries/GetSpacePlan/GetSpacePlanQueryHandler.ts
++++ b/src/Contexts/Plans/Application/Queries/GetSpacePlan/GetSpacePlanQueryHandler.ts
+@@ -3,11 +3,12 @@ import { ExecutionContext, QueryHandler } from '@Architecture/Application';
+ import { requireSignedIn } from '@SharedKernel/Application/Guards';
+ 
+ import { SpacePlanNotFound } from '@Contexts/Plans/Domain/SpacePlan/SpacePlanExceptions';
+-import { ISpacePlanQueries, SpacePlanView } from '@Contexts/Plans/Domain/SpacePlan/Ports/ISpacePlanQueries';
++import { SpacePlanView } from '@Contexts/Plans/Domain/Plan/Ports/ISpacePlanQueries';
++import { ISpacePlanMemberQueries } from '@Contexts/Plans/Domain/SpacePlan/Ports/ISpacePlanMemberQueries';
+ 
+ /** A space's plan, seats and note limit, for one of its members; to anyone else, not found. */
+ export class GetSpacePlanQueryHandler extends QueryHandler<
+-  ISpacePlanQueries,
++  ISpacePlanMemberQueries,
+   { spaceId: string },
+   IResult<SpacePlanView>
+ > {
+diff --git a/src/Contexts/Plans/Domain/SpacePlan/Ports/ISpacePlanQueries.ts b/src/Contexts/Plans/Domain/Plan/Ports/ISpacePlanQueries.ts
+similarity index 72%
+rename from src/Contexts/Plans/Domain/SpacePlan/Ports/ISpacePlanQueries.ts
+rename to src/Contexts/Plans/Domain/Plan/Ports/ISpacePlanQueries.ts
+index ffda441..5ab5688 100644
+--- a/src/Contexts/Plans/Domain/SpacePlan/Ports/ISpacePlanQueries.ts
++++ b/src/Contexts/Plans/Domain/Plan/Ports/ISpacePlanQueries.ts
+@@ -12,6 +12,4 @@ export interface SpacePlanView {
+  */
+ export interface ISpacePlanQueries {
+   spacePlanOf(spaceId: string): Promise<SpacePlanView>;
+-  /** The space's plan as one of its members reads it; null when the reader is not a member, or there is no such space. */
+-  spacePlanForMember(spaceId: string, accountId: string): Promise<SpacePlanView | null>;
+ }
+diff --git a/src/Contexts/Plans/Domain/SpacePlan/Ports/ISpacePlanMemberQueries.ts b/src/Contexts/Plans/Domain/SpacePlan/Ports/ISpacePlanMemberQueries.ts
+new file mode 100644
+index 0000000..cd7c4f9
+--- /dev/null
++++ b/src/Contexts/Plans/Domain/SpacePlan/Ports/ISpacePlanMemberQueries.ts
+@@ -0,0 +1,7 @@
++import { ISpacePlanQueries, SpacePlanView } from '@Contexts/Plans/Domain/Plan/Ports/ISpacePlanQueries';
++
++/** What Plans' own query needs beyond the frozen read model: the plan as one of the space's members reads it. */
++export interface ISpacePlanMemberQueries extends ISpacePlanQueries {
++  /** The space's plan as one of its members reads it; null when the reader is not a member, or there is no such space. */
++  spacePlanForMember(spaceId: string, accountId: string): Promise<SpacePlanView | null>;
++}
+diff --git a/src/Contexts/Plans/Infrastructure/InMemorySpacePlanQueries.ts b/src/Contexts/Plans/Infrastructure/InMemorySpacePlanQueries.ts
+index 253ac95..b2aa10b 100644
+--- a/src/Contexts/Plans/Infrastructure/InMemorySpacePlanQueries.ts
++++ b/src/Contexts/Plans/Infrastructure/InMemorySpacePlanQueries.ts
+@@ -3,10 +3,11 @@ import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InM
+ import { SpaceRoster } from '@Contexts/Plans/Application/ReadModel/SpaceRoster';
+ import { SpacePlanSnapshot } from '@Contexts/Plans/Domain/SpacePlan/DTOs';
+ import { SpacePlan } from '@Contexts/Plans/Domain/SpacePlan/SpacePlan';
+-import { ISpacePlanQueries, SpacePlanView } from '@Contexts/Plans/Domain/SpacePlan/Ports/ISpacePlanQueries';
++import { SpacePlanView } from '@Contexts/Plans/Domain/Plan/Ports/ISpacePlanQueries';
++import { ISpacePlanMemberQueries } from '@Contexts/Plans/Domain/SpacePlan/Ports/ISpacePlanMemberQueries';
+ 
+ /** Over the stored plans and the rosters: a space with no stored plan is on Free. */
+-export class InMemorySpacePlanQueries implements ISpacePlanQueries {
++export class InMemorySpacePlanQueries implements ISpacePlanMemberQueries {
+   constructor(
+     private plans: InMemoryDataSource<SpacePlanSnapshot>,
+     private rosters: InMemoryDataSource<SpaceRoster>,
+diff --git a/src/Contexts/Plans/module.local.ts b/src/Contexts/Plans/module.local.ts
+index b680ecc..cc99434 100644
+--- a/src/Contexts/Plans/module.local.ts
++++ b/src/Contexts/Plans/module.local.ts
+@@ -10,7 +10,7 @@ import {
+ 
+ import { PlanSnapshot } from '@Contexts/Plans/Domain/Plan/DTOs';
+ import { SpacePlanSnapshot } from '@Contexts/Plans/Domain/SpacePlan/DTOs';
+-import { ISpacePlanQueries } from '@Contexts/Plans/Domain/SpacePlan/Ports/ISpacePlanQueries';
++import { ISpacePlanQueries } from '@Contexts/Plans/Domain/Plan/Ports/ISpacePlanQueries';
+ import { SpaceRoster } from '@Contexts/Plans/Application/ReadModel/SpaceRoster';
+ import {
+   ChangePlanCommandEvent,
+@@ -42,7 +42,9 @@ const spaceRosters = new InMemorySpaceRosterRecords(rosters);
+ export const planReadModel = new InMemoryPlanQueries(plans);
+ 
+ /** Plans' read model of spaces (ADR 6), which Teams (seats) and Notes (a space's note limit) read. */
+-export const spacePlanReadModel: ISpacePlanQueries = new InMemorySpacePlanQueries(spacePlans, rosters);
++const spacePlanQueries = new InMemorySpacePlanQueries(spacePlans, rosters);
++/** Plans' read model of spaces, frozen by ADR 6: what Teams and Notes read. */
++export const spacePlanReadModel: ISpacePlanQueries = spacePlanQueries;
+ 
+ export const localPlansModule = new Module({
+   name: 'Plans',
+@@ -53,7 +55,7 @@ export const localPlansModule = new Module({
+       handlers: [new ChangeSpacePlanCommandHandler(spacePlanRepository, spaceRosters)],
+     },
+   ],
+-  queries: [new GetMyPlanQueryHandler(planReadModel), new GetSpacePlanQueryHandler(spacePlanReadModel)],
++  queries: [new GetMyPlanQueryHandler(planReadModel), new GetSpacePlanQueryHandler(spacePlanQueries)],
+   integrationEvents: [
+     { event: SpaceCreatedIntegrationEvent, handlers: [new RosterSpaceCreatedHandler(spaceRosters)] },
+     { event: MemberJoinedIntegrationEvent, handlers: [new RosterMemberJoinedHandler(spaceRosters)] },
+-- 
+2.43.0
+

@@ -1,0 +1,4 @@
+{"event":"person-start","feature":"team-spaces","task":"architecture-and-contract","at":"2026-10-30T11:47:27.555Z"}
+{"event":"person-end","feature":"team-spaces","task":"architecture-and-contract","at":"2026-10-30T11:50:57.829Z"}
+{"event":"person-start","feature":"team-spaces","task":"intervention","at":"2026-10-30T12:11:45.363Z","note":"Plans moved a frozen read model; restore its path"}
+{"event":"person-end","feature":"team-spaces","task":"intervention","at":"2026-10-30T12:14:19.839Z"}

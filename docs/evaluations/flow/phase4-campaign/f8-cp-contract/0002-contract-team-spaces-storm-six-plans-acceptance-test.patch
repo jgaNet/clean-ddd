@@ -1,0 +1,1030 @@
+From 160856f003ceca4107d857ecf5d20bb3a02fca96 Mon Sep 17 00:00:00 2001
+From: architect <architect@example.com>
+Date: Fri, 30 Oct 2026 11:50:57 +0000
+Subject: [PATCH 2/4] =?UTF-8?q?contract:=20team=20spaces=20=E2=80=94=20sto?=
+ =?UTF-8?q?rm,=20six=20plans,=20acceptance=20test?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ conventions/plans/team-spaces.audit.yaml      |  44 +++
+ conventions/plans/team-spaces.notes.yaml      |  46 +++
+ .../plans/team-spaces.notifications.yaml      |  46 +++
+ conventions/plans/team-spaces.plans.yaml      |  53 +++
+ conventions/plans/team-spaces.search.yaml     |  43 +++
+ conventions/plans/team-spaces.teams.yaml      |  94 +++++
+ conventions/storms/team-spaces.yaml           | 172 +++++++++
+ .../Acceptance/8-team-spaces.acceptance.ts    | 342 ++++++++++++++++++
+ src/Bootstrap/Fastify/Acceptance/support.ts   | 103 ++++++
+ 9 files changed, 943 insertions(+)
+ create mode 100644 conventions/plans/team-spaces.audit.yaml
+ create mode 100644 conventions/plans/team-spaces.notes.yaml
+ create mode 100644 conventions/plans/team-spaces.notifications.yaml
+ create mode 100644 conventions/plans/team-spaces.plans.yaml
+ create mode 100644 conventions/plans/team-spaces.search.yaml
+ create mode 100644 conventions/plans/team-spaces.teams.yaml
+ create mode 100644 conventions/storms/team-spaces.yaml
+ create mode 100644 src/Bootstrap/Fastify/Acceptance/8-team-spaces.acceptance.ts
+ create mode 100644 src/Bootstrap/Fastify/Acceptance/support.ts
+
+diff --git a/conventions/plans/team-spaces.audit.yaml b/conventions/plans/team-spaces.audit.yaml
+new file mode 100644
+index 0000000..452527b
+--- /dev/null
++++ b/conventions/plans/team-spaces.audit.yaml
+@@ -0,0 +1,44 @@
++schemaVersion: 1
++
++feature: team-spaces
++language: typescript
++context: Audit
++
++intent: >-
++  `GET /audit/spaces/:id` answers a space's admins its activity, most recent first, as [{ at,
++  actorId, action, subject }]: member-invited, member-joined, member-removed, member-left,
++  role-changed (subject: the account), note-written, note-edited, note-archived, note-restored
++  (subject: the note); anyone else gets 403. Audit is fed only by the facts of
++  SpaceIntegrationEvents.ts (Teams) and NoteChangedIntegrationEvent (Notes), both frozen; it learns
++  the admins from them. Fill the module and the routes under `/audit`. The other slices are written
++  at the same time.
++
++changes:
++  - kind: integration-event
++    name: MemberInvitedIntegrationEvent
++    aggregate: Space
++    new: false
++  - kind: aggregate
++    name: Activity
++    new: true
++  - kind: query
++    name: GetSpaceActivity
++    verb: read
++    route: GET /audit/spaces/:id
++    new: true
++
++invariants:
++  - Audit reads no other context's store and imports no other context's Domain.
++  - A note's change is recorded only for a space's note; the actor of a membership fact is who did it (joining and leaving are the member's own).
++
++events:
++  - ActivityRecordedEvent
++
++crossContext:
++  context: Teams
++  strategy: integration-event
++  why: >-
++    A space's activity is what Teams publishes about its members (and what Notes publishes about its
++    notes, the same way).
++
++architectureChanges: false
+diff --git a/conventions/plans/team-spaces.notes.yaml b/conventions/plans/team-spaces.notes.yaml
+new file mode 100644
+index 0000000..8ab7a93
+--- /dev/null
++++ b/conventions/plans/team-spaces.notes.yaml
+@@ -0,0 +1,46 @@
++schemaVersion: 1
++
++feature: team-spaces
++language: typescript
++context: Notes
++
++intent: >-
++  A note may belong to a space (`spaceId`): an editor or an admin writes one, edits, archives and
++  restores any of the space's notes; any member lists them (`GET /notes?space=`) and reads them; a
++  reader changes nothing; pinning, tagging, sharing and reminders are refused on a space's note; "my
++  notes" lists personal notes only. A space's notes count against the space's limit (Plans' frozen
++  `spacePlanReadModel`), never a personal quota. Notes asks the role through a port it owns
++  (SpaceMembership), answered over Teams' frozen `spaceQueries` (ISpaceQueries). Publish
++  NoteChangedIntegrationEvent (frozen in NoteIntegrationEvents.ts) through the outbox on every
++  change: written, edited, archived, restored, shared. The other slices are written at the same time.
++
++changes:
++  - kind: aggregate
++    name: Note
++    new: false
++  - kind: domain-service
++    name: SpaceNoteAccess
++    aggregate: Note
++    new: true
++  - kind: integration-event
++    name: NoteChangedIntegrationEvent
++    aggregate: Note
++    new: false
++
++invariants:
++  - What a role may do to a space's note is decided in Notes' Domain or Application layer, from the port; nothing in Notes' Domain imports Teams.
++  - A member removed from a space reads none of its notes from then on (404).
++  - Each note in a read answers `spaceId`, null for a personal note.
++
++events:
++  - NoteCreatedEvent
++
++crossContext:
++  context: Teams
++  strategy: owned-port
++  why: >-
++    What a member may do to a space's note depends on their role, which only Teams knows. (Notes
++    also asks Plans a space's note limit over its read model, and publishes NoteChanged to Search
++    and Audit.)
++
++architectureChanges: false
+diff --git a/conventions/plans/team-spaces.notifications.yaml b/conventions/plans/team-spaces.notifications.yaml
+new file mode 100644
+index 0000000..8b20b27
+--- /dev/null
++++ b/conventions/plans/team-spaces.notifications.yaml
+@@ -0,0 +1,46 @@
++schemaVersion: 1
++
++feature: team-spaces
++language: typescript
++context: Notifications
++
++intent: >-
++  Three new kinds in the same list, ordered by their own time with the others: { id, kind:
++  'space-invitation', spaceId, spaceName, role, invitedAt } for the invited account; { id, kind:
++  'space-removal', spaceId, spaceName, removedAt } for a removed member; { id, kind:
++  'space-role-changed', spaceId, spaceName, role, changedAt } for a member whose role changed.
++  Notifications learns them from SpaceIntegrationEvents.ts (Teams), frozen. The other slices are
++  written at the same time.
++
++changes:
++  - kind: integration-event
++    name: MemberInvitedIntegrationEvent
++    aggregate: Space
++    new: false
++  - kind: aggregate
++    name: Notification
++    new: false
++  - kind: event-handler
++    name: MemberInvited
++    new: true
++  - kind: event-handler
++    name: MemberRemoved
++    new: true
++  - kind: event-handler
++    name: MemberRoleChanged
++    new: true
++
++invariants:
++  - Each notification is exactly the fields of its kind; only the account concerned lists it.
++  - Earlier kinds are unchanged.
++
++events:
++  - NotificationCreatedEvent
++
++crossContext:
++  context: Teams
++  strategy: integration-event
++  why: >-
++    The invited, the removed and those whose role changes are told; Teams publishes the facts.
++
++architectureChanges: false
+diff --git a/conventions/plans/team-spaces.plans.yaml b/conventions/plans/team-spaces.plans.yaml
+new file mode 100644
+index 0000000..6060e63
+--- /dev/null
++++ b/conventions/plans/team-spaces.plans.yaml
+@@ -0,0 +1,53 @@
++schemaVersion: 1
++
++feature: team-spaces
++language: typescript
++context: Plans
++
++intent: >-
++  A space is on Free (3 seats, 50 notes) until one of its admins switches it to Team with a number
++  of seats (no note limit); `GET /plans/spaces/:id` answers members only, exactly { plan, seats,
++  noteLimit }. Plans learns a space's admins and members from what Teams publishes
++  (SpaceIntegrationEvents.ts, frozen), and refuses a plan with fewer seats than members. Replace the
++  stub `spacePlanReadModel` (the frozen ISpacePlanQueries) with one answering from your store:
++  Teams and Notes read it. The other slices are written at the same time.
++
++changes:
++  - kind: integration-event
++    name: SpaceCreatedIntegrationEvent
++    aggregate: Space
++    new: false
++  - kind: integration-event
++    name: MemberJoinedIntegrationEvent
++    aggregate: Space
++    new: false
++  - kind: aggregate
++    name: SpacePlan
++    new: true
++  - kind: command
++    name: ChangeSpacePlan
++    verb: replace
++    route: PUT /plans/spaces/:id
++    new: true
++  - kind: query
++    name: GetSpacePlan
++    verb: read
++    route: GET /plans/spaces/:id
++    new: true
++
++invariants:
++  - Only an admin of the space changes its plan; Team needs a number of seats, never fewer than the space's members; Free is 3 seats.
++  - A space that never chose is on Free without anything having created a plan for it.
++  - A non-member reading a space's plan gets 404.
++
++events:
++  - SpacePlanChangedEvent
++
++crossContext:
++  context: Teams
++  strategy: integration-event
++  why: >-
++    Plans needs a space's admins and members; Teams publishes who joins, leaves, is removed and
++    changes role.
++
++architectureChanges: false
+diff --git a/conventions/plans/team-spaces.search.yaml b/conventions/plans/team-spaces.search.yaml
+new file mode 100644
+index 0000000..3c9b334
+--- /dev/null
++++ b/conventions/plans/team-spaces.search.yaml
+@@ -0,0 +1,43 @@
++schemaVersion: 1
++
++feature: team-spaces
++language: typescript
++context: Search
++
++intent: >-
++  `GET /search?q=` answers [{ noteId, title, spaceId }] of the notes the caller can read — their
++  own personal notes, those shared with them, their spaces' notes — containing every word in title
++  or text, ignoring case; archived excluded; most recently changed first. Search keeps its own
++  projection, fed only by NoteChangedIntegrationEvent (Notes) and the membership facts of
++  SpaceIntegrationEvents.ts (Teams), both frozen. Fill the module and the routes under `/search`.
++  The other slices are written at the same time.
++
++changes:
++  - kind: integration-event
++    name: NoteChangedIntegrationEvent
++    aggregate: Note
++    new: false
++  - kind: query
++    name: SearchNotes
++    verb: read
++    route: GET /search
++    new: true
++  - kind: event-handler
++    name: NoteChanged
++    new: true
++
++invariants:
++  - Search reads no other context's store and imports no other context's Domain.
++  - A member removed from a space, or who leaves it, stops finding its notes once the fact is handled.
++  - An anonymous caller is refused (403).
++
++events: []
++
++crossContext:
++  context: Notes
++  strategy: integration-event
++  why: >-
++    Search projects the notes from what Notes publishes on every change. (It learns who belongs to
++    which space from what Teams publishes, the same way.)
++
++architectureChanges: false
+diff --git a/conventions/plans/team-spaces.teams.yaml b/conventions/plans/team-spaces.teams.yaml
+new file mode 100644
+index 0000000..680ff0b
+--- /dev/null
++++ b/conventions/plans/team-spaces.teams.yaml
+@@ -0,0 +1,94 @@
++schemaVersion: 1
++
++feature: team-spaces
++language: typescript
++context: Teams
++
++intent: >-
++  Spaces, their members with roles (reader, editor, admin) and invitations, per the request and the
++  storm. Fill the module and the routes under `/spaces` the architecture task left empty, and make
++  `spaceQueries` (the frozen ISpaceQueries in Teams' Domain) answer from your store. Teams asks
++  Plans for the seats of a space through a port it owns (SeatLimits), answered over Plans' frozen
++  `spacePlanReadModel` (ISpacePlanQueries); and asks whether an account exists through a port it
++  owns (AccountDirectory), answered over Accounts' `accountReadModel`. Publish every fact in
++  `SpaceIntegrationEvents.ts` through the outbox (`publishIntegrationEvent`). The other slices —
++  Notes, Plans, Search, Audit, Notifications — are written at the same time against the same
++  contracts.
++
++changes:
++  - kind: aggregate
++    name: Space
++    new: true
++  - kind: domain-service
++    name: SpaceAdmission
++    aggregate: Space
++    new: true
++  - kind: command
++    name: CreateSpace
++    verb: create
++    route: POST /spaces
++    new: true
++  - kind: command
++    name: InviteMember
++    verb: create
++    route: POST /spaces/:id/invitations
++    new: true
++  - kind: command
++    name: AcceptInvitation
++    verb: act
++    route: POST /spaces/:id/accept
++    new: true
++  - kind: command
++    name: DeclineInvitation
++    verb: act
++    route: POST /spaces/:id/decline
++    new: true
++  - kind: command
++    name: RemoveMember
++    verb: act
++    route: POST /spaces/:id/members/:accountId/remove
++    new: true
++  - kind: command
++    name: ChangeMemberRole
++    verb: act
++    route: POST /spaces/:id/members/:accountId/role
++    new: true
++  - kind: command
++    name: LeaveSpace
++    verb: act
++    route: POST /spaces/:id/leave
++    new: true
++  - kind: query
++    name: GetMySpaces
++    verb: read
++    route: GET /spaces
++    new: true
++  - kind: query
++    name: GetSpace
++    verb: read
++    route: GET /spaces/:id
++    new: true
++
++invariants:
++  - A space keeps at least one admin; only admins invite, remove and change roles; a member, or an account already invited and not answered, is not invited again; an unknown account is refused.
++  - An invitation unanswered for 7 days expires, decided with the current time as a parameter with a default; accepting when the space has no seat left is refused.
++  - Members take seats, pending invitations do not.
++
++events:
++  - SpaceCreatedEvent
++  - MemberInvitedEvent
++  - MemberJoinedEvent
++  - InvitationDeclinedEvent
++  - MemberRemovedEvent
++  - MemberLeftEvent
++  - MemberRoleChangedEvent
++
++crossContext:
++  context: Plans
++  strategy: owned-port
++  why: >-
++    Accepting is refused when no seat is left, and only Plans knows a space's seats. (Teams also
++    asks Accounts whether an account exists, the same way, and publishes its facts to Plans, Search,
++    Audit and Notifications.)
++
++architectureChanges: false
+diff --git a/conventions/storms/team-spaces.yaml b/conventions/storms/team-spaces.yaml
+new file mode 100644
+index 0000000..75843de
+--- /dev/null
++++ b/conventions/storms/team-spaces.yaml
+@@ -0,0 +1,172 @@
++# Feature 8 of the benchmark (../backlog/8-team-spaces.md), as the session left it on 2026-10-30:
++# the experiment that asks whether a feature large across contexts favours the fan-out.
++schemaVersion: 1
++
++feature: team-spaces
++intent: >-
++  A team has a space: members with roles, invited by its admins; its own notes, plan and seats; its
++  activity, which admins read. Members find the notes they can read, the space's among them, by
++  searching; the invited and the removed are told.
++
++done: false
++
++hotSpots:
++  - question: What can each role do in a space?
++    decision: A reader reads the space's notes; an editor also writes, edits, archives and restores any of them; an admin also invites, removes members and changes roles. A space always keeps at least one admin.
++  - question: What becomes of the notes of a member who leaves or is removed?
++    decision: They stay with the space; the author is kept for the record.
++  - question: How are seats counted and billed?
++    decision: Free has 3 seats; Team has the number of seats an admin chooses, no payment. Members take seats, a pending invitation does not; accepting is refused when no seat is left.
++  - question: Do a space's notes count against anyone's quota?
++    decision: No — a space has its own limit, 50 notes on Free, none on Team.
++  - question: What does search cover, and in what order?
++    decision: The caller's own notes, those shared with them and their spaces' notes; every word, in title or text, ignoring case; archived excluded; most recently changed first. A removed member stops finding a space's notes.
++  - question: What does a space's activity record, and who reads it?
++    decision: Members invited, joined, removed, left, their role changed; notes written, edited, archived, restored in the space; who and when. The space's admins read it.
++  - question: Who is told what?
++    decision: The invited account of the invitation; a member of their removal and of a change of their role — in the notifications list.
++  - question: How is someone invited, and for how long?
++    decision: By account id, an existing account; unanswered for 7 days, the invitation expires (the time is a parameter with a default). Inviting a member or a pending invitee again is refused.
++  - question: Where does each part live?
++    decision: Spaces, members and invitations in a Teams context; the space's plan and seats in Plans; its notes in Notes; search in a Search context fed by what Notes and Teams publish; the activity in an Audit context fed the same way; telling in Notifications.
++
++contexts:
++  - id: Teams
++    commands:
++      - name: CreateSpace
++        actor: a signed-in account
++        route: POST /spaces
++        aggregate: Space
++        events: [SpaceCreated]
++      - name: InviteMember
++        actor: a signed-in account
++        route: POST /spaces/{param}/invitations
++        aggregate: Space
++        events: [MemberInvited]
++      - name: AcceptInvitation
++        actor: a signed-in account
++        route: POST /spaces/{param}/accept
++        aggregate: Space
++        events: [MemberJoined]
++      - name: DeclineInvitation
++        actor: a signed-in account
++        route: POST /spaces/{param}/decline
++        aggregate: Space
++        events: [InvitationDeclined]
++      - name: RemoveMember
++        actor: a signed-in account
++        route: POST /spaces/{param}/members/{param}/remove
++        aggregate: Space
++        events: [MemberRemoved]
++      - name: ChangeMemberRole
++        actor: a signed-in account
++        route: POST /spaces/{param}/members/{param}/role
++        aggregate: Space
++        events: [MemberRoleChanged]
++      - name: LeaveSpace
++        actor: a signed-in account
++        route: POST /spaces/{param}/leave
++        aggregate: Space
++        events: [MemberLeft]
++    queries:
++      - name: GetMySpaces
++        actor: a signed-in account
++        route: GET /spaces
++      - name: GetSpace
++        actor: a signed-in account
++        route: GET /spaces/{param}
++    events: [InvitationDeclined, MemberInvited, MemberJoined, MemberLeft, MemberRemoved, MemberRoleChanged, SpaceCreated]
++    policies:
++      - { on: SpaceCreated, kind: domain-event, publishes: [SpaceCreated], events: [] }
++      - { on: MemberInvited, kind: domain-event, publishes: [MemberInvited], events: [] }
++      - { on: MemberJoined, kind: domain-event, publishes: [MemberJoined], events: [] }
++      - { on: MemberRemoved, kind: domain-event, publishes: [MemberRemoved], events: [] }
++      - { on: MemberLeft, kind: domain-event, publishes: [MemberLeft], events: [] }
++      - { on: MemberRoleChanged, kind: domain-event, publishes: [MemberRoleChanged], events: [] }
++  - id: Plans
++    commands:
++      - name: ChangeSpacePlan
++        actor: a signed-in account
++        route: PUT /plans/spaces/{param}
++        aggregate: SpacePlan
++        events: [SpacePlanChanged]
++    queries:
++      - name: GetSpacePlan
++        actor: a signed-in account
++        route: GET /plans/spaces/{param}
++    events: [SpacePlanChanged]
++    policies:
++      - { on: SpaceCreated, kind: integration-event, publishes: [], events: [] }
++      - { on: MemberJoined, kind: integration-event, publishes: [], events: [] }
++      - { on: MemberRemoved, kind: integration-event, publishes: [], events: [] }
++      - { on: MemberLeft, kind: integration-event, publishes: [], events: [] }
++      - { on: MemberRoleChanged, kind: integration-event, publishes: [], events: [] }
++  - id: Notes
++    commands: []
++    queries: []
++    events: []
++    policies:
++      - { on: NoteCreated, kind: domain-event, publishes: [NoteChanged], events: [] }
++      - { on: NoteEdited, kind: domain-event, publishes: [NoteChanged], events: [] }
++      - { on: NoteArchived, kind: domain-event, publishes: [NoteChanged], events: [] }
++      - { on: NoteRestored, kind: domain-event, publishes: [NoteChanged], events: [] }
++      - { on: NoteShared, kind: domain-event, publishes: [NoteChanged], events: [] }
++  - id: Search
++    commands: []
++    queries:
++      - name: SearchNotes
++        actor: a signed-in account
++        route: GET /search
++    events: []
++    policies:
++      - { on: NoteChanged, kind: integration-event, publishes: [], events: [] }
++      - { on: SpaceCreated, kind: integration-event, publishes: [], events: [] }
++      - { on: MemberJoined, kind: integration-event, publishes: [], events: [] }
++      - { on: MemberRemoved, kind: integration-event, publishes: [], events: [] }
++      - { on: MemberLeft, kind: integration-event, publishes: [], events: [] }
++  - id: Audit
++    commands: []
++    queries:
++      - name: GetSpaceActivity
++        actor: a signed-in account
++        route: GET /audit/spaces/{param}
++    events: [ActivityRecorded]
++    policies:
++      - { on: SpaceCreated, kind: integration-event, publishes: [], events: [] }
++      - { on: MemberInvited, kind: integration-event, publishes: [], events: [ActivityRecorded] }
++      - { on: MemberJoined, kind: integration-event, publishes: [], events: [ActivityRecorded] }
++      - { on: MemberRemoved, kind: integration-event, publishes: [], events: [ActivityRecorded] }
++      - { on: MemberLeft, kind: integration-event, publishes: [], events: [ActivityRecorded] }
++      - { on: MemberRoleChanged, kind: integration-event, publishes: [], events: [ActivityRecorded] }
++      - { on: NoteChanged, kind: integration-event, publishes: [], events: [ActivityRecorded] }
++  - id: Notifications
++    commands: []
++    queries: []
++    events: []
++    policies:
++      - { on: MemberInvited, kind: integration-event, publishes: [], events: [NotificationCreated] }
++      - { on: MemberRemoved, kind: integration-event, publishes: [], events: [NotificationCreated] }
++      - { on: MemberRoleChanged, kind: integration-event, publishes: [], events: [NotificationCreated] }
++
++links:
++  - { mechanism: owned-port, upstream: Accounts, downstream: Teams, contracts: [AccountDirectory] }
++  - { mechanism: owned-port, upstream: Teams, downstream: Notes, contracts: [SpaceMembership] }
++  - { mechanism: owned-port, upstream: Plans, downstream: Teams, contracts: [SeatLimits] }
++  - mechanism: integration-event
++    upstream: Teams
++    downstream: Plans
++    contracts: [MemberJoined, MemberLeft, MemberRemoved, MemberRoleChanged, SpaceCreated]
++  - mechanism: integration-event
++    upstream: Teams
++    downstream: Notifications
++    contracts: [MemberInvited, MemberRemoved, MemberRoleChanged]
++  - mechanism: integration-event
++    upstream: Teams
++    downstream: Search
++    contracts: [MemberJoined, MemberLeft, MemberRemoved, SpaceCreated]
++  - { mechanism: integration-event, upstream: Notes, downstream: Search, contracts: [NoteChanged] }
++  - mechanism: integration-event
++    upstream: Teams
++    downstream: Audit
++    contracts: [MemberInvited, MemberJoined, MemberLeft, MemberRemoved, MemberRoleChanged, SpaceCreated]
++  - { mechanism: integration-event, upstream: Notes, downstream: Audit, contracts: [NoteChanged] }
+diff --git a/src/Bootstrap/Fastify/Acceptance/8-team-spaces.acceptance.ts b/src/Bootstrap/Fastify/Acceptance/8-team-spaces.acceptance.ts
+new file mode 100644
+index 0000000..7033d99
+--- /dev/null
++++ b/src/Bootstrap/Fastify/Acceptance/8-team-spaces.acceptance.ts
+@@ -0,0 +1,342 @@
++import { Json, acceptance, eventually } from './support';
++
++/** Feature 8 of the benchmark: team spaces — members and roles, seats, notes, search, activity, telling. */
++const { client, stop } = acceptance();
++afterAll(stop);
++const SLOW = 60_000;
++
++type Account = { id: string; token: string };
++const kinds = (list: Json[], kind: string) => list.filter(each => each.kind === kind);
++
++/** A space created by `admin`, with each other account invited at its role and accepted. */
++async function space(admin: Account, name: string, members: [Account, string][] = []): Promise<string> {
++  const { call, command, outcome } = client();
++  const created = await outcome(await call('POST', '/spaces', admin.token, { name }), admin.token);
++  expect(created.status).toBe('SUCCESS');
++  const id = String(created.result);
++  for (const [member, role] of members) {
++    expect(await command('POST', `/spaces/${id}/invitations`, admin.token, { accountId: member.id, role })).toBe(
++      'SUCCESS',
++    );
++    expect(await command('POST', `/spaces/${id}/accept`, member.token)).toBe('SUCCESS');
++  }
++  return id;
++}
++const spaceNote = async (author: Account, spaceId: string, title: string, text = '') => {
++  const { call, outcome } = client();
++  const written = await outcome(await call('POST', '/notes', author.token, { title, text, spaceId }), author.token);
++  return written;
++};
++
++describe('team spaces', () => {
++  it(
++    'creates a space, invites by account id, and lists members and roles',
++    async () => {
++      const { call, command, account, list } = client();
++      const [ada, bob, carl, stranger] = await Promise.all(
++        ['ada@spaces.test', 'bob@spaces.test', 'carl@spaces.test', 'x@spaces.test'].map(email => account(email)),
++      );
++      const id = await space(ada, 'Design');
++      expect(await list('/spaces', ada.token)).toEqual([
++        expect.objectContaining({ id, name: 'Design', role: 'admin' }),
++      ]);
++      expect(await command('POST', '/spaces', ada.token, { name: '' })).toBe('ERROR');
++
++      expect(await command('POST', `/spaces/${id}/invitations`, ada.token, { accountId: bob.id, role: 'editor' })).toBe(
++        'SUCCESS',
++      );
++      expect(await command('POST', `/spaces/${id}/invitations`, ada.token, { accountId: bob.id, role: 'reader' })).toBe(
++        'ERROR',
++      );
++      expect(
++        await command('POST', `/spaces/${id}/invitations`, ada.token, { accountId: 'no-such-account', role: 'reader' }),
++      ).toBe('ERROR');
++      const pending = (await call('GET', `/spaces/${id}`, ada.token)).body;
++      expect(pending.invitations).toEqual([
++        expect.objectContaining({ accountId: bob.id, role: 'editor', invitedAt: expect.any(String) }),
++      ]);
++
++      expect(await command('POST', `/spaces/${id}/accept`, bob.token)).toBe('SUCCESS');
++      expect(await command('POST', `/spaces/${id}/invitations`, ada.token, { accountId: bob.id, role: 'reader' })).toBe(
++        'ERROR',
++      );
++      expect(
++        await command('POST', `/spaces/${id}/invitations`, bob.token, { accountId: carl.id, role: 'reader' }),
++      ).toBe('ERROR');
++      expect(
++        await command('POST', `/spaces/${id}/invitations`, ada.token, { accountId: carl.id, role: 'reader' }),
++      ).toBe('SUCCESS');
++      expect(await command('POST', `/spaces/${id}/decline`, carl.token)).toBe('SUCCESS');
++      expect(await command('POST', `/spaces/${id}/accept`, carl.token)).toBe('ERROR');
++
++      const details = (await call('GET', `/spaces/${id}`, bob.token)).body;
++      expect(details).toEqual(expect.objectContaining({ id, name: 'Design', invitations: [] }));
++      expect([...(details.members as Json[])].map(m => `${m.accountId}:${m.role}`).sort()).toEqual(
++        [`${ada.id}:admin`, `${bob.id}:editor`].sort(),
++      );
++      expect(await list('/spaces', bob.token)).toEqual([expect.objectContaining({ id, role: 'editor' })]);
++      expect((await call('GET', `/spaces/${id}`, stranger.token)).status).toBe(404);
++      expect((await call('GET', '/spaces')).status).toBe(403);
++    },
++    SLOW,
++  );
++
++  it(
++    'lets editors write the space’s notes and readers only read them, outside anyone’s personal notes',
++    async () => {
++      const { call, command, account, list } = client();
++      const [ada, bob, carl, stranger] = await Promise.all(
++        ['ada2@spaces.test', 'bob2@spaces.test', 'carl2@spaces.test', 'x2@spaces.test'].map(email => account(email)),
++      );
++      const id = await space(ada, 'Writers', [
++        [bob, 'editor'],
++        [carl, 'reader'],
++      ]);
++      const written = await spaceNote(bob, id, 'Roadmap', 'q3');
++      expect(written.status).toBe('SUCCESS');
++      const noteId = String(written.result);
++      expect((await spaceNote(carl, id, 'Not mine to write')).status).toBe('ERROR');
++      expect((await spaceNote(stranger, id, 'Not a member')).status).toBe('ERROR');
++
++      expect((await call('GET', `/notes/${noteId}`, carl.token)).body).toEqual(
++        expect.objectContaining({ id: noteId, spaceId: id }),
++      );
++      expect((await list(`/notes?space=${id}`, carl.token)).map(each => each.id)).toEqual([noteId]);
++      expect((await call('GET', `/notes?space=${id}`, stranger.token)).status).toBe(404);
++      expect((await call('GET', `/notes/${noteId}`, stranger.token)).status).toBe(404);
++      expect(await list('/notes', bob.token)).toEqual([]);
++
++      expect(await command('PUT', `/notes/${noteId}`, carl.token, { title: 'Reader edit', text: '' })).toBe('ERROR');
++      expect(await command('POST', `/notes/${noteId}/archive`, carl.token)).toBe('ERROR');
++      expect(await command('PUT', `/notes/${noteId}`, ada.token, { title: 'Roadmap, edited', text: 'q4' })).toBe(
++        'SUCCESS',
++      );
++      expect(await command('POST', `/notes/${noteId}/archive`, bob.token)).toBe('SUCCESS');
++      expect(await command('POST', `/notes/${noteId}/restore`, ada.token)).toBe('SUCCESS');
++
++      expect(await command('POST', `/notes/${noteId}/share`, ada.token, { accountId: stranger.id })).toBe('ERROR');
++      expect(await command('POST', `/notes/${noteId}/pin`, ada.token)).toBe('ERROR');
++      expect(await command('POST', `/notes/${noteId}/tags`, ada.token, { tag: 'team' })).toBe('ERROR');
++    },
++    SLOW,
++  );
++
++  it(
++    'counts seats by members, not invitations, and lets an admin buy more',
++    async () => {
++      const { call, command, account } = client();
++      const [ada, bob, carl, dave, erin] = await Promise.all(
++        ['ada3@spaces.test', 'bob3@spaces.test', 'carl3@spaces.test', 'dave3@spaces.test', 'erin3@spaces.test'].map(
++          email => account(email),
++        ),
++      );
++      const id = await space(ada, 'Seats', [
++        [bob, 'editor'],
++        [carl, 'reader'],
++      ]);
++      expect((await call('GET', `/plans/spaces/${id}`, carl.token)).body).toEqual({
++        plan: 'free',
++        seats: 3,
++        noteLimit: 50,
++      });
++      expect((await call('GET', `/plans/spaces/${id}`, dave.token)).status).toBe(404);
++
++      expect(
++        await command('POST', `/spaces/${id}/invitations`, ada.token, { accountId: dave.id, role: 'reader' }),
++      ).toBe('SUCCESS');
++      expect(await command('POST', `/spaces/${id}/accept`, dave.token)).toBe('ERROR');
++
++      expect(await command('PUT', `/plans/spaces/${id}`, bob.token, { plan: 'team', seats: 5 })).toBe('ERROR');
++      expect(await command('PUT', `/plans/spaces/${id}`, ada.token, { plan: 'team', seats: 2 })).toBe('ERROR');
++      expect(await command('PUT', `/plans/spaces/${id}`, ada.token, { plan: 'team', seats: 4 })).toBe('SUCCESS');
++      expect((await call('GET', `/plans/spaces/${id}`, ada.token)).body).toEqual({
++        plan: 'team',
++        seats: 4,
++        noteLimit: null,
++      });
++      expect(await command('POST', `/spaces/${id}/accept`, dave.token)).toBe('SUCCESS');
++
++      expect(
++        await command('POST', `/spaces/${id}/invitations`, ada.token, { accountId: erin.id, role: 'reader' }),
++      ).toBe('SUCCESS');
++      expect(await command('POST', `/spaces/${id}/accept`, erin.token)).toBe('ERROR');
++      expect(await command('PUT', `/plans/spaces/${id}`, ada.token, { plan: 'free' })).toBe('ERROR');
++    },
++    SLOW,
++  );
++
++  it('keeps a space’s notes to the space’s limit, never to a personal quota', async () => {
++    const { command, account, note } = client();
++    const ada = await account('ada4@spaces.test');
++    for (let index = 1; index <= 10; index++) await note(ada.token, `Personal ${index}`);
++    expect(await command('POST', '/notes', ada.token, { title: 'Eleventh', text: '' })).toBe('ERROR');
++
++    const id = await space(ada, 'Big');
++    for (let index = 1; index <= 50; index++)
++      expect((await spaceNote(ada, id, `Team ${index}`)).status).toBe('SUCCESS');
++    expect((await spaceNote(ada, id, 'Fifty-first')).status).toBe('ERROR');
++    expect(await command('PUT', `/plans/spaces/${id}`, ada.token, { plan: 'team', seats: 3 })).toBe('SUCCESS');
++    expect((await spaceNote(ada, id, 'Fifty-first')).status).toBe('SUCCESS');
++  }, 120_000);
++
++  it(
++    'removes members, changes roles, keeps one admin, and tells the people concerned',
++    async () => {
++      const { call, command, account, list } = client();
++      const [ada, bob, carl] = await Promise.all(
++        ['ada5@spaces.test', 'bob5@spaces.test', 'carl5@spaces.test'].map(email => account(email)),
++      );
++      const id = await space(ada, 'Crew', [
++        [bob, 'editor'],
++        [carl, 'editor'],
++      ]);
++      const written = await spaceNote(carl, id, 'Carl wrote this');
++      const noteId = String(written.result);
++
++      expect(await command('POST', `/spaces/${id}/leave`, ada.token)).toBe('ERROR');
++      expect(await command('POST', `/spaces/${id}/members/${ada.id}/role`, ada.token, { role: 'reader' })).toBe(
++        'ERROR',
++      );
++      expect(await command('POST', `/spaces/${id}/members/${ada.id}/remove`, bob.token)).toBe('ERROR');
++
++      expect(await command('POST', `/spaces/${id}/members/${carl.id}/remove`, ada.token)).toBe('SUCCESS');
++      expect((await call('GET', `/spaces/${id}`, carl.token)).status).toBe(404);
++      expect((await call('GET', `/notes/${noteId}`, carl.token)).status).toBe(404);
++      expect((await call('GET', `/notes/${noteId}`, ada.token)).status).toBe(200);
++
++      expect(await command('POST', `/spaces/${id}/members/${bob.id}/role`, ada.token, { role: 'reader' })).toBe(
++        'SUCCESS',
++      );
++      expect((await spaceNote(bob, id, 'Now a reader')).status).toBe('ERROR');
++      expect(await command('POST', `/spaces/${id}/leave`, bob.token)).toBe('SUCCESS');
++      expect(await list('/spaces', bob.token)).toEqual([]);
++
++      const removal = await eventually(
++        async () => kinds(await list('/notifications', carl.token), 'space-removal'),
++        found => found.length === 1,
++      );
++      expect(removal).toEqual([
++        {
++          id: expect.any(String),
++          kind: 'space-removal',
++          spaceId: id,
++          spaceName: 'Crew',
++          removedAt: expect.any(String),
++        },
++      ]);
++      const roleChanged = await eventually(
++        async () => kinds(await list('/notifications', bob.token), 'space-role-changed'),
++        found => found.length === 1,
++      );
++      expect(roleChanged).toEqual([
++        {
++          id: expect.any(String),
++          kind: 'space-role-changed',
++          spaceId: id,
++          spaceName: 'Crew',
++          role: 'reader',
++          changedAt: expect.any(String),
++        },
++      ]);
++    },
++    SLOW,
++  );
++
++  it(
++    'tells the invited account of its invitation',
++    async () => {
++      const { command, account, list, outcome, call } = client();
++      const [ada, bob] = await Promise.all(['ada6@spaces.test', 'bob6@spaces.test'].map(email => account(email)));
++      const id = String(
++        (await outcome(await call('POST', '/spaces', ada.token, { name: 'Invites' }), ada.token)).result,
++      );
++      expect(await command('POST', `/spaces/${id}/invitations`, ada.token, { accountId: bob.id, role: 'editor' })).toBe(
++        'SUCCESS',
++      );
++      const told = await eventually(
++        async () => kinds(await list('/notifications', bob.token), 'space-invitation'),
++        found => found.length === 1,
++      );
++      expect(told).toEqual([
++        {
++          id: expect.any(String),
++          kind: 'space-invitation',
++          spaceId: id,
++          spaceName: 'Invites',
++          role: 'editor',
++          invitedAt: expect.any(String),
++        },
++      ]);
++    },
++    SLOW,
++  );
++
++  it(
++    'finds the notes a person can read, by every word, newest first, and forgets a space one leaves',
++    async () => {
++      const { call, command, account, note, list } = client();
++      const [ada, bob, carl] = await Promise.all(
++        ['ada7@spaces.test', 'bob7@spaces.test', 'carl7@spaces.test'].map(email => account(email)),
++      );
++      const id = await space(ada, 'Search', [[bob, 'reader']]);
++      const personal = await note(bob.token, 'Alpha plan', 'my own');
++      const shared = await note(carl.token, 'Shared ALPHA', 'from carl, plan inside');
++      expect(await command('POST', `/notes/${shared}/share`, carl.token, { accountId: bob.id })).toBe('SUCCESS');
++      const team = String((await spaceNote(ada, id, 'alpha budget', 'the plan for the team')).result);
++      const archived = await note(bob.token, 'Alpha archived plan');
++      expect(await command('POST', `/notes/${archived}/archive`, bob.token)).toBe('SUCCESS');
++      await note(carl.token, 'Alpha plan of carl only');
++
++      const found = await eventually(
++        () => list('/search?q=alpha%20plan', bob.token),
++        results => results.length === 3,
++      );
++      expect(found.map(each => each.noteId)).toEqual([team, shared, personal]);
++      expect(found[0]).toEqual({ noteId: team, title: 'alpha budget', spaceId: id });
++      expect(found[2]).toEqual({ noteId: personal, title: 'Alpha plan', spaceId: null });
++      expect(await list('/search?q=budget%20nothing', bob.token)).toEqual([]);
++
++      expect(await command('POST', `/spaces/${id}/members/${bob.id}/remove`, ada.token)).toBe('SUCCESS');
++      const after = await eventually(
++        () => list('/search?q=alpha', bob.token),
++        results => !results.some(each => each.noteId === team),
++      );
++      expect(after.map(each => each.noteId)).toEqual([shared, personal]);
++      expect((await call('GET', '/search?q=alpha')).status).toBe(403);
++    },
++    SLOW,
++  );
++
++  it(
++    'records a space’s activity for its admins',
++    async () => {
++      const { call, command, account, list } = client();
++      const [ada, bob] = await Promise.all(['ada8@spaces.test', 'bob8@spaces.test'].map(email => account(email)));
++      const id = await space(ada, 'Audited', [[bob, 'editor']]);
++      const noteId = String((await spaceNote(bob, id, 'Logged')).result);
++      expect(await command('PUT', `/notes/${noteId}`, ada.token, { title: 'Logged, edited', text: '' })).toBe(
++        'SUCCESS',
++      );
++      expect(await command('POST', `/notes/${noteId}/archive`, ada.token)).toBe('SUCCESS');
++      expect(await command('POST', `/spaces/${id}/members/${bob.id}/role`, ada.token, { role: 'reader' })).toBe(
++        'SUCCESS',
++      );
++
++      const activity = await eventually(
++        () => list(`/audit/spaces/${id}`, ada.token),
++        found => found.length >= 6,
++      );
++      expect(activity.map(each => `${each.action}:${each.actorId}:${each.subject}`)).toEqual([
++        `role-changed:${ada.id}:${bob.id}`,
++        `note-archived:${ada.id}:${noteId}`,
++        `note-edited:${ada.id}:${noteId}`,
++        `note-written:${bob.id}:${noteId}`,
++        `member-joined:${bob.id}:${bob.id}`,
++        `member-invited:${ada.id}:${bob.id}`,
++      ]);
++      expect(activity.every(each => !Number.isNaN(Date.parse(String(each.at))))).toBe(true);
++      expect((await call('GET', `/audit/spaces/${id}`, bob.token)).status).toBe(403);
++    },
++    SLOW,
++  );
++});
+diff --git a/src/Bootstrap/Fastify/Acceptance/support.ts b/src/Bootstrap/Fastify/Acceptance/support.ts
+new file mode 100644
+index 0000000..824bd6c
+--- /dev/null
++++ b/src/Bootstrap/Fastify/Acceptance/support.ts
+@@ -0,0 +1,103 @@
++import { FastifyApplication } from '@Bootstrap/Fastify/FastifyApplication';
++import { createApplication } from '@Bootstrap/Fastify/createApplication';
++
++/**
++ * What every acceptance test of the benchmark shares: the whole application over HTTP, as a
++ * client sees it, from the composition root the project has. Copied beside the tests into
++ * `src/Bootstrap/Fastify/Acceptance/`; never run by `test:e2e`.
++ */
++export type Json = Record<string, unknown>;
++export interface Response {
++  status: number;
++  body: Json;
++}
++
++export interface Client {
++  call(method: string, path: string, token?: string, body?: Json): Promise<Response>;
++  /** What a command came to: the 202's operation, followed until it ends. */
++  outcome(accepted: Response, token?: string): Promise<Json>;
++  /** A command sent and followed: its outcome's status, `SUCCESS` or `ERROR`. */
++  command(method: string, path: string, token?: string, body?: Json): Promise<string>;
++  /** A signed-up, logged-in account. */
++  account(email: string): Promise<{ id: string; token: string }>;
++  /** A note written by that token, its id. */
++  note(token: string, title: string, text?: string): Promise<string>;
++  /** A list the API answers, or the status it answered instead. */
++  list(path: string, token?: string): Promise<Json[]>;
++}
++
++export function acceptance(): { client: () => Client; stop: () => Promise<void> } {
++  // One application per test file, started by the first request, however many arrive at once.
++  let started: Promise<{ app: FastifyApplication; api: string }> | undefined;
++  const start = () =>
++    (started ??= (async () => {
++      const app = await createApplication();
++      await app.start(0);
++      return { app, api: `${app.address}/${app.apiPrefix}` };
++    })());
++
++  const call: Client['call'] = async (method, path, token, body) => {
++    const { api } = await start();
++    const response = await fetch(`${api}${path}`, {
++      method,
++      headers: {
++        ...(body && { 'content-type': 'application/json' }),
++        ...(token && { authorization: `Bearer ${token}` }),
++      },
++      body: body && JSON.stringify(body),
++    });
++    const text = await response.text();
++    let parsed: unknown = undefined;
++    try {
++      parsed = text ? JSON.parse(text) : undefined;
++    } catch {
++      parsed = text;
++    }
++    return { status: response.status, body: parsed as Json };
++  };
++  const outcome: Client['outcome'] = async (accepted, token) => {
++    expect(accepted.status).toBe(202);
++    for (let attempt = 0; attempt < 100; attempt++) {
++      const { body } = await call('GET', `/tracker/operations/${accepted.body.operationId}`, token);
++      if (body?.status === 'SUCCESS' || body?.status === 'ERROR') return body;
++      await new Promise(resolve => setTimeout(resolve, 20));
++    }
++    throw new Error('the operation never ended');
++  };
++  const command: Client['command'] = async (method, path, token, body) =>
++    String((await outcome(await call(method, path, token, body), token)).status);
++  const account: Client['account'] = async email => {
++    const signedUp = await outcome(await call('POST', '/accounts', undefined, { email, password: 'secret123' }));
++    expect(signedUp.status).toBe('SUCCESS');
++    const login = await call('POST', '/accounts/login', undefined, { email, password: 'secret123' });
++    expect(login.status).toBe(200);
++    return { id: String(signedUp.result), token: String(login.body.token) };
++  };
++  const note: Client['note'] = async (token, title, text = '') => {
++    const written = await outcome(await call('POST', '/notes', token, { title, text }), token);
++    expect(written.status).toBe('SUCCESS');
++    return String(written.result);
++  };
++
++  const list: Client['list'] = async (path, token) => {
++    const { status, body } = await call('GET', path, token);
++    expect(status).toBe(200);
++    expect(Array.isArray(body)).toBe(true);
++    return body as unknown as Json[];
++  };
++
++  const client = { call, outcome, command, account, note, list };
++  return { client: () => client, stop: async () => (started ? (await started).app.stop() : undefined) };
++}
++
++/** A reaction runs after the command's outcome: read until the answer is the expected one, or give up. */
++export async function eventually<T>(read: () => Promise<T>, expected: (value: T) => boolean, tries = 100): Promise<T> {
++  let value = await read();
++  for (let attempt = 0; attempt < tries && !expected(value); attempt++) {
++    await new Promise(resolve => setTimeout(resolve, 20));
++    value = await read();
++  }
++  return value;
++}
++
++export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+-- 
+2.43.0
+
