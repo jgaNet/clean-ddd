@@ -1,0 +1,6 @@
+# The robustness campaign (ADR 31): three requests, taken in order in one conversation, on a
+# finished tree that already keeps everything in SQLite (the extensions' E4 trees).
+features:
+  - { id: durable-notices, n: 15, contexts: [], needs: [] }
+  - { id: concurrent-changes, n: 16, contexts: [], needs: [] }
+  - { id: notification-service, n: 17, contexts: [], needs: [] }
