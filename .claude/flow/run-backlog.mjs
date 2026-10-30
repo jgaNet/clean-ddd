@@ -5,7 +5,8 @@
  *   node .claude/flow/run-backlog.mjs --project <dir> --plan <execution-plan.yaml>
  *
  *   run: pilot-a
- *   arm: A                      # A: one agent takes the backlog in order; B: one agent per feature
+ *   arm: A                      # A: one agent takes the backlog in order; B: one agent per feature;
+ *                               # P and D: the control arms, one agent in order, no storm, no gate
  *   kit: ../../docs/evaluations/benchmark   # the backlog, the storms; relative to this file
  *   base: main                  # the created commit
  *   agent: { runner: claude-cli, timeoutMinutes: 90 }   # and `model: <id>`
@@ -28,6 +29,11 @@
  * the documents regenerated, the gate on the combination. A git conflict, or a gate that fails
  * on the combination, sends the feature back once: the integrated head is merged into its
  * worktree, conflicts and all, and its agent resolves them in the same conversation.
+ *
+ * Arms P and D — the control (docs/evaluations/benchmark/control). One conversation takes the
+ * features in order, as in A, on a project `control.mjs` made: P a plain TypeScript project, D the
+ * architecture with its tooling taken out. The agent is given the request alone, no storm; the
+ * driver's verdict is the project's own `yarn check` (typecheck, lint, format, tests), one retry.
  *
  * Every step is appended to `<project>.flow/<run>.jsonl`. A run whose reported cost passes the
  * budget starts no more agents and ends FAILED. The integrated head is the project's `main`.
@@ -52,15 +58,19 @@ const planFile = resolve(option('plan') ?? fail('--plan is required'));
 const yaml = createRequire(join(project, 'package.json'))('js-yaml');
 const plan = yaml.load(readFileSync(planFile, 'utf8'));
 for (const key of ['run', 'arm', 'kit', 'base']) if (!plan[key]) fail(`${planFile}: ${key} is required`);
-if (!['A', 'B'].includes(plan.arm))
-  fail(`${planFile}: arm is A or B; C and C′ run feature by feature (run-slices.mjs)`);
+if (!['A', 'B', 'P', 'D'].includes(plan.arm))
+  fail(`${planFile}: arm is A, B, P or D; C and C′ run feature by feature (run-slices.mjs)`);
+/** One conversation, the features in order. */
+const sequential = plan.arm !== 'B';
+/** The clean-ddd tooling is in the project: storms, the gate, the strategy. */
+const tooled = plan.arm === 'A' || plan.arm === 'B';
 const run = plan.run;
 const kit = resolve(dirname(planFile), plan.kit);
 const backlog = yaml.load(readFileSync(join(kit, 'backlog/backlog.yaml'), 'utf8')).features;
 const model = plan.agent?.model;
 const runner = runners[plan.agent?.runner ?? 'claude-cli'];
 const timeoutMs = (plan.agent?.timeoutMinutes ?? 90) * 60_000;
-const parallelism = plan.arm === 'A' ? 1 : (plan.parallelism ?? 3);
+const parallelism = sequential ? 1 : (plan.parallelism ?? 3);
 const retries = plan.retry?.perFeature ?? 1;
 const budgetUsd = plan.budgetUsd ?? 40;
 const portBase = plan.ports?.base ?? 18100;
@@ -173,6 +183,19 @@ async function verdict(feature, cwd, from) {
   if (commitAll(cwd, `${feature.id}: work the agent left uncommitted`))
     event('committed-leftovers', { feature: feature.id });
   const begun = Date.now();
+  if (!tooled) {
+    // The control arms: the project's own checks, as its guide says.
+    const checked = await sh('yarn -s check', cwd, 900_000);
+    const problems = checked.code === 0 ? [] : ['`yarn check` fails:', ...tail(checked.stdout + checked.stderr, 60)];
+    event('gate', {
+      feature: feature.id,
+      verdict: checked.code === 0 ? 'pass' : 'fail',
+      steps: [['yarn check', checked.code === 0 ? 'pass' : 'fail']],
+      wallClockMs: Date.now() - begun,
+      lines: problems.slice(0, 80),
+    });
+    return problems;
+  }
   const gated = parse((await sh(`${tool} gate --base ${from} --mode architecture --json`, cwd)).stdout);
   const failing = (gated?.steps ?? []).filter(step => step.status === 'fail');
   // The kit's storm held as done: whatever the code does not carry yet is a difference.
@@ -238,23 +261,38 @@ for (const signal of ['SIGTERM', 'SIGINT']) {
 }
 
 const request = feature => readFileSync(join(kit, 'backlog', `${feature.n}-${feature.id}.md`), 'utf8').trim();
-const brief = (feature, from, port) =>
+const controlBrief = (feature, port) =>
   [
-    plan.arm === 'A'
-      ? `You are writing an application built on the clean-ddd architecture, one feature at a time, in this conversation. This is feature ${feature.n} of ${Math.max(...backlog.map(each => each.n))}.`
-      : `You are writing one feature of an application built on the clean-ddd architecture. Other agents are writing other features at the same time, each in its own git worktree; you will not see their work, which is integrated with yours afterwards.`,
+    plan.arm === 'D'
+      ? `You are writing an application built on Clean Architecture and Domain-Driven Design, one feature at a time, in this conversation. This is feature ${feature.n} of ${Math.max(...backlog.map(each => each.n))}.`
+      : `You are writing an application, one feature at a time, in this conversation. This is feature ${feature.n} of ${Math.max(...backlog.map(each => each.n))}.`,
     'Read `CLAUDE.md` first and follow it. Do not ask questions: decide, and say in your final report what was unclear.',
     '',
-    `The feature's storm, decided with the product's owner before you started, is \`conventions/storms/${feature.id}.yaml\`: its hot spots are decided, do not change them. \`yarn architecture storm --expect conventions/storms/${feature.id}.yaml\` says what the code still owes it; when it owes nothing, set \`done: true\` in it.`,
-    'If the feature needs a context or a relationship between contexts that the application does not have yet, that is an architecture task, and it is yours: declare it, record the decision in an ADR under `docs/adr/`, then write the feature (`yarn architecture mode architecture` says what that takes).',
-    `You are done when \`yarn architecture gate --base ${from} --mode architecture\` passes and the storm owes nothing. Commit your work on the current branch; do not push. If you start a server, use port ${port}.`,
+    `You are done when \`yarn check\` passes. Commit your work on the current branch; do not push. If you start a server, use port ${port}.`,
     '',
     'The feature, in product words, with the API it answers:',
     '',
     request(feature),
   ].join('\n');
+const brief = (feature, from, port) =>
+  !tooled
+    ? controlBrief(feature, port)
+    : [
+        plan.arm === 'A'
+          ? `You are writing an application built on the clean-ddd architecture, one feature at a time, in this conversation. This is feature ${feature.n} of ${Math.max(...backlog.map(each => each.n))}.`
+          : `You are writing one feature of an application built on the clean-ddd architecture. Other agents are writing other features at the same time, each in its own git worktree; you will not see their work, which is integrated with yours afterwards.`,
+        'Read `CLAUDE.md` first and follow it. Do not ask questions: decide, and say in your final report what was unclear.',
+        '',
+        `The feature's storm, decided with the product's owner before you started, is \`conventions/storms/${feature.id}.yaml\`: its hot spots are decided, do not change them. \`yarn architecture storm --expect conventions/storms/${feature.id}.yaml\` says what the code still owes it; when it owes nothing, set \`done: true\` in it.`,
+        'If the feature needs a context or a relationship between contexts that the application does not have yet, that is an architecture task, and it is yours: declare it, record the decision in an ADR under `docs/adr/`, then write the feature (`yarn architecture mode architecture` says what that takes).',
+        `You are done when \`yarn architecture gate --base ${from} --mode architecture\` passes and the storm owes nothing. Commit your work on the current branch; do not push. If you start a server, use port ${port}.`,
+        '',
+        'The feature, in product words, with the API it answers:',
+        '',
+        request(feature),
+      ].join('\n');
 const feedback = lines =>
-  `The driver checked your work and it is not done:\n\n${lines.join('\n')}\n\nFix it, then commit. The storm and the request are unchanged.`;
+  `The driver checked your work and it is not done:\n\n${lines.join('\n')}\n\nFix it, then commit. ${tooled ? 'The storm and the request are unchanged.' : 'The request is unchanged.'}`;
 
 /** Write one feature in a tree and hold it to the verdict; one retry. */
 async function deliver(feature, cwd, from, port, { again = false } = {}) {
@@ -271,16 +309,18 @@ async function deliver(feature, cwd, from, port, { again = false } = {}) {
 
 const outcomes = {};
 
-if (plan.arm === 'A') {
+if (sequential) {
   // One worktree, one conversation, the features in order.
-  const cwd = worktree('a', baseCommit);
+  const cwd = worktree(plan.arm.toLowerCase(), baseCommit);
   for (const [index, feature] of backlog.entries()) {
     if (overBudget) {
       outcomes[feature.id] = 'NOT STARTED';
       continue;
     }
-    placeStorm(feature, cwd);
-    await logStrategy(feature, cwd);
+    if (tooled) {
+      placeStorm(feature, cwd);
+      await logStrategy(feature, cwd);
+    }
     const from = git(cwd, 'rev-parse', 'HEAD');
     const done = await deliver(feature, cwd, from, portBase, { again: index > 0 });
     outcomes[feature.id] = done.ok ? 'COMPLETED' : done.reason === 'budget' ? 'NOT STARTED' : 'FAILED';

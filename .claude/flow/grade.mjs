@@ -4,6 +4,7 @@
  * run's final tree, whatever the arm:
  *
  *   node .claude/flow/grade.mjs --project <dir> --ref <ref> --base <created commit> --kit <dir> [--tooling <clean-ddd.tgz>] [--out <file.json>]
+ *                               [--control plain|prose]
  *
  * In a worktree of its own at `ref`, it copies the kit's acceptance tests beside their support
  * into `src/Bootstrap/Fastify/Acceptance/`, then runs:
@@ -11,6 +12,12 @@
  *   M2  each feature's acceptance test, on its own;
  *   M3  each feature's storm, from the kit, against the code: what it still owes.
  * The read half (R) is the grader's, with evidence; this script prints what it is to read.
+ *
+ * A control arm (docs/evaluations/benchmark/control) has no gate and no storm: M1 is the project's
+ * own `yarn check`, M3 is not graded, and M2 is the same acceptance tests — beside a support that
+ * starts `src/app.ts` in a plain project. For the prose arm, the import rules the architecture's
+ * tooling would have generated are run afterwards, every context the tree grew declared, and their
+ * refusals counted: what the architecture became with nothing to hold it.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -71,12 +78,35 @@ if (tooling) {
   execFileSync('tar', ['-xzf', resolve(tooling), '-C', target, '--strip-components=1']);
 }
 
-const acceptanceDir = join(tree, 'src/Bootstrap/Fastify/Acceptance');
+const control = option('control');
+// A control arm's own checks, on the tree as the run left it, before the hidden tests are added.
+const checks = control ? sh('yarn -s check', tree, 900_000) : undefined;
+const acceptanceDir = join(tree, control === 'plain' ? 'src/acceptance' : 'src/Bootstrap/Fastify/Acceptance');
 mkdirSync(acceptanceDir, { recursive: true });
 for (const file of readdirSync(join(kit, 'acceptance')))
   copyFileSync(join(kit, 'acceptance', file), join(acceptanceDir, file));
+if (control === 'plain') {
+  // The same client, starting the plain project's application.
+  const support = join(acceptanceDir, 'support.ts');
+  writeFileSync(
+    support,
+    readFileSync(support, 'utf8')
+      .replace(
+        /^import \{ FastifyApplication \} from .*\n/m,
+        "import type { Application as FastifyApplication } from '../app';\n",
+      )
+      .replace(/^import \{ createApplication \} from .*\n/m, "import { createApplication } from '../app';\n"),
+  );
+}
 const started = Date.now();
-const gate = parse(sh(`yarn -s architecture gate --base ${base} --mode architecture --json`, tree).out);
+const gate = control
+  ? {
+      verdict: checks.code === 0 ? 'pass' : 'fail',
+      steps: [
+        { name: 'yarn check', status: checks.code === 0 ? 'pass' : 'fail', lines: checks.out.split('\n').slice(-30) },
+      ],
+    }
+  : parse(sh(`yarn -s architecture gate --base ${base} --mode architecture --json`, tree).out);
 // The kit's storms, held as done: then whatever the code does not carry is a difference.
 const stormsDir = join(`${project}.flow`, 'grade', `${commit.slice(0, 12)}.storms`);
 mkdirSync(stormsDir, { recursive: true });
@@ -95,12 +125,18 @@ const m1 = {
 
 const features = backlog.map(f => {
   const file = `${f.n}-${f.id}.acceptance.ts`;
-  const run = sh(`yarn -s test --testMatch '**/Acceptance/${file}'`, tree, 300_000);
+  const run = sh(
+    `yarn -s test --testMatch '**/${control === 'plain' ? 'acceptance' : 'Acceptance'}/${file}'`,
+    tree,
+    300_000,
+  );
   const tests = run.out.match(/Tests:\s+(.*)/)?.[1] ?? 'did not report';
   const failed = [...run.out.matchAll(/^\s+● (.+)$/gm)]
     .map(match => match[1])
     .filter(name => name !== 'Test suite failed to run');
-  const storm = parse(sh(`node ${cli} storm --expect ${join(stormsDir, `${f.id}.yaml`)} --json`, tree, 300_000).out);
+  const storm = control
+    ? { problems: [] }
+    : parse(sh(`node ${cli} storm --expect ${join(stormsDir, `${f.id}.yaml`)} --json`, tree, 300_000).out);
   const owed = storm?.problems ?? ['the storm could not be read'];
   return {
     feature: f.id,
@@ -109,14 +145,58 @@ const features = backlog.map(f => {
   };
 });
 
+// The prose arm: the import rules the tooling would have generated, held to the tree afterwards.
+let drift;
+if (control === 'prose') {
+  const created = join(`${project}.flow`, 'grade', 'created');
+  rmSync(created, { recursive: true, force: true });
+  execFileSync(process.execPath, [cli, 'create', created, '--name', 'drift'], { encoding: 'utf8', stdio: 'pipe' });
+  rmSync(join(tree, 'conventions'), { recursive: true, force: true });
+  execFileSync('cp', ['-a', join(created, 'conventions'), join(tree, 'conventions')]);
+  copyFileSync(join(created, 'eslint.config.js'), join(tree, 'eslint.config.js'));
+  const yamlDir = join(tree, 'node_modules/js-yaml');
+  if (!existsSync(yamlDir))
+    execFileSync('cp', ['-a', resolve(new URL('../../node_modules/js-yaml', import.meta.url).pathname), yamlDir]);
+  const contexts = readdirSync(join(tree, 'src/Contexts'), { withFileTypes: true })
+    .filter(entry => entry.isDirectory())
+    .map(entry => entry.name);
+  const binding = join(tree, 'conventions/typescript.yaml');
+  writeFileSync(
+    binding,
+    readFileSync(binding, 'utf8').replace(/^contexts:.*(\n\s+-.*)*$/m, `contexts: [${contexts.join(', ')}]`),
+  );
+  const linted = parse(sh('npx eslint src --format json', tree, 600_000).out) ?? [];
+  const refusals = linted.flatMap(file =>
+    file.messages
+      .filter(message => message.ruleId === 'no-restricted-imports')
+      .map(message => ({
+        file: file.filePath.replace(`${tree}/`, ''),
+        line: message.line,
+        message: message.message.split('\n')[0],
+      })),
+  );
+  drift = {
+    contexts,
+    refusals: refusals.length,
+    files: new Set(refusals.map(each => each.file)).size,
+    sample: refusals.slice(0, 40),
+  };
+  rmSync(created, { recursive: true, force: true });
+}
+
 const report = {
   schemaVersion: 1,
+  control: control ?? null,
+  drift,
   project,
   ref,
   commit,
   base,
   M1: m1,
-  features: features.map(each => ({ ...each, mechanical: m1.verdict === 'pass' && each.M2.pass && each.M3.pass })),
+  features: features.map(each => ({
+    ...each,
+    mechanical: m1.verdict === 'pass' && each.M2.pass && (control ? true : each.M3.pass),
+  })),
   gradedInMs: Date.now() - started,
 };
 const out = option('out');
