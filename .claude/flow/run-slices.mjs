@@ -290,6 +290,11 @@ const brief = (slice, port) => {
         ]
       : []),
     'The contract, decided and frozen before you started. Do not change any of it. If it is wrong or cannot be honoured, stop, and start your final report with the word BLOCKED and what you found.',
+    ...(others.length
+      ? []
+      : [
+          `You are the only slice, so the feature is whole in your worktree: once the code carries the storm, mark the contract carried — \`done: true\` in the storm, \`new: false\` on the plan's parts that now exist (ADR 29). Those two flags are the only change you may make outside your context's folder.`,
+        ]),
     `- The storm: \`${plan.storm}\` (\`yarn architecture storm --expect ${plan.storm}\` says what the code still owes it).`,
     `- Your plan: \`${slice.plan}\`.`,
     '- The integration contracts in `src/SharedKernel/Application/IntegrationEvents/`: the messages between the contexts, already written.',
@@ -323,7 +328,9 @@ function scope(slice, path) {
     event('committed-leftovers', { slice: slice.id });
   }
   const changed = git(path, 'diff', '--name-only', baseCommit).split('\n').filter(Boolean);
-  const outside = changed.filter(file => !file.startsWith(`src/Contexts/${slice.context}/`));
+  // A feature of one slice is whole in its worktree: its contract's flags are its to set (ADR 29).
+  const flags = plan.slices.length === 1 ? [plan.storm, slice.plan] : [];
+  const outside = changed.filter(file => !file.startsWith(`src/Contexts/${slice.context}/`) && !flags.includes(file));
   return { changed, outside };
 }
 

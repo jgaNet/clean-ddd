@@ -148,6 +148,21 @@ describe('the storm against the code', () => {
     );
   });
 
+  it('holds a done storm to what it said, not to what a later feature added to the same command', () => {
+    // A later feature has sharing record one more fact: the share storm said less, and is still carried.
+    const later = JSON.parse(JSON.stringify(actual)) as typeof actual;
+    const notes = later.contexts.find(context => context.id === 'Notes')!;
+    notes.commands = notes.commands.map(command =>
+      command.name === 'ShareNote' ? { ...command, events: [...command.events, 'NoteArchived'].sort() } : command,
+    );
+    expect(checkExpectedStorm(share, later)).toEqual([]);
+    // Recording less than the storm said is still a difference.
+    notes.commands = notes.commands.map(command =>
+      command.name === 'ShareNote' ? { ...command, events: ['NoteArchived'] } : command,
+    );
+    expect(checkExpectedStorm(share, later)).toContainEqual(expect.stringContaining('ShareNote'));
+  });
+
   it('says what the code still owes, in words', () => {
     const words = describeExpectation(pin, actual);
     expect(words).toContain('pin-a-note (planned)');

@@ -282,7 +282,8 @@ if (plan.arm === 'A') {
   async function integrateOnce(feature, state) {
     const head = git(project, 'rev-parse', 'HEAD');
     event('feature', { feature: feature.id, state: 'INTEGRATING', onto: head });
-    const patch = git(state.cwd, 'diff', '--binary', state.from, 'HEAD');
+    // From the integrated head the feature started at: its storm is part of what it brings.
+    const patch = git(state.cwd, 'diff', '--binary', state.start, 'HEAD');
     const integration = `integration-${feature.id}-${state.integrations++}`;
     const path = worktree(integration, head);
     const patchFile = join(runDir, `${integration}.patch`);
@@ -311,9 +312,10 @@ if (plan.arm === 'A') {
 
   async function feature(f, index) {
     const port = portBase + index;
-    const cwd = worktree(f.id, git(project, 'rev-parse', 'HEAD'));
+    const start = git(project, 'rev-parse', 'HEAD');
+    const cwd = worktree(f.id, start);
     placeStorm(f, cwd);
-    const state = { cwd, from: git(cwd, 'rev-parse', 'HEAD'), integrations: 1 };
+    const state = { cwd, start, from: git(cwd, 'rev-parse', 'HEAD'), integrations: 1 };
     const done = await deliver(f, cwd, state.from, port);
     if (!done.ok) return done.reason === 'budget' ? 'NOT STARTED' : 'FAILED';
     let result = await integrate(f, state);
@@ -323,6 +325,7 @@ if (plan.arm === 'A') {
     const merged = tryGit(cwd, '-c', 'user.name=flow', '-c', 'user.email=flow@example.com', 'merge', '--no-edit', head);
     const conflicts = merged.ok ? [] : git(cwd, 'diff', '--name-only', '--diff-filter=U').split('\n').filter(Boolean);
     state.from = head;
+    state.start = head;
     const back = await agent(
       f,
       cwd,

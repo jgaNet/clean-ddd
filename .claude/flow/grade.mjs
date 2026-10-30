@@ -49,7 +49,17 @@ if (existsSync(tree)) {
 }
 mkdirSync(join(`${project}.flow`, 'grade'), { recursive: true });
 git(project, 'worktree', 'add', '-q', '--detach', tree, commit);
-execFileSync('cp', ['-al', join(project, 'node_modules'), join(tree, 'node_modules')]);
+// The dependencies of the tree graded: the created ones, or, when a run added some, its own.
+const manifests = ['package.json', 'yarn.lock'];
+const sameDependencies = manifests.every(
+  file => sh(`git diff --quiet ${base} ${commit} -- ${file}`, project).code === 0,
+);
+if (sameDependencies) execFileSync('cp', ['-al', join(project, 'node_modules'), join(tree, 'node_modules')]);
+else {
+  execFileSync('cp', ['-a', join(project, 'node_modules'), join(tree, 'node_modules')]);
+  const installed = sh('yarn install --silent', tree, 600_000);
+  if (installed.code !== 0) process.stderr.write(`yarn install failed in ${tree}:\n${installed.out.slice(-2000)}\n`);
+}
 
 const acceptanceDir = join(tree, 'src/Bootstrap/Fastify/Acceptance');
 mkdirSync(acceptanceDir, { recursive: true });
@@ -60,10 +70,25 @@ const gate = parse(sh(`yarn -s architecture gate --base ${base} --mode architect
 // The kit's storms, held as done: then whatever the code does not carry is a difference.
 const stormsDir = join(`${project}.flow`, 'grade', `${commit.slice(0, 12)}.storms`);
 mkdirSync(stormsDir, { recursive: true });
-for (const f of backlog) {
-  const text = readFileSync(join(kit, 'storms', `${f.id}.yaml`), 'utf8').replace(/^done: false$/m, 'done: true');
-  writeFileSync(join(stormsDir, `${f.id}.yaml`), text);
-}
+// A later feature may change a command an earlier one brought (feature 7 has archiving cancel a
+// reminder): each storm is held to the code as the backlog leaves it, the later storm's shape of a
+// command taking the place of the earlier one's.
+const storms = backlog.map(f => yaml.load(readFileSync(join(kit, 'storms', `${f.id}.yaml`), 'utf8')));
+storms.forEach((storm, index) => {
+  for (const context of storm.contexts) {
+    context.commands = context.commands.map(command => {
+      for (const later of storms.slice(index + 1)) {
+        const same = later.contexts
+          .find(each => each.id === context.id)
+          ?.commands.find(each => each.name === command.name);
+        if (same) command = same;
+      }
+      return command;
+    });
+    context.events = [...new Set([...context.events, ...context.commands.flatMap(command => command.events)])].sort();
+  }
+  writeFileSync(join(stormsDir, `${backlog[index].id}.yaml`), yaml.dump({ ...storm, done: true }));
+});
 const m1 = {
   verdict: gate?.verdict ?? 'unreadable',
   failing: (gate?.steps ?? [])
