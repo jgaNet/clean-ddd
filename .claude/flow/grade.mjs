@@ -14,7 +14,7 @@
  * The read half (R) is the grader's, with evidence; this script prints what it is to read.
  *
  * A control arm (docs/evaluations/benchmark/control) has no gate and no storm: M1 is the project's
- * own `yarn check`, M3 is not graded, and M2 is the same acceptance tests — beside a support that
+ * own `yarn verify`, M3 is not graded, and M2 is the same acceptance tests — beside a support that
  * starts `src/app.ts` in a plain project. For the prose arm, the import rules the architecture's
  * tooling would have generated are run afterwards, every context the tree grew declared, and their
  * refusals counted: what the architecture became with nothing to hold it.
@@ -80,7 +80,7 @@ if (tooling) {
 
 const control = option('control');
 // A control arm's own checks, on the tree as the run left it, before the hidden tests are added.
-const checks = control ? sh('yarn -s check', tree, 900_000) : undefined;
+const checks = control ? sh('yarn -s verify', tree, 900_000) : undefined;
 const acceptanceDir = join(tree, control === 'plain' ? 'src/acceptance' : 'src/Bootstrap/Fastify/Acceptance');
 mkdirSync(acceptanceDir, { recursive: true });
 for (const file of readdirSync(join(kit, 'acceptance')))
@@ -103,7 +103,7 @@ const gate = control
   ? {
       verdict: checks.code === 0 ? 'pass' : 'fail',
       steps: [
-        { name: 'yarn check', status: checks.code === 0 ? 'pass' : 'fail', lines: checks.out.split('\n').slice(-30) },
+        { name: 'yarn verify', status: checks.code === 0 ? 'pass' : 'fail', lines: checks.out.split('\n').slice(-30) },
       ],
     }
   : parse(sh(`yarn -s architecture gate --base ${base} --mode architecture --json`, tree).out);

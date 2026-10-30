@@ -8,7 +8,7 @@ beyond the type checker, the linter and the tests, so hold the code to them your
 ## Commands
 
 ```bash
-yarn check         # what must pass: typecheck, lint, format, tests
+yarn verify        # what must pass: typecheck, lint, format, tests
 yarn typecheck
 yarn lint
 yarn format        # prettier, in place

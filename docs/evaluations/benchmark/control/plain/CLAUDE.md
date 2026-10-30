@@ -5,7 +5,7 @@ A TypeScript HTTP API on Fastify. Structure the code as you see fit.
 ## Commands
 
 ```bash
-yarn check         # what must pass: typecheck, lint, format, tests
+yarn verify        # what must pass: typecheck, lint, format, tests
 yarn typecheck
 yarn lint
 yarn format        # prettier, in place

@@ -13,7 +13,7 @@
     "lint": "eslint .",
     "format": "prettier \"src/**/*.ts\" --write",
     "format:check": "prettier \"src/**/*.ts\" --check",
-    "check": "yarn -s typecheck && yarn -s lint && yarn -s format:check && yarn -s test"
+    "verify": "yarn -s typecheck && yarn -s lint && yarn -s format:check && yarn -s test"
   },
   "dependencies": {
     "uuid": "^14.0.2",

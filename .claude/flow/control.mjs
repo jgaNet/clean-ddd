@@ -39,7 +39,7 @@ if (kind === 'plain') {
   for (const script of ['check:conventions', 'conventions:write', 'architecture']) delete manifest.scripts[script];
   delete manifest.devDependencies['clean-ddd'];
   delete manifest.devDependencies['js-yaml'];
-  manifest.scripts.check = 'yarn -s typecheck && yarn -s lint && yarn -s format:check && yarn -s test';
+  manifest.scripts.verify = 'yarn -s typecheck && yarn -s lint && yarn -s format:check && yarn -s test';
   writeFileSync(join(dir, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`);
   cpSync(join(control, 'plain/eslint.config.js'), join(dir, 'eslint.config.js'));
   // The architecture as prose: the contract's rules, in words, with nothing to hold the code to them.
@@ -52,7 +52,7 @@ if (kind === 'plain') {
 
 run('yarn', ['install', '--silent']);
 if (!existsSync(join(dir, 'node_modules'))) throw new Error('yarn install left no node_modules');
-run('git', ['init', '-q']);
+run('git', ['init', '-q', '-b', 'main']);
 run('git', ['add', '-A']);
 run('git', [
   '-c',

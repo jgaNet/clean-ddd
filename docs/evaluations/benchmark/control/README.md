@@ -12,8 +12,8 @@ This kit answers them with two control arms. It was written and committed **befo
 | Arm | The project it starts from | What the agent is given | The driver's verdict, one retry |
 | --- | --- | --- | --- |
 | **A** — architecture and tooling | `clean-ddd create` (phase 4's three runs: the pilot, runs 2 and 3) | The request and its storm | The gate in the architecture mode, and the storm |
-| **D** — architecture, no tooling | `clean-ddd create`, with the tooling taken out ([`control.mjs prose`](../../../../.claude/flow/control.mjs)): no `conventions/`, no generated import rules, no CLI, no skills or agent definition; the guide is [`prose/CLAUDE.md`](prose/CLAUDE.md), the contract's layers and rules in words | The request | `yarn check`: typecheck, lint, format, tests |
-| **P** — plain | [`plain/`](plain): the same toolchain (TypeScript strict, ESLint, Prettier, Jest, Fastify), an empty `createApplication()`, a six-line guide | The request | `yarn check` |
+| **D** — architecture, no tooling | `clean-ddd create`, with the tooling taken out ([`control.mjs prose`](../../../../.claude/flow/control.mjs)): no `conventions/`, no generated import rules, no CLI, no skills or agent definition; the guide is [`prose/CLAUDE.md`](prose/CLAUDE.md), the contract's layers and rules in words | The request | `yarn verify`: typecheck, lint, format, tests |
+| **P** — plain | [`plain/`](plain): the same toolchain (TypeScript strict, ESLint, Prettier, Jest, Fastify), an empty `createApplication()`, a six-line guide | The request | `yarn verify` |
 
 Everything else is A's protocol ([the benchmark](../README.md)):
 
@@ -31,7 +31,7 @@ Everything else is A's protocol ([the benchmark](../README.md)):
 
 The same measures for every arm:
 
-- **Delivery.** Each feature's hidden acceptance test on the final tree (M2). The project's own checks (M1: A's gate; `yarn check` for D and P). After feature 8, the regression of features 1 to 7.
+- **Delivery.** Each feature's hidden acceptance test on the final tree (M2). The project's own checks (M1: A's gate; `yarn verify` for D and P). After feature 8, the regression of features 1 to 7.
 - **Time and cost.** The lead time and the reported cost, per feature and in total. Feature 1 is also reported apart: P must write the asynchronous command protocol (`202`, then the operation followed at the tracker) that A and D find in their created project.
 - **What was written** ([`tree-metrics.mjs`](../../../../.claude/flow/tree-metrics.mjs)): from the diff against the created commit, the lines added and removed in source and in tests, and the files touched; in the final tree, the test cases, the source files and the largest one. These numbers are descriptive and grade nothing.
 - **The architecture without its tooling (D only).** After the run, the import rules the tooling would have generated are run on D's tree, with every context it grew declared. The refusals they would have raised are counted, and a sample is kept.
@@ -57,3 +57,9 @@ If P matches A on delivery and is cheaper and sooner, the honest reading is that
 - **The acceptance tests are black-box.** They grade what a client sees. They cannot see whether a password is hashed, or where a rule lives.
 - **The prose guide is the contract's own words.** A guide written for prose from the start might teach better.
 - **One grader**, who wrote the architecture.
+
+## Amendment, before the counted runs
+
+The first two runs, P1 and D1, were interrupted twelve minutes in when the container restarted. Their logs showed a defect in this kit. The script the guides and the driver called `check` is shadowed in Yarn 1 by its built-in `yarn check`, which only verifies the installed dependencies. So the agents and the driver's verdict ran no typecheck, no lint and no tests.
+
+The script is now `verify` (`yarn verify`), in both scaffolds, both guides, the driver and the grader. Nothing else changed. The two interrupted runs are discarded and counted in the cost; the runs counted start after this amendment.

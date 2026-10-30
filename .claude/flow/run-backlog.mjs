@@ -33,7 +33,7 @@
  * Arms P and D — the control (docs/evaluations/benchmark/control). One conversation takes the
  * features in order, as in A, on a project `control.mjs` made: P a plain TypeScript project, D the
  * architecture with its tooling taken out. The agent is given the request alone, no storm; the
- * driver's verdict is the project's own `yarn check` (typecheck, lint, format, tests), one retry.
+ * driver's verdict is the project's own `yarn verify` (typecheck, lint, format, tests), one retry.
  *
  * Every step is appended to `<project>.flow/<run>.jsonl`. A run whose reported cost passes the
  * budget starts no more agents and ends FAILED. The integrated head is the project's `main`.
@@ -79,7 +79,21 @@ const flowDir = `${project}.flow`;
 const runDir = join(flowDir, 'worktrees', run);
 const log = join(flowDir, `${run}.jsonl`);
 mkdirSync(runDir, { recursive: true });
-if (existsSync(log)) fail(`${log} exists: a run id is used once`);
+// `--resume` continues a sequential run its driver lost (a container restarted): the features it
+// finished stay finished, and the one it was writing is continued in the same conversation.
+const resuming = args.includes('--resume');
+if (resuming && plan.arm === 'B') fail('--resume continues a sequential run (A, P, D)');
+const before =
+  resuming && existsSync(log)
+    ? readFileSync(log, 'utf8')
+        .trim()
+        .split('\n')
+        .map(line => JSON.parse(line))
+    : [];
+if (existsSync(log) && !resuming) fail(`${log} exists: a run id is used once`);
+const finishedBefore = new Set(
+  before.filter(entry => entry.event === 'feature' && entry.state === 'COMPLETED').map(entry => entry.feature),
+);
 
 const event = (name, data = {}) => {
   const line = { run, event: name, at: new Date().toISOString(), ...data };
@@ -143,7 +157,8 @@ const tool = 'yarn -s architecture';
 
 const baseCommit = git(project, 'rev-parse', plan.base);
 const started = Date.now();
-event('started', { arm: plan.arm, project, baseCommit, runner: runner.name, model, parallelism, budgetUsd });
+if (resuming) event('resumed', { finished: [...finishedBefore] });
+else event('started', { arm: plan.arm, project, baseCommit, runner: runner.name, model, parallelism, budgetUsd });
 
 /** A worktree beside the project, at a commit, with its own hard-linked node_modules. */
 function worktree(id, at) {
@@ -185,12 +200,12 @@ async function verdict(feature, cwd, from) {
   const begun = Date.now();
   if (!tooled) {
     // The control arms: the project's own checks, as its guide says.
-    const checked = await sh('yarn -s check', cwd, 900_000);
-    const problems = checked.code === 0 ? [] : ['`yarn check` fails:', ...tail(checked.stdout + checked.stderr, 60)];
+    const checked = await sh('yarn -s verify', cwd, 900_000);
+    const problems = checked.code === 0 ? [] : ['`yarn verify` fails:', ...tail(checked.stdout + checked.stderr, 60)];
     event('gate', {
       feature: feature.id,
       verdict: checked.code === 0 ? 'pass' : 'fail',
-      steps: [['yarn check', checked.code === 0 ? 'pass' : 'fail']],
+      steps: [['yarn verify', checked.code === 0 ? 'pass' : 'fail']],
       wallClockMs: Date.now() - begun,
       lines: problems.slice(0, 80),
     });
@@ -268,7 +283,7 @@ const controlBrief = (feature, port) =>
       : `You are writing an application, one feature at a time, in this conversation. This is feature ${feature.n} of ${Math.max(...backlog.map(each => each.n))}.`,
     'Read `CLAUDE.md` first and follow it. Do not ask questions: decide, and say in your final report what was unclear.',
     '',
-    `You are done when \`yarn check\` passes. Commit your work on the current branch; do not push. If you start a server, use port ${port}.`,
+    `You are done when \`yarn verify\` passes. Commit your work on the current branch; do not push. If you start a server, use port ${port}.`,
     '',
     'The feature, in product words, with the API it answers:',
     '',
@@ -295,8 +310,11 @@ const feedback = lines =>
   `The driver checked your work and it is not done:\n\n${lines.join('\n')}\n\nFix it, then commit. ${tooled ? 'The storm and the request are unchanged.' : 'The request is unchanged.'}`;
 
 /** Write one feature in a tree and hold it to the verdict; one retry. */
-async function deliver(feature, cwd, from, port, { again = false } = {}) {
-  let result = await agent(feature, cwd, brief(feature, from, port), again, port);
+async function deliver(feature, cwd, from, port, { again = false, continuing = false } = {}) {
+  const prompt = continuing
+    ? `You were interrupted while writing this feature: the machine restarted. What you had written is in the worktree; continue from there.\n\n${brief(feature, from, port)}`
+    : brief(feature, from, port);
+  let result = await agent(feature, cwd, prompt, again, port);
   if (!result) return { ok: false, reason: 'budget' };
   let problems = await verdict(feature, cwd, from);
   for (let attempt = 0; problems.length && attempt < retries; attempt++) {
@@ -311,18 +329,31 @@ const outcomes = {};
 
 if (sequential) {
   // One worktree, one conversation, the features in order.
-  const cwd = worktree(plan.arm.toLowerCase(), baseCommit);
+  const cwd = resuming ? join(runDir, plan.arm.toLowerCase()) : worktree(plan.arm.toLowerCase(), baseCommit);
+  let interrupted = resuming;
   for (const [index, feature] of backlog.entries()) {
+    if (finishedBefore.has(feature.id)) {
+      outcomes[feature.id] = 'COMPLETED';
+      continue;
+    }
     if (overBudget) {
       outcomes[feature.id] = 'NOT STARTED';
       continue;
     }
-    if (tooled) {
+    // The feature an interrupted run was writing: its storm is placed already, its start is the
+    // commit after the last feature it finished.
+    const continuing = interrupted && before.some(entry => entry.event === 'feature' && entry.feature === feature.id);
+    if (tooled && !continuing) {
       placeStorm(feature, cwd);
       await logStrategy(feature, cwd);
     }
-    const from = git(cwd, 'rev-parse', 'HEAD');
-    const done = await deliver(feature, cwd, from, portBase, { again: index > 0 });
+    const from = continuing
+      ? (before.filter(entry => entry.event === 'feature-start' && entry.feature === feature.id).pop()?.from ??
+        git(cwd, 'rev-parse', 'HEAD'))
+      : git(cwd, 'rev-parse', 'HEAD');
+    if (!continuing) event('feature-start', { feature: feature.id, from });
+    interrupted = false;
+    const done = await deliver(feature, cwd, from, portBase, { again: index > 0 || continuing, continuing });
     outcomes[feature.id] = done.ok ? 'COMPLETED' : done.reason === 'budget' ? 'NOT STARTED' : 'FAILED';
     event('feature', { feature: feature.id, state: outcomes[feature.id] });
   }
