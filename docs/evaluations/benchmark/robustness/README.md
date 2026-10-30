@@ -55,7 +55,7 @@ Passing the acceptance tests says nothing about the other three, and a result sa
 
 ## Before the runs: a hardened harness
 
-The campaign runs agents unattended, so three changes come first, each with a test, in their own pull request:
+The campaign runs agents unattended, so three changes come first, each with a test. They are in [`.claude/flow/supervision.mjs`](../../../../.claude/flow/supervision.mjs) and the drivers that use it ([the flow's README](../../../../.claude/flow/README.md#supervision-what-lets-agents-run-unattended)):
 
 1. **Isolated dependencies.** Each agent and each grading gets its own copy of the dependencies, or a read-only one. Today they get hard links to a shared `node_modules`, and an agent that writes into a package changes the original.
 2. **A budget reserved before an agent starts,** not checked after it finishes.

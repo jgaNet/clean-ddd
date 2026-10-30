@@ -2,8 +2,8 @@
  * The agent runners a driver can start an agent with (RFC 0001, `AgentRunner`): the provider
  * changes, the flow does not. Each takes the same task and answers the same shape:
  *
- *   run({ prompt, cwd, model?, again?, env, timeoutMs, onProcess }) →
- *     { exitCode?, signal?, wallClockMs, isError?, numTurns?, durationMs?, costUsd?, modelUsage?, report?, usage? }
+ *   run({ prompt, cwd, model?, again?, env, timeoutMs, maxBudgetUsd?, onProcess }) →
+ *     { exitCode?, signal?, stoppedBy?, wallClockMs, isError?, numTurns?, durationMs?, costUsd?, modelUsage?, report?, usage? }
  *
  * `again` continues the latest conversation in `cwd` instead of starting one: a slice sent back,
  * or a slice whose driver died. `costUsd` and `modelUsage` are what the runner reports and nothing
@@ -11,7 +11,9 @@
  * driver keeps the latest figure per conversation rather than adding them up (phase 3 found the
  * phase-2 driver adding them). `onProcess({ stop })` hands the driver what stops the agent, for
  * a cancel; `pgid`, when there is one, is recorded in the slice's lease so that a driver that died
- * can find the agent it left behind.
+ * can find the agent it left behind. `maxBudgetUsd` is the agent's reservation (supervision.mjs),
+ * a cap it may not spend past. `stoppedBy` says why an agent was stopped before it finished:
+ * `timeout` when it ran past `timeoutMs`, `cancel` when the driver stopped it.
  *
  * - `claude-cli`: Claude Code headless (`claude -p --output-format json`), in its own process
  *   group, stopped by group.
@@ -52,8 +54,9 @@ const fromResult = json => ({
 
 const claudeCli = {
   name: 'claude-cli',
-  run({ prompt, cwd, model, again, env, timeoutMs, onProcess }) {
+  run({ prompt, cwd, model, again, env, timeoutMs, maxBudgetUsd, onProcess }) {
     const started = Date.now();
+    let stoppedBy;
     const args = [
       '-p',
       prompt,
@@ -63,6 +66,7 @@ const claudeCli = {
       '--allowedTools',
       TOOLS.join(' '),
       ...(again ? ['--continue'] : []),
+      ...(maxBudgetUsd !== undefined ? ['--max-budget-usd', String(maxBudgetUsd)] : []),
     ];
     return new Promise(done => {
       const child = spawn('claude', args, { cwd, env, detached: true });
@@ -73,18 +77,28 @@ const claudeCli = {
           // already gone
         }
       };
-      onProcess?.({ pgid: child.pid, stop });
+      onProcess?.({
+        pgid: child.pid,
+        stop: () => {
+          stoppedBy ??= 'cancel';
+          stop();
+        },
+      });
       let stdout = '';
       let stderr = '';
       child.stdout.on('data', chunk => (stdout += chunk));
       child.stderr.on('data', chunk => (stderr += chunk));
-      const timer = setTimeout(stop, timeoutMs);
+      const timer = setTimeout(() => {
+        stoppedBy ??= 'timeout';
+        stop();
+      }, timeoutMs);
       child.on('close', (code, signal) => {
         clearTimeout(timer);
         const json = parse(stdout);
         done({
           exitCode: code,
           signal: signal ?? undefined,
+          ...(stoppedBy && { stoppedBy }),
           wallClockMs: Date.now() - started,
           ...(json
             ? fromResult(json)
@@ -106,8 +120,9 @@ async function loadSdk(project) {
 
 const claudeSdk = {
   name: 'claude-sdk',
-  async run({ prompt, cwd, model, again, env, timeoutMs, onProcess, project }) {
+  async run({ prompt, cwd, model, again, env, timeoutMs, maxBudgetUsd, onProcess, project }) {
     const started = Date.now();
+    let stoppedBy;
     let sdk;
     try {
       sdk = await loadSdk(project ?? cwd);
@@ -121,8 +136,16 @@ const claudeSdk = {
     }
     const abortController = new AbortController();
     const stop = () => abortController.abort();
-    onProcess?.({ stop });
-    const timer = setTimeout(stop, timeoutMs);
+    onProcess?.({
+      stop: () => {
+        stoppedBy ??= 'cancel';
+        stop();
+      },
+    });
+    const timer = setTimeout(() => {
+      stoppedBy ??= 'timeout';
+      stop();
+    }, timeoutMs);
     let last;
     try {
       for await (const message of sdk.query({
@@ -132,6 +155,7 @@ const claudeSdk = {
           ...(model && { model }),
           allowedTools: TOOLS,
           ...(again && { continue: true }),
+          ...(maxBudgetUsd !== undefined && { maxBudgetUsd }),
           abortController,
           env,
           ...(process.env.CLAUDE_CODE_EXECUTABLE && { pathToClaudeCodeExecutable: process.env.CLAUDE_CODE_EXECUTABLE }),
@@ -144,6 +168,7 @@ const claudeSdk = {
       return {
         wallClockMs: Date.now() - started,
         signal: abortController.signal.aborted ? 'aborted' : undefined,
+        ...(stoppedBy && { stoppedBy }),
         ...(last ? fromResult(last) : { usage: 'absent: the SDK returned no result message' }),
         stderrTail: [String(error)],
       };

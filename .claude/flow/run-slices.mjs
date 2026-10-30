@@ -65,6 +65,7 @@ import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 
 import { runners } from './runners.mjs';
+import { provideDependencies } from './supervision.mjs';
 
 const args = process.argv.slice(2);
 const flag = name => args.includes(`--${name}`);
@@ -192,9 +193,7 @@ function worktree(id) {
   }
   mkdirSync(runDir, { recursive: true });
   git(project, 'worktree', 'add', '-q', '-b', `run/${run}/${id}`, path, baseCommit);
-  if (existsSync(join(project, 'node_modules'))) {
-    execFileSync('cp', ['-al', join(project, 'node_modules'), join(path, 'node_modules')]);
-  }
+  provideDependencies(project, path, plan.dependencies ?? 'copy');
   return path;
 }
 
@@ -586,9 +585,7 @@ async function integrate() {
   }
   mkdirSync(runDir, { recursive: true });
   git(project, 'worktree', 'add', '-q', '-b', `run/${run}/${id}`, path, baseCommit);
-  if (existsSync(join(project, 'node_modules'))) {
-    execFileSync('cp', ['-al', join(project, 'node_modules'), join(path, 'node_modules')]);
-  }
+  provideDependencies(project, path, plan.dependencies ?? 'copy');
   event('integration', { state: 'INTEGRATING', attempt: integrations, worktree: path });
   for (const slice of slices) {
     const patch = join(runDir, `${slice.id}-${integrations}.patch`);

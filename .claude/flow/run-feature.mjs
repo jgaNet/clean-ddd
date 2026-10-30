@@ -23,6 +23,8 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
+import { provideDependencies } from './supervision.mjs';
+
 const args = process.argv.slice(2);
 const option = (name, fallback) => (args.includes(`--${name}`) ? args[args.indexOf(`--${name}`) + 1] : fallback);
 const required = name => option(name) ?? fail(`--${name} is required`);
@@ -54,10 +56,9 @@ const git = (cwd, ...gitArgs) => execFileSync('git', gitArgs, { cwd, encoding: '
 const baseCommit = git(project, 'rev-parse', base);
 if (existsSync(worktree)) fail(`${worktree} exists: a run id is used once`);
 git(project, 'worktree', 'add', '-q', '-b', `run/${run}`, worktree, baseCommit);
-// A copy, not a link: an agent that adds a dependency must not change what the other runs, or the project, see.
-if (existsSync(join(project, 'node_modules'))) {
-  execFileSync('cp', ['-al', join(project, 'node_modules'), join(worktree, 'node_modules')]);
-}
+// A copy, not a link: an agent that adds a dependency, or writes into one, must not change what the
+// other runs, or the project, see.
+provideDependencies(project, worktree);
 event('started', { project, base, baseCommit, worktree, model });
 
 // 2. The agent. Its brief is the project's own; the request is in product words.

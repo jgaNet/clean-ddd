@@ -52,6 +52,9 @@ jobs:
       - name: Specs
         run: yarn test
 
+      - name: The flow's supervision (isolated dependencies, the reserved budget, the port an agent leaves)
+        run: yarn test:flow
+
       - name: Build, and what the package would ship
         run: |
           yarn build
