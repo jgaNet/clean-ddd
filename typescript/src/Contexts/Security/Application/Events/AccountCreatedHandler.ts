@@ -1,5 +1,5 @@
 import { IResult, Result } from '@Architecture/Domain';
-import { EventHandler, ExecutionContext } from '@Architecture/Application';
+import { EventHandler, ExecutionContext, publishIntegrationEvent } from '@Architecture/Application';
 import { AccountCreatedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/AccountIntegrationEvents';
 
 import { AccountCreatedEvent } from '@Contexts/Security/Domain/Account/Events/AccountEvents';
@@ -26,7 +26,7 @@ export class AccountCreatedHandler extends EventHandler<AccountCreatedEvent> {
       subjectType: TokenTypes.VALIDATION,
     });
 
-    context.eventBus.publish(
+    publishIntegrationEvent(
       AccountCreatedIntegrationEvent.set({ accountId: payload.accountId, email: payload.email, validationToken }),
       context,
     );

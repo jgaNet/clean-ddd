@@ -73,6 +73,9 @@ class RecordingUnitOfWork implements UnitOfWork {
   hasActiveTransaction() {
     return this.#active;
   }
+  another(): UnitOfWork {
+    return new RecordingUnitOfWork();
+  }
 }
 
 describe('CommandHandler.handle()', () => {

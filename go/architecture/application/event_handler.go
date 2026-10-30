@@ -17,13 +17,21 @@ import (
 // listener that fails is visible in the trace instead of vanishing. It cannot undo the fact it
 // reacted to: the event was published after the commit (ADR 3), and a failed reaction is the
 // listener's problem to retry or report, never the publisher's.
+//
+// A reaction runs in a transaction of its own (ADR 30), opened by Reaction's subscriber, in a
+// context of its own (ExecutionContext.ForReaction): what it saves, and the facts it records or
+// publishes, commit together or not at all, and go out through the outbox after the commit,
+// like a command's. So Execute saves, calls PublishDomainEvents for an aggregate it changed and
+// PublishIntegrationEvent for a fact it tells other contexts, and returns an error to undo all
+// of it. It is not made idempotent by hand: all or nothing, one id per fact, and the bus's inbox
+// hand a fact to a reaction once.
 type EventHandler[E domain.Event] interface {
 	Execute(event E, context *ExecutionContext) error
 }
 
 // Reaction subscribes a handler to its event: the subscription lists it under the event's name,
-// and the Subscriber it carries does what every reaction needs once — the safety net, the log,
-// the mark on the operation.
+// and the Subscriber it carries does what every reaction needs once — its own context and
+// transaction, the safety net, the log, the mark on the operation.
 func Reaction[E domain.Event](handler EventHandler[E]) Subscription {
 	return Subscription{Channel: domain.NameOfType[E](), Handlers: []Subscriber{reaction[E]{handler}}}
 }
@@ -38,9 +46,11 @@ func (r reaction[E]) Handle(operation *Operation) {
 		operation.Failed(domain.Unknown(fmt.Sprintf("%s is not a %s", domain.NameOf(operation.Event), domain.NameOfType[E]()), nil))
 		return
 	}
-	context := operation.Context
+	context := operation.Context.ForReaction()
 	name, channel := handlerName(r.handler), domain.NameOf(event)
-	err := safely(func() error { return r.handler.Execute(event, context) })
+	_, err := Transaction(context, func() (Nothing, error) {
+		return Nothing{}, safely(func() error { return r.handler.Execute(event, context) })
+	})
 	if err != nil {
 		if _, refused := domain.Refusal(err); refused {
 			context.Log().Warn(fmt.Sprintf("%s failed on %s: %s", name, channel, err.Error()), Meta{"traceId": context.TraceID()})

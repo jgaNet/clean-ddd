@@ -12,6 +12,8 @@
 //! published" possible: the events are appended to the unit of work's outbox at commit and
 //! relayed after it (ADR 3, ADR 24). The context is shared by `Arc`: a clone is the same
 //! context, which is how what is deferred until the commit can still publish on the same bus.
+//! A reaction to a fact runs in a context of its own, derived by `for_reaction()`: the same
+//! caller, trace, bus and logger, and a unit of work of its own (ADR 30).
 
 use std::future::Future;
 use std::panic::AssertUnwindSafe;
@@ -36,6 +38,9 @@ pub trait UnitOfWork: Send + Sync {
     fn has_active_transaction(&self) -> bool;
     /// The transactional outbox: what this transaction makes durable to be published after it commits (ADR 24).
     fn outbox(&self) -> &dyn Outbox;
+    /// A unit of work over the same stores and the same outbox, for a transaction of its own:
+    /// the one a reaction runs in (ADR 30). With a database, another transaction from the same pool.
+    fn another(&self) -> Arc<dyn UnitOfWork>;
 }
 
 /// Where a handler logs; every line carries the trace id of its request.
@@ -121,7 +126,23 @@ impl ExecutionContext {
         self.0.logger.as_ref()
     }
 
-    /// Publishes an event on this request's bus, with this context: what a handler calls.
+    /// The context a reaction to this request's facts runs in (ADR 30): the same caller, trace,
+    /// bus and logger, and a unit of work of its own (`UnitOfWork::another()`: the same stores
+    /// and outbox, another transaction). A reaction's transaction is its own — not the one that
+    /// published the fact, nor the one of another reaction to the same fact, running beside it.
+    pub fn for_reaction(&self) -> ExecutionContext {
+        ExecutionContext::new(ExecutionContextOptions {
+            trace_id: self.0.trace_id.clone(),
+            auth: self.0.auth.clone(),
+            event_bus: self.0.event_bus.clone(),
+            unit_of_work: self.0.unit_of_work.as_ref().map(|unit_of_work| unit_of_work.another()),
+            logger: self.0.logger.clone(),
+        })
+    }
+
+    /// Publishes an event on this request's bus, with this context, at once: nothing durable,
+    /// nothing a rollback can take back. A reaction tells other contexts through
+    /// `publish_integration_event()`, through the outbox, never through this (ADR 30).
     pub async fn publish<E: Event + Send + Sync + 'static>(&self, event: E) -> Operation {
         self.0.event_bus.publish(Arc::new(event), self.clone()).await
     }
@@ -178,9 +199,9 @@ impl ExecutionContext {
     /// Runs `step` inside the current transaction, once the use case has succeeded and just
     /// before the commit: where `publish_domain_events()` appends the aggregate's events to the
     /// outbox, so that they are durable with the state they describe and gone with it on a
-    /// rollback. Outside of any transaction (a reaction, which runs after the command that set
-    /// it off committed) the step runs immediately, and the outbox is relayed at once: what it
-    /// stored is published now, not at the next commit.
+    /// rollback. Outside of any transaction (a handler's unit test calling `execute()` directly;
+    /// a reaction has a transaction of its own, ADR 30) the step runs immediately, and the
+    /// outbox is relayed at once: what it stored is published now, not at the next commit.
     pub async fn before_commit(&self, step: impl Future<Output = ()> + Send + 'static) {
         {
             let mut state = self.state();
@@ -383,6 +404,9 @@ mod tests {
         fn outbox(&self) -> &dyn Outbox {
             &self.outbox
         }
+        fn another(&self) -> Arc<dyn UnitOfWork> {
+            Arc::new(RecordingUnitOfWork { log: self.log.clone(), ..RecordingUnitOfWork::default() })
+        }
     }
 
     /// Runs `work` to its end and hands back what it panicked with, if it did, as text.
@@ -583,6 +607,29 @@ mod tests {
         .expect("committed");
 
         assert_eq!(uow.entries(), ["begin", "outer work", "commit", "inner callback"]);
+    }
+
+    #[test]
+    fn derives_the_context_of_a_reaction_the_same_caller_trace_and_bus_and_a_unit_of_work_of_its_own() {
+        let uow = Arc::new(RecordingUnitOfWork::default());
+        let context = ExecutionContext::new(ExecutionContextOptions {
+            trace_id: "trace".into(),
+            auth: Auth::of("alice", "USER"),
+            event_bus: Arc::new(RecordingBus(uow.log.clone())),
+            unit_of_work: Some(uow.clone()),
+            logger: None,
+        });
+        pollster::block_on(uow.begin_transaction()); // the publisher's, still open while it relays
+
+        let reaction = context.for_reaction();
+        pollster::block_on(reaction.with_transaction(|| async { Ok(()) })).expect("committed");
+
+        assert_eq!(reaction.trace_id(), "trace");
+        assert_eq!(reaction.auth(), &Auth::of("alice", "USER"));
+        assert!(Arc::ptr_eq(reaction.event_bus(), context.event_bus()));
+        assert!(uow.has_active_transaction()); // the publisher's transaction is untouched
+        assert_eq!(uow.entries(), ["begin", "begin", "commit"]); // the reaction's, on another unit of work
+        assert!(context_with(None).for_reaction().unit_of_work().is_none());
     }
 
     #[test]

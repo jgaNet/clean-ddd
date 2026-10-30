@@ -1,8 +1,9 @@
 //! Where a domain event leaves its context. The handler owns the translation from the Notes
 //! vocabulary (`NoteEvent::Shared`, internal) to the published one
 //! (`NoteIntegrationEvent::Shared`, shared kernel). Nothing else about Notes crosses the border.
+//! The fact goes out through the outbox, when the reaction's own transaction commits (ADR 30).
 
-use architecture_application::{EventHandler, ExecutionContext};
+use architecture_application::{EventHandler, ExecutionContext, publish_integration_event};
 use architecture_domain::DomainResult;
 use notes_domain::note::NoteEvent;
 use shared_kernel_application::integration_events::note_integration_events::NoteIntegrationEvent;
@@ -21,7 +22,8 @@ impl EventHandler for NoteSharedHandler {
             logger.debug(context.trace_id(), &format!("Note {note_id} shared with {recipient_id}"));
         }
 
-        context.publish(NoteIntegrationEvent::Shared { note_id, title, owner_id, recipient_id }).await;
+        publish_integration_event(NoteIntegrationEvent::Shared { note_id, title, owner_id, recipient_id }, context)
+            .await;
 
         Ok(())
     }

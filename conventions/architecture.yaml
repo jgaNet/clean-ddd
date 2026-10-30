@@ -305,15 +305,18 @@ rules:
 
   - id: EVENT-AFTER-COMMIT
     name: domain-events-publish-after-commit
-    statement: Domain events are made durable with the state they describe, in the same transaction (the outbox), and published from there after the commit — never before, and never from memory alone; a rolled-back transaction stores nothing and leaves the events on the aggregate; a fact a crash kept from being published is published on the next relay, so a subscriber may see a fact twice and the bus delivers a message it already delivered once only.
+    statement: Domain events are made durable with the state they describe, in the same transaction (the outbox), and published from there after the commit — never before, and never from memory alone; a rolled-back transaction stores nothing and leaves the events on the aggregate; a fact a crash kept from being published is published on the next relay, so a subscriber may see a fact twice and the bus delivers a message it already delivered once only; a reaction runs in a transaction of its own, and what it saves and what it publishes are made durable and published the same way.
     why: Listeners must only ever see facts that are durable, and every durable fact must reach them; publishing from memory after the commit loses the facts a crash interrupts, so the facts are stored first and at-least-once delivery is paid for with idempotent delivery.
     remediation: >-
       Call `publishDomainEvents()`: it appends the aggregate's events to the unit of work's outbox at commit and the
       context relays the outbox after it; never publish from inside a behaviour; carry the entry's id as the message's
-      id, and let the bus recognise it.
+      id, and let the bus recognise it. In a reaction, the base handler opens the transaction: save, call
+      `publishDomainEvents()` or `publishIntegrationEvent()`, and return a failed Result to undo all of it — never publish
+      straight to the bus, and never make the reaction idempotent by hand.
     enforcement: tests
     references:
       - docs/adr/0003-publish-domain-events-after-commit.md
+      - docs/adr/0030-a-reaction-is-a-transaction-of-its-own.md
       - docs/adr/0024-events-are-durable-before-they-are-published.md
 
   - id: QUERY-READ-MODELS

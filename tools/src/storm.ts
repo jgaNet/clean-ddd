@@ -367,7 +367,9 @@ function inspectContext(
       name: handlerName,
       file: handler?.path ?? '',
       on,
-      publishes: unique([...text.matchAll(/publish\(\s*(\w+)IntegrationEvent\.set\(/g)].map(match => match[1])),
+      publishes: unique(
+        [...text.matchAll(/publish(?:IntegrationEvent)?\(\s*(\w+)IntegrationEvent\.set\(/g)].map(match => match[1]),
+      ),
       dispatches: unique(
         [...text.matchAll(/(?:dispatch|publish)\(\s*(\w+)CommandEvent\.set\(/g)].map(match => match[1]),
       ),

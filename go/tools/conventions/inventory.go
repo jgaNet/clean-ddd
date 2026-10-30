@@ -30,10 +30,10 @@ import (
 // (ARCH-MODULES-DATA); an aggregate (a struct embedding domain.AggregateRoot) whose behaviours
 // Record() their events (DOMAIN-RECORDS-EVENTS); a handler that asks kernel.RequireSignedIn()
 // or guards with a Guard() on a role, reaches a behaviour directly or through a service, and
-// publishes an integration event with ctx.Publish(); a routes file whose mux.HandleFunc()
-// patterns build the command or name the query handler they carry. A shape it does not
-// recognise is a shape the guides do not teach; the remedy is the canonical shape, not a looser
-// reading. The names are the public ones the API and the Tracker use (API-ONE-SURFACE): the
+// publishes an integration event with application.PublishIntegrationEvent() (a decorated bus,
+// which is no reaction, with Publish()); a routes file whose mux.HandleFunc() patterns build the
+// command or name the query handler they carry. A shape it does not recognise is a shape the
+// guides do not teach; the remedy is the canonical shape, not a looser reading. The names are the public ones the API and the Tracker use (API-ONE-SURFACE): the
 // type name without the suffix of its kind.
 
 const (
@@ -996,11 +996,16 @@ func (c *contextShapes) executeParam(ref handlerRef) string {
 }
 
 // publishesIn is the integration events a set of functions publish, by public name: built in a
-// body that calls Publish(), inline (`ctx.Publish(integrationevents.X{…})`) or through a variable.
+// body that calls PublishIntegrationEvent() — a reaction, through the outbox (ADR 30):
+// `application.PublishIntegrationEvent(integrationevents.X{…}, ctx)` — or Publish() — the
+// Tracker's decorated bus, which is not a reaction — inline or through a variable.
 func publishesIn(funcs []*ast.FuncDecl) []string {
 	var found []string
 	for _, fn := range funcs {
-		if fn.Body == nil || !callsMethod(fn.Body, "Publish") {
+		if fn.Body == nil {
+			continue
+		}
+		if !callsMethod(fn.Body, "PublishIntegrationEvent") && !callsMethod(fn.Body, "Publish") {
 			continue
 		}
 		for _, name := range compositeTypes(fn.Body, "IntegrationEvent") {

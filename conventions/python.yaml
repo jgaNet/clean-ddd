@@ -214,7 +214,7 @@ checklists:
     parts:
       - 'A frozen dataclass extending `IntegrationEvent` per fact the publishing context tells the others, in its public words, in that context''s file.'
       - 'A payload carrying everything a consumer needs, so it never queries back.'
-      - 'A domain event handler in the publishing context that translates the domain event into it — that is where a fact leaves its context.'
+      - 'A domain event handler in the publishing context that translates the domain event into it and calls `publish_integration_event()` — that is where a fact leaves its context, through the outbox, never straight to the bus.'
       - 'An anti-corruption handler in each consuming context, registered in its `module_local.py`.'
       - 'Adding one is not an architecture change: the package is where a context publishes, and a feature may publish.'
   event-handler:
@@ -222,6 +222,8 @@ checklists:
     parts:
       - 'A class extending `EventHandler`, `execute()` taking the event and the context, returning a `Result`; no guard — the fact was already allowed.'
       - 'A reaction inside its own context, or the translation of a domain event into an integration event, or an anti-corruption layer over another context''s contract.'
+      - 'It runs in a transaction of its own, opened by the base class (ADR 30): save what it changes, call `publish_domain_events()` for an aggregate it changed and `publish_integration_event()` for a fact it tells other contexts, and return a `Failure` to undo all of it. It is not made idempotent by hand: a fan-out that fails half-way is undone whole, and the bus hands a fact to it once.'
+      - 'The facts it publishes carry what the consumer needs as it was at that moment (who the note was shared with when it was archived), in the domain event, rather than read back later; a time in an integration event''s payload is an ISO 8601 string (`datetime.isoformat()`).'
       - 'Listed in `module_local.py` under the domain events or the integration events, on the event''s class.'
       - 'A `test_<name>_handler.py` beside it.'
   context:

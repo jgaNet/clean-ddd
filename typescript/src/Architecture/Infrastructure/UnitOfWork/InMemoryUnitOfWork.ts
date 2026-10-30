@@ -54,4 +54,9 @@ export class InMemoryUnitOfWork implements UnitOfWork {
   hasActiveTransaction(): boolean {
     return this.#restore !== null;
   }
+
+  /** The same stores and outbox, for a transaction of its own: a reaction's (ADR 30). */
+  another(): UnitOfWork {
+    return new InMemoryUnitOfWork(this.stores, this.outbox);
+  }
 }

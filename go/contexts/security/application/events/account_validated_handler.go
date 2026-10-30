@@ -13,6 +13,6 @@ type AccountValidatedHandler struct{}
 
 func (AccountValidatedHandler) Execute(event account.AccountValidatedEvent, ctx *application.ExecutionContext) error {
 	ctx.Log().Debug(fmt.Sprintf("Account %s validated", event.AccountID), application.Meta{"traceId": ctx.TraceID()})
-	ctx.Publish(integrationevents.AccountValidatedIntegrationEvent{AccountID: event.AccountID, Email: event.Email})
+	application.PublishIntegrationEvent(integrationevents.AccountValidatedIntegrationEvent{AccountID: event.AccountID, Email: event.Email}, ctx)
 	return nil
 }

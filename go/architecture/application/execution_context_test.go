@@ -95,6 +95,8 @@ func (u *fakeUnitOfWork) HasActiveTransaction() bool { return u.active }
 
 func (u *fakeUnitOfWork) Outbox() Outbox { return u.outbox }
 
+func (u *fakeUnitOfWork) Another() UnitOfWork { return &fakeUnitOfWork{outbox: u.outbox} }
+
 func contextWith(unitOfWork UnitOfWork) *ExecutionContext {
 	return NewExecutionContext(Options{TraceID: "trace", EventBus: noBus{}, Auth: Auth{}, UnitOfWork: unitOfWork})
 }

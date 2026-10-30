@@ -79,3 +79,9 @@ func (u *InMemoryUnitOfWork) RollbackTransaction() error {
 func (u *InMemoryUnitOfWork) HasActiveTransaction() bool { return u.active }
 
 func (u *InMemoryUnitOfWork) Outbox() application.Outbox { return u.outbox }
+
+// Another is a unit of work over the same stores and the same outbox, for a transaction of its
+// own: a reaction's (ADR 30).
+func (u *InMemoryUnitOfWork) Another() application.UnitOfWork {
+	return &InMemoryUnitOfWork{stores: u.stores, outbox: u.outbox}
+}

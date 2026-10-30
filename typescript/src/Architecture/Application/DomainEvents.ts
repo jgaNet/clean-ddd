@@ -1,4 +1,4 @@
-import { AggregateRoot } from '@Architecture/Domain';
+import { AggregateRoot, Event, IntegrationEvent } from '@Architecture/Domain';
 import { EventBus } from '@Architecture/Application/EventBus';
 import { ExecutionContext } from '@Architecture/Application/ExecutionContext';
 
@@ -15,17 +15,32 @@ import { ExecutionContext } from '@Architecture/Application/ExecutionContext';
  * events go straight to the bus once the use case has succeeded, as `afterCommit` promises.
  */
 export function publishDomainEvents(aggregate: AggregateRoot, context: ExecutionContext): void {
+  durable(() => aggregate.pullDomainEvents(), context);
+}
+
+/**
+ * Tells other contexts a fact the way a domain event is told (ADR 30): appended to the outbox
+ * when the reaction's transaction commits, relayed after it, under the entry's id. The reaction
+ * that translates a domain event into the published contract calls it; nothing publishes an
+ * integration event straight to the bus, where a rollback could not take it back.
+ */
+export function publishIntegrationEvent(event: IntegrationEvent<unknown>, context: ExecutionContext): void {
+  durable(() => [event], context);
+}
+
+/** At commit, the events are appended to the outbox; without a unit of work, published once the use case has succeeded. */
+function durable(events: () => Event<unknown>[], context: ExecutionContext): void {
   const outbox = context.unitOfWork?.outbox;
   if (!outbox) {
     context.afterCommit(() => {
-      for (const event of aggregate.pullDomainEvents()) {
+      for (const event of events()) {
         context.eventBus.publish(event, context);
       }
     });
     return;
   }
   context.beforeCommit(() => {
-    outbox.append(aggregate.pullDomainEvents());
+    outbox.append(events());
   });
 }
 

@@ -218,14 +218,16 @@ checklists:
     parts:
       - 'An enum of the facts the publishing context tells the others, in its public words, `impl Event` with the published name and `impl IntegrationEvent`, in that context''s file.'
       - 'A payload carrying everything a consumer needs, so it never queries back.'
-      - 'A domain event handler in the publishing context that translates the domain event into it — that is where a fact leaves its context.'
+      - 'A domain event handler in the publishing context that translates the domain event into it and calls `publish_integration_event(event, context).await` — that is where a fact leaves its context, through the outbox, never straight to the bus.'
       - 'An anti-corruption handler in each consuming context (`events/<name>_handler.rs`, like [`notifications/.../note_shared_handler.rs`](src/contexts/notifications/application/src/events/note_shared_handler.rs)), listed in its wiring crate under `integration_events`, on the contract''s published name.'
       - 'Adding one is not an architecture change: the module is where a context publishes, and a feature may publish.'
   event-handler:
     place: src/contexts/<context>/application/src/events/<name>_handler.rs
     parts:
       - '`impl EventHandler` with `type Event` the aggregate''s enum; `execute()` matches the variant its channel carries and returns a `DomainResult`; no guard — the fact was already allowed.'
-      - 'A reaction inside its own context, or the translation of a domain event into an integration event (`context.publish(...)`), or an anti-corruption layer over another context''s contract.'
+      - 'A reaction inside its own context, or the translation of a domain event into an integration event (`publish_integration_event(...)`), or an anti-corruption layer over another context''s contract.'
+      - 'It runs in a transaction of its own, opened by the provided `handle()` (ADR 30): save what it changes, call `publish_domain_events()` for an aggregate it changed and `publish_integration_event()` for a fact it tells other contexts — never `context.publish()`, which goes straight to the bus, where a rollback could not take it back — and return an `Err` to undo all of it. It is not made idempotent by hand: a fan-out that fails half-way is undone whole, and the bus hands a fact to it once.'
+      - 'The facts it publishes carry what the consumer needs as it was at that moment (who the note was shared with when it was archived), in the domain event, rather than read back later; a time in an integration event''s payload is an ISO 8601 `String`.'
       - 'Listed in the wiring crate with `Subscription::reaction("<TheFact>", handler)`, under the domain events or the integration events.'
       - 'A `#[cfg(test)] mod tests` beside it.'
   context:

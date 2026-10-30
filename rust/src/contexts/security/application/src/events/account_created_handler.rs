@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use architecture_application::{EventHandler, ExecutionContext};
+use architecture_application::{EventHandler, ExecutionContext, publish_integration_event};
 use architecture_domain::DomainResult;
 use security_domain::account::{AccountEvent, AccountStatus};
 use security_domain::auth::ports::signed_tokens::SignedTokens;
@@ -37,7 +37,8 @@ impl<T: SignedTokens + Send + Sync + 'static> EventHandler for AccountCreatedHan
             .tokens
             .issue(TokenPayload { subject_id: account_id.clone(), subject_type: VALIDATION_TOKEN.into() })
             .await;
-        context.publish(AccountIntegrationEvent::Created { account_id, email, validation_token }).await;
+        publish_integration_event(AccountIntegrationEvent::Created { account_id, email, validation_token }, context)
+            .await;
         Ok(())
     }
 }

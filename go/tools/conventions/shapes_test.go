@@ -241,3 +241,31 @@ func TestASubscriptionLiteralWhoseChannelGoesThroughAnAliasFallsBackToWhatExecut
 		edit{notesModule, beforeModule, "type share = commands.ShareNoteCommandEvent\n\n" + beforeModule},
 	))
 }
+
+// What a reaction publishes is read from the call that sends it through the outbox (ADR 30):
+// the contract built inline or held in a variable is read; a contract built and sent nowhere is
+// a policy that tells nobody, caught by the inventory.
+
+const (
+	noteSharedReaction = "go/contexts/notes/application/events/note_shared_handler.go"
+	noteSharedSent     = "application.PublishIntegrationEvent(integrationevents.NoteSharedIntegrationEvent{"
+	noteSharedClosed   = "\t}, ctx)\n\treturn nil"
+)
+
+func TestAReactionPublishingItsContractThroughAVariableIsRecognised(t *testing.T) {
+	assertRecognised(t, probe(t,
+		edit{noteSharedReaction, noteSharedSent, "contract := integrationevents.NoteSharedIntegrationEvent{"},
+		edit{noteSharedReaction, noteSharedClosed, "\t}\n\tapplication.PublishIntegrationEvent(contract, ctx)\n\treturn nil"},
+	))
+}
+
+func TestAReactionBuildingItsContractAndSendingItNowhereIsCaughtByTheInventory(t *testing.T) {
+	verdict := probe(t,
+		edit{noteSharedReaction, noteSharedSent, "_ = integrationevents.NoteSharedIntegrationEvent{"},
+		edit{noteSharedReaction, noteSharedClosed, "\t}\n\treturn nil"},
+	)
+	assertCaught(t, verdict, nil, []string{
+		staleInventory,
+		"ARCH-ONE-APPLICATION: Notes: the policy on NoteShared differs: publishes [NoteShared] → []",
+	})
+}

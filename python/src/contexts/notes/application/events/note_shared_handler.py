@@ -1,7 +1,9 @@
 """Where a domain event leaves its context. The handler owns the translation from the Notes
 vocabulary (NoteSharedEvent, internal) to the published one (NoteSharedIntegrationEvent, shared
-kernel). Nothing else about Notes crosses the border."""
+kernel). Nothing else about Notes crosses the border. The fact goes out through the outbox, when
+the reaction's own transaction commits (ADR 30)."""
 
+from architecture.application.domain_events import publish_integration_event
 from architecture.application.event_handler import EventHandler
 from architecture.application.execution_context import ExecutionContext
 from architecture.domain.result import Result, Success
@@ -16,7 +18,7 @@ class NoteSharedHandler(EventHandler[NoteSharedEvent]):
                 f"Note {event.note_id} shared with {event.recipient_id}", {"traceId": context.trace_id}
             )
 
-        context.event_bus.publish(
+        publish_integration_event(
             NoteSharedIntegrationEvent(
                 note_id=event.note_id,
                 title=event.title,

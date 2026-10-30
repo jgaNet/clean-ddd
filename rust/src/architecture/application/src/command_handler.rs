@@ -314,6 +314,9 @@ mod tests {
         fn outbox(&self) -> &dyn Outbox {
             &self.outbox
         }
+        fn another(&self) -> Arc<dyn UnitOfWork> {
+            Arc::new(Recorder::default())
+        }
     }
 
     fn greet(name: &str, then: Option<&'static str>) -> Greet {
