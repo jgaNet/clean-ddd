@@ -94,7 +94,7 @@ jobs:
       - name: The API every language answers
         run: |
           yarn build
-          PORT=10000 WEB_ORIGINS=http://127.0.0.1:8080 node dist/application.js > server.log 2>&1 &
+          PORT=10000 WEB_ORIGINS=http://127.0.0.1:8080 ADMIN_IDENTIFIER=admin@admin.fr ADMIN_PASSWORD=admin node dist/application.js > server.log 2>&1 &
           ../.github/wait-for-health.sh http://127.0.0.1:10000 || (cat server.log; exit 1)
           node ../api/scenario.mjs http://127.0.0.1:10000 --origin http://127.0.0.1:8080 || (cat server.log; exit 1)
 
@@ -137,7 +137,7 @@ jobs:
       - name: The API every language answers
         run: |
           cargo build -q -p bootstrap
-          PORT=10000 WEB_ORIGINS=http://127.0.0.1:8080 ./target/debug/application > server.log 2>&1 &
+          PORT=10000 WEB_ORIGINS=http://127.0.0.1:8080 ADMIN_IDENTIFIER=admin@admin.fr ADMIN_PASSWORD=admin ./target/debug/application > server.log 2>&1 &
           ../.github/wait-for-health.sh http://127.0.0.1:10000 || (cat server.log; exit 1)
           node ../api/scenario.mjs http://127.0.0.1:10000 --origin http://127.0.0.1:8080 || (cat server.log; exit 1)
 
@@ -183,7 +183,7 @@ jobs:
         run: |
           # The server runs from the environment uv sync built, not under uv run: a uv process left running
           # holds the cache lock, and setup-uv's cache pruning waits on it until the job fails.
-          PORT=10000 WEB_ORIGINS=http://127.0.0.1:8080 .venv/bin/python -m bootstrap > server.log 2>&1 &
+          PORT=10000 WEB_ORIGINS=http://127.0.0.1:8080 ADMIN_IDENTIFIER=admin@admin.fr ADMIN_PASSWORD=admin .venv/bin/python -m bootstrap > server.log 2>&1 &
           SERVER=$!
           trap 'kill $SERVER' EXIT
           ../.github/wait-for-health.sh http://127.0.0.1:10000 || (cat server.log; exit 1)
@@ -230,7 +230,7 @@ jobs:
       - name: The API every language answers
         run: |
           go build -o /tmp/application ./bootstrap/cmd/application
-          PORT=10000 WEB_ORIGINS=http://127.0.0.1:8080 /tmp/application > server.log 2>&1 &
+          PORT=10000 WEB_ORIGINS=http://127.0.0.1:8080 ADMIN_IDENTIFIER=admin@admin.fr ADMIN_PASSWORD=admin /tmp/application > server.log 2>&1 &
           ../.github/wait-for-health.sh http://127.0.0.1:10000 || (cat server.log; exit 1)
           node ../api/scenario.mjs http://127.0.0.1:10000 --origin http://127.0.0.1:8080 || (cat server.log; exit 1)
 

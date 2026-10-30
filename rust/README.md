@@ -245,7 +245,7 @@ cargo run -p bootstrap-starter              # the composition a created applicat
 node ../api/scenario.mjs http://127.0.0.1:10000   # the API every language answers, walked against that server
 ```
 
-Then, as a client would: `POST /v1/auth/login` with `{ "identifier": "admin@admin.fr", "password": "admin" }` answers a token; `POST /v1/notes` with it answers `202 { operationId }`; `GET /v1/tracker/operations/<operationId>` says how it went; `GET /v1/notes` lists the note. Or as a browser would: open `http://127.0.0.1:10000/`, log in, write a note, and watch the outcome arrive over the websocket. The documents of this directory are rendered from the contract by the TypeScript tooling, which reads every binding: after editing `conventions/rust.yaml`, run `yarn --cwd ../typescript conventions:write`.
+Then, as a client would: `POST /v1/auth/login` with `{ "identifier": "admin@admin.fr", "password": "admin" }` (the server started with `ADMIN_IDENTIFIER=admin@admin.fr ADMIN_PASSWORD=admin`; without both, it seeds no administrator) answers a token; `POST /v1/notes` with it answers `202 { operationId }`; `GET /v1/tracker/operations/<operationId>` says how it went; `GET /v1/notes` lists the note. Or as a browser would: open `http://127.0.0.1:10000/`, log in, write a note, and watch the outcome arrive over the websocket. The documents of this directory are rendered from the contract by the TypeScript tooling, which reads every binding: after editing `conventions/rust.yaml`, run `yarn --cwd ../typescript conventions:write`.
 
 ## Vocabulary
 

@@ -6,6 +6,11 @@ const tsconfig = createRequire(import.meta.url)('./tsconfig.json');
 
 const isCI = process.env.CI === 'true';
 
+// The end-to-end suites sign in as the administrator the application is seeded with, and it seeds
+// one only when both are set (there is no default), so the test run sets them.
+process.env.ADMIN_IDENTIFIER ||= 'admin@admin.fr';
+process.env.ADMIN_PASSWORD ||= 'admin';
+
 export default {
   verbose: true,
   collectCoverage: false,

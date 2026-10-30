@@ -70,9 +70,18 @@ func SettingsFromEnv() Settings {
 			URL:       env("PROTOCOL", "http") + "://" + env("BASE_URL", "localhost") + ":" + strconv.Itoa(port) + "/" + prefix,
 			FromEmail: env("FROM_EMAIL", "noreply@example.com"),
 		},
-		AdminAccount: &AdminAccount{Identifier: env("ADMIN_IDENTIFIER", "admin@admin.fr"), Password: env("ADMIN_PASSWORD", "admin")},
+		AdminAccount: adminAccountFrom(os.Getenv("ADMIN_IDENTIFIER"), os.Getenv("ADMIN_PASSWORD")),
 		WebOrigins:   origins,
 	}
+}
+
+// adminAccountFrom is the administrator the application is seeded with when both are set, and nil
+// otherwise, never a default: known credentials would open every deployment that forgot them.
+func adminAccountFrom(identifier, password string) *AdminAccount {
+	if identifier == "" || password == "" {
+		return nil
+	}
+	return &AdminAccount{Identifier: identifier, Password: password}
 }
 
 // randomSecret is the secret the tokens are signed with when JWT_SECRET is unset: drawn for this

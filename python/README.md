@@ -237,7 +237,7 @@ uv run python -m bootstrap                  # serves http://localhost:10000 (POR
 node ../api/scenario.mjs http://127.0.0.1:10000   # the API every language answers, walked against that server
 ```
 
-Once it serves: `GET /v1` is the home, `/v1/docs` the OpenAPI page, `/` the HTMX front end; `POST /v1/auth/login` with `{ "identifier": "admin@admin.fr", "password": "admin" }` answers the token the other routes take as `Authorization: Bearer`, and a `202` is followed at `GET /v1/tracker/operations/{operationId}`. The documents of this directory are rendered from the contract by the TypeScript tooling, which reads every binding: after editing `conventions/python.yaml`, run `yarn --cwd ../typescript conventions:write`.
+Once it serves: `GET /v1` is the home, `/v1/docs` the OpenAPI page, `/` the HTMX front end; `POST /v1/auth/login` with `{ "identifier": "admin@admin.fr", "password": "admin" }` (the server started with `ADMIN_IDENTIFIER=admin@admin.fr ADMIN_PASSWORD=admin`; without both, it seeds no administrator) answers the token the other routes take as `Authorization: Bearer`, and a `202` is followed at `GET /v1/tracker/operations/{operationId}`. The documents of this directory are rendered from the contract by the TypeScript tooling, which reads every binding: after editing `conventions/python.yaml`, run `yarn --cwd ../typescript conventions:write`.
 
 ## Vocabulary
 
