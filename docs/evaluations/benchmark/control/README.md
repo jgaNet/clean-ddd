@@ -25,7 +25,7 @@ Everything else is A's protocol ([the benchmark](../README.md)):
 
 **Runs.** Three of P and two of D, run two at a time on the same four-CPU machine. The A runs are phase 4's own. They ran earlier the same day, under the same pairing, from the same tooling.
 
-**Then a change.** One P tree and one D tree each take feature 8, team spaces ([its kit](../feature-8/README.md)), in a continued conversation, as A's pilot tree did. It is the largest change of the benchmark: it touches six contexts, and three of them are new.
+**Then a change.** One P tree and one D tree each take feature 8, team spaces ([its kit](../feature-8/README.md)), given to one fresh agent, as A's pilot tree was. It is the largest change of the benchmark: it touches six contexts, and three of them are new.
 
 ## What is measured
 
