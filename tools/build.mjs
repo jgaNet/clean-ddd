@@ -6,7 +6,7 @@
  * same way. ESLint is never bundled: the import rules are asked of the language's own linter.
  */
 import { execFileSync } from 'child_process';
-import { chmodSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import * as esbuild from 'esbuild';
@@ -74,5 +74,12 @@ for (const language of contract.languages) {
   // The contexts a created application starts with keep their description in the map and, where the
   // language's tool commits one, their lines of the inventory.
   if (binding.create.inventory) copyInto(`docs/inventory/${language}.json`);
+  // The files the binding names as showing each concept: what `pack` gives a slice to read for a
+  // shape the project has no example of yet (RFC gap G7).
+  for (const concept of Object.values(binding.concepts ?? {})) {
+    for (const path of [...(concept.canonical ?? []), ...(concept.examples ?? [])]) {
+      if (existsSync(join(root, binding.root, path))) copyInto(join(binding.root, path));
+    }
+  }
 }
 process.stdout.write('✓ tools/dist: cli.js, index.js, the declarations, the reference for create\n');

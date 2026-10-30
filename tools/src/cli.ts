@@ -16,6 +16,8 @@
  *   yarn architecture mode architecture [--base <ref>] does it record the decision it makes
  *   yarn architecture gate [--base <ref>]     is this change done: the feature mode, the conventions check and the
  *                                             language's checks, one verdict (--json for a script; exit 1 when it fails)
+ *   yarn architecture pack --plan <file>      one slice of a feature: what is its to write, what is another slice's,
+ *                                             the frozen contracts, the storm's part, the examples to read
  *   yarn architecture plan validate <file>    is this intended change legal, before writing it
  *   yarn architecture plan explain <file>     the files, rules and examples it implies
  *   yarn architecture domain                  the subdomains and the context map, its contracts read from the code
@@ -49,6 +51,7 @@ import { loadArchitectureContract, repositoryRoot, typedFrom } from './load';
 import { checkConventions } from './check';
 import { canImportAll, getChecklist, getConcept, getRule, getVerbs, rulesOf } from './query';
 import { explainPlan, loadFeaturePlan, validatePlan } from './plan';
+import { describePack, packSlice } from './pack';
 import { changedFiles, checkMode } from './modes';
 import { DOMAIN_FILE, describeContext, describeDomain, inspectContextLinks, loadDomainMap } from './domain';
 import { describeEventStorm, inspectEventStorm, renderEventStorm, renderEventStormSvg, renderProcess } from './storm';
@@ -474,6 +477,23 @@ async function main(): Promise<void> {
       const report = await runGate({ root, base, language: contract.language.id });
       out(report, () => describeGate(report));
       return process.exit(report.verdict === 'pass' ? 0 : 1);
+    }
+    case 'pack': {
+      const file = rest.includes('--plan') ? rest[rest.indexOf('--plan') + 1] : rest[0];
+      if (!file) return fail('usage', 'usage: yarn architecture pack --plan <file>');
+      let plan;
+      try {
+        plan = loadFeaturePlan(fromHere(file), root);
+      } catch (error) {
+        if (error instanceof ContractError) return fail(error.code, error.message);
+        throw error;
+      }
+      const bound =
+        plan.language && plan.language !== contract.language.id && contract.languages.includes(plan.language)
+          ? loadArchitectureContract(root, plan.language)
+          : contract;
+      const pack = packSlice(plan, bound, root, fromHere(file));
+      return out(pack, () => describePack(pack));
     }
     case 'plan': {
       const [action, file] = rest;

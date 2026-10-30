@@ -59,6 +59,9 @@ clean-ddd plan validate|explain <file>      a feature plan, before the code
 clean-ddd mode feature|architecture [--base <ref>|--base working]   which rules this change is held to
 clean-ddd gate [--base <ref>]      is this change done: the feature mode, the conventions check and the language's
                                   `checks`, one verdict; --json for a script, exit 1 when it fails
+clean-ddd pack --plan <file>      one slice of a feature: what is its own to write, what another slice writes, the frozen
+                                  contracts, the storm's part, the files that show each shape (from the bundled reference
+                                  when the project has none yet); --json for a driver
 clean-ddd create <dir> [--name <app>] [--language <id>]   a new application on this architecture, in that language
 clean-ddd check [--write]         the conventions check; --write regenerates what it holds
 ```
