@@ -71,6 +71,6 @@ Every campaign so far found defects in its own kit while grading, after the agen
 - **Solvability.** A test that fails on every solved tree, in more than one tree, is a `defect`. One that fails on some is `read`.
 - **Regression.** With `regression:` (the kit of the features the trees already had), an earlier feature's test that passes before and fails on a solved tree is `read`: a regression, or an assertion a new feature supersedes.
 
-[`dry-run.test.mjs`](dry-run.test.mjs) holds the verdict to the defects the earlier kits had. A kit is rehearsed before its campaign, and its report is committed with the kit.
+[`dry-run.test.mjs`](dry-run.test.mjs) holds the verdict to the defects the earlier kits had. A kit is rehearsed before its campaign, and its report is committed with the kit. Run on the horizon kit as it was before its runs, it finds all three of that kit's amendments.
 
 It is a script on purpose. It holds no state but the log (and, while it runs, a lock and the leases); several features at once is a later phase of the RFC, and comes only if the measurements justify it.

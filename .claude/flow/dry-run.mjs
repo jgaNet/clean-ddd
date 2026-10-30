@@ -46,8 +46,11 @@ export function judge(gradings, { features, regressionFeatures = [] }) {
   const findings = [];
   const add = (level, feature, message) => findings.push({ level, feature, message });
 
+  // One finding per hygiene problem, with every tree it was found in: the kit's file is the same everywhere.
+  const hygiene = new Map();
   for (const each of gradings)
-    for (const line of each.hygiene ?? []) add('defect', undefined, `${each.tree} (${each.role}): ${line}`);
+    for (const line of each.hygiene ?? []) hygiene.set(line, [...(hygiene.get(line) ?? []), each.tree]);
+  for (const [line, trees] of hygiene) add('defect', undefined, `${line} (in ${[...new Set(trees)].join(', ')})`);
 
   const befores = gradings.filter(each => each.role === 'before');
   const solveds = gradings.filter(each => each.role === 'solved');
@@ -88,6 +91,17 @@ export function kitLines(output, directory) {
     .filter(line => line.includes(directory))
     .map(line => line.trim())
     .slice(0, 10);
+}
+
+/** ESLint's JSON report as one line per problem, `file:line:column: message [rule]` (it has no line format of its own). */
+export function eslintLines(json) {
+  try {
+    return JSON.parse(json)
+      .flatMap(file => file.messages.map(m => `${file.filePath}:${m.line}:${m.column}: ${m.message} [${m.ruleId}]`))
+      .join('\n');
+  } catch {
+    return json;
+  }
 }
 
 function main() {
@@ -133,12 +147,12 @@ function main() {
     const lines = [];
     const format = sh(`npx prettier --check '${directory}/**/*.ts'`);
     if (format.status !== 0) lines.push(...kitLines(format.stdout + format.stderr, directory).map(l => `format: ${l}`));
-    const lint = sh(`npx eslint '${directory}'`);
-    if (lint.status !== 0)
-      lines.push(...kitLines(lint.stdout + lint.stderr, directory).map(l => `lint: ${l}`), 'lint: see eslint above');
+    const lint = sh(`npx eslint --format json '${directory}'`);
+    if (lint.status !== 0) lines.push(...kitLines(eslintLines(lint.stdout), directory).map(l => `lint: ${l}`));
     const types = sh('npx tsc --noEmit -p tsconfig.json');
     lines.push(...kitLines(types.stdout + types.stderr, directory).map(l => `types: ${l}`));
-    return [...new Set(lines.filter(line => line !== 'lint: see eslint above'))];
+    // Paths from the directory on, so that the same problem reads the same in every tree.
+    return [...new Set(lines.map(line => line.replace(new RegExp(`^(\\w+: ).*?(${directory})`), '$1$2')))];
   };
 
   const gradings = [];

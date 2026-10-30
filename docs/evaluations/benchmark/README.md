@@ -69,7 +69,7 @@ The pilot is one run per arm. It proves the harness, the kit and the rubric on t
 
 ## Before a campaign's runs
 
-A kit is rehearsed before any agent runs: `.claude/flow/dry-run.mjs` grades the trees the runs start from, and any tree where the features are already written, against the kit. Its report is committed with the kit. A `defect` is fixed before the runs. A `read` is decided and written in the kit's protocol. The tool holds a kit's files to the trees' own checks and finds a test that tests nothing, one no correct solution passes, or one a later feature supersedes. Every one of those was found by grading in an earlier campaign, after the runs were paid for.
+A kit is rehearsed before any agent runs: `.claude/flow/dry-run.mjs` grades the trees the runs start from, and any tree where the features are already written, against the kit. Its report is committed with the kit. A `defect` is fixed before the runs. A `read` is decided and written in the kit's protocol. The tool holds a kit's files to the trees' own checks and finds a test that tests nothing, one no correct solution passes, or one a later feature supersedes. Every one of those was found by grading in an earlier campaign, after the runs were paid for. Run on the horizon kit as it was before its runs, the rehearsal finds all three of its amendments ([the record](../flow/dry-run/README.md)).
 
 ## Biases, written down before the first run
 

@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { judge, kitLines } from './dry-run.mjs';
+import { eslintLines, judge, kitLines } from './dry-run.mjs';
 
 const features = ['comments', 'delete-account'];
 const graded = (tree, role, passes, extra = {}) => ({ tree, role, features: passes, hygiene: [], ...extra });
@@ -62,6 +62,33 @@ describe('the dry run', () => {
     const output = 'src/app.ts(3,1): error\nsrc/acceptance/9-comments.acceptance.ts(5,7): error TS6133\n';
     assert.deepEqual(kitLines(output, 'src/acceptance'), [
       'src/acceptance/9-comments.acceptance.ts(5,7): error TS6133',
+    ]);
+  });
+
+  it("reads ESLint's JSON report as one line per problem", () => {
+    const report = JSON.stringify([
+      {
+        filePath: '/runs/p2/src/acceptance/13-search.acceptance.ts',
+        messages: [
+          { line: 9, column: 13, message: "'call' is assigned a value but never used.", ruleId: 'no-unused-vars' },
+        ],
+      },
+    ]);
+    assert.equal(
+      eslintLines(report),
+      "/runs/p2/src/acceptance/13-search.acceptance.ts:9:13: 'call' is assigned a value but never used. [no-unused-vars]",
+    );
+  });
+
+  it('groups a problem found in several trees into one finding', () => {
+    const verdict = judge(
+      ['a3', 'd2'].map(tree =>
+        graded(tree, 'before', { comments: false, 'delete-account': false }, { hygiene: ['format: 9-comments'] }),
+      ),
+      { features },
+    );
+    assert.deepEqual(verdict.findings, [
+      { level: 'defect', feature: undefined, message: 'format: 9-comments (in a3, d2)' },
     ]);
   });
 });

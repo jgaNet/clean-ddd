@@ -1,0 +1,227 @@
+{
+  "schemaVersion": 1,
+  "kit": "docs/evaluations/benchmark/extensions/horizon (at 9dd2d5b, before its amendments)",
+  "gradings": [
+    {
+      "tree": "a3",
+      "role": "before",
+      "ref": "0aa7932",
+      "features": {
+        "comments": false,
+        "note-history": false,
+        "editors": false,
+        "delete-account": false,
+        "search": false
+      },
+      "hygiene": [
+        "format: src/Bootstrap/Fastify/Acceptance/11-editors.acceptance.ts",
+        "format: src/Bootstrap/Fastify/Acceptance/12-delete-account.acceptance.ts",
+        "format: src/Bootstrap/Fastify/Acceptance/9-comments.acceptance.ts",
+        "lint: src/Bootstrap/Fastify/Acceptance/13-search.acceptance.ts",
+        "types: src/Bootstrap/Fastify/Acceptance/13-search.acceptance.ts(9,13): error TS6133: 'call' is declared but its value is never read."
+      ],
+      "regression": {
+        "accounts-and-notes": true,
+        "pin-a-note": true,
+        "tag-a-note": true,
+        "share-a-note": true,
+        "notify-on-archive": true,
+        "plan-and-quota": true,
+        "remind-a-note": true
+      }
+    },
+    {
+      "tree": "a3",
+      "role": "solved",
+      "ref": "main",
+      "features": {
+        "comments": true,
+        "note-history": true,
+        "editors": true,
+        "delete-account": false,
+        "search": true
+      },
+      "hygiene": [
+        "format: src/Bootstrap/Fastify/Acceptance/11-editors.acceptance.ts",
+        "format: src/Bootstrap/Fastify/Acceptance/12-delete-account.acceptance.ts",
+        "format: src/Bootstrap/Fastify/Acceptance/9-comments.acceptance.ts",
+        "lint: src/Bootstrap/Fastify/Acceptance/13-search.acceptance.ts",
+        "types: src/Bootstrap/Fastify/Acceptance/13-search.acceptance.ts(9,13): error TS6133: 'call' is declared but its value is never read."
+      ],
+      "regression": {
+        "accounts-and-notes": true,
+        "pin-a-note": true,
+        "tag-a-note": true,
+        "share-a-note": true,
+        "notify-on-archive": true,
+        "plan-and-quota": true,
+        "remind-a-note": true
+      }
+    },
+    {
+      "tree": "d2",
+      "role": "before",
+      "ref": "4d9d5fd",
+      "features": {
+        "comments": false,
+        "note-history": false,
+        "editors": false,
+        "delete-account": false,
+        "search": false
+      },
+      "hygiene": [
+        "format: src/Bootstrap/Fastify/Acceptance/11-editors.acceptance.ts",
+        "format: src/Bootstrap/Fastify/Acceptance/12-delete-account.acceptance.ts",
+        "format: src/Bootstrap/Fastify/Acceptance/9-comments.acceptance.ts",
+        "lint: src/Bootstrap/Fastify/Acceptance/13-search.acceptance.ts",
+        "types: src/Bootstrap/Fastify/Acceptance/13-search.acceptance.ts(9,13): error TS6133: 'call' is declared but its value is never read."
+      ],
+      "regression": {
+        "accounts-and-notes": true,
+        "pin-a-note": true,
+        "tag-a-note": true,
+        "share-a-note": true,
+        "notify-on-archive": true,
+        "plan-and-quota": true,
+        "remind-a-note": true
+      }
+    },
+    {
+      "tree": "d2",
+      "role": "solved",
+      "ref": "main",
+      "features": {
+        "comments": true,
+        "note-history": true,
+        "editors": true,
+        "delete-account": false,
+        "search": true
+      },
+      "hygiene": [
+        "format: src/Bootstrap/Fastify/Acceptance/11-editors.acceptance.ts",
+        "format: src/Bootstrap/Fastify/Acceptance/12-delete-account.acceptance.ts",
+        "format: src/Bootstrap/Fastify/Acceptance/9-comments.acceptance.ts",
+        "lint: src/Bootstrap/Fastify/Acceptance/13-search.acceptance.ts",
+        "types: src/Bootstrap/Fastify/Acceptance/13-search.acceptance.ts(9,13): error TS6133: 'call' is declared but its value is never read."
+      ],
+      "regression": {
+        "accounts-and-notes": true,
+        "pin-a-note": true,
+        "tag-a-note": true,
+        "share-a-note": false,
+        "notify-on-archive": true,
+        "plan-and-quota": true,
+        "remind-a-note": true
+      }
+    },
+    {
+      "tree": "p2",
+      "role": "before",
+      "ref": "d23bdd0",
+      "features": {
+        "comments": false,
+        "note-history": false,
+        "editors": false,
+        "delete-account": false,
+        "search": false
+      },
+      "hygiene": [
+        "format: src/acceptance/11-editors.acceptance.ts",
+        "format: src/acceptance/12-delete-account.acceptance.ts",
+        "format: src/acceptance/9-comments.acceptance.ts",
+        "lint: src/acceptance/13-search.acceptance.ts",
+        "types: src/acceptance/13-search.acceptance.ts(9,13): error TS6133: 'call' is declared but its value is never read."
+      ],
+      "regression": {
+        "accounts-and-notes": true,
+        "pin-a-note": true,
+        "tag-a-note": true,
+        "share-a-note": true,
+        "notify-on-archive": true,
+        "plan-and-quota": true,
+        "remind-a-note": true
+      }
+    },
+    {
+      "tree": "p2",
+      "role": "solved",
+      "ref": "main",
+      "features": {
+        "comments": true,
+        "note-history": true,
+        "editors": true,
+        "delete-account": false,
+        "search": true
+      },
+      "hygiene": [
+        "format: src/acceptance/11-editors.acceptance.ts",
+        "format: src/acceptance/12-delete-account.acceptance.ts",
+        "format: src/acceptance/9-comments.acceptance.ts",
+        "lint: src/acceptance/13-search.acceptance.ts",
+        "types: src/acceptance/13-search.acceptance.ts(9,13): error TS6133: 'call' is declared but its value is never read."
+      ],
+      "regression": {
+        "accounts-and-notes": true,
+        "pin-a-note": true,
+        "tag-a-note": true,
+        "share-a-note": false,
+        "notify-on-archive": true,
+        "plan-and-quota": true,
+        "remind-a-note": true
+      }
+    }
+  ],
+  "verdict": "defect",
+  "findings": [
+    {
+      "level": "defect",
+      "message": "format: src/Bootstrap/Fastify/Acceptance/11-editors.acceptance.ts (in a3, d2)"
+    },
+    {
+      "level": "defect",
+      "message": "format: src/Bootstrap/Fastify/Acceptance/12-delete-account.acceptance.ts (in a3, d2)"
+    },
+    {
+      "level": "defect",
+      "message": "format: src/Bootstrap/Fastify/Acceptance/9-comments.acceptance.ts (in a3, d2)"
+    },
+    {
+      "level": "defect",
+      "message": "lint: src/Bootstrap/Fastify/Acceptance/13-search.acceptance.ts (in a3, d2)"
+    },
+    {
+      "level": "defect",
+      "message": "types: src/Bootstrap/Fastify/Acceptance/13-search.acceptance.ts(9,13): error TS6133: 'call' is declared but its value is never read. (in a3, d2)"
+    },
+    {
+      "level": "defect",
+      "message": "format: src/acceptance/11-editors.acceptance.ts (in p2)"
+    },
+    {
+      "level": "defect",
+      "message": "format: src/acceptance/12-delete-account.acceptance.ts (in p2)"
+    },
+    {
+      "level": "defect",
+      "message": "format: src/acceptance/9-comments.acceptance.ts (in p2)"
+    },
+    {
+      "level": "defect",
+      "message": "lint: src/acceptance/13-search.acceptance.ts (in p2)"
+    },
+    {
+      "level": "defect",
+      "message": "types: src/acceptance/13-search.acceptance.ts(9,13): error TS6133: 'call' is declared but its value is never read. (in p2)"
+    },
+    {
+      "level": "defect",
+      "feature": "delete-account",
+      "message": "fails on every solved tree (a3, d2, p2): suspect the kit first"
+    },
+    {
+      "level": "read",
+      "feature": "share-a-note",
+      "message": "an earlier feature's test fails after the kit's features, on d2, p2: a regression, or an assertion a new feature supersedes"
+    }
+  ]
+}

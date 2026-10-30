@@ -61,6 +61,8 @@ The campaign runs agents unattended, so three changes come first, each with a te
 2. **A budget reserved before an agent starts,** not checked after it finishes.
 3. **A supervisor** that stops an agent past its time, and records why.
 
+**The kit is rehearsed** with [`dry-run.mjs`](../../../../.claude/flow/dry-run.mjs) on the six trees before the runs, and its report is committed here. The starting point above is already its discrimination half, read: the one-process test of 16 passes on every tree, which a rehearsal flags as testing nothing, and the two-process case was added for it. No tree has the three requests written yet, so solvability is held only by a tree written by hand for the purpose.
+
 ## Predictions, written before the runs
 
 These were written after the P2 tree's starting point was graded, and before any other. P2 already passed the chaos test and both concurrency tests. It failed the drill (it has no `FAULT_DRILL`) and the service (it has none).

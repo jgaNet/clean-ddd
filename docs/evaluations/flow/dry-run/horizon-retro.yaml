@@ -1,0 +1,9 @@
+# The horizon kit as it was before its runs (9dd2d5b), rehearsed on E3's trees: what the dry run would have said.
+# Paths are those of the machine that ran it, rewritten to /runs.
+kit: /runs/retro/docs/evaluations/benchmark/extensions/horizon # extracted from 9dd2d5b
+regression: ../../benchmark
+tooling: /runs/clean-ddd-bench.tgz
+trees:
+  - { name: a3, arm: A, project: /runs/e3/a3/app, before: 0aa7932, solved: main }
+  - { name: d2, arm: D, project: /runs/e3/d2/app, before: 4d9d5fd, solved: main }
+  - { name: p2, arm: P, project: /runs/e3/p2/app, before: d23bdd0, solved: main }
