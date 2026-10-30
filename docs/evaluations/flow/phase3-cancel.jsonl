@@ -1,0 +1,9 @@
+{"run":"p3-cancel","event":"started","at":"2026-10-30T07:56:38.963Z","project":"/tmp/claude-0/flow2/notes-app","plan":"/tmp/claude-0/flow3/runs/p3-cancel.yaml","base":"9c4da43","baseCommit":"9c4da43728e26f38a54fe2a0782271e3b9350eec","runner":"claude-cli","model":"main","parallelism":2,"slices":["notes","notifications"]}
+{"run":"p3-cancel","event":"contract","at":"2026-10-30T07:56:45.934Z","checks":[{"name":"storm validate","ok":true},{"name":"plan validate notes","ok":true},{"name":"plan validate notifications","ok":true},{"name":"acceptance exists","ok":true},{"name":"acceptance red at the base","ok":true}],"packs":true}
+{"run":"p3-cancel","event":"slice","at":"2026-10-30T07:56:47.505Z","slice":"notes","state":"READY","worktree":"/tmp/claude-0/flow2/notes-app.flow/worktrees/p3-cancel/notes","context":"Notes","plan":"conventions/plans/notify-on-archive.notes.yaml"}
+{"run":"p3-cancel","event":"slice","at":"2026-10-30T07:56:47.734Z","slice":"notifications","state":"READY","worktree":"/tmp/claude-0/flow2/notes-app.flow/worktrees/p3-cancel/notifications","context":"Notifications","plan":"conventions/plans/notify-on-archive.notifications.yaml"}
+{"run":"p3-cancel","event":"slice","at":"2026-10-30T07:56:47.735Z","slice":"notes","state":"RUNNING","attempt":1,"port":18100}
+{"run":"p3-cancel","event":"slice","at":"2026-10-30T07:56:47.737Z","slice":"notifications","state":"RUNNING","attempt":1,"port":18101}
+{"run":"p3-cancel","event":"slice","at":"2026-10-30T07:57:25.769Z","slice":"notes","state":"CANCELLED"}
+{"run":"p3-cancel","event":"slice","at":"2026-10-30T07:57:25.770Z","slice":"notifications","state":"CANCELLED"}
+{"run":"p3-cancel","event":"finished","at":"2026-10-30T07:57:25.770Z","state":"CANCELLED","signal":"SIGTERM","costUsd":0}
