@@ -27,7 +27,7 @@ This repository was built on a bet: an architecture made explicit and enforced m
 
 The work that follows is ordered by what could change that verdict. What the architecture could still win on substance comes before what would only lower its price.
 
-1. **Test what the architecture is for: failures and concurrency.** The outbox, the inbox, reactions in their own transaction and the version check exist for crashes and concurrent writers. No hidden test exercises them yet, so this is the one place where the architecture could still be shown to buy correctness rather than only locality. A robustness campaign is written before it runs, like the others.
+1. **Test what the architecture is for: failures and concurrency.** The outbox, the inbox, reactions in their own transaction and the version check exist for crashes and concurrent writers. No hidden test exercises them yet, so this is the one place where the architecture could still be shown to buy correctness rather than only locality. A robustness campaign is written before it runs, like the others ([its kit](../evaluations/benchmark/robustness/README.md)).
    - **The same requirements for every arm.** The requirements are stated in product words, so the plain arm has to build the guarantees itself:
      - a fact recorded before a crash still reaches the people it concerns after a restart, and reaches them once;
      - two edits of one note at the same moment never lose one silently;
