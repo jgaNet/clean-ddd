@@ -1,6 +1,8 @@
 package bootstrap
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"os"
 	"strconv"
 	"strings"
@@ -60,7 +62,7 @@ func SettingsFromEnv() Settings {
 		Port:      port,
 		APIPrefix: prefix,
 		Security: security.Settings{
-			JWTSecret:    env("JWT_SECRET", "default-development-secret-do-not-use-in-production"),
+			JWTSecret:    env("JWT_SECRET", randomSecret()),
 			JWTExpiresIn: time.Duration(expires) * time.Second,
 			BcryptCost:   cost,
 		},
@@ -71,6 +73,16 @@ func SettingsFromEnv() Settings {
 		AdminAccount: &AdminAccount{Identifier: env("ADMIN_IDENTIFIER", "admin@admin.fr"), Password: env("ADMIN_PASSWORD", "admin")},
 		WebOrigins:   origins,
 	}
+}
+
+// randomSecret is the secret the tokens are signed with when JWT_SECRET is unset: drawn for this
+// process, never a fixed string anyone could sign with. Tokens then do not survive a restart.
+func randomSecret() string {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		panic("no randomness for the token secret: " + err.Error())
+	}
+	return hex.EncodeToString(bytes)
 }
 
 // SettingsForTests are the settings of a test application: a free port, a cheap hash, the

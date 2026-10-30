@@ -3,6 +3,7 @@ with, the administrator the application starts with. Read once, from the environ
 same defaults as the TypeScript settings; the tests build their own."""
 
 import os
+import secrets
 from dataclasses import dataclass
 from datetime import timedelta
 from importlib.metadata import PackageNotFoundError, version
@@ -55,7 +56,8 @@ class Settings:
                 from_email=var("FROM_EMAIL") or "noreply@example.com",
             ),
             security=SecuritySettings(
-                jwt_secret=var("JWT_SECRET") or "default-development-secret-do-not-use-in-production",
+                # Without JWT_SECRET, a secret drawn for this process, never a fixed string anyone could sign with.
+                jwt_secret=var("JWT_SECRET") or secrets.token_hex(32),
                 jwt_expires_in=timedelta(seconds=int(var("JWT_EXPIRES_IN_SECONDS") or 24 * 3600)),
                 bcrypt_cost=int(var("BCRYPT_COST") or 10),
             ),

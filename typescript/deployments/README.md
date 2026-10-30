@@ -57,7 +57,7 @@ The application uses the following environment variables:
 | NODE_ENV         | Environment mode                 | dev                  |
 | PROTOCOL         | HTTP protocol                    | http                 |
 | BASE_URL         | Base URL for the application     | localhost            |
-| JWT_SECRET       | Secret for JWT token signing     | development-secret   |
+| JWT_SECRET       | Secret for JWT token signing     | random, per process (tokens do not survive a restart) |
 | JWT_EXPIRES_IN   | JWT token expiration time        | 24h                  |
 | ADMIN_IDENTIFIER | Admin user identifier (email)    | admin@admin.fr       |
 | ADMIN_PASSWORD   | Admin user password              | admin                |
