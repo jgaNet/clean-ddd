@@ -24,7 +24,7 @@ The two-process case was added after the first starting point was graded: inside
 
 ## The trees and the runs
 
-**The trees.** The campaign starts from the six trees of the extensions' [E4](../../2026-10-30-flow-extensions.md#e4--real-persistence), which already keep everything in SQLite: A runs 2 and 3, D runs 1 and 2, P runs 2 and 3. A crash can only be tested on a tree that survives a restart.
+**The trees.** The campaign starts from the six trees of the extensions' [E4](../../2026-10-30-flow-extensions.md#e4--real-persistence), which already keep everything in SQLite: A runs 2 and 3, D runs 1 and 2, P runs 2 and 3. A crash can only be tested on a tree that survives a restart. They are kept as git bundles, with the graded starting point, in [`flow/robustness/`](../../flow/robustness/README.md), so the runs can start in any container from the same heads.
 
 **The runs.** One fresh agent per tree takes the three requests in order, in one conversation, as in E3, under its arm's driver: the gate and the tooling for A, `yarn verify` for D and P. The requests are non-functional, so they come with no storm.
 
