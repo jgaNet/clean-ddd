@@ -531,4 +531,4 @@ Une recommandation pour le benchmark : ne pas commencer par créer les 22 bounde
 
 > Garde le protocole que l'on a prévu avec l'évolution. Juste prépare le travail avant de commencer.
 
-Le protocole en question est celui des checkpoints, du modèle faible d'abord et de la bascule par fonctionnalité vers le modèle fort ; il est écrit dans [le README](README.md).
+Le protocole en question est celui des checkpoints, du plus petit modèle d'abord et de la bascule par fonctionnalité vers un modèle plus fort, d'un cran à la fois (2026-10-31 : « pas directement au meilleur, un modèle intermédiaire, meilleur mais moins cher ») ; il est écrit dans [le README](README.md).

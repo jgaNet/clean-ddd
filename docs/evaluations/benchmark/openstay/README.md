@@ -33,30 +33,36 @@ The two are kept apart because a hidden test must be deterministic, and a conver
 - **No arm sees the brief.** Its §6 names this repository's architecture, and its §10 starts with an event storm. Every arm gets the same requests, written in product words, one at a time.
 - **The storms count as the Clean DDD arm's cost.** A storm decided with the maintainer, before its feature's run, is design work the simple arm does not get. The maintainer's time on each storm is recorded with the arm's cost.
 
-## The models: the weaker one first, the strong one when it fails
+## The models: the smallest first, one step up when it fails
 
-Every feature of every tree starts with the smallest model of the family. The exact version of each model is pinned in the execution plan for a whole series.
+The series uses three models of one family: the smallest, the intermediate one and the strongest. Each costs more than the one below it. The exact version of each is pinned in the execution plan for a whole series.
 
-**The escalation rule.** A feature is done again with the strong model, from the commit it started from, with the same request, if its first attempt does any of the following:
+Every feature of every tree starts with the smallest model.
+
+**The escalation rule.** A feature is done again one step up, with the next model, from the commit it started from, with the same request, if its attempt does any of the following:
 - fails one of its hidden tests;
 - breaks an earlier feature's hidden test;
 - passes its time or budget ceiling, as the supervisor records it;
 - ends with its driver's verdict refusing the tree.
 
+The steps are smallest, then intermediate, then strongest. No step is skipped: a feature reaches the strongest model only after the intermediate one has failed it. A feature the strongest model also fails is a failed feature, as in every campaign before.
+
 Before an escalation, the failure is checked against the kit. A defect of the kit is an amendment, never an escalation.
 
-**Per tree and per feature.** Each tree escalates on its own. The next feature starts with the weaker model again. A feature the strong model also fails is a failed feature, as in every campaign before.
+**Per tree and per feature.** Each tree escalates on its own. The next feature starts with the smallest model again.
 
 **What is recorded, for every feature of every tree:**
-- the model of each attempt, and the reason for each escalation;
+- the model of each attempt, the step the feature was delivered at, and the reason for each escalation;
 - the time, the reported cost and the turns of each attempt, failed attempts included;
 - the size of the tree when the feature started: source lines, files and contexts or modules.
 
-**The hypothesis this tests.** *The share of features that need the strong model rises faster in the simple arm than in the Clean DDD arm as the trees grow.*
-- It is refuted if the two curves stay within each other's ranges, or if the Clean DDD arm's rises faster.
-- It is read in windows of ten features, from the pilot on.
+**The hypothesis this tests.** *The step features need rises faster in the simple arm than in the Clean DDD arm as the trees grow.* It is read in windows of ten features, from the pilot on, on two measures:
+- the share of features delivered above the smallest model;
+- the share delivered only by the strongest.
 
-**A strong-model witness.** At the pilot, one tree per arm runs the same ten features with the strong model only. It shows what a feature costs without a failed attempt, and whether the weaker model changes which arm is ahead. [E1](../../2026-10-30-flow-extensions.md#e1--a-weaker-model) already showed that the weaker model widens the cost gap.
+It is refuted if the two arms' curves stay within each other's ranges, or if the Clean DDD arm's rise faster.
+
+**A strongest-model witness.** At the pilot, one tree per arm runs the same ten features with the strongest model only. It shows what a feature costs without a failed attempt, and whether the smaller models change which arm is ahead. [E1](../../2026-10-30-flow-extensions.md#e1--a-weaker-model) already showed that the smallest model widens the cost gap.
 
 ## The checkpoints
 
@@ -87,7 +93,7 @@ Before an escalation, the failure is checked against the kit. A defect of the ki
 | --- | --- |
 | Functional correctness | The hidden tests of every feature delivered so far, rerun at each checkpoint for regressions |
 | Robustness | The hidden tests that kill the server, race writers and fail an outside service, from the pilot on |
-| Maintainability | An independent reading at each checkpoint, against the control's [rubric](../control/reading.md). A weaker model can pass the tests and leave a tree the next feature pays for, and only the reading sees that. |
+| Maintainability | An independent reading at each checkpoint, against the control's [rubric](../control/reading.md). A smaller model can pass the tests and leave a tree the next feature pays for, and only the reading sees that. |
 | Cost of change | Time, cost, escalations and the spread of each change (files, modules or contexts), per feature and cumulated |
 
 ## Biases, written down now
@@ -97,6 +103,6 @@ Before an escalation, the failure is checked against the kit. A defect of the ki
   - the maintainer decides every hot spot.
 - **The brief speaks Clean DDD.** It is kept from every arm. The requests are written from its §3–5 in product words, never from its §6.
 - **The storms help one arm.** Their cost is counted (see above), but the expertise in them is not priced.
-- **The weaker model's failures mix two causes:** the model and the architecture. Each escalation is recorded with the reason the rule gave. A sample of failed attempts is read, to say which of the two they were.
+- **A smaller model's failures mix two causes:** the model and the architecture. Each escalation is recorded with the reason the rule gave. A sample of failed attempts is read, to say which of the two they were.
 - **SQLite, one machine.** Contention is between processes on one file until J4 moves storage to a server database.
 - **Few trees.** Three per arm. A result is a range, never a mean.
