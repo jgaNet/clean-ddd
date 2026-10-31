@@ -13,7 +13,7 @@ import os
 from collections.abc import Sequence
 from typing import Any
 
-from architecture.application.execution_context import ExecutionContext, Logger
+from architecture.application.execution_context import Logger
 from architecture.application.outbox import relay_outbox
 from architecture.infrastructure.console_logger import ConsoleLogger
 from architecture.infrastructure.event_bus import InMemoryEventBus
@@ -56,10 +56,10 @@ async def create_application(
     app.register_module(tracker)
     await app.start_modules()
     # What a previous run made durable and did not publish goes out now (ADR 24): nothing, with
-    # an in-memory outbox, and the line is where a store's outbox would be relayed.
-    relay_outbox(
-        InMemoryOutbox.shared, event_bus, ExecutionContext(trace_id="startup", event_bus=event_bus, logger=logger)
-    )
+    # an in-memory outbox, and the line is where a store's outbox would be relayed. The context is
+    # one a request would get, with a unit of work of its own, so that each reaction it delivers
+    # runs in a transaction of its own and publishes through the outbox, as after a request.
+    relay_outbox(InMemoryOutbox.shared, event_bus, app.execution_context("startup"))
 
     app.register_routes(operation_routes(tracker))
     return app
