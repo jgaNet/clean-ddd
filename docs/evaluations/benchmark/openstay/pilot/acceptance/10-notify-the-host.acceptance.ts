@@ -1,9 +1,20 @@
 import { client, database, day, eventually, kill, notificationService, sleep, start, stop } from './openstay';
 
 /** Request 10: a notice per booking, through a service that fails, across crashes. Invariant 12. */
+const services: ReturnType<typeof notificationService>[] = [];
+/** A service the test plays, closed after the file even when a server never started. */
+const outside = (refusals: number) => {
+  const service = notificationService(refusals);
+  services.push(service);
+  return service;
+};
+afterAll(async () => {
+  await Promise.all(services.map(service => service.close()));
+});
+
 describe('notify the host', () => {
   it('sends each new booking and request until the service accepts it, the same body each time, then never again', async () => {
-    const service = notificationService(3);
+    const service = outside(3);
     const db = database('notify');
     const server = await start(db.path, { NOTIFY_URL: await service.url() });
     try {
@@ -45,7 +56,7 @@ describe('notify the host', () => {
   }, 120000);
 
   it('sends, after a restart, a notice the service had not accepted when the server was killed', async () => {
-    const service = notificationService(0);
+    const service = outside(0);
     service.state.accepting = false;
     const db = database('notify-restart');
     const url = await service.url();
@@ -81,7 +92,7 @@ describe('notify the host', () => {
   }, 120000);
 
   it('after kills at random moments, gives every recorded booking one notice, and an unrecorded one none', async () => {
-    const service = notificationService(1);
+    const service = outside(1);
     const db = database('notify-chaos');
     const url = await service.url();
     // A fixed seed, so that two gradings kill at the same delays; the moment reached is still the machine's.
@@ -89,11 +100,11 @@ describe('notify the host', () => {
     const random = () => (seed = (seed * 48271) % 2147483647) / 2147483647;
     let server = await start(db.path, { NOTIFY_URL: url });
     let api = client(server.port);
-    const hal = await api.host('hal3@notify.test');
-    const tom = await api.traveller('tom3@notify.test');
-    const id = await api.listing(hal.token, { city: 'Uzès' });
-    let token = tom.token;
     try {
+      const hal = await api.host('hal3@notify.test');
+      const tom = await api.traveller('tom3@notify.test');
+      const id = await api.listing(hal.token, { city: 'Uzès' });
+      let token = tom.token;
       for (let round = 0; round < 10; round++) {
         const quoteId = await api.quote(token, id, day(20 + 2 * round), day(21 + 2 * round));
         void api.call('POST', '/bookings', token, { quoteId }).catch(() => undefined);
