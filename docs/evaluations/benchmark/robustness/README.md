@@ -73,6 +73,12 @@ These were written after the P2 tree's starting point was graded, and before any
 - **17, the service.** The architecture arms add an adapter behind a port and a reaction that publishes through the outbox. The plain arm builds a durable queue with retries. *Prediction: every arm delivers. The architecture arms' change stays in adapters and wiring. The plain arm's cost rises more on this request than on the others, and this is where the architecture could narrow the gap.*
 - **Overall.** If the plain arm needs more work than the architecture arms to meet requirements 15 and 17, this is the first place the architecture pays for one agent. If it does not, the outbox and the version check are one way to meet these requirements, not a reason to choose the architecture, and [ADR 31](../../../adr/0031-the-architecture-is-a-guardrail-and-a-coordinator-not-an-accelerator.md) says so.
 
+## Amendments
+
+Defects of the kit found while grading, fixed before any tree was graded with the fixed version, and applied to every tree alike.
+
+1. **The drill expected an answer from a server told to die before answering.** Request 15 says the server dies "right after the first archiving it records is stored and before it does anything else about it". The drill's test expected the archive request to answer 202 first. That holds for a tree that answers before it stores the archiving, as the architecture's trees do. It does not hold for a tree that stores the archiving inside the request: that tree has nothing left to do but answer, and dies before it does. Both plain trees did exactly that and failed the drill only on that assertion. The test now accepts a 202 or a connection cut off. It still fails a tree whose server does not die, and one whose archiving is not stored.
+
 ## Biases, written down now
 
 - **Author of everything.** The same author wrote the architecture, these requests and their tests. The drill names a moment, "after the archiving is stored", that an event-driven design has and a single transaction does not. A tree with one transaction meets it trivially, which is the correct verdict for that design.
