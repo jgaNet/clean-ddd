@@ -106,6 +106,15 @@ describe('book instantly', () => {
     const second = await api.create('/bookings', tom.token, { quoteId }, key);
     expect(second).toBe(first);
     expect((await api.list('/bookings/mine', tom.token)).map(each => each.id)).toEqual([first]);
+
+    const una = await api.traveller('una4@book.test');
+    const hers = await api.create(
+      '/bookings',
+      una.token,
+      { quoteId: await api.quote(una.token, id, day(20), day(21)) },
+      key,
+    );
+    expect(hers).not.toBe(first);
   }, 60000);
 
   it("lists a traveller's bookings and a listing's, the most recent first, to them only", async () => {

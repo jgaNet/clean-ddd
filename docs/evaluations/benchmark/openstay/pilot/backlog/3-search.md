@@ -15,7 +15,7 @@ Travellers look for a place to stay.
   2. then the listing published first;
   3. then by id.
 - **Nights a listing cannot give.** Later requests bring blocked nights and bookings. A listing that cannot give every night of the stay asked for is not found by that search.
-- **A search that makes no sense is refused:** no city, a check-out on or before the check-in, a number of guests below 1.
+- **A search that makes no sense is refused:** no city, a check-in without a check-out or the reverse, a check-out on or before the check-in, a number of guests below 1.
 
 The API works as request 1 says.
 

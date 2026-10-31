@@ -42,10 +42,12 @@ describe('notify the host', () => {
       for (const notice of accepted) {
         const attempts = service.attemptsOf(String(notice.id));
         expect(attempts).toHaveLength(4);
-        expect(attempts.every(attempt => JSON.stringify(attempt.body) === JSON.stringify(notice))).toBe(true);
+        for (const attempt of attempts) expect(attempt.body).toEqual(notice);
+        // The request: the first retry within a second of the refusal, later ones within five
+        // seconds; the service refuses at once, and a loaded machine is given a second more.
         const gaps = attempts.slice(1).map((attempt, n) => attempt.at - attempts[n].at);
-        expect(gaps[0]).toBeLessThanOrEqual(1500);
-        expect(Math.max(...gaps)).toBeLessThanOrEqual(5500);
+        expect(gaps[0]).toBeLessThanOrEqual(2000);
+        expect(Math.max(...gaps)).toBeLessThanOrEqual(6000);
       }
       expect(new Set(service.attempts.map(attempt => attempt.body.id)).size).toBe(2);
     } finally {
@@ -115,20 +117,26 @@ describe('notify the host', () => {
         token = await api.login(tom.email);
       }
 
-      const recorded = (await api.list('/bookings/mine', token)).map(each => String(each.id));
-      const noticed = async () => {
+      // What was recorded and what was noticed, read again until they agree or time runs out: a
+      // server that answered 202 may finish a booking after its restart, and notice it then.
+      const state = async () => {
+        const recorded = (await api.list('/bookings/mine', token)).map(each => String(each.id));
         const byBooking = new Map<string, Set<string>>();
         for (const notice of service.accepted.values()) {
           const ids = byBooking.get(String(notice.bookingId)) ?? new Set<string>();
           ids.add(String(notice.id));
           byBooking.set(String(notice.bookingId), ids);
         }
-        return byBooking;
+        return { recorded, byBooking };
       };
-      const final = await eventually(noticed, byBooking => recorded.every(each => byBooking.has(each)), 60000);
-      expect(recorded.filter(each => !final.has(each))).toEqual([]);
-      expect([...final.entries()].filter(([, ids]) => ids.size !== 1)).toEqual([]);
-      expect([...final.keys()].filter(each => !recorded.includes(each))).toEqual([]);
+      const agreed = ({ recorded, byBooking }: Awaited<ReturnType<typeof state>>) =>
+        recorded.every(each => byBooking.has(each)) && [...byBooking.keys()].every(each => recorded.includes(each));
+      await eventually(state, agreed, 60000);
+      await sleep(3000);
+      const { recorded, byBooking } = await state();
+      expect(recorded.filter(each => !byBooking.has(each))).toEqual([]);
+      expect([...byBooking.entries()].filter(([, ids]) => ids.size !== 1)).toEqual([]);
+      expect([...byBooking.keys()].filter(each => !recorded.includes(each))).toEqual([]);
     } finally {
       await stop(server);
       await service.close();

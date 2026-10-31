@@ -16,7 +16,9 @@ afterAll(async () => {
 const steps = (history: Json[]) => history.map(each => [each.status, each.by]);
 const inOrder = (history: Json[]) =>
   history.every((each, n) => n === 0 || Date.parse(String(each.at)) >= Date.parse(String(history[n - 1].at)));
-const contact = (booking: Json) => (booking.contact as { email?: string } | undefined | null)?.email;
+/** The other party's email, or undefined when the booking shows none (no field, or null). */
+const contact = (booking: Json) =>
+  (booking.contact as { email?: string | null } | undefined | null)?.email ?? undefined;
 
 describe("a booking's history", () => {
   it('records a booking confirmed at once by nobody, and a request accepted then cancelled by whoever acted', async () => {

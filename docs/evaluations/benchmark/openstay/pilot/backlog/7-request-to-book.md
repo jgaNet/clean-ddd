@@ -14,7 +14,7 @@ Some hosts want to say yes or no before a stay is confirmed.
 - **A request expires.** A request the host has not decided within `BOOKING_REQUEST_TTL_SECONDS` seconds (86400 when that is not set) is expired:
   - its nights are free again;
   - accepting or declining it is refused;
-  - it reads as expired, without anyone having to act on it first.
+  - it reads as expired as soon as its time has passed, without anyone having to act on it first.
 - **Changes to the listing.** The mode can change at any time. A request already made stays a request.
 
 The API works as request 1 says.

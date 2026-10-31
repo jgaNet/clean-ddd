@@ -14,7 +14,7 @@ Plans change. A confirmed booking can be cancelled, and the cancellation says wh
     | `moderate` | all of it, 5 days or more before; half, from 1 to 4 days before; nothing on the day |
     | `strict`   | half, 7 days or more before; nothing after                                          |
 
-    A half is rounded down to the cent.
+    A half is half of the host's lines added together, rounded down to the cent.
 - **The policy is the one the booking was made under.** If the host changes the listing's policy afterwards, the bookings already made keep theirs.
 - **After the cancellation:**
   - the booking reads as `cancelled`, with who cancelled it, when, and the refundable amount;
@@ -28,4 +28,4 @@ The API works as request 1 says.
 | Request | Answer |
 | --- | --- |
 | `POST /v1/bookings/{id}/cancel` |  |
-| `GET /v1/bookings/{id}` | `status` may now be `cancelled`; a cancelled booking also has `cancellation: { by, at, refundable }` and `refund: { amount, status }`. `by` is `traveller` or `host`, and the refund's `status` is `owed` |
+| `GET /v1/bookings/{id}` | `status` may now be `cancelled`; a cancelled booking also has `cancellation: { by, at, refundable }` and `refund: { amount, status }`. `by` is `traveller` or `host`; the refund's `amount` is what is owed back, and its `status` is `owed` |

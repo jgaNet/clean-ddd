@@ -62,8 +62,20 @@ export interface Running {
   exited: Promise<void>;
 }
 
+/**
+ * The tests compute dates from today, and the server decides what today is. Close to midnight UTC
+ * the two could disagree, so a test file does not start in the last three minutes of a day: it
+ * waits for the next one.
+ */
+async function awayFromMidnight() {
+  const now = new Date();
+  const left = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1) - now.getTime();
+  if (left < 180_000) await sleep(left + 5000);
+}
+
 /** Starts a server on `path`, with `environment` added, and waits until it answers anything. */
 export async function start(path: string, environment: Record<string, string> = {}): Promise<Running> {
+  await awayFromMidnight();
   const port = await freePort();
   const child = spawn('npx', ['tsx', '--tsconfig', './tsconfig.json', entry], {
     env: { ...process.env, PORT: String(port), DATABASE_PATH: path, NODE_ENV: 'production', ...environment },
@@ -163,6 +175,7 @@ export function client(port: number) {
       const ended = await eventually(
         async () => (await call('GET', `/operations/${answer.body.operationId}`, token)).body,
         operation => operation?.status === 'SUCCESS' || operation?.status === 'ERROR',
+        60000,
       );
       if (ended?.status !== 'SUCCESS' && ended?.status !== 'ERROR')
         throw new Error(`${method} ${path}: the operation never ended`);

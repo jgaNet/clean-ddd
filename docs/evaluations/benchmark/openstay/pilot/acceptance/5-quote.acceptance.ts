@@ -67,7 +67,7 @@ describe('a quote', () => {
   }, 60000);
 
   it('refuses a quote the listing cannot give', async () => {
-    const hal = await api.host('hal2@quote.test');
+    const hal = await api.account('hal2@quote.test', ['host', 'traveller']);
     const tom = await api.traveller('tom2@quote.test');
     const id = await api.listing(hal.token, { city: 'Bordeaux', capacity: 2 });
     const draft = await api.listing(hal.token, { city: 'Bordeaux' }, false);

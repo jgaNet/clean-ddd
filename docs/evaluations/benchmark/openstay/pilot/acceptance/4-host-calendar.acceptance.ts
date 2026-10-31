@@ -22,7 +22,10 @@ describe("the host's calendar", () => {
     const id = await api.listing(hal.token, { city: 'Nantes' });
 
     await api.done('POST', `/listings/${id}/block`, hal.token, { from: day(20), to: day(23) });
-    const calendar = await api.list(`/listings/${id}/calendar?from=${day(19)}&to=${day(24)}`);
+    const calendar = (await api.list(`/listings/${id}/calendar?from=${day(19)}&to=${day(24)}`)).map(each => ({
+      date: each.date,
+      available: each.available,
+    }));
     expect(calendar).toEqual([
       { date: day(19), available: true },
       { date: day(20), available: false },

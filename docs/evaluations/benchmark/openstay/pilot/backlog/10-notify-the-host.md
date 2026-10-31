@@ -14,7 +14,7 @@ Hosts want to know at once when someone books, or asks to book. The notice goes 
   - the first retry comes within a second of the failure;
   - each later one comes at most five seconds after the previous attempt ended.
 
-  A notice the service accepted is not sent again.
+  A notice the service accepted is not sent again. Accepting a request makes no new notice: the host already knows of it.
 
 - **A crash loses nothing.** When the server is killed at any moment and started again on the same database, every booking that was recorded has its notice accepted in the end. A booking that was not recorded has none.
 - **One notice per booking.** The service recognises a notice by its id, so the same notice sent twice after a crash does no harm. A second notice, under another id, for the same booking would.
