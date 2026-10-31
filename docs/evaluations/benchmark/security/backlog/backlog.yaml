@@ -1,0 +1,9 @@
+# The security audit: probes, not requests. No agent was asked for any of this; the audit measures
+# what each arm's tree does by default (docs/evaluations/benchmark/security/README.md).
+features:
+  - { id: tokens, n: S1, contexts: [], needs: [] }
+  - { id: injection, n: S2, contexts: [], needs: [] }
+  - { id: object-access, n: S3, contexts: [], needs: [] }
+  - { id: mass-assignment, n: S4, contexts: [], needs: [] }
+  - { id: secrets-at-rest, n: S5, contexts: [], needs: [] }
+  - { id: error-leaks, n: S6, contexts: [], needs: [] }
