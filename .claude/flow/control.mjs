@@ -8,17 +8,25 @@
  *                                               out — no contract, no generated import rules, no CLI, no skills —
  *                                               and the architecture given as a prose guide instead
  *
+ *   --name <app>      the application's name (notes-app by default)
+ *   --guide <file>    plain only: the CLAUDE.md the project starts with, in place of the control's (OpenStay's
+ *                     simple arm: docs/evaluations/benchmark/openstay/pilot/simple-CLAUDE.md)
+ *
  * Each is installed and committed, like the arms' created projects; the commit is printed.
  */
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
-const [kind, target] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const option = (name, fallback) => (args.includes(`--${name}`) ? args[args.indexOf(`--${name}`) + 1] : fallback);
+const [kind, target] = args;
 if (!['plain', 'prose'].includes(kind) || !target) {
-  process.stderr.write('usage: node .claude/flow/control.mjs plain|prose <dir>\n');
+  process.stderr.write('usage: node .claude/flow/control.mjs plain|prose <dir> [--name <app>] [--guide <file>]\n');
   process.exit(2);
 }
+const name = option('name', 'notes-app');
+const guide = option('guide');
 const repository = resolve(new URL('../..', import.meta.url).pathname);
 const control = join(repository, 'docs/evaluations/benchmark/control');
 const dir = resolve(target);
@@ -31,8 +39,13 @@ mkdirSync(dirname(dir), { recursive: true });
 if (kind === 'plain') {
   cpSync(join(control, 'plain'), dir, { recursive: true });
   renameSync(join(dir, 'gitignore'), join(dir, '.gitignore'));
+  if (guide) cpSync(resolve(guide), join(dir, 'CLAUDE.md'));
+  for (const file of ['package.json', 'CLAUDE.md']) {
+    const path = join(dir, file);
+    writeFileSync(path, readFileSync(path, 'utf8').replaceAll('notes-app', name));
+  }
 } else {
-  run(process.execPath, [join(repository, 'tools/dist/cli.js'), 'create', dir, '--name', 'notes-app'], dirname(dir));
+  run(process.execPath, [join(repository, 'tools/dist/cli.js'), 'create', dir, '--name', name], dirname(dir));
   // The tooling out: the contract, the CLI and its scripts, the import rules generated from the contract.
   for (const path of ['conventions', '.claude', 'README.md']) rmSync(join(dir, path), { recursive: true, force: true });
   const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
