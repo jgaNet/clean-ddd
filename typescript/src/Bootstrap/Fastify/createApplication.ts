@@ -17,7 +17,7 @@ import { operationRoutes } from '@Contexts/Tracker/Presentation/API/REST/Routes'
 import { authRoutes } from '@Contexts/Security/Presentation/API/REST/Routes/auth.routes';
 import { notificationRoutes } from '@Contexts/Notifications/Presentation/API/REST/Routes';
 
-import { ExecutionContext, Logger, relayOutbox } from '@Architecture/Application';
+import { Logger, relayOutbox } from '@Architecture/Application';
 import { ConsoleLogger } from '@Architecture/Infrastructure/Logging/ConsoleLogger';
 import { InMemoryOutbox } from '@Architecture/Infrastructure/Outbox/InMemoryOutbox';
 
@@ -87,11 +87,9 @@ export async function createApplication({
 
   await app.startModules();
   // What a previous run made durable and did not publish goes out now (ADR 24): nothing, with
-  // an in-memory outbox, and the line is where a store's outbox would be relayed.
-  relayOutbox(
-    InMemoryOutbox.shared,
-    app.getEventBus(),
-    new ExecutionContext({ traceId: 'startup', auth: {}, eventBus: app.getEventBus(), logger }),
-  );
+  // an in-memory outbox, and the line is where a store's outbox would be relayed. The context is
+  // one a request would get, with a unit of work of its own, so that each reaction it delivers
+  // runs in a transaction of its own and publishes through the outbox, as after a request.
+  relayOutbox(InMemoryOutbox.shared, app.getEventBus(), app.executionContext('startup'));
   return app.seed();
 }

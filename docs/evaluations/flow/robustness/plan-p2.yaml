@@ -1,0 +1,10 @@
+run: robust-p2
+arm: P
+kit: ./docs/evaluations/benchmark/robustness
+base: main
+agent: { runner: claude-cli, model: main, timeoutMinutes: 120 }
+retry: { perFeature: 1 }
+budgetUsd: 20
+agentBudgetUsd: 12
+dependencies: copy
+ports: { base: 23700 }

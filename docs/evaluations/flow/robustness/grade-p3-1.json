@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "control": "plain",
+  "project": "/runs/e4/p3/app",
+  "ref": "main",
+  "commit": "2f2d24bdcfd6d86b45e1eaa0f77c0a511b194e48",
+  "base": "d7a742d",
+  "M1": {
+    "verdict": "pass",
+    "failing": []
+  },
+  "features": [
+    {
+      "feature": "durable-notices",
+      "M2": {
+        "pass": true,
+        "tests": "2 passed, 2 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "concurrent-changes",
+      "M2": {
+        "pass": true,
+        "tests": "3 passed, 3 total",
+        "failed": [
+          " Timeout"
+        ]
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "notification-service",
+      "M2": {
+        "pass": true,
+        "tests": "1 passed, 1 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    }
+  ],
+  "gradedInMs": 68293
+}

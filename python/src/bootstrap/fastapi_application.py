@@ -88,7 +88,7 @@ class FastApiApplication(Application):
         self.fastapi = FastAPI(title=title, version=version, docs_url=f"/{api_prefix}/docs")
         # The stores a request's unit of work snapshots, the process's outbox among them (ADR 24),
         # so a rolled-back transaction drops the facts it appended.
-        snapshotted = list(stores)
+        self._stores = list(stores)
 
         # One execution context per request: its trace, its caller, and its own unit of work. A
         # unit of work is a request-scoped thing; sharing one instance across requests would make
@@ -98,12 +98,8 @@ class FastApiApplication(Application):
         async def with_execution_context(request: Request, call_next: RequestResponseEndpoint) -> Response:
             trace_id = request.headers.get(TRACE_HEADER) or Id.generate().value
             auth = getattr(request.state, "auth", None)
-            request.state.execution_context = ExecutionContext(
-                trace_id=trace_id,
-                auth=auth if isinstance(auth, Auth) else ANONYMOUS,
-                event_bus=self.event_bus,
-                unit_of_work=InMemoryUnitOfWork(snapshotted),
-                logger=logger,
+            request.state.execution_context = self.execution_context(
+                trace_id, auth if isinstance(auth, Auth) else ANONYMOUS
             )
             response = await call_next(request)
             response.headers[TRACE_HEADER] = trace_id
@@ -122,6 +118,22 @@ class FastApiApplication(Application):
                 expose_headers=[TRACE_HEADER],
             )
         self.fastapi.add_exception_handler(Exception, programming_error)
+
+    def execution_context(self, trace_id: str, auth: Auth = ANONYMOUS) -> ExecutionContext:
+        """A context of its own, as each request gets one: its trace, its caller, the bus, the
+        logger, and a unit of work of its own over the stores. Whatever runs work outside a request
+        runs it in one too, the composition root's relay at start first (ADR 24): a reaction it
+        delivers then runs in a transaction of its own, and what it tells goes through the outbox
+        under the entry's id, as after a request (ADR 30). With no unit of work, the reaction would
+        run with no transaction and publish straight to the bus under a fresh id, which no
+        subscriber can recognise again."""
+        return ExecutionContext(
+            trace_id=trace_id,
+            auth=auth,
+            event_bus=self.event_bus,
+            unit_of_work=InMemoryUnitOfWork(self._stores),
+            logger=self.logger,
+        )
 
     def register_routes(self, router: APIRouter) -> Self:
         """A context's router, under ``/<api_prefix>``; the router carries its own prefix (``/notes``)."""

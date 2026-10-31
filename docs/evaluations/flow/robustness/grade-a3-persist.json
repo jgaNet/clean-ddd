@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "control": null,
+  "project": "/runs/e4/a3/app",
+  "ref": "main",
+  "commit": "2b25b39eec6b81deede02a05ce720a2dde5d6eb9",
+  "base": "b6ef284",
+  "M1": {
+    "verdict": "pass",
+    "failing": []
+  },
+  "features": [
+    {
+      "feature": "persist",
+      "M2": {
+        "pass": true,
+        "tests": "1 passed, 1 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    }
+  ],
+  "gradedInMs": 91821
+}

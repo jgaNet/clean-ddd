@@ -73,11 +73,6 @@ func Compose(settings Settings, logger application.Logger) (*transport.Server, e
 	if err := app.StartModules(); err != nil {
 		return nil, err
 	}
-	// What a previous run made durable and did not publish goes out now (ADR 24): nothing, with
-	// an in-memory outbox, and the line is where a store's outbox would be relayed.
-	application.RelayOutbox(infrastructure.SharedOutbox, eventBus, application.NewExecutionContext(application.Options{
-		TraceID: "startup", EventBus: eventBus, Logger: logger,
-	}))
 
 	server := transport.New(eventBus, transport.Options{
 		Logger:     logger,
@@ -86,6 +81,11 @@ func Compose(settings Settings, logger application.Logger) (*transport.Server, e
 		WebOrigins: settings.WebOrigins,
 		Stores:     stores,
 	})
+	// What a previous run made durable and did not publish goes out now (ADR 24): nothing, with
+	// an in-memory outbox, and the line is where a store's outbox would be relayed. The context is
+	// one a request would get, with a unit of work of its own, so that each reaction it delivers
+	// runs in a transaction of its own and publishes through the outbox, as after a request.
+	application.RelayOutbox(infrastructure.SharedOutbox, eventBus, server.ExecutionContext("startup", transport.Anonymous))
 	server.Routes("/tracker/operations", trackerapi.Routes, trackerModule)
 	return server, nil
 }

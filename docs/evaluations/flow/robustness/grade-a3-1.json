@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "control": null,
+  "project": "/runs/e4/a3/app",
+  "ref": "main",
+  "commit": "2b25b39eec6b81deede02a05ce720a2dde5d6eb9",
+  "base": "b6ef284",
+  "M1": {
+    "verdict": "pass",
+    "failing": []
+  },
+  "features": [
+    {
+      "feature": "durable-notices",
+      "M2": {
+        "pass": false,
+        "tests": "1 failed, 1 passed, 2 total",
+        "failed": [
+          "notices survive a crash › after kills at random moments, tells each archiving once, or never if it did not happen"
+        ]
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": false
+    },
+    {
+      "feature": "concurrent-changes",
+      "M2": {
+        "pass": true,
+        "tests": "3 passed, 3 total",
+        "failed": [
+          " Timeout"
+        ]
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    },
+    {
+      "feature": "notification-service",
+      "M2": {
+        "pass": true,
+        "tests": "1 passed, 1 total",
+        "failed": []
+      },
+      "M3": {
+        "pass": true,
+        "owed": []
+      },
+      "mechanical": true
+    }
+  ],
+  "gradedInMs": 159806
+}

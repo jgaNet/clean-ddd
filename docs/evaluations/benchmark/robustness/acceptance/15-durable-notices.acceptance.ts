@@ -31,7 +31,13 @@ describe('notices survive a crash', () => {
           'SUCCESS',
         );
       }
-      expect((await call('POST', `/notes/${noteId}/archive`, owner.token)).status).toBe(202);
+      // The server may die before it answers: the request says it dies right after the archiving
+      // is stored, and a tree that stores it inside the request has not answered yet.
+      const archiving = await call('POST', `/notes/${noteId}/archive`, owner.token).then(
+        answer => answer.status,
+        () => 'cut off',
+      );
+      expect([202, 'cut off']).toContain(archiving);
       const died = await Promise.race([server.exited.then(() => true), sleep(15000).then(() => false)]);
       expect(died).toBe(true);
     } finally {

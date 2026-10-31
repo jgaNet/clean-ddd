@@ -25,3 +25,9 @@ ADR 3 publishes domain events after the transaction commits, from memory: `publi
 ## When to revisit
 
 The moment events cross a process boundary (a broker, a second service), the relay becomes a process of its own polling the outbox table, and the inbox a table on the consumer's side; the ports do not change. If a subscriber must see a fact exactly once *and* act outside the process, the inbox moves into the consumer's transaction, keyed by message id, which is the one place at-least-once can be turned into effectively-once.
+
+## Revision: the relay at start runs in a request's kind of context
+
+The relay at start was first given a context with no unit of work, in every language. With an in-memory outbox nothing is pending at start, so no test could tell. A store's outbox can hold something there, though, and with no unit of work a reaction the relay delivers runs with no transaction (ADR 30). Worse, what it tells goes straight to the bus under a fresh id, which no inbox can recognise when the fact comes again. The robustness campaign found it the hard way: two of four agent-built trees with a durable outbox told an archiving two or three times after a crash ([the record](../evaluations/2026-10-31-flow-robustness.md#the-defect-what-the-startup-relay-does-not-carry)).
+
+The transport now builds every context that runs work: a request's, and the relay's at start. It builds them the same way, with a unit of work of its own over the process's stores ([`FastifyApplication.executionContext()`](../../typescript/src/Bootstrap/Fastify/FastifyApplication.ts)). Each language does the same in its transport, with a test that relays an entry a crashed run left and expects what the reaction tells to arrive once, under an id the outbox handed out.
