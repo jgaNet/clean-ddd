@@ -2,6 +2,8 @@
 
 [ADR 31](../../../adr/0031-the-architecture-is-a-guardrail-and-a-coordinator-not-an-accelerator.md) puts this campaign first. The architecture's outbox, inbox, reactions in their own transaction and version check exist for crashes and concurrent writers, and no hidden test had exercised them. This is the one place where the architecture could still be shown to buy correctness rather than only locality.
 
+**The runs are done:** [the record](../../2026-10-31-flow-robustness.md) gives the results, against the predictions below.
+
 This kit is written before any run, like [the control](../control/README.md) and [the extensions](../extensions/README.md). It keeps their rules:
 - **The same driver and grader.**
 - **Hidden tests no agent sees.**

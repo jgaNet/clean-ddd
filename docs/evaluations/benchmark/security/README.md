@@ -52,6 +52,21 @@ With the grader, like any kit: [`grade.mjs`](../../../../.claude/flow/grade.mjs)
 
 The changes made for robustness are the only ones between the two, so any difference in the audit is theirs.
 
+## The result
+
+Run on 2026-10-31, on the six trees before and after the robustness campaign ([the grades](../../flow/robustness/audit.json), [the record](../../2026-10-31-flow-robustness.md#the-security-audit)):
+
+| Tree | S1 | S2 | S3 | S4 | S5 | S6 |
+| --- | --- | --- | --- | --- | --- | --- |
+| A run 2, before · after | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ |
+| A run 3, before · after | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ |
+| D run 1, before · after | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ |
+| D run 2, before · after | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ |
+| P run 2, before · after | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ |
+| P run 3, before · after | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ | ✓ · ✓ |
+
+**Every probe passed on every tree, 72 of 72.** On this application the audit does not tell the arms apart: neither wrote code that is safer or less safe by default against these attacks, and the campaign weakened no tree. The audit's power comes from the planted defects above, not from these trees.
+
 ## Biases
 
 - **The probes reflect what their author thought to try.** A tree can be unsafe in a way none of them reaches. A passing audit means these attacks failed, not that the tree is safe.
