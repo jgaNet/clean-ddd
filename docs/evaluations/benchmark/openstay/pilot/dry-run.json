@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "kit": "docs/evaluations/benchmark/openstay/pilot",
+  "gradings": [
+    {
+      "tree": "simple",
+      "role": "before",
+      "ref": "08b94b0",
+      "features": {
+        "accounts": false,
+        "publish-a-listing": false,
+        "search": false,
+        "host-calendar": false,
+        "quote": false,
+        "book-instantly": false,
+        "request-to-book": false,
+        "cancel-a-booking": false,
+        "booking-history": false,
+        "notify-the-host": false
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "simple",
+      "role": "solved",
+      "ref": "dcf5fea",
+      "features": {
+        "accounts": true,
+        "publish-a-listing": true,
+        "search": true,
+        "host-calendar": true,
+        "quote": true,
+        "book-instantly": true,
+        "request-to-book": true,
+        "cancel-a-booking": true,
+        "booking-history": true,
+        "notify-the-host": true
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "clean",
+      "role": "before",
+      "ref": "main",
+      "features": {
+        "accounts": false,
+        "publish-a-listing": false,
+        "search": false,
+        "host-calendar": false,
+        "quote": false,
+        "book-instantly": false,
+        "request-to-book": false,
+        "cancel-a-booking": false,
+        "booking-history": false,
+        "notify-the-host": false
+      },
+      "hygiene": []
+    }
+  ],
+  "verdict": "clean",
+  "findings": []
+}

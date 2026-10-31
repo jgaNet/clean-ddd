@@ -9,6 +9,8 @@ The pilot of [OpenStay](../README.md) (checkpoint J2) runs these ten requests on
 | [`backlog/`](backlog) | The ten requests, in product words, each with its API. Request 1 holds the conventions every later one uses. `backlog.yaml` is the order a driver reads. |
 | [`acceptance/`](acceptance) | The hidden tests, one file per request, and their client [`openstay.ts`](acceptance/openstay.ts). No arm ever sees them. |
 | [`simple-CLAUDE.md`](simple-CLAUDE.md) | The simple arm's guide: the control's plain project, renamed, with nothing said about storage beyond what the requests say. |
+| [`trees/`](trees) | Git bundles: `simple.bundle` holds the simple arm's starting commit (`08b94b0`) and the solvability tree on top of it (`dcf5fea`); `clean.bundle` holds the Clean DDD arm's starting commit, with its tooling vendored. `git clone -b main trees/<arm>.bundle <dir> && yarn install` restores one. |
+| [`dry-run.json`](dry-run.json) | The rehearsal's report. |
 | [`review.md`](review.md) | The review of the tests by a fresh agent that had only the requests, and what was done with each finding (below). |
 | `storms/` | The Clean DDD arm's storms, one per feature, decided with the maintainer. Not yet decided: see [below](#what-j1-still-needs). |
 
@@ -66,13 +68,26 @@ A feature the strongest model also fails ends the tree. Every later feature buil
     - when a request reads as expired;
     - that accepting a request makes no new notice;
     - the token an operation is read with.
-- **The tests are solvable:** a tree written for the purpose, from the requests, passes them. _In progress._
-- **The ladder driver was rehearsed** with a stand-in agent that writes nothing. Every step escalated on the hidden tests, the feature failed, the tree stopped, and no graded tree was left behind.
+- **The tests are solvable.** An agent wrote a tree for the purpose from the requests, with the tests in view, and was told never to bend the code away from a request to pass a test. It passed all 40 tests, twice, and found no defect.
+  - **Its readings of what the requests leave open,** none of which a test depends on:
+    - `409` for a refused value: request 1 now lists `422` too;
+    - "published first" as the first publication;
+    - an archived listing refuses every change;
+    - a key replayed answers the first booking.
+  - **A weakness it found,** a host-only account quoting its own listing, was already closed by the review.
+- **`dry-run` on the two starting trees and the solvability tree: clean** ([`dry-run.json`](dry-run.json)).
+  - **Hygiene:** the kit's files pass both trees' formatter, linter and type checker.
+  - **Discrimination:** no test passes on either starting tree.
+  - **Solvability:** every test passes on the solvability tree.
+- **The ladder driver was rehearsed twice, with a stand-in agent.**
+  - **One that writes nothing:** every step escalated on the hidden tests, the feature failed, and the tree stopped.
+  - **One that writes the solvability tree at the intermediate step:** feature 1 escalated once and was delivered at step 1. Features 2 and 3 were delivered at step 0, with their regression tests. `main` moved with each delivery.
+
+  No graded tree was left behind in either rehearsal.
 
 ## What J1 still needs
 
 - **The storms,** decided with the maintainer: the strategic model first (which contexts, and how they relate), then a storm per feature. A proposal for each hot spot is prepared, and nothing is decided until the maintainer says so.
-- **The solvability tree,** and `dry-run` on the starting trees with it.
 
 ## Amendments
 
