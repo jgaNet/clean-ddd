@@ -50,12 +50,6 @@ func Compose(settings Settings, logger application.Logger) (*transport.Server, e
 	if err := app.StartModules(); err != nil {
 		return nil, err
 	}
-	// What a previous run made durable and did not publish goes out now (ADR 24): nothing, with
-	// an in-memory outbox, and the line is where a store's outbox would be relayed. Every
-	// request's unit of work guards that same outbox, one per process.
-	application.RelayOutbox(infrastructure.SharedOutbox, eventBus, application.NewExecutionContext(application.Options{
-		TraceID: "startup", EventBus: eventBus, Logger: logger,
-	}))
 
 	// The transport: Security says who is calling; the routes go under the API prefix, each
 	// context's under its own; the websocket beside the API, at the root.
@@ -67,6 +61,12 @@ func Compose(settings Settings, logger application.Logger) (*transport.Server, e
 		Stores:       stores,
 		Authenticate: securityWiring.Authentication.Authenticate,
 	})
+	// What a previous run made durable and did not publish goes out now (ADR 24): nothing, with
+	// an in-memory outbox, and the line is where a store's outbox would be relayed. The context is
+	// one a request would get, with a unit of work of its own, so that each reaction it delivers
+	// runs in a transaction of its own and publishes through the outbox, as after a request.
+	application.RelayOutbox(infrastructure.SharedOutbox, eventBus, server.ExecutionContext("startup", transport.Anonymous))
+
 	homeRoutes(server.Mux(), server.Prefix(), HomeViewModel{Name: settings.Name, Version: settings.Version})
 	server.
 		Routes("/notes", notesapi.Routes, notesModule).

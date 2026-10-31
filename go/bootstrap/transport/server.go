@@ -94,15 +94,25 @@ func (s *Server) withContext(next http.Handler) http.Handler {
 		if s.options.Authenticate != nil {
 			caller = s.options.Authenticate(r)
 		}
-		ctx := application.NewExecutionContext(application.Options{
-			TraceID:    traceID,
-			Auth:       caller,
-			EventBus:   s.eventBus,
-			UnitOfWork: infrastructure.NewInMemoryUnitOfWork(s.options.Stores...),
-			Logger:     s.options.Logger,
-		})
 		w.Header().Set(TraceHeader, traceID)
-		next.ServeHTTP(w, presentation.WithContext(r, ctx))
+		next.ServeHTTP(w, presentation.WithContext(r, s.ExecutionContext(traceID, caller)))
+	})
+}
+
+// ExecutionContext is a context of its own, as each request gets one: its trace, its caller, the
+// bus, the logger, and a unit of work of its own over the stores. Whatever runs work outside a
+// request runs it in one too, the composition root's relay at start first (ADR 24): a reaction
+// it delivers then runs in a transaction of its own, and what it tells goes through the outbox
+// under the entry's id, as after a request (ADR 30). With no unit of work, the reaction would
+// run with no transaction and publish straight to the bus under a fresh id, which no subscriber
+// can recognise again.
+func (s *Server) ExecutionContext(traceID string, caller application.Auth) *application.ExecutionContext {
+	return application.NewExecutionContext(application.Options{
+		TraceID:    traceID,
+		Auth:       caller,
+		EventBus:   s.eventBus,
+		UnitOfWork: infrastructure.NewInMemoryUnitOfWork(s.options.Stores...),
+		Logger:     s.options.Logger,
 	})
 }
 
