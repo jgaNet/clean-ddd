@@ -10,7 +10,7 @@
 
 use std::sync::Arc;
 
-use architecture_application::{Application, Auth, ExecutionContext, ExecutionContextOptions, Logger, relay_outbox};
+use architecture_application::{Application, Auth, Logger, relay_outbox};
 use architecture_infrastructure::data_sources::Snapshottable;
 use architecture_infrastructure::{InMemoryEventBus, InMemoryOutbox};
 use bootstrap_transport::{AxumApplication, AxumApplicationOptions, TransportSettings};
@@ -33,22 +33,15 @@ pub async fn create_application(settings: TransportSettings, logger: Arc<dyn Log
     let event_bus = tracked_event_bus(Arc::new(InMemoryEventBus::new()), records.clone());
 
     let tracker = Arc::new(local_tracker_module(records));
-    let application = Application::new(event_bus.clone()).register_module(tracker.clone());
+    let application = Application::new(event_bus).register_module(tracker.clone());
     application.start_modules().await;
+    let app =
+        AxumApplication::new(AxumApplicationOptions { application, stores, outbox: outbox.clone(), logger, settings });
     // What a previous run made durable and did not publish goes out now (ADR 24): nothing, with
-    // an in-memory outbox, and the line is where a store's outbox would be relayed.
-    relay_outbox(
-        outbox.as_ref(),
-        &ExecutionContext::new(ExecutionContextOptions {
-            trace_id: "startup".into(),
-            auth: Auth::anonymous(),
-            event_bus,
-            unit_of_work: None,
-            logger: Some(logger.clone()),
-        }),
-    )
-    .await;
+    // an in-memory outbox, and the line is where a store's outbox would be relayed. The context is
+    // one a request would get, with a unit of work of its own, so that each reaction it delivers
+    // runs in a transaction of its own and publishes through the outbox, as after a request.
+    relay_outbox(outbox.as_ref(), &app.execution_context("startup", Auth::anonymous())).await;
 
-    AxumApplication::new(AxumApplicationOptions { application, stores, outbox, logger, settings })
-        .nest("/tracker/operations", operation_routes(tracker))
+    app.nest("/tracker/operations", operation_routes(tracker))
 }

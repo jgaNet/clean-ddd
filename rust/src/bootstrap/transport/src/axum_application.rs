@@ -79,6 +79,24 @@ struct PerRequest {
     outbox: Arc<dyn Outbox>,
 }
 
+impl PerRequest {
+    /// The one place a context is built with a unit of work: its trace, its caller, the bus, the
+    /// logger, and a unit of work of its own over the same stores and outbox. A unit of work is a
+    /// request-scoped thing; sharing one instance across requests would make concurrent commands
+    /// join each other's transaction.
+    fn execution_context(&self, trace_id: String, auth: Auth) -> ExecutionContext {
+        let unit_of_work: Arc<dyn UnitOfWork> =
+            Arc::new(InMemoryUnitOfWork::new(self.stores.clone(), self.outbox.clone()));
+        ExecutionContext::new(ExecutionContextOptions {
+            trace_id,
+            auth,
+            event_bus: self.application.event_bus().clone(),
+            unit_of_work: Some(unit_of_work),
+            logger: Some(self.logger.clone()),
+        })
+    }
+}
+
 /// The layer that says who is calling, applied over every route once they are all mounted.
 type Authentication = Box<dyn FnOnce(Router) -> Router + Send>;
 
@@ -134,6 +152,16 @@ impl AxumApplication {
     {
         self.authentication = Some(Box::new(move |router: Router| router.layer(layer)));
         self
+    }
+
+    /// A context of its own, as each request gets one: its trace, its caller, the bus, the logger,
+    /// and a unit of work of its own. Whatever runs work outside a request runs it in one too, the
+    /// composition root's relay at start first (ADR 24): a reaction it delivers then runs in a
+    /// transaction of its own, and what it tells goes through the outbox under the entry's id, as
+    /// after a request (ADR 30). With no unit of work, the reaction would run with no transaction
+    /// and publish straight to the bus under a fresh id, which no subscriber can recognise again.
+    pub fn execution_context(&self, trace_id: &str, auth: Auth) -> ExecutionContext {
+        self.per_request.execution_context(trace_id.to_string(), auth)
     }
 
     pub fn api_prefix(&self) -> &str {
@@ -210,9 +238,7 @@ fn cors(origins: &[String]) -> CorsLayer {
         .expose_headers([TRACE_HEADER])
 }
 
-/// One execution context per request: its trace, its caller, and its own unit of work. A unit
-/// of work is a request-scoped thing; sharing one instance across requests would make
-/// concurrent commands join each other's transaction.
+/// One execution context per request: its trace, its caller, and its own unit of work.
 async fn with_execution_context(State(shared): State<Arc<PerRequest>>, mut request: Request, next: Next) -> Response {
     let trace_id = request
         .headers()
@@ -223,16 +249,7 @@ async fn with_execution_context(State(shared): State<Arc<PerRequest>>, mut reque
         .unwrap_or_else(|| Id::generate().value().to_string());
     // Anonymous unless the authentication said otherwise; without one, anonymous throughout.
     let auth = request.extensions().get::<Auth>().cloned().unwrap_or_default();
-    let unit_of_work: Arc<dyn UnitOfWork> =
-        Arc::new(InMemoryUnitOfWork::new(shared.stores.clone(), shared.outbox.clone()));
-
-    request.extensions_mut().insert(ExecutionContext::new(ExecutionContextOptions {
-        trace_id: trace_id.clone(),
-        auth,
-        event_bus: shared.application.event_bus().clone(),
-        unit_of_work: Some(unit_of_work),
-        logger: Some(shared.logger.clone()),
-    }));
+    request.extensions_mut().insert(shared.execution_context(trace_id.clone(), auth));
 
     let mut response = next.run(request).await;
     if let Ok(value) = HeaderValue::from_str(&trace_id) {
@@ -263,5 +280,123 @@ impl Running {
     pub async fn stop(self) {
         let _ = self.stop.send(());
         let _ = self.serving.await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Mutex;
+
+    use architecture_application::{
+        AnyEvent, AnyHandler, BoxFuture, EventBus, EventHandler, EventSubscriber, Operation, OutboxEntry,
+        publish_integration_event, relay_outbox,
+    };
+    use architecture_domain::{DomainEvent, DomainResult, Event, EventKind, IntegrationEvent};
+    use architecture_infrastructure::{ConsoleLogger, InMemoryEventBus, InMemoryOutbox};
+
+    use super::*;
+
+    #[derive(Debug, Clone, PartialEq)]
+    struct NoteArchived {
+        note_id: &'static str,
+    }
+    impl Event for NoteArchived {
+        fn name(&self) -> &'static str {
+            "NoteArchived"
+        }
+        fn kind(&self) -> EventKind {
+            EventKind::Domain
+        }
+    }
+    impl DomainEvent for NoteArchived {}
+
+    #[derive(Debug, Clone, PartialEq)]
+    struct ArchivingTold {
+        note_id: &'static str,
+    }
+    impl Event for ArchivingTold {
+        fn name(&self) -> &'static str {
+            "ArchivingTold"
+        }
+        fn kind(&self) -> EventKind {
+            EventKind::Integration
+        }
+    }
+    impl IntegrationEvent for ArchivingTold {}
+
+    /// A reaction that tells other contexts, as a domain event handler does (ADR 30).
+    struct TellTheArchiving;
+    impl EventHandler for TellTheArchiving {
+        type Event = NoteArchived;
+        async fn execute(&self, event: NoteArchived, context: &ExecutionContext) -> DomainResult {
+            publish_integration_event(ArchivingTold { note_id: event.note_id }, context).await;
+            Ok(())
+        }
+    }
+
+    /// Whoever listens to the told fact: the id of each message it is handed.
+    #[derive(Default)]
+    struct Told(Mutex<Vec<String>>);
+    impl AnyHandler for Told {
+        fn handle(&self, operation: Operation) -> BoxFuture<'_, Operation> {
+            self.0.lock().expect("told").push(operation.id().to_string());
+            Box::pin(async move { operation.sent() })
+        }
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+    }
+
+    /// The process's outbox, and the id of every entry it handed out.
+    #[derive(Default)]
+    struct DurableOutbox {
+        outbox: InMemoryOutbox,
+        handed_out: Mutex<Vec<String>>,
+    }
+    impl Outbox for DurableOutbox {
+        fn append(&self, events: Vec<Arc<dyn AnyEvent>>) -> BoxFuture<'_, Vec<OutboxEntry>> {
+            Box::pin(async move {
+                let entries = self.outbox.append(events).await;
+                self.handed_out.lock().expect("handed out").extend(entries.iter().map(|entry| entry.id.clone()));
+                entries
+            })
+        }
+        fn pending(&self) -> BoxFuture<'_, Vec<OutboxEntry>> {
+            self.outbox.pending()
+        }
+        fn mark_published<'a>(&'a self, id: &'a str) -> BoxFuture<'a, ()> {
+            self.outbox.mark_published(id)
+        }
+    }
+
+    /// The relay at start delivers what a previous run made durable and did not publish (ADR 24).
+    /// It runs in a context the transport builds as it builds a request's, with a unit of work of
+    /// its own: a reaction it delivers runs in a transaction, and what the reaction tells is made
+    /// durable and relayed under the outbox entry's id, which the bus recognises if the fact comes
+    /// again.
+    #[tokio::test]
+    async fn the_relay_at_start_delivers_in_a_context_with_a_unit_of_work_so_what_a_reaction_tells_goes_through_the_outbox()
+     {
+        let bus = Arc::new(InMemoryEventBus::new());
+        bus.subscribe("NoteArchived", Arc::new(EventSubscriber(TellTheArchiving))).await;
+        let told = Arc::new(Told::default());
+        bus.subscribe("ArchivingTold", told.clone()).await;
+        let outbox = Arc::new(DurableOutbox::default());
+        let app = AxumApplication::new(AxumApplicationOptions {
+            application: Application::new(bus),
+            stores: vec![outbox.outbox.store()],
+            outbox: outbox.clone(),
+            logger: Arc::new(ConsoleLogger::new(false)),
+            settings: TransportSettings::for_tests(),
+        });
+
+        // What a run that died after its commit left pending.
+        outbox.append(vec![Arc::new(NoteArchived { note_id: "n-1" })]).await;
+        relay_outbox(outbox.as_ref(), &app.execution_context("startup", Auth::anonymous())).await;
+
+        let told = told.0.lock().expect("told").clone();
+        assert_eq!(told.len(), 1);
+        assert!(outbox.handed_out.lock().expect("handed out").contains(&told[0]));
+        assert!(outbox.pending().await.is_empty());
     }
 }

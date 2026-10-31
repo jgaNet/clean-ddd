@@ -9,7 +9,7 @@
 
 use std::sync::Arc;
 
-use architecture_application::{Application, Auth, ExecutionContext, ExecutionContextOptions, Logger, relay_outbox};
+use architecture_application::{Application, Auth, Logger, relay_outbox};
 use architecture_infrastructure::data_sources::Snapshottable;
 use architecture_infrastructure::{InMemoryEventBus, InMemoryOutbox};
 use axum::middleware;
@@ -62,37 +62,30 @@ pub async fn create_application(settings: Settings, logger: Arc<dyn Logger>) -> 
         .register_module(security.module.clone())
         .register_module(notifications.module.clone());
     application.start_modules().await;
+    let app = AxumApplication::new(AxumApplicationOptions {
+        application,
+        stores,
+        outbox: outbox.clone(),
+        logger: logger.clone(),
+        settings: settings.transport,
+    });
     // What a previous run made durable and did not publish goes out now (ADR 24): nothing, with
-    // an in-memory outbox, and the line is where a store's outbox would be relayed.
-    relay_outbox(
-        outbox.as_ref(),
-        &ExecutionContext::new(ExecutionContextOptions {
-            trace_id: "startup".into(),
-            auth: Auth::anonymous(),
-            event_bus: event_bus.clone(),
-            unit_of_work: None,
-            logger: Some(logger.clone()),
-        }),
-    )
-    .await;
+    // an in-memory outbox, and the line is where a store's outbox would be relayed. The context is
+    // one a request would get, with a unit of work of its own, so that each reaction it delivers
+    // runs in a transaction of its own and publishes through the outbox, as after a request.
+    relay_outbox(outbox.as_ref(), &app.execution_context("startup", Auth::anonymous())).await;
 
     // The routes, each context's under its own prefix, which the transport serves under the
     // API's; the websocket beside the API; Security says who is calling.
     let home = Arc::new(HomeViewModel { name: settings.name.clone(), version: settings.version.clone() });
-    let app = AxumApplication::new(AxumApplicationOptions {
-        application,
-        stores,
-        outbox,
-        logger: logger.clone(),
-        settings: settings.transport,
-    })
-    .merge(home_routes(home))
-    .nest("/notes", note_routes(notes))
-    .nest("/tracker/operations", operation_routes(tracker))
-    .nest("/notifications", notification_routes(notifications.module.clone()))
-    .merge(auth_routes(security.module.clone()))
-    .outside_api(notifications.websocket.clone().routes())
-    .authenticated_by(middleware::from_fn_with_state(security.authentication.clone(), authenticate));
+    let app = app
+        .merge(home_routes(home))
+        .nest("/notes", note_routes(notes))
+        .nest("/tracker/operations", operation_routes(tracker))
+        .nest("/notifications", notification_routes(notifications.module.clone()))
+        .merge(auth_routes(security.module.clone()))
+        .outside_api(notifications.websocket.clone().routes())
+        .authenticated_by(middleware::from_fn_with_state(security.authentication.clone(), authenticate));
 
     // The administrator account the settings describe, created before the first request.
     if let Some(admin) = &settings.admin_account
