@@ -28,10 +28,10 @@ One fresh agent per tree took the three requests in order, in one conversation, 
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | A run 2 | ✓ | ✓ ✓ | ✓ 0 refused | ✓ 0 refused | ✓ | no regression | 27.1 min | $5.07 |
 | A run 3 | ✓ | **✗ ✗ three archivings told twice** | ✓ 0 refused | ✓ 0 refused | ✓ | no regression | 23.7 min | $4.44 |
-| D run 1 | ✓ | **✗ ✗ three archivings told two or three times** | REFUSALS_D1 | | ✓ | no regression | 39.8 min | $6.18 |
-| D run 2 | ✓ | ✓ ✓ | REFUSALS_D2 | | ✓ | no regression | 28.0 min | $5.64 |
-| P run 2 | ✓ (amended) | ✓ ✓ | REFUSALS_P2 | | ✓ | no regression | **19.0 min** | **$2.45** |
-| P run 3 | ✓ (amended) | ✓ ✓ | REFUSALS_P3 | | ✓ | no regression | **21.8 min** | **$2.95** |
+| D run 1 | ✓ | **✗ ✗ three archivings told two or three times** | ✓ 0 refused | ✓ 0 refused | ✓ | no regression | 39.8 min | $6.18 |
+| D run 2 | ✓ | ✓ ✓ | ✓ 0 refused | ✓ 0 refused | ✓ | no regression | 28.0 min | $5.64 |
+| P run 2 | ✓ (amended) | ✓ ✓ | ✓ 0 refused | ✓ 0 refused | ✓ | no regression | **19.0 min** | **$2.45** |
+| P run 3 | ✓ (amended) | ✓ ✓ | ✓ 0 refused | ✓ 0 refused | ✓ | no regression | **21.8 min** | **$2.95** |
 
 The time is from the run's start to its last gate. The cost is the one the agent runner reports.
 
@@ -67,7 +67,7 @@ With the reference's in-memory outbox there is nothing to relay, so no test of t
 | Prediction, written before the runs | What happened |
 | --- | --- |
 | **15:** every arm delivers, and the architecture arms spend less on this request than on the others. | **Refuted, both halves.** Two of four architecture trees fail. Their cost on 15, $1.66–2.09, is above their cost on 16, $0.93–1.63. P delivered both at $1.01–1.15. |
-| **16, one process:** no arm loses a change silently, and the architecture arms refuse more. | **The first half held; the second did not.** No tree lost a change, and no tree refused any of the twenty simultaneous shares. |
+| **16, one process:** no arm loses a change silently, and the architecture arms refuse more. | **The first half held; the second did not.** No tree lost a change, and no tree refused anything: not one of twenty simultaneous shares, twenty across two processes, or twenty edits and shares sent together. |
 | **16, two processes:** every arm delivers; the architecture's changes stay in adapters; its cost is not lower than the plain arm's. | **Held.** Every tree passes. The reading places 16 in the unit of work and the SQLite adapter in all four architecture trees. A and D spent $0.93–1.63, P $0.84–1.10. |
 | **17:** every arm delivers; the architecture's change stays in adapters and wiring; the plain arm's cost rises most here, and this is where the architecture could narrow the gap. | **Delivery held; the rest was refuted.** Three architecture trees added a new aggregate (`Forwarding`, `OutsideDelivery`, `Delivery`), and a2 put a delivery state on `Notification`. 17 was P's cheapest request, at $0.60–0.71 against $1.70–2.47. |
 | **Overall:** if P needs more work than A and D to meet 15 and 17, the architecture pays here for one agent; if not, the outbox and the version check are one way to meet these requirements, not a reason to choose the architecture. | **The second branch.** P met all three requirements for less. |
@@ -176,7 +176,7 @@ The reading names the hazards those would expose, and they exist in both arms.
 - **Author of everything.** One author wrote the architecture, the requests, the hidden tests and their amendment, and the reference whose line failed.
 - **Few runs.** Two trees per arm, one agent each. "Half the architecture trees" is two trees.
 - **The chaos test is a sample.** Its delays come from a fixed seed, but the moment the server reaches at each delay depends on the machine. The two failing trees failed in all four gradings; the four others passed in all four.
-- **Machine load.** The second grading ran while the two diagnoses ran their own copies of the test on the same machine. It agreed with the first, quiet one.
+- **Machine load.** The second grading ran while the diagnoses, and then the fixes in three languages, ran on the same machine. Its hidden-test verdicts agreed with the first, quiet grading in every tree. One of D run 2's own tests failed once in it, under `yarn verify`; run again on a quiet machine, its 216 tests passed. The archive keeps both.
 - **The reading is one reader,** an agent, adapted from the control's rubric to what this campaign changed. It ran nothing; what it calls suspected is suspected.
 
 ## Cost

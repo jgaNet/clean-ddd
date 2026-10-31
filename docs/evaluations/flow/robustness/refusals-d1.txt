@@ -1,0 +1,4 @@
+robustness: 0 of 20 simultaneous shares refused
+robustness: 0 of 20 shares across two processes refused
+robustness: 0 of 20 simultaneous edits and shares refused
+Tests:       3 passed, 3 total
