@@ -63,12 +63,9 @@ export class FastifyApplication extends Application {
     this.fastify.addHook('preHandler', (request, reply, done) => {
       const traceId = (request.headers['x-trace-id'] as string) || uuidv4();
 
-      request.executionContext = new ExecutionContext({
-        traceId,
-        auth: { subjectId: request.auth.subjectId, role: request.auth.role },
-        eventBus: this.getEventBus(),
-        unitOfWork: new InMemoryUnitOfWork(),
-        logger: this.logger,
+      request.executionContext = this.executionContext(traceId, {
+        subjectId: request.auth.subjectId,
+        role: request.auth.role,
       });
 
       reply.header('x-trace-id', traceId);
@@ -126,6 +123,24 @@ export class FastifyApplication extends Application {
   }
 
   /** Listens. Port 0 asks the OS for a free one (tests); `address` then says which. */
+
+  /**
+   * A context of its own, as each request gets one: its trace, its caller, the bus, the logger,
+   * and a unit of work of its own. Whatever runs work outside a request runs it in one too, the
+   * composition root's relay at start first (ADR 24): a reaction it delivers then runs in a
+   * transaction of its own, and what it tells goes through the outbox under the entry's id, as
+   * after a request (ADR 30). With no unit of work, the reaction would run with no transaction
+   * and publish straight to the bus under a fresh id, which no subscriber can recognise again.
+   */
+  executionContext(traceId: string, auth: { subjectId?: string; role?: string } = {}): ExecutionContext {
+    return new ExecutionContext({
+      traceId,
+      auth,
+      eventBus: this.getEventBus(),
+      unitOfWork: new InMemoryUnitOfWork(),
+      logger: this.logger,
+    });
+  }
   async start(port: number = this.port): Promise<void> {
     await this.fastify.listen({ port, host: '127.0.0.1' });
     await this.fastify.ready();

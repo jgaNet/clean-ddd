@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "kit": "./docs/evaluations/benchmark/robustness",
+  "gradings": [
+    {
+      "tree": "a2",
+      "role": "before",
+      "ref": "main",
+      "features": {
+        "durable-notices": false,
+        "concurrent-changes": false,
+        "notification-service": false
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "a3",
+      "role": "before",
+      "ref": "main",
+      "features": {
+        "durable-notices": false,
+        "concurrent-changes": false,
+        "notification-service": false
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "d1",
+      "role": "before",
+      "ref": "main",
+      "features": {
+        "durable-notices": false,
+        "concurrent-changes": true,
+        "notification-service": false
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "d2",
+      "role": "before",
+      "ref": "main",
+      "features": {
+        "durable-notices": false,
+        "concurrent-changes": false,
+        "notification-service": false
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "p2",
+      "role": "before",
+      "ref": "main",
+      "features": {
+        "durable-notices": false,
+        "concurrent-changes": false,
+        "notification-service": false
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "p3",
+      "role": "before",
+      "ref": "main",
+      "features": {
+        "durable-notices": false,
+        "concurrent-changes": false,
+        "notification-service": false
+      },
+      "hygiene": []
+    }
+  ],
+  "verdict": "read",
+  "findings": [
+    {
+      "level": "read",
+      "feature": "concurrent-changes",
+      "message": "passes before the feature is written, on d1: it tests nothing there"
+    }
+  ]
+}

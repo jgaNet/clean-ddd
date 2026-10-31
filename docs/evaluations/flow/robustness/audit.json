@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 1,
+  "kit": "./docs/evaluations/benchmark/security",
+  "gradings": [
+    {
+      "tree": "a2",
+      "role": "before",
+      "ref": "f3ddb77",
+      "features": {
+        "tokens": true,
+        "injection": true,
+        "object-access": true,
+        "mass-assignment": true,
+        "secrets-at-rest": true,
+        "error-leaks": true
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "a2",
+      "role": "solved",
+      "ref": "main",
+      "features": {
+        "tokens": true,
+        "injection": true,
+        "object-access": true,
+        "mass-assignment": true,
+        "secrets-at-rest": true,
+        "error-leaks": true
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "a3",
+      "role": "before",
+      "ref": "b6ef284",
+      "features": {
+        "tokens": true,
+        "injection": true,
+        "object-access": true,
+        "mass-assignment": true,
+        "secrets-at-rest": true,
+        "error-leaks": true
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "a3",
+      "role": "solved",
+      "ref": "main",
+      "features": {
+        "tokens": true,
+        "injection": true,
+        "object-access": true,
+        "mass-assignment": true,
+        "secrets-at-rest": true,
+        "error-leaks": true
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "d1",
+      "role": "before",
+      "ref": "76fdcb7",
+      "features": {
+        "tokens": true,
+        "injection": true,
+        "object-access": true,
+        "mass-assignment": true,
+        "secrets-at-rest": true,
+        "error-leaks": true
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "d1",
+      "role": "solved",
+      "ref": "main",
+      "features": {
+        "tokens": true,
+        "injection": true,
+        "object-access": true,
+        "mass-assignment": true,
+        "secrets-at-rest": true,
+        "error-leaks": true
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "d2",
+      "role": "before",
+      "ref": "bf24ddd",
+      "features": {
+        "tokens": true,
+        "injection": true,
+        "object-access": true,
+        "mass-assignment": true,
+        "secrets-at-rest": true,
+        "error-leaks": true
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "d2",
+      "role": "solved",
+      "ref": "main",
+      "features": {
+        "tokens": true,
+        "injection": true,
+        "object-access": true,
+        "mass-assignment": true,
+        "secrets-at-rest": true,
+        "error-leaks": true
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "p2",
+      "role": "before",
+      "ref": "34c95e5",
+      "features": {
+        "tokens": true,
+        "injection": true,
+        "object-access": true,
+        "mass-assignment": true,
+        "secrets-at-rest": true,
+        "error-leaks": true
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "p2",
+      "role": "solved",
+      "ref": "main",
+      "features": {
+        "tokens": true,
+        "injection": true,
+        "object-access": true,
+        "mass-assignment": true,
+        "secrets-at-rest": true,
+        "error-leaks": true
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "p3",
+      "role": "before",
+      "ref": "d7a742d",
+      "features": {
+        "tokens": true,
+        "injection": true,
+        "object-access": true,
+        "mass-assignment": true,
+        "secrets-at-rest": true,
+        "error-leaks": true
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "p3",
+      "role": "solved",
+      "ref": "main",
+      "features": {
+        "tokens": true,
+        "injection": true,
+        "object-access": true,
+        "mass-assignment": true,
+        "secrets-at-rest": true,
+        "error-leaks": true
+      },
+      "hygiene": []
+    }
+  ],
+  "verdict": "read",
+  "findings": [
+    {
+      "level": "read",
+      "feature": "tokens",
+      "message": "passes before the feature is written, on a2, a3, d1, d2, p2, p3: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "injection",
+      "message": "passes before the feature is written, on a2, a3, d1, d2, p2, p3: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "object-access",
+      "message": "passes before the feature is written, on a2, a3, d1, d2, p2, p3: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "mass-assignment",
+      "message": "passes before the feature is written, on a2, a3, d1, d2, p2, p3: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "secrets-at-rest",
+      "message": "passes before the feature is written, on a2, a3, d1, d2, p2, p3: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "error-leaks",
+      "message": "passes before the feature is written, on a2, a3, d1, d2, p2, p3: it tests nothing there"
+    }
+  ]
+}

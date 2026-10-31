@@ -1,0 +1,21 @@
+{
+  "project": "/runs/e4/d2/app",
+  "base": "bf24ddd",
+  "ref": "main",
+  "added": {
+    "source": 1085,
+    "tests": 1039
+  },
+  "removed": {
+    "source": 106,
+    "tests": 1
+  },
+  "filesTouched": 37,
+  "sourceFiles": 186,
+  "testFiles": 40,
+  "testCases": 195,
+  "largestSource": {
+    "path": "src/Contexts/Notes/Domain/Note/Note.ts",
+    "lines": 409
+  }
+}
