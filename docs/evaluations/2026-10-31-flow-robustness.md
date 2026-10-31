@@ -60,7 +60,7 @@ With the reference's in-memory outbox there is nothing to relay, so no test of t
 
 **What separated the trees.** Both passing architecture trees gave the startup relay a unit of work, and d2's agent wrote why in a comment: "so that each reaction runs in a transaction of its own and records what it handled in the inbox, as it would after a request." The two failing ones made the inbox the only guard and did not wire it into the one place where delivery after a crash happens. The plain trees had no relay: each stored what an archiving owed inside the archiving's own transaction and delivered it, idempotently, from that table.
 
-**The fix belongs in the reference, not in a tree.** The startup relay should carry a unit of work in every language, with a test that relays a durable entry after a simulated crash. This record proposes it; it is an architecture change, decided apart.
+**The fix belongs in the reference, not in a tree, and it is made.** In every language the transport now builds every context that runs work, a request's and the relay's at start, with a unit of work of its own. A test in each language relays an entry a crashed run left and expects the reaction's fact once, under an id the outbox handed out; each fails with the old context ([ADR 24's revision](../adr/0024-events-are-durable-before-they-are-published.md#revision-the-relay-at-start-runs-in-a-requests-kind-of-context)).
 
 ## The predictions, against the runs
 
@@ -167,9 +167,9 @@ No agent was asked for any of it. It ran on the six trees before the campaign an
 
 The reading names the hazards those would expose, and they exist in both arms.
 
-**The follow-up this record proposes:**
-1. **Give the startup relay a unit of work in every language's reference and in what `create` writes,** with a test that relays a durable entry after a simulated crash and expects one delivery.
-2. **Add to the kit, for a later campaign, a test of the outside service with two processes.** It must fix a reading of "at most five seconds apart" first.
+**What followed:**
+1. **Done: the startup relay has a unit of work in every language's reference,** and so in what `create` writes, with a test in each language ([above](#the-defect-what-the-startup-relay-does-not-carry)).
+2. **Proposed for a later campaign: a test of the outside service with two processes.** It must fix a reading of "at most five seconds apart" first.
 
 ## Biases
 

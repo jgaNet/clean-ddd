@@ -94,5 +94,5 @@ A third revision records the robustness campaign ([the record](../evaluations/20
 - **The condition "if the plain trees build the same guarantees at their usual price" is met.** Both plain trees met crash recovery, concurrency across two processes and retried delivery, at half the architecture arms' cost.
 - **Two of the four architecture trees did not meet crash recovery.** They told some archivings twice after a crash. The cause is a line every language's reference ships: the startup relay runs without a unit of work, so it relays past the inbox.
 - **The verdict and the offer are unchanged.** The architecture does not buy correctness under failure for one agent. The outbox and the version check are one way to meet these requirements, not the only one. The locality E4 measured held again: no architecture tree touched a business rule for crashes or concurrency.
-- **The reference's startup relay is to be given a unit of work in every language,** with a test that relays a durable entry after a crash. That is an architecture change of its own.
+- **The reference's startup relay now has a unit of work in every language,** with a test that relays a durable entry after a crash ([ADR 24's revision](0024-events-are-durable-before-they-are-published.md#revision-the-relay-at-start-runs-in-a-requests-kind-of-context)).
 
