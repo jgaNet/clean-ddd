@@ -64,6 +64,7 @@ pub struct Operation {
     created_at: SystemTime,
     finished_at: Option<SystemTime>,
     result: Option<Result<OperationValue, Exception>>,
+    delivered: Option<bool>,
 }
 
 impl Operation {
@@ -83,6 +84,7 @@ impl Operation {
             created_at: SystemTime::now(),
             finished_at: None,
             result: None,
+            delivered: None,
         }
     }
 
@@ -127,6 +129,16 @@ impl Operation {
         }
     }
 
+    /// Whether every subscriber the message reached has finished with it and succeeded (or had
+    /// handled it before): `Some(false)` when one of them failed. The outbox's relay acknowledges
+    /// an entry on it (ADR 24): a fact whose reactions have not all committed is still owed. The
+    /// status cannot say it, since one operation is shared by every subscriber and its status is
+    /// how the last of them ended. `None` when the bus cannot tell, and the relay acknowledges
+    /// once the dispatch returns.
+    pub fn delivered(&self) -> Option<bool> {
+        self.delivered
+    }
+
     /// The command's answer, as the type it answered with.
     pub fn value<T: 'static>(&self) -> Option<&T> {
         match &self.result {
@@ -159,6 +171,12 @@ impl Operation {
 
     pub fn sent(mut self) -> Self {
         self.status = OperationStatus::Sent;
+        self
+    }
+
+    /// The bus's verdict once every subscriber has finished: whether each one succeeded.
+    pub fn with_delivery(mut self, every_one_succeeded: bool) -> Self {
+        self.delivered = Some(every_one_succeeded);
         self
     }
 }
