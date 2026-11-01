@@ -221,6 +221,44 @@ mod tests {
         assert!(pending_ids(&outbox).is_empty());
     }
 
+    /// An adapter over a table of entries, as a durable outbox is: each unit of work builds its own.
+    struct OverTheTable(Arc<InMemoryOutbox>);
+    impl Outbox for OverTheTable {
+        fn append(&self, events: Vec<Arc<dyn AnyEvent>>) -> BoxFuture<'_, Vec<OutboxEntry>> {
+            self.0.append(events)
+        }
+        fn pending(&self) -> BoxFuture<'_, Vec<OutboxEntry>> {
+            self.0.pending()
+        }
+        fn mark_published<'a>(&'a self, id: &'a str) -> BoxFuture<'a, ()> {
+            self.0.mark_published(id)
+        }
+    }
+
+    /// The guard against handing out an entry twice is the entry's, not the adapter's: a relay
+    /// through another adapter over the same entries leaves an entry on its way alone.
+    #[test]
+    fn the_relay_does_not_hand_out_an_entry_on_its_way_again_through_another_adapter_over_the_same_entries() {
+        let reaction = Arc::new(EventSubscriber(TellTheHost::default()));
+        let context = relaying_to(&[&reaction]);
+        let table = Arc::new(InMemoryOutbox::new());
+        let entry = confirmed(&table, "b-3");
+
+        let release = reaction.0.hold();
+        let first_adapter = OverTheTable(table.clone());
+        let second_adapter = OverTheTable(table.clone());
+        let first = relay_outbox(&first_adapter, &context);
+        let meanwhile = async {
+            assert!(relay_outbox(&second_adapter, &context).await.is_empty());
+            assert_eq!(reaction.0.handled(), 1);
+            assert_eq!(pending_ids(&table), std::slice::from_ref(&entry));
+            release.send(()).expect("the reaction waits");
+        };
+        pollster::block_on(async { futures::join!(first, meanwhile) });
+
+        assert!(pending_ids(&table).is_empty());
+    }
+
     /// An entry whose reaction failed stays pending, and the next relay hands it only to the
     /// subscriber that failed. In either order: the refusal is the operation's last word, or it is
     /// overwritten by the next subscriber's success, so the relay cannot go by the status.

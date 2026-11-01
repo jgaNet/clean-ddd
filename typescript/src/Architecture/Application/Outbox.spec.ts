@@ -4,7 +4,7 @@ import { expect } from '@jest/globals';
 import { DomainEvent, IResult, NotFoundException, Result } from '@Architecture/Domain';
 import { EventHandler } from './EventHandler';
 import { ExecutionContext } from './ExecutionContext';
-import { relayOutbox } from './Outbox';
+import { Outbox, relayOutbox } from './Outbox';
 import { InMemoryEventBus } from '@Architecture/Infrastructure/EventBus/InMemoryEventBus';
 import { InMemoryOutbox } from '@Architecture/Infrastructure/Outbox/InMemoryOutbox';
 
@@ -61,6 +61,33 @@ describe('relayOutbox', () => {
     reaction.release();
     await settle();
     expect(outbox.pending()).toEqual([]);
+  });
+
+  it('does not hand out an entry on its way again through another adapter over the same entries', async () => {
+    const bus = new InMemoryEventBus({ eventEmitter: new EventEmitter() });
+    const reaction = new TellTheHost();
+    await bus.subscribe(BookingConfirmed.name, reaction);
+    // A durable outbox is a table; each unit of work builds its own adapter over it.
+    const table = new InMemoryOutbox();
+    const overTheTable = (): Outbox => ({
+      append: events => table.append(events),
+      pending: () => table.pending(),
+      markPublished: id => table.markPublished(id),
+    });
+    const context = new ExecutionContext({ traceId: 'relay', auth: {}, eventBus: bus });
+    const [entry] = overTheTable().append([BookingConfirmed.set({ bookingId: 'b-3' })]);
+
+    reaction.hold();
+    relayOutbox(overTheTable(), bus, context);
+    await settle();
+    relayOutbox(overTheTable(), bus, context);
+    await settle();
+    expect(reaction.handled).toBe(1);
+    expect(table.pending()).toEqual([entry]);
+
+    reaction.release();
+    await settle();
+    expect(table.pending()).toEqual([]);
   });
 
   it('keeps an entry whose reaction failed pending, and hands it again to that subscriber only', async () => {

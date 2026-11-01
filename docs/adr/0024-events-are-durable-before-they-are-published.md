@@ -39,7 +39,7 @@ The relay marked an entry published as soon as the bus had it, and the reactions
 - **An operation now says when its delivery is done.** It carries `delivered`, which settles once every reaction the message reached has finished, and says whether every one succeeded.
 - **The relay acknowledges an entry on it, and on nothing sooner.**
   - An entry whose reaction failed stays pending for the next relay, which hands it only to the subscriber that failed (the inbox skips the others).
-  - An entry still on its way is not handed out a second time meanwhile.
+  - An entry still on its way is not handed out a second time meanwhile. The relay knows such an entry by its id, process-wide, and not per outbox object. A durable outbox is a table, and an adapter built for each unit of work is a new object over the same entries. Porting this fix into the pilot's trees found that three languages kept the guard per object, which such an adapter defeats; Go already kept it by id.
 - **Each subscriber's inbox is decided by that subscriber's own outcome,** not by the operation's status. One operation is shared by every subscriber, so its status said how the last of them ended. A subscriber that succeeded beside one that failed was therefore handed the message again.
 
 [`Outbox.spec.ts`](../../typescript/src/Architecture/Application/Outbox.spec.ts) pins both, and each language holds the same. A store's outbox still needs an inbox of its own, written in each reaction's transaction, for a fact relayed again after a crash to reach each subscriber once.

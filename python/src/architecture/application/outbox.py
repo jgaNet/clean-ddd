@@ -22,7 +22,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import partial
 from typing import TYPE_CHECKING, Protocol
-from weakref import WeakKeyDictionary
 
 from architecture.domain.event import Event, name_of
 
@@ -53,8 +52,11 @@ class Outbox(Protocol):
         ...
 
 
-#: Per outbox, the entries handed to the bus whose reactions have not all finished yet.
-_on_their_way: WeakKeyDictionary[Outbox, set[str]] = WeakKeyDictionary()
+#: The entries handed to the bus whose reactions have not all finished yet, by id. Process-wide
+#: and not per outbox: a durable outbox is a table, and an adapter built for each unit of work is a
+#: new object over the same entries, which a guard kept per object would not recognise. An entry's
+#: id is unique, so the id alone names it.
+_on_their_way: set[str] = set()
 
 
 def relay_outbox(outbox: Outbox, event_bus: EventBus, context: ExecutionContext) -> list[OutboxEntry]:
@@ -67,10 +69,9 @@ def relay_outbox(outbox: Outbox, event_bus: EventBus, context: ExecutionContext)
     and the relay goes on with the next entry: one fact that cannot go out does not hold the
     others. The context's relay after each commit and the bootstrap's at start are the two
     callers. Returns the entries handed to the bus."""
-    on_their_way = _on_their_way.setdefault(outbox, set())
     handed: list[OutboxEntry] = []
     for entry in outbox.pending():
-        if entry.id in on_their_way:
+        if entry.id in _on_their_way:
             continue
         try:
             delivered = event_bus.publish(entry.event, context, message_id=entry.id).delivered
@@ -86,14 +87,14 @@ def relay_outbox(outbox: Outbox, event_bus: EventBus, context: ExecutionContext)
                     {"traceId": context.trace_id},
                 )
             continue
-        on_their_way.add(entry.id)
-        delivered.add_done_callback(partial(_acknowledge, outbox, entry.id, on_their_way))
+        _on_their_way.add(entry.id)
+        delivered.add_done_callback(partial(_acknowledge, outbox, entry.id))
     return handed
 
 
-def _acknowledge(outbox: Outbox, id: str, on_their_way: set[str], delivered: asyncio.Future[bool]) -> None:
+def _acknowledge(outbox: Outbox, id: str, delivered: asyncio.Future[bool]) -> None:
     """Once the delivery has settled: the entry is no longer on its way, and is published if every
     reaction succeeded."""
-    on_their_way.discard(id)
+    _on_their_way.discard(id)
     if not delivered.cancelled() and delivered.result():
         outbox.mark_published(id)
