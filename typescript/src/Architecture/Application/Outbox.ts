@@ -35,25 +35,45 @@ export interface Outbox {
   markPublished(id: string): void;
 }
 
+/** Per outbox, the entries handed to the bus whose reactions have not all finished yet. */
+const relaying = new WeakMap<Outbox, Set<string>>();
+
 /**
  * Publishes every pending entry through the bus, with the entry's id as the message's id, and
- * marks it published once the bus has it. A publication that throws leaves the entry pending,
- * for the next relay, and the relay goes on with the next entry: one fact that cannot go out
- * does not hold the others. The context's relay after each commit and the bootstrap's at start
- * are the two callers.
+ * marks it published once every reaction it reached has committed (the operation's
+ * `delivered`), never sooner: a process that dies while a reaction runs leaves the entry pending,
+ * and the next relay hands it out again, to the subscribers that had not handled it yet. An
+ * entry whose reaction failed stays pending too, for the next relay; one still on its way is
+ * not handed out a second time meanwhile. A publication that throws leaves the entry pending,
+ * and the relay goes on with the next entry: one fact that cannot go out does not hold the
+ * others. The context's relay after each commit and the bootstrap's at start are the two callers.
+ * Returns the entries handed to the bus.
  */
 export function relayOutbox(outbox: Outbox, eventBus: EventBus, context: ExecutionContext): OutboxEntry[] {
-  const published: OutboxEntry[] = [];
+  let onTheirWay = relaying.get(outbox);
+  if (!onTheirWay) relaying.set(outbox, (onTheirWay = new Set()));
+  const handed: OutboxEntry[] = [];
   for (const entry of outbox.pending()) {
+    if (onTheirWay.has(entry.id)) continue;
     try {
-      eventBus.publish(entry.event, context, entry.id);
-      outbox.markPublished(entry.id);
-      published.push(entry);
+      const delivered = eventBus.publish(entry.event, context, entry.id)?.delivered;
+      handed.push(entry);
+      if (!delivered) {
+        outbox.markPublished(entry.id);
+        continue;
+      }
+      const waiting = onTheirWay;
+      waiting.add(entry.id);
+      void delivered
+        .then(everyOne => {
+          if (everyOne) outbox.markPublished(entry.id);
+        })
+        .finally(() => waiting.delete(entry.id));
     } catch (error) {
       context.logger?.error(`Outbox entry ${entry.id} (${entry.event.name}) stays pending`, error, {
         traceId: context.traceId,
       });
     }
   }
-  return published;
+  return handed;
 }

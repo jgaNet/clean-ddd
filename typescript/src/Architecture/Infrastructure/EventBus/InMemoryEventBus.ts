@@ -19,12 +19,16 @@ import {
  * Delivery is idempotent per subscriber (ADR 24): a message relayed from the outbox carries its
  * entry's id, and a subscriber that already handled that id — and did not fail — is not handed
  * it again. The inbox is the bus's, not each handler's, so a reaction stays a plain `execute()`;
- * a reaction that failed is handed the message again, which is what at-least-once is for.
+ * a reaction that failed is handed the message again, which is what at-least-once is for. An
+ * operation's `delivered` settles once every reaction it started has finished, and says whether
+ * all of them succeeded: the outbox's relay acknowledges an entry on it, and on nothing sooner.
  */
 export class InMemoryEventBus implements EventBus {
   #eventEmitter: IEventEmitter;
   /** Per subscription, the ids of the messages it handled: the inbox. */
   #delivered: Map<number, Set<string>> = new Map();
+  /** While a message is emitted, the reactions it starts: what its `delivered` waits for. */
+  #reactions = new Map<IOperation<Event<unknown>>, Promise<boolean>[]>();
   #subscriptions = 0;
 
   constructor({ eventEmitter }: { eventEmitter: IEventEmitter }) {
@@ -59,7 +63,15 @@ export class InMemoryEventBus implements EventBus {
       },
     };
 
-    this.#eventEmitter.emit(event.name, operation);
+    // The listeners run during emit(): each one that starts a reaction adds it here.
+    const reactions: Promise<boolean>[] = [];
+    this.#reactions.set(operation, reactions);
+    try {
+      this.#eventEmitter.emit(event.name, operation);
+    } finally {
+      this.#reactions.delete(operation);
+    }
+    operation.delivered = Promise.all(reactions).then(each => each.every(Boolean));
 
     return operation;
   }
@@ -75,9 +87,24 @@ export class InMemoryEventBus implements EventBus {
         operation.sent();
         return;
       }
-      void eventHandler.handle(operation).then(done => {
-        if (done.status !== OperationStatus.ERROR) inbox.add(operation.id);
+      // Each subscriber's own verdict: the operation is one for every subscriber, so its status
+      // says how the last of them ended, not how this one did. A delivery is the operation, with
+      // `failed` noting that this subscriber failed.
+      let succeeded = true;
+      const delivery: IOperation<Event<T>> = Object.assign(Object.create(operation) as IOperation<Event<T>>, {
+        failed: (error: unknown) => {
+          succeeded = false;
+          return operation.failed(error);
+        },
       });
+      const reaction = eventHandler.handle(delivery).then(
+        () => {
+          if (succeeded) inbox.add(operation.id);
+          return succeeded;
+        },
+        () => false,
+      );
+      this.#reactions.get(operation as IOperation<Event<unknown>>)?.push(reaction);
     });
   }
 }

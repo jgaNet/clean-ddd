@@ -19,4 +19,11 @@ export interface IOperation<T extends IEvent<unknown>, S extends OperationStatus
   failed: (error: unknown) => IOperation<T>;
   success: (value?: unknown) => IOperation<T>;
   sent: () => IOperation<T>;
+  /**
+   * Settles once every subscriber the message reached has finished with it: true when each one
+   * succeeded (or had handled it before), false when one failed. The outbox's relay acknowledges
+   * an entry on it, never sooner (ADR 24): a fact whose reactions have not committed is still
+   * owed. A bus that cannot tell leaves it undefined, and the relay acknowledges at once.
+   */
+  delivered?: Promise<boolean>;
 }
