@@ -1,8 +1,16 @@
-# The Clean DDD arm's storms: proposals, waiting for the maintainer
+# The Clean DDD arm's storms: what the session decided
 
 The Clean DDD arm gets a storm with each request, decided with the maintainer before the feature runs ([decision 9](../../j0.md#decisions-for-the-maintainer)). This file is the session's preparation: every hot spot the ten requests raise, with a proposal and what the alternative costs.
 
-**Nothing here is decided.** The per-feature storms (`<feature>.yaml`) are written only once the maintainer has answered, in the inventory's words, as [`../../../storms/`](../../../storms) shows for the notes backlog. The time the session takes is counted as the arm's cost.
+**Decided on 2026-11-01: the maintainer accepted every proposal below.** Two were refined while the storms were written, and are marked here:
+- **S2:** stay limits and booking mode are terms of the listing, in Listings, because the listing's page shows them. Only the nights live in Booking.
+- **S9:** a storm has no sticky for a timer, so the sweep is named in its hot spot and its fact in Booking's events.
+
+The storms are written, one per feature, in the inventory's words, as [`../../../storms/`](../../../storms) shows for the notes backlog. Each is validated against the Clean DDD starting tree (`yarn architecture storm validate`: *legal against the contract and the map; not in the code yet*). The strategic session's outcome is a commit of that tree, ADR 1 in it:
+- the four contexts, declared empty;
+- the relationships, declared `planned`.
+
+The maintainer's time on the session is counted as the arm's cost.
 
 The simple arm never sees any of this.
 
@@ -19,7 +27,7 @@ The [candidate model](../../j0.md#a-candidate-strategic-model-for-the-clean-ddd-
 | # | Question | Proposal | The alternative, and what it costs |
 | --- | --- | --- | --- |
 | S1 | Which contexts does the pilot start with, and when are they declared? | **The four above, declared in the Clean DDD starting tree as the outcome of this session:** in the domain map (subdomain, purpose, language) and the binding, empty, with the relationships below declared `planned` (CTX-MAP-DECLARED allows a relationship decided before the code that carries it). The tooling requires it: `storm validate` refuses a storm that names an undeclared context, and a new context is a decision taken before any storm names it. | Each feature's agent declares the context it first needs, as an architecture task (Accounts at 1, Listings at 2, Booking at 4, Notifications at 10). The storms could then not be validated before the runs, and the agent would pay for a decision the session already took. |
-| S2 | Where do the calendar's rules live: blocked nights, stay limits, booking mode? | **Booking.** No double booking (invariant 3) spans the blocked nights, the requests that hold nights and the confirmed bookings. They are one rule, and so in one context. The routes stay under `/listings/{id}/…`, which is only where the API puts them. | **Listings.** The rule against double booking would then cross a boundary, and need a lock or a saga between two contexts. |
+| S2 | Where do the calendar's rules live: blocked nights, stay limits, booking mode? | **Booking, for the nights** (refined: the stay limits and the booking mode are terms of the listing, in Listings, read through `ListingTerms`, since the listing's page shows them). No double booking (invariant 3) spans the blocked nights, the requests that hold nights and the confirmed bookings. They are one rule, and so in one context. The routes stay under `/listings/{id}/…`, which is only where the API puts them. | **Listings.** The rule against double booking would then cross a boundary, and need a lock or a saga between two contexts. |
 | S3 | How does Booking know a listing's terms (published or not, price, fee, tax, capacity, policy, host)? | **A port Booking owns** (`ListingTerms`), answered by an adapter over Listings' read model, read when a quote is made. The quote then keeps what it read. | **Listings publishes integration events,** and Booking keeps a copy of each listing. That is more code, and it gives eventual consistency where the quote wants the current terms. |
 | S4 | Where does search live? | **Booking.** It asks Listings, through the same port, for the published listings of a city that take the guests, in the stated order, then keeps the ones whose calendar can give every night. The dependency goes one way, Booking → Listings, and `GET /listings?city=…` is served by Booking. | **Listings,** asking Booking for availability through a port of its own. The two contexts would then each depend on the other, through two ports in opposite directions. |
 | S5 | What keeps two bookings off the same night? | **A `ListingCalendar` aggregate** per listing, holding its blocked nights and the nights taken by each request or booking (by id). The `Booking` is its own aggregate, since a listing's bookings grow without bound. Booking or requesting takes the nights in the calendar and creates the booking in **one transaction**. The calendar's version check is what refuses the second of two travellers ([CONC-OPTIMISTIC](../../../../../../conventions/architecture.yaml)). | **The bookings as entities inside the calendar:** one aggregate per transaction, but an aggregate that grows with every booking ever made. Or **a booking that reserves its nights afterwards,** by a policy: a moment where two confirmed bookings overlap, then a compensation. |
@@ -56,8 +64,8 @@ The relationships these proposals give, to declare in the domain map:
 | 9 History | Where the history lives | A read model of Booking's own facts, each with its actor (null for the application) and time. |
 | 10 Notify | The delivery owed | A `Delivery` aggregate in Notifications: its body fixed at creation, `accepted` once the service answers 2xx, retried by a scheduled sender. The outbox and the reactions' own transactions (ADR 24, 30) carry the fact from Booking. |
 
-## What the maintainer is asked
+## What the session did
 
-1. S1–S10: confirm or change each proposal.
-2. Each feature's hot spots: the same.
+1. S1–S10: accepted, S2 refined as above.
+2. Each feature's hot spots: accepted, in the storms.
 3. Then the four contexts and their relationships are declared in the Clean DDD starting tree (a commit on top of `create`'s, kept in `../trees/clean.bundle`). The storms are written, validated against that tree with `yarn architecture storm validate`, and committed here, `done: false`.

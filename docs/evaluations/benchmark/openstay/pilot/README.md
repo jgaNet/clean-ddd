@@ -9,15 +9,15 @@ The pilot of [OpenStay](../README.md) (checkpoint J2) runs these ten requests on
 | [`backlog/`](backlog) | The ten requests, in product words, each with its API. Request 1 holds the conventions every later one uses. `backlog.yaml` is the order a driver reads. |
 | [`acceptance/`](acceptance) | The hidden tests, one file per request, and their client [`openstay.ts`](acceptance/openstay.ts). No arm ever sees them. |
 | [`simple-CLAUDE.md`](simple-CLAUDE.md) | The simple arm's guide: the control's plain project, renamed, with nothing said about storage beyond what the requests say. |
-| [`trees/`](trees) | Git bundles: `simple.bundle` holds the simple arm's starting commit (`08b94b0`) and the solvability tree on top of it (`dcf5fea`); `clean.bundle` holds the Clean DDD arm's starting commit, with its tooling vendored. `git clone -b main trees/<arm>.bundle <dir> && yarn install` restores one. |
+| [`trees/`](trees) | Git bundles: `simple.bundle` holds the simple arm's starting commit (`08b94b0`) and the solvability tree on top of it (`dcf5fea`); `clean.bundle` holds the Clean DDD arm's starting tree: `create`'s commit with its tooling vendored, then the strategic session's. `git clone -b main trees/<arm>.bundle <dir> && yarn install` restores one. |
 | [`dry-run.json`](dry-run.json) | The rehearsal's report. |
 | [`review.md`](review.md) | The review of the tests by a fresh agent that had only the requests, and what was done with each finding (below). |
-| `storms/` | The Clean DDD arm's storms, one per feature, decided with the maintainer. Not yet decided: see [below](#what-j1-still-needs). |
+| [`storms/`](storms) | The Clean DDD arm's storms, one per feature, decided with the maintainer, and [what the session decided](storms/README.md). |
 
 ## The two arms' starting trees
 
 - **Simple:** `node .claude/flow/control.mjs plain <dir> --name openstay --guide docs/evaluations/benchmark/openstay/pilot/simple-CLAUDE.md`.
-- **Clean DDD:** `clean-ddd create <dir> --name openstay`, from the corrected reference (ADR 24's revision: the startup relay has a unit of work). The tooling package is vendored in the tree, so it installs anywhere.
+- **Clean DDD:** `clean-ddd create <dir> --name openstay`, from the corrected reference (ADR 24's revision: the startup relay has a unit of work), then the strategic session's commit. That commit declares the four contexts empty and the relationships `planned`, with ADR 1. The tooling package is vendored in the tree, so it installs anywhere.
 
 Each arm is given the requests one at a time. The Clean DDD arm also gets the feature's storm. Neither sees the brief.
 
@@ -85,9 +85,11 @@ A feature the strongest model also fails ends the tree. Every later feature buil
 
   No graded tree was left behind in either rehearsal.
 
-## What J1 still needs
+## J1 is done
 
-- **The storms,** decided with the maintainer: the strategic model first (which contexts, and how they relate), then a storm per feature. A proposal for each hot spot is prepared, and nothing is decided until the maintainer says so.
+- **The storms are decided.** The maintainer accepted the proposals on 2026-11-01. The ten storms are written and validated against the Clean DDD starting tree, which now carries the strategic session (four contexts, the map, ADR 1).
+- **`dry-run` was run again on that tree: clean.**
+- **The pilot (J2) can start.** It needs the ladder's three models pinned in the execution plans, and the budget reserved.
 
 ## Amendments
 

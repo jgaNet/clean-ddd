@@ -1,0 +1,53 @@
+# Feature 7 of OpenStay's pilot (../backlog/7-request-to-book.md), as the session decided it.
+schemaVersion: 1
+
+feature: request-to-book
+intent: >-
+  A listing in request mode turns a booking into a request that holds its nights until its host accepts or declines it, or until it expires with nobody acting.
+
+done: false
+
+hotSpots:
+  - question: Where does the booking mode live?
+    decision: In Listings, as a term of the listing that its page shows (BookingModeSet); Booking reads it through ListingTerms when a booking is made.
+  - question: Is accepting a request the same fact as a booking confirmed at once?
+    decision: No — BookingRequestAccepted is a fact of its own; only a booking confirmed at once and a new request will notify the host.
+  - question: How does a request expire when nobody acts?
+    decision: Both ways — a request past its time reads as expired at once, and a scheduled sweep records BookingRequestExpired by nobody, which releases its nights and writes its history. Time is a parameter. (A storm has no sticky for a timer, so the sweep is named here, and its fact below.)
+  - question: Declining a request?
+    decision: BookingDeclined, and its nights released in the same transaction, as booking takes them.
+
+contexts:
+  - id: Listings
+    commands:
+      - name: SetBookingMode
+        actor: a signed-in account
+        route: PUT /listings/{param}/booking-mode
+        aggregate: Listing
+        events: [BookingModeSet]
+    queries: []
+    events: [BookingModeSet]
+    policies: []
+  - id: Booking
+    commands:
+      - name: BookStay
+        actor: a signed-in account
+        route: POST /bookings
+        aggregate: Booking
+        events: [BookingRequested, NightsTaken]
+      - name: AcceptBookingRequest
+        actor: a signed-in account
+        route: POST /bookings/{param}/accept
+        aggregate: Booking
+        events: [BookingRequestAccepted]
+      - name: DeclineBookingRequest
+        actor: a signed-in account
+        route: POST /bookings/{param}/decline
+        aggregate: Booking
+        events: [BookingDeclined, NightsReleased]
+    queries: []
+    events:
+      [BookingDeclined, BookingRequestAccepted, BookingRequestExpired, BookingRequested, NightsReleased, NightsTaken]
+    policies: []
+
+links: []

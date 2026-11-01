@@ -1,0 +1,30 @@
+# Feature 3 of OpenStay's pilot (../backlog/3-search.md), as the session decided it.
+schemaVersion: 1
+
+feature: search
+intent: >-
+  Anyone finds the published listings of a city that take the guests and can give every night of the stay, in an order stated once and the same for everyone.
+
+done: false
+
+hotSpots:
+  - question: Which context answers a search?
+    decision: Booking, since only it knows which nights a listing can give. It asks Listings, through a port it owns (ListingTerms), for the published listings of the city that take the guests, in the stated order, then keeps those its calendars allow. The dependency goes one way, Booking → Listings.
+  - question: Where is the order kept?
+    decision: On the port, in its documentation and its contract test — the cheapest nightly price first, then the first published, then the id; the handler never sorts.
+
+contexts:
+  - id: Booking
+    commands: []
+    queries:
+      - name: SearchListings
+        actor: anyone
+        route: GET /listings
+    events: []
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Listings
+    downstream: Booking
+    contracts: [ListingTerms]
