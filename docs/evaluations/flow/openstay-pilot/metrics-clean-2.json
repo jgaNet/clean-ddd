@@ -1,0 +1,21 @@
+{
+  "project": "/runs/openstay/clean-2/app",
+  "base": "ccf7f75",
+  "ref": "main",
+  "added": {
+    "source": 7075,
+    "tests": 3335
+  },
+  "removed": {
+    "source": 44,
+    "tests": 7
+  },
+  "filesTouched": 186,
+  "sourceFiles": 208,
+  "testFiles": 40,
+  "testCases": 218,
+  "largestSource": {
+    "path": "src/Contexts/Booking/Domain/Booking/Booking.ts",
+    "lines": 361
+  }
+}

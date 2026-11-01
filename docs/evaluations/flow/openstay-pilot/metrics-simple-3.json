@@ -1,0 +1,21 @@
+{
+  "project": "/runs/openstay/simple-3/app",
+  "base": "08b94b0",
+  "ref": "main",
+  "added": {
+    "source": 2145,
+    "tests": 4913
+  },
+  "removed": {
+    "source": 6,
+    "tests": 0
+  },
+  "filesTouched": 34,
+  "sourceFiles": 21,
+  "testFiles": 15,
+  "testCases": 227,
+  "largestSource": {
+    "path": "src/bookings/bookings.ts",
+    "lines": 399
+  }
+}

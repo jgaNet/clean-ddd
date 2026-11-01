@@ -1,0 +1,11 @@
+run: pilot-simple-3
+arm: simple
+kit: ./docs/evaluations/benchmark/openstay/pilot
+base: main
+ladder: [smallest, intermediate, strongest]
+agent: { runner: claude-cli, timeoutMinutes: 45 }
+retry: { perFeature: 1 }
+budgetUsd: 20
+agentBudgetUsd: 6
+dependencies: copy
+ports: { base: 19240 }
