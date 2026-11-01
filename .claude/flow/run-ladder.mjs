@@ -356,11 +356,22 @@ for (const feature of backlog) {
       stopped = true;
       break;
     }
+    // An attempt's worktree is removed once it is judged: its branch keeps what it committed, and
+    // a pilot of eight trees would not fit on the disk with every attempt's dependencies kept.
+    const head = tried.cwd ? git(tried.cwd, 'rev-parse', 'HEAD') : undefined;
+    if (tried.cwd) git(project, 'worktree', 'remove', '--force', tried.cwd);
     if (tried.reason) {
-      event('escalated', { feature: feature.id, step, reason: tried.reason, lines: tried.lines, report: tried.report });
+      event('escalated', {
+        feature: feature.id,
+        step,
+        reason: tried.reason,
+        head,
+        lines: tried.lines,
+        report: tried.report,
+      });
       continue;
     }
-    git(project, 'merge', '-q', '--ff-only', git(tried.cwd, 'rev-parse', 'HEAD'));
+    git(project, 'merge', '-q', '--ff-only', head);
     deliveredAt = step;
     event('delivered', {
       feature: feature.id,
