@@ -17,9 +17,12 @@ of work snapshots and restores with the others.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
+from functools import partial
 from typing import TYPE_CHECKING, Protocol
+from weakref import WeakKeyDictionary
 
 from architecture.domain.event import Event, name_of
 
@@ -50,18 +53,31 @@ class Outbox(Protocol):
         ...
 
 
+#: Per outbox, the entries handed to the bus whose reactions have not all finished yet.
+_on_their_way: WeakKeyDictionary[Outbox, set[str]] = WeakKeyDictionary()
+
+
 def relay_outbox(outbox: Outbox, event_bus: EventBus, context: ExecutionContext) -> list[OutboxEntry]:
     """Publishes every pending entry through the bus, with the entry's id as the message's id, and
-    marks it published once the bus has it. A publication that raises leaves the entry pending,
-    for the next relay, and the relay goes on with the next entry: one fact that cannot go out
-    does not hold the others. The context's relay after each commit and the bootstrap's at start
-    are the two callers."""
-    published: list[OutboxEntry] = []
+    marks it published once every reaction it reached has committed (the operation's
+    ``delivered``), never sooner: a process that dies while a reaction runs leaves the entry
+    pending, and the next relay hands it out again, to the subscribers that had not handled it
+    yet. An entry whose reaction failed stays pending too, for the next relay; one still on its way
+    is not handed out a second time meanwhile. A publication that raises leaves the entry pending,
+    and the relay goes on with the next entry: one fact that cannot go out does not hold the
+    others. The context's relay after each commit and the bootstrap's at start are the two
+    callers. Returns the entries handed to the bus."""
+    on_their_way = _on_their_way.setdefault(outbox, set())
+    handed: list[OutboxEntry] = []
     for entry in outbox.pending():
+        if entry.id in on_their_way:
+            continue
         try:
-            event_bus.publish(entry.event, context, message_id=entry.id)
-            outbox.mark_published(entry.id)
-            published.append(entry)
+            delivered = event_bus.publish(entry.event, context, message_id=entry.id).delivered
+            handed.append(entry)
+            if delivered is None:
+                outbox.mark_published(entry.id)
+                continue
         except Exception as error:
             if context.logger:
                 context.logger.error(
@@ -69,4 +85,15 @@ def relay_outbox(outbox: Outbox, event_bus: EventBus, context: ExecutionContext)
                     error,
                     {"traceId": context.trace_id},
                 )
-    return published
+            continue
+        on_their_way.add(entry.id)
+        delivered.add_done_callback(partial(_acknowledge, outbox, entry.id, on_their_way))
+    return handed
+
+
+def _acknowledge(outbox: Outbox, id: str, on_their_way: set[str], delivered: asyncio.Future[bool]) -> None:
+    """Once the delivery has settled: the entry is no longer on its way, and is published if every
+    reaction succeeded."""
+    on_their_way.discard(id)
+    if not delivered.cancelled() and delivered.result():
+        outbox.mark_published(id)

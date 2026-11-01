@@ -8,7 +8,13 @@ handlers did, the bootstrap calls it before stopping.
 Delivery is idempotent per subscriber (ADR 24): a message relayed from the outbox carries its
 entry's id, and a subscriber that already handled that id — and did not fail — is not handed it
 again. The inbox is the bus's, not each handler's, so a reaction stays a plain ``execute()``; a
-reaction that failed is handed the message again, which is what at-least-once is for.
+reaction that failed is handed the message again, which is what at-least-once is for. The
+handlers are awaited one after the other, so the status a subscriber's ``handle()`` leaves on the
+operation is that subscriber's own outcome when its inbox is decided, whoever runs next.
+
+An operation's ``delivered`` settles once the dispatch has been through every subscriber, and says
+whether all of them succeeded: the outbox's relay acknowledges an entry on it, and on nothing
+sooner. A dispatch that breaks off settles it as not delivered.
 """
 
 import asyncio
@@ -39,13 +45,18 @@ class InMemoryEventBus:
         """Nothing to connect to: the handlers are in this process."""
 
     def publish[E: Event](self, event: E, context: ExecutionContext, message_id: str | None = None) -> Operation[E]:
+        loop = asyncio.get_running_loop()
         operation = Operation(event, context, id=message_id)
-        task = asyncio.get_running_loop().create_task(self.dispatch(operation))
+        operation.delivered = loop.create_future()
+        task = loop.create_task(self.dispatch(operation))
         self._pending.add(task)
         task.add_done_callback(self._pending.discard)
+        # A dispatch that ended without a verdict (it raised) has not delivered to every subscriber.
+        task.add_done_callback(lambda _: operation.settle_delivery(False))
         return operation
 
     async def dispatch(self, operation: Operation[Any]) -> Operation[Any]:
+        every_one = True
         # The channel is the event's name: what arrives on it is that event, which the dict cannot know.
         for subscription in list(self._subscriptions.get(name_of(operation.event), [])):
             if operation.id in subscription.inbox:
@@ -54,6 +65,9 @@ class InMemoryEventBus:
             done = await subscription.handler.handle(operation)
             if done.status is not OperationStatus.ERROR:
                 subscription.inbox.add(operation.id)
+            else:
+                every_one = False
+        operation.settle_delivery(every_one)
         return operation
 
     async def subscribe(self, channel: str, handler: Subscriber) -> None:

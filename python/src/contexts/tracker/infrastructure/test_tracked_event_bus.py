@@ -115,3 +115,13 @@ async def test_announces_the_outcome_of_an_authenticated_callers_command_once_an
     names = [name for name, _ in setup.records()]
     assert "OperationCompleteIntegrationEvent" not in names
     assert names.count("Greet") == 3 and ("Greeted", "SENT") in setup.records()
+
+
+async def test_says_when_the_inner_bus_has_delivered_so_the_outbox_relay_acknowledges_no_sooner() -> None:
+    setup = await Setup().subscribed()
+
+    operation = setup.bus.publish(Greeted(who="Alice"), setup.context_for("alice"))
+    assert operation.delivered is not None and not operation.delivered.done()
+
+    await setup.bus.settle()
+    assert operation.delivered.result() is True

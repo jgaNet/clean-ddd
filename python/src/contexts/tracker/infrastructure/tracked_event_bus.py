@@ -35,10 +35,15 @@ class TrackedEventBus:
         await self._bus.connect()
 
     def publish[E: Event](self, event: E, context: ExecutionContext, message_id: str | None = None) -> Operation[E]:
+        loop = asyncio.get_running_loop()
         operation = Operation(event, context, id=message_id)
-        task = asyncio.get_running_loop().create_task(self.dispatch(operation))
+        # The inner bus settles it once its subscribers are through (ADR 24); a dispatch that broke
+        # off before reaching them (a record that could not be saved) settles it as not delivered.
+        operation.delivered = loop.create_future()
+        task = loop.create_task(self.dispatch(operation))
         self._pending.add(task)
         task.add_done_callback(self._pending.discard)
+        task.add_done_callback(lambda _: operation.settle_delivery(False))
         return operation
 
     async def dispatch(self, operation: Operation[Any]) -> Operation[Any]:
