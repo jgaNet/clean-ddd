@@ -152,9 +152,18 @@ const features = backlog.map(f => {
       ? { problems: [] }
       : parse(sh(`node ${cli} storm --expect ${join(stormsDir, `${f.id}.yaml`)} --json`, tree, 300_000).out);
   const owed = storm?.problems ?? ['the storm could not be read'];
+  // What a failure said, kept with the verdict: an assertion and a timeout under load read alike
+  // in a list of names, and an escalation is checked against the kit before it is counted.
+  const said =
+    run.code === 0
+      ? undefined
+      : run.out
+          .split('\n')
+          .filter(line => /●|Expected|Received|Exceeded timeout|thrown|Error:|did not exit|Tests:/.test(line))
+          .slice(0, 60);
   return {
     feature: f.id,
-    M2: { pass: run.code === 0, tests, failed },
+    M2: { pass: run.code === 0, tests, failed, ...(said && { exitCode: run.code, said }) },
     M3: { pass: owed.length === 0, owed },
   };
 });
