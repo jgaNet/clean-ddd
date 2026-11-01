@@ -15,8 +15,9 @@
 //! adapter is in the building blocks' Infrastructure (`outbox.rs`), a store the in-memory unit
 //! of work snapshots and restores with the others.
 
+use std::collections::BTreeSet;
 use std::panic::AssertUnwindSafe;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use futures::FutureExt;
 
@@ -41,22 +42,29 @@ pub trait Outbox: Send + Sync {
 }
 
 /// Publishes every pending entry through the context's bus, with the entry's id as the
-/// operation's id, and marks it published once the bus has it. A dispatch that panics leaves
-/// the entry pending, for the next relay, and the relay goes on with the next entry: one fact
-/// that cannot go out does not hold the others. The context's relay after each commit and the
-/// bootstrap's at start are the two callers.
-///
-/// The bus awaits the handlers inline, so a reaction runs during the relay; a reaction that
-/// commits relays in its turn and may meet the entry being delivered, which the bus's inbox
-/// recognises as claimed and hands to nobody twice.
+/// operation's id, and marks it published once every reaction it reached has finished and
+/// succeeded (the operation's `delivered()`), never sooner: the bus awaits the handlers inline,
+/// so the dispatch returns once each reaction has committed or failed. An entry whose reaction
+/// failed stays pending for the next relay, which hands it again only to the subscriber that
+/// failed (the bus's inbox skips the others). An entry another relay is delivering right now is
+/// not handed out a second time meanwhile, nor acknowledged by this one: a reaction that commits
+/// relays in its turn, and a request on another task may relay beside it. A dispatch that panics
+/// leaves the entry pending, for the next relay, and the relay goes on with the next entry: one
+/// fact that cannot go out does not hold the others. The context's relay after each commit and
+/// the bootstrap's at start are the two callers. Answers with the entries handed to the bus.
 pub async fn relay_outbox(outbox: &dyn Outbox, context: &ExecutionContext) -> Vec<OutboxEntry> {
-    let mut published = Vec::new();
+    let mut handed = Vec::new();
     for entry in outbox.pending().await {
+        let Some(_on_its_way) = OnItsWay::take(outbox, &entry.id) else {
+            continue;
+        };
         let dispatch = context.publish_with_id(entry.event.clone(), entry.id.clone());
         match AssertUnwindSafe(dispatch).catch_unwind().await {
-            Ok(_) => {
-                outbox.mark_published(&entry.id).await;
-                published.push(entry);
+            Ok(operation) => {
+                if operation.delivered() != Some(false) {
+                    outbox.mark_published(&entry.id).await;
+                }
+                handed.push(entry);
             }
             Err(payload) => {
                 if let Some(logger) = context.logger() {
@@ -69,15 +77,37 @@ pub async fn relay_outbox(outbox: &dyn Outbox, context: &ExecutionContext) -> Ve
             }
         }
     }
-    published
+    handed
+}
+
+/// The entries handed to the bus whose reactions have not all finished, per outbox (by its
+/// address): what a relay running meanwhile leaves alone. Process-wide, like the outbox and the
+/// bus's inbox it sits between.
+static ON_THEIR_WAY: Mutex<BTreeSet<(usize, String)>> = Mutex::new(BTreeSet::new());
+
+/// An entry on its way, for as long as this lives: dropped once the relay is done with the
+/// entry, a panic included.
+struct OnItsWay((usize, String));
+
+impl OnItsWay {
+    /// Takes the entry for this relay; nothing when another relay already has it.
+    fn take(outbox: &dyn Outbox, id: &str) -> Option<Self> {
+        let key = (std::ptr::from_ref(outbox).cast::<()>().addr(), id.to_string());
+        let taken = ON_THEIR_WAY.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).insert(key.clone());
+        taken.then_some(Self(key))
+    }
+}
+
+impl Drop for OnItsWay {
+    fn drop(&mut self) {
+        ON_THEIR_WAY.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).remove(&self.0);
+    }
 }
 
 /// The port's double for this crate's tests: a list, with ids counted up, so a test can see
 /// what was stored and under which id. The real adapters are the Infrastructure's.
 #[cfg(test)]
 pub(crate) mod testing {
-    use std::sync::Mutex;
-
     use super::*;
 
     #[derive(Default)]

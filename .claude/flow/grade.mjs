@@ -4,7 +4,11 @@
  * run's final tree, whatever the arm:
  *
  *   node .claude/flow/grade.mjs --project <dir> --ref <ref> --base <created commit> --kit <dir> [--tooling <clean-ddd.tgz>] [--out <file.json>]
- *                               [--control plain|prose]
+ *                               [--control plain|prose] [--upto <n>] [--keep false]
+ *
+ * `--upto <n>` grades the features numbered up to n only: the feature an attempt wrote and the
+ * ones before it, for regressions (OpenStay's ladder, run-ladder.mjs). `--keep false` removes the
+ * graded worktree afterwards, so that no agent working beside it can read the hidden tests.
  *
  * In a worktree of its own at `ref`, it copies the kit's acceptance tests beside their support
  * into `src/Bootstrap/Fastify/Acceptance/`, then runs:
@@ -35,7 +39,10 @@ const ref = required('ref');
 const base = required('base');
 const kit = resolve(required('kit'));
 const yaml = createRequire(join(project, 'package.json'))('js-yaml');
-const backlog = yaml.load(readFileSync(join(kit, 'backlog/backlog.yaml'), 'utf8')).features;
+const upto = option('upto');
+const backlog = yaml
+  .load(readFileSync(join(kit, 'backlog/backlog.yaml'), 'utf8'))
+  .features.filter(f => upto === undefined || f.n <= Number(upto));
 
 const cli = resolve(new URL('../../tools/dist/cli.js', import.meta.url).pathname);
 const git = (cwd, ...gitArgs) => execFileSync('git', gitArgs, { cwd, encoding: 'utf8' }).trim();
@@ -145,9 +152,18 @@ const features = backlog.map(f => {
       ? { problems: [] }
       : parse(sh(`node ${cli} storm --expect ${join(stormsDir, `${f.id}.yaml`)} --json`, tree, 300_000).out);
   const owed = storm?.problems ?? ['the storm could not be read'];
+  // What a failure said, kept with the verdict: an assertion and a timeout under load read alike
+  // in a list of names, and an escalation is checked against the kit before it is counted.
+  const said =
+    run.code === 0
+      ? undefined
+      : run.out
+          .split('\n')
+          .filter(line => /●|Expected|Received|Exceeded timeout|thrown|Error:|did not exit|Tests:/.test(line))
+          .slice(0, 60);
   return {
     feature: f.id,
-    M2: { pass: run.code === 0, tests, failed },
+    M2: { pass: run.code === 0, tests, failed, ...(said && { exitCode: run.code, said }) },
     M3: { pass: owed.length === 0, owed },
   };
 });
@@ -226,5 +242,6 @@ for (const each of report.features) {
     `${each.mechanical ? '✓' : '✗'} ${each.feature}: acceptance ${each.M2.pass ? 'pass' : `FAIL (${each.M2.failed.length} failed)`} · storm ${each.M3.pass ? 'carried' : `owes ${each.M3.owed.length}`}\n`,
   );
 }
-process.stdout.write(`\nThe tree graded: ${tree} — read it for the rubric's R items.\n`);
 rmSync(stormsDir, { recursive: true, force: true });
+if (option('keep') === 'false') git(project, 'worktree', 'remove', '--force', tree);
+else process.stdout.write(`\nThe tree graded: ${tree} — read it for the rubric's R items.\n`);

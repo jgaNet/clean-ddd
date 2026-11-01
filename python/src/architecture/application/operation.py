@@ -5,6 +5,7 @@ handling starts and a transport can answer ``202 { operationId }`` at once (ADR 
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
@@ -26,7 +27,7 @@ class OperationStatus(StrEnum):
 
 
 class Operation[E: Event]:
-    __slots__ = ("context", "created_at", "event", "finished_at", "id", "result", "status")
+    __slots__ = ("context", "created_at", "delivered", "event", "finished_at", "id", "result", "status")
 
     def __init__(self, event: E, context: ExecutionContext, id: str | None = None) -> None:
         # The id is the message's when the event is relayed from the outbox (ADR 24), fresh otherwise.
@@ -37,6 +38,12 @@ class Operation[E: Event]:
         self.created_at = datetime.now(UTC)
         self.finished_at: datetime | None = None
         self.result: Result[Any] | None = None
+        # Settles once every subscriber the message reached has finished with it: True when each one
+        # succeeded (or had handled it before), False when one failed or the dispatch broke off. The
+        # outbox's relay acknowledges an entry on it, never sooner (ADR 24): a fact whose reactions
+        # have not committed is still owed. The bus that publishes sets it; a bus that cannot tell
+        # leaves it None, and the relay acknowledges at once.
+        self.delivered: asyncio.Future[bool] | None = None
 
     def failed(self, error: DomainException) -> Operation[E]:
         """A command refused or a reaction that failed: the error is the operation's outcome."""
@@ -51,6 +58,11 @@ class Operation[E: Event]:
         self.result = Success(value)
         self.finished_at = datetime.now(UTC)
         return self
+
+    def settle_delivery(self, every_one: bool) -> None:
+        """Says how the delivery ended, once: the first verdict stands, a later one is ignored."""
+        if self.delivered is not None and not self.delivered.done():
+            self.delivered.set_result(every_one)
 
     def sent(self) -> Operation[E]:
         """A reaction that ran: an event handler answers nothing."""

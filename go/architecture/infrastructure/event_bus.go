@@ -17,7 +17,9 @@ import (
 // Delivery is idempotent per subscriber (ADR 24): a message relayed from the outbox carries its
 // entry's id, and a subscriber that already handled that id — and did not fail — is not handed
 // it again. The inbox is the bus's, not each handler's, so a reaction stays a plain Execute; a
-// reaction that failed is handed the message again, which is what at-least-once is for.
+// reaction that failed is handed the message again, which is what at-least-once is for. The
+// operation's Delivery settles once its dispatch is done, and says whether every subscriber
+// handled it: the outbox's relay acknowledges an entry on it, and on nothing sooner.
 type InMemoryEventBus struct {
 	mu       sync.RWMutex
 	handlers map[string][]application.Subscriber
@@ -40,10 +42,12 @@ func (b *InMemoryEventBus) PublishWithID(event domain.Event, context *applicatio
 }
 
 func (b *InMemoryEventBus) start(operation *application.Operation) *application.Operation {
+	delivery := operation.Dispatching()
 	b.pending.Add(1)
 	go func() {
 		defer b.pending.Done()
 		b.Dispatch(operation)
+		delivery.Done()
 	}()
 	return operation
 }
@@ -85,7 +89,13 @@ func (i *inbox) Handle(operation *application.Operation) {
 		return
 	}
 	i.handler.Handle(operation)
-	i.settle(operation.ID, operation.Status != application.StatusError)
+	// The handlers run one after the other in the dispatch's goroutine, and each one marks the
+	// operation: the status read here, before the next one runs, is this subscriber's own outcome.
+	handled := operation.Status != application.StatusError
+	if !handled {
+		operation.Delivery().Missed()
+	}
+	i.settle(operation.ID, handled)
 }
 
 func (i *inbox) claim(id string) bool {

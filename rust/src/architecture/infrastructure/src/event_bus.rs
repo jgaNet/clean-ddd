@@ -12,7 +12,10 @@
 //! stays a plain `execute()`; a reaction that failed is handed the message again, which is what
 //! at-least-once is for. The id is claimed when the delivery starts, not when it ends: the
 //! handlers run inline, so a relay that meets a message being delivered (a reaction that
-//! commits relays in its turn) hands it to nobody twice.
+//! commits relays in its turn) hands it to nobody twice. Each subscriber's inbox is decided by
+//! its own outcome, and the operation comes back with the verdict over all of them
+//! (`Operation::delivered()`), which the outbox's relay acknowledges an entry on: the status
+//! cannot say it, since it is how the last subscriber ended.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, RwLock};
@@ -60,17 +63,21 @@ impl EventBus for InMemoryEventBus {
 
     fn dispatch(&self, mut operation: Operation) -> BoxFuture<'_, Operation> {
         Box::pin(async move {
+            let mut every_one_succeeded = true;
             for subscription in self.handlers_of(operation.event().name()) {
                 if !subscription.claim(operation.id()) {
                     operation = operation.sent();
                     continue;
                 }
                 operation = subscription.handler.handle(operation).await;
+                // This subscriber's own outcome: the status is read as its handler left it, before
+                // the next subscriber marks the same operation.
                 if operation.status() == OperationStatus::Error {
                     subscription.release(operation.id());
+                    every_one_succeeded = false;
                 }
             }
-            operation
+            operation.with_delivery(every_one_succeeded)
         })
     }
 

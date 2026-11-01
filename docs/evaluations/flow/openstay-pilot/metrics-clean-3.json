@@ -1,0 +1,21 @@
+{
+  "project": "/runs/openstay/clean-3/app",
+  "base": "ccf7f75",
+  "ref": "main",
+  "added": {
+    "source": 7160,
+    "tests": 3558
+  },
+  "removed": {
+    "source": 80,
+    "tests": 15
+  },
+  "filesTouched": 203,
+  "sourceFiles": 204,
+  "testFiles": 49,
+  "testCases": 230,
+  "largestSource": {
+    "path": "src/Architecture/Application/ExecutionContext.ts",
+    "lines": 305
+  }
+}

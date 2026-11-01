@@ -12,12 +12,12 @@ This protocol is written before any run, like [the control](../control/README.md
 - **no difference without separate ranges;**
 - **every defect of a kit recorded as an amendment.**
 
-The work before the first run is in [the framing](j0.md). It holds the decisions the maintainer must take before checkpoint J1.
+The work before the first run is in [the framing](j0.md), with the decisions the maintainer took. [The pilot's kit](pilot/README.md) is checkpoint J1: written, reviewed, rehearsed, its storms decided. The pilot, checkpoint J2, ran on 2026-11-01: [its record](../../2026-11-01-openstay-pilot.md).
 
 ## Two tracks
 
 - **The benchmark track** builds the marketplace's core behind an HTTP API, in each arm's trees. It is graded by hidden black-box tests over that API.
-- **The product track** builds the web interface, the optional conversational layer and the real integrations: a payment provider, mail, maps. It is built once, on the API contract the benchmark has stabilised, after the pilot.
+- **The product track** builds the web interface, the optional conversational layer and the real integrations: a payment provider, mail, maps. It is built once, on the API contract the benchmark has stabilised, after the pilot. Its repository is [jgaNet/openstay](https://github.com/jgaNet/openstay) (private), started on 2026-11-01 from the Clean DDD starting tree and the brief. The benchmark's kit stays here.
 
 The two are kept apart because a hidden test must be deterministic, and a conversation is not. The brief's success criteria for a production service are out of the benchmark's reach: real bookings, legal compliance, operations. [The framing](j0.md#what-the-benchmark-can-and-cannot-show) says which ones the benchmark informs.
 

@@ -31,3 +31,15 @@ The moment events cross a process boundary (a broker, a second service), the rel
 The relay at start was first given a context with no unit of work, in every language. With an in-memory outbox nothing is pending at start, so no test could tell. A store's outbox can hold something there, though, and with no unit of work a reaction the relay delivers runs with no transaction (ADR 30). Worse, what it tells goes straight to the bus under a fresh id, which no inbox can recognise when the fact comes again. The robustness campaign found it the hard way: two of four agent-built trees with a durable outbox told an archiving two or three times after a crash ([the record](../evaluations/2026-10-31-flow-robustness.md#the-defect-what-the-startup-relay-does-not-carry)).
 
 The transport now builds every context that runs work: a request's, and the relay's at start. It builds them the same way, with a unit of work of its own over the process's stores ([`FastifyApplication.executionContext()`](../../typescript/src/Bootstrap/Fastify/FastifyApplication.ts)). Each language does the same in its transport, with a test that relays an entry a crashed run left and expects what the reaction tells to arrive once, under an id the outbox handed out.
+
+## Revision: an entry is acknowledged once its reactions have committed
+
+The relay marked an entry published as soon as the bus had it, and the reactions ran afterwards, each in a transaction of its own (ADR 30). A process that died in between had acknowledged a fact no reaction had committed, and no later relay handed it out again. With an in-memory outbox nothing survives a crash, so no test of the reference could tell. OpenStay's pilot found it: two of four agent-built trees with a durable outbox kept this relay, and one lost a host's notice when the server was killed at a random moment ([the record](../evaluations/2026-11-01-openstay-pilot.md#robustness-the-relay-acknowledges-before-the-reactions-have-run)).
+
+- **An operation now says when its delivery is done.** It carries `delivered`, which settles once every reaction the message reached has finished, and says whether every one succeeded.
+- **The relay acknowledges an entry on it, and on nothing sooner.**
+  - An entry whose reaction failed stays pending for the next relay, which hands it only to the subscriber that failed (the inbox skips the others).
+  - An entry still on its way is not handed out a second time meanwhile.
+- **Each subscriber's inbox is decided by that subscriber's own outcome,** not by the operation's status. One operation is shared by every subscriber, so its status said how the last of them ended. A subscriber that succeeded beside one that failed was therefore handed the message again.
+
+[`Outbox.spec.ts`](../../typescript/src/Architecture/Application/Outbox.spec.ts) pins both, and each language holds the same. A store's outbox still needs an inbox of its own, written in each reaction's transaction, for a fact relayed again after a crash to reach each subscriber once.

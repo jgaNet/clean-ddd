@@ -1,0 +1,41 @@
+# Feature 6 of OpenStay's pilot (../backlog/6-book-instantly.md), as the session decided it.
+schemaVersion: 1
+
+feature: book-instantly
+intent: >-
+  A traveller books from a quote and the stay is confirmed at once, at the quote's price and policy, never on a night already taken, and never twice by mistake.
+
+done: false
+
+hotSpots:
+  - question: What keeps two travellers off the same night?
+    decision: The ListingCalendar takes the nights and the Booking is created in one transaction; the calendar's version refuses the second writer, the base handler re-decides it from a fresh read, and it is then refused as nights taken.
+  - question: Is a booking part of the calendar?
+    decision: No — a listing's bookings grow without bound, so Booking is its own aggregate; the calendar holds only which booking took which night.
+  - question: A booking sent twice with one key?
+    decision: Booking keeps each traveller's key with the booking it made; the second request answers that booking and records nothing.
+  - question: What does a booking keep of its quote?
+    decision: Everything the quote showed — lines, total, policy — whatever the listing says afterwards.
+
+contexts:
+  - id: Booking
+    commands:
+      - name: BookStay
+        actor: a signed-in account
+        route: POST /bookings
+        aggregate: Booking
+        events: [BookingConfirmed, NightsTaken]
+    queries:
+      - name: GetBooking
+        actor: a signed-in account
+        route: GET /bookings/{param}
+      - name: GetMyBookings
+        actor: a signed-in account
+        route: GET /bookings/mine
+      - name: GetListingBookings
+        actor: a signed-in account
+        route: GET /listings/{param}/bookings
+    events: [BookingConfirmed, NightsTaken]
+    policies: []
+
+links: []
