@@ -12,7 +12,7 @@ This protocol is written before any run, like [the control](../control/README.md
 - **no difference without separate ranges;**
 - **every defect of a kit recorded as an amendment.**
 
-The work before the first run is in [the framing](j0.md), with the decisions the maintainer took. [The pilot's kit](pilot/README.md) is checkpoint J1: written, reviewed, rehearsed, its storms decided.
+The work before the first run is in [the framing](j0.md), with the decisions the maintainer took. [The pilot's kit](pilot/README.md) is checkpoint J1: written, reviewed, rehearsed, its storms decided. The pilot, checkpoint J2, ran on 2026-11-01: [its record](../../2026-11-01-openstay-pilot.md).
 
 ## Two tracks
 

@@ -10,4 +10,7 @@ The pilot ([the kit](../../benchmark/openstay/pilot/README.md), [the protocol](.
 | `per-feature.json` | Each feature's cost (every step's attempts) and time (from its start to its delivery, grading included), per tree. |
 | `trees/<tree>.bundle` | Every attempt's branch and the final `main`, from the starting commit. It applies on top of the kit's starting bundles ([`../../benchmark/openstay/pilot/trees/`](../../benchmark/openstay/pilot/trees)). |
 
-The record, with the second grading of every final tree and the independent reading, follows once both are done.
+| `grade-<tree>.json` | The second grading of each final tree, one tree at a time on a quiet machine: every feature's hidden test, the chaos test a second time. |
+| [`reading.md`](reading.md) | The independent reading of the eight final trees, against [the rubric](../../benchmark/openstay/pilot/reading.md). |
+
+[The record](../../2026-11-01-openstay-pilot.md) says what they found.
