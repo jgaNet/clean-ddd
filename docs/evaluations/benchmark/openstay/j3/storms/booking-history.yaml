@@ -1,0 +1,30 @@
+# Feature 9 of OpenStay's pilot (../backlog/9-booking-history.md), as the session decided it.
+schemaVersion: 1
+
+feature: booking-history
+intent: >-
+  The traveller and the host read every change of a booking's state, who made it and when; each sees the other's email once the stay is agreed, and not before.
+
+done: true
+
+hotSpots:
+  - question: Where does the history live?
+    decision: In a read model of Booking's own facts, each with the account that acted (none for the application) and its time.
+  - question: Where does the email come from?
+    decision: From Accounts, through a port Booking owns (ContactDetails), read when the booking is read and only once it was confirmed; Booking keeps no copy.
+
+contexts:
+  - id: Booking
+    commands: []
+    queries:
+      - name: GetBookingHistory
+        actor: a signed-in account
+        route: GET /bookings/{param}/history
+    events: []
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Accounts
+    downstream: Booking
+    contracts: [ContactDetails]

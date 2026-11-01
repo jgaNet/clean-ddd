@@ -1,0 +1,24 @@
+# Feature 12 of OpenStay's J3 (../backlog/12-search-filters.md), as the session decided it on 2026-11-01.
+schemaVersion: 1
+feature: search-filters
+intent: A traveller narrows a search by the highest nightly price, the amenities a place must have and whether it takes pets.
+done: true
+hotSpots:
+- question: What does the feature add to the wall?
+  decision: Nothing new — the filters are parameters of SearchListings, which exists; this storm records the decision only, and is done from the start.
+- question: Where do the filters run?
+  decision: 'In the search Booking serves (S4): Listings'' candidates are asked with the filters through ListingTerms, which
+    answers the listings that pass them; the order is the search''s as before. A filter that makes no sense is a 400 of the
+    query.'
+contexts:
+- id: Booking
+  commands: []
+  queries: []
+  events: []
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Booking
+  contracts:
+  - ListingTerms

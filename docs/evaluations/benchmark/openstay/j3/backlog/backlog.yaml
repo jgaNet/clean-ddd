@@ -1,0 +1,31 @@
+# OpenStay up to J3 (docs/evaluations/benchmark/openstay): twenty-five requests, in order. The pilot
+# ran 1-10; J3 runs 11-25 on the same trees, and grades 1-25 for regressions. `contexts` is the
+# storms' until they say otherwise; the simple arm never reads it.
+schemaVersion: 1
+features:
+  - { id: accounts, n: 1, contexts: [Accounts], needs: [] }
+  - { id: publish-a-listing, n: 2, contexts: [Listings], needs: [accounts] }
+  - { id: search, n: 3, contexts: [Booking], needs: [publish-a-listing] }
+  - { id: host-calendar, n: 4, contexts: [Booking, Listings], needs: [search] }
+  - { id: quote, n: 5, contexts: [Booking, Listings], needs: [host-calendar] }
+  - { id: book-instantly, n: 6, contexts: [Booking], needs: [quote] }
+  - { id: request-to-book, n: 7, contexts: [Booking, Listings], needs: [book-instantly] }
+  - { id: cancel-a-booking, n: 8, contexts: [Booking], needs: [book-instantly] }
+  - { id: booking-history, n: 9, contexts: [Booking, Accounts], needs: [request-to-book] }
+  - { id: notify-the-host, n: 10, contexts: [Booking, Notifications], needs: [request-to-book] }
+  - { id: amenities-and-house-rules, n: 11, contexts: [Listings, Booking], needs: [notify-the-host] }
+  - { id: search-filters, n: 12, contexts: [Booking, Listings], needs: [amenities-and-house-rules] }
+  - { id: favourites, n: 13, contexts: [Listings], needs: [search-filters] }
+  - { id: map-search, n: 14, contexts: [Listings, Booking], needs: [favourites] }
+  - { id: seasonal-prices, n: 15, contexts: [Listings, Booking], needs: [map-search] }
+  - { id: discounts, n: 16, contexts: [Listings, Booking], needs: [seasonal-prices] }
+  - { id: booking-window, n: 17, contexts: [Listings, Booking], needs: [discounts] }
+  - { id: arrival-days, n: 18, contexts: [Listings, Booking], needs: [booking-window] }
+  - { id: change-dates, n: 19, contexts: [Booking], needs: [arrival-days] }
+  - { id: holds, n: 20, contexts: [Booking], needs: [change-dates] }
+  - { id: host-dashboard, n: 21, contexts: [Booking], needs: [holds] }
+  - { id: bulk-calendar, n: 22, contexts: [Booking, Listings], needs: [host-dashboard] }
+  - { id: organisations, n: 23, contexts: [Accounts, Listings], needs: [bulk-calendar] }
+  - { id: collaborators, n: 24, contexts: [Accounts, Listings, Booking], needs: [organisations] }
+  - { id: conditions-history, n: 25, contexts: [Booking], needs: [collaborators] }
+# For feature <n>-<id>: backlog/<n>-<id>.md, storms/<id>.yaml, acceptance/<n>-<id>.acceptance.ts.

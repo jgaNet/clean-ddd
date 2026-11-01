@@ -1,0 +1,28 @@
+# Feature 18 of OpenStay's J3 (../backlog/18-arrival-days.md), as the session decided it on 2026-11-01.
+schemaVersion: 1
+feature: arrival-days
+intent: A host says on which weekdays a stay may start and end; a quote on other days is refused.
+done: false
+hotSpots:
+- question: Whose rule?
+  decision: The quote's, in Booking, on the weekdays of the dates in UTC; the days are a term of the listing (ArrivalDaysSet),
+    read through ListingTerms.
+contexts:
+- id: Listings
+  commands:
+  - name: SetArrivalDays
+    actor: a signed-in account
+    route: PUT /listings/{param}/arrival-days
+    aggregate: Listing
+    events:
+    - ArrivalDaysSet
+  queries: []
+  events:
+  - ArrivalDaysSet
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Booking
+  contracts:
+  - ListingTerms

@@ -1,0 +1,35 @@
+# Feature 13 of OpenStay's J3 (../backlog/13-favourites.md), as the session decided it on 2026-11-01.
+schemaVersion: 1
+feature: favourites
+intent: A traveller keeps a list of the published listings they like, and reads it back, the most recently saved first.
+done: false
+hotSpots:
+- question: Whose list, in which context?
+  decision: 'Listings: one Favourites aggregate per traveller, holding listing ids with when each was saved. Saving twice
+    changes nothing; a listing that is not published cannot be saved.'
+- question: What does the list show of a listing that changed since?
+  decision: 'What the listing says now: the list is a read model joined to the listings in the adapter.'
+contexts:
+- id: Listings
+  commands:
+  - name: FavouriteListing
+    actor: a signed-in account
+    route: POST /listings/{param}/favourite
+    aggregate: Favourites
+    events:
+    - ListingFavourited
+  - name: UnfavouriteListing
+    actor: a signed-in account
+    route: POST /listings/{param}/unfavourite
+    aggregate: Favourites
+    events:
+    - ListingUnfavourited
+  queries:
+  - name: GetMyFavourites
+    actor: a signed-in account
+    route: GET /favourites
+  events:
+  - ListingFavourited
+  - ListingUnfavourited
+  policies: []
+links: []

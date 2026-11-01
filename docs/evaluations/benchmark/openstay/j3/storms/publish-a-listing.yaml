@@ -1,0 +1,58 @@
+# Feature 2 of OpenStay's pilot (../backlog/2-publish-a-listing.md), as the session decided it.
+schemaVersion: 1
+
+feature: publish-a-listing
+intent: >-
+  A host describes a place as a draft, publishes it, suspends it, publishes it again or archives it; a published listing is seen by anyone, any other by its host only.
+
+done: true
+
+hotSpots:
+  - question: How does Listings know an account is a host?
+    decision: It asks Accounts through a port it owns (Hosts); the roles stay Accounts' business.
+  - question: Is publishing again after a suspension a new fact?
+    decision: It is ListingPublished again; the listing keeps the moment it was first published, for search's order.
+
+contexts:
+  - id: Listings
+    commands:
+      - name: DraftListing
+        actor: a signed-in account
+        route: POST /listings
+        aggregate: Listing
+        events: [ListingDrafted]
+      - name: DescribeListing
+        actor: a signed-in account
+        route: PUT /listings/{param}
+        aggregate: Listing
+        events: [ListingDescribed]
+      - name: PublishListing
+        actor: a signed-in account
+        route: POST /listings/{param}/publish
+        aggregate: Listing
+        events: [ListingPublished]
+      - name: SuspendListing
+        actor: a signed-in account
+        route: POST /listings/{param}/suspend
+        aggregate: Listing
+        events: [ListingSuspended]
+      - name: ArchiveListing
+        actor: a signed-in account
+        route: POST /listings/{param}/archive
+        aggregate: Listing
+        events: [ListingArchived]
+    queries:
+      - name: GetListing
+        actor: anyone
+        route: GET /listings/{param}
+      - name: GetMyListings
+        actor: a signed-in account
+        route: GET /listings/mine
+    events: [ListingArchived, ListingDescribed, ListingDrafted, ListingPublished, ListingSuspended]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Accounts
+    downstream: Listings
+    contracts: [Hosts]

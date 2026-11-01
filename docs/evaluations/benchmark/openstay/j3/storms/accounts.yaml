@@ -1,0 +1,31 @@
+# Feature 1 of OpenStay's pilot (../backlog/1-accounts.md), as the session decided it.
+schemaVersion: 1
+
+feature: accounts
+intent: >-
+  Anyone signs up as a traveller, a host or both; a signed-in person reads their own account.
+
+done: true
+
+hotSpots:
+  - question: Is signing in a fact of the domain?
+    decision: No — it checks the credentials and answers a token; nothing changes, nothing is recorded.
+  - question: One account with two roles, or one account per role?
+    decision: One account, its roles a set of traveller and host; at least one.
+
+contexts:
+  - id: Accounts
+    commands:
+      - name: SignUp
+        actor: anyone
+        route: POST /accounts
+        aggregate: Account
+        events: [AccountRegistered]
+    queries:
+      - name: GetMyAccount
+        actor: a signed-in account
+        route: GET /accounts/me
+    events: [AccountRegistered]
+    policies: []
+
+links: []

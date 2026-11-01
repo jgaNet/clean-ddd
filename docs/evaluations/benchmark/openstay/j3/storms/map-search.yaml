@@ -1,0 +1,28 @@
+# Feature 14 of OpenStay's J3 (../backlog/14-map-search.md), as the session decided it on 2026-11-01.
+schemaVersion: 1
+feature: map-search
+intent: A host places a listing on the map, and a traveller searches an area instead of, or as well as, a city.
+done: false
+hotSpots:
+- question: Where is the place, and where is the area?
+  decision: The place is a Location value object on the listing (ListingLocated); the area is a parameter of the search Booking
+    serves, its edges inclusive, checked by the query; ListingTerms answers the candidates in the box.
+contexts:
+- id: Listings
+  commands:
+  - name: LocateListing
+    actor: a signed-in account
+    route: PUT /listings/{param}/location
+    aggregate: Listing
+    events:
+    - ListingLocated
+  queries: []
+  events:
+  - ListingLocated
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Booking
+  contracts:
+  - ListingTerms

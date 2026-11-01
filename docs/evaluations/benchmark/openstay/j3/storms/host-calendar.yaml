@@ -1,0 +1,54 @@
+# Feature 4 of OpenStay's pilot (../backlog/4-host-calendar.md), as the session decided it.
+schemaVersion: 1
+
+feature: host-calendar
+intent: >-
+  A host blocks and frees nights and sets the shortest and longest stay; anyone who can see the listing reads its calendar; search keeps to both.
+
+done: true
+
+hotSpots:
+  - question: Where do blocked nights live?
+    decision: In Booking, in one ListingCalendar per listing, beside the nights requests and bookings will take — the rule against a night booked twice is one rule.
+  - question: Where do the stay limits live?
+    decision: In Listings, as a term of the listing that its page shows; Booking reads them through ListingTerms.
+  - question: Blocking a night already blocked, freeing one that is not?
+    decision: Both are accepted and change nothing; only a night a booking or a request took refuses a block.
+  - question: How does Booking know the caller is the listing's host?
+    decision: From the listing's terms, which carry its host (ListingTerms).
+
+contexts:
+  - id: Booking
+    commands:
+      - name: BlockNights
+        actor: a signed-in account
+        route: POST /listings/{param}/block
+        aggregate: ListingCalendar
+        events: [NightsBlocked]
+      - name: UnblockNights
+        actor: a signed-in account
+        route: POST /listings/{param}/unblock
+        aggregate: ListingCalendar
+        events: [NightsUnblocked]
+    queries:
+      - name: GetCalendar
+        actor: anyone
+        route: GET /listings/{param}/calendar
+    events: [NightsBlocked, NightsUnblocked]
+    policies: []
+  - id: Listings
+    commands:
+      - name: SetStayLimits
+        actor: a signed-in account
+        route: PUT /listings/{param}/stay-limits
+        aggregate: Listing
+        events: [StayLimitsSet]
+    queries: []
+    events: [StayLimitsSet]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Listings
+    downstream: Booking
+    contracts: [ListingTerms]

@@ -1,0 +1,49 @@
+# Feature 20 of OpenStay's J3 (../backlog/20-holds.md), as the session decided it on 2026-11-01.
+schemaVersion: 1
+feature: holds
+intent: A traveller holds nights while deciding; nobody else can take them until the hold is released, used or past its time.
+done: false
+hotSpots:
+- question: What is a hold?
+  decision: Its own aggregate, Hold, whose nights are taken in the ListingCalendar like a request's, with an expiry. Booking
+    a stay that shares a night with it uses it up (HoldUsed).
+- question: How does a hold end with nobody acting?
+  decision: The calendar treats a hold past its time as free, with the time as a parameter; no sweep is needed for correctness,
+    and the traveller's list shows only holds still running.
+- question: Three at most per traveller?
+  decision: A repository count in a domain service, checked then written; the window in which two simultaneous holds both
+    pass is accepted (decided 2026-11-01).
+contexts:
+- id: Booking
+  commands:
+  - name: HoldNights
+    actor: a signed-in account
+    route: POST /holds
+    aggregate: Hold
+    events:
+    - NightsHeld
+    - NightsTaken
+  - name: ReleaseHold
+    actor: a signed-in account
+    route: POST /holds/{param}/release
+    aggregate: Hold
+    events:
+    - HoldReleased
+    - NightsReleased
+  queries:
+  - name: GetMyHolds
+    actor: a signed-in account
+    route: GET /holds/mine
+  events:
+  - HoldReleased
+  - HoldUsed
+  - NightsHeld
+  - NightsReleased
+  - NightsTaken
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Booking
+  contracts:
+  - ListingTerms

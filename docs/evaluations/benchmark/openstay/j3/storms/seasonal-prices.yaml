@@ -1,0 +1,42 @@
+# Feature 15 of OpenStay's J3 (../backlog/15-seasonal-prices.md), as the session decided it on 2026-11-01.
+schemaVersion: 1
+feature: seasonal-prices
+intent: A host prices ranges of nights differently from the listing's nightly price; a quote prices each night by its own
+  price, and what was quoted or booked keeps its prices.
+done: false
+hotSpots:
+- question: Where do the seasons live?
+  decision: 'On the Listing, as part of its terms: a later season replaces an earlier one on the nights they share, an invariant
+    of one aggregate (SeasonalPriceSet, SeasonalPricesCleared).'
+- question: How does a quote read prices that vary by night?
+  decision: ListingTerms answers the terms for a range of nights, each night's price among them (T4); the quote computes its
+    lines in Booking, as today, and keeps what it read.
+contexts:
+- id: Listings
+  commands:
+  - name: SetSeasonalPrice
+    actor: a signed-in account
+    route: POST /listings/{param}/seasonal-prices
+    aggregate: Listing
+    events:
+    - SeasonalPriceSet
+  - name: ClearSeasonalPrices
+    actor: a signed-in account
+    route: POST /listings/{param}/seasonal-prices/clear
+    aggregate: Listing
+    events:
+    - SeasonalPricesCleared
+  queries:
+  - name: GetNightlyPrices
+    actor: anyone
+    route: GET /listings/{param}/prices
+  events:
+  - SeasonalPriceSet
+  - SeasonalPricesCleared
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Booking
+  contracts:
+  - ListingTerms

@@ -1,0 +1,39 @@
+# Feature 11 of OpenStay's J3 (../backlog/11-amenities-and-house-rules.md), as the session decided it on 2026-11-01.
+schemaVersion: 1
+feature: amenities-and-house-rules
+intent: A host says what a place offers, from a fixed list, and its house rules; a quote shows the rules and a booking keeps
+  them as they were accepted.
+done: false
+hotSpots:
+- question: Where do amenities and house rules live?
+  decision: 'In Listings, as terms of the listing (AmenitiesDeclared, HouseRulesDeclared): a value object keeps the list in
+    the request''s order and refuses an unknown or repeated amenity; the domain refuses it, not the body''s schema (API-BODY-SHAPE).'
+- question: How are the rules kept as accepted?
+  decision: The quote reads them through ListingTerms and copies them, and the booking copies them from its quote, as it copies
+    the policy (S6). Nothing reads them back from the listing.
+contexts:
+- id: Listings
+  commands:
+  - name: DeclareAmenities
+    actor: a signed-in account
+    route: PUT /listings/{param}/amenities
+    aggregate: Listing
+    events:
+    - AmenitiesDeclared
+  - name: DeclareHouseRules
+    actor: a signed-in account
+    route: PUT /listings/{param}/house-rules
+    aggregate: Listing
+    events:
+    - HouseRulesDeclared
+  queries: []
+  events:
+  - AmenitiesDeclared
+  - HouseRulesDeclared
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Booking
+  contracts:
+  - ListingTerms
