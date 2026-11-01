@@ -2,6 +2,7 @@ package application
 
 import (
 	"fmt"
+	"sync"
 
 	"clean-ddd/architecture/domain"
 )
@@ -37,30 +38,53 @@ type Outbox interface {
 	MarkPublished(id string)
 }
 
+// onTheirWay is the id of every entry handed to the bus whose subscribers have not all finished
+// with it yet: a relay that runs meanwhile does not hand it out a second time.
+var onTheirWay sync.Map
+
 // RelayOutbox publishes every pending entry through the bus, with the entry's id as the
-// message's id, and marks it published once the bus has it. A publication that panics leaves
-// the entry pending, for the next relay, and the relay goes on with the next entry: one fact
-// that cannot go out does not hold the others. The context's relay after each commit and the
-// bootstrap's at start are the two callers. The entries published, in order.
+// message's id, and marks it published once every subscriber it reached has handled it (the
+// operation's Delivery), never sooner: a process that dies while a reaction runs leaves the
+// entry pending, and the next relay hands it out again, to the subscribers that had not handled
+// it yet. An entry whose reaction failed stays pending too, for the next relay; one still on its
+// way is not handed out a second time meanwhile. A bus that cannot tell when its subscribers are
+// done has the entry marked published at once. A publication that panics leaves the entry
+// pending, for the next relay, and the relay goes on with the next entry: one fact that cannot
+// go out does not hold the others. The context's relay after each commit and the bootstrap's at
+// start are the two callers. The entries handed to the bus, in order.
 func RelayOutbox(outbox Outbox, bus EventBus, context *ExecutionContext) []OutboxEntry {
-	var published []OutboxEntry
+	var handed []OutboxEntry
 	for _, entry := range outbox.Pending() {
+		if _, already := onTheirWay.LoadOrStore(entry.ID, struct{}{}); already {
+			continue
+		}
 		if relayEntry(outbox, bus, context, entry) {
-			published = append(published, entry)
+			handed = append(handed, entry)
 		}
 	}
-	return published
+	return handed
 }
 
-func relayEntry(outbox Outbox, bus EventBus, context *ExecutionContext, entry OutboxEntry) (published bool) {
+func relayEntry(outbox Outbox, bus EventBus, context *ExecutionContext, entry OutboxEntry) (handed bool) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			context.Log().Error(fmt.Sprintf("Outbox entry %s (%s) stays pending", entry.ID, domain.NameOf(entry.Event)),
 				domain.Recovered(recovered), Meta{"traceId": context.TraceID()})
-			published = false
+			onTheirWay.Delete(entry.ID)
+			handed = false
 		}
 	}()
-	bus.PublishWithID(entry.Event, context, entry.ID)
-	outbox.MarkPublished(entry.ID)
+	delivery := bus.PublishWithID(entry.Event, context, entry.ID).Delivery()
+	if delivery == nil {
+		outbox.MarkPublished(entry.ID)
+		onTheirWay.Delete(entry.ID)
+		return true
+	}
+	delivery.OnDone(func(everyOne bool) {
+		if everyOne {
+			outbox.MarkPublished(entry.ID)
+		}
+		onTheirWay.Delete(entry.ID)
+	})
 	return true
 }

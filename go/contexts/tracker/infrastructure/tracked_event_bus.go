@@ -51,10 +51,13 @@ func (b *TrackedEventBus) PublishWithID(event domain.Event, context *application
 }
 
 func (b *TrackedEventBus) start(operation *application.Operation) *application.Operation {
+	// The inner bus's Dispatch runs every subscriber before it returns: then the delivery is done (ADR 24).
+	delivery := operation.Dispatching()
 	b.pending.Add(1)
 	go func() {
 		defer b.pending.Done()
 		b.Dispatch(operation)
+		delivery.Done()
 	}()
 	return operation
 }
