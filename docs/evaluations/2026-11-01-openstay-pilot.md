@@ -73,7 +73,14 @@ The independent reading found it by reading. The second grading then caught it i
 
 **This is the second time a robustness test has found a gap in the reference's relay.** The first was the startup relay without a unit of work ([the robustness campaign](2026-10-31-flow-robustness.md#the-defect-what-the-startup-relay-does-not-carry), fixed). With an in-memory outbox nothing survives a crash, so no test of the reference can see either gap. A tree that makes its outbox durable inherits both.
 
-**The fix belongs in the reference, in every language.** Acknowledge an entry only once every reaction it was delivered to has committed (as d2's agent did in the robustness campaign, and clean-3's and clean-w's here). Add a test that kills between the hand-off and a reaction's commit. This record proposes it.
+**The fix belongs in the reference, in every language, and it is made** ([ADR 24's revision](../adr/0024-events-are-durable-before-they-are-published.md#revision-an-entry-is-acknowledged-once-its-reactions-have-committed)):
+- the relay now acknowledges an entry only once every reaction it was delivered to has succeeded, as d2's agent did in the robustness campaign, and clean-3's and clean-w's here;
+- it keeps a failed entry pending for the next relay;
+- it does not hand out an entry already on its way.
+
+Writing the test found a second, older defect: the in-memory bus decided each subscriber's inbox from a status every subscriber shares. Each language now has tests that fail against the code they guard:
+- TypeScript, Python and Go acknowledged at once, so all three points were defects there;
+- Rust awaited its reactions, but acknowledged a failed one and one still on its way.
 
 **Clean-2's feature 10 counts as failed for robustness,** as the protocol says a chaos test failing in either grading does. It was delivered by the ladder, graded once at the time.
 
@@ -132,7 +139,7 @@ A fresh agent that did not run the pilot read the eight final trees against [the
 
 ## What follows
 
-- **Fix the reference's relay in every language,** with a test that kills between a hand-off and a reaction's commit. Then the Clean DDD arm's next trees start from it, as these started from the startup relay's fix.
+- **Done: the reference's relay is fixed in every language** ([above](#robustness-the-relay-acknowledges-before-the-reactions-have-run)). The Clean DDD arm's next trees start from it, as these started from the startup relay's fix.
 - **Add that kill to the kit's chaos test for J3.** A kill timed after the booking's commit and before the notice is stored is the window the random delays reached only once in four gradings.
 - **J3** is fifteen more features and the first change not announced in advance. The protocol's decision at this checkpoint (continue, adjust or stop) is the maintainer's.
   - **The cost ranges have separated.** The question the series was built for, whether the simple arm needs stronger models as it grows, is still open.
