@@ -44,7 +44,7 @@ The pilot's chaos test (request 10) killed the server at random delays after a b
 - **The tests were reviewed by a fresh agent** that had only the requests ([`review.md`](review.md)): 3 blocking findings, 12 weak and 13 on wording. Every blocking finding was closed, nine weak ones became stronger tests, and every wording finding changed the request.
 - **The tests are solvable.** An agent wrote the fifteen features on the pilot's solvability tree (`dcf5fea` to `9d38f9c`), from the requests, with the tests in view, told never to bend the code away from a request. Its tree passed all 25 files, 73 tests, twice, and `yarn verify`. It found no test that contradicts a request; the test of request 10 is looser than the request on the retry gaps, which is the pilot's.
 - **The aimed kills discriminate.** On clean-2's pilot head (the old relay), they lost 5 notices; with the relay fixed and before 141b51f, they found two notices for one booking, twice. simple-1 passes them.
-- **Every tree is graded on 1 to 10 at its J3 start,** aimed kills included, once each before the runs: simple-1 and clean-2 (after 141b51f) pass; the others are being graded.
+- **Every tree passes 1 to 10 at its J3 start,** aimed kills included, graded once each before the runs.
 - **`dry-run` is clean** on the simple arm's solvability tree before and after, and on clean-1 at its J3 start: no hygiene finding, no test passing before its feature, none failing on the solved tree.
 
 ## Amendments
