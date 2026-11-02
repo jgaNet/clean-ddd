@@ -1,7 +1,8 @@
 import { createHmac, randomUUID } from 'crypto';
 import { createServer, IncomingMessage, Server, ServerResponse } from 'http';
 
-import { Client, eventually, Json } from './openstay';
+import { eventually } from './openstay';
+import type { Client, Json } from './openstay';
 
 /**
  * The payment provider of requests 26 to 50, as the tests play it (docs/evaluations/benchmark/openstay/j0.md:
@@ -212,7 +213,8 @@ export function paymentProvider({ secret = SECRET, key = KEY } = {}) {
     }
     if (resource === 'payouts') {
       const account = accounts.get(String(body.account));
-      if (!account || account.status !== 'enabled') return { status: 400, body: { error: 'the account is not enabled' } };
+      if (!account || account.status !== 'enabled')
+        return { status: 400, body: { error: 'the account is not enabled' } };
       if (!int(body.amount) || typeof body.reference !== 'string')
         return { status: 400, body: { error: 'amount and reference are required' } };
       const payout: ProviderPayout = {
@@ -360,7 +362,10 @@ export function paymentProvider({ secret = SECRET, key = KEY } = {}) {
       const body = JSON.stringify({ id: `evt_${randomUUID()}`, type, created: Math.floor(Date.now() / 1000), data });
       const reply = await fetch(state.target!, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', ...(signature !== undefined && { 'provider-signature': signature }) },
+        headers: {
+          'content-type': 'application/json',
+          ...(signature !== undefined && { 'provider-signature': signature }),
+        },
         body,
       });
       return reply.status;

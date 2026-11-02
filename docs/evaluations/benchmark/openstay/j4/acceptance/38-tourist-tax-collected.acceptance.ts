@@ -25,7 +25,7 @@ async function taxed(token: string, city: string, tax: number) {
 }
 
 describe('tourist tax collected', () => {
-  it("sums, per city, the tax of the paid bookings checking in that month, less what was refunded of it", async () => {
+  it('sums, per city, the tax of the paid bookings checking in that month, less what was refunded of it', async () => {
     const hal = await api.host('hal@tourist-tax.test');
     const tom = await api.traveller('tom@tourist-tax.test');
     const lyon = await taxed(hal.token, 'Lyon', 100);

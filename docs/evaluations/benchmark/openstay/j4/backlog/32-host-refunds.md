@@ -14,4 +14,4 @@ The API works as request 1 says.
 | Request | Answer |
 | --- | --- |
 | `POST /v1/bookings/{id}/refunds` `{ amount, reason }` | creates the refund, `{ id }` |
-| `GET /v1/bookings/{id}/refunds` | `200 [ { id, amount, reason, by, status, at } ]`, oldest first, the cancellation's refund included, with `by` `null` for it |
+| `GET /v1/bookings/{id}/refunds` | `200 [ { id, amount, reason, by, status, at } ]`, oldest first, the cancellation's refund included; `by` is the account that refunded, `null` for the cancellation's |

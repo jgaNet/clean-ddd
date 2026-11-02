@@ -52,14 +52,24 @@ describe('payout accounts', () => {
     expect(await status(hal.token)).toBe('pending');
 
     const enabled = provider.account(account.id, 'enabled');
-    expect(await eventually(() => status(hal.token), each => each === 'enabled')).toBe('enabled');
+    expect(
+      await eventually(
+        () => status(hal.token),
+        each => each === 'enabled',
+      ),
+    ).toBe('enabled');
     await provider.settled();
     expect(provider.deliveries.some(each => each.event === enabled.id && ok(each.status))).toBe(true);
     await api.act('POST', '/hosts/me/payout-account', hal.token);
     expect(await status(hal.token)).toBe('enabled');
 
     provider.account(account.id, 'disabled');
-    expect(await eventually(() => status(hal.token), each => each === 'disabled')).toBe('disabled');
+    expect(
+      await eventually(
+        () => status(hal.token),
+        each => each === 'disabled',
+      ),
+    ).toBe('disabled');
   }, 60000);
 
   it('refuses with 400 a webhook unsigned, wrongly signed or more than five minutes old, and it changes nothing', async () => {
@@ -75,6 +85,11 @@ describe('payout accounts', () => {
     expect(await status(hal.token)).toBe('pending');
 
     expect(ok(await provider.signed('account.updated', data))).toBe(true);
-    expect(await eventually(() => status(hal.token), each => each === 'enabled')).toBe('enabled');
+    expect(
+      await eventually(
+        () => status(hal.token),
+        each => each === 'enabled',
+      ),
+    ).toBe('enabled');
   }, 60000);
 });

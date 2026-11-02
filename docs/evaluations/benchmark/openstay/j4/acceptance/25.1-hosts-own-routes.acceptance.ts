@@ -23,7 +23,10 @@ describe("the host's own routes", () => {
     const organisationId = await api.create('/organisations', hal.token, { name: 'Hal & Co' });
     const listing = await api.listing(hal.token);
     await api.done('POST', `/listings/${listing}/move-to-organisation`, hal.token, { organisationId });
-    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: mia.email, role: 'manager' });
+    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, {
+      email: mia.email,
+      role: 'manager',
+    });
 
     expect(
       await api.refused('POST', '/hosts/me/block', mia.token, { listingIds: [listing], from: day(10), to: day(12) }),

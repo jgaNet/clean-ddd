@@ -83,7 +83,10 @@ describe('a fee per extra guest', () => {
 
     const organisationId = await api.create('/organisations', hal.token, { name: 'Hal & Co' });
     await api.done('POST', `/listings/${id}/move-to-organisation`, hal.token, { organisationId });
-    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: mia.email, role: 'manager' });
+    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, {
+      email: mia.email,
+      role: 'manager',
+    });
     await api.done('PUT', path, mia.token, { fromGuests: 4, perGuestPerNight: 800 });
     expect((await api.read(`/listings/${id}`)).extraGuests).toEqual({ fromGuests: 4, perGuestPerNight: 800 });
   }, 60000);

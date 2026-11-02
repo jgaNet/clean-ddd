@@ -46,7 +46,10 @@ describe('partial refunds by the host', () => {
     const una = await api.traveller('una@host-refunds.test');
     const organisationId = await api.create('/organisations', hal.token, { name: 'Hal & Co' });
     await api.done('POST', `/listings/${listingId}/move-to-organisation`, hal.token, { organisationId });
-    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: mia.email, role: 'manager' });
+    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, {
+      email: mia.email,
+      role: 'manager',
+    });
 
     const shower = await api.create(`/bookings/${bookingId}/refunds`, hal.token, {
       amount: 2000,

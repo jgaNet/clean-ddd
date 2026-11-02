@@ -24,7 +24,8 @@ const statement = async (token: string, from: number, to: number) =>
     lines: Json[];
     balance: number;
   };
-const movements = (lines: Json[]) => lines.map(line => `${String(line.type)} ${String(line.bookingId)} ${String(line.amount)}`);
+const movements = (lines: Json[]) =>
+  lines.map(line => `${String(line.type)} ${String(line.bookingId)} ${String(line.amount)}`);
 
 describe("a host's statement", () => {
   it('lists each charge, fee, refund and payout once the provider said so, oldest first, with the balance', async () => {

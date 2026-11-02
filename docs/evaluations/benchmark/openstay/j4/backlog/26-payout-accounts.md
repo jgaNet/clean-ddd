@@ -4,9 +4,9 @@ Money now goes through OpenStay. It never keeps any of it: what travellers pay g
 
 - **The provider.** OpenStay works with one payment provider, at `PAYMENT_PROVIDER_URL`, with the key `PAYMENT_PROVIDER_KEY`. Its API is below. The provider is the only one who knows what happened to money: OpenStay believes a payment, a refund or a payout happened when the provider says so, by a webhook, and not before.
 - **Webhooks.** OpenStay receives the provider's webhooks at `POST /v1/payments/webhook`. A webhook whose signature does not match `PAYMENT_WEBHOOK_SECRET`, or has none, or is more than five minutes old, is refused with `400` and changes nothing. One that is valid is answered `2xx`, whether OpenStay acts on it or not.
-- **A payout account.** To be paid, a host connects an account with the provider. OpenStay asks the provider to open one, and keeps it: asking again gives the same account, never a second one. The host finishes the onboarding at the provider (`onboardingUrl`).
+- **A payout account.** To be paid, a host connects an account with the provider. OpenStay asks the provider to open one, and keeps it: asking again gives the same account, never a second one. The host finishes the onboarding at the provider, at the `onboardingUrl` the provider gave, passed on as it is.
 - **Its status.** An account is `pending` until the provider says it is `enabled`, or `disabled`, by an `account.updated` webhook. Nothing else changes it: not the host, not OpenStay.
-- **Who.** A host, for themselves. Only the host reads their account.
+- **Who.** A host, for themselves; an account that is not a host is refused. Only the host reads their account.
 
 The API works as request 1 says. Amounts are integers of euro cents, as everywhere.
 

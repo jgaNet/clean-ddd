@@ -82,13 +82,15 @@ describe('webhooks, as they come', () => {
     const elsewhere = { id: 'pay_elsewhere', amount: 5000, reference: 'another-platform', status: 'succeeded' };
     expect(ok(await provider.signed('payment.succeeded', { ...elsewhere, fee: feeOf(5000), refunded: 0 }))).toBe(true);
     expect(
-      ok(await provider.signed('refund.succeeded', {
+      ok(
+        await provider.signed('refund.succeeded', {
           id: 're_elsewhere',
           payment: 'pay_elsewhere',
           amount: 100,
           reference: 'another-platform',
           status: 'succeeded',
-        })),
+        }),
+      ),
     ).toBe(true);
 
     const { tom, bookingId, payment } = await asked('forged@webhooks.test', 40);

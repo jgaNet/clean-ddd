@@ -53,7 +53,10 @@ describe('direct payment declared by the host', () => {
     const id = await api.listing(hal.token);
     const organisationId = await api.create('/organisations', hal.token, { name: 'Hal & Co' });
     await api.done('POST', `/listings/${id}/move-to-organisation`, hal.token, { organisationId });
-    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: mia.email, role: 'manager' });
+    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, {
+      email: mia.email,
+      role: 'manager',
+    });
 
     const declared = await api.book(tom.token, await api.quote(tom.token, id, day(10), day(12)));
     expect(await api.refused('POST', `/bookings/${declared}/declare-paid`, tom.token)).toBe(true);
