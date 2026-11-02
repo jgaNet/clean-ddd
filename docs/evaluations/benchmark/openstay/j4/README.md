@@ -52,7 +52,26 @@ The session's commit declares two contexts, empty (Payments; Pricing, for featur
 
 ## How it was checked before use
 
-To be filled in as the checks complete.
+- **The tests were written by a fresh agent from the requests,** and its choices where a request was open were closed in the requests before the review.
+- **The tests were reviewed by another fresh agent** that had only the requests ([`review.md`](review.md)): 6 blocking findings, 8 weak, 8 on wording.
+  - **Every blocking finding was closed:**
+    - a refused value the request allowed (41);
+    - a provider every server was assumed to need: request 26 now says a server starts without one;
+    - a crash case that resent a webhook before the restarted server knew its payout (33);
+    - an account the provider's own record did not enable (26);
+    - two receipts in one second (46);
+    - dates read before a server may have waited past midnight (47, 48). The grader now waits before a file that would start in the last ten minutes of a UTC day.
+  - **Three weak findings became stronger tests:**
+    - the tourist tax in a payout (33);
+    - a refund receipt's positive amount (46);
+    - the amendment to 24 in a case of its own.
+  - **Every wording finding changed the request.**
+- **The tests are solvable.** An agent wrote the twenty-five features on the J3 solvability tree (`9d38f9c` to `3b83518`), from the requests, the move to PostgreSQL included, told never to bend the code away from a request. Its tree passed all 51 files, 140 tests, twice, and `yarn verify`. It found no test that asserts what the requests do not say.
+- **`dry-run` is clean** on the solvability tree before and after, and on clean-1 at its J4 start:
+  - no hygiene finding;
+  - no test of 26 to 50 passing before its feature;
+  - none failing on the solved tree.
+- **Every tree was graded on 1 to 25.1 at its J4 start.** The three simple trees and clean-2 pass all 26. clean-1 and clean-3 fail 24's amendment and 25.1, and nothing else: the defect report opens their J4.
 
 ## Amendments
 
