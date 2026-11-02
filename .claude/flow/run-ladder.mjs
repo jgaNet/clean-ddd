@@ -348,7 +348,9 @@ async function attempt(feature, step, from) {
   return { reason: undefined, cwd, wallClockMs, report: tests.report };
 }
 
-const baseCommit = git(project, 'rev-parse', plan.base);
+// A resumed run keeps the commit it started from: its main has moved since, and the grader compares the dependencies,
+// and the gate the changes, with this commit.
+const baseCommit = before.find(each => each.event === 'started')?.baseCommit ?? git(project, 'rev-parse', plan.base);
 const started = Date.now();
 event(resuming ? 'resumed' : 'started', {
   arm: plan.arm,
