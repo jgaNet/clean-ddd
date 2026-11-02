@@ -1,0 +1,33 @@
+# Feature 32 of OpenStay's J4 (../backlog/32-host-refunds.md), as the session decided it.
+schemaVersion: 1
+feature: host-refunds
+intent: A host refunds part of a paid booking, never more than was paid.
+done: false
+hotSpots:
+- question: Never more than paid, at once too?
+  decision: The Payment holds what was refunded and refuses more; its version check refuses the second of two at once.
+- question: Who may?
+  decision: 'The listing''s host or a manager of its organisation: Payments asks Listings through a port it owns (ListingActors),
+    declared by the session as Listings → Payments.'
+contexts:
+- id: Payments
+  commands:
+  - name: RefundBooking
+    actor: a signed-in account
+    route: POST /bookings/{param}/refunds
+    aggregate: Payment
+    events:
+    - RefundOwed
+  queries:
+  - name: GetBookingRefunds
+    actor: a signed-in account
+    route: GET /bookings/{param}/refunds
+  events:
+  - RefundOwed
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Payments
+  contracts:
+  - ListingActors

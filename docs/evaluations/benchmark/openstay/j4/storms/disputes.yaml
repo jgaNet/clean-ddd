@@ -1,0 +1,17 @@
+# Feature 39 of OpenStay's J4 (../backlog/39-disputes.md), as the session decided it.
+schemaVersion: 1
+feature: disputes
+intent: A disputed payment holds its payout until the dispute closes.
+done: false
+hotSpots:
+- question: Where?
+  decision: A state of the Payment the payout sweep reads.
+contexts:
+- id: Payments
+  commands: []
+  queries: []
+  events:
+  - DisputeClosed
+  - DisputeOpened
+  policies: []
+links: []

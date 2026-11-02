@@ -176,11 +176,17 @@ function size(cwd) {
 const hasStorm = feature => existsSync(join(kit, 'storms', `${feature.id}.yaml`));
 const request = feature => readFileSync(join(kit, 'backlog', `${feature.n}-${feature.id}.md`), 'utf8').trim();
 const last = Math.max(...backlog.map(each => each.n));
+// A backlog entry of `kind: report` is a defect a user reported in what is already delivered, given
+// as a feature is (its request, its storm if any, its hidden test), and graded the same way.
+const opening = feature =>
+  feature.kind === 'report'
+    ? `${clean ? 'You are maintaining an application built on the clean-ddd architecture' : 'You are maintaining an application'}. A user reported a defect in what is already delivered; fix it.`
+    : clean
+      ? `You are writing an application built on the clean-ddd architecture, one feature at a time. This is feature ${feature.n} of ${last}; the earlier ones are in the code.`
+      : `You are writing an application, one feature at a time. This is feature ${feature.n} of ${last}; the earlier ones are in the code.`;
 const brief = (feature, from) =>
   [
-    clean
-      ? `You are writing an application built on the clean-ddd architecture, one feature at a time. This is feature ${feature.n} of ${last}; the earlier ones are in the code.`
-      : `You are writing an application, one feature at a time. This is feature ${feature.n} of ${last}; the earlier ones are in the code.`,
+    opening(feature),
     'Read `CLAUDE.md` first and follow it. Do not ask questions: decide, and say in your final report what was unclear.',
     '',
     ...(clean && hasStorm(feature)
@@ -198,7 +204,7 @@ const brief = (feature, from) =>
           `You are done when \`yarn verify\` passes. Commit your work on the current branch; do not push. If you start a server, use port ${port}.`,
         ]),
     '',
-    'The feature, in product words, with the API it answers:',
+    feature.kind === 'report' ? 'The report, in the user\'s words:' : 'The feature, in product words, with the API it answers:',
     '',
     request(feature),
   ].join('\n');

@@ -1,0 +1,58 @@
+# OpenStay up to J4 (docs/evaluations/benchmark/openstay): fifty requests, in order, and one defect report.
+# The pilot ran 1-10, J3 11-25; J4 runs 26-50 on the same trees, and grades 1 to n for regressions. The
+# report (kind: report) runs only on the trees that fail its test at J4's start. `contexts` is the
+# storms' until they say otherwise; the simple arm never reads it.
+schemaVersion: 1
+features:
+  - { id: accounts, n: 1, contexts: [Accounts], needs: [] }
+  - { id: publish-a-listing, n: 2, contexts: [Listings], needs: [accounts] }
+  - { id: search, n: 3, contexts: [Booking], needs: [publish-a-listing] }
+  - { id: host-calendar, n: 4, contexts: [Booking, Listings], needs: [search] }
+  - { id: quote, n: 5, contexts: [Booking, Listings], needs: [host-calendar] }
+  - { id: book-instantly, n: 6, contexts: [Booking], needs: [quote] }
+  - { id: request-to-book, n: 7, contexts: [Booking, Listings], needs: [book-instantly] }
+  - { id: cancel-a-booking, n: 8, contexts: [Booking], needs: [book-instantly] }
+  - { id: booking-history, n: 9, contexts: [Booking, Accounts], needs: [request-to-book] }
+  - { id: notify-the-host, n: 10, contexts: [Booking, Notifications], needs: [request-to-book] }
+  - { id: amenities-and-house-rules, n: 11, contexts: [Listings, Booking], needs: [notify-the-host] }
+  - { id: search-filters, n: 12, contexts: [Booking, Listings], needs: [amenities-and-house-rules] }
+  - { id: favourites, n: 13, contexts: [Listings], needs: [search-filters] }
+  - { id: map-search, n: 14, contexts: [Listings, Booking], needs: [favourites] }
+  - { id: seasonal-prices, n: 15, contexts: [Listings, Booking], needs: [map-search] }
+  - { id: discounts, n: 16, contexts: [Listings, Booking], needs: [seasonal-prices] }
+  - { id: booking-window, n: 17, contexts: [Listings, Booking], needs: [discounts] }
+  - { id: arrival-days, n: 18, contexts: [Listings, Booking], needs: [booking-window] }
+  - { id: change-dates, n: 19, contexts: [Booking], needs: [arrival-days] }
+  - { id: holds, n: 20, contexts: [Booking], needs: [change-dates] }
+  - { id: host-dashboard, n: 21, contexts: [Booking], needs: [holds] }
+  - { id: bulk-calendar, n: 22, contexts: [Booking, Listings], needs: [host-dashboard] }
+  - { id: organisations, n: 23, contexts: [Accounts, Listings], needs: [bulk-calendar] }
+  - { id: collaborators, n: 24, contexts: [Accounts, Listings, Booking], needs: [organisations] }
+  - { id: conditions-history, n: 25, contexts: [Booking], needs: [collaborators] }
+  - { id: hosts-own-routes, n: 25.1, contexts: [Booking], needs: [collaborators], kind: report }
+  - { id: payout-accounts, n: 26, contexts: [Payments, Accounts], needs: [conditions-history] }
+  - { id: pay-a-booking, n: 27, contexts: [Payments, Booking], needs: [payout-accounts] }
+  - { id: strong-authentication, n: 28, contexts: [Payments], needs: [pay-a-booking] }
+  - { id: webhooks-as-they-come, n: 29, contexts: [Payments], needs: [strong-authentication] }
+  - { id: unpaid-bookings-lapse, n: 30, contexts: [Booking, Payments], needs: [webhooks-as-they-come] }
+  - { id: refunds, n: 31, contexts: [Payments, Booking], needs: [unpaid-bookings-lapse] }
+  - { id: host-refunds, n: 32, contexts: [Payments, Booking], needs: [refunds] }
+  - { id: payouts, n: 33, contexts: [Payments], needs: [host-refunds] }
+  - { id: failed-payouts, n: 34, contexts: [Payments], needs: [payouts] }
+  - { id: host-statement, n: 35, contexts: [Payments], needs: [failed-payouts] }
+  - { id: direct-payment, n: 36, contexts: [Payments, Booking], needs: [host-statement] }
+  - { id: reconciliation, n: 37, contexts: [Payments, Accounts], needs: [direct-payment] }
+  - { id: tourist-tax-collected, n: 38, contexts: [Payments], needs: [reconciliation] }
+  - { id: disputes, n: 39, contexts: [Payments], needs: [tourist-tax-collected] }
+  - { id: postgresql, n: 40, contexts: [Accounts, Listings, Booking, Notifications, Payments], needs: [disputes] }
+  - { id: extra-guest-fee, n: 41, contexts: [Listings, Booking], needs: [postgresql] }
+  - { id: last-minute, n: 42, contexts: [Listings, Booking], needs: [extra-guest-fee] }
+  - { id: promotion-codes, n: 43, contexts: [Listings, Booking], needs: [last-minute] }
+  - { id: nightly-prices-on-the-quote, n: 44, contexts: [Booking], needs: [promotion-codes] }
+  - { id: bulk-prices, n: 45, contexts: [Listings], needs: [nightly-prices-on-the-quote] }
+  - { id: receipts, n: 46, contexts: [Payments], needs: [bulk-prices] }
+  - { id: weekly-payouts, n: 47, contexts: [Payments], needs: [receipts] }
+  - { id: earnings-by-month, n: 48, contexts: [Payments], needs: [weekly-payouts] }
+  - { id: traveller-export, n: 49, contexts: [Accounts, Booking, Payments], needs: [earnings-by-month] }
+  - { id: closing-an-account, n: 50, contexts: [Accounts, Listings, Booking], needs: [traveller-export] }
+# For feature <n>-<id>: backlog/<n>-<id>.md, storms/<id>.yaml, acceptance/<n>-<id>.acceptance.ts.

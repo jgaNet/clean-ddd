@@ -1,0 +1,33 @@
+# Feature 49 of OpenStay's J4 (../backlog/49-traveller-export.md), as the session decided it.
+schemaVersion: 1
+feature: traveller-export
+intent: A traveller exports everything OpenStay holds about them.
+done: false
+hotSpots:
+- question: Who assembles it?
+  decision: Accounts, through ports it owns over Booking, Listings and Payments' read models.
+contexts:
+- id: Accounts
+  commands: []
+  queries:
+  - name: ExportMyData
+    actor: a signed-in account
+    route: GET /accounts/me/export
+  events: []
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Booking
+  downstream: Accounts
+  contracts:
+  - TravellerBookings
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Accounts
+  contracts:
+  - TravellerFavourites
+- mechanism: owned-port
+  upstream: Payments
+  downstream: Accounts
+  contracts:
+  - TravellerReceipts

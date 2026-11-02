@@ -1,0 +1,20 @@
+# Feature 46 of OpenStay's J4 (../backlog/46-receipts.md), as the session decided it.
+schemaVersion: 1
+feature: receipts
+intent: Every payment and refund that succeeds gets a receipt, numbered with no gap.
+done: false
+hotSpots:
+- question: No gap?
+  decision: 'A sequence taken in the transaction that records the success: a counter behind the version check, never a database
+    sequence that a rollback would leave with a gap.'
+contexts:
+- id: Payments
+  commands: []
+  queries:
+  - name: GetMyReceipts
+    actor: a signed-in account
+    route: GET /receipts/mine
+  events:
+  - ReceiptIssued
+  policies: []
+links: []

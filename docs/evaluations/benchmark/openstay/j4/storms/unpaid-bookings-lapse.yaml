@@ -1,0 +1,39 @@
+# Feature 30 of OpenStay's J4 (../backlog/30-unpaid-bookings-lapse.md), as the session decided it.
+schemaVersion: 1
+feature: unpaid-bookings-lapse
+intent: A booking unpaid past its deadline lapses with nobody acting, and a late payment is refunded.
+done: false
+hotSpots:
+- question: Whose rule?
+  decision: 'Booking''s: it knows paid from BookingPaid, and a sweep (U5) lapses what is past dueBy, with the time as a parameter.'
+- question: A late payment?
+  decision: Payments refunds it in full, on Booking's BookingLapsed integration event.
+contexts:
+- id: Booking
+  commands: []
+  queries: []
+  events:
+  - BookingLapsed
+  policies:
+  - 'on': BookingLapsed
+    kind: domain-event
+    publishes:
+    - BookingLapsed
+    events: []
+- id: Payments
+  commands: []
+  queries: []
+  events:
+  - RefundOwed
+  policies:
+  - 'on': BookingLapsed
+    kind: integration-event
+    publishes: []
+    events:
+    - RefundOwed
+links:
+- mechanism: integration-event
+  upstream: Booking
+  downstream: Payments
+  contracts:
+  - BookingLapsed
