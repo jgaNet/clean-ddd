@@ -1,0 +1,316 @@
+{
+  "schemaVersion": 1,
+  "kit": "docs/evaluations/benchmark/openstay/j4",
+  "gradings": [
+    {
+      "tree": "simple",
+      "role": "before",
+      "ref": "9d38f9c",
+      "features": {
+        "accounts": true,
+        "publish-a-listing": true,
+        "search": true,
+        "host-calendar": true,
+        "quote": true,
+        "book-instantly": true,
+        "request-to-book": true,
+        "cancel-a-booking": true,
+        "booking-history": true,
+        "notify-the-host": true,
+        "amenities-and-house-rules": true,
+        "search-filters": true,
+        "favourites": true,
+        "map-search": true,
+        "seasonal-prices": true,
+        "discounts": true,
+        "booking-window": true,
+        "arrival-days": true,
+        "change-dates": true,
+        "holds": true,
+        "host-dashboard": true,
+        "bulk-calendar": true,
+        "organisations": true,
+        "collaborators": true,
+        "conditions-history": true,
+        "hosts-own-routes": true,
+        "payout-accounts": false,
+        "pay-a-booking": false,
+        "strong-authentication": false,
+        "webhooks-as-they-come": false,
+        "unpaid-bookings-lapse": false,
+        "refunds": false,
+        "host-refunds": false,
+        "payouts": false,
+        "failed-payouts": false,
+        "host-statement": false,
+        "direct-payment": false,
+        "reconciliation": false,
+        "tourist-tax-collected": false,
+        "disputes": false,
+        "postgresql": false,
+        "extra-guest-fee": false,
+        "last-minute": false,
+        "promotion-codes": false,
+        "nightly-prices-on-the-quote": false,
+        "bulk-prices": false,
+        "receipts": false,
+        "weekly-payouts": false,
+        "earnings-by-month": false,
+        "traveller-export": false,
+        "closing-an-account": false
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "simple",
+      "role": "solved",
+      "ref": "3b83518",
+      "features": {
+        "accounts": true,
+        "publish-a-listing": true,
+        "search": true,
+        "host-calendar": true,
+        "quote": true,
+        "book-instantly": true,
+        "request-to-book": true,
+        "cancel-a-booking": true,
+        "booking-history": true,
+        "notify-the-host": true,
+        "amenities-and-house-rules": true,
+        "search-filters": true,
+        "favourites": true,
+        "map-search": true,
+        "seasonal-prices": true,
+        "discounts": true,
+        "booking-window": true,
+        "arrival-days": true,
+        "change-dates": true,
+        "holds": true,
+        "host-dashboard": true,
+        "bulk-calendar": true,
+        "organisations": true,
+        "collaborators": true,
+        "conditions-history": true,
+        "hosts-own-routes": true,
+        "payout-accounts": true,
+        "pay-a-booking": true,
+        "strong-authentication": true,
+        "webhooks-as-they-come": true,
+        "unpaid-bookings-lapse": true,
+        "refunds": true,
+        "host-refunds": true,
+        "payouts": true,
+        "failed-payouts": true,
+        "host-statement": true,
+        "direct-payment": true,
+        "reconciliation": true,
+        "tourist-tax-collected": true,
+        "disputes": true,
+        "postgresql": true,
+        "extra-guest-fee": true,
+        "last-minute": true,
+        "promotion-codes": true,
+        "nightly-prices-on-the-quote": true,
+        "bulk-prices": true,
+        "receipts": true,
+        "weekly-payouts": true,
+        "earnings-by-month": true,
+        "traveller-export": true,
+        "closing-an-account": true
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "clean-1",
+      "role": "before",
+      "ref": "0551a20",
+      "features": {
+        "accounts": true,
+        "publish-a-listing": true,
+        "search": true,
+        "host-calendar": true,
+        "quote": true,
+        "book-instantly": true,
+        "request-to-book": true,
+        "cancel-a-booking": true,
+        "booking-history": true,
+        "notify-the-host": true,
+        "amenities-and-house-rules": true,
+        "search-filters": true,
+        "favourites": true,
+        "map-search": true,
+        "seasonal-prices": true,
+        "discounts": true,
+        "booking-window": true,
+        "arrival-days": true,
+        "change-dates": true,
+        "holds": true,
+        "host-dashboard": true,
+        "bulk-calendar": true,
+        "organisations": true,
+        "collaborators": false,
+        "conditions-history": true,
+        "hosts-own-routes": false,
+        "payout-accounts": false,
+        "pay-a-booking": false,
+        "strong-authentication": false,
+        "webhooks-as-they-come": false,
+        "unpaid-bookings-lapse": false,
+        "refunds": false,
+        "host-refunds": false,
+        "payouts": false,
+        "failed-payouts": false,
+        "host-statement": false,
+        "direct-payment": false,
+        "reconciliation": false,
+        "tourist-tax-collected": false,
+        "disputes": false,
+        "postgresql": false,
+        "extra-guest-fee": false,
+        "last-minute": false,
+        "promotion-codes": false,
+        "nightly-prices-on-the-quote": false,
+        "bulk-prices": false,
+        "receipts": false,
+        "weekly-payouts": false,
+        "earnings-by-month": false,
+        "traveller-export": false,
+        "closing-an-account": false
+      },
+      "hygiene": []
+    }
+  ],
+  "verdict": "read",
+  "findings": [
+    {
+      "level": "read",
+      "feature": "accounts",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "publish-a-listing",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "search",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "host-calendar",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "quote",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "book-instantly",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "request-to-book",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "cancel-a-booking",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "booking-history",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "notify-the-host",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "amenities-and-house-rules",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "search-filters",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "favourites",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "map-search",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "seasonal-prices",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "discounts",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "booking-window",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "arrival-days",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "change-dates",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "holds",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "host-dashboard",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "bulk-calendar",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "organisations",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "collaborators",
+      "message": "passes before the feature is written, on simple: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "conditions-history",
+      "message": "passes before the feature is written, on simple, clean-1: it tests nothing there"
+    },
+    {
+      "level": "read",
+      "feature": "hosts-own-routes",
+      "message": "passes before the feature is written, on simple: it tests nothing there"
+    }
+  ]
+}
