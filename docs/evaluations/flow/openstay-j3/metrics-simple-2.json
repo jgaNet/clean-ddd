@@ -1,0 +1,21 @@
+{
+  "project": "/runs/openstay/simple-2/app",
+  "base": "d94a13c",
+  "ref": "main",
+  "added": {
+    "source": 2756,
+    "tests": 5298
+  },
+  "removed": {
+    "source": 161,
+    "tests": 12
+  },
+  "filesTouched": 58,
+  "sourceFiles": 51,
+  "testFiles": 32,
+  "testCases": 544,
+  "largestSource": {
+    "path": "src/listings/listings.routes.ts",
+    "lines": 584
+  }
+}

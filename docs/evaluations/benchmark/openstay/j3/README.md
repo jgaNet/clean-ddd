@@ -1,5 +1,7 @@
 # OpenStay's J3 kit: fifteen more features, written and rehearsed before any run
 
+**The runs are done:** [the record](../../../2026-11-02-openstay-j3.md), [the logs, grades and reading](../../../flow/openstay-j3/README.md).
+
 J3 runs requests 11 to 25 of [OpenStay](../README.md) on the six trees of [the pilot](../pilot/README.md), from their pilot heads, each feature from the smallest model up, as in J2. The trees are graded on requests 1 to 25 after every attempt, so a later feature that breaks an earlier one is a regression. This kit was written, reviewed and rehearsed before any agent ran it.
 
 ## The maintainer's decisions (2026-11-01)
