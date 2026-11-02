@@ -30,6 +30,10 @@ The two are kept apart because a hidden test must be deterministic, and a conver
 
 - **Three trees per arm,** each grown by its own agents. Four, if the pilot shows that three cannot separate the arms.
 - **The multi-agent fan-out is not a third arm.** The records show it pays only on wide features, so it is measured on the wide features chosen in advance, starting from the same commit as the one-agent run (as in [E2](../../2026-10-30-flow-extensions.md#e2--one-agent-with-the-fan-outs-contract-a)). The first such feature is payment through the provider, in phase 2.
+- **The generated boilerplate is not a third arm either.** At J4, the Clean DDD arm's cost per feature grew faster than the simple arm's, and most of what it pays for is the layers, the wiring and the gates, not the rules. J5 measures that share on a few chosen features:
+  - **The generator** is part of the harness, written and tested on the solvability tree before J5. From the feature's storm and the contract (`architecture checklist`, `architecture place`), it writes the commands, events, queries, handlers, routes, wiring entries and test skeletons. It writes no rule: a behaviour's body, a refusal or a query's SQL is left for the agent.
+  - **The run** starts from the same commit as the ladder's one agent, on a copy of the tree, with the same request, storm, ladder and gate.
+  - **The measures** are the cost, the steps, the escalations, the gate's send-backs and the hidden tests, set beside the one-agent run. The generated tree is read with the same rubric, so that a cheaper feature that hides its rules in the generated files is seen.
 - **No arm sees the brief.** Its §6 names this repository's architecture, and its §10 starts with an event storm. Every arm gets the same requests, written in product words, one at a time.
 - **The storms count as the Clean DDD arm's cost.** A storm decided with the maintainer, before its feature's run, is design work the simple arm does not get. The maintainer's time on each storm is recorded with the arm's cost.
 
@@ -73,7 +77,7 @@ It is refuted if the two arms' curves stay within each other's ranges, or if the
 | **J2** | The pilot: ten features, 2 arms × 3 trees, plus the witness | estimated at $60–130, plus $30–60 for the witness | Budget re-estimated from the measured cost per feature; both arms deliver |
 | **J3** | 25 features, and a first change not announced in advance | re-estimated at J2 | The question is still open (see below) |
 | **J4** | 50 features: payments, a storage migration, a domain split | re-estimated at J3 | The same |
-| **J5** | 100 features, and a side experiment: a few of J5's cross-context features replayed as a fan-out by context (`run-slices.mjs`) on copies of the trees, beside the ladder's one agent per feature, and features with disjoint contexts run in parallel (decided by the maintainer on 2026-11-02) | re-estimated at J4 | — |
+| **J5** | 100 features, and two side experiments on copies of the Clean DDD trees, each beside the ladder's one agent per feature, from the same commit: a few of J5's cross-context features replayed as a fan-out by context (`run-slices.mjs`), and features with disjoint contexts run in parallel (decided by the maintainer on 2026-11-02); and the same features with the boilerplate generated from the storm before the agent runs, so that the agent writes the rules and the queries and nothing else, to measure how much of the Clean DDD arm's cost per feature is the layers rather than the rules (decided by the maintainer on 2026-11-02, after J4's first figures showed that gap growing) | re-estimated at J4 | — |
 
 **Each checkpoint ends with a decision: continue, adjust or stop.** Two outcomes stop the series before J5, and either is a result that gets published:
 - the ranges have separated, so the question is answered;
