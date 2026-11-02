@@ -63,6 +63,9 @@ describe('payout accounts', () => {
     await api.act('POST', '/hosts/me/payout-account', hal.token);
     expect(await status(hal.token)).toBe('enabled');
 
+    // Amendment 1 (J4): the provider's events carry their time in whole seconds, and nothing says two
+    // of the same second are applied in the order they arrive; the second update comes a second later.
+    await sleep(1100);
     provider.account(account.id, 'disabled');
     expect(
       await eventually(

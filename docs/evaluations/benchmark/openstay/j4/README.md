@@ -75,4 +75,11 @@ The session's commit declares two contexts, empty (Payments; Pricing, for featur
 
 ## Amendments
 
-None yet.
+A defect of the kit found after the runs started is recorded here, applied to every tree alike, and the attempts it touched are graded again.
+
+1. **Test 26, two account updates in one second** (2026-11-02, 10:50 UTC). The test enabled a payout account and disabled it within the same second. The provider's events carry their time in whole seconds, and no request says that two events of the same second apply in the order they arrive. clean-1's tree ignores an event no newer than the last one applied, which the requests allow, and failed.
+   - **The fix:** the second update now comes a second after the first.
+   - **What it touched:**
+     - clean-1's first attempt at 26 was graded again with the amended test, and passes: it is counted as delivered at the smallest step;
+     - simple-1 and simple-2 had delivered 26 with the old test, which the amendment only loosens;
+     - clean-2's escalation at 26 was the storm's command name, untouched by this.
