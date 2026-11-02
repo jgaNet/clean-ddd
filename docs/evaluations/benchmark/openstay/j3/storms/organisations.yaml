@@ -1,0 +1,49 @@
+# Feature 23 of OpenStay's J3 (../backlog/23-organisations.md), as the session decided it on 2026-11-01.
+schemaVersion: 1
+feature: organisations
+intent: A host creates an organisation and moves the listings they host into it.
+done: false
+hotSpots:
+- question: Where do organisations live?
+  decision: 'In Accounts (T2): an organisation is a set of accounts and what each may do. Accounts'' language gains Organisation,
+    Member and Permission (decided 2026-11-01).'
+- question: Who moves a listing?
+  decision: Listings decides (ListingMovedToOrganisation), after Accounts says through Collaborators that the caller owns
+    the organisation (T3).
+contexts:
+- id: Accounts
+  commands:
+  - name: CreateOrganisation
+    actor: a signed-in account
+    route: POST /organisations
+    aggregate: Organisation
+    events:
+    - OrganisationCreated
+  queries:
+  - name: GetOrganisation
+    actor: a signed-in account
+    route: GET /organisations/{param}
+  - name: GetMyOrganisations
+    actor: a signed-in account
+    route: GET /organisations/mine
+  events:
+  - OrganisationCreated
+  policies: []
+- id: Listings
+  commands:
+  - name: MoveListingToOrganisation
+    actor: a signed-in account
+    route: POST /listings/{param}/move-to-organisation
+    aggregate: Listing
+    events:
+    - ListingMovedToOrganisation
+  queries: []
+  events:
+  - ListingMovedToOrganisation
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Listings
+  contracts:
+  - Collaborators

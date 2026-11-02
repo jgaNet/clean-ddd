@@ -1,0 +1,53 @@
+# Feature 5 of OpenStay's pilot (../backlog/5-quote.md), as the session decided it.
+schemaVersion: 1
+
+feature: quote
+intent: >-
+  A traveller asks what a stay would cost and gets every euro named, line by line, with the platform's share at zero, frozen as it was given and valid for a while.
+
+done: true
+
+hotSpots:
+  - question: Is a quote part of a booking?
+    decision: No — Quote is its own aggregate in Booking, created with a snapshot of the terms and its lines, never changed; a quote never booked is not a booking that never happened.
+  - question: Where is the tourist tax declared?
+    decision: In Listings, as a term of the listing (TouristTaxDeclared); the quote reads it through ListingTerms and names it as an external line.
+  - question: How long is a quote valid, and who knows the time?
+    decision: QUOTE_TTL_SECONDS, read by the composition root and given to the handler; the time is a parameter, and the quote stores when it stops being valid.
+  - question: How does Booking know the caller is a traveller?
+    decision: It asks Accounts through a port it owns (Travellers).
+
+contexts:
+  - id: Listings
+    commands:
+      - name: DeclareTouristTax
+        actor: a signed-in account
+        route: PUT /listings/{param}/tourist-tax
+        aggregate: Listing
+        events: [TouristTaxDeclared]
+    queries: []
+    events: [TouristTaxDeclared]
+    policies: []
+  - id: Booking
+    commands:
+      - name: QuoteStay
+        actor: a signed-in account
+        route: POST /quotes
+        aggregate: Quote
+        events: [StayQuoted]
+    queries:
+      - name: GetQuote
+        actor: a signed-in account
+        route: GET /quotes/{param}
+    events: [StayQuoted]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Listings
+    downstream: Booking
+    contracts: [ListingTerms]
+  - mechanism: owned-port
+    upstream: Accounts
+    downstream: Booking
+    contracts: [Travellers]

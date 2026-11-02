@@ -1,0 +1,28 @@
+# Feature 17 of OpenStay's J3 (../backlog/17-booking-window.md), as the session decided it on 2026-11-01.
+schemaVersion: 1
+feature: booking-window
+intent: A host says how much notice a stay needs and how far ahead it may start; a quote outside the window is refused.
+done: false
+hotSpots:
+- question: Who knows today?
+  decision: The quote's handler, with the time as a parameter, as for its validity (DOMAIN-NON-DETERMINISM); the window is
+    a term of the listing (BookingWindowSet), read through ListingTerms.
+contexts:
+- id: Listings
+  commands:
+  - name: SetBookingWindow
+    actor: a signed-in account
+    route: PUT /listings/{param}/booking-window
+    aggregate: Listing
+    events:
+    - BookingWindowSet
+  queries: []
+  events:
+  - BookingWindowSet
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Booking
+  contracts:
+  - ListingTerms

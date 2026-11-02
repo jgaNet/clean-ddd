@@ -1,0 +1,21 @@
+{
+  "project": "/runs/openstay/clean-1/app",
+  "base": "159c51d",
+  "ref": "main",
+  "added": {
+    "source": 7680,
+    "tests": 3660
+  },
+  "removed": {
+    "source": 290,
+    "tests": 85
+  },
+  "filesTouched": 282,
+  "sourceFiles": 391,
+  "testFiles": 75,
+  "testCases": 395,
+  "largestSource": {
+    "path": "src/Contexts/Listings/Domain/Listing/Listing.ts",
+    "lines": 573
+  }
+}

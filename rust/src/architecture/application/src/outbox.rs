@@ -55,7 +55,7 @@ pub trait Outbox: Send + Sync {
 pub async fn relay_outbox(outbox: &dyn Outbox, context: &ExecutionContext) -> Vec<OutboxEntry> {
     let mut handed = Vec::new();
     for entry in outbox.pending().await {
-        let Some(_on_its_way) = OnItsWay::take(outbox, &entry.id) else {
+        let Some(_on_its_way) = OnItsWay::take(&entry.id) else {
             continue;
         };
         let dispatch = context.publish_with_id(entry.event.clone(), entry.id.clone());
@@ -80,19 +80,21 @@ pub async fn relay_outbox(outbox: &dyn Outbox, context: &ExecutionContext) -> Ve
     handed
 }
 
-/// The entries handed to the bus whose reactions have not all finished, per outbox (by its
-/// address): what a relay running meanwhile leaves alone. Process-wide, like the outbox and the
-/// bus's inbox it sits between.
-static ON_THEIR_WAY: Mutex<BTreeSet<(usize, String)>> = Mutex::new(BTreeSet::new());
+/// The entries handed to the bus whose reactions have not all finished, by id: what a relay
+/// running meanwhile leaves alone. Process-wide, like the bus's inbox it sits beside, and not per
+/// outbox: a durable outbox is a table, and an adapter built for each unit of work is a new value
+/// over the same entries, which a guard kept per value would not recognise. An entry's id is
+/// unique, so the id alone names it.
+static ON_THEIR_WAY: Mutex<BTreeSet<String>> = Mutex::new(BTreeSet::new());
 
 /// An entry on its way, for as long as this lives: dropped once the relay is done with the
 /// entry, a panic included.
-struct OnItsWay((usize, String));
+struct OnItsWay(String);
 
 impl OnItsWay {
     /// Takes the entry for this relay; nothing when another relay already has it.
-    fn take(outbox: &dyn Outbox, id: &str) -> Option<Self> {
-        let key = (std::ptr::from_ref(outbox).cast::<()>().addr(), id.to_string());
+    fn take(id: &str) -> Option<Self> {
+        let key = id.to_string();
         let taken = ON_THEIR_WAY.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).insert(key.clone());
         taken.then_some(Self(key))
     }
@@ -109,6 +111,8 @@ impl Drop for OnItsWay {
 #[cfg(test)]
 pub(crate) mod testing {
     use super::*;
+
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(1);
 
     #[derive(Default)]
     pub(crate) struct FakeOutbox {
@@ -133,7 +137,9 @@ pub(crate) mod testing {
             let mut appended = self.appended.lock().unwrap();
             let mut entries = Vec::new();
             for event in events {
-                let entry = OutboxEntry { id: format!("entry-{}", appended.len() + 1), event };
+                // Unique in the process, as a real entry's id is: the relay's guard is process-wide.
+                let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let entry = OutboxEntry { id: format!("entry-{n}"), event };
                 appended.push(entry.id.clone());
                 entries.push(entry);
             }

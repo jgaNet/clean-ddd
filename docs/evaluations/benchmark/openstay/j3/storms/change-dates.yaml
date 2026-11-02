@@ -1,0 +1,35 @@
+# Feature 19 of OpenStay's J3 (../backlog/19-change-dates.md), as the session decided it on 2026-11-01.
+schemaVersion: 1
+feature: change-dates
+intent: A traveller moves a confirmed booking to other dates; it is priced again at today's terms, keeps its policy and rules,
+  and frees the nights it no longer needs.
+done: false
+hotSpots:
+- question: One transaction or two?
+  decision: 'One, as booking (S5): the ListingCalendar releases the old nights and takes the new ones, the Booking replaces
+    its lines and records BookingDatesChanged; the calendar''s version check refuses a concurrent taker.'
+- question: Is the host told again?
+  decision: 'No: BookingDatesChanged is no integration event, and Notifications hears nothing (request 19).'
+contexts:
+- id: Booking
+  commands:
+  - name: ChangeBookingDates
+    actor: a signed-in account
+    route: POST /bookings/{param}/change-dates
+    aggregate: Booking
+    events:
+    - BookingDatesChanged
+    - NightsReleased
+    - NightsTaken
+  queries: []
+  events:
+  - BookingDatesChanged
+  - NightsReleased
+  - NightsTaken
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Booking
+  contracts:
+  - ListingTerms

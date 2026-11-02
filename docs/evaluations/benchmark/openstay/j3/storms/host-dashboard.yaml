@@ -1,0 +1,27 @@
+# Feature 21 of OpenStay's J3 (../backlog/21-host-dashboard.md), as the session decided it on 2026-11-01.
+schemaVersion: 1
+feature: host-dashboard
+intent: A host reads the bookings of all their listings over a range of dates, and each listing's occupancy.
+done: false
+hotSpots:
+- question: Where are the screens answered?
+  decision: 'Queries in Booking: the host''s listings come through ListingTerms, the nights and bookings from Booking''s own
+    stores; the order is the port''s, written in its documentation.'
+contexts:
+- id: Booking
+  commands: []
+  queries:
+  - name: GetHostBookings
+    actor: a signed-in account
+    route: GET /hosts/me/bookings
+  - name: GetHostOccupancy
+    actor: a signed-in account
+    route: GET /hosts/me/occupancy
+  events: []
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Booking
+  contracts:
+  - ListingTerms

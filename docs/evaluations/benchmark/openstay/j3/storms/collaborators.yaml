@@ -1,0 +1,53 @@
+# Feature 24 of OpenStay's J3 (../backlog/24-collaborators.md), as the session decided it on 2026-11-01.
+schemaVersion: 1
+feature: collaborators
+intent: An organisation's owner brings in managers and viewers, who act on and read its listings, and loses them at once when
+  removed.
+done: false
+hotSpots:
+- question: Who decides who may act?
+  decision: Listings for the listing, Booking for its bookings, each through a port it owns (Collaborators), answered over
+    Accounts' read model; ListingTerms carries the listing's organisation (T3).
+- question: At once?
+  decision: Every permission is read when the command or query runs, never cached.
+- question: Adding an existing member again?
+  decision: One command, AddMember, which changes the member's permission (MemberPermissionChanged) instead of adding them
+    twice.
+contexts:
+- id: Accounts
+  commands:
+  - name: AddMember
+    actor: a signed-in account
+    route: POST /organisations/{param}/members
+    aggregate: Organisation
+    events:
+    - MemberAdded
+    - MemberPermissionChanged
+  - name: RemoveMember
+    actor: a signed-in account
+    route: POST /organisations/{param}/members/{param}/remove
+    aggregate: Organisation
+    events:
+    - MemberRemoved
+  queries: []
+  events:
+  - MemberAdded
+  - MemberPermissionChanged
+  - MemberRemoved
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Listings
+  contracts:
+  - Collaborators
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Booking
+  contracts:
+  - Collaborators
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Booking
+  contracts:
+  - ListingTerms

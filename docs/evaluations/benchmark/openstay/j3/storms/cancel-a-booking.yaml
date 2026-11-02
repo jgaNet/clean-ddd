@@ -1,0 +1,28 @@
+# Feature 8 of OpenStay's pilot (../backlog/8-cancel-a-booking.md), as the session decided it.
+schemaVersion: 1
+
+feature: cancel-a-booking
+intent: >-
+  The traveller or the host cancels a confirmed booking; the cancellation says what is refundable under the policy the booking was made with, and the refund stays owed, apart from any refund.
+
+done: true
+
+hotSpots:
+  - question: Who computes what is refundable?
+    decision: The Booking, from its own policy, its lines, who cancels and today's date, given as a parameter.
+  - question: Is the refund a payment?
+    decision: Not yet — it is a state of the booking (owed), kept apart from refunded, which only payments will reach.
+
+contexts:
+  - id: Booking
+    commands:
+      - name: CancelBooking
+        actor: a signed-in account
+        route: POST /bookings/{param}/cancel
+        aggregate: Booking
+        events: [BookingCancelled, NightsReleased]
+    queries: []
+    events: [BookingCancelled, NightsReleased]
+    policies: []
+
+links: []

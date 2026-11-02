@@ -1,0 +1,41 @@
+# Feature 22 of OpenStay's J3 (../backlog/22-bulk-calendar.md), as the session decided it on 2026-11-01.
+schemaVersion: 1
+feature: bulk-calendar
+intent: A host blocks, or prices, the same nights in several listings in one request, all or nothing.
+done: false
+hotSpots:
+- question: All or nothing across listings?
+  decision: 'One transaction over several aggregates: the handler loads every calendar (every listing, for seasons), asks
+    each, and saves them all in one unit of work, each with its version check, which refuses a booking made at the same moment.
+    The rule of one aggregate per transaction is broken on purpose; a saga would show a half-blocked state (decided 2026-11-01).'
+contexts:
+- id: Booking
+  commands:
+  - name: BlockNightsInListings
+    actor: a signed-in account
+    route: POST /hosts/me/block
+    aggregate: ListingCalendar
+    events:
+    - NightsBlocked
+  queries: []
+  events:
+  - NightsBlocked
+  policies: []
+- id: Listings
+  commands:
+  - name: SetSeasonalPriceInListings
+    actor: a signed-in account
+    route: POST /hosts/me/seasonal-prices
+    aggregate: Listing
+    events:
+    - SeasonalPriceSet
+  queries: []
+  events:
+  - SeasonalPriceSet
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Booking
+  contracts:
+  - ListingTerms

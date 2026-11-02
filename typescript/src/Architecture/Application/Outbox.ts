@@ -35,8 +35,13 @@ export interface Outbox {
   markPublished(id: string): void;
 }
 
-/** Per outbox, the entries handed to the bus whose reactions have not all finished yet. */
-const relaying = new WeakMap<Outbox, Set<string>>();
+/**
+ * The entries handed to the bus whose reactions have not all finished yet, by id. Process-wide and
+ * not per outbox: a durable outbox is a table, and an adapter built for each unit of work is a new
+ * object over the same entries, which a guard kept per object would not recognise. An entry's id
+ * is unique, so the id alone names it.
+ */
+const onTheirWay = new Set<string>();
 
 /**
  * Publishes every pending entry through the bus, with the entry's id as the message's id, and
@@ -50,8 +55,6 @@ const relaying = new WeakMap<Outbox, Set<string>>();
  * Returns the entries handed to the bus.
  */
 export function relayOutbox(outbox: Outbox, eventBus: EventBus, context: ExecutionContext): OutboxEntry[] {
-  let onTheirWay = relaying.get(outbox);
-  if (!onTheirWay) relaying.set(outbox, (onTheirWay = new Set()));
   const handed: OutboxEntry[] = [];
   for (const entry of outbox.pending()) {
     if (onTheirWay.has(entry.id)) continue;
@@ -62,13 +65,12 @@ export function relayOutbox(outbox: Outbox, eventBus: EventBus, context: Executi
         outbox.markPublished(entry.id);
         continue;
       }
-      const waiting = onTheirWay;
-      waiting.add(entry.id);
+      onTheirWay.add(entry.id);
       void delivered
         .then(everyOne => {
           if (everyOne) outbox.markPublished(entry.id);
         })
-        .finally(() => waiting.delete(entry.id));
+        .finally(() => onTheirWay.delete(entry.id));
     } catch (error) {
       context.logger?.error(`Outbox entry ${entry.id} (${entry.event.name}) stays pending`, error, {
         traceId: context.traceId,

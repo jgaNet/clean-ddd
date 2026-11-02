@@ -1,0 +1,28 @@
+# Feature 16 of OpenStay's J3 (../backlog/16-discounts.md), as the session decided it on 2026-11-01.
+schemaVersion: 1
+feature: discounts
+intent: A host gives a discount on longer stays, weekly and monthly; a quote shows the one that applies as a line of its own.
+done: false
+hotSpots:
+- question: Who decides which discount applies?
+  decision: 'The quote, in Booking: monthly from 28 nights, else weekly from 7, on the nights only, its amount rounded down
+    before it is made negative. The listing only declares the percentages (DiscountsSet), read through ListingTerms.'
+contexts:
+- id: Listings
+  commands:
+  - name: SetDiscounts
+    actor: a signed-in account
+    route: PUT /listings/{param}/discounts
+    aggregate: Listing
+    events:
+    - DiscountsSet
+  queries: []
+  events:
+  - DiscountsSet
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Booking
+  contracts:
+  - ListingTerms

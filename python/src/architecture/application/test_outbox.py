@@ -3,15 +3,16 @@ sooner (ADR 24): a process that dies while a reaction runs has not lost the fact
 relay hands it out again to the subscribers that had not handled it yet."""
 
 import asyncio
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import pytest
 
 from architecture.application.event_handler import EventHandler
 from architecture.application.execution_context import ExecutionContext
-from architecture.application.outbox import relay_outbox
+from architecture.application.outbox import OutboxEntry, relay_outbox
 from architecture.domain.common_exceptions import NotFoundException
-from architecture.domain.event import DomainEvent, name_of
+from architecture.domain.event import DomainEvent, Event, name_of
 from architecture.domain.result import Failure, Result, Success
 from architecture.infrastructure.event_bus import InMemoryEventBus
 from architecture.infrastructure.outbox import InMemoryOutbox
@@ -69,6 +70,43 @@ async def test_keeps_an_entry_pending_while_a_reaction_to_it_runs_and_hands_it_o
     reaction.release()
     await bus.settle()
     assert outbox.pending() == []
+
+
+class OverTheTable:
+    """An adapter over a table of entries, as a durable outbox is: each unit of work builds its own."""
+
+    def __init__(self, table: InMemoryOutbox) -> None:
+        self._table = table
+
+    def append(self, events: Sequence[Event]) -> list[OutboxEntry]:
+        return self._table.append(events)
+
+    def pending(self) -> list[OutboxEntry]:
+        return self._table.pending()
+
+    def mark_published(self, id: str) -> None:
+        self._table.mark_published(id)
+
+
+async def test_does_not_hand_out_an_entry_on_its_way_again_through_another_adapter_over_the_same_entries() -> None:
+    bus = InMemoryEventBus()
+    reaction = TellTheHost()
+    await bus.subscribe(name_of(BookingConfirmed), reaction)
+    table = InMemoryOutbox()
+    context = ExecutionContext(trace_id="relay", event_bus=bus)
+    [entry] = OverTheTable(table).append([BookingConfirmed(booking_id="b-3")])
+
+    reaction.hold()
+    relay_outbox(OverTheTable(table), bus, context)
+    await let_it_run()
+    assert relay_outbox(OverTheTable(table), bus, context) == []
+    await let_it_run()
+    assert reaction.handled == 1
+    assert table.pending() == [entry]
+
+    reaction.release()
+    await bus.settle()
+    assert table.pending() == []
 
 
 @pytest.mark.parametrize("refused_first", [False, True], ids=["told-then-refused", "refused-then-told"])

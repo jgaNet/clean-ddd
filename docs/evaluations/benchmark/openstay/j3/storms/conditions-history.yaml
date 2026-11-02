@@ -1,0 +1,24 @@
+# Feature 25 of OpenStay's J3 (../backlog/25-conditions-history.md), as the session decided it on 2026-11-01.
+schemaVersion: 1
+feature: conditions-history
+intent: Both sides of a booking read every version of the conditions it was under, and a traveller lists their quotes.
+done: false
+hotSpots:
+- question: Where do the versions live?
+  decision: 'Child entities of the Booking (ConditionsVersion): few, written with the booking, never changed; the first when
+    the booking is made, one more with each change of dates.'
+- question: A traveller's quotes?
+  decision: A query over the quotes, with valid decided with the time as a parameter.
+contexts:
+- id: Booking
+  commands: []
+  queries:
+  - name: GetBookingConditions
+    actor: a signed-in account
+    route: GET /bookings/{param}/conditions
+  - name: GetMyQuotes
+    actor: a signed-in account
+    route: GET /quotes/mine
+  events: []
+  policies: []
+links: []
