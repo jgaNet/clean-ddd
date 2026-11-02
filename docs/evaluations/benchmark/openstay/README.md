@@ -73,7 +73,7 @@ It is refuted if the two arms' curves stay within each other's ranges, or if the
 | **J2** | The pilot: ten features, 2 arms × 3 trees, plus the witness | estimated at $60–130, plus $30–60 for the witness | Budget re-estimated from the measured cost per feature; both arms deliver |
 | **J3** | 25 features, and a first change not announced in advance | re-estimated at J2 | The question is still open (see below) |
 | **J4** | 50 features: payments, a storage migration, a domain split | re-estimated at J3 | The same |
-| **J5** | 100 features | re-estimated at J4 | — |
+| **J5** | 100 features, and a side experiment: a few of J5's cross-context features replayed as a fan-out by context (`run-slices.mjs`) on copies of the trees, beside the ladder's one agent per feature, and features with disjoint contexts run in parallel (decided by the maintainer on 2026-11-02) | re-estimated at J4 | — |
 
 **Each checkpoint ends with a decision: continue, adjust or stop.** Two outcomes stop the series before J5, and either is a result that gets published:
 - the ranges have separated, so the question is answered;
