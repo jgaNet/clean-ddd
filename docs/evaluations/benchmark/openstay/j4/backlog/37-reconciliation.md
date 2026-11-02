@@ -11,7 +11,7 @@ The API works as request 1 says; the provider's transactions are request 26's:
 
 | Provider request | Answer |
 | --- | --- |
-| `GET /transactions?date=YYYY-MM-DD` | `200 [ { id, type, amount, reference, object, at } ]`, money in positive, out negative |
+| `GET /transactions?date=YYYY-MM-DD` | `200 [ { id, type, amount, reference, object, at } ]`, money in positive, out negative; `type` is one of `charge` (a payment), `fee`, `refund`, `payout`, `dispute` |
 
 ## The API
 

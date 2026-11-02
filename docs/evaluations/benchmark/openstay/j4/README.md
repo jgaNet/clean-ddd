@@ -98,3 +98,11 @@ A defect of the kit found after the runs started is recorded here, applied to ev
      - Their attempts at 30 are kept under `refs/amend2/` in each tree, and their cost is counted.
      - They were resumed with the amended request: 30 again from the smallest model, under what was left of each ceiling. Their escalations at 30 before the amendment are not counted.
      - clean-1 is untouched. Its escalation at 30 was its own end-to-end suite failing under load, and the replay does not cover that.
+3. **Request 37, the provider's transaction types** (2026-11-02, 20:18 UTC). Request 37 compares the application's movements with the provider's transactions "by `type`". It named the movements in words ("each payment, fee, refund and payout"), and the provider's values for `type` were listed only in request 26, which the agent at feature 37 does not see. simple-1 named a payment `payment`, where the provider says `charge`.
+   - **The fix:** request 37's table now lists the types: `charge` (a payment), `fee`, `refund`, `payout`, `dispute`.
+   - **What it touched:**
+     - simple-1 was stopped just after its step-1 attempt at 37 had started. Its attempts are kept under `refs/amend3/`, and their cost is counted.
+     - It was resumed at once with the amended request, from the smallest model, under what was left of its ceiling. Its escalation at 37 is not counted.
+     - clean-1 had delivered 37 at the smallest step before the amendment, which only adds what the provider already answers.
+     - No other tree had reached 37.
+   - **The other requests were checked for the same defect:** every later request that uses the provider gives the calls, bodies and webhooks it needs (31, 33, 39).
