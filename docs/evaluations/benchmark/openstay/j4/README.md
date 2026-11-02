@@ -83,3 +83,17 @@ A defect of the kit found after the runs started is recorded here, applied to ev
      - clean-1's first attempt at 26 was graded again with the amended test, and passes: it is counted as delivered at the smallest step;
      - simple-1 and simple-2 had delivered 26 with the old test, which the amendment only loosens;
      - clean-2's escalation at 26 was the storm's command name, untouched by this.
+2. **Request 30, the provider's refund without its body** (2026-11-02, 13:27 UTC). Request 30 asks for a refund through the provider's `POST /refunds` "of request 26". The body of that call is in request 26, which the agent at feature 30 does not see. The agents guessed the field that names the payment:
+   - simple-1 and simple-2 sent `paymentId`;
+   - clean-2 sent no payment at step 0, and `paymentId` at step 1;
+   - clean-1 sent `payment`, the provider's word, and delivered.
+
+   - **The fix:** request 30 gives the call and its webhooks in a table of its own, as request 26 does.
+   - **What it touched:**
+     - simple-1, simple-2 and clean-2 were stopped:
+       - simple-1 on its step-1 attempt;
+       - simple-2 grading its step-0 attempt;
+       - clean-2 grading its step-1 attempt.
+     - Their attempts at 30 are kept under `refs/amend2/` in each tree, and their cost is counted.
+     - They were resumed with the amended request: 30 again from the smallest model, under what was left of each ceiling. Their escalations at 30 before the amendment are not counted.
+     - clean-1 is untouched. Its escalation at 30 was its own end-to-end suite failing under load, and the replay does not cover that.
