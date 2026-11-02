@@ -28,6 +28,7 @@ describe('receipts', () => {
     const bookingId = await api.book(tom.token, await api.quote(tom.token, id, day(10), day(12)));
     const before = Date.now();
     await payBooking(api, provider, tom.token, bookingId);
+    await sleep(1100);
     await api.create(`/bookings/${bookingId}/refunds`, hal.token, { amount: 5000, reason: 'A broken shower' });
 
     const receipts = await eventually(
@@ -39,7 +40,7 @@ describe('receipts', () => {
       ['payment', bookingId],
     ]);
     expect(receipts[1].amount).toBe(22000);
-    expect(Math.abs(Number(receipts[0].amount))).toBe(5000);
+    expect(receipts[0].amount).toBe(5000);
     expect(Number(receipts[0].number)).toBe(Number(receipts[1].number) + 1);
     for (const receipt of receipts) {
       expect(Date.parse(String(receipt.at))).toBeGreaterThanOrEqual(before - 5000);

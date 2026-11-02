@@ -2,7 +2,7 @@
 
 A cancellation said what was refundable (request 8). Now the money goes back.
 
-- **Refunded for real.** When a paid booking is cancelled, OpenStay asks the provider to refund the booking's refundable amount, with the booking's id as the `reference`. The refund reads `owed` until OpenStay has asked, `pending` while the provider works on it, then `refunded` when the provider says `refund.succeeded`.
+- **Refunded for real.** When a paid booking is cancelled, OpenStay asks the provider to refund the booking's refundable amount (or what is left of what was paid, if the host's own refunds, request 32, left less), with the booking's id as the `reference`. The refund reads `owed` until OpenStay has asked, `pending` while the provider works on it, then `refunded` when the provider says `refund.succeeded`.
 - **When the provider refuses or fails.** A refund the provider refuses, or that ends with `refund.failed`, is asked again, until it succeeds. It never reads `refunded` before the provider says so.
 - **Nothing to send back.** A booking never paid has nothing to refund: its refund stays as request 8 left it. A refundable amount of zero sends nothing.
 - **Never more.** What is refunded never exceeds what was paid (and request 32 adds refunds of its own).

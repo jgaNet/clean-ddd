@@ -139,8 +139,19 @@ const m1 = {
     .map(step => ({ name: step.name, lines: (step.lines ?? []).slice(0, 30) })),
 };
 
+/**
+ * The hidden tests compute dates from today, and a file with crashes in it runs for minutes: a file
+ * never starts in the last ten minutes of a UTC day, it waits for the next one.
+ */
+const awayFromMidnight = () => {
+  const now = new Date();
+  const left = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1) - now.getTime();
+  if (left < 600_000) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, left + 5000);
+};
+
 const features = backlog.map(f => {
   const file = `${f.n}-${f.id}.acceptance.ts`;
+  awayFromMidnight();
   const run = sh(
     // A test that starts the server as a process of its own (the persistence experiment) is told its entry point.
     `ACCEPTANCE_ENTRY=${control === 'plain' ? 'src/server.ts' : 'src/Bootstrap/Fastify/application.ts'} yarn -s test --testMatch '**/${control === 'plain' ? 'acceptance' : 'Acceptance'}/${file}'`,

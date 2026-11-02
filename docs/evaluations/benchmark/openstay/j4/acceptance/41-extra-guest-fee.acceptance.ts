@@ -75,7 +75,7 @@ describe('a fee per extra guest', () => {
     const mia = await api.host('mia3@extra-guests.test');
     const id = await api.listing(hal.token, { capacity: 6 });
     const path = `/listings/${id}/extra-guests`;
-    expect(await api.refused('PUT', path, hal.token, { fromGuests: 1, perGuestPerNight: 1000 })).toBe(true);
+    expect(await api.refused('PUT', path, hal.token, { fromGuests: 0, perGuestPerNight: 1000 })).toBe(true);
     expect(await api.refused('PUT', path, hal.token, { fromGuests: 21, perGuestPerNight: 1000 })).toBe(true);
     expect(await api.refused('PUT', path, hal.token, { fromGuests: 2, perGuestPerNight: -1 })).toBe(true);
     expect(await api.refused('PUT', path, ian.token, { fromGuests: 2, perGuestPerNight: 1000 })).toBe(true);

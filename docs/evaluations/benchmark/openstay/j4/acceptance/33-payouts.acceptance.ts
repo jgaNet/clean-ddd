@@ -32,14 +32,17 @@ describe('payouts', () => {
     const tom = await api.traveller('tom@payouts.test');
     const account = await enabledAccount(api, provider, hal.token);
     const id = await api.listing(hal.token);
+    // The tourist tax is paid out with the rest: the host remits it (request 33).
+    await api.done('PUT', `/listings/${id}/tourist-tax`, hal.token, { perGuestPerNight: 100 });
     const today = await api.book(tom.token, await api.quote(tom.token, id, day(0), day(1)));
     const later = await api.book(tom.token, await api.quote(tom.token, id, day(5), day(6)));
     await payBooking(api, provider, tom.token, today);
     await payBooking(api, provider, tom.token, later);
 
     const payouts = await listed(hal.token, found => found.some(each => each.status === 'paid'));
-    expect(payouts).toEqual([expect.objectContaining({ bookingIds: [today], amount: DUE, status: 'paid' })]);
-    expect(payoutsFor(today).map(each => [each.account, each.amount])).toEqual([[account.id, DUE]]);
+    const taxed = 12100 - feeOf(12100);
+    expect(payouts).toEqual([expect.objectContaining({ bookingIds: [today], amount: taxed, status: 'paid' })]);
+    expect(payoutsFor(today).map(each => [each.account, each.amount])).toEqual([[account.id, taxed]]);
 
     await sleep(3000);
     expect(await api.list('/hosts/me/payouts', hal.token)).toHaveLength(1);
@@ -105,11 +108,13 @@ describe('payouts', () => {
       async () => payoutsFor(before),
       found => found.every(each => each.status !== 'pending'),
     );
+    const token = await api.login(kai.email);
+    // The restarted server knows its payout again before what the provider said is said again.
+    await listed(token, found => found.some(each => (each.bookingIds as unknown[]).includes(before)));
     // What the provider said while the server was down is said again.
     const said = provider.events.filter(each => each.type.startsWith('payout.') && each.data.reference === before);
     for (const event of said) provider.resend(event);
 
-    const token = await api.login(kai.email);
     const traveller = await api.login(tom.email);
     await sleep(1100);
     const after = await api.book(traveller, await api.quote(traveller, second, day(0), day(1)));

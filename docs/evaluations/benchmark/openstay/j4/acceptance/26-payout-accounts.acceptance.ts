@@ -84,6 +84,8 @@ describe('payout accounts', () => {
     await sleep(1000);
     expect(await status(hal.token)).toBe('pending');
 
+    // The provider's own record says it too: an application may read the account back.
+    provider.accounts.get(String(account.id))!.status = 'enabled';
     expect(ok(await provider.signed('account.updated', data))).toBe(true);
     expect(
       await eventually(

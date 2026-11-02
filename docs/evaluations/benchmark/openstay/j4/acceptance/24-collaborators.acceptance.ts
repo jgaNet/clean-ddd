@@ -85,19 +85,6 @@ describe('collaborators', () => {
     });
     expect(await block(iansListing, mia.token)).toBe(true);
 
-    // J4's amendment, from the reading of J3: the routes under `/hosts/me` stay the caller's own hosted listings.
-    expect(
-      await api.refused('POST', '/hosts/me/block', mia.token, { listingIds: [published], from: day(50), to: day(51) }),
-    ).toBe(true);
-    expect(
-      await api.refused('POST', '/hosts/me/seasonal-prices', mia.token, {
-        listingIds: [published],
-        from: day(50),
-        to: day(51),
-        nightlyPrice: 15000,
-      }),
-    ).toBe(true);
-
     for (const member of [mia, val])
       expect((await api.list('/listings/mine', member.token)).map(each => each.id).sort()).toEqual(
         [published, draft].sort(),
@@ -142,4 +129,19 @@ describe('collaborators', () => {
     const members = (await api.read(`/organisations/${organisationId}`, hal.token)).members as unknown as Json[];
     expect(members.map(each => [each.accountId, each.role])).toEqual([[mia.id, 'viewer']]);
   }, 90000);
+
+  it("keeps the host's own routes to the listings the caller hosts (J4's amendment)", async () => {
+    const { mia, published } = await anOrganisation('own-routes');
+    expect(
+      await api.refused('POST', '/hosts/me/block', mia.token, { listingIds: [published], from: day(50), to: day(51) }),
+    ).toBe(true);
+    expect(
+      await api.refused('POST', '/hosts/me/seasonal-prices', mia.token, {
+        listingIds: [published],
+        from: day(50),
+        to: day(51),
+        nightlyPrice: 15000,
+      }),
+    ).toBe(true);
+  }, 60000);
 });

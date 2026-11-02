@@ -107,7 +107,13 @@ export interface Running {
  * the two could disagree, so a test file does not start in the last three minutes of a day: it
  * waits for the next one.
  */
+let away = false;
 async function awayFromMidnight() {
+  // Once per test file, at its first start: a restart in the middle of a case must not wait. The
+  // grader also waits before a file that would start in the last ten minutes of a day (J4), since a
+  // file with crashes in it runs for a few minutes.
+  if (away) return;
+  away = true;
   const now = new Date();
   const left = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1) - now.getTime();
   if (left < 180_000) await sleep(left + 5000);

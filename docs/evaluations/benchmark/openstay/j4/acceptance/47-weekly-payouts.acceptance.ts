@@ -17,8 +17,9 @@ afterAll(async () => {
   db.remove();
 });
 
-const TODAY = WEEKDAYS[new Date().getUTCDay()];
-const ANOTHER_DAY = WEEKDAYS[(new Date().getUTCDay() + 3) % 7];
+/** Read when a case runs, after the server started (it may have waited past midnight). */
+const today = () => WEEKDAYS[new Date().getUTCDay()];
+const anotherDay = () => WEEKDAYS[(new Date().getUTCDay() + 3) % 7];
 /** One night from today, at 100 € and 20 € of cleaning: 12 000 for the host, less the provider's fee. */
 const DUE = 12000 - feeOf(12000);
 const payoutsTo = (account: ProviderAccount) =>
@@ -30,7 +31,7 @@ const listed = (token: string, expected: (payouts: Json[]) => boolean) =>
 async function weeklyHost(name: string, count: number) {
   const host = await api.host(`${name}@weekly-payouts.test`);
   const tom = await api.traveller(`tom-${name}@weekly-payouts.test`);
-  await api.done('PUT', '/hosts/me/payout-schedule', host.token, { schedule: 'weekly', weekday: ANOTHER_DAY });
+  await api.done('PUT', '/hosts/me/payout-schedule', host.token, { schedule: 'weekly', weekday: anotherDay() });
   const account = await enabledAccount(api, provider, host.token);
   const bookings: string[] = [];
   for (let n = 0; n < count; n++) {
@@ -61,7 +62,7 @@ describe('weekly payouts', () => {
     expect(payoutsTo(account)).toEqual([]);
     expect(await api.list('/hosts/me/payouts', host.token)).toEqual([]);
 
-    await api.done('PUT', '/hosts/me/payout-schedule', host.token, { schedule: 'weekly', weekday: TODAY });
+    await api.done('PUT', '/hosts/me/payout-schedule', host.token, { schedule: 'weekly', weekday: today() });
     const payouts = await listed(host.token, found => found.some(each => each.status === 'paid'));
     expect(payouts).toHaveLength(1);
     expect([...(payouts[0].bookingIds as string[])].sort()).toEqual([...bookings].sort());

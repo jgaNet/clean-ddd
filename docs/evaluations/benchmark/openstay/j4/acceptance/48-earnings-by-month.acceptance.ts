@@ -17,8 +17,9 @@ afterAll(async () => {
   db.remove();
 });
 
-const MONTH = day(0).slice(0, 7);
-const YEAR = Number(day(0).slice(0, 4));
+/** Read when a case runs, after the server started (it may have waited past midnight). */
+const month = () => day(0).slice(0, 7);
+const year = () => Number(day(0).slice(0, 4));
 
 describe('earnings by month', () => {
   it('sums what was charged, the fees, what was refunded and what was paid out, in the month the provider said so', async () => {
@@ -42,7 +43,7 @@ describe('earnings by month', () => {
 
     // Tonight: 12 000 charged and paid out less its fee. Later: 22 000 charged, 1 000 refunded, no payout yet.
     const expected = {
-      month: MONTH,
+      month: month(),
       charged: 12000 + 22000,
       fees: feeOf(12000) + feeOf(22000),
       refunded: 1000,
@@ -50,7 +51,7 @@ describe('earnings by month', () => {
     };
     expect(
       await eventually(
-        () => api.list(`/hosts/me/earnings?year=${YEAR}`, hal.token),
+        () => api.list(`/hosts/me/earnings?year=${year()}`, hal.token),
         months => months[0]?.paidOut === expected.paidOut,
       ),
     ).toEqual([expected]);
@@ -67,11 +68,11 @@ describe('earnings by month', () => {
     await payBooking(api, provider, una.token, bookingId);
     expect(
       await eventually(
-        () => api.list(`/hosts/me/earnings?year=${YEAR}`, ian.token),
+        () => api.list(`/hosts/me/earnings?year=${year()}`, ian.token),
         months => months.length > 0,
       ),
-    ).toEqual([{ month: MONTH, charged: 12000, fees: feeOf(12000), refunded: 0, paidOut: 0 }]);
-    expect(await api.list(`/hosts/me/earnings?year=${YEAR - 1}`, ian.token)).toEqual([]);
-    expect(await api.list(`/hosts/me/earnings?year=${YEAR}`, jon.token)).toEqual([]);
+    ).toEqual([{ month: month(), charged: 12000, fees: feeOf(12000), refunded: 0, paidOut: 0 }]);
+    expect(await api.list(`/hosts/me/earnings?year=${year() - 1}`, ian.token)).toEqual([]);
+    expect(await api.list(`/hosts/me/earnings?year=${year()}`, jon.token)).toEqual([]);
   }, 60000);
 });
