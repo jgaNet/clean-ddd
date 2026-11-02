@@ -22,6 +22,7 @@ The phase is the framing's phase 2 ([j0](../j0.md#the-later-phases)):
 | [`backlog/`](backlog) | Requests 1 to 25 as J3 left them, the defect report 25.1, and 26 to 50. Request 26 holds the provider's API and its webhooks. |
 | [`acceptance/`](acceptance) | The hidden tests, one file per request, with their support: [`openstay.ts`](acceptance/openstay.ts) gives each file a SQLite file and a PostgreSQL database, and [`provider.ts`](acceptance/provider.ts) is the payment provider the tests play. |
 | [`storms/`](storms) | The Clean DDD arm's storms: J3's twenty-five, done, and twenty-six more. |
+| [`reading.md`](reading.md) | What a reader checks in each final tree, written while J4 ran, before any final tree was read. |
 | [`review.md`](review.md) | The review of the tests by a fresh agent that had only the requests. |
 | [`proposal.md`](proposal.md) | What was proposed to the maintainer, and accepted. |
 
