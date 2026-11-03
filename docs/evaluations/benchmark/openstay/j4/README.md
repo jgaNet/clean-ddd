@@ -106,3 +106,10 @@ A defect of the kit found after the runs started is recorded here, applied to ev
      - clean-1 had delivered 37 at the smallest step before the amendment, which only adds what the provider already answers.
      - No other tree had reached 37.
    - **The other requests were checked for the same defect:** every later request that uses the provider gives the calls, bodies and webhooks it needs (31, 33, 39).
+4. **Test 47, a schedule before the payout account** (2026-11-03, 00:40 UTC). The test chose a weekly schedule before the host had opened a payout account. Request 47 does not say whether a host may do that, and the storm puts the schedule on the payout account. clean-1 followed the storm and refused the schedule until an account exists.
+   - **The fix:** the test opens the account before choosing the schedule.
+   - **What it touched:**
+     - clean-1's step-0 attempt at 47 passes the amended test: it is counted as delivered at the smallest step, as with amendment 1.
+     - The ladder had already moved to step 1.
+     - The amended test passes on the solvability tree.
+     - No other tree had reached 47.

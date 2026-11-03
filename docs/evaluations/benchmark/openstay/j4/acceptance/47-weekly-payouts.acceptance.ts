@@ -1,5 +1,5 @@
 import { client, Client, database, day, eventually, Json, Running, sleep, start, stop, WEEKDAYS } from './openstay';
-import { enabledAccount, feeOf, paymentProvider, payBooking, ProviderAccount } from './provider';
+import { enabledAccount, feeOf, openAccount, paymentProvider, payBooking, ProviderAccount } from './provider';
 
 /** Request 47: a host paid once a week, in one payout of everything due, with nothing paid twice or skipped. */
 const db = database('weekly-payouts');
@@ -31,8 +31,10 @@ const listed = (token: string, expected: (payouts: Json[]) => boolean) =>
 async function weeklyHost(name: string, count: number) {
   const host = await api.host(`${name}@weekly-payouts.test`);
   const tom = await api.traveller(`tom-${name}@weekly-payouts.test`);
-  await api.done('PUT', '/hosts/me/payout-schedule', host.token, { schedule: 'weekly', weekday: anotherDay() });
+  // Amendment 4 (J4): request 47 does not say whether a host may choose a schedule before opening a payout account;
+  // the account is opened first.
   const account = await enabledAccount(api, provider, host.token);
+  await api.done('PUT', '/hosts/me/payout-schedule', host.token, { schedule: 'weekly', weekday: anotherDay() });
   const bookings: string[] = [];
   for (let n = 0; n < count; n++) {
     const id = await api.listing(host.token);
@@ -47,6 +49,7 @@ async function weeklyHost(name: string, count: number) {
 describe('weekly payouts', () => {
   it('pays daily until the host chooses a weekday, and refuses a schedule that makes no sense', async () => {
     const hal = await api.host('hal@weekly-payouts.test');
+    await openAccount(api, provider, hal.token); // Amendment 4 (J4), as in weeklyHost.
     const path = '/hosts/me/payout-schedule';
     expect(await api.read(path, hal.token)).toEqual({ schedule: 'daily', weekday: null });
     expect(await api.refused('PUT', path, hal.token, { schedule: 'weekly' })).toBe(true);
