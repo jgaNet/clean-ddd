@@ -130,7 +130,9 @@ function sh(command, cwd, timeout = timeoutMs) {
     let out = '';
     child.stdout.on('data', chunk => (out += chunk));
     child.stderr.on('data', chunk => (out += chunk));
+    // A check stopped for its time says so: whoever reads its output (the agent, sent back) must know why it failed.
     const timer = setTimeout(() => {
+      out += `\n${command.split(' ').slice(0, 3).join(' ')}: stopped after ${Math.round(timeout / 60000)} minutes, the time this check is given.\n`;
       try {
         process.kill(-child.pid, 'SIGKILL');
       } catch {
