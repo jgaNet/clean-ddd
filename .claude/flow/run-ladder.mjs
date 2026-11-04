@@ -206,7 +206,9 @@ const brief = (feature, from) =>
           `You are done when \`yarn verify\` passes. Commit your work on the current branch; do not push. If you start a server, use port ${port}.`,
         ]),
     '',
-    feature.kind === 'report' ? 'The report, in the user\'s words:' : 'The feature, in product words, with the API it answers:',
+    feature.kind === 'report'
+      ? "The report, in the user's words:"
+      : 'The feature, in product words, with the API it answers:',
     '',
     request(feature),
   ].join('\n');
