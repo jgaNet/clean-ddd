@@ -1,4 +1,16 @@
-import { adminEnvironment, client, Client, database, day, eventually, Json, Running, sleep, start, stop } from './openstay';
+import {
+  adminEnvironment,
+  client,
+  Client,
+  database,
+  day,
+  eventually,
+  Json,
+  Running,
+  sleep,
+  start,
+  stop,
+} from './openstay';
 import { Currency, enabledAccount, feeOf, paymentProvider, payBooking } from './provider';
 
 /**
@@ -280,7 +292,13 @@ describe('currencies', () => {
       found => found.length > 0,
     );
     expect(about).toEqual([
-      expect.objectContaining({ type: 'charge', reference: paid.EUR, currency: 'GBP', provider: 12150, openstay: null }),
+      expect.objectContaining({
+        type: 'charge',
+        reference: paid.EUR,
+        currency: 'GBP',
+        provider: 12150,
+        openstay: null,
+      }),
     ]);
 
     // A season set on listings of two currencies at once is refused, for both.

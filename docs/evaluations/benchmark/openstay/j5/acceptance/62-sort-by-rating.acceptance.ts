@@ -68,7 +68,9 @@ beforeAll(async () => {
   await eventually(
     () => api.list(`/listings?city=${CITY}`),
     found =>
-      [listings.A, listings.B, listings.D].every(id => (found.find(each => each.id === id)?.rating as Json | null)?.count === 1),
+      [listings.A, listings.B, listings.D].every(
+        id => (found.find(each => each.id === id)?.rating as Json | null)?.count === 1,
+      ),
   );
 }, 180000);
 afterAll(async () => {

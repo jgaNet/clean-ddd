@@ -66,7 +66,8 @@ const booking = (id: string, token: string) => api.read(`/bookings/${id}`, token
 /** The refunds asked of the provider for a booking: by its id as their reference (request 31). */
 const refundsOf = (bookingId: string) => [...provider.refunds.values()].filter(each => each.reference === bookingId);
 /** The refunds of one payment at the provider, whatever their reference. */
-const refundsOfPayment = (paymentId: string) => [...provider.refunds.values()].filter(each => each.payment === paymentId);
+const refundsOfPayment = (paymentId: string) =>
+  [...provider.refunds.values()].filter(each => each.payment === paymentId);
 const cancelledNotices = (bookingId: string) =>
   service.attempts.filter(each => each.body.kind === 'booking-cancelled' && each.body.bookingId === bookingId);
 
@@ -74,7 +75,9 @@ describe('suspending an account', () => {
   it('is for an administrator only, never their own, once, with a reason and a note of 1 to 500 characters', async () => {
     const hal = await api.host('hal@suspending.test');
     const tom = await api.traveller('tom@suspending.test');
-    expect(await api.refused('POST', `/admin/accounts/${hal.id}/suspend`, tom.token, { reason: 'I say so' })).toBe(true);
+    expect(await api.refused('POST', `/admin/accounts/${hal.id}/suspend`, tom.token, { reason: 'I say so' })).toBe(
+      true,
+    );
     expect((await api.call('GET', `/admin/accounts/${hal.id}`, tom.token)).status).toBe(403);
     expect((await api.call('GET', `/admin/accounts/${hal.id}`, hal.token)).status).toBe(403);
     expect(await api.read(`/admin/accounts/${hal.id}`, ada.token)).toMatchObject({
@@ -96,7 +99,9 @@ describe('suspending an account', () => {
     await suspend(hal.id, 'x'.repeat(500));
     expect(await api.read(`/admin/accounts/${hal.id}`, ada.token)).toMatchObject({ id: hal.id, status: 'suspended' });
     expect(await api.refused('POST', `/admin/accounts/${hal.id}/suspend`, ada.token, { reason: 'Again' })).toBe(true);
-    expect(await api.refused('POST', `/admin/accounts/${hal.id}/reinstate`, tom.token, { note: 'Free him' })).toBe(true);
+    expect(await api.refused('POST', `/admin/accounts/${hal.id}/reinstate`, tom.token, { note: 'Free him' })).toBe(
+      true,
+    );
     expect(await api.refused('POST', `/admin/accounts/${hal.id}/reinstate`, ada.token, { note: '' })).toBe(true);
     await reinstate(hal.id, 'x'.repeat(500));
     expect(await api.read(`/admin/accounts/${hal.id}`, ada.token)).toMatchObject({ status: 'active' });
@@ -106,7 +111,11 @@ describe('suspending an account', () => {
   it('reads a closed account as closed, without its email, and neither suspends nor reinstates it', async () => {
     const kim = await api.traveller('kim@suspending.test');
     await api.done('POST', '/accounts/me/close', kim.token);
-    expect(await api.read(`/admin/accounts/${kim.id}`, ada.token)).toMatchObject({ id: kim.id, email: null, status: 'closed' });
+    expect(await api.read(`/admin/accounts/${kim.id}`, ada.token)).toMatchObject({
+      id: kim.id,
+      email: null,
+      status: 'closed',
+    });
     expect(await api.refused('POST', `/admin/accounts/${kim.id}/suspend`, ada.token, { reason: 'Gone' })).toBe(true);
     expect(await api.refused('POST', `/admin/accounts/${kim.id}/reinstate`, ada.token, { note: 'Back' })).toBe(true);
     expect(await api.read(`/admin/accounts/${kim.id}`, ada.token)).toMatchObject({ status: 'closed' });
@@ -186,7 +195,10 @@ describe('suspending an account', () => {
     const declared = await api.book(una.token, await api.quote(una.token, id, day(14), day(15)));
     const unpaid = await api.book(kim.token, await api.quote(kim.token, id, day(16), day(17)));
     const begun = await api.book(tom.token, await api.quote(tom.token, id, day(0), day(1)));
-    const asTraveller = await api.book(joe.token, await api.quote(joe.token, await api.listing(lou.token), day(10), day(11)));
+    const asTraveller = await api.book(
+      joe.token,
+      await api.quote(joe.token, await api.listing(lou.token), day(10), day(11)),
+    );
     const payment = await payBooking(api, provider, tom.token, paid);
     await payBooking(api, provider, tom.token, begun);
     await api.done('POST', `/bookings/${declared}/declare-paid`, joe.token);
@@ -241,7 +253,9 @@ describe('suspending an account', () => {
         found => found.length > 0,
         30000,
       );
-      expect(notices).toEqual([expect.objectContaining({ kind: 'booking-cancelled', accountId: person.id, bookingId })]);
+      expect(notices).toEqual([
+        expect.objectContaining({ kind: 'booking-cancelled', accountId: person.id, bookingId }),
+      ]);
     }
 
     // What stays: the stay already begun, its bookings as a traveller, and what is due for the stay begun.
@@ -257,9 +271,11 @@ describe('suspending an account', () => {
     expect(payouts).toHaveLength(1);
 
     await sleep(3000);
-    expect(refundsOfPayment(payment.id).filter(each => each.status !== 'failed').map(each => each.amount)).toEqual([
-      totals.get(paid),
-    ]);
+    expect(
+      refundsOfPayment(payment.id)
+        .filter(each => each.status !== 'failed')
+        .map(each => each.amount),
+    ).toEqual([totals.get(paid)]);
     for (const bookingId of [paid, declared, unpaid])
       expect(new Set(cancelledNotices(bookingId).map(each => each.body.id)).size).toBe(1);
     expect(cancelledNotices(begun)).toEqual([]);
@@ -329,7 +345,10 @@ describe('suspending an account', () => {
     const bookings: string[] = [];
     const payments: string[] = [];
     for (const [n, traveller] of travellers.entries()) {
-      const bookingId = await api.book(traveller.token, await api.quote(traveller.token, id, day(10 + 2 * n), day(11 + 2 * n)));
+      const bookingId = await api.book(
+        traveller.token,
+        await api.quote(traveller.token, id, day(10 + 2 * n), day(11 + 2 * n)),
+      );
       payments.push((await payBooking(api, provider, traveller.token, bookingId)).id);
       bookings.push(bookingId);
     }
@@ -365,7 +384,11 @@ describe('suspending an account', () => {
         each => each.status === 'cancelled' && (each.refund as Json | undefined)?.status === 'refunded',
         30000,
       );
-      expect(read).toMatchObject({ status: 'cancelled', cancellation: { by: 'platform' }, refund: { status: 'refunded' } });
+      expect(read).toMatchObject({
+        status: 'cancelled',
+        cancellation: { by: 'platform' },
+        refund: { status: 'refunded' },
+      });
       await eventually(
         async () => service.notices('booking-cancelled').filter(each => each.bookingId === bookingId),
         found => found.length > 0,
@@ -375,7 +398,11 @@ describe('suspending an account', () => {
     await sleep(3000);
     for (const [n, bookingId] of bookings.entries()) {
       const total = Number((await booking(bookingId, travellers[n].token)).total);
-      expect(refundsOfPayment(payments[n]).filter(each => each.status !== 'failed').map(each => each.amount)).toEqual([total]);
+      expect(
+        refundsOfPayment(payments[n])
+          .filter(each => each.status !== 'failed')
+          .map(each => each.amount),
+      ).toEqual([total]);
       expect(new Set(cancelledNotices(bookingId).map(each => each.body.id)).size).toBe(1);
       expect(service.notices('booking-cancelled').filter(each => each.bookingId === bookingId)).toEqual([
         expect.objectContaining({ accountId: travellers[n].id }),

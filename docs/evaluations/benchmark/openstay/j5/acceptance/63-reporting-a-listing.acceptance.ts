@@ -22,7 +22,8 @@ afterAll(async () => {
   db.remove();
 });
 
-const report = (id: string, token: string | undefined, body: unknown) => api.act('POST', `/listings/${id}/report`, token, body);
+const report = (id: string, token: string | undefined, body: unknown) =>
+  api.act('POST', `/listings/${id}/report`, token, body);
 
 describe('reporting a listing', () => {
   it('takes a report from a signed-in account, for each reason of the list, with or without details', async () => {
@@ -39,9 +40,9 @@ describe('reporting a listing', () => {
     ).toEqual(expect.any(String));
     // A host may report another host's listing.
     const ian = await api.host('ian@report-listing.test');
-    expect(await api.create(`/listings/${id}/report`, ian.token, { reason: 'unsafe', details: 'No smoke alarm.' })).toEqual(
-      expect.any(String),
-    );
+    expect(
+      await api.create(`/listings/${id}/report`, ian.token, { reason: 'unsafe', details: 'No smoke alarm.' }),
+    ).toEqual(expect.any(String));
   }, 60000);
 
   it('refuses a reason outside the list, details over 1,000 characters, and anyone not signed in', async () => {
@@ -77,7 +78,10 @@ describe('reporting a listing', () => {
     const id = await api.listing(hal.token, { city: 'Reportville' });
     const organisationId = await api.create('/organisations', hal.token, { name: 'Hal & Co' });
     await api.done('POST', `/listings/${id}/move-to-organisation`, hal.token, { organisationId });
-    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: mia.email, role: 'manager' });
+    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, {
+      email: mia.email,
+      role: 'manager',
+    });
     await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: vic.email, role: 'viewer' });
     for (const token of [hal.token, mia.token, vic.token])
       expect((await report(id, token, { reason: 'scam' })).accepted).toBe(false);

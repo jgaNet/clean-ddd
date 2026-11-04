@@ -80,7 +80,8 @@ describe('attachments', () => {
     const before = await api.download(`/attachments/${scan}`, tom.token);
     expect(before.status).toBe(200);
     expect(Buffer.compare(before.bytes, PDF)).toBe(0);
-    for (const other of [hal, mia, vic, una]) expect((await api.download(`/attachments/${scan}`, other.token)).status).toBe(404);
+    for (const other of [hal, mia, vic, una])
+      expect((await api.download(`/attachments/${scan}`, other.token)).status).toBe(404);
 
     expect((await send(id, tom.token, 'Here is my ID', [scan])).accepted).toBe(true);
     const messages = await messagesOf(id, hal.token);

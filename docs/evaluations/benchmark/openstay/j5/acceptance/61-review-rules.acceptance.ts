@@ -16,8 +16,10 @@ let tom: Person;
 let una: Person;
 let kim: Person;
 /** One stay that took place per case, each on a listing of its own (a booking of today, the server then 3 days on). */
-const stays: Record<'traveller' | 'guest' | 'reply' | 'report' | 'unpublished', { listingId: string; bookingId: string }> =
-  {} as never;
+const stays: Record<
+  'traveller' | 'guest' | 'reply' | 'report' | 'unpublished',
+  { listingId: string; bookingId: string }
+> = {} as never;
 
 beforeAll(async () => {
   environment = { ...(await provider.environment()), JOBS_INTERVAL_SECONDS: '1' };
@@ -69,7 +71,8 @@ async function ruling(path: string, token: string, body: Json): Promise<string> 
 }
 
 /** A text of exactly `length` characters, with no contact details and no link. */
-const text = (length: number) => 'Quiet and clean flat, a kind host. '.repeat(Math.ceil(length / 35) + 1).slice(0, length);
+const text = (length: number) =>
+  'Quiet and clean flat, a kind host. '.repeat(Math.ceil(length / 35) + 1).slice(0, length);
 const scores = { cleanliness: 5, accuracy: 4, communication: 5 };
 /** Each text that breaks one rule, with the rule's name. */
 const breaking: [string, string][] = [
@@ -189,7 +192,9 @@ describe('review rules', () => {
     );
     expect((await report(reviewId, una.token, 'Reported again')).accepted).toBe(false);
     // Any account but the author: the reviewed host too, and a reason of 500 characters.
-    expect(await api.create(`/reviews/${reviewId}/report`, hal.token, { reason: 'Unfair' })).toEqual(expect.any(String));
+    expect(await api.create(`/reviews/${reviewId}/report`, hal.token, { reason: 'Unfair' })).toEqual(
+      expect.any(String),
+    );
     expect(await api.create(`/reviews/${reviewId}/report`, kim.token, { reason: 'x'.repeat(500) })).toEqual(
       expect.any(String),
     );

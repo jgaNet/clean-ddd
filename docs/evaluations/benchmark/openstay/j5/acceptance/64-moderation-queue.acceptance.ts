@@ -114,7 +114,9 @@ describe('the moderation queue', () => {
       listingId,
       text: 'Is the flat near the station?',
     });
-    await api.done('POST', `/conversations/${conversationId}/messages`, hal.token, { text: 'Pay me outside, it is cheaper.' });
+    await api.done('POST', `/conversations/${conversationId}/messages`, hal.token, {
+      text: 'Pay me outside, it is cheaper.',
+    });
     const messages = (await api.read(`/conversations/${conversationId}`, tom.token)).messages as Json[];
     const messageId = String(messages.find(each => each.senderId === hal.id)?.id);
 
@@ -156,7 +158,13 @@ describe('the moderation queue', () => {
         reason: 'scam',
         details: 'Asks for a bank transfer.',
       }),
-      expect.objectContaining({ id: plain, kind: 'listing', subjectId: listingId, reason: 'inaccurate', details: null }),
+      expect.objectContaining({
+        id: plain,
+        kind: 'listing',
+        subjectId: listingId,
+        reason: 'inaccurate',
+        details: null,
+      }),
     ]);
     // Every administrator reads the same queue, and any report in it.
     expect((await queue(bob.token)).filter(each => [ofMessage, ofReview].includes(String(each.id)))).toHaveLength(2);
@@ -195,7 +203,9 @@ describe('the moderation queue', () => {
     });
 
     expect(await api.refused('POST', `/admin/reports/${id}/dismiss`, ada.token, { note: 'Again' })).toBe(true);
-    expect(await api.refused('POST', `/admin/reports/${id}/uphold`, bob.token, { note: 'On second thoughts' })).toBe(true);
+    expect(await api.refused('POST', `/admin/reports/${id}/uphold`, bob.token, { note: 'On second thoughts' })).toBe(
+      true,
+    );
     expect(await reportOf(id)).toMatchObject({ status: 'dismissed', note, closedBy: ada.id });
     expect(await api.read(`/listings/${listingId}`)).toMatchObject({ status: 'published' });
     expect((await api.list('/listings?city=Dismissville')).map(each => each.id)).toEqual([listingId]);
@@ -204,7 +214,11 @@ describe('the moderation queue', () => {
   it('closes every open report on the same subject with one decision, and a report made afterwards is open', async () => {
     const dismissed = await api.listing(hal.token, { city: 'Moderville' });
     const upheld = await api.listing(hal.token, { city: 'Moderville' });
-    const three = [await listingReport(dismissed, tom), await listingReport(dismissed, una), await listingReport(dismissed, kim)];
+    const three = [
+      await listingReport(dismissed, tom),
+      await listingReport(dismissed, una),
+      await listingReport(dismissed, kim),
+    ];
     const two = [await listingReport(upheld, tom), await listingReport(upheld, una)];
 
     await api.done('POST', `/admin/reports/${three[1]}/dismiss`, ada.token, { note: 'The photos match the place.' });
@@ -257,6 +271,8 @@ describe('the moderation queue', () => {
 
   it('reads no report that does not exist, and closes none', async () => {
     expect((await api.call('GET', '/admin/reports/no-such-report', ada.token)).status).toBe(404);
-    expect(await api.refused('POST', '/admin/reports/no-such-report/dismiss', ada.token, { note: 'Nothing' })).toBe(true);
+    expect(await api.refused('POST', '/admin/reports/no-such-report/dismiss', ada.token, { note: 'Nothing' })).toBe(
+      true,
+    );
   }, 60000);
 });

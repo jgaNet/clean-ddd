@@ -14,7 +14,10 @@ let bob: Person;
 let hal: Person;
 let tom: Person;
 beforeAll(async () => {
-  server = await start(db.path, { JOBS_INTERVAL_SECONDS: '1', ...adminEnvironment('ada@verify.test', 'bob@verify.test') });
+  server = await start(db.path, {
+    JOBS_INTERVAL_SECONDS: '1',
+    ...adminEnvironment('ada@verify.test', 'bob@verify.test'),
+  });
   api = client(server.port);
   ada = await api.admin('ada@verify.test');
   bob = await api.admin('bob@verify.test');
@@ -78,7 +81,9 @@ describe('listing verification', () => {
   it('refuses anyone but an administrator, a listing verified already or archived, and a note out of bounds', async () => {
     const id = await api.listing(hal.token, { city: 'Refuseville' });
     for (const person of [tom, hal])
-      expect(await api.refused('POST', `/admin/listings/${id}/verify`, person.token, { note: 'Looks fine' })).toBe(true);
+      expect(await api.refused('POST', `/admin/listings/${id}/verify`, person.token, { note: 'Looks fine' })).toBe(
+        true,
+      );
     expect(await api.refused('POST', `/admin/listings/${id}/verify`, ada.token, { note: '' })).toBe(true);
     expect(await api.refused('POST', `/admin/listings/${id}/verify`, ada.token, { note: 'x'.repeat(501) })).toBe(true);
     expect(verification(await page(id))).toEqual(NOT_VERIFIED);
@@ -92,7 +97,9 @@ describe('listing verification', () => {
     await api.done('POST', `/listings/${archived}/archive`, hal.token);
     expect(await api.refused('POST', `/admin/listings/${archived}/verify`, ada.token, { note: 'Checked' })).toBe(true);
     expect(verification(await page(archived))).toEqual(NOT_VERIFIED);
-    expect(await api.refused('POST', '/admin/listings/no-such-listing/verify', ada.token, { note: 'Checked' })).toBe(true);
+    expect(await api.refused('POST', '/admin/listings/no-such-listing/verify', ada.token, { note: 'Checked' })).toBe(
+      true,
+    );
   }, 60000);
 
   it('keeps the verification through the same city, the same location, and any other change', async () => {
@@ -119,7 +126,10 @@ describe('listing verification', () => {
     const id = await api.listing(hal.token, { city: 'Moveville' });
     const organisationId = await api.create('/organisations', hal.token, { name: 'Hal Rooms' });
     await api.done('POST', `/listings/${id}/move-to-organisation`, hal.token, { organisationId });
-    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: mia.email, role: 'manager' });
+    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, {
+      email: mia.email,
+      role: 'manager',
+    });
     await api.done('PUT', `/listings/${id}/location`, hal.token, { latitude: 45.75, longitude: 4.85 });
 
     await verify(id);
@@ -161,8 +171,19 @@ describe('listing verification', () => {
       10000,
     );
     expect(entries).toEqual([
-      expect.objectContaining({ adminId: ada.id, action: 'listing-verified', subjectId: id, note: 'Checked the address on site.', at: expect.any(String) }),
-      expect.objectContaining({ adminId: bob.id, action: 'listing-verified', subjectId: id, note: 'Checked the new address.' }),
+      expect.objectContaining({
+        adminId: ada.id,
+        action: 'listing-verified',
+        subjectId: id,
+        note: 'Checked the address on site.',
+        at: expect.any(String),
+      }),
+      expect.objectContaining({
+        adminId: bob.id,
+        action: 'listing-verified',
+        subjectId: id,
+        note: 'Checked the new address.',
+      }),
     ]);
     // A refused verification writes nothing either.
     expect(await api.refused('POST', `/admin/listings/${id}/verify`, ada.token, { note: 'Again' })).toBe(true);

@@ -35,14 +35,18 @@ async function at(days: number) {
 }
 
 /** A comment of `length` characters, with no contact details and no link (request 61). */
-const comment = (length: number) => 'Bright rooms and a warm welcome, thank you. '.repeat(50).slice(0, length - 1) + '.';
+const comment = (length: number) =>
+  'Bright rooms and a warm welcome, thank you. '.repeat(50).slice(0, length - 1) + '.';
 const CITY = 'Colmar';
 const ratingOf = async (listingId: string, person?: Person) =>
   (await api.read(`/listings/${listingId}`, person && (await tokenOf(person)))).rating as Json | null;
 const hostRating = (hostId: string) => api.read(`/hosts/${hostId}/rating`);
 const search = () => api.list(`/listings?city=${CITY}`);
 /** A rating as the request computes it, compared to one decimal. */
-const expectRating = (rating: unknown, expected: { cleanliness: number; accuracy: number; communication: number; overall: number; count: number }) => {
+const expectRating = (
+  rating: unknown,
+  expected: { cleanliness: number; accuracy: number; communication: number; overall: number; count: number },
+) => {
   const actual = rating as Json;
   expect(actual).not.toBeNull();
   for (const key of ['cleanliness', 'accuracy', 'communication', 'overall'] as const)
@@ -160,7 +164,7 @@ describe('ratings', () => {
     expect(found[2].rating).toBeNull();
   }, 60000);
 
-  it("rates a host over every published review of every listing they host, whatever its state, for anyone", async () => {
+  it('rates a host over every published review of every listing they host, whatever its state, for anyone', async () => {
     const rating = await hostRating(people.hal.id);
     expect(rating.count).toBe(4);
     expect(rating.overall as number).toBeCloseTo(4.2, 5);

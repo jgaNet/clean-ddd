@@ -200,9 +200,7 @@ describe('conversations', () => {
   it('makes one conversation of two first messages sent at the same moment to two servers on one database', async () => {
     const hal = await api.host('hal@race.talk.test');
     const listingId = await api.listing(hal.token);
-    const travellers = await Promise.all(
-      Array.from({ length: 5 }, (_, n) => api.traveller(`t${n}@race.talk.test`)),
-    );
+    const travellers = await Promise.all(Array.from({ length: 5 }, (_, n) => api.traveller(`t${n}@race.talk.test`)));
     const second = await start(db.path);
     try {
       const other = client(second.port);

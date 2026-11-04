@@ -125,13 +125,21 @@ describe('upholding a report', () => {
     expect(await suspendedByModeration(id)).toMatchObject({ status: 'suspended', suspendedBy: 'moderation' });
     expect(await api.read(`/admin/reports/${second}`, ada.token)).toMatchObject({ status: 'upheld' });
     for (const person of [mia, vic]) expect(await listing(id, person.token)).toMatchObject({ status: 'suspended' });
-    for (const token of [undefined, tom.token, una.token]) expect(await api.hidden(`/listings/${id}`, token)).toBe(true);
+    for (const token of [undefined, tom.token, una.token])
+      expect(await api.hidden(`/listings/${id}`, token)).toBe(true);
     expect(await found('Suspendville')).toEqual([]);
-    expect(await api.refused('POST', '/quotes', una.token, { listingId: id, checkIn: day(40), checkOut: day(41), guests: 1 })).toBe(true);
+    expect(
+      await api.refused('POST', '/quotes', una.token, {
+        listingId: id,
+        checkIn: day(40),
+        checkOut: day(41),
+        guests: 1,
+      }),
+    ).toBe(true);
     expect(await api.refused('POST', '/bookings', tom.token, { quoteId })).toBe(true);
-    expect(await api.refused('POST', '/holds', una.token, { listingId: id, checkIn: day(40), checkOut: day(41), guests: 1 })).toBe(
-      true,
-    );
+    expect(
+      await api.refused('POST', '/holds', una.token, { listingId: id, checkIn: day(40), checkOut: day(41), guests: 1 }),
+    ).toBe(true);
     expect(await api.read(`/bookings/${bookingId}`, tom.token)).toMatchObject({ status: 'confirmed' });
 
     // Its host and its managers cannot publish it again.
@@ -142,13 +150,17 @@ describe('upholding a report', () => {
 
   it('is undone only by an administrator reinstating it, with a note, and only when suspended by moderation', async () => {
     const id = await api.listing(hal.token, { city: 'Reinstateville' });
-    expect(await api.refused('POST', `/admin/listings/${id}/reinstate`, ada.token, { note: 'Not suspended' })).toBe(true);
+    expect(await api.refused('POST', `/admin/listings/${id}/reinstate`, ada.token, { note: 'Not suspended' })).toBe(
+      true,
+    );
     await uphold(await report(id, una));
     await suspendedByModeration(id);
 
     expect(await api.refused('POST', `/admin/listings/${id}/reinstate`, hal.token, { note: 'Please' })).toBe(true);
     expect(await api.refused('POST', `/admin/listings/${id}/reinstate`, ada.token, { note: '' })).toBe(true);
-    expect(await api.refused('POST', `/admin/listings/${id}/reinstate`, ada.token, { note: 'x'.repeat(501) })).toBe(true);
+    expect(await api.refused('POST', `/admin/listings/${id}/reinstate`, ada.token, { note: 'x'.repeat(501) })).toBe(
+      true,
+    );
     expect(await listing(id, hal.token)).toMatchObject({ status: 'suspended', suspendedBy: 'moderation' });
 
     await api.done('POST', `/admin/listings/${id}/reinstate`, bob.token, { note: 'The host sent proof of ownership.' });
@@ -196,9 +208,18 @@ describe('upholding a report', () => {
 
   it('removes a review for everyone, its author included, with its reply, and the ratings and the order follow', async () => {
     const { L1, L2, s1, s2, s3 } = stays;
-    const kept = await api.create(`/bookings/${s1}/review`, tom.token, { ...scores(5), comment: 'Spotless, and the host was lovely.' });
-    const removed = await api.create(`/bookings/${s2}/review`, una.token, { ...scores(1), comment: 'Nothing was as the photos showed.' });
-    const third = await api.create(`/bookings/${s3}/review`, tom.token, { ...scores(4), comment: 'A good stay, a little noisy at night.' });
+    const kept = await api.create(`/bookings/${s1}/review`, tom.token, {
+      ...scores(5),
+      comment: 'Spotless, and the host was lovely.',
+    });
+    const removed = await api.create(`/bookings/${s2}/review`, una.token, {
+      ...scores(1),
+      comment: 'Nothing was as the photos showed.',
+    });
+    const third = await api.create(`/bookings/${s3}/review`, tom.token, {
+      ...scores(4),
+      comment: 'A good stay, a little noisy at night.',
+    });
     for (const bookingId of [s1, s2, s3])
       await api.create(`/bookings/${bookingId}/guest-review`, hal.token, {
         rating: 5,
@@ -247,7 +268,12 @@ describe('upholding a report', () => {
     expect(searched.find(each => each.id === L1)?.rating).toMatchObject({ overall: 5, count: 1 });
     expect(await byRating([L1, L2])).toEqual([L1, L2]);
     // Its author wrote their one review of that stay.
-    expect(await api.refused('POST', `/bookings/${s2}/review`, una.token, { ...scores(3), comment: 'Trying once more, kindly.' })).toBe(true);
+    expect(
+      await api.refused('POST', `/bookings/${s2}/review`, una.token, {
+        ...scores(3),
+        comment: 'Trying once more, kindly.',
+      }),
+    ).toBe(true);
 
     // The last review of L2 removed: L2 has no rating, and comes last.
     await uphold(await api.create(`/reviews/${third}/report`, una.token, { reason: 'Not true' }));
@@ -268,7 +294,10 @@ describe('upholding a report', () => {
     let guestReviewId = String((both.host as Json | null)?.id ?? '');
     if (!guestReviewId) {
       // Written by the case before; written here when that case did not get so far.
-      await api.act('POST', `/bookings/${s1}/review`, tom.token, { ...scores(5), comment: 'Spotless, and the host was lovely.' });
+      await api.act('POST', `/bookings/${s1}/review`, tom.token, {
+        ...scores(5),
+        comment: 'Spotless, and the host was lovely.',
+      });
       guestReviewId = idOf(
         (
           await api.act('POST', `/bookings/${s1}/guest-review`, hal.token, {
@@ -291,14 +320,20 @@ describe('upholding a report', () => {
     ).not.toContainEqual(expect.objectContaining({ id: guestReviewId }));
     for (const person of [tom, hal]) expect((await api.read(`/bookings/${s1}/reviews`, person.token)).host).toBeNull();
     expect(
-      await api.refused('POST', `/bookings/${s1}/guest-review`, hal.token, { rating: 4, comment: 'Writing it once more.' }),
+      await api.refused('POST', `/bookings/${s1}/guest-review`, hal.token, {
+        rating: 4,
+        comment: 'Writing it once more.',
+      }),
     ).toBe(true);
   }, 60000);
 
   it('hides an upheld message from both parties: out of the conversation, not unread, its attachments not served', async () => {
     const id = await api.listing(hal.token, { city: 'Messageville' });
     await api.done('POST', `/listings/${id}/move-to-organisation`, hal.token, { organisationId });
-    const conversationId = await api.create('/conversations', tom.token, { listingId: id, text: 'Hello, is it free in May?' });
+    const conversationId = await api.create('/conversations', tom.token, {
+      listingId: id,
+      text: 'Hello, is it free in May?',
+    });
     const upload = await api.upload(`/conversations/${conversationId}/attachments`, tom.token, PDF, 'id-scan.pdf');
     expect(upload.accepted).toBe(true);
     const attachmentId = idOf(upload.result);
@@ -326,12 +361,7 @@ describe('upholding a report', () => {
           ids => !ids.includes(reported),
         ),
       ).toEqual([first]);
-    expect(
-      await eventually(
-        unread,
-        total => total === before - 1,
-      ),
-    ).toBe(before - 1);
+    expect(await eventually(unread, total => total === before - 1)).toBe(before - 1);
     for (const person of [tom, hal, mia])
       expect((await api.download(`/attachments/${attachmentId}`, person.token)).status).toBe(404);
   }, 60000);
@@ -354,7 +384,9 @@ describe('upholding a report', () => {
         apis[1].act('POST', `/admin/reports/${second}/uphold`, tokens.get(apis[1])!.bob, { note: 'Unsafe.' }),
       ]);
       expect(outcomes.filter(outcome => outcome.accepted)).toHaveLength(1);
-      const winner = outcomes[0].accepted ? { note: 'A scam.', closedBy: ada.id } : { note: 'Unsafe.', closedBy: bob.id };
+      const winner = outcomes[0].accepted
+        ? { note: 'A scam.', closedBy: ada.id }
+        : { note: 'Unsafe.', closedBy: bob.id };
       for (const reportId of [first, second])
         expect(await api.read(`/admin/reports/${reportId}`, ada.token)).toMatchObject({ status: 'upheld', ...winner });
       expect(await suspendedByModeration(id)).toMatchObject({ status: 'suspended', suspendedBy: 'moderation' });

@@ -49,11 +49,13 @@ afterAll(async () => {
 });
 
 const PATH = '/hosts/me/bank-details';
-const setDetails = (token: string, value: string, holder: string) => api.done('PUT', PATH, token, { iban: value, holder });
+const setDetails = (token: string, value: string, holder: string) =>
+  api.done('PUT', PATH, token, { iban: value, holder });
 const instructions = (bookingId: string) => `/bookings/${bookingId}/payment-instructions`;
 const bookAt = (from: number, id = listingId) =>
   api.quote(tom.token, id, day(from), day(from + 1)).then(quoteId => api.book(tom.token, quoteId));
-const paymentOf = async (bookingId: string) => (await api.read(`/bookings/${bookingId}`, tom.token)).payment as Json | null;
+const paymentOf = async (bookingId: string) =>
+  (await api.read(`/bookings/${bookingId}`, tom.token)).payment as Json | null;
 
 describe('direct payment instructions', () => {
   it('keeps a host’s IBAN upper-case without spaces, with its holder and when it took its value', async () => {
@@ -104,7 +106,8 @@ describe('direct payment instructions', () => {
       reference: bookingId,
       changedRecently: true,
     });
-    for (const token of [hal.token, una.token]) expect((await api.call('GET', instructions(bookingId), token)).status).toBe(404);
+    for (const token of [hal.token, una.token])
+      expect((await api.call('GET', instructions(bookingId), token)).status).toBe(404);
     expect(await api.hidden(instructions(bookingId))).toBe(true);
 
     // A host who has set no bank details: there are none to show.
@@ -154,7 +157,11 @@ describe('direct payment instructions', () => {
     const bookingId = await bookAt(20);
     current = { iban: iban('FR'), holder: 'Hal Martin SARL' };
     await setDetails(hal.token, current.iban, current.holder);
-    expect(await api.read(instructions(bookingId), tom.token)).toMatchObject({ ...current, reference: bookingId, changedRecently: true });
+    expect(await api.read(instructions(bookingId), tom.token)).toMatchObject({
+      ...current,
+      reference: bookingId,
+      changedRecently: true,
+    });
 
     const before = await api.read(PATH, hal.token);
     current = { ...current, holder: 'Martin Holidays' };

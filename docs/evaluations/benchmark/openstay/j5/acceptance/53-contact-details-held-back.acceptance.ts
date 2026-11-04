@@ -81,16 +81,18 @@ describe('contact details held back', () => {
       ['Pay to FR76 3000 6000 0112 3456 7890 189, please', 'Pay to [hidden], please', true],
       ['Or to FR7630006000011234567890189, please', 'Or to [hidden], please', true],
       ['Mail anna.b@mail.example.com, or tom_2+stay@my-host.co.uk', 'Mail [hidden], or [hidden]', true],
-      ['Call +33 6 12 34 56 78, or 06.12.34.56.78, or 0612345678 now', 'Call [hidden], or [hidden], or [hidden] now', true],
+      [
+        'Call +33 6 12 34 56 78, or 06.12.34.56.78, or 0612345678 now',
+        'Call [hidden], or [hidden], or [hidden] now',
+        true,
+      ],
       ['Arriving 2026-12-01, leaving 2026.12.05, door code 1234 5678', '', false],
       ['A room for 2 adults and 1 child, on the 3rd floor', '', false],
     ];
     const id = await api.create('/conversations', tom.token, { listingId, text: cases[0][0] });
     for (const [text] of cases.slice(1)) await api.done('POST', `/conversations/${id}/messages`, tom.token, { text });
 
-    expect(await shown(id, hal.token)).toEqual(
-      cases.map(([text, hidden, masked]) => [masked ? hidden : text, masked]),
-    );
+    expect(await shown(id, hal.token)).toEqual(cases.map(([text, hidden, masked]) => [masked ? hidden : text, masked]));
     expect(await shown(id, tom.token)).toEqual(cases.map(([text]) => [text, false]));
   }, 60000);
 
@@ -105,8 +107,18 @@ describe('contact details held back', () => {
     await api.done('POST', `/conversations/${id}/messages`, hal.token, { text: 'Mine is 0612345678, Hal' });
 
     // Another traveller's paid booking of the listing, and Tom's paid booking of another listing, change nothing.
-    await payBooking(api, provider, una.token, await api.book(una.token, await api.quote(una.token, listingId, day(20), day(21))));
-    await payBooking(api, provider, tom.token, await api.book(tom.token, await api.quote(tom.token, elsewhere, day(20), day(21))));
+    await payBooking(
+      api,
+      provider,
+      una.token,
+      await api.book(una.token, await api.quote(una.token, listingId, day(20), day(21))),
+    );
+    await payBooking(
+      api,
+      provider,
+      tom.token,
+      await api.book(tom.token, await api.quote(tom.token, elsewhere, day(20), day(21))),
+    );
     expect(await shown(id, hal.token)).toEqual([
       [CONTACT_HIDDEN, true],
       ['Mine is 0612345678, Hal', false],

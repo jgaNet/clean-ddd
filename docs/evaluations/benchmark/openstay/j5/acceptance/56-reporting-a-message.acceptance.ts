@@ -49,7 +49,12 @@ describe('reporting a message', () => {
     const { hal, mia, vic, tom, id, scam } = await aConversation('hidden.report');
     const all = ['Pay me outside the site', 'A normal question', 'Hal writes back', 'Mia writes back'];
     // Unread for the host: the traveller's two messages and the manager's.
-    expect(await eventually(() => unreadIn(id, hal.token), unread => unread === 3)).toBe(3);
+    expect(
+      await eventually(
+        () => unreadIn(id, hal.token),
+        unread => unread === 3,
+      ),
+    ).toBe(3);
 
     const reported = await report(scam, hal.token);
     expect(reported.accepted).toBe(true);
@@ -59,15 +64,30 @@ describe('reporting a message', () => {
     expect(await textsOf(id, hal.token)).toEqual(all.slice(1));
     for (const reader of [tom, mia, vic]) expect(await textsOf(id, reader.token)).toEqual(all);
     // It no longer counts as unread for the reporter, and still does for the others.
-    expect(await eventually(() => unreadIn(id, hal.token), unread => unread === 2)).toBe(2);
+    expect(
+      await eventually(
+        () => unreadIn(id, hal.token),
+        unread => unread === 2,
+      ),
+    ).toBe(2);
     expect(
       await eventually(
         async () => (await api.read('/conversations/unread', hal.token)).total,
         total => total === 2,
       ),
     ).toBe(2);
-    expect(await eventually(() => unreadIn(id, mia.token), unread => unread === 3)).toBe(3);
-    expect(await eventually(() => unreadIn(id, vic.token), unread => unread === 4)).toBe(4);
+    expect(
+      await eventually(
+        () => unreadIn(id, mia.token),
+        unread => unread === 3,
+      ),
+    ).toBe(3);
+    expect(
+      await eventually(
+        () => unreadIn(id, vic.token),
+        unread => unread === 4,
+      ),
+    ).toBe(4);
   }, 60000);
 
   it('is made by the other side from the sender only: the host or a manager for the traveller, the traveller for the host side', async () => {

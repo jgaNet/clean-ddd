@@ -79,21 +79,26 @@ const within = (at: unknown, { from, to }: { from: number; to: number }) => {
 
 describe('the audit log', () => {
   it('answers 403 to anyone but an administrator, 400 without a subject, and [] for a subject with no entry', async () => {
-    for (const person of [tom, hal]) expect((await api.call('GET', '/admin/audit?subjectId=anything', person.token)).status).toBe(403);
+    for (const person of [tom, hal])
+      expect((await api.call('GET', '/admin/audit?subjectId=anything', person.token)).status).toBe(403);
     expect((await api.call('GET', '/admin/audit', ada.token)).status).toBe(400);
     expect(await audit('no-such-subject')).toEqual([]);
     expect(await audit(hal.id, bob.token)).toEqual([]);
   }, 60000);
 
-  it("writes each decision on a listing and on an account, the oldest first, with who, when, what and why", async () => {
+  it('writes each decision on a listing and on an account, the oldest first, with who, when, what and why', async () => {
     const id = await api.listing(hal.token, { city: 'Auditville' });
     const first = await report(id, tom);
-    const dismissed = await timed(() => api.done('POST', `/admin/reports/${first}/dismiss`, ada.token, { note: 'Looks genuine.' }));
+    const dismissed = await timed(() =>
+      api.done('POST', `/admin/reports/${first}/dismiss`, ada.token, { note: 'Looks genuine.' }),
+    );
     await sleep(1100);
     // Two reports upheld together: one decision, one entry, and the suspension it brings is part of it.
     const second = await report(id, una);
     await report(id, kim, 'unsafe');
-    const upheld = await timed(() => api.done('POST', `/admin/reports/${second}/uphold`, bob.token, { note: 'Fake photos.' }));
+    const upheld = await timed(() =>
+      api.done('POST', `/admin/reports/${second}/uphold`, bob.token, { note: 'Fake photos.' }),
+    );
     await sleep(1100);
     const reinstated = await timed(() =>
       api.done('POST', `/admin/listings/${id}/reinstate`, ada.token, { note: 'New photos checked.' }),
@@ -101,9 +106,27 @@ describe('the audit log', () => {
 
     const found = await entries(id, 3);
     expect(found).toEqual([
-      expect.objectContaining({ id: expect.any(String), adminId: ada.id, action: 'report-dismissed', subjectId: id, note: 'Looks genuine.' }),
-      expect.objectContaining({ id: expect.any(String), adminId: bob.id, action: 'report-upheld', subjectId: id, note: 'Fake photos.' }),
-      expect.objectContaining({ id: expect.any(String), adminId: ada.id, action: 'listing-reinstated', subjectId: id, note: 'New photos checked.' }),
+      expect.objectContaining({
+        id: expect.any(String),
+        adminId: ada.id,
+        action: 'report-dismissed',
+        subjectId: id,
+        note: 'Looks genuine.',
+      }),
+      expect.objectContaining({
+        id: expect.any(String),
+        adminId: bob.id,
+        action: 'report-upheld',
+        subjectId: id,
+        note: 'Fake photos.',
+      }),
+      expect.objectContaining({
+        id: expect.any(String),
+        adminId: ada.id,
+        action: 'listing-reinstated',
+        subjectId: id,
+        note: 'New photos checked.',
+      }),
     ]);
     expect(within(found[0].at, dismissed)).toBe(true);
     expect(within(found[1].at, upheld)).toBe(true);
@@ -117,8 +140,18 @@ describe('the audit log', () => {
     await api.done('POST', `/admin/accounts/${sam.id}/reinstate`, bob.token, { note: 'Apologised to each.' });
     const about = await entries(sam.id, 2);
     expect(about).toEqual([
-      expect.objectContaining({ adminId: ada.id, action: 'account-suspended', subjectId: sam.id, note: 'Abused three hosts.' }),
-      expect.objectContaining({ adminId: bob.id, action: 'account-reinstated', subjectId: sam.id, note: 'Apologised to each.' }),
+      expect.objectContaining({
+        adminId: ada.id,
+        action: 'account-suspended',
+        subjectId: sam.id,
+        note: 'Abused three hosts.',
+      }),
+      expect.objectContaining({
+        adminId: bob.id,
+        action: 'account-reinstated',
+        subjectId: sam.id,
+        note: 'Apologised to each.',
+      }),
     ]);
     expect(within(about[0].at, suspended)).toBe(true);
     await sleep(2000);
@@ -128,23 +161,35 @@ describe('the audit log', () => {
 
   it('writes a decision on a reported message about the message', async () => {
     const id = await api.listing(hal.token, { city: 'Auditville' });
-    const conversationId = await api.create('/conversations', tom.token, { listingId: id, text: 'Is it near the sea?' });
+    const conversationId = await api.create('/conversations', tom.token, {
+      listingId: id,
+      text: 'Is it near the sea?',
+    });
     await api.done('POST', `/conversations/${conversationId}/messages`, hal.token, { text: 'Pay me in cash outside.' });
     const messages = (await api.read(`/conversations/${conversationId}`, tom.token)).messages as Json[];
     const messageId = String(messages.find(each => each.senderId === hal.id)?.id);
     const reportId = await api.create(`/messages/${messageId}/report`, tom.token, { reason: 'Asks to pay outside' });
     await api.done('POST', `/admin/reports/${reportId}/dismiss`, bob.token, { note: 'A joke between them.' });
     expect(await entries(messageId, 1)).toEqual([
-      expect.objectContaining({ adminId: bob.id, action: 'report-dismissed', subjectId: messageId, note: 'A joke between them.' }),
+      expect.objectContaining({
+        adminId: bob.id,
+        action: 'report-dismissed',
+        subjectId: messageId,
+        note: 'A joke between them.',
+      }),
     ]);
   }, 60000);
 
   it('writes nothing for a decision refused, nor for what a decision brings with it', async () => {
     const id = await api.listing(hal.token, { city: 'Auditville' });
     const reportId = await report(id, tom);
-    expect(await api.refused('POST', `/admin/reports/${reportId}/dismiss`, hal.token, { note: 'Not an admin' })).toBe(true);
+    expect(await api.refused('POST', `/admin/reports/${reportId}/dismiss`, hal.token, { note: 'Not an admin' })).toBe(
+      true,
+    );
     expect(await api.refused('POST', `/admin/reports/${reportId}/dismiss`, ada.token, { note: '' })).toBe(true);
-    expect(await api.refused('POST', `/admin/listings/${id}/reinstate`, ada.token, { note: 'Not suspended' })).toBe(true);
+    expect(await api.refused('POST', `/admin/listings/${id}/reinstate`, ada.token, { note: 'Not suspended' })).toBe(
+      true,
+    );
     await sleep(2000);
     expect(await audit(id)).toEqual([]);
 
@@ -166,7 +211,9 @@ describe('the audit log', () => {
     expect(await api.refused('POST', `/admin/accounts/${zed.id}/suspend`, bob.token, { reason: 'Again' })).toBe(true);
     await entries(zed.id, 1);
     await sleep(2000);
-    expect(await audit(zed.id)).toEqual([expect.objectContaining({ action: 'account-suspended', note: 'Fake listings.' })]);
+    expect(await audit(zed.id)).toEqual([
+      expect.objectContaining({ action: 'account-suspended', note: 'Fake listings.' }),
+    ]);
     expect(await audit(bookingId)).toEqual([]);
     expect(await audit(listingId)).toEqual([]);
   }, 60000);
@@ -266,7 +313,12 @@ describe('the audit log', () => {
     await api.done('POST', `/admin/reports/${reportId}/uphold`, ada.token, { note: 'Not a real stay review.' });
     expect(await eventually(reviews, found => found.length === 0)).toEqual([]);
     expect(await entries(reviewId, 1)).toEqual([
-      expect.objectContaining({ adminId: ada.id, action: 'report-upheld', subjectId: reviewId, note: 'Not a real stay review.' }),
+      expect.objectContaining({
+        adminId: ada.id,
+        action: 'report-upheld',
+        subjectId: reviewId,
+        note: 'Not a real stay review.',
+      }),
     ]);
     await sleep(2000);
     expect(await audit(reviewId)).toHaveLength(1);

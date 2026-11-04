@@ -53,7 +53,9 @@ const flagsOf = async (accountId: string, kind?: string) =>
 async function bookings(person: Person, count: number, from: number) {
   const ids: string[] = [];
   for (let n = 0; n < count; n++)
-    ids.push(await api.book(person.token, await api.quote(person.token, listingId, day(from + 2 * n), day(from + 2 * n + 1))));
+    ids.push(
+      await api.book(person.token, await api.quote(person.token, listingId, day(from + 2 * n), day(from + 2 * n + 1))),
+    );
   return ids;
 }
 const cancel = (bookingId: string, token: string, on = api) => on.done('POST', `/bookings/${bookingId}/cancel`, token);
@@ -92,7 +94,12 @@ describe('suspicious accounts', () => {
       found => found.length > 0,
     );
     expect(flagged).toEqual([
-      expect.objectContaining({ id: expect.any(String), accountId: tom.id, kind: 'many-cancellations', at: expect.any(String) }),
+      expect.objectContaining({
+        id: expect.any(String),
+        accountId: tom.id,
+        kind: 'many-cancellations',
+        at: expect.any(String),
+      }),
     ]);
     expect(within(flagged[0].at, from, to)).toBe(true);
 

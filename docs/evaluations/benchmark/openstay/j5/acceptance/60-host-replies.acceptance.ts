@@ -25,7 +25,8 @@ const tokenOf = async (person: Person) => {
 };
 
 /** A text of `length` characters, with no contact details and no link (request 61). */
-const text = (length: number) => 'Thank you for your kind words, come back soon. '.repeat(50).slice(0, length - 1) + '.';
+const text = (length: number) =>
+  'Thank you for your kind words, come back soon. '.repeat(50).slice(0, length - 1) + '.';
 const STAY = { cleanliness: 4, accuracy: 5, communication: 4, comment: 'A quiet flat, close to everything.' };
 const GUEST = { rating: 5, comment: 'A perfect guest, welcome back any time.' };
 const idOf = (result: unknown) => (typeof result === 'string' ? result : String((result as Json).id));
@@ -137,7 +138,10 @@ describe("the host's reply", () => {
     expect(String((shown.reply as Json).createdAt).slice(0, 10)).toBe(day(2));
     expect(await api.list(`/listings/${listings.tom}/reviews`, await tokenOf(una))).toEqual([shown]);
     const { traveller } = await api.read(`/bookings/${stays.tom}/reviews`, await tokenOf(tom));
-    expect(traveller).toMatchObject({ id: reviews.tom, reply: { text: text(2000), createdAt: (shown.reply as Json).createdAt } });
+    expect(traveller).toMatchObject({
+      id: reviews.tom,
+      reply: { text: text(2000), createdAt: (shown.reply as Json).createdAt },
+    });
   }, 60000);
 
   it('gives one reply for two sent at the same moment to two servers', async () => {

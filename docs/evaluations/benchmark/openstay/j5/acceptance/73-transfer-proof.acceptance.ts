@@ -153,7 +153,9 @@ describe('proof of a direct payment', () => {
     const name = `${'x'.repeat(251)}.pdf`;
     const { id, answer } = await sent(bookingId, padded(PDF, 5_242_880), name);
     if (answer) expect(answer).toMatchObject({ type: 'application/pdf', size: 5_242_880 });
-    expect(await transferOf(bookingId)).toMatchObject({ proof: { id, name, type: 'application/pdf', size: 5_242_880 } });
+    expect(await transferOf(bookingId)).toMatchObject({
+      proof: { id, name, type: 'application/pdf', size: 5_242_880 },
+    });
     expect(await refused(PNG, 'another.png')).toBe(true);
     expect(await transferOf(bookingId)).toMatchObject({ proof: { id, type: 'application/pdf' } });
   }, 90000);

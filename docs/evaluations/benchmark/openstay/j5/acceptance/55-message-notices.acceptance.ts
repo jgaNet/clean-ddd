@@ -1,4 +1,15 @@
-import { client, Client, database, eventually, kill, notificationService, Running, sleep, start, stop } from './openstay';
+import {
+  client,
+  Client,
+  database,
+  eventually,
+  kill,
+  notificationService,
+  Running,
+  sleep,
+  start,
+  stop,
+} from './openstay';
 
 /**
  * Request 55: notices of new messages. The other side of a conversation is told of a new message, at most
@@ -36,7 +47,9 @@ afterAll(async () => {
 const noticesOf = (from: ReturnType<typeof notificationService>, conversationId: string, accountId?: string) =>
   from
     .notices('message')
-    .filter(each => each.conversationId === conversationId && (accountId === undefined || each.accountId === accountId));
+    .filter(
+      each => each.conversationId === conversationId && (accountId === undefined || each.accountId === accountId),
+    );
 const waitFor = (
   from: ReturnType<typeof notificationService>,
   conversationId: string,
@@ -63,7 +76,10 @@ async function anOrganisation(name: string, through = api) {
     email: mia.email,
     role: 'manager',
   });
-  await through.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: vic.email, role: 'viewer' });
+  await through.done('POST', `/organisations/${organisationId}/members`, hal.token, {
+    email: vic.email,
+    role: 'viewer',
+  });
   return { hal, mia, vic, tom, listingId };
 }
 
@@ -104,7 +120,10 @@ describe('notices of new messages', () => {
     await api.done('POST', `/conversations/${id}/messages`, tom.token, { text: 'Second message' });
     await api.done('POST', `/conversations/${id}/messages`, tom.token, { text: 'Third message' });
     // Each conversation counts on its own, and each account: the host answers at once.
-    const elsewhere = await api.create('/conversations', tom.token, { listingId: other, text: 'About the other place' });
+    const elsewhere = await api.create('/conversations', tom.token, {
+      listingId: other,
+      text: 'About the other place',
+    });
     await api.done('POST', `/conversations/${id}/messages`, hal.token, { text: 'An answer from Hal' });
 
     const [first] = await waitFor(service, id, hal.id, 1);
@@ -115,7 +134,9 @@ describe('notices of new messages', () => {
     // The window passes: the messages within it are not told later.
     await sleep(Math.max(0, acceptedAt + (WINDOW + 3) * 1000 - Date.now()));
     expect(noticesOf(service, id, hal.id)).toHaveLength(1);
-    expect(service.attempts.filter(each => each.body.conversationId === id && each.body.accountId === hal.id)).toHaveLength(3);
+    expect(
+      service.attempts.filter(each => each.body.conversationId === id && each.body.accountId === hal.id),
+    ).toHaveLength(3);
 
     await api.done('POST', `/conversations/${id}/messages`, tom.token, { text: 'After the window' });
     const both = await waitFor(service, id, hal.id, 2);
@@ -150,7 +171,9 @@ describe('notices of new messages', () => {
         await sleep(2000);
         expect(noticesOf(service, id, hal.id)).toHaveLength(1);
         expect(noticesOf(service, id, tom.id)).toHaveLength(1);
-        expect(new Set(service.attempts.filter(each => each.body.conversationId === id).map(each => each.body.id)).size).toBe(2);
+        expect(
+          new Set(service.attempts.filter(each => each.body.conversationId === id).map(each => each.body.id)).size,
+        ).toBe(2);
       }
     } finally {
       await stop(second);
@@ -204,13 +227,16 @@ describe('notices of new messages', () => {
       expect(recorded.filter(each => !byConversation.has(each))).toEqual([]);
       expect([...byConversation.entries()].filter(([, ids]) => ids.size !== 1)).toEqual([]);
       expect([...byConversation.keys()].filter(each => !recorded.includes(each))).toEqual([]);
-      for (const notice of crashes.notices('message')) expect(notice).toMatchObject({ kind: 'message', accountId: hal.id });
+      for (const notice of crashes.notices('message'))
+        expect(notice).toMatchObject({ kind: 'message', accountId: hal.id });
 
       // The default window holds: a new message in a conversation told earlier sends nothing.
       const [told] = recorded.slice(-1);
       await through.done('POST', `/conversations/${told}/messages`, token, { text: 'One more question' });
       await sleep(4000);
-      expect(new Set(crashes.attempts.filter(each => each.body.conversationId === told).map(each => each.body.id)).size).toBe(1);
+      expect(
+        new Set(crashes.attempts.filter(each => each.body.conversationId === told).map(each => each.body.id)).size,
+      ).toBe(1);
     } finally {
       await stop(running);
       await crashes.close();

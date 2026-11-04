@@ -272,7 +272,8 @@ describe('payouts per currency', () => {
         token = await api.login(kai.email);
         await listed(token, found => found.length >= 2);
         await sleep(2000);
-        for (const payout of payoutsTo(account).filter(each => each.status === 'pending')) provider.settlePayout(payout.id);
+        for (const payout of payoutsTo(account).filter(each => each.status === 'pending'))
+          provider.settlePayout(payout.id);
       } finally {
         provider.state.settleAfterMs = 200;
       }

@@ -36,7 +36,8 @@ async function at(days: number) {
 }
 
 /** A comment of `length` characters, with no contact details and no link (request 61). */
-const comment = (length: number) => 'A careful guest, who left the place spotless. '.repeat(50).slice(0, length - 1) + '.';
+const comment = (length: number) =>
+  'A careful guest, who left the place spotless. '.repeat(50).slice(0, length - 1) + '.';
 const GUEST = { rating: 5, comment: comment(25) };
 const STAY = { cleanliness: 4, accuracy: 4, communication: 5, comment: comment(30) };
 const guestReview = async (bookingId: string, person: Person, body: Json = GUEST) =>
@@ -115,7 +116,13 @@ describe('the host reviews the guest', () => {
     expect((await guestReview(stays.tom, ian)).accepted).toBe(false);
     expect((await guestReview(stays.lapsed, hal)).accepted).toBe(false);
     expect((await guestReview(stays.future, hal)).accepted).toBe(false);
-    for (const wrong of [{ rating: 0 }, { rating: 6 }, { rating: 2.5 }, { comment: comment(19) }, { comment: comment(2001) }])
+    for (const wrong of [
+      { rating: 0 },
+      { rating: 6 },
+      { rating: 2.5 },
+      { comment: comment(19) },
+      { comment: comment(2001) },
+    ])
       expect((await guestReview(stays.tom, hal, { ...GUEST, ...wrong })).accepted).toBe(false);
     expect(await reviewsOf(stays.tom, hal)).toMatchObject({ traveller: null, host: null });
   }, 60000);
@@ -205,7 +212,13 @@ describe('the host reviews the guest', () => {
       found => found.length > 0,
     );
     expect(lone).toEqual([
-      expect.objectContaining({ id: written.mia, bookingId: stays.una, authorId: mia.id, rating: 3, comment: comment(2000) }),
+      expect.objectContaining({
+        id: written.mia,
+        bookingId: stays.una,
+        authorId: mia.id,
+        rating: 3,
+        comment: comment(2000),
+      }),
     ]);
     expect(await reviewsOf(stays.una, una)).toMatchObject({
       host: expect.objectContaining({ id: written.mia }),
