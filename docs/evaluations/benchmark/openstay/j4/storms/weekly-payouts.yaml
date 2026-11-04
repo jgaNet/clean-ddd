@@ -1,0 +1,25 @@
+# Feature 47 of OpenStay's J4 (../backlog/47-weekly-payouts.md), as the session decided it.
+schemaVersion: 1
+feature: weekly-payouts
+intent: A host may be paid once a week.
+done: false
+hotSpots:
+- question: Where?
+  decision: On the PayoutAccount, read by the payout sweep.
+contexts:
+- id: Payments
+  commands:
+  - name: SetPayoutSchedule
+    actor: a signed-in account
+    route: PUT /hosts/me/payout-schedule
+    aggregate: PayoutAccount
+    events:
+    - PayoutScheduleSet
+  queries:
+  - name: GetPayoutSchedule
+    actor: a signed-in account
+    route: GET /hosts/me/payout-schedule
+  events:
+  - PayoutScheduleSet
+  policies: []
+links: []

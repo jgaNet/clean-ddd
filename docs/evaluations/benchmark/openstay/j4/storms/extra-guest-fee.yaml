@@ -1,0 +1,36 @@
+# Feature 41 of OpenStay's J4 (../backlog/41-extra-guest-fee.md), as the session decided it.
+schemaVersion: 1
+feature: extra-guest-fee
+intent: A fee per extra guest; and Pricing becomes a context.
+done: false
+hotSpots:
+- question: Does Pricing become a context now?
+  decision: 'Yes (U8): seasons, discounts, last-minute prices, extra guests, codes and bulk prices move from Listings to Pricing
+    in this feature, as its architecture task with its ADR; the quote asks Pricing for a stay''s price lines through a port
+    Booking owns (StayPrices).'
+- question: Whose rule is the fee?
+  decision: Pricing's, a term of the listing's price, set by its host (Pricing asks Listings whose listing it is).
+contexts:
+- id: Pricing
+  commands:
+  - name: SetExtraGuestFee
+    actor: a signed-in account
+    route: PUT /listings/{param}/extra-guests
+    aggregate: ListingPrices
+    events:
+    - ExtraGuestFeeSet
+  queries: []
+  events:
+  - ExtraGuestFeeSet
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Pricing
+  downstream: Booking
+  contracts:
+  - StayPrices
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Pricing
+  contracts:
+  - ListingHosts

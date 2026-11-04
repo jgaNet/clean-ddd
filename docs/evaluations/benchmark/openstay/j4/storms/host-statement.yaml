@@ -1,0 +1,18 @@
+# Feature 35 of OpenStay's J4 (../backlog/35-host-statement.md), as the session decided it.
+schemaVersion: 1
+feature: host-statement
+intent: A host reads every movement of money of their bookings, and the balance.
+done: false
+hotSpots:
+- question: From where?
+  decision: A ledger read model in Payments, written by each fact the provider confirmed.
+contexts:
+- id: Payments
+  commands: []
+  queries:
+  - name: GetMyStatement
+    actor: a signed-in account
+    route: GET /hosts/me/statement
+  events: []
+  policies: []
+links: []

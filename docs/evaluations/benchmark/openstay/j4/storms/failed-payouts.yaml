@@ -1,0 +1,16 @@
+# Feature 34 of OpenStay's J4 (../backlog/34-failed-payouts.md), as the session decided it.
+schemaVersion: 1
+feature: failed-payouts
+intent: A failed payout is paid again; a disabled account holds what is due.
+done: false
+hotSpots:
+- question: Again?
+  decision: A failed Payout gives way to a new one at the next sweep; never both paid.
+contexts:
+- id: Payments
+  commands: []
+  queries: []
+  events:
+  - PayoutFailed
+  policies: []
+links: []

@@ -4,10 +4,11 @@
  * run's final tree, whatever the arm:
  *
  *   node .claude/flow/grade.mjs --project <dir> --ref <ref> --base <created commit> --kit <dir> [--tooling <clean-ddd.tgz>] [--out <file.json>]
- *                               [--control plain|prose] [--upto <n>] [--keep false]
+ *                               [--control plain|prose] [--upto <n>] [--only <id,id>] [--keep false]
  *
  * `--upto <n>` grades the features numbered up to n only: the feature an attempt wrote and the
- * ones before it, for regressions (OpenStay's ladder, run-ladder.mjs). `--keep false` removes the
+ * ones before it, for regressions (OpenStay's ladder, run-ladder.mjs). `--only <ids>` grades
+ * those features alone, as the ladder replays a failure before it escalates. `--keep false` removes the
  * graded worktree afterwards, so that no agent working beside it can read the hidden tests.
  *
  * In a worktree of its own at `ref`, it copies the kit's acceptance tests beside their support
@@ -40,9 +41,12 @@ const base = required('base');
 const kit = resolve(required('kit'));
 const yaml = createRequire(join(project, 'package.json'))('js-yaml');
 const upto = option('upto');
+// `--only a,b`: those features alone, as the ladder replays a failure before it escalates.
+const only = option('only')?.split(',');
 const backlog = yaml
   .load(readFileSync(join(kit, 'backlog/backlog.yaml'), 'utf8'))
-  .features.filter(f => upto === undefined || f.n <= Number(upto));
+  .features.filter(f => upto === undefined || f.n <= Number(upto))
+  .filter(f => only === undefined || only.includes(f.id));
 
 const cli = resolve(new URL('../../tools/dist/cli.js', import.meta.url).pathname);
 const git = (cwd, ...gitArgs) => execFileSync('git', gitArgs, { cwd, encoding: 'utf8' }).trim();
@@ -135,8 +139,19 @@ const m1 = {
     .map(step => ({ name: step.name, lines: (step.lines ?? []).slice(0, 30) })),
 };
 
+/**
+ * The hidden tests compute dates from today, and a file with crashes in it runs for minutes: a file
+ * never starts in the last ten minutes of a UTC day, it waits for the next one.
+ */
+const awayFromMidnight = () => {
+  const now = new Date();
+  const left = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1) - now.getTime();
+  if (left < 600_000) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, left + 5000);
+};
+
 const features = backlog.map(f => {
   const file = `${f.n}-${f.id}.acceptance.ts`;
+  awayFromMidnight();
   const run = sh(
     // A test that starts the server as a process of its own (the persistence experiment) is told its entry point.
     `ACCEPTANCE_ENTRY=${control === 'plain' ? 'src/server.ts' : 'src/Bootstrap/Fastify/application.ts'} yarn -s test --testMatch '**/${control === 'plain' ? 'acceptance' : 'Acceptance'}/${file}'`,

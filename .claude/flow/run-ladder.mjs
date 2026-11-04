@@ -26,6 +26,8 @@
  *      with `--fix` and the storm owing nothing for the clean arm; sent back `retry.perFeature` times;
  *   3. the hidden tests of this feature and of every feature before it, by grade.mjs, in a worktree
  *      of the grader's own, removed once graded, so that no agent ever reads them.
+ * A feature that fails 3 is graded again alone, in a worktree of its own, before anything is
+ * decided: only what fails again counts (the `replayed` event keeps both gradings).
  * The attempt delivers when 2 and 3 pass: `main` moves to it. Otherwise it escalates, and the reason
  * is recorded: `hidden` (its own test), `regression` (an earlier feature's), `ceiling` (the
  * supervisor stopped it), or `verdict` (the driver refused the tree). A feature the last model also
@@ -128,7 +130,9 @@ function sh(command, cwd, timeout = timeoutMs) {
     let out = '';
     child.stdout.on('data', chunk => (out += chunk));
     child.stderr.on('data', chunk => (out += chunk));
+    // A check stopped for its time says so: whoever reads its output (the agent, sent back) must know why it failed.
     const timer = setTimeout(() => {
+      out += `\n${command.split(' ').slice(0, 3).join(' ')}: stopped after ${Math.round(timeout / 60000)} minutes, the time this check is given.\n`;
       try {
         process.kill(-child.pid, 'SIGKILL');
       } catch {
@@ -174,11 +178,17 @@ function size(cwd) {
 const hasStorm = feature => existsSync(join(kit, 'storms', `${feature.id}.yaml`));
 const request = feature => readFileSync(join(kit, 'backlog', `${feature.n}-${feature.id}.md`), 'utf8').trim();
 const last = Math.max(...backlog.map(each => each.n));
+// A backlog entry of `kind: report` is a defect a user reported in what is already delivered, given
+// as a feature is (its request, its storm if any, its hidden test), and graded the same way.
+const opening = feature =>
+  feature.kind === 'report'
+    ? `${clean ? 'You are maintaining an application built on the clean-ddd architecture' : 'You are maintaining an application'}. A user reported a defect in what is already delivered; fix it.`
+    : clean
+      ? `You are writing an application built on the clean-ddd architecture, one feature at a time. This is feature ${feature.n} of ${last}; the earlier ones are in the code.`
+      : `You are writing an application, one feature at a time. This is feature ${feature.n} of ${last}; the earlier ones are in the code.`;
 const brief = (feature, from) =>
   [
-    clean
-      ? `You are writing an application built on the clean-ddd architecture, one feature at a time. This is feature ${feature.n} of ${last}; the earlier ones are in the code.`
-      : `You are writing an application, one feature at a time. This is feature ${feature.n} of ${last}; the earlier ones are in the code.`,
+    opening(feature),
     'Read `CLAUDE.md` first and follow it. Do not ask questions: decide, and say in your final report what was unclear.',
     '',
     ...(clean && hasStorm(feature)
@@ -196,7 +206,9 @@ const brief = (feature, from) =>
           `You are done when \`yarn verify\` passes. Commit your work on the current branch; do not push. If you start a server, use port ${port}.`,
         ]),
     '',
-    'The feature, in product words, with the API it answers:',
+    feature.kind === 'report'
+      ? "The report, in the user's words:"
+      : 'The feature, in product words, with the API it answers:',
     '',
     request(feature),
   ].join('\n');
@@ -232,12 +244,13 @@ async function verdict(feature, cwd, from) {
 }
 
 /** The hidden tests of the features up to this one, graded where no agent reads them. */
-async function hidden(feature, cwd) {
-  const out = join(runDir, `grade-${feature.id}-${Date.now()}.json`);
+async function hidden(feature, cwd, only) {
+  const out = join(runDir, `grade-${feature.id}-${only ? 'replay-' : ''}${Date.now()}.json`);
   const graded = await sh(
     [
       `node ${grader} --project ${project} --ref ${git(cwd, 'rev-parse', 'HEAD')} --base ${baseCommit}`,
       `--kit ${kit} --upto ${feature.n} --keep false --out ${out}`,
+      only ? `--only ${only.join(',')}` : '',
       clean ? (tooling ? `--tooling ${tooling}` : '') : '--control plain',
     ].join(' '),
     project,
@@ -248,6 +261,7 @@ async function hidden(feature, cwd) {
   const failing = report.features.filter(each => !each.M2.pass);
   return {
     graded: true,
+    failing: failing.map(each => each.feature),
     own: failing.filter(each => each.feature === feature.id).flatMap(each => each.M2.failed),
     earlier: failing.filter(each => each.feature !== feature.id).map(each => each.feature),
     report: out,
@@ -315,15 +329,32 @@ async function attempt(feature, step, from) {
   const wallClockMs = Date.now() - begun;
   if (result.stoppedBy) return { reason: 'ceiling', cwd, wallClockMs, lines: [`stopped by ${result.stoppedBy}`] };
   if (problems.length) return { reason: 'verdict', cwd, wallClockMs, lines: problems.slice(0, 80) };
-  const tests = await hidden(feature, cwd);
+  let tests = await hidden(feature, cwd);
   if (!tests.graded) return { reason: 'ungraded', cwd, wallClockMs, lines: tests.lines };
+  // A failure is replayed alone before it counts: graded beside three other trees, a server that
+  // did not answer in time failed five attempts of OpenStay's J3 that passed when replayed. Only
+  // what fails again escalates; both gradings are kept.
+  if (tests.failing.length) {
+    const replay = await hidden(feature, cwd, tests.failing);
+    event('replayed', {
+      feature: feature.id,
+      step,
+      failed: tests.failing,
+      still: replay.graded ? replay.failing : tests.failing,
+      first: tests.report,
+      report: replay.report,
+    });
+    if (replay.graded) tests = { ...replay, report: `${tests.report} ${replay.report}` };
+  }
   if (tests.own.length) return { reason: 'hidden', cwd, wallClockMs, lines: tests.own, report: tests.report };
   if (tests.earlier.length)
     return { reason: 'regression', cwd, wallClockMs, lines: tests.earlier, report: tests.report };
   return { reason: undefined, cwd, wallClockMs, report: tests.report };
 }
 
-const baseCommit = git(project, 'rev-parse', plan.base);
+// A resumed run keeps the commit it started from: its main has moved since, and the grader compares the dependencies,
+// and the gate the changes, with this commit.
+const baseCommit = before.find(each => each.event === 'started')?.baseCommit ?? git(project, 'rev-parse', plan.base);
 const started = Date.now();
 event(resuming ? 'resumed' : 'started', {
   arm: plan.arm,

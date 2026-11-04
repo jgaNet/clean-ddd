@@ -1,0 +1,22 @@
+# Feature 42 of OpenStay's J4 (../backlog/42-last-minute.md), as the session decided it.
+schemaVersion: 1
+feature: last-minute
+intent: A last-minute discount; the largest discount only.
+done: false
+hotSpots:
+- question: Which discount?
+  decision: 'Pricing''s rule: the largest that applies, one line.'
+contexts:
+- id: Pricing
+  commands:
+  - name: SetLastMinuteDiscount
+    actor: a signed-in account
+    route: PUT /listings/{param}/last-minute
+    aggregate: ListingPrices
+    events:
+    - LastMinuteDiscountSet
+  queries: []
+  events:
+  - LastMinuteDiscountSet
+  policies: []
+links: []

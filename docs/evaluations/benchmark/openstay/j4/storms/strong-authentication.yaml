@@ -1,0 +1,16 @@
+# Feature 28 of OpenStay's J4 (../backlog/28-strong-authentication.md), as the session decided it.
+schemaVersion: 1
+feature: strong-authentication
+intent: The provider may hold a payment for the traveller's action.
+done: false
+hotSpots:
+- question: A state of the payment?
+  decision: 'Yes: requires_action, with the provider''s actionUrl, reached only from an earlier state (U4).'
+contexts:
+- id: Payments
+  commands: []
+  queries: []
+  events:
+  - PaymentRequiresAction
+  policies: []
+links: []

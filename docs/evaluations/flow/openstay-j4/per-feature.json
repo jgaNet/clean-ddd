@@ -1,0 +1,926 @@
+{
+ "simple-1": {
+  "payout-accounts": {
+   "costUsd": 0.2493,
+   "agentMinutes": 17.5,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "pay-a-booking": {
+   "costUsd": 0.5177,
+   "agentMinutes": 26.9,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "strong-authentication": {
+   "costUsd": 0.0693,
+   "agentMinutes": 10.6,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "webhooks-as-they-come": {
+   "costUsd": 0.1636,
+   "agentMinutes": 17.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "unpaid-bookings-lapse": {
+   "costUsd": 2.9201,
+   "agentMinutes": 59,
+   "attempts": 3,
+   "deliveredAtStep": 0
+  },
+  "refunds": {
+   "costUsd": 0.2999,
+   "agentMinutes": 21.8,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "host-refunds": {
+   "costUsd": 0.4609,
+   "agentMinutes": 16.7,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "payouts": {
+   "costUsd": 0.3179,
+   "agentMinutes": 12.3,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "failed-payouts": {
+   "costUsd": 0.207,
+   "agentMinutes": 12.1,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "host-statement": {
+   "costUsd": 0.8578,
+   "agentMinutes": 83.3,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "direct-payment": {
+   "costUsd": 0.4567,
+   "agentMinutes": 22.5,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "reconciliation": {
+   "costUsd": 0.578,
+   "agentMinutes": 35.1,
+   "attempts": 3,
+   "deliveredAtStep": 0
+  },
+  "tourist-tax-collected": {
+   "costUsd": 0.1741,
+   "agentMinutes": 13.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "disputes": {
+   "costUsd": 0.4304,
+   "agentMinutes": 47.6,
+   "attempts": 3,
+   "deliveredAtStep": 0
+  },
+  "postgresql": {
+   "costUsd": 5.0659,
+   "agentMinutes": 136.2,
+   "attempts": 3,
+   "deliveredAtStep": 0
+  },
+  "extra-guest-fee": {
+   "costUsd": 0.2688,
+   "agentMinutes": 28,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "last-minute": {
+   "costUsd": 0.4476,
+   "agentMinutes": 20.8,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "promotion-codes": {
+   "costUsd": 0.6188,
+   "agentMinutes": 43.5,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "nightly-prices-on-the-quote": {
+   "costUsd": 0.2497,
+   "agentMinutes": 56.5,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "bulk-prices": {
+   "costUsd": 0.1239,
+   "agentMinutes": 15.4,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "receipts": {
+   "costUsd": 0.4718,
+   "agentMinutes": 69.5,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "weekly-payouts": {
+   "costUsd": 1.5123,
+   "agentMinutes": 75.8,
+   "attempts": 3,
+   "deliveredAtStep": 0
+  },
+  "earnings-by-month": {
+   "costUsd": 0.0571,
+   "agentMinutes": 19.3,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "traveller-export": {
+   "costUsd": 0.4091,
+   "agentMinutes": 60.3,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "closing-an-account": {
+   "costUsd": 0.4651,
+   "agentMinutes": 32.9,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  }
+ },
+ "simple-2": {
+  "payout-accounts": {
+   "costUsd": 0.1296,
+   "agentMinutes": 12.9,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "pay-a-booking": {
+   "costUsd": 0.2777,
+   "agentMinutes": 13.7,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "strong-authentication": {
+   "costUsd": 0.3302,
+   "agentMinutes": 16,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "webhooks-as-they-come": {
+   "costUsd": 0.2069,
+   "agentMinutes": 18.5,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "unpaid-bookings-lapse": {
+   "costUsd": 1.5676,
+   "agentMinutes": 59.1,
+   "attempts": 2,
+   "deliveredAtStep": 0
+  },
+  "refunds": {
+   "costUsd": 0.5283,
+   "agentMinutes": 35.4,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "host-refunds": {
+   "costUsd": 0.5017,
+   "agentMinutes": 17.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "payouts": {
+   "costUsd": 0.7244,
+   "agentMinutes": 23.5,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "failed-payouts": {
+   "costUsd": 0.0407,
+   "agentMinutes": 21.4,
+   "attempts": 2,
+   "deliveredAtStep": 0
+  },
+  "host-statement": {
+   "costUsd": 0.3631,
+   "agentMinutes": 15.1,
+   "attempts": 2,
+   "deliveredAtStep": 0
+  },
+  "direct-payment": {
+   "costUsd": 0.7271,
+   "agentMinutes": 44.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "reconciliation": {
+   "costUsd": 0.2954,
+   "agentMinutes": 23.4,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "tourist-tax-collected": {
+   "costUsd": 0.3245,
+   "agentMinutes": 20.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "disputes": {
+   "costUsd": 1.0486,
+   "agentMinutes": 25.9,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "postgresql": {
+   "costUsd": 1.3082,
+   "agentMinutes": 57.7,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "extra-guest-fee": {
+   "costUsd": 0.6609,
+   "agentMinutes": 32.3,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "last-minute": {
+   "costUsd": 0.2499,
+   "agentMinutes": 25.9,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "promotion-codes": {
+   "costUsd": 0.5798,
+   "agentMinutes": 36.5,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "nightly-prices-on-the-quote": {
+   "costUsd": 0.2537,
+   "agentMinutes": 55.1,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "bulk-prices": {
+   "costUsd": 0.3482,
+   "agentMinutes": 53.9,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "receipts": {
+   "costUsd": 0.1691,
+   "agentMinutes": 27.6,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "weekly-payouts": {
+   "costUsd": 0.7883,
+   "agentMinutes": 45.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "earnings-by-month": {
+   "costUsd": 0.101,
+   "agentMinutes": 23.4,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "traveller-export": {
+   "costUsd": 0.2408,
+   "agentMinutes": 17.8,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "closing-an-account": {
+   "costUsd": 0.3894,
+   "agentMinutes": 22.4,
+   "attempts": 2,
+   "deliveredAtStep": 0
+  }
+ },
+ "simple-3": {
+  "payout-accounts": {
+   "costUsd": 0.4084,
+   "agentMinutes": 20.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "pay-a-booking": {
+   "costUsd": 0.4899,
+   "agentMinutes": 18.6,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "strong-authentication": {
+   "costUsd": 0.1019,
+   "agentMinutes": 11.8,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "webhooks-as-they-come": {
+   "costUsd": 0.2618,
+   "agentMinutes": 22.9,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "unpaid-bookings-lapse": {
+   "costUsd": 0.9459,
+   "agentMinutes": 31.7,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "refunds": {
+   "costUsd": 0.513,
+   "agentMinutes": 38.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "host-refunds": {
+   "costUsd": 0.6126,
+   "agentMinutes": 18.5,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "payouts": {
+   "costUsd": 0.8756,
+   "agentMinutes": 28.3,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "failed-payouts": {
+   "costUsd": 0.2188,
+   "agentMinutes": 32.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "host-statement": {
+   "costUsd": 0.153,
+   "agentMinutes": 6.4,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "direct-payment": {
+   "costUsd": 0.2774,
+   "agentMinutes": 16.9,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "reconciliation": {
+   "costUsd": 0.5793,
+   "agentMinutes": 31.1,
+   "attempts": 2,
+   "deliveredAtStep": 0
+  },
+  "tourist-tax-collected": {
+   "costUsd": 0.1194,
+   "agentMinutes": 6.7,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "disputes": {
+   "costUsd": 0.2776,
+   "agentMinutes": 17.1,
+   "attempts": 2,
+   "deliveredAtStep": 0
+  },
+  "postgresql": {
+   "costUsd": 5.7848,
+   "agentMinutes": 29.6,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "extra-guest-fee": {
+   "costUsd": 0.8006,
+   "agentMinutes": 25.4,
+   "attempts": 2,
+   "deliveredAtStep": 1
+  },
+  "last-minute": {
+   "costUsd": 0.1515,
+   "agentMinutes": 13.1,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "promotion-codes": {
+   "costUsd": 0.5351,
+   "agentMinutes": 30.3,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "nightly-prices-on-the-quote": {
+   "costUsd": 0.2494,
+   "agentMinutes": 19.7,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "bulk-prices": {
+   "costUsd": 0.1316,
+   "agentMinutes": 11.9,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "receipts": {
+   "costUsd": 0.2877,
+   "agentMinutes": 12.1,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "weekly-payouts": {
+   "costUsd": 0.35,
+   "agentMinutes": 13.8,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "earnings-by-month": {
+   "costUsd": 0.1209,
+   "agentMinutes": 8.1,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "traveller-export": {
+   "costUsd": 0.1159,
+   "agentMinutes": 7.7,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "closing-an-account": {
+   "costUsd": 0.2145,
+   "agentMinutes": 14.3,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  }
+ },
+ "clean-1": {
+  "hosts-own-routes": {
+   "costUsd": 0.0691,
+   "agentMinutes": 6.4,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "payout-accounts": {
+   "costUsd": 2.1106,
+   "agentMinutes": 24.8,
+   "attempts": 2,
+   "deliveredAtStep": 1
+  },
+  "pay-a-booking": {
+   "costUsd": 0.8957,
+   "agentMinutes": 16,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "strong-authentication": {
+   "costUsd": 0.1872,
+   "agentMinutes": 6.7,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "webhooks-as-they-come": {
+   "costUsd": 0.3281,
+   "agentMinutes": 10.6,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "unpaid-bookings-lapse": {
+   "costUsd": 3.0594,
+   "agentMinutes": 34.6,
+   "attempts": 2,
+   "deliveredAtStep": 1
+  },
+  "refunds": {
+   "costUsd": 2.1767,
+   "agentMinutes": 30.7,
+   "attempts": 2,
+   "deliveredAtStep": 1
+  },
+  "host-refunds": {
+   "costUsd": 1.0641,
+   "agentMinutes": 18.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "payouts": {
+   "costUsd": 0.6394,
+   "agentMinutes": 12.6,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "failed-payouts": {
+   "costUsd": 0.7864,
+   "agentMinutes": 14.6,
+   "attempts": 2,
+   "deliveredAtStep": 1
+  },
+  "host-statement": {
+   "costUsd": 0.4815,
+   "agentMinutes": 9.4,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "direct-payment": {
+   "costUsd": 0.3656,
+   "agentMinutes": 9.4,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "reconciliation": {
+   "costUsd": 0.5655,
+   "agentMinutes": 12.6,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "tourist-tax-collected": {
+   "costUsd": 0.8763,
+   "agentMinutes": 15.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "disputes": {
+   "costUsd": 0.3986,
+   "agentMinutes": 12.1,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "postgresql": {
+   "costUsd": 2.7187,
+   "agentMinutes": 42.1,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "extra-guest-fee": {
+   "costUsd": 0.9518,
+   "agentMinutes": 16.4,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "last-minute": {
+   "costUsd": 0.8232,
+   "agentMinutes": 13.3,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "promotion-codes": {
+   "costUsd": 0.733,
+   "agentMinutes": 21.9,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "nightly-prices-on-the-quote": {
+   "costUsd": 0.5173,
+   "agentMinutes": 14.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "bulk-prices": {
+   "costUsd": 0.5956,
+   "agentMinutes": 16.6,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "receipts": {
+   "costUsd": 1.3909,
+   "agentMinutes": 37.2,
+   "attempts": 5,
+   "deliveredAtStep": 0
+  },
+  "weekly-payouts": {
+   "costUsd": 2.8498,
+   "agentMinutes": 56.4,
+   "attempts": 2,
+   "deliveredAtStep": 1
+  },
+  "earnings-by-month": {
+   "costUsd": 0.2389,
+   "agentMinutes": 15.3,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "traveller-export": {
+   "costUsd": 0.9571,
+   "agentMinutes": 33.4,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "closing-an-account": {
+   "costUsd": 1.0582,
+   "agentMinutes": 24.4,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  }
+ },
+ "clean-2": {
+  "payout-accounts": {
+   "costUsd": 2.351,
+   "agentMinutes": 30.3,
+   "attempts": 2,
+   "deliveredAtStep": 1
+  },
+  "pay-a-booking": {
+   "costUsd": 1.2682,
+   "agentMinutes": 22.8,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "strong-authentication": {
+   "costUsd": 0.5071,
+   "agentMinutes": 10.3,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "webhooks-as-they-come": {
+   "costUsd": 0.0844,
+   "agentMinutes": 18.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "unpaid-bookings-lapse": {
+   "costUsd": 4.8859,
+   "agentMinutes": 62.4,
+   "attempts": 3,
+   "deliveredAtStep": 0
+  },
+  "refunds": {
+   "costUsd": 0.903,
+   "agentMinutes": 20.8,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "host-refunds": {
+   "costUsd": 1.6589,
+   "agentMinutes": 24.4,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "payouts": {
+   "costUsd": 0.9305,
+   "agentMinutes": 25,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "failed-payouts": {
+   "costUsd": 0,
+   "agentMinutes": 11.6,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "host-statement": {
+   "costUsd": 0.5726,
+   "agentMinutes": 13.9,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "direct-payment": {
+   "costUsd": 0.9125,
+   "agentMinutes": 14.5,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "reconciliation": {
+   "costUsd": 1.1742,
+   "agentMinutes": 13.4,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "tourist-tax-collected": {
+   "costUsd": 0.8538,
+   "agentMinutes": 22.7,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "disputes": {
+   "costUsd": 0.8073,
+   "agentMinutes": 21.9,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "postgresql": {
+   "costUsd": 3.3141,
+   "agentMinutes": 50.3,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "extra-guest-fee": {
+   "costUsd": 13.7281,
+   "agentMinutes": 75.9,
+   "attempts": 2,
+   "deliveredAtStep": 1
+  },
+  "last-minute": {
+   "costUsd": 0.6946,
+   "agentMinutes": 24.1,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "promotion-codes": {
+   "costUsd": 1.3189,
+   "agentMinutes": 46.9,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "nightly-prices-on-the-quote": {
+   "costUsd": 0.6391,
+   "agentMinutes": 20.8,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "bulk-prices": {
+   "costUsd": 2.567,
+   "agentMinutes": 111.6,
+   "attempts": 3,
+   "deliveredAtStep": 2
+  },
+  "receipts": {
+   "costUsd": 0.9756,
+   "agentMinutes": 25.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "weekly-payouts": {
+   "costUsd": 0.8713,
+   "agentMinutes": 32.6,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "earnings-by-month": {
+   "costUsd": 0.2329,
+   "agentMinutes": 11.5,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "traveller-export": {
+   "costUsd": 0.669,
+   "agentMinutes": 10.9,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "closing-an-account": {
+   "costUsd": 0.5813,
+   "agentMinutes": 23.9,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  }
+ },
+ "clean-3": {
+  "hosts-own-routes": {
+   "costUsd": 2.3501,
+   "agentMinutes": 14.1,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "payout-accounts": {
+   "costUsd": 1.0757,
+   "agentMinutes": 23,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "pay-a-booking": {
+   "costUsd": 3.6869,
+   "agentMinutes": 21.6,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "strong-authentication": {
+   "costUsd": 0.3435,
+   "agentMinutes": 10.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "webhooks-as-they-come": {
+   "costUsd": 0.1016,
+   "agentMinutes": 8.6,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "unpaid-bookings-lapse": {
+   "costUsd": 1.4978,
+   "agentMinutes": 25.6,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "refunds": {
+   "costUsd": 1.9365,
+   "agentMinutes": 17.1,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "host-refunds": {
+   "costUsd": 1.2376,
+   "agentMinutes": 24.7,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "payouts": {
+   "costUsd": 0.759,
+   "agentMinutes": 14.5,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "failed-payouts": {
+   "costUsd": 0.4015,
+   "agentMinutes": 17.3,
+   "attempts": 2,
+   "deliveredAtStep": 0
+  },
+  "host-statement": {
+   "costUsd": 0.4505,
+   "agentMinutes": 11.8,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "direct-payment": {
+   "costUsd": 0.8662,
+   "agentMinutes": 12.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "reconciliation": {
+   "costUsd": 1.2917,
+   "agentMinutes": 11.7,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "tourist-tax-collected": {
+   "costUsd": 1.1541,
+   "agentMinutes": 20.3,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "disputes": {
+   "costUsd": 0.8429,
+   "agentMinutes": 20.7,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "postgresql": {
+   "costUsd": 5.7196,
+   "agentMinutes": 64.3,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "extra-guest-fee": {
+   "costUsd": 2.9055,
+   "agentMinutes": 39.6,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "last-minute": {
+   "costUsd": 0.4254,
+   "agentMinutes": 18.2,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "promotion-codes": {
+   "costUsd": 1.357,
+   "agentMinutes": 33.6,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "nightly-prices-on-the-quote": {
+   "costUsd": 0.7064,
+   "agentMinutes": 21,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "bulk-prices": {
+   "costUsd": 0.6458,
+   "agentMinutes": 30.9,
+   "attempts": 2,
+   "deliveredAtStep": 0
+  },
+  "receipts": {
+   "costUsd": 0.8182,
+   "agentMinutes": 25.8,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "weekly-payouts": {
+   "costUsd": 12.0393,
+   "agentMinutes": 24.1,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "earnings-by-month": {
+   "costUsd": 0.1296,
+   "agentMinutes": 16.7,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  },
+  "traveller-export": {
+   "costUsd": 1.3534,
+   "agentMinutes": 40.8,
+   "attempts": 2,
+   "deliveredAtStep": 1
+  },
+  "closing-an-account": {
+   "costUsd": 0.7556,
+   "agentMinutes": 24.5,
+   "attempts": 1,
+   "deliveredAtStep": 0
+  }
+ }
+}

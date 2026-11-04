@@ -1,0 +1,41 @@
+# Feature 31 of OpenStay's J4 (../backlog/31-refunds.md), as the session decided it.
+schemaVersion: 1
+feature: refunds
+intent: 'A cancelled paid booking is refunded through the provider: owed, pending, refunded.'
+done: false
+hotSpots:
+- question: Whose aggregate?
+  decision: A Refund in Payments, opened by Booking's cancellation event, which carries the refundable amount.
+- question: A failure?
+  decision: The Refund is asked again by the sweep until the provider says it succeeded.
+contexts:
+- id: Booking
+  commands: []
+  queries: []
+  events: []
+  policies:
+  - 'on': BookingCancelled
+    kind: domain-event
+    publishes:
+    - BookingCancelled
+    events: []
+- id: Payments
+  commands: []
+  queries: []
+  events:
+  - RefundFailed
+  - RefundOwed
+  - RefundRequested
+  - RefundSucceeded
+  policies:
+  - 'on': BookingCancelled
+    kind: integration-event
+    publishes: []
+    events:
+    - RefundOwed
+links:
+- mechanism: integration-event
+  upstream: Booking
+  downstream: Payments
+  contracts:
+  - BookingCancelled

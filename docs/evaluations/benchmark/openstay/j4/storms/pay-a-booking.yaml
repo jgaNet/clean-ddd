@@ -1,0 +1,69 @@
+# Feature 27 of OpenStay's J4 (../backlog/27-pay-a-booking.md), as the session decided it.
+schemaVersion: 1
+feature: pay-a-booking
+intent: A confirmed booking owes its total; the traveller pays at the provider, and the booking is paid when the provider
+  says so.
+done: false
+hotSpots:
+- question: What opens a payment?
+  decision: 'Booking''s BookingConfirmed integration event (it already exists, for notices) and the accepted request: Payments
+    opens a Payment due, one per booking (U2).'
+- question: Paying again?
+  decision: 'The Payment returns the one under way: the aggregate''s rule.'
+- question: How does Booking show it?
+  decision: Through a port Booking owns over Payments' read model (U2).
+- question: The fee?
+  decision: Taken from payment.succeeded as it is, never computed.
+contexts:
+- id: Payments
+  commands:
+  - name: PayBooking
+    actor: a signed-in account
+    route: POST /bookings/{param}/pay
+    aggregate: Payment
+    events:
+    - PaymentStarted
+  queries: []
+  events:
+  - PaymentDue
+  - PaymentFailed
+  - PaymentStarted
+  - PaymentSucceeded
+  policies:
+  - 'on': BookingConfirmed
+    kind: integration-event
+    publishes: []
+    events:
+    - PaymentDue
+  - 'on': PaymentSucceeded
+    kind: domain-event
+    publishes:
+    - BookingPaid
+    events: []
+- id: Booking
+  commands: []
+  queries: []
+  events:
+  - BookingMarkedPaid
+  policies:
+  - 'on': BookingPaid
+    kind: integration-event
+    publishes: []
+    events:
+    - BookingMarkedPaid
+links:
+- mechanism: integration-event
+  upstream: Booking
+  downstream: Payments
+  contracts:
+  - BookingConfirmed
+- mechanism: integration-event
+  upstream: Payments
+  downstream: Booking
+  contracts:
+  - BookingPaid
+- mechanism: owned-port
+  upstream: Payments
+  downstream: Booking
+  contracts:
+  - PaymentStatus

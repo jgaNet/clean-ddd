@@ -1,0 +1,22 @@
+# Feature 33 of OpenStay's J4 (../backlog/33-payouts.md), as the session decided it.
+schemaVersion: 1
+feature: payouts
+intent: The host is paid what each stay earned, once, after the check-in, through the provider.
+done: false
+hotSpots:
+- question: Never twice?
+  decision: A Payout aggregate per booking, opened once by the sweep (a key on the booking).
+- question: No account yet?
+  decision: The payout waits until the PayoutAccount is enabled.
+contexts:
+- id: Payments
+  commands: []
+  queries:
+  - name: GetMyPayouts
+    actor: a signed-in account
+    route: GET /hosts/me/payouts
+  events:
+  - PayoutPaid
+  - PayoutRequested
+  policies: []
+links: []
