@@ -45,6 +45,6 @@ The five fail on the solvability tree's P2 and on no other probe.
 An agent wrote the three probes on the solvability tree from the requests, each on its own branch from the tree's J5 end (`c33599f`): P1 `911e3d5`, +583/−42 in 8 files; P2 `e754d5f`, +59/−21 in 6 files; P3 `0f5f5e7`, +221/−8 in 3 files. Each probe's own test passes (9, 5 and 7 cases), and each branch's `yarn verify`. Graded on 1 to 100:
 - P1 passes all 101 files;
 - P2 fails the five cases above, and nothing else;
-- P3 fails one case of 97, a sweep's timing, which passed when graded again ([the ladder's README](../../README.md#how-it-was-checked-before-use)).
+- P3 fails one case of 97, the defect of the test found and fixed then ([the kit's README](../../README.md#how-it-was-checked-before-use)).
 
 It found no case of a probe's test that asserts what its request does not say.

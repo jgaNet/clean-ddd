@@ -168,7 +168,7 @@ describe('import conflicts', () => {
       expect(
         await eventually(
           () => night(id, at),
-          found => found?.source === 'import',
+          found => found?.available === false && found?.source === 'import',
           60000,
         ),
       ).toMatchObject({ available: false, source: 'import' });

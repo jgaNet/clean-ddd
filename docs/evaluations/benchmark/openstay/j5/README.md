@@ -35,7 +35,7 @@ The phase is the framing's phases 3 and 4 ([j0](../j0.md#the-later-phases)):
 - **The tests are solvable.** Agents wrote requests 51 to 100 on the J4 solvability tree (`3b83518` to `c33599f`), in batches of ten, from the requests alone, told never to bend the code away from a request. They found these defects of the kit, each fixed before any run:
   - 63 signed up the same email twice; 66 read a booking with the token of an account it had just suspended, which 66 refuses; 79 sent its unsigned request with a token;
   - four older tests (35, 37, 38, 48) compared whole answers that the currencies of 87 and 89 add fields to; they now compare the fields they assert;
-  - 97 waited 20 seconds for a calendar sweep, which a full grading under load once missed; it waits up to a minute.
+  - 97 failed three times in six under load, on the night a booking frees. It waited until the night's `source` was `import`, then asserted that the night was blocked too, so a tree read between the two failed. It now waits for both, up to a minute instead of 20 seconds.
 
   The solved tree passes all 101 files and `yarn verify`.
 - **The trees' own checks pass on the kit's files.** The tests are formatted as the trees' Prettier formats them, and typecheck with unused imports refused, since a Clean DDD tree's gate runs its formatter and its type checker over them.
