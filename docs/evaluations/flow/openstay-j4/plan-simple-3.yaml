@@ -1,0 +1,12 @@
+run: j4-simple-3
+arm: simple
+kit: ./docs/evaluations/benchmark/openstay/j4
+base: main
+features: [payout-accounts, pay-a-booking, strong-authentication, webhooks-as-they-come, unpaid-bookings-lapse, refunds, host-refunds, payouts, failed-payouts, host-statement, direct-payment, reconciliation, tourist-tax-collected, disputes, postgresql, extra-guest-fee, last-minute, promotion-codes, nightly-prices-on-the-quote, bulk-prices, receipts, weekly-payouts, earnings-by-month, traveller-export, closing-an-account]
+ladder: [smallest, intermediate, strongest]
+agent: { runner: claude-cli, timeoutMinutes: 90 }
+retry: { perFeature: 1 }
+budgetUsd: 30
+agentBudgetUsd: 6
+dependencies: copy
+ports: { base: 19660 }
