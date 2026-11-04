@@ -53,7 +53,7 @@ class GreetHandler(CommandHandler[Greet]):
             return Failure(ConcurrencyConflictException("Test", "The greeter changed since it was read"))
         greeter = Greeter(Id("greeter"))
         greeter.greet(command.name)
-        self.publish_domain_events(greeter, context)
+        await self.publish_domain_events(greeter, context)
         return Success(f"Hello {command.name}")
 
 
@@ -123,7 +123,7 @@ async def test_runs_the_use_case_inside_a_transaction_and_publishes_the_domain_e
     assert unit_of_work.log == ["begin", "commit", "publish"]
     assert bus.published == [Greeted(name="Alice")]
     assert bus.message_ids and isinstance(bus.message_ids[0], str)
-    assert unit_of_work.outbox.pending() == []
+    assert await unit_of_work.outbox.pending() == []
 
 
 async def test_runs_the_use_case_again_from_a_fresh_read_when_it_lost_a_race_and_answers_with_the_second_run() -> None:

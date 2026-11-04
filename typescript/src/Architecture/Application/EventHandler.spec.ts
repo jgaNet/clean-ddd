@@ -73,7 +73,7 @@ class OnGreetedSaveAndTell extends EventHandler<Greeted> {
     await Promise.resolve();
     for (const who of ['ann', 'bob']) {
       this.store.collection.set(who, 'told');
-      publishIntegrationEvent(Told.set({ who }), context);
+      await publishIntegrationEvent(Told.set({ who }), context);
       if (payload.then === 'fail' && who === 'bob') return Result.fail(new NotFoundException('Test', 'bob is gone'));
     }
     return Result.ok();
@@ -106,7 +106,7 @@ describe('a reaction', () => {
       ['ann', 'string'],
       ['bob', 'string'],
     ]);
-    expect(outbox.pending()).toEqual([]);
+    expect(await outbox.pending()).toEqual([]);
   });
 
   it('undoes all of it when it fails half-way: nothing saved, nothing told, so a second delivery starts clean', async () => {
@@ -117,7 +117,7 @@ describe('a reaction', () => {
     expect(done.status).toBe(OperationStatus.ERROR);
     expect(store.collection.size).toBe(0);
     expect(published).not.toHaveBeenCalled();
-    expect(outbox.pending()).toEqual([]);
+    expect(await outbox.pending()).toEqual([]);
   });
 
   it('runs beside another reaction to the same fact, and beside the open transaction that published it', async () => {

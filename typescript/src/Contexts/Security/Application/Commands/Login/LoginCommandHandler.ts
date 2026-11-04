@@ -35,7 +35,7 @@ export class LoginCommandHandler extends CommandHandler<LoginCommandEvent> {
     if (authenticated.isFailure()) return authenticated;
 
     await this.accountRepository.save(account);
-    this.publishDomainEvents(account, context);
+    await this.publishDomainEvents(account, context);
 
     const token = await this.signedTokens.issue({ subjectId: account._id.value, subjectType: account.role });
     return Result.ok({ token });

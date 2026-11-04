@@ -34,7 +34,7 @@ export class ShareNoteCommandHandler extends CommandHandler<ShareNoteCommandEven
 
     const saved = await this.noteRepository.save(note);
     if (saved.isFailure()) return saved;
-    this.publishDomainEvents(note, context);
+    await this.publishDomainEvents(note, context);
 
     return Result.ok();
   }

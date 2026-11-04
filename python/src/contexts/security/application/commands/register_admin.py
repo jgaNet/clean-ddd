@@ -48,5 +48,5 @@ class RegisterAdminCommandHandler(CommandHandler[RegisterAdminCommandEvent]):
             return account
 
         await self._accounts.save(account.data)
-        self.publish_domain_events(account.data, context)
+        await self.publish_domain_events(account.data, context)
         return Success(account.data.id.value)

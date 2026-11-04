@@ -44,7 +44,7 @@ class ValidateAccountCommandHandler(CommandHandler[ValidateAccountCommandEvent])
             return validated
 
         await self._accounts.save(account)
-        self.publish_domain_events(account, context)
+        await self.publish_domain_events(account, context)
         return Success(account.id.value)
 
     async def _account_id_allowed_for(

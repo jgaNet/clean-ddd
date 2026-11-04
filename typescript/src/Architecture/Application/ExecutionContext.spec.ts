@@ -62,16 +62,16 @@ describe('ExecutionContext.afterCommit', () => {
 
     await context.withTransaction(async () => {
       context.afterCommit(() => unitOfWork.log.push('callback'));
-      context.beforeCommit(() => {
+      void context.beforeCommit(async () => {
         unitOfWork.log.push('before commit');
-        unitOfWork.outbox.append([new (class extends Event<string> {})({ payload: 'fact', name: 'Fact' })]);
+        await unitOfWork.outbox.append([new (class extends Event<string> {})({ payload: 'fact', name: 'Fact' })]);
       });
       unitOfWork.log.push('work');
       return Result.ok();
     });
 
     expect(unitOfWork.log).toEqual(['begin', 'work', 'before commit', 'commit', 'publish', 'callback']);
-    expect(unitOfWork.outbox.pending()).toEqual([]);
+    expect(await unitOfWork.outbox.pending()).toEqual([]);
   });
 
   it('drops the beforeCommit step, with the callback, when the transaction fails', async () => {
@@ -79,7 +79,9 @@ describe('ExecutionContext.afterCommit', () => {
     const context = contextWith(unitOfWork);
 
     await context.withTransaction(async () => {
-      context.beforeCommit(() => unitOfWork.log.push('before commit'));
+      void context.beforeCommit(() => {
+        unitOfWork.log.push('before commit');
+      });
       return Result.fail(new UnknownException('nope'));
     });
 
@@ -123,7 +125,9 @@ describe('ExecutionContext.afterCommit', () => {
 
     await expect(
       context.withTransaction(async () => {
-        context.beforeCommit(() => unitOfWork.log.push('stale step'));
+        void context.beforeCommit(() => {
+          unitOfWork.log.push('stale step');
+        });
         context.afterCommit(() => unitOfWork.log.push('stale callback'));
         return Result.fail(new Error('refused'));
       }),

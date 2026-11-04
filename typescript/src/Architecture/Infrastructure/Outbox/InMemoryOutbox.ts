@@ -18,7 +18,7 @@ export class InMemoryOutbox implements Outbox {
 
   readonly store = new InMemoryDataSource<OutboxEntry>();
 
-  append(events: Event<unknown>[]): OutboxEntry[] {
+  async append(events: Event<unknown>[]): Promise<OutboxEntry[]> {
     return events.map(event => {
       const entry = { id: uuidv4(), event };
       this.store.collection.set(entry.id, entry);
@@ -26,11 +26,11 @@ export class InMemoryOutbox implements Outbox {
     });
   }
 
-  pending(): OutboxEntry[] {
+  async pending(): Promise<OutboxEntry[]> {
     return [...this.store.collection.values()];
   }
 
-  markPublished(id: string): void {
+  async markPublished(id: string): Promise<void> {
     this.store.collection.delete(id);
   }
 }

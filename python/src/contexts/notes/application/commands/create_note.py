@@ -33,6 +33,6 @@ class CreateNoteCommandHandler(CommandHandler[CreateNoteCommandEvent]):
         saved = await self._notes.save(note.data)
         if isinstance(saved, Failure):
             return saved
-        self.publish_domain_events(note.data, context)
+        await self.publish_domain_events(note.data, context)
 
         return Success(note.data.id.value)

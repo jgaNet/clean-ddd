@@ -32,7 +32,7 @@ export class ValidateAccountCommandHandler extends CommandHandler<ValidateAccoun
     if (validated.isFailure()) return validated;
 
     await this.accountRepository.save(account);
-    this.publishDomainEvents(account, context);
+    await this.publishDomainEvents(account, context);
 
     return Result.ok(account._id.value);
   }

@@ -13,15 +13,15 @@ class Greeted(DomainEvent):
     name: str
 
 
-def test_keeps_what_is_appended_pending_oldest_first_until_it_is_marked_published() -> None:
+async def test_keeps_what_is_appended_pending_oldest_first_until_it_is_marked_published() -> None:
     outbox = InMemoryOutbox()
-    first, second = outbox.append([Greeted(name="alice"), Greeted(name="bob")])
+    first, second = await outbox.append([Greeted(name="alice"), Greeted(name="bob")])
 
-    assert outbox.pending() == [first, second]
+    assert await outbox.pending() == [first, second]
     assert first.id != second.id
 
-    outbox.mark_published(first.id)
-    assert outbox.pending() == [second]
+    await outbox.mark_published(first.id)
+    assert await outbox.pending() == [second]
 
 
 async def test_is_rolled_back_with_the_transaction_that_appended_to_it_and_kept_by_one_that_commits() -> None:
@@ -29,11 +29,11 @@ async def test_is_rolled_back_with_the_transaction_that_appended_to_it_and_kept_
     unit_of_work = InMemoryUnitOfWork([outbox.store], outbox)
 
     await unit_of_work.begin_transaction()
-    outbox.append([Greeted(name="rolled back")])
+    await outbox.append([Greeted(name="rolled back")])
     await unit_of_work.rollback_transaction()
-    assert outbox.pending() == []
+    assert await outbox.pending() == []
 
     await unit_of_work.begin_transaction()
-    outbox.append([Greeted(name="committed")])
+    await outbox.append([Greeted(name="committed")])
     await unit_of_work.commit_transaction()
-    assert [entry.event for entry in outbox.pending()] == [Greeted(name="committed")]
+    assert [entry.event for entry in await outbox.pending()] == [Greeted(name="committed")]

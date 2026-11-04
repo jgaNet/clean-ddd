@@ -3,7 +3,9 @@ the in-memory unit of work snapshots it when a transaction begins and puts it ba
 rollback: an entry appended by a transaction that fails is gone with the transaction's other
 writes, which is the whole point of writing the facts where the state is. Insertion order is
 publication order; a published entry is dropped rather than flagged, since nothing here reads
-history. One per process, shared by every request's unit of work (see the bootstrap).
+history. One per process, shared by every request's unit of work (see the bootstrap). Its
+methods are async because the port's are: a durable outbox is a table, and this one stands in
+for it.
 """
 
 from __future__ import annotations
@@ -24,16 +26,16 @@ class InMemoryOutbox:
     def __init__(self) -> None:
         self.store: InMemoryDataSource[OutboxEntry] = InMemoryDataSource()
 
-    def append(self, events: Sequence[Event]) -> list[OutboxEntry]:
+    async def append(self, events: Sequence[Event]) -> list[OutboxEntry]:
         entries = [OutboxEntry(id=str(uuid4()), event=event) for event in events]
         for entry in entries:
             self.store.collection[entry.id] = entry
         return entries
 
-    def pending(self) -> list[OutboxEntry]:
+    async def pending(self) -> list[OutboxEntry]:
         return list(self.store.collection.values())
 
-    def mark_published(self, id: str) -> None:
+    async def mark_published(self, id: str) -> None:
         self.store.collection.pop(id, None)
 
 

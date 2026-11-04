@@ -57,5 +57,5 @@ class NotificationDelivery:
                 break
 
         await self._notifications.save(notification)
-        publish_domain_events(notification, context)
+        await publish_domain_events(notification, context)
         return Success(notification.id.value)

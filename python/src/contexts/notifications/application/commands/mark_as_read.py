@@ -32,5 +32,5 @@ class MarkAsReadNotificationCommandHandler(CommandHandler[MarkAsReadNotification
             return read
 
         await self._notifications.save(notification)
-        self.publish_domain_events(notification, context)
+        await self.publish_domain_events(notification, context)
         return OK

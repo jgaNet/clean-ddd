@@ -54,7 +54,7 @@ export class NotificationDelivery {
     }
 
     await this.notifications.save(notification);
-    publishDomainEvents(notification, context);
+    await publishDomainEvents(notification, context);
 
     return Result.ok(notification._id.value);
   }

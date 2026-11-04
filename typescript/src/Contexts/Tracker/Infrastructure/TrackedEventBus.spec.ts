@@ -81,9 +81,21 @@ describe('TrackedEventBus', () => {
     bus.publish(Greet.set({ name: 'nobody' }), contextFor('alice'));
     await flush();
 
-    expect(completions.map(event => event.payload.status)).toEqual([OperationStatus.SUCCESS, OperationStatus.ERROR]);
-    expect(completions[0].payload).toMatchObject({ userId: 'alice', type: 'Greet', result: 'Hello Alice' });
-    expect(completions[1].payload).toMatchObject({ userId: 'alice', type: 'Greet', error: 'Nobody to greet' });
+    // Two commands run side by side: each is told once, in whichever order they finish.
+    const byStatus = (status: OperationStatus) => completions.filter(event => event.payload.status === status);
+    expect(completions).toHaveLength(2);
+    expect(byStatus(OperationStatus.SUCCESS)).toHaveLength(1);
+    expect(byStatus(OperationStatus.SUCCESS)[0].payload).toMatchObject({
+      userId: 'alice',
+      type: 'Greet',
+      result: 'Hello Alice',
+    });
+    expect(byStatus(OperationStatus.ERROR)).toHaveLength(1);
+    expect(byStatus(OperationStatus.ERROR)[0].payload).toMatchObject({
+      userId: 'alice',
+      type: 'Greet',
+      error: 'Nobody to greet',
+    });
   });
 
   it('records domain events for the trace but never announces them (that would loop)', async () => {

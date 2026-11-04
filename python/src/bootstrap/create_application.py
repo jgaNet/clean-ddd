@@ -77,7 +77,7 @@ async def create_application(settings: Settings | None = None, logger: Logger | 
     # an in-memory outbox, and the line is where a store's outbox would be relayed. The context is
     # one a request would get, with a unit of work of its own, so that each reaction it delivers
     # runs in a transaction of its own and publishes through the outbox, as after a request.
-    relay_outbox(InMemoryOutbox.shared, event_bus, app.execution_context("startup"))
+    await relay_outbox(InMemoryOutbox.shared, event_bus, app.execution_context("startup"))
 
     # The routes, under the API prefix, each context's under its own; the websocket at the root.
     home = HomeViewModel(name=settings.name, version=settings.version)

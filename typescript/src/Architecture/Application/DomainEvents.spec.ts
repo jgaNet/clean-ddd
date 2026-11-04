@@ -40,16 +40,16 @@ describe('publishDomainEvents', () => {
 
     await ctx.withTransaction(async () => {
       greeter.greet('alice');
-      publishDomainEvents(greeter, ctx);
+      await publishDomainEvents(greeter, ctx);
       greeter.greet('bob'); // recorded after the call, still inside the transaction
-      expect(outbox.pending()).toEqual([]);
+      expect(await outbox.pending()).toEqual([]);
       expect(eventBus.publish).not.toHaveBeenCalled();
       return Result.ok();
     });
 
     expect(published()).toEqual([{ name: 'alice' }, { name: 'bob' }]);
     expect(greeter.pullDomainEvents()).toEqual([]);
-    expect(outbox.pending()).toEqual([]);
+    expect(await outbox.pending()).toEqual([]);
   });
 
   it('publishes each fact with its outbox entry as the message id, so the bus can recognise it', async () => {
@@ -57,15 +57,15 @@ describe('publishDomainEvents', () => {
     const ctx = context();
     const appended: string[] = [];
     const append = jest.spyOn(outbox, 'append');
-    append.mockImplementation(events => {
-      const entries = InMemoryOutbox.prototype.append.call(outbox, events);
+    append.mockImplementation(async events => {
+      const entries = await InMemoryOutbox.prototype.append.call(outbox, events);
       appended.push(...entries.map(entry => entry.id));
       return entries;
     });
 
     await ctx.withTransaction(async () => {
       greeter.greet('alice');
-      publishDomainEvents(greeter, ctx);
+      await publishDomainEvents(greeter, ctx);
       return Result.ok();
     });
 
@@ -78,12 +78,12 @@ describe('publishDomainEvents', () => {
 
     await ctx.withTransaction(async () => {
       greeter.greet('alice');
-      publishDomainEvents(greeter, ctx);
+      await publishDomainEvents(greeter, ctx);
       return Result.fail(new NotAllowedException('Test', 'refused'));
     });
 
     expect(eventBus.publish).not.toHaveBeenCalled();
-    expect(outbox.pending()).toEqual([]);
+    expect(await outbox.pending()).toEqual([]);
     expect(greeter.pullDomainEvents()).toHaveLength(1);
   });
 
@@ -102,31 +102,31 @@ describe('publishDomainEvents', () => {
 
     await ctx.withTransaction(async () => {
       greeter.greet('alice');
-      publishDomainEvents(greeter, ctx);
+      await publishDomainEvents(greeter, ctx);
       return Result.ok();
     });
     expect(delivered).toEqual([]);
-    expect(outbox.pending().map(entry => entry.event.payload)).toEqual([{ name: 'alice' }]);
+    expect((await outbox.pending()).map(entry => entry.event.payload)).toEqual([{ name: 'alice' }]);
 
     const other = new Greeter(new Id('h'));
     await ctx.withTransaction(async () => {
       other.greet('bob');
-      publishDomainEvents(other, ctx);
+      await publishDomainEvents(other, ctx);
       return Result.ok();
     });
     expect(delivered).toEqual([{ name: 'alice' }, { name: 'bob' }]);
-    expect(outbox.pending()).toEqual([]);
+    expect(await outbox.pending()).toEqual([]);
   });
 
-  it('stores and publishes at once outside any transaction: a reaction, after the command that set it off committed', () => {
+  it('stores and publishes at once outside any transaction: a reaction, after the command that set it off committed', async () => {
     const greeter = new Greeter(new Id('g'));
     const ctx = context();
 
     greeter.greet('alice');
-    publishDomainEvents(greeter, ctx);
+    await publishDomainEvents(greeter, ctx);
 
     expect(published()).toEqual([{ name: 'alice' }]);
-    expect(outbox.pending()).toEqual([]);
+    expect(await outbox.pending()).toEqual([]);
     expect(greeter.pullDomainEvents()).toEqual([]);
   });
 
@@ -136,7 +136,7 @@ describe('publishDomainEvents', () => {
 
     await ctx.withTransaction(async () => {
       greeter.greet('alice');
-      publishDomainEvents(greeter, ctx);
+      await publishDomainEvents(greeter, ctx);
       expect(eventBus.publish).not.toHaveBeenCalled();
       return Result.ok();
     });

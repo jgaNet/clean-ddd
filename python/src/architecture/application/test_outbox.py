@@ -55,21 +55,21 @@ async def test_keeps_an_entry_pending_while_a_reaction_to_it_runs_and_hands_it_o
     await bus.subscribe(name_of(BookingConfirmed), reaction)
     outbox = InMemoryOutbox()
     context = ExecutionContext(trace_id="relay", event_bus=bus)
-    [entry] = outbox.append([BookingConfirmed(booking_id="b-1")])
+    [entry] = await outbox.append([BookingConfirmed(booking_id="b-1")])
 
     reaction.hold()
-    relay_outbox(outbox, bus, context)
+    await relay_outbox(outbox, bus, context)
     await let_it_run()
     # The reaction has not committed: a crash now must find the fact still owed.
-    assert outbox.pending() == [entry]
+    assert await outbox.pending() == [entry]
     # A second relay (the next commit's) does not hand out an entry already on its way.
-    assert relay_outbox(outbox, bus, context) == []
+    assert await relay_outbox(outbox, bus, context) == []
     await let_it_run()
     assert reaction.handled == 1
 
     reaction.release()
     await bus.settle()
-    assert outbox.pending() == []
+    assert await outbox.pending() == []
 
 
 class OverTheTable:
@@ -78,14 +78,14 @@ class OverTheTable:
     def __init__(self, table: InMemoryOutbox) -> None:
         self._table = table
 
-    def append(self, events: Sequence[Event]) -> list[OutboxEntry]:
-        return self._table.append(events)
+    async def append(self, events: Sequence[Event]) -> list[OutboxEntry]:
+        return await self._table.append(events)
 
-    def pending(self) -> list[OutboxEntry]:
-        return self._table.pending()
+    async def pending(self) -> list[OutboxEntry]:
+        return await self._table.pending()
 
-    def mark_published(self, id: str) -> None:
-        self._table.mark_published(id)
+    async def mark_published(self, id: str) -> None:
+        await self._table.mark_published(id)
 
 
 async def test_does_not_hand_out_an_entry_on_its_way_again_through_another_adapter_over_the_same_entries() -> None:
@@ -94,19 +94,19 @@ async def test_does_not_hand_out_an_entry_on_its_way_again_through_another_adapt
     await bus.subscribe(name_of(BookingConfirmed), reaction)
     table = InMemoryOutbox()
     context = ExecutionContext(trace_id="relay", event_bus=bus)
-    [entry] = OverTheTable(table).append([BookingConfirmed(booking_id="b-3")])
+    [entry] = await OverTheTable(table).append([BookingConfirmed(booking_id="b-3")])
 
     reaction.hold()
-    relay_outbox(OverTheTable(table), bus, context)
+    await relay_outbox(OverTheTable(table), bus, context)
     await let_it_run()
-    assert relay_outbox(OverTheTable(table), bus, context) == []
+    assert await relay_outbox(OverTheTable(table), bus, context) == []
     await let_it_run()
     assert reaction.handled == 1
-    assert table.pending() == [entry]
+    assert await table.pending() == [entry]
 
     reaction.release()
     await bus.settle()
-    assert table.pending() == []
+    assert await table.pending() == []
 
 
 @pytest.mark.parametrize("refused_first", [False, True], ids=["told-then-refused", "refused-then-told"])
@@ -120,15 +120,15 @@ async def test_keeps_an_entry_whose_reaction_failed_pending_and_hands_it_again_t
         await bus.subscribe(name_of(BookingConfirmed), subscriber)
     outbox = InMemoryOutbox()
     context = ExecutionContext(trace_id="relay", event_bus=bus)
-    [entry] = outbox.append([BookingConfirmed(booking_id="b-2")])
+    [entry] = await outbox.append([BookingConfirmed(booking_id="b-2")])
 
     refused.failing = True
-    relay_outbox(outbox, bus, context)
+    await relay_outbox(outbox, bus, context)
     await bus.settle()
-    assert outbox.pending() == [entry]
+    assert await outbox.pending() == [entry]
 
     refused.failing = False
-    relay_outbox(outbox, bus, context)
+    await relay_outbox(outbox, bus, context)
     await bus.settle()
-    assert outbox.pending() == []
+    assert await outbox.pending() == []
     assert [told.handled, refused.handled] == [1, 2]

@@ -18,7 +18,7 @@ class NoteSharedHandler(EventHandler[NoteSharedEvent]):
                 f"Note {event.note_id} shared with {event.recipient_id}", {"traceId": context.trace_id}
             )
 
-        publish_integration_event(
+        await publish_integration_event(
             NoteSharedIntegrationEvent(
                 note_id=event.note_id,
                 title=event.title,

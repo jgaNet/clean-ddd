@@ -14,7 +14,7 @@
  *
  * Usage:
  * - Inside a behaviour method: `this.record(NoteArchivedEvent.set({ ... }))`
- * - Inside a command handler, once saved: `this.publishDomainEvents(note, context)`
+ * - Inside a command handler, once saved: `await this.publishDomainEvents(note, context)`
  *
  * See Note (Contexts/Notes/Domain/Note/Note.ts) for a complete example.
  */

@@ -52,6 +52,6 @@ class SuggestNoteTitleCommandHandler(CommandHandler[SuggestNoteTitleCommandEvent
         saved = await self._notes.save(note)
         if isinstance(saved, Failure):
             return saved
-        self.publish_domain_events(note, context)
+        await self.publish_domain_events(note, context)
 
         return Success(suggestion)
