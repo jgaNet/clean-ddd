@@ -1,15 +1,4 @@
-import {
-  adminEnvironment,
-  client,
-  Client,
-  database,
-  day,
-  eventually,
-  idOf,
-  Running,
-  start,
-  stop,
-} from './openstay';
+import { adminEnvironment, client, Client, database, day, eventually, idOf, Running, start, stop } from './openstay';
 
 /**
  * Request 93: a city's cap on the nights of a listing's confirmed bookings in a calendar year, refusing the
