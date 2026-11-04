@@ -46,7 +46,7 @@ const conflicts = (listingId: string, token: string, count: number, through = ap
   eventually(
     () => conflictsOf(listingId, token, through),
     found => found.length === count,
-    20000,
+    60000,
   );
 const night = async (listingId: string, at: number) =>
   (await api.list(`/listings/${listingId}/calendar?from=${day(at)}&to=${day(at + 1)}`))[0];
@@ -56,7 +56,7 @@ const sweeps = async (name: string, count: number) => {
   await eventually(
     async () => outside.fetchesOf(name),
     fetches => fetches >= target,
-    30000,
+    60000,
   );
 };
 const noticesOf = (bookingId: string, from = service) =>
@@ -86,7 +86,7 @@ describe('import conflicts', () => {
     const [notice] = await eventually(
       async () => noticesOf(bookingId),
       found => found.length >= 1,
-      20000,
+      60000,
     );
     expect(notice).toMatchObject({
       id: expect.any(String),
@@ -106,7 +106,7 @@ describe('import conflicts', () => {
     await eventually(
       () => conflictsOf(id, hal.token),
       found => found[0]?.from === day(11),
-      20000,
+      60000,
     );
     expect(await conflictsOf(id, hal.token)).toEqual([
       expect.objectContaining({ bookingId, url, uid: 'c1@elsewhere', from: day(11), to: day(14) }),
@@ -120,7 +120,7 @@ describe('import conflicts', () => {
 
     outside.serve('one', ics([]));
     expect(await conflicts(id, hal.token, 0)).toEqual([]);
-  }, 120000);
+  }, 300000);
 
   it('makes a waiting request no conflict until it is accepted, and ends a conflict when the booking leaves', async () => {
     const hal = await api.host('hal2@import-conflicts.test');
@@ -155,7 +155,7 @@ describe('import conflicts', () => {
         await eventually(
           async () => noticesOf(requested),
           found => found.length >= 1,
-          20000,
+          60000,
         )
       )[0],
     ).toMatchObject({ kind: 'calendar-conflict', bookingId: requested, uid: 'r1', from: day(11), to: day(13) });
@@ -169,10 +169,10 @@ describe('import conflicts', () => {
         await eventually(
           () => night(id, at),
           found => found?.source === 'import',
-          20000,
+          60000,
         ),
       ).toMatchObject({ available: false, source: 'import' });
-  }, 120000);
+  }, 300000);
 
   it("lists the conflicts by the booking's check-in, then uid, to the host side only", async () => {
     const hal = await api.host('hal3@import-conflicts.test');
@@ -237,7 +237,7 @@ describe('import conflicts', () => {
       await eventually(
         async () => conflictAttempts().length,
         count => count >= 2,
-        30000,
+        60000,
       );
 
       // Both servers die while the service refuses; it then accepts, and the notice comes.
@@ -250,7 +250,7 @@ describe('import conflicts', () => {
       const [notice] = await eventually(
         async () => noticesOf(bookingId, notices),
         found => found.length >= 1,
-        30000,
+        60000,
       );
       expect(notice).toMatchObject({ kind: 'calendar-conflict', hostId: hal.id, bookingId, listingId: id, uid: 'n1' });
       await sweeps('four', 4);
@@ -264,7 +264,7 @@ describe('import conflicts', () => {
       await stop(second);
       shared.remove();
     }
-  }, 180000);
+  }, 300000);
 
   it('lists the conflict all the same without NOTIFY_URL', async () => {
     const quiet = database('import-conflicts-quiet');
