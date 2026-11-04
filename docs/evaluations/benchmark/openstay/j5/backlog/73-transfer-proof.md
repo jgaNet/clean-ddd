@@ -9,7 +9,7 @@ A traveller who paid by bank transfer wants to show it, and to keep the booking 
 - **Or contests.** The same host side contests, with a reason of 1 to 500 characters: the transfer reads `contested`, and the payment is `due` again under its original `dueBy`. A booking whose `dueBy` has passed lapses at the next sweep, as request 30 says, unless it is paid through the provider or declared paid first.
 - **Unconfirmed.** A proof neither confirmed nor contested within `TRANSFER_CONFIRM_DAYS` days of `at` (7 when not set) reads `unconfirmed`, as soon as that time has passed, with nobody acting. The booking still does not lapse, and the host may still confirm or contest. Confirming or contesting a transfer that is neither `proof-sent` nor `unconfirmed` is refused. Days follow `CLOCK_OFFSET_DAYS` (request 57): the server takes as now the machine's time plus that many days.
 - **Never verified.** A proof is the traveller's word. Nothing makes a transfer, or a payment declared from it, `verified`: `verified` is `true` only for a payment the provider said succeeded.
-- **The file.** The traveller and whoever may read the booking as its host side download the proof at `GET /v1/attachments/{id}` (request 54), with its type as `Content-Type`; to anyone else it does not exist (`404`).
+- **The file.** The traveller and whoever may read the booking as its host side download the proof, byte for byte, with its type as `Content-Type`; to anyone else it does not exist (`404`).
 
 The API works as request 1 says.
 
@@ -21,4 +21,4 @@ The API works as request 1 says.
 | `POST /v1/bookings/{id}/transfer/confirm` | |
 | `POST /v1/bookings/{id}/transfer/contest` `{ reason }` | |
 | `GET /v1/bookings/{id}` | `payment` gains `transfer: { status, proof: { id, name, type, size }, at }`, or `null`; `status` `proof-sent`, `confirmed-by-host`, `contested` or `unconfirmed` |
-| `GET /v1/attachments/{id}` | the proof's bytes, with its type as `Content-Type` |
+| `GET /v1/bookings/{id}/transfer-proof` | `200`, the proof's bytes, with its type as `Content-Type`; `404` while there is none |

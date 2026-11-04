@@ -7,7 +7,7 @@ A host and a traveller who swap phone numbers before paying can agree a stay out
 - **What is held back.** Each match below is replaced whole by one `[hidden]`: first the IBANs, then the email addresses, then the phone numbers in what is left.
   - **An IBAN:** two capital letters, two digits, then 11 to 30 capital letters or digits, with single spaces allowed between them (`FR76 3000 6000 0112 3456 7890 189`).
   - **An email address:** letters, digits, `.`, `_`, `%`, `+` or `-`, then `@`, then letters, digits, `.` or `-`, a dot, and at least two letters (`anna.b@mail.example.com`).
-  - **A phone number:** an optional `+`, then 8 digits or more, each one following the previous one directly or after a single space, dot or dash (`+33 6 12 34 56 78`, `06.12.34.56.78`).
+  - **A phone number:** an optional `+`, then 9 digits or more, each one following the previous one directly or after a single space or dot (`+33 6 12 34 56 78`, `06.12.34.56.78`, `0612345678`). A date such as `2026-12-01` or `2026.12.01` is not one.
 - **Nothing is changed.** The message is kept as its sender wrote it: what is held back is only what others are shown.
 
 The API works as request 1 says. The conversation is request 51's: `GET /v1/conversations/{id}` answers `{ id, listingId, travellerId, hostId, bookingId, messages: [ { id, senderId, text, sentAt } ] }`, read by the traveller, the listing's host and the managers and viewers of its organisation.

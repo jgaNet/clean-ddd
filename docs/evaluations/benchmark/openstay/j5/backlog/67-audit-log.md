@@ -14,7 +14,7 @@ When an administrator suspends someone or removes a review, the person concerned
 
   Later requests add their own actions under the same rule, `listing-verified` (request 70) and the decision on a claim (request 71) first among them.
 - **One decision, one entry.** Reports on the same subject closed together (request 64) are one entry. What a decision brings with it (a listing suspended, bookings cancelled and refunded) is part of that entry, not entries of their own. A decision that is refused writes nothing.
-- **Written with the decision.** A decision that was answered as done has its entry, even when the server is killed right after, and an entry is never there for a decision that was not taken. With two servers on one database, each decision has exactly one entry.
+- **Written with the decision.** A decision that was answered as done has its entry, readable within a few seconds, even when the server is killed right after and started again, and an entry is never there for a decision that was not taken. With two servers on one database, each decision has exactly one entry.
 - **Nothing changes, nothing goes.** No route changes or removes an entry. An entry stays when its subject changes or goes: a review removed, an account closed (request 50), a listing archived.
 - **Reading it.** An administrator (an account whose email is in `ADMIN_EMAILS`, request 37) reads the entries about one subject, the oldest first. Anyone else gets `403`. A subject with no entry reads `[]`.
 
