@@ -1,0 +1,52 @@
+# Feature 91 of OpenStay's J5 (../backlog/91-city-tourist-tax.md), as the session decided it.
+schemaVersion: 1
+feature: city-tourist-tax
+intent: An administrator sets a city's tourist tax rule; the quote applies it in place of the host's figure.
+done: false
+hotSpots:
+- question: Replaces the host's?
+  decision: Pricing asks Regulations for the city's rule through a port it owns; the host's declaration stays, unused while
+    the city has a rule.
+- question: Seen on the listing?
+  decision: Listings asks Regulations through its port.
+- question: In the audit log?
+  decision: Regulations publishes AdministratorDecided on CityTouristTaxSet (V5).
+contexts:
+- id: Regulations
+  commands:
+  - name: SetCityTouristTax
+    actor: a signed-in account
+    route: PUT /admin/cities/{city}/tourist-tax
+    aggregate: CityRules
+    events:
+    - CityTouristTaxSet
+  queries: []
+  events:
+  - CityTouristTaxSet
+  policies:
+  - 'on': CityTouristTaxSet
+    kind: domain-event
+    publishes:
+    - AdministratorDecided
+    events: []
+links:
+- mechanism: owned-port
+  upstream: Regulations
+  downstream: Pricing
+  contracts:
+  - CityTouristTaxes
+- mechanism: owned-port
+  upstream: Regulations
+  downstream: Listings
+  contracts:
+  - CityTouristTaxes
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Regulations
+  contracts:
+  - Administrators
+- mechanism: integration-event
+  upstream: Regulations
+  downstream: Backoffice
+  contracts:
+  - AdministratorDecided

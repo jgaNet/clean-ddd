@@ -16,6 +16,7 @@ The phase is the framing's phases 3 and 4 ([j0](../j0.md#the-later-phases)):
   - the side experiments, $300.
 - **The eight side experiments** as the proposal sets them.
 - **The limited context is dropped if it cannot be held.** The kit rehearses a way to cap the agent's context at about 30,000 tokens. If none holds verifiably, the experiment does not run, and the record says so.
+  - **The rehearsal showed** that the agent's fixed context alone is about 42,000 tokens ([`side/context-cap.md`](side/context-cap.md)). **The maintainer decided** that the experiment runs with about 30,000 tokens of work above it, checked in every transcript.
 
 ## What is in it
 

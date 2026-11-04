@@ -1,0 +1,18 @@
+# Feature 81 of OpenStay's J5 (../backlog/81-donations-never-rank.md), as the session decided it.
+schemaVersion: 1
+feature: donations-never-rank
+intent: Anyone reads a month's public donors; search knows nothing of donations.
+done: false
+hotSpots:
+- question: The test of invariant 9?
+  decision: 'Search knows nothing of donations: nothing to decide; no link from Sustainability to Booking.'
+contexts:
+- id: Sustainability
+  commands: []
+  queries:
+  - name: GetDonors
+    actor: anyone
+    route: GET /donors
+  events: []
+  policies: []
+links: []

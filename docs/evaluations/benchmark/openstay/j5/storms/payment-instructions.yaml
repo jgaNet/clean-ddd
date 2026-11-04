@@ -1,0 +1,36 @@
+# Feature 69 of OpenStay's J5 (../backlog/69-payment-instructions.md), as the session decided it.
+schemaVersion: 1
+feature: payment-instructions
+intent: A host sets the bank details they are paid on directly; the traveller of a booking due reads them, a recent change
+  flagged.
+done: false
+hotSpots:
+- question: Where are the bank details?
+  decision: In Payments, with the direct payments (V12); only a host sets them, asked through the Hosts port.
+- question: Changed recently?
+  decision: Payments keeps when the IBAN took its value; the same IBAN again changes nothing.
+contexts:
+- id: Payments
+  commands:
+  - name: SetBankDetails
+    actor: a signed-in account
+    route: PUT /hosts/me/bank-details
+    aggregate: BankDetails
+    events:
+    - BankDetailsSet
+  queries:
+  - name: GetBankDetails
+    actor: a signed-in account
+    route: GET /hosts/me/bank-details
+  - name: GetPaymentInstructions
+    actor: a signed-in account
+    route: GET /bookings/{id}/payment-instructions
+  events:
+  - BankDetailsSet
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Payments
+  contracts:
+  - Hosts

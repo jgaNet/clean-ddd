@@ -1,0 +1,40 @@
+# Feature 70 of OpenStay's J5 (../backlog/70-listing-verification.md), as the session decided it.
+schemaVersion: 1
+feature: listing-verification
+intent: An administrator verifies a listing; a change of its address undoes it.
+done: false
+hotSpots:
+- question: Lost on a change of address?
+  decision: Listings' own rule, in the behaviours that change the city or the location; losing it is no decision and writes
+    no entry.
+- question: In the audit log?
+  decision: Listings publishes AdministratorDecided on ListingVerified (V5).
+contexts:
+- id: Listings
+  commands:
+  - name: VerifyListing
+    actor: a signed-in account
+    route: POST /admin/listings/{id}/verify
+    aggregate: Listing
+    events:
+    - ListingVerified
+  queries: []
+  events:
+  - ListingVerified
+  policies:
+  - 'on': ListingVerified
+    kind: domain-event
+    publishes:
+    - AdministratorDecided
+    events: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Listings
+  contracts:
+  - Administrators
+- mechanism: integration-event
+  upstream: Listings
+  downstream: Backoffice
+  contracts:
+  - AdministratorDecided

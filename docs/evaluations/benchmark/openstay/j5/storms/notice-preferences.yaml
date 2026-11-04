@@ -1,0 +1,26 @@
+# Feature 75 of OpenStay's J5 (../backlog/75-notice-preferences.md), as the session decided it.
+schemaVersion: 1
+feature: notice-preferences
+intent: Each account turns kinds of notice off for itself; the payments and security kinds stay on.
+done: false
+hotSpots:
+- question: Which kinds?
+  decision: Notifications' own list; booking-cancelled and email-verification always on. A notice of a kind turned off is
+    not owed at all.
+contexts:
+- id: Notifications
+  commands:
+  - name: SetNoticePreferences
+    actor: a signed-in account
+    route: PUT /accounts/me/notices
+    aggregate: NoticePreferences
+    events:
+    - NoticePreferencesSet
+  queries:
+  - name: GetNoticePreferences
+    actor: a signed-in account
+    route: GET /accounts/me/notices
+  events:
+  - NoticePreferencesSet
+  policies: []
+links: []

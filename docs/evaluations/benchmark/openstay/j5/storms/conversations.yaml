@@ -1,0 +1,51 @@
+# Feature 51 of OpenStay's J5 (../backlog/51-conversations.md), as the session decided it.
+schemaVersion: 1
+feature: conversations
+intent: A traveller writes to the host side of a listing; one conversation per traveller and listing, read by its parties
+  only.
+done: false
+hotSpots:
+- question: Where do conversations live?
+  decision: 'In a new context, Messaging (V1): a conversation exists before any booking. It asks Listings who hosts and manages
+    a listing, and Booking which bookings the traveller has of it, through ports it owns.'
+- question: One per traveller and listing, under two servers?
+  decision: A unique key on (traveller, listing) in the store; the second writer reads the first one's conversation and writes
+    in it.
+contexts:
+- id: Messaging
+  commands:
+  - name: StartConversation
+    actor: a signed-in account
+    route: POST /conversations
+    aggregate: Conversation
+    events:
+    - ConversationStarted
+    - MessageSent
+  - name: SendMessage
+    actor: a signed-in account
+    route: POST /conversations/{id}/messages
+    aggregate: Conversation
+    events:
+    - MessageSent
+  queries:
+  - name: GetConversation
+    actor: a signed-in account
+    route: GET /conversations/{id}
+  - name: GetMyConversations
+    actor: a signed-in account
+    route: GET /conversations/mine
+  events:
+  - ConversationStarted
+  - MessageSent
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Messaging
+  contracts:
+  - ListingHosts
+- mechanism: owned-port
+  upstream: Booking
+  downstream: Messaging
+  contracts:
+  - TravellerBookings

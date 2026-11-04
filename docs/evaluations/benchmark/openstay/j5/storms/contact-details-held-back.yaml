@@ -1,0 +1,24 @@
+# Feature 53 of OpenStay's J5 (../backlog/53-contact-details-held-back.md), as the session decided it.
+schemaVersion: 1
+feature: contact-details-held-back
+intent: Until a stay of the traveller at the listing is paid, contact details in a message are hidden from everyone but its
+  sender.
+done: false
+hotSpots:
+- question: When does it lift?
+  decision: 'Messaging asks Booking at read time, through the port it owns, whether a booking of the traveller for the listing
+    is paid: masking is a view, the message is kept as written.'
+- question: Whose patterns?
+  decision: Messaging's own value object (one rule each with Reviews, feature 61; no shared helper).
+contexts:
+- id: Messaging
+  commands: []
+  queries: []
+  events: []
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Booking
+  downstream: Messaging
+  contracts:
+  - PaidBookings

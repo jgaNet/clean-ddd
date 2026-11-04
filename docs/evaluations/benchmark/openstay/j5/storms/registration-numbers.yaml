@@ -1,0 +1,63 @@
+# Feature 79 of OpenStay's J5 (../backlog/79-registration-numbers.md), as the session decided it.
+schemaVersion: 1
+feature: registration-numbers
+intent: An administrator says which cities require a registration number and its format; a listing there is published only
+  with one that matches.
+done: false
+hotSpots:
+- question: Where are the city rules?
+  decision: In a new context, Regulations (V7), the brief's versioned catalogue of rules; Accounts says who the administrators
+    are.
+- question: Checked at publication?
+  decision: Listings asks Regulations through a port it owns, when a listing is published and only then.
+- question: In the audit log?
+  decision: Regulations publishes AdministratorDecided on CityRegistrationSet (V5).
+contexts:
+- id: Regulations
+  commands:
+  - name: SetCityRegistration
+    actor: a signed-in account
+    route: PUT /admin/cities/{city}/registration
+    aggregate: CityRules
+    events:
+    - CityRegistrationSet
+  queries:
+  - name: GetCityRegistration
+    actor: anyone
+    route: GET /cities/{city}/registration
+  events:
+  - CityRegistrationSet
+  policies:
+  - 'on': CityRegistrationSet
+    kind: domain-event
+    publishes:
+    - AdministratorDecided
+    events: []
+- id: Listings
+  commands:
+  - name: SetRegistrationNumber
+    actor: a signed-in account
+    route: PUT /listings/{id}/registration-number
+    aggregate: Listing
+    events:
+    - RegistrationNumberSet
+  queries: []
+  events:
+  - RegistrationNumberSet
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Regulations
+  downstream: Listings
+  contracts:
+  - CityRegistrations
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Regulations
+  contracts:
+  - Administrators
+- mechanism: integration-event
+  upstream: Regulations
+  downstream: Backoffice
+  contracts:
+  - AdministratorDecided

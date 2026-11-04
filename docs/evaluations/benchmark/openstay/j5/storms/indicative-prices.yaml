@@ -1,0 +1,42 @@
+# Feature 88 of OpenStay's J5 (../backlog/88-indicative-prices.md), as the session decided it.
+schemaVersion: 1
+feature: indicative-prices
+intent: An administrator sets exchange rates; a search and a quote may show an indicative price in another currency.
+done: false
+hotSpots:
+- question: The rates?
+  decision: Pricing's, which already shows prices; Booking's search and quote ask through a port they own.
+- question: In the audit log?
+  decision: Pricing publishes AdministratorDecided on RatesSet (V5).
+contexts:
+- id: Pricing
+  commands:
+  - name: SetRates
+    actor: a signed-in account
+    route: PUT /admin/rates
+    aggregate: ExchangeRates
+    events:
+    - RatesSet
+  queries:
+  - name: GetRates
+    actor: anyone
+    route: GET /rates
+  events:
+  - RatesSet
+  policies:
+  - 'on': RatesSet
+    kind: domain-event
+    publishes:
+    - AdministratorDecided
+    events: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Pricing
+  contracts:
+  - Administrators
+- mechanism: owned-port
+  upstream: Pricing
+  downstream: Booking
+  contracts:
+  - ExchangeRates

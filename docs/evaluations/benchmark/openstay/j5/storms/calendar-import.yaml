@@ -1,0 +1,35 @@
+# Feature 96 of OpenStay's J5 (../backlog/96-calendar-import.md), as the session decided it.
+schemaVersion: 1
+feature: calendar-import
+intent: A host links outside calendars, and the nights they hold are blocked here, following them at each sweep.
+done: false
+hotSpots:
+- question: Who owns the imported nights?
+  decision: 'Booking (V11): the outside calendars are behind a port Booking owns, named for what it answers (the nights an
+    outside calendar holds); its result is a plain value the calendar validates (DOMAIN-NON-DETERMINISM).'
+- question: The host's own blocks?
+  decision: 'Kept apart: an imported block is freed by its event only, a host''s block by the host only.'
+contexts:
+- id: Booking
+  commands:
+  - name: LinkOutsideCalendars
+    actor: a signed-in account
+    route: PUT /listings/{id}/imported-calendars
+    aggregate: ListingCalendar
+    events:
+    - OutsideCalendarsLinked
+  queries:
+  - name: GetImportedCalendars
+    actor: a signed-in account
+    route: GET /listings/{id}/imported-calendars
+  events:
+  - ImportedNightsBlocked
+  - ImportedNightsReleased
+  - OutsideCalendarsLinked
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Booking
+  contracts:
+  - Collaborators

@@ -1,0 +1,55 @@
+# Feature 90 of OpenStay's J5 (../backlog/90-card-fees-passed-on.md), as the session decided it.
+schemaVersion: 1
+feature: card-fees-passed-on
+intent: Where an administrator says the law allows it, the traveller pays the provider's fee, a line of the quote.
+done: false
+hotSpots:
+- question: Who decides?
+  decision: Regulations says where (the pass-through countries); Pricing adds the line, asking Payments for the provider's
+    published fee through a port it owns.
+- question: In the audit log?
+  decision: Regulations publishes AdministratorDecided on PassThroughCountriesSet (V5).
+- question: The change not announced?
+  decision: Its storm is given with request 90, never before.
+contexts:
+- id: Regulations
+  commands:
+  - name: SetFeePassThrough
+    actor: a signed-in account
+    route: PUT /admin/fee-pass-through
+    aggregate: PassThroughCountries
+    events:
+    - PassThroughCountriesSet
+  queries:
+  - name: GetFeePassThrough
+    actor: a signed-in account
+    route: GET /admin/fee-pass-through
+  events:
+  - PassThroughCountriesSet
+  policies:
+  - 'on': PassThroughCountriesSet
+    kind: domain-event
+    publishes:
+    - AdministratorDecided
+    events: []
+links:
+- mechanism: owned-port
+  upstream: Regulations
+  downstream: Pricing
+  contracts:
+  - PassThroughCountries
+- mechanism: owned-port
+  upstream: Payments
+  downstream: Pricing
+  contracts:
+  - ProviderFees
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Regulations
+  contracts:
+  - Administrators
+- mechanism: integration-event
+  upstream: Regulations
+  downstream: Backoffice
+  contracts:
+  - AdministratorDecided

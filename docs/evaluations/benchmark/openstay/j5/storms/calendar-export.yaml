@@ -1,0 +1,35 @@
+# Feature 95 of OpenStay's J5 (../backlog/95-calendar-export.md), as the session decided it.
+schemaVersion: 1
+feature: calendar-export
+intent: Each listing has a secret calendar address other sites read, which its host side may replace.
+done: false
+hotSpots:
+- question: Where is the calendar sync?
+  decision: In Booking, which owns the nights (V11).
+- question: The secret?
+  decision: The listing calendar's, the same on every read; rotating replaces it at once on every server.
+contexts:
+- id: Booking
+  commands:
+  - name: RotateCalendarLink
+    actor: a signed-in account
+    route: POST /listings/{id}/calendar-link/rotate
+    aggregate: ListingCalendar
+    events:
+    - CalendarLinkRotated
+  queries:
+  - name: GetCalendarLink
+    actor: a signed-in account
+    route: GET /listings/{id}/calendar-link
+  - name: ExportCalendar
+    actor: anyone
+    route: GET /calendars/{secret}.ics
+  events:
+  - CalendarLinkRotated
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Booking
+  contracts:
+  - Collaborators

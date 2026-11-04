@@ -1,0 +1,17 @@
+# Feature 89 of OpenStay's J5 (../backlog/89-payouts-per-currency.md), as the session decided it.
+schemaVersion: 1
+feature: payouts-per-currency
+intent: A host is paid each currency apart, and reads statement and earnings per currency.
+done: true
+hotSpots:
+- question: One payout per currency?
+  decision: Payments' weekly payout groups by currency; each payout carries one.
+- question: What does it add to the wall?
+  decision: 'Nothing: rules on the existing payouts, statement and earnings. Done from the start.'
+contexts:
+- id: Payments
+  commands: []
+  queries: []
+  events: []
+  policies: []
+links: []

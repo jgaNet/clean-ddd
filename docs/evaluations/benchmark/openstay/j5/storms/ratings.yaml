@@ -1,0 +1,29 @@
+# Feature 59 of OpenStay's J5 (../backlog/59-ratings.md), as the session decided it.
+schemaVersion: 1
+feature: ratings
+intent: A listing and a host show the averages of their published reviews; search shows each listing's.
+done: false
+hotSpots:
+- question: Kept or computed?
+  decision: Computed by Reviews' read side from the published reviews; Listings and Booking's search ask through ports they
+    own over that read model.
+contexts:
+- id: Reviews
+  commands: []
+  queries:
+  - name: GetHostRating
+    actor: anyone
+    route: GET /hosts/{id}/rating
+  events: []
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Reviews
+  downstream: Listings
+  contracts:
+  - ListingRatings
+- mechanism: owned-port
+  upstream: Reviews
+  downstream: Booking
+  contracts:
+  - ListingRatings

@@ -1,0 +1,57 @@
+# Feature 68 of OpenStay's J5 (../backlog/68-suspicious-accounts.md), as the session decided it.
+schemaVersion: 1
+feature: suspicious-accounts
+intent: Many cancellations, or the same first message to many hosts, flag an account for the administrators; a flag decides
+  nothing.
+done: false
+hotSpots:
+- question: Counting across contexts?
+  decision: 'Moderation keeps its own counts from the facts it receives: Booking''s BookingCancelled and Messaging''s ConversationStarted
+    (V3); at most one flag of a kind per account and day.'
+contexts:
+- id: Moderation
+  commands: []
+  queries:
+  - name: GetFlags
+    actor: a signed-in account
+    route: GET /admin/flags
+  events:
+  - AccountFlagged
+  policies:
+  - 'on': BookingCancelled
+    kind: integration-event
+    publishes: []
+    events:
+    - AccountFlagged
+  - 'on': ConversationStarted
+    kind: integration-event
+    publishes: []
+    events:
+    - AccountFlagged
+- id: Messaging
+  commands: []
+  queries: []
+  events:
+  - ConversationStarted
+  policies:
+  - 'on': ConversationStarted
+    kind: domain-event
+    publishes:
+    - ConversationStarted
+    events: []
+links:
+- mechanism: integration-event
+  upstream: Booking
+  downstream: Moderation
+  contracts:
+  - BookingCancelled
+- mechanism: integration-event
+  upstream: Messaging
+  downstream: Moderation
+  contracts:
+  - ConversationStarted
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Moderation
+  contracts:
+  - Administrators

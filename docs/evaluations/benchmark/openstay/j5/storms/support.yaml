@@ -1,0 +1,50 @@
+# Feature 74 of OpenStay's J5 (../backlog/74-support.md), as the session decided it.
+schemaVersion: 1
+feature: support
+intent: Any account opens a ticket with OpenStay; it and the administrators write in it until it is closed.
+done: false
+hotSpots:
+- question: Who may read?
+  decision: 'Support''s rule: the ticket''s account and the administrators, whom Accounts names through Support''s port.'
+contexts:
+- id: Support
+  commands:
+  - name: OpenTicket
+    actor: a signed-in account
+    route: POST /support/tickets
+    aggregate: Ticket
+    events:
+    - TicketOpened
+  - name: WriteToTicket
+    actor: a signed-in account
+    route: POST /support/tickets/{id}/messages
+    aggregate: Ticket
+    events:
+    - TicketMessageWritten
+  - name: CloseTicket
+    actor: a signed-in account
+    route: POST /support/tickets/{id}/close
+    aggregate: Ticket
+    events:
+    - TicketClosed
+  queries:
+  - name: GetTicket
+    actor: a signed-in account
+    route: GET /support/tickets/{id}
+  - name: GetMyTickets
+    actor: a signed-in account
+    route: GET /support/tickets/mine
+  - name: GetTickets
+    actor: a signed-in account
+    route: GET /admin/support/tickets
+  events:
+  - TicketClosed
+  - TicketMessageWritten
+  - TicketOpened
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Support
+  contracts:
+  - Administrators

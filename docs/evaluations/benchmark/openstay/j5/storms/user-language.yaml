@@ -1,0 +1,28 @@
+# Feature 86 of OpenStay's J5 (../backlog/86-user-language.md), as the session decided it.
+schemaVersion: 1
+feature: user-language
+intent: An account has a language, and every notice carries the language of its recipient.
+done: false
+hotSpots:
+- question: On every notice?
+  decision: 'V10: Accounts owns the language; Notifications asks it through a port it owns when a notice is owed, and the
+    notice keeps it.'
+contexts:
+- id: Accounts
+  commands:
+  - name: SetLanguage
+    actor: a signed-in account
+    route: PUT /accounts/me/language
+    aggregate: Account
+    events:
+    - LanguageSet
+  queries: []
+  events:
+  - LanguageSet
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Notifications
+  contracts:
+  - RecipientLanguages

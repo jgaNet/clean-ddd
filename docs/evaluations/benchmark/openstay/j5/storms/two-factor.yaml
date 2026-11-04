@@ -1,0 +1,44 @@
+# Feature 77 of OpenStay's J5 (../backlog/77-two-factor.md), as the session decided it.
+schemaVersion: 1
+feature: two-factor
+intent: An account turns on a second proof at sign-in, time-based codes each used once, with recovery codes.
+done: false
+hotSpots:
+- question: A code used once?
+  decision: Accounts keeps the last step used on the Account; its version check gives one token for the same code sent twice
+    at once.
+contexts:
+- id: Accounts
+  commands:
+  - name: StartTwoFactor
+    actor: a signed-in account
+    route: POST /accounts/me/2fa
+    aggregate: Account
+    events:
+    - TwoFactorSecretIssued
+  - name: ConfirmTwoFactor
+    actor: a signed-in account
+    route: POST /accounts/me/2fa/confirm
+    aggregate: Account
+    events:
+    - TwoFactorEnabled
+  - name: DisableTwoFactor
+    actor: a signed-in account
+    route: POST /accounts/me/2fa/disable
+    aggregate: Account
+    events:
+    - TwoFactorDisabled
+  - name: SignIn
+    actor: anyone
+    route: POST /accounts/login
+    aggregate: Account
+    events:
+    - TwoFactorCodeUsed
+  queries: []
+  events:
+  - TwoFactorCodeUsed
+  - TwoFactorDisabled
+  - TwoFactorEnabled
+  - TwoFactorSecretIssued
+  policies: []
+links: []

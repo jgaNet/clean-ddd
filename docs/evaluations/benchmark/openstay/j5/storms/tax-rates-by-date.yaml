@@ -1,0 +1,28 @@
+# Feature 92 of OpenStay's J5 (../backlog/92-tax-rates-by-date.md), as the session decided it.
+schemaVersion: 1
+feature: tax-rates-by-date
+intent: A city's tourist tax rules each start on a date; each night is taxed by the rule in force on it.
+done: false
+hotSpots:
+- question: Which rule?
+  decision: Pricing asks Regulations for the rule in force each night; Regulations keeps a city's rules by date.
+contexts:
+- id: Regulations
+  commands: []
+  queries:
+  - name: GetCityTouristTaxes
+    actor: a signed-in account
+    route: GET /admin/cities/{city}/tourist-tax
+  events: []
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Regulations
+  downstream: Pricing
+  contracts:
+  - CityTouristTaxes
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Regulations
+  contracts:
+  - Administrators

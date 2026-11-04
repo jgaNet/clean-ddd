@@ -1,0 +1,90 @@
+# Feature 66 of OpenStay's J5 (../backlog/66-suspending-accounts.md), as the session decided it.
+schemaVersion: 1
+feature: suspending-accounts
+intent: 'An administrator suspends an account: it no longer signs in, its listings leave search, its stays to come as a host
+  are cancelled by the platform and refunded.'
+done: false
+hotSpots:
+- question: Who suspends?
+  decision: Accounts decides, as it decides who signs in (V4); AccountSuspended and AccountReinstated are integration events.
+- question: Cancelling the host's stays?
+  decision: Booking's reaction on AccountSuspended, one cancellation per booking, by the platform; Payments refunds through
+    the path a cancellation already takes (31), and Notifications tells the traveller on BookingCancelled.
+- question: Out of search?
+  decision: Booking keeps its suspended hosts from AccountSuspended and AccountReinstated, and its search leaves their listings
+    out.
+contexts:
+- id: Accounts
+  commands:
+  - name: SuspendAccount
+    actor: a signed-in account
+    route: POST /admin/accounts/{id}/suspend
+    aggregate: Account
+    events:
+    - AccountSuspended
+  - name: ReinstateAccount
+    actor: a signed-in account
+    route: POST /admin/accounts/{id}/reinstate
+    aggregate: Account
+    events:
+    - AccountReinstated
+  queries:
+  - name: GetAccount
+    actor: a signed-in account
+    route: GET /admin/accounts/{id}
+  events:
+  - AccountReinstated
+  - AccountSuspended
+  policies:
+  - 'on': AccountSuspended
+    kind: domain-event
+    publishes:
+    - AccountSuspended
+    events: []
+  - 'on': AccountReinstated
+    kind: domain-event
+    publishes:
+    - AccountReinstated
+    events: []
+- id: Booking
+  commands: []
+  queries: []
+  events: []
+  policies:
+  - 'on': AccountSuspended
+    kind: integration-event
+    publishes: []
+    events:
+    - BookingCancelled
+    - NightsReleased
+  - 'on': AccountReinstated
+    kind: integration-event
+    publishes: []
+    events: []
+- id: Notifications
+  commands: []
+  queries: []
+  events: []
+  policies:
+  - 'on': BookingCancelled
+    kind: integration-event
+    publishes: []
+    events:
+    - NoticeOwed
+links:
+- mechanism: integration-event
+  upstream: Accounts
+  downstream: Booking
+  contracts:
+  - AccountSuspended
+  - AccountReinstated
+- mechanism: integration-event
+  upstream: Booking
+  downstream: Notifications
+  contracts:
+  - BookingCancelled
+- mechanism: integration-event
+  upstream: Booking
+  downstream: Payments
+  contracts:
+  - BookingCancelled

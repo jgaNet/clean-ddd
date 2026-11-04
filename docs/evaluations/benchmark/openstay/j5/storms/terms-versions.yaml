@@ -1,0 +1,59 @@
+# Feature 98 of OpenStay's J5 (../backlog/98-terms-versions.md), as the session decided it.
+schemaVersion: 1
+feature: terms-versions
+intent: Administrators publish versions of the terms; booking and publishing need the current one accepted, and a booking
+  keeps its version.
+done: false
+hotSpots:
+- question: Where are the terms?
+  decision: In Accounts, which knows who someone is and what they agreed to (V12); Booking and Listings ask, through ports
+    they own, whether the caller accepted the current terms; a booking keeps the version.
+- question: In the audit log?
+  decision: Accounts publishes AdministratorDecided on TermsPublished (V5).
+contexts:
+- id: Accounts
+  commands:
+  - name: PublishTerms
+    actor: a signed-in account
+    route: POST /admin/terms
+    aggregate: TermsVersion
+    events:
+    - TermsPublished
+  - name: AcceptTerms
+    actor: a signed-in account
+    route: POST /accounts/me/terms/accept
+    aggregate: Account
+    events:
+    - TermsAccepted
+  queries:
+  - name: GetCurrentTerms
+    actor: anyone
+    route: GET /terms
+  - name: GetTerms
+    actor: anyone
+    route: GET /terms/{version}
+  events:
+  - TermsAccepted
+  - TermsPublished
+  policies:
+  - 'on': TermsPublished
+    kind: domain-event
+    publishes:
+    - AdministratorDecided
+    events: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Booking
+  contracts:
+  - TermsAcceptances
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Listings
+  contracts:
+  - TermsAcceptances
+- mechanism: integration-event
+  upstream: Accounts
+  downstream: Backoffice
+  contracts:
+  - AdministratorDecided

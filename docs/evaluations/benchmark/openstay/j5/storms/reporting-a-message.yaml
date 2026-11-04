@@ -1,0 +1,46 @@
+# Feature 56 of OpenStay's J5 (../backlog/56-reporting-a-message.md), as the session decided it.
+schemaVersion: 1
+feature: reporting-a-message
+intent: The recipient of a message reports it, stops seeing it at once, and the report waits for the administrators.
+done: false
+hotSpots:
+- question: Hidden for the reporter only?
+  decision: A per-reader exclusion in Messaging, which also refuses a second report by the same account.
+- question: Whose is the report?
+  decision: 'Moderation''s (V3): Messaging tells it by an integration event, and Moderation opens the report on the message''s
+    case.'
+contexts:
+- id: Messaging
+  commands:
+  - name: ReportMessage
+    actor: a signed-in account
+    route: POST /messages/{id}/report
+    aggregate: Conversation
+    events:
+    - MessageReported
+  queries: []
+  events:
+  - MessageReported
+  policies:
+  - 'on': MessageReported
+    kind: domain-event
+    publishes:
+    - MessageReported
+    events: []
+- id: Moderation
+  commands: []
+  queries: []
+  events:
+  - ReportMade
+  policies:
+  - 'on': MessageReported
+    kind: integration-event
+    publishes: []
+    events:
+    - ReportMade
+links:
+- mechanism: integration-event
+  upstream: Messaging
+  downstream: Moderation
+  contracts:
+  - MessageReported

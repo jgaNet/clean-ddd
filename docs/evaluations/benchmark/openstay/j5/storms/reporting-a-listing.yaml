@@ -1,0 +1,29 @@
+# Feature 63 of OpenStay's J5 (../backlog/63-reporting-a-listing.md), as the session decided it.
+schemaVersion: 1
+feature: reporting-a-listing
+intent: A signed-in account reports a listing it can see; one open report per person and listing.
+done: false
+hotSpots:
+- question: One open per person?
+  decision: Moderation's key on (reporter, subject) while open, in the ModerationCase of the listing (feature 64).
+- question: Can the reporter see it, and is it theirs?
+  decision: Moderation asks Listings through a port it owns whether the listing can be seen and who hosts and manages it.
+contexts:
+- id: Moderation
+  commands:
+  - name: ReportListing
+    actor: a signed-in account
+    route: POST /listings/{id}/report
+    aggregate: ModerationCase
+    events:
+    - ReportMade
+  queries: []
+  events:
+  - ReportMade
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Moderation
+  contracts:
+  - ListingHosts

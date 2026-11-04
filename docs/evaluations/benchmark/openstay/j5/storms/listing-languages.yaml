@@ -1,0 +1,44 @@
+# Feature 85 of OpenStay's J5 (../backlog/85-listing-languages.md), as the session decided it.
+schemaVersion: 1
+feature: listing-languages
+intent: A host writes a listing in several languages; each reader gets the best match for their Accept-Language.
+done: false
+hotSpots:
+- question: Where?
+  decision: In the context that owns the text, Listings (V10).
+- question: The best match?
+  decision: Listings' rule, from Accept-Language; search asks it through ListingTerms.
+contexts:
+- id: Listings
+  commands:
+  - name: TranslateListing
+    actor: a signed-in account
+    route: PUT /listings/{id}/translations/{lang}
+    aggregate: Listing
+    events:
+    - ListingTranslated
+  - name: SetListingDefaultLanguage
+    actor: a signed-in account
+    route: PUT /listings/{id}/default-language
+    aggregate: Listing
+    events:
+    - ListingDefaultLanguageSet
+  queries:
+  - name: GetListingTranslations
+    actor: anyone
+    route: GET /listings/{id}/translations
+  events:
+  - ListingDefaultLanguageSet
+  - ListingTranslated
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Booking
+  contracts:
+  - ListingTerms
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Listings
+  contracts:
+  - Collaborators

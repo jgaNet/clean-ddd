@@ -1,0 +1,84 @@
+# Feature 73 of OpenStay's J5 (../backlog/73-transfer-proof.md), as the session decided it.
+schemaVersion: 1
+feature: transfer-proof
+intent: The traveller sends a proof of transfer, which stops the lapse while the host side confirms or contests it.
+done: false
+hotSpots:
+- question: Is the lapse stopped?
+  decision: Payments publishes TransferProofSent, and TransferContested when the host side contests, so that the lapse stays
+    Booking's own rule (J4's U2).
+- question: Confirmed?
+  decision: 'The Payment is declared exactly as in 36: BookingDeclaredPaid, as before.'
+- question: Unconfirmed?
+  decision: Read from the proof's time and the clock; nobody acts.
+contexts:
+- id: Payments
+  commands:
+  - name: SendTransferProof
+    actor: a signed-in account
+    route: POST /bookings/{id}/transfer-proof
+    aggregate: Payment
+    events:
+    - TransferProofSent
+  - name: ConfirmTransfer
+    actor: a signed-in account
+    route: POST /bookings/{id}/transfer/confirm
+    aggregate: Payment
+    events:
+    - PaymentDeclared
+    - TransferConfirmed
+  - name: ContestTransfer
+    actor: a signed-in account
+    route: POST /bookings/{id}/transfer/contest
+    aggregate: Payment
+    events:
+    - TransferContested
+  queries:
+  - name: GetTransferProof
+    actor: a signed-in account
+    route: GET /bookings/{id}/transfer-proof
+  events:
+  - TransferConfirmed
+  - TransferContested
+  - TransferProofSent
+  policies:
+  - 'on': TransferProofSent
+    kind: domain-event
+    publishes:
+    - TransferProofSent
+    events: []
+  - 'on': TransferContested
+    kind: domain-event
+    publishes:
+    - TransferContested
+    events: []
+- id: Booking
+  commands: []
+  queries: []
+  events:
+  - BookingLapseHeld
+  - BookingLapseResumed
+  policies:
+  - 'on': TransferProofSent
+    kind: integration-event
+    publishes: []
+    events:
+    - BookingLapseHeld
+  - 'on': TransferContested
+    kind: integration-event
+    publishes: []
+    events:
+    - BookingLapseResumed
+links:
+- mechanism: integration-event
+  upstream: Payments
+  downstream: Booking
+  contracts:
+  - TransferProofSent
+  - TransferContested
+  - BookingDeclaredPaid
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Payments
+  contracts:
+  - ListingActors

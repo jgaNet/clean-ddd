@@ -1,0 +1,69 @@
+# Feature 71 of OpenStay's J5 (../backlog/71-claims.md), as the session decided it.
+schemaVersion: 1
+feature: claims
+intent: Either side of a stay that took place opens a claim, the other answers once, and an administrator decides once.
+done: false
+hotSpots:
+- question: Where do claims live?
+  decision: 'In a new context, Support (V6): a claim is a conversation and a decision before it is money.'
+- question: A stay took place?
+  decision: Support asks Booking through a port it owns, with the stay's sides; Accounts says who the administrators are.
+- question: In the audit log?
+  decision: Support publishes AdministratorDecided on ClaimDecided (V5).
+contexts:
+- id: Support
+  commands:
+  - name: OpenClaim
+    actor: a signed-in account
+    route: POST /bookings/{id}/claims
+    aggregate: Claim
+    events:
+    - ClaimOpened
+  - name: AnswerClaim
+    actor: a signed-in account
+    route: POST /claims/{id}/answer
+    aggregate: Claim
+    events:
+    - ClaimAnswered
+  - name: DecideClaim
+    actor: a signed-in account
+    route: POST /admin/claims/{id}/decide
+    aggregate: Claim
+    events:
+    - ClaimDecided
+  queries:
+  - name: GetBookingClaims
+    actor: a signed-in account
+    route: GET /bookings/{id}/claims
+  - name: GetClaim
+    actor: a signed-in account
+    route: GET /claims/{id}
+  - name: GetClaimsToDecide
+    actor: a signed-in account
+    route: GET /admin/claims
+  events:
+  - ClaimAnswered
+  - ClaimDecided
+  - ClaimOpened
+  policies:
+  - 'on': ClaimDecided
+    kind: domain-event
+    publishes:
+    - AdministratorDecided
+    events: []
+links:
+- mechanism: owned-port
+  upstream: Booking
+  downstream: Support
+  contracts:
+  - Stays
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Support
+  contracts:
+  - Administrators
+- mechanism: integration-event
+  upstream: Support
+  downstream: Backoffice
+  contracts:
+  - AdministratorDecided

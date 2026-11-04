@@ -1,0 +1,93 @@
+# Feature 67 of OpenStay's J5 (../backlog/67-audit-log.md), as the session decided it.
+schemaVersion: 1
+feature: audit-log
+intent: Every administrator decision is one entry of an audit log nothing changes, read by subject.
+done: false
+hotSpots:
+- question: Where is the log?
+  decision: In a new context, Backoffice (V5); every context that takes an administrator's decision publishes AdministratorDecided
+    { action, subjectId, adminId, note, at }, in the shared kernel.
+- question: Once per decision?
+  decision: Backoffice records it through its inbox, once; the decision publishes it through the outbox with the state it
+    changes.
+contexts:
+- id: Backoffice
+  commands: []
+  queries:
+  - name: GetAuditEntries
+    actor: a signed-in account
+    route: GET /admin/audit
+  events:
+  - AuditEntryRecorded
+  policies:
+  - 'on': AdministratorDecided
+    kind: integration-event
+    publishes: []
+    events:
+    - AuditEntryRecorded
+- id: Moderation
+  commands: []
+  queries: []
+  events:
+  - ReportDismissed
+  - ReportUpheld
+  policies:
+  - 'on': ReportDismissed
+    kind: domain-event
+    publishes:
+    - AdministratorDecided
+    events: []
+  - 'on': ReportUpheld
+    kind: domain-event
+    publishes:
+    - AdministratorDecided
+    events: []
+- id: Accounts
+  commands: []
+  queries: []
+  events:
+  - AccountReinstated
+  - AccountSuspended
+  policies:
+  - 'on': AccountSuspended
+    kind: domain-event
+    publishes:
+    - AdministratorDecided
+    events: []
+  - 'on': AccountReinstated
+    kind: domain-event
+    publishes:
+    - AdministratorDecided
+    events: []
+- id: Listings
+  commands: []
+  queries: []
+  events:
+  - ListingReinstated
+  policies:
+  - 'on': ListingReinstated
+    kind: domain-event
+    publishes:
+    - AdministratorDecided
+    events: []
+links:
+- mechanism: integration-event
+  upstream: Moderation
+  downstream: Backoffice
+  contracts:
+  - AdministratorDecided
+- mechanism: integration-event
+  upstream: Accounts
+  downstream: Backoffice
+  contracts:
+  - AdministratorDecided
+- mechanism: integration-event
+  upstream: Listings
+  downstream: Backoffice
+  contracts:
+  - AdministratorDecided
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Backoffice
+  contracts:
+  - Administrators

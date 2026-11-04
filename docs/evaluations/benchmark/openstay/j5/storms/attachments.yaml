@@ -1,0 +1,29 @@
+# Feature 54 of OpenStay's J5 (../backlog/54-attachments.md), as the session decided it.
+schemaVersion: 1
+feature: attachments
+intent: A party of a conversation uploads a file and attaches it to a message; only the conversation's readers download it.
+done: false
+hotSpots:
+- question: Where are the bytes?
+  decision: Behind a port Messaging owns (a file store), in the database for the benchmark; the conversation holds what each
+    upload is and whether it is attached.
+- question: Attached once?
+  decision: The upload belongs to the conversation, which refuses an upload that is not the sender's, not its own or already
+    attached.
+contexts:
+- id: Messaging
+  commands:
+  - name: UploadAttachment
+    actor: a signed-in account
+    route: POST /conversations/{id}/attachments
+    aggregate: Conversation
+    events:
+    - AttachmentUploaded
+  queries:
+  - name: GetAttachment
+    actor: a signed-in account
+    route: GET /attachments/{id}
+  events:
+  - AttachmentUploaded
+  policies: []
+links: []

@@ -1,0 +1,43 @@
+# Feature 99 of OpenStay's J5 (../backlog/99-operations-dashboard.md), as the session decided it.
+schemaVersion: 1
+feature: operations-dashboard
+intent: Administrators see in one glance what waits for OpenStay's people.
+done: false
+hotSpots:
+- question: Where?
+  decision: 'Backoffice (V5): the dashboard asks each context for its count through a port Backoffice owns.'
+contexts:
+- id: Backoffice
+  commands: []
+  queries:
+  - name: GetDashboard
+    actor: a signed-in account
+    route: GET /admin/dashboard
+  events: []
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Booking
+  downstream: Backoffice
+  contracts:
+  - BookingCounts
+- mechanism: owned-port
+  upstream: Payments
+  downstream: Backoffice
+  contracts:
+  - PaymentCounts
+- mechanism: owned-port
+  upstream: Moderation
+  downstream: Backoffice
+  contracts:
+  - ReportCounts
+- mechanism: owned-port
+  upstream: Support
+  downstream: Backoffice
+  contracts:
+  - SupportCounts
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Backoffice
+  contracts:
+  - Administrators
