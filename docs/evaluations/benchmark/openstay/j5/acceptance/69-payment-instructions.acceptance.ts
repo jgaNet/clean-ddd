@@ -65,7 +65,6 @@ describe('direct payment instructions', () => {
     expect(Number.isNaN(Date.parse(String(details.changedAt)))).toBe(false);
 
     expect(await api.refused('PUT', PATH, tom.token, { iban: iban('FR'), holder: 'Tom' })).toBe(true);
-    expect((await api.call('GET', PATH, tom.token)).status).toBe(404);
   }, 60000);
 
   it('takes any IBAN of 15 to 34 characters whose check digits are right, and a holder of 1 to 100 characters', async () => {

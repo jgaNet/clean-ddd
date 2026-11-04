@@ -1,4 +1,16 @@
-import { client, Client, database, eventually, Json, notificationService, PASSWORD, Running, sleep, start, stop } from './openstay';
+import {
+  client,
+  Client,
+  database,
+  eventually,
+  Json,
+  notificationService,
+  PASSWORD,
+  Running,
+  sleep,
+  start,
+  stop,
+} from './openstay';
 
 /**
  * Request 76: an account asks for a six-digit code, sent as a notice (request 10) that cannot be
@@ -24,7 +36,8 @@ afterAll(async () => {
   db.remove();
 });
 
-const codesOf = (accountId: string) => service.notices('email-verification').filter(each => each.accountId === accountId);
+const codesOf = (accountId: string) =>
+  service.notices('email-verification').filter(each => each.accountId === accountId);
 /** Asks for a code as `account`, and waits for its notice: the notice. */
 async function ask(account: { id: string; token: string }, on = api): Promise<Json> {
   const before = codesOf(account.id).length;
@@ -37,8 +50,7 @@ async function ask(account: { id: string; token: string }, on = api): Promise<Js
   if (notices.length <= before) throw new Error(`no code was sent to ${account.id}`);
   return notices[notices.length - 1];
 }
-const verify = (token: string, code: string, on = api) =>
-  on.act('POST', '/accounts/me/email/verify', token, { code });
+const verify = (token: string, code: string, on = api) => on.act('POST', '/accounts/me/email/verify', token, { code });
 const verified = async (token: string) => (await api.read('/accounts/me', token)).emailVerified;
 /** Six-digit codes other than `code`. */
 const wrong = (code: string, count: number) =>
@@ -135,7 +147,7 @@ describe('email verification', () => {
     expect(await verified(kay.token)).toBe(true);
   }, 60000);
 
-  it('changes the email under request 1\'s rules: signed in with the new one only, unverified, its earlier code spent', async () => {
+  it("changes the email under request 1's rules: signed in with the new one only, unverified, its earlier code spent", async () => {
     const lea = await api.traveller('lea@email-verification.test');
     const max = await api.traveller('max@email-verification.test');
     await api.done('POST', '/accounts/me/email/verify', lea.token, { code: String((await ask(lea)).code) });
@@ -143,15 +155,15 @@ describe('email verification', () => {
 
     for (const email of ['not-an-email', 'lea@nowhere', 'MAX@Email-Verification.test'])
       expect(await api.refused('PUT', '/accounts/me/email', lea.token, { email })).toBe(true);
-    expect((await api.call('POST', '/accounts/login', undefined, { email: lea.email, password: PASSWORD })).status).toBe(
-      200,
-    );
+    expect(
+      (await api.call('POST', '/accounts/login', undefined, { email: lea.email, password: PASSWORD })).status,
+    ).toBe(200);
 
     const before = String((await ask(max)).code);
     await api.done('PUT', '/accounts/me/email', lea.token, { email: 'lea.new@email-verification.test' });
-    expect((await api.call('POST', '/accounts/login', undefined, { email: lea.email, password: PASSWORD })).status).toBe(
-      401,
-    );
+    expect(
+      (await api.call('POST', '/accounts/login', undefined, { email: lea.email, password: PASSWORD })).status,
+    ).toBe(401);
     const token = await api.login('lea.new@email-verification.test');
     expect(await api.read('/accounts/me', token)).toMatchObject({
       id: lea.id,

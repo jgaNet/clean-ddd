@@ -104,7 +104,11 @@ describe('a claim decided with money', () => {
     provider.state.twice = true;
     try {
       const id = await opened('refund', tom.token, 5000);
-      await api.done('POST', `/admin/claims/${id}/decide`, ada.token, { outcome: 'traveller', note: NOTE, amount: 3000 });
+      await api.done('POST', `/admin/claims/${id}/decide`, ada.token, {
+        outcome: 'traveller',
+        note: NOTE,
+        amount: 3000,
+      });
       expect(await claimOf(id)).toMatchObject({
         status: 'decided',
         decision: { outcome: 'traveller', note: NOTE, amount: 3000 },
@@ -148,7 +152,9 @@ describe('a claim decided with money', () => {
       ]);
       // The host's statement follows, as for any refund (request 35).
       const statement = await api.read(`/hosts/me/statement?from=${day(-2)}&to=${day(5)}`, hal.token);
-      const lines = (statement.lines as Json[]).filter(each => each.bookingId === stays.refund && each.type === 'refund');
+      const lines = (statement.lines as Json[]).filter(
+        each => each.bookingId === stays.refund && each.type === 'refund',
+      );
       expect(lines.map(each => each.amount)).toEqual([-3000]);
     } finally {
       provider.state.settleAfterMs = 200;
@@ -188,7 +194,12 @@ describe('a claim decided with money', () => {
           claim => (claim.refund as Json | null)?.status === 'refunded',
         ),
       ).toMatchObject({ refund: { amount: 4000, status: 'refunded' } });
-      expect(await paymentOf('whole')).toMatchObject({ refunded: 4000 });
+      expect(
+        await eventually(
+          () => paymentOf('whole'),
+          payment => payment.refunded === 4000,
+        ),
+      ).toMatchObject({ refunded: 4000 });
     } finally {
       provider.state.settleAfterMs = 200;
     }
@@ -208,15 +219,26 @@ describe('a claim decided with money', () => {
         claim => (claim.refund as Json | null)?.status === 'refunded',
       ),
     ).toMatchObject({ decision: { amount: 5000 }, refund: { amount: 2000, status: 'refunded' } });
-    expect(await paymentOf('left')).toMatchObject({ refunded: PAID });
+    expect(
+      await eventually(
+        () => paymentOf('left'),
+        payment => payment.refunded === PAID,
+      ),
+    ).toMatchObject({ refunded: PAID });
 
     // A second claim, once the first is decided: nothing is left, nothing is sent.
     const second = await opened('left', tom.token, 1000);
     await api.done('POST', `/admin/claims/${second}/decide`, ada.token, { outcome: 'traveller', note: NOTE });
     await sleep(3000);
     expect(await claimOf(second)).toMatchObject({ status: 'decided', decision: { amount: 1000 }, refund: null });
-    expect(refundsAt('left').map(each => each.amount).sort((a, b) => a - b)).toEqual([2000, 10000]);
-    expect(sum((await api.list(`/bookings/${stays.left}/refunds`, tom.token)).map(each => Number(each.amount)))).toBe(PAID);
+    expect(
+      refundsAt('left')
+        .map(each => each.amount)
+        .sort((a, b) => a - b),
+    ).toEqual([2000, 10000]);
+    expect(sum((await api.list(`/bookings/${stays.left}/refunds`, tom.token)).map(each => Number(each.amount)))).toBe(
+      PAID,
+    );
   }, 90000);
 
   it("never refunds more than was paid when a decision and a host's refund come at the same moment", async () => {
@@ -237,9 +259,13 @@ describe('a claim decided with money', () => {
     await provider.settled();
     const payment = await paymentOf('race');
     expect(payment.refunded).toBe(sum(refunds.map(each => Number(each.amount))));
-    expect(sum(refundsAt('race').filter(each => each.status === 'succeeded').map(each => each.amount))).toBe(
-      payment.refunded,
-    );
+    expect(
+      sum(
+        refundsAt('race')
+          .filter(each => each.status === 'succeeded')
+          .map(each => each.amount),
+      ),
+    ).toBe(payment.refunded);
   }, 90000);
 
   it('moves nothing for a decision for the host, a rejection, or a claim the host opened, and takes no amount with them', async () => {
@@ -274,7 +300,11 @@ describe('a claim decided with money', () => {
 
   it('records the decision and moves nothing on a booking declared paid by its host, or not paid', async () => {
     const declared = await opened('declared', tom.token, 3000);
-    await api.done('POST', `/admin/claims/${declared}/decide`, ada.token, { outcome: 'traveller', note: NOTE, amount: 2000 });
+    await api.done('POST', `/admin/claims/${declared}/decide`, ada.token, {
+      outcome: 'traveller',
+      note: NOTE,
+      amount: 2000,
+    });
     const unpaid = await opened('unpaid', tom.token, 3000);
     await api.done('POST', `/admin/claims/${unpaid}/decide`, ada.token, { outcome: 'traveller', note: NOTE });
     await sleep(3000);
@@ -324,22 +354,35 @@ describe('a claim decided with money', () => {
   }, 90000);
 
   it('asks the refund once when the server is killed right after the decision, and finishes it after a start', async () => {
-    const id = await opened('killed', tom.token, 1500);
-    await api.done('POST', `/admin/claims/${id}/decide`, ada.token, { outcome: 'traveller', note: NOTE });
-    await kill(server);
-    server = await start(db.path, { ...environment, ...clock(2) });
-    provider.attach(server.port);
-    api = client(server.port);
-    await signIn();
-    expect(
-      await eventually(
-        () => claimOf(id),
-        claim => (claim.refund as Json | null)?.status === 'refunded',
+    // The provider settles the refund once the new server listens, so that its webhook finds it.
+    provider.state.settleAfterMs = undefined;
+    try {
+      const id = await opened('killed', tom.token, 1500);
+      await api.done('POST', `/admin/claims/${id}/decide`, ada.token, { outcome: 'traveller', note: NOTE });
+      await kill(server);
+      server = await start(db.path, { ...environment, ...clock(2) });
+      provider.attach(server.port);
+      api = client(server.port);
+      await signIn();
+      const [refund] = await eventually(
+        async () => refundsAt('killed'),
+        found => found.length > 0,
         30000,
-      ),
-    ).toMatchObject({ decision: { amount: 1500 }, refund: { amount: 1500, status: 'refunded' } });
-    await sleep(3000);
-    expect(refundsAt('killed').map(each => each.amount)).toEqual([1500]);
-    expect(await paymentOf('killed')).toMatchObject({ refunded: 1500 });
+      );
+      expect(refund).toMatchObject({ amount: 1500, payment: payments.killed });
+      provider.settleRefund(refund.id);
+      expect(
+        await eventually(
+          () => claimOf(id),
+          claim => (claim.refund as Json | null)?.status === 'refunded',
+          30000,
+        ),
+      ).toMatchObject({ decision: { amount: 1500 }, refund: { amount: 1500, status: 'refunded' } });
+      await sleep(3000);
+      expect(refundsAt('killed').map(each => each.amount)).toEqual([1500]);
+      expect(await paymentOf('killed')).toMatchObject({ refunded: 1500 });
+    } finally {
+      provider.state.settleAfterMs = 200;
+    }
   }, 120000);
 });

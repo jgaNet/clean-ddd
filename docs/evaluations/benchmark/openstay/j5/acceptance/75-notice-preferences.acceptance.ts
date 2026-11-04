@@ -1,4 +1,16 @@
-import { client, Client, database, day, eventually, kill, notificationService, Running, sleep, start, stop } from './openstay';
+import {
+  client,
+  Client,
+  database,
+  day,
+  eventually,
+  kill,
+  notificationService,
+  Running,
+  sleep,
+  start,
+  stop,
+} from './openstay';
 
 /**
  * Request 75: each account turns its notices of bookings and messages off and on; a notice of a kind
@@ -192,6 +204,8 @@ describe('notice preferences', () => {
     );
     await sleep(3000);
     expect(noticesOf('bookingId', silent)).toEqual([]);
-    expect(noticesOf('hostId', hal.id)).toEqual([expect.objectContaining({ kind: 'booking-confirmed', bookingId: told })]);
+    expect(noticesOf('hostId', hal.id)).toEqual([
+      expect.objectContaining({ kind: 'booking-confirmed', bookingId: told }),
+    ]);
   }, 120000);
 });

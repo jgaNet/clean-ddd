@@ -164,7 +164,10 @@ describe('calendar export', () => {
     const organisationId = await api.create('/organisations', hal.token, { name: 'Hal & Co' });
     const id = await api.listing(hal.token);
     await api.done('POST', `/listings/${id}/move-to-organisation`, hal.token, { organisationId });
-    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: mia.email, role: 'manager' });
+    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, {
+      email: mia.email,
+      role: 'manager',
+    });
     await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: val.email, role: 'viewer' });
 
     const url = await linkOf(id, hal.token);
@@ -181,7 +184,7 @@ describe('calendar export', () => {
     expect((await api.download(fresh)).status).toBe(200);
   }, 60000);
 
-  it("leaves out a blocked run whose last night is before today, today moved by CLOCK_OFFSET_DAYS", async () => {
+  it('leaves out a blocked run whose last night is before today, today moved by CLOCK_OFFSET_DAYS', async () => {
     const moved = database('calendar-export-clock');
     let running = await start(moved.path);
     try {

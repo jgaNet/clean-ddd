@@ -95,7 +95,10 @@ describe('versions of the terms', () => {
     const organisationId = await api.create('/organisations', hal.token, { name: 'Hal & Co' });
     const draft = await api.listing(hal.token, {}, false);
     await api.done('POST', `/listings/${draft}/move-to-organisation`, hal.token, { organisationId });
-    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: mia.email, role: 'manager' });
+    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, {
+      email: mia.email,
+      role: 'manager',
+    });
     expect(await api.refused('POST', `/listings/${draft}/publish`, mia.token)).toBe(true);
     await accept(mia.token, '2026.1-a');
     await api.done('POST', `/listings/${draft}/publish`, mia.token);

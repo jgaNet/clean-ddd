@@ -92,7 +92,7 @@ describe('a cap on nights per year', () => {
     expect(await counted(id, hal.token)).toMatchObject({ nights: 11, cap: null });
   }, 90000);
 
-  it("counts each night of a stay in its own year, and only confirmed bookings: a request waits, an acceptance may be refused", async () => {
+  it('counts each night of a stay in its own year, and only confirmed bookings: a request waits, an acceptance may be refused', async () => {
     const hal = await api.host('hal2@night-cap.test');
     const tom = await api.traveller('tom2@night-cap.test');
     const una = await api.traveller('una2@night-cap.test');
@@ -192,7 +192,8 @@ describe('a cap on nights per year', () => {
       ]);
       expect(sent.filter(outcome => outcome.accepted)).toHaveLength(1);
       const confirmed = await eventually(
-        async () => (await api.list(`/listings/${two}/bookings`, hal.token)).filter(each => each.status === 'confirmed'),
+        async () =>
+          (await api.list(`/listings/${two}/bookings`, hal.token)).filter(each => each.status === 'confirmed'),
         found => found.length >= 1,
       );
       expect(confirmed).toHaveLength(1);
@@ -212,8 +213,7 @@ describe('a cap on nights per year', () => {
       expect((await api.call('PUT', capPath('Mons'), token, { nights: 10 })).status).toBe(403);
       expect((await api.call('GET', capPath('Mons'), token)).status).toBe(403);
     }
-    for (const nights of [0, 366, '10'])
-      expect((await setCap('Mons', nights)).accepted).toBe(false);
+    for (const nights of [0, 366, '10']) expect((await setCap('Mons', nights)).accepted).toBe(false);
     expect(await api.read(capPath('Mons'), admin.token)).toMatchObject({ nights: null });
 
     await cap('Mons', 365);
@@ -233,7 +233,10 @@ describe('a cap on nights per year', () => {
     const organisationId = await api.create('/organisations', hal.token, { name: 'Hal & Co' });
     const id = await listing(hal.token, 'Mons');
     await api.done('POST', `/listings/${id}/move-to-organisation`, hal.token, { organisationId });
-    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: mia.email, role: 'manager' });
+    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, {
+      email: mia.email,
+      role: 'manager',
+    });
     await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: val.email, role: 'viewer' });
     await booked(tom.token, id, date(10, 1), date(10, 4));
     for (const token of [hal.token, mia.token, val.token])

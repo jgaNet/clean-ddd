@@ -35,7 +35,10 @@ afterAll(async () => {
 const compact = (date: string) => date.replaceAll('-', '');
 /** `calendar` with events written by hand added: what request 96 says is ignored. */
 const withRaw = (calendar: string, ...events: string[][]) =>
-  calendar.replace('END:VCALENDAR\r\n', [...events.flatMap(lines => ['BEGIN:VEVENT', ...lines, 'END:VEVENT']), 'END:VCALENDAR', ''].join('\r\n'));
+  calendar.replace(
+    'END:VCALENDAR\r\n',
+    [...events.flatMap(lines => ['BEGIN:VEVENT', ...lines, 'END:VEVENT']), 'END:VCALENDAR', ''].join('\r\n'),
+  );
 const link = (listingId: string, token: string, urls: string[]) =>
   api.done('PUT', `/listings/${listingId}/imported-calendars`, token, { urls });
 /** Each night from `from` to the night before `to`, as `[date, available, source]`. */
@@ -68,7 +71,7 @@ const fetchedAgain = async (name: string, count: number) => {
 const listed = (listingId: string, token: string) => api.list(`/listings/${listingId}/imported-calendars`, token);
 
 describe('calendar import', () => {
-  it("links up to ten addresses, given by the host side and read with when each was fetched", async () => {
+  it('links up to ten addresses, given by the host side and read with when each was fetched', async () => {
     const hal = await api.host('hal@calendar-import.test');
     const mia = await api.host('mia@calendar-import.test');
     const val = await api.host('val@calendar-import.test');
@@ -76,22 +79,33 @@ describe('calendar import', () => {
     const organisationId = await api.create('/organisations', hal.token, { name: 'Hal & Co' });
     const id = await api.listing(hal.token);
     await api.done('POST', `/listings/${id}/move-to-organisation`, hal.token, { organisationId });
-    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: mia.email, role: 'manager' });
+    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, {
+      email: mia.email,
+      role: 'manager',
+    });
     await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: val.email, role: 'viewer' });
     outside.serve('links-ok', ics([]));
     const ok = await outside.url('links-ok');
     const missing = await outside.url('links-missing');
     const path = `/listings/${id}/imported-calendars`;
 
-    expect(await api.refused('PUT', path, hal.token, { urls: Array.from({ length: 11 }, (_, n) => `${ok}?${n}`) })).toBe(true);
+    expect(
+      await api.refused('PUT', path, hal.token, { urls: Array.from({ length: 11 }, (_, n) => `${ok}?${n}`) }),
+    ).toBe(true);
     expect(await api.refused('PUT', path, hal.token, { urls: ['ftp://elsewhere.test/calendar.ics'] })).toBe(true);
     expect(await api.refused('PUT', path, hal.token, { urls: ['not an address'] })).toBe(true);
     expect(await api.refused('PUT', path, val.token, { urls: [ok] })).toBe(true);
     expect(await api.refused('PUT', path, ian.token, { urls: [ok] })).toBe(true);
     expect(await listed(id, hal.token)).toEqual([]);
 
-    await link(id, hal.token, Array.from({ length: 10 }, (_, n) => `${ok}?${n}`));
-    expect((await listed(id, val.token)).map(each => each.url)).toEqual(Array.from({ length: 10 }, (_, n) => `${ok}?${n}`));
+    await link(
+      id,
+      hal.token,
+      Array.from({ length: 10 }, (_, n) => `${ok}?${n}`),
+    );
+    expect((await listed(id, val.token)).map(each => each.url)).toEqual(
+      Array.from({ length: 10 }, (_, n) => `${ok}?${n}`),
+    );
     // Given again, the list is replaced, in the order given.
     await link(id, mia.token, [missing, ok]);
     expect((await listed(id, hal.token)).map(each => each.url)).toEqual([missing, ok]);
@@ -133,9 +147,18 @@ describe('calendar import', () => {
     expect(await nights(id, 30, 37)).toEqual(free(30, 37));
     await until(id, 40, 41, imported(40, 41));
 
-    expect(await api.refused('POST', '/quotes', tom.token, { listingId: id, checkIn: day(11), checkOut: day(12), guests: 1 })).toBe(true);
+    expect(
+      await api.refused('POST', '/quotes', tom.token, {
+        listingId: id,
+        checkIn: day(11),
+        checkOut: day(12),
+        guests: 1,
+      }),
+    ).toBe(true);
     expect(await api.refused('POST', '/bookings', tom.token, { quoteId: quoteBefore })).toBe(true);
-    expect(await api.refused('POST', '/holds', tom.token, { listingId: id, checkIn: day(20), checkOut: day(21), guests: 1 })).toBe(true);
+    expect(
+      await api.refused('POST', '/holds', tom.token, { listingId: id, checkIn: day(20), checkOut: day(21), guests: 1 }),
+    ).toBe(true);
     const search = (checkIn: number, checkOut: number) =>
       api.list(`/listings?city=Quimper&checkIn=${day(checkIn)}&checkOut=${day(checkOut)}`);
     expect((await search(11, 12)).map(each => each.id)).toEqual([]);

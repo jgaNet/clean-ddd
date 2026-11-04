@@ -34,7 +34,10 @@ describe('registration numbers by city', () => {
     expect(await ruleOf('Bordeaux')).toEqual(expect.objectContaining({ required: false, pattern: null }));
     expect(await ruleOf('bordeaux', tom.token)).toEqual(expect.objectContaining({ required: false, pattern: null }));
 
-    await api.done('PUT', '/admin/cities/Bordeaux/registration', ada.token, { required: true, pattern: '\\d{5}[A-Z]{2}' });
+    await api.done('PUT', '/admin/cities/Bordeaux/registration', ada.token, {
+      required: true,
+      pattern: '\\d{5}[A-Z]{2}',
+    });
     for (const city of ['Bordeaux', 'bordeaux', 'BORDEAUX'])
       expect(await ruleOf(city)).toEqual(expect.objectContaining({ required: true, pattern: '\\d{5}[A-Z]{2}' }));
     expect(await ruleOf('Bordeaux', tom.token)).toEqual(expect.objectContaining({ required: true }));
@@ -67,13 +70,23 @@ describe('registration numbers by city', () => {
       found => found.length >= 2,
     );
     expect(entries).toEqual([
-      expect.objectContaining({ adminId: ada.id, action: 'city-registration-set', subjectId: 'strasbourg', note: null }),
-      expect.objectContaining({ adminId: ada.id, action: 'city-registration-set', subjectId: 'strasbourg', note: null }),
+      expect.objectContaining({
+        adminId: ada.id,
+        action: 'city-registration-set',
+        subjectId: 'strasbourg',
+        note: null,
+      }),
+      expect.objectContaining({
+        adminId: ada.id,
+        action: 'city-registration-set',
+        subjectId: 'strasbourg',
+        note: null,
+      }),
     ]);
     expect(entries.every(entry => typeof entry.at === 'string')).toBe(true);
   }, 60000);
 
-  it('lets the host or a manager set a listing\'s number, kept as given, in any state but archived, shown to anyone who sees it', async () => {
+  it("lets the host or a manager set a listing's number, kept as given, in any state but archived, shown to anyone who sees it", async () => {
     const hal = await api.host('hal2@registration-numbers.test');
     const mia = await api.host('mia2@registration-numbers.test');
     const vic = await api.host('vic2@registration-numbers.test');
@@ -86,7 +99,10 @@ describe('registration numbers by city', () => {
     const published = await api.listing(hal.token, { city: 'Toulouse' });
     const organisationId = await api.create('/organisations', hal.token, { name: 'Hal Lets' });
     await api.done('POST', `/listings/${published}/move-to-organisation`, hal.token, { organisationId });
-    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: mia.email, role: 'manager' });
+    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, {
+      email: mia.email,
+      role: 'manager',
+    });
     await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: vic.email, role: 'viewer' });
     await api.done('PUT', `/listings/${published}/registration-number`, mia.token, { number: '31555000111AB' });
     expect((await api.read(`/listings/${published}`)).registrationNumber).toBe('31555000111AB');
@@ -114,7 +130,10 @@ describe('registration numbers by city', () => {
 
   it("publishes a listing in a city that requires a number only when its whole number matches the city's pattern", async () => {
     const hal = await api.host('hal3@registration-numbers.test');
-    await api.done('PUT', '/admin/cities/Annecy/registration', ada.token, { required: true, pattern: '\\d{5}[A-Z]{2}' });
+    await api.done('PUT', '/admin/cities/Annecy/registration', ada.token, {
+      required: true,
+      pattern: '\\d{5}[A-Z]{2}',
+    });
     // The listing's city in another case than the rule's.
     const listingId = await api.listing(hal.token, { city: 'ANNECY' }, false);
     expect((await publish(listingId, hal.token)).accepted).toBe(false);
@@ -136,7 +155,10 @@ describe('registration numbers by city', () => {
     }
     await api.done('PUT', `/listings/${chamonix}/registration-number`, hal.token, { number: 'B2' });
     await api.done('POST', `/listings/${chamonix}/publish`, hal.token);
-    await api.done('PUT', '/admin/cities/Megeve/registration', ada.token, { required: true, pattern: '(MG|SV)-\\d{3}' });
+    await api.done('PUT', '/admin/cities/Megeve/registration', ada.token, {
+      required: true,
+      pattern: '(MG|SV)-\\d{3}',
+    });
     const megeve = await api.listing(hal.token, { city: 'Megeve' }, false);
     await api.done('PUT', `/listings/${megeve}/registration-number`, hal.token, { number: 'MG-12' });
     expect((await publish(megeve, hal.token)).accepted).toBe(false);

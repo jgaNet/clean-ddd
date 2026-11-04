@@ -97,9 +97,9 @@ describe('tourist tax set by the city', () => {
     const hal = await api.host('hal2@city-tax.test');
     const tom = await api.traveller('tom2@city-tax.test');
     await setRule('Biarritz', { kind: 'percent', percent: 5, capPerGuestNight: 250, childrenUnder: 12 });
-    expect((await api.read(`/listings/${await api.listing(hal.token, { city: 'Biarritz' })}`)).cityTouristTax).toMatchObject(
-      { kind: 'percent', percent: 5, capPerGuestNight: 250, childrenUnder: 12 },
-    );
+    expect(
+      (await api.read(`/listings/${await api.listing(hal.token, { city: 'Biarritz' })}`)).cityTouristTax,
+    ).toMatchObject({ kind: 'percent', percent: 5, capPerGuestNight: 250, childrenUnder: 12 });
 
     const id = await api.listing(hal.token, { city: 'biarritz', capacity: 4, nightlyPrice: 12000, cleaningFee: 2000 });
     await api.done('PUT', `/listings/${id}/tourist-tax`, hal.token, { perGuestPerNight: 150 });
@@ -167,7 +167,15 @@ describe('tourist tax set by the city', () => {
     const tom = await api.traveller('tom4@city-tax.test');
     const id = await api.listing(hal.token, { city: 'Menton' });
     for (const token of [tom.token, hal.token])
-      expect((await api.call('PUT', '/admin/cities/Menton/tourist-tax', token, { kind: 'percent', percent: 2, capPerGuestNight: 100 })).status).toBe(403);
+      expect(
+        (
+          await api.call('PUT', '/admin/cities/Menton/tourist-tax', token, {
+            kind: 'percent',
+            percent: 2,
+            capPerGuestNight: 100,
+          })
+        ).status,
+      ).toBe(403);
 
     for (const body of [
       { kind: 'percent', percent: 0, capPerGuestNight: 100 },

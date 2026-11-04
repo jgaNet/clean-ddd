@@ -48,7 +48,14 @@ const setRule = async (city: string, body: Json) => {
   if (!outcome.accepted) throw new Error(`the rule of ${city} was refused: ${JSON.stringify(outcome.result)}`);
 };
 const rules = (city: string) => api.list(path(city), admin.token);
-const quoted = async (token: string, listingId: string, from: number, to: number, guests: number, children?: number) => {
+const quoted = async (
+  token: string,
+  listingId: string,
+  from: number,
+  to: number,
+  guests: number,
+  children?: number,
+) => {
   const id = await api.create('/quotes', token, {
     listingId,
     checkIn: day(from),
@@ -115,7 +122,13 @@ describe('tax rates that change on a date', () => {
     await setRule('Sarlat', { kind: 'percent', percent: 5, capPerGuestNight: 1000, from: day(22) });
     expect(await rules('Sarlat')).toEqual([
       expect.objectContaining({ from: day(20), kind: 'per-guest-night', amount: 300, childrenUnder: 12 }),
-      expect.objectContaining({ from: day(22), kind: 'percent', percent: 5, capPerGuestNight: 1000, childrenUnder: null }),
+      expect.objectContaining({
+        from: day(22),
+        kind: 'percent',
+        percent: 5,
+        capPerGuestNight: 1000,
+        childrenUnder: null,
+      }),
     ]);
 
     // 3 guests of whom 1 child: 3 × 100, then 2 × 300 twice, then 3 × (12 000 ÷ 3 × 5 %).

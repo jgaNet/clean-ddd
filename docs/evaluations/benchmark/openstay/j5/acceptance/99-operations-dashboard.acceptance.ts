@@ -47,13 +47,7 @@ type Counts = Record<
 const dashboard = async () => (await api.read('/admin/dashboard', admin.token)) as unknown as Counts;
 /** Reads the dashboard until `field` is `value`, and gives that value. */
 const reads = async (field: keyof Counts, value: number) =>
-  (
-    await eventually(
-      dashboard,
-      counts => counts[field] === value,
-      20000,
-    )
-  )[field];
+  (await eventually(dashboard, counts => counts[field] === value, 20000))[field];
 const bookingOf = (token: string, listingId: string, from: number, to: number) =>
   api.quote(token, listingId, day(from), day(to)).then(quoteId => api.book(token, quoteId));
 
@@ -95,7 +89,10 @@ describe('the operations dashboard', () => {
     await api.done('POST', `/admin/reports/${reportOf(message.id)}/uphold`, admin.token, { note: 'A scam indeed.' });
     expect(await reads('openReports', before.openReports)).toBe(before.openReports);
 
-    const ticket = await api.create('/support/tickets', tom.token, { subject: 'My refund', text: 'Where is my refund?' });
+    const ticket = await api.create('/support/tickets', tom.token, {
+      subject: 'My refund',
+      text: 'Where is my refund?',
+    });
     expect(await reads('unansweredTickets', before.unansweredTickets + 1)).toBe(before.unansweredTickets + 1);
     await api.done('POST', `/support/tickets/${ticket}/messages`, admin.token, { text: 'On its way.' });
     expect(await reads('unansweredTickets', before.unansweredTickets)).toBe(before.unansweredTickets);

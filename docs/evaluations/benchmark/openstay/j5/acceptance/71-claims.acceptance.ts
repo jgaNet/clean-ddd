@@ -59,7 +59,8 @@ const stays: Record<string, string> = {};
 /** A booking of tom's from `from` to `to` days from today, on a new listing of hal's, paid unless said otherwise. */
 async function stay(from: number, to: number, { inOrganisation = false, paid = true } = {}) {
   const listingId = await api.listing(hal.token, { city: 'Annecy' });
-  if (inOrganisation) await api.done('POST', `/listings/${listingId}/move-to-organisation`, hal.token, { organisationId });
+  if (inOrganisation)
+    await api.done('POST', `/listings/${listingId}/move-to-organisation`, hal.token, { organisationId });
   const bookingId = await api.book(tom.token, await api.quote(tom.token, listingId, day(from), day(to)));
   if (paid) await payBooking(api, provider, tom.token, bookingId);
   return bookingId;
@@ -101,9 +102,14 @@ afterAll(async () => {
 });
 
 const claimOf = (id: string, token: string) => api.read(`/claims/${id}`, token);
-const open = (bookingId: string, token: string, body: Json) => api.act('POST', `/bookings/${bookingId}/claims`, token, body);
-const opened = (bookingId: string, token: string, amount = 5000, description = 'The window of the bedroom was broken') =>
-  api.create(`/bookings/${bookingId}/claims`, token, { amount, description });
+const open = (bookingId: string, token: string, body: Json) =>
+  api.act('POST', `/bookings/${bookingId}/claims`, token, body);
+const opened = (
+  bookingId: string,
+  token: string,
+  amount = 5000,
+  description = 'The window of the bedroom was broken',
+) => api.create(`/bookings/${bookingId}/claims`, token, { amount, description });
 const answer = (claimId: string, token: string, text: string) =>
   api.act('POST', `/claims/${claimId}/answer`, token, { text });
 const decide = (claimId: string, token: string, outcome: string, note: string) =>
@@ -113,14 +119,31 @@ const NOTE = 'The photos show the broken window';
 describe('claims after a stay', () => {
   it('opens a claim on a stay that took place, from the day after its check-out, and on no other', async () => {
     // Checked out today: not yet the day after.
-    expect(await api.refused('POST', `/bookings/${stays.endsToday}/claims`, tom.token, { amount: 1000, description: 'A stain' })).toBe(true);
+    expect(
+      await api.refused('POST', `/bookings/${stays.endsToday}/claims`, tom.token, {
+        amount: 1000,
+        description: 'A stain',
+      }),
+    ).toBe(true);
     // A stay still to come, booked now.
     const listingId = await api.listing(hal.token, { city: 'Annecy' });
     const future = await api.book(tom.token, await api.quote(tom.token, listingId, day(3), day(4)));
-    expect(await api.refused('POST', `/bookings/${future}/claims`, tom.token, { amount: 1000, description: 'A stain' })).toBe(true);
+    expect(
+      await api.refused('POST', `/bookings/${future}/claims`, tom.token, { amount: 1000, description: 'A stain' }),
+    ).toBe(true);
     // Lapsed, and cancelled.
-    expect(await api.refused('POST', `/bookings/${stays.lapsed}/claims`, tom.token, { amount: 1000, description: 'A stain' })).toBe(true);
-    expect(await api.refused('POST', `/bookings/${stays.cancelled}/claims`, tom.token, { amount: 1000, description: 'A stain' })).toBe(true);
+    expect(
+      await api.refused('POST', `/bookings/${stays.lapsed}/claims`, tom.token, {
+        amount: 1000,
+        description: 'A stain',
+      }),
+    ).toBe(true);
+    expect(
+      await api.refused('POST', `/bookings/${stays.cancelled}/claims`, tom.token, {
+        amount: 1000,
+        description: 'A stain',
+      }),
+    ).toBe(true);
     for (const bookingId of [stays.endsToday, future, stays.lapsed, stays.cancelled])
       expect(await api.list(`/bookings/${bookingId}/claims`, tom.token)).toEqual([]);
 
@@ -151,7 +174,12 @@ describe('claims after a stay', () => {
     expect(await refusedWith(vic.token, { amount: 1000, description: 'A broken chair' })).toBe(true);
     expect(await refusedWith(una.token, { amount: 1000, description: 'A broken chair' })).toBe(true);
     expect(await refusedWith(ada.token, { amount: 1000, description: 'A broken chair' })).toBe(true);
-    expect(await api.refused('POST', `/bookings/${bookingId}/claims`, undefined, { amount: 1000, description: 'A broken chair' })).toBe(true);
+    expect(
+      await api.refused('POST', `/bookings/${bookingId}/claims`, undefined, {
+        amount: 1000,
+        description: 'A broken chair',
+      }),
+    ).toBe(true);
     expect(await api.list(`/bookings/${bookingId}/claims`, tom.token)).toEqual([]);
 
     const id = await opened(bookingId, tom.token, 1, 'x'.repeat(2000));
@@ -192,7 +220,10 @@ describe('claims after a stay', () => {
     expect(decided).toMatchObject({ status: 'decided', decision: { outcome: 'host', note: NOTE } });
     expect(typeof (decided.decision as Json).at).toBe('string');
     expect((await decide(id, ada.token, 'traveller', 'On second thoughts the traveller')).accepted).toBe(false);
-    expect(await claimOf(id, tom.token)).toMatchObject({ status: 'decided', decision: { outcome: 'host', note: NOTE } });
+    expect(await claimOf(id, tom.token)).toMatchObject({
+      status: 'decided',
+      decision: { outcome: 'host', note: NOTE },
+    });
 
     const entries = await eventually(
       () => api.list(`/admin/audit?subjectId=${id}`, ada.token),
@@ -221,7 +252,10 @@ describe('claims after a stay', () => {
     // Opened by the host, decided while still open: the answer then comes too late.
     const hosted = await opened(stays.hosted, hal.token, 3000, 'A lamp was missing');
     expect(await claimOf(hosted, hal.token)).toMatchObject({ openedBy: 'host', status: 'open' });
-    await api.done('POST', `/admin/claims/${hosted}/decide`, ada.token, { outcome: 'rejected', note: 'No proof of the lamp' });
+    await api.done('POST', `/admin/claims/${hosted}/decide`, ada.token, {
+      outcome: 'rejected',
+      note: 'No proof of the lamp',
+    });
     expect(await claimOf(hosted, tom.token)).toMatchObject({
       status: 'decided',
       answer: null,
@@ -231,14 +265,32 @@ describe('claims after a stay', () => {
     expect(await claimOf(hosted, tom.token)).toMatchObject({ status: 'decided', answer: null });
   }, 60000);
 
-  it('keeps one undecided claim per booking, and lists a booking\'s claims oldest first', async () => {
+  it("keeps one undecided claim per booking, and lists a booking's claims oldest first", async () => {
     const bookingId = stays.again;
     const first = await opened(bookingId, tom.token, 2000, 'The heating did not work');
-    expect(await api.refused('POST', `/bookings/${bookingId}/claims`, hal.token, { amount: 500, description: 'A towel went missing' })).toBe(true);
-    expect(await api.refused('POST', `/bookings/${bookingId}/claims`, tom.token, { amount: 500, description: 'And the shower was cold' })).toBe(true);
+    expect(
+      await api.refused('POST', `/bookings/${bookingId}/claims`, hal.token, {
+        amount: 500,
+        description: 'A towel went missing',
+      }),
+    ).toBe(true);
+    expect(
+      await api.refused('POST', `/bookings/${bookingId}/claims`, tom.token, {
+        amount: 500,
+        description: 'And the shower was cold',
+      }),
+    ).toBe(true);
     await api.done('POST', `/claims/${first}/answer`, hal.token, { text: 'The heating was repaired that day' });
-    expect(await api.refused('POST', `/bookings/${bookingId}/claims`, hal.token, { amount: 500, description: 'A towel went missing' })).toBe(true);
-    await api.done('POST', `/admin/claims/${first}/decide`, ada.token, { outcome: 'traveller', note: 'Three cold nights' });
+    expect(
+      await api.refused('POST', `/bookings/${bookingId}/claims`, hal.token, {
+        amount: 500,
+        description: 'A towel went missing',
+      }),
+    ).toBe(true);
+    await api.done('POST', `/admin/claims/${first}/decide`, ada.token, {
+      outcome: 'traveller',
+      note: 'Three cold nights',
+    });
 
     const second = await opened(bookingId, hal.token, 500, 'A towel went missing');
     expect(await claimOf(second, tom.token)).toMatchObject({ openedBy: 'host', status: 'open' });
@@ -252,7 +304,8 @@ describe('claims after a stay', () => {
 
   it('shows a claim to both sides and the administrators only, and lists the undecided ones to administrators, oldest first', async () => {
     const seen = await opened(stays.seen, tom.token, 6000, 'The kitchen was dirty on arrival');
-    for (const reader of [tom, hal, mia, vic, ada]) expect(await claimOf(seen, reader.token)).toMatchObject({ id: seen });
+    for (const reader of [tom, hal, mia, vic, ada])
+      expect(await claimOf(seen, reader.token)).toMatchObject({ id: seen });
     expect((await api.call('GET', `/claims/${seen}`, una.token)).status).toBe(404);
     expect(await api.hidden(`/bookings/${stays.seen}/claims`, una.token)).toBe(true);
     expect((await api.list(`/bookings/${stays.seen}/claims`, vic.token)).map(each => each.id)).toEqual([seen]);
@@ -265,7 +318,10 @@ describe('claims after a stay', () => {
     expect(waiting.find(each => each.id === listed)).toMatchObject({ status: 'answered', openedBy: 'host' });
     expect(waiting.every(each => each.status === 'open' || each.status === 'answered')).toBe(true);
 
-    await api.done('POST', `/admin/claims/${seen}/decide`, ada.token, { outcome: 'traveller', note: 'The photos agree' });
+    await api.done('POST', `/admin/claims/${seen}/decide`, ada.token, {
+      outcome: 'traveller',
+      note: 'The photos agree',
+    });
     waiting = await api.list('/admin/claims', ada.token);
     expect(mine(waiting)).toEqual([listed]);
     for (const other of [tom, hal, mia]) expect((await api.call('GET', '/admin/claims', other.token)).status).toBe(403);
@@ -274,7 +330,9 @@ describe('claims after a stay', () => {
   it('takes a claim up to 14 days after the check-out, and refuses one later', async () => {
     // Sixteen days from the first start: tonight's stays checked out 15 days ago, tomorrow's 14 days ago.
     await later(16);
-    expect(await api.refused('POST', `/bookings/${stays.late}/claims`, tom.token, { amount: 1000, description: 'A stain' })).toBe(true);
+    expect(
+      await api.refused('POST', `/bookings/${stays.late}/claims`, tom.token, { amount: 1000, description: 'A stain' }),
+    ).toBe(true);
     expect(await api.list(`/bookings/${stays.late}/claims`, tom.token)).toEqual([]);
     const id = await opened(stays.fourteenth, hal.token, 1000, 'A stain on the carpet');
     expect(await claimOf(id, tom.token)).toMatchObject({ openedBy: 'host', status: 'open' });

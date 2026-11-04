@@ -98,6 +98,18 @@ const suspendedByModeration = (id: string) =>
   );
 const found = async (city: string) => (await api.list(`/listings?city=${city}`)).map(each => String(each.id));
 const scores = (score: number) => ({ cleanliness: score, accuracy: score, communication: score });
+/** The host's rating once it reads `count` reviews (it follows the reviews, request 59). */
+const hostRating = (count: number) =>
+  eventually(
+    () => api.read(`/hosts/${hal.id}/rating`),
+    rating => rating.count === count,
+  );
+/** The ids a search of Reviewville sorted by rating finds, once they are `expected`. */
+const byRating = (expected: string[]) =>
+  eventually(
+    async () => (await api.list('/listings?city=Reviewville&sort=rating')).map(each => String(each.id)),
+    ids => JSON.stringify(ids) === JSON.stringify(expected),
+  );
 
 describe('upholding a report', () => {
   it('suspends a listing by moderation: nobody books, quotes or holds it, only its host side sees it, its bookings stay', async () => {
@@ -203,8 +215,8 @@ describe('upholding a report', () => {
       each => (each.rating as Json | null)?.count === 2,
     );
     expect((await listing(L1)).rating).toMatchObject({ overall: 3, count: 2 });
-    expect(await api.read(`/hosts/${hal.id}/rating`)).toMatchObject({ overall: 3.3, count: 3 });
-    expect((await api.list('/listings?city=Reviewville&sort=rating')).map(each => each.id)).toEqual([L2, L1]);
+    expect(await hostRating(3)).toMatchObject({ overall: 3.3, count: 3 });
+    expect(await byRating([L2, L1])).toEqual([L2, L1]);
 
     const reportId = await api.create(`/reviews/${removed}/report`, kim.token, { reason: 'Written by a competitor' });
     await api.create(`/reviews/${removed}/report`, tom.token, { reason: 'Not what happened' });
@@ -227,10 +239,13 @@ describe('upholding a report', () => {
         each => (each.rating as Json | null)?.count === 1,
       ),
     ).toMatchObject({ rating: { cleanliness: 5, accuracy: 5, communication: 5, overall: 5, count: 1 } });
-    expect(await api.read(`/hosts/${hal.id}/rating`)).toMatchObject({ overall: 4.5, count: 2 });
-    const searched = await api.list('/listings?city=Reviewville');
+    expect(await hostRating(2)).toMatchObject({ overall: 4.5, count: 2 });
+    const searched = await eventually(
+      () => api.list('/listings?city=Reviewville'),
+      found => (found.find(each => each.id === L1)?.rating as Json | null)?.count === 1,
+    );
     expect(searched.find(each => each.id === L1)?.rating).toMatchObject({ overall: 5, count: 1 });
-    expect((await api.list('/listings?city=Reviewville&sort=rating')).map(each => each.id)).toEqual([L1, L2]);
+    expect(await byRating([L1, L2])).toEqual([L1, L2]);
     // Its author wrote their one review of that stay.
     expect(await api.refused('POST', `/bookings/${s2}/review`, una.token, { ...scores(3), comment: 'Trying once more, kindly.' })).toBe(true);
 
@@ -242,8 +257,9 @@ describe('upholding a report', () => {
         each => each.rating === null,
       ),
     ).toMatchObject({ rating: null });
-    expect(await api.read(`/hosts/${hal.id}/rating`)).toMatchObject({ overall: 5, count: 1 });
-    expect((await api.list('/listings?city=Reviewville&sort=rating')).map(each => each.id)).toEqual([L1, L2]);
+    expect(await hostRating(1)).toMatchObject({ overall: 5, count: 1 });
+    expect(await byRating([L1, L2])).toEqual([L1, L2]);
+    expect((await api.list('/listings?city=Reviewville')).find(each => each.id === L2)?.rating).toBeNull();
   }, 120000);
 
   it("removes a host's review of a guest from every list, and its author cannot write it again", async () => {

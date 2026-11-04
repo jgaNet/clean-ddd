@@ -79,7 +79,10 @@ describe('the yearly report on hosts', () => {
     const flexible = await listing(amy.token, { country: 'FR', currency: 'EUR' });
     const strict = await listing(amy.token, { country: 'FR', currency: 'EUR', cancellationPolicy: 'strict' });
     const changed = await book(tom.token, flexible, date(3, 1), date(3, 3));
-    await api.done('POST', `/bookings/${changed}/change-dates`, tom.token, { checkIn: date(3, 1), checkOut: date(3, 4) });
+    await api.done('POST', `/bookings/${changed}/change-dates`, tom.token, {
+      checkIn: date(3, 1),
+      checkOut: date(3, 4),
+    });
     await pay(changed);
     const partly = await book(tom.token, flexible, date(3, 10), date(3, 11));
     await pay(partly);

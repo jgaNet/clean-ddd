@@ -32,7 +32,8 @@ interface Enabled {
 const signIn = (email: string, proof: Json = {}, on = api, password = PASSWORD) =>
   on.call('POST', '/accounts/login', undefined, { email, password, ...proof });
 const twoFactorOf = async (token: string, on = api) => (await on.read('/accounts/me', token)).twoFactor;
-const secretFor = async (token: string, on = api) => String(((await on.done('POST', '/accounts/me/2fa', token)) as Json).secret);
+const secretFor = async (token: string, on = api) =>
+  String(((await on.done('POST', '/accounts/me/2fa', token)) as Json).secret);
 /** A six-digit code that none of the three steps around now accepts for `secret`. */
 const wrongFor = (secret: string) => {
   const near = [-1, 0, 1].map(steps => totp(secret, Date.now(), steps));
@@ -127,9 +128,9 @@ describe('two-factor sign-in', () => {
     const ian = await api.host('ian@two-factor.test');
     const { secret, recoveryCodes, at } = await enable(ian);
     expect(await api.refused('POST', '/accounts/me/2fa/disable', ian.token, { code: wrongFor(secret) })).toBe(true);
-    expect(await api.refused('POST', '/accounts/me/2fa/disable', ian.token, { recoveryCode: 'not-a-recovery-code' })).toBe(
-      true,
-    );
+    expect(
+      await api.refused('POST', '/accounts/me/2fa/disable', ian.token, { recoveryCode: 'not-a-recovery-code' }),
+    ).toBe(true);
     expect(await twoFactorOf(ian.token)).toBe(true);
 
     await api.done('POST', '/accounts/me/2fa/disable', ian.token, { recoveryCode: recoveryCodes[0] });
@@ -142,7 +143,9 @@ describe('two-factor sign-in', () => {
     const again = await secretFor(ian.token);
     expect(again).not.toBe(secret);
     // Confirmed with the code of the step after the first confirmation: never an earlier step.
-    const result = (await api.done('POST', '/accounts/me/2fa/confirm', ian.token, { code: totp(again, at, 1) })) as Json;
+    const result = (await api.done('POST', '/accounts/me/2fa/confirm', ian.token, {
+      code: totp(again, at, 1),
+    })) as Json;
     const fresh = result.recoveryCodes as string[];
     expect(fresh).toHaveLength(10);
     expect(await twoFactorOf(ian.token)).toBe(true);

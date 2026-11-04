@@ -41,7 +41,12 @@ const reference = (id: string) => `donation:${id}`;
 const donationOf = (id: string, token: string, on = api) => on.read(`/donations/${id}`, token);
 const donationPayments = () => [...provider.payments.values()].filter(each => each.reference.startsWith('donation:'));
 /** Gives `body` as `token`, and waits for the provider's payment of it: the donation's id and that payment. */
-async function give(token: string, body: Json, on = api, at = provider): Promise<{ id: string; payment: ProviderPayment }> {
+async function give(
+  token: string,
+  body: Json,
+  on = api,
+  at = provider,
+): Promise<{ id: string; payment: ProviderPayment }> {
   const id = await on.create('/donations', token, body);
   const [payment] = await eventually(
     async () => at.paymentFor(reference(id)),
@@ -86,7 +91,7 @@ describe('donations', () => {
     expect(mine[1]).toMatchObject({ status: 'paid', amount: 500 });
   }, 60000);
 
-  it('refuses less than 100 cents, a public donation without a proper name, a booking that is not the donor\'s, and anyone not signed in', async () => {
+  it("refuses less than 100 cents, a public donation without a proper name, a booking that is not the donor's, and anyone not signed in", async () => {
     const hal = await api.host('hal2@donations.test');
     const una = await api.traveller('una2@donations.test');
     const tom = await api.traveller('tom2@donations.test');
@@ -131,7 +136,9 @@ describe('donations', () => {
       await provider.settled();
       provider.resend(event);
       // A failure after the success changes nothing: paid is final.
-      expect(await provider.signed('payment.failed', { ...again.payment, status: 'failed', reason: 'card_declined' })).toBeLessThan(300);
+      expect(
+        await provider.signed('payment.failed', { ...again.payment, status: 'failed', reason: 'card_declined' }),
+      ).toBeLessThan(300);
       await provider.settled();
       await sleep(1000);
       expect(await donationOf(again.id, tom.token)).toMatchObject({ status: 'paid', amount: 700, fee: feeOf(700) });
@@ -141,7 +148,7 @@ describe('donations', () => {
     }
   }, 60000);
 
-  it("beside a booking, changes nothing the booking shows or owes, takes no receipt and is paid out to nobody", async () => {
+  it('beside a booking, changes nothing the booking shows or owes, takes no receipt and is paid out to nobody', async () => {
     const hal = await api.host('hal4@donations.test');
     const tom = await api.traveller('tom4@donations.test');
     const account = await enabledAccount(api, provider, hal.token);
@@ -185,18 +192,15 @@ describe('donations', () => {
     );
     expect(payouts).toEqual([expect.objectContaining({ bookingIds: [first], amount: DUE, status: 'paid' })]);
     await sleep(2000);
-    expect([...provider.payouts.values()].filter(each => each.account === account.id).map(each => each.amount)).toEqual([
-      DUE,
-    ]);
+    expect([...provider.payouts.values()].filter(each => each.account === account.id).map(each => each.amount)).toEqual(
+      [DUE],
+    );
 
     // Nor on the host's statement or earnings.
     const statement = await api.read(`/hosts/me/statement?from=${day(-1)}&to=${day(2)}`, hal.token);
     const lines = statement.lines as Json[];
     expect(lines.filter(line => line.type === 'charge').map(line => line.amount)).toEqual([12000, 12000]);
-    expect(lines.filter(line => line.type === 'fee').map(line => line.amount)).toEqual([
-      -feeOf(12000),
-      -feeOf(12000),
-    ]);
+    expect(lines.filter(line => line.type === 'fee').map(line => line.amount)).toEqual([-feeOf(12000), -feeOf(12000)]);
     expect(lines.every(line => line.bookingId === first || line.bookingId === second)).toBe(true);
     const earnings = await api.list(`/hosts/me/earnings?year=${day(0).slice(0, 4)}`, hal.token);
     expect(earnings).toEqual([
@@ -233,6 +237,8 @@ describe('donations', () => {
       await kill(server);
       await restart();
     }
+    // A donation answered 202 before a kill may be recorded after the start that follows: read once things settle.
+    await sleep(3000);
     const mine = await api.list('/donations/mine', token);
     expect(mine.length).toBeGreaterThanOrEqual(1);
     for (const donation of mine) {
@@ -275,10 +281,9 @@ describe('donations', () => {
       await outside.settled();
 
       const today = day(0);
-      expect(outside.transactions.filter(each => each.reference === reference(paid.id)).map(each => each.amount)).toEqual([
-        4000,
-        -feeOf(4000),
-      ]);
+      expect(
+        outside.transactions.filter(each => each.reference === reference(paid.id)).map(each => each.amount),
+      ).toEqual([4000, -feeOf(4000)]);
       expect(await on.read(`/admin/reconciliation?date=${today}`, ada.token)).toMatchObject({
         date: today,
         matched: 2,

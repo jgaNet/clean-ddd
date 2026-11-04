@@ -20,8 +20,11 @@ afterAll(async () => {
 });
 
 const ticketOf = (id: string, token: string) => api.read(`/support/tickets/${id}`, token);
-const open = (token: string, subject = 'My payout never came', text = 'I was due a payout last week and saw nothing.') =>
-  api.create('/support/tickets', token, { subject, text });
+const open = (
+  token: string,
+  subject = 'My payout never came',
+  text = 'I was due a payout last week and saw nothing.',
+) => api.create('/support/tickets', token, { subject, text });
 const write = (id: string, token: string, text: string) =>
   api.act('POST', `/support/tickets/${id}/messages`, token, { text });
 const ids = (tickets: Json[], among: string[]) =>
@@ -135,7 +138,11 @@ describe('support', () => {
 
     const every = await api.list('/admin/support/tickets', ada.token);
     expect(ids(every, all)).toEqual(all);
-    expect(every.find(each => each.id === answered)).toMatchObject({ accountId: tom.id, subject: 'Answered', status: 'answered' });
+    expect(every.find(each => each.id === answered)).toMatchObject({
+      accountId: tom.id,
+      subject: 'Answered',
+      status: 'answered',
+    });
     for (const [status, id] of [
       ['open', opened],
       ['answered', answered],

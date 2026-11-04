@@ -184,7 +184,10 @@ describe('import conflicts', () => {
     const organisationId = await api.create('/organisations', hal.token, { name: 'Hal & Co' });
     const id = await api.listing(hal.token);
     await api.done('POST', `/listings/${id}/move-to-organisation`, hal.token, { organisationId });
-    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: mia.email, role: 'manager' });
+    await api.done('POST', `/organisations/${organisationId}/members`, hal.token, {
+      email: mia.email,
+      role: 'manager',
+    });
     await api.done('POST', `/organisations/${organisationId}/members`, hal.token, { email: val.email, role: 'viewer' });
     const later = await api.book(tom.token, await api.quote(tom.token, id, day(20), day(22)));
     const earlier = await api.book(una.token, await api.quote(una.token, id, day(10), day(12)));

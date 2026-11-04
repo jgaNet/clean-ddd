@@ -100,7 +100,11 @@ describe('review rules', () => {
   it("refuses a traveller's comment that breaks a rule, naming it, and takes a review after the refusals", async () => {
     const { bookingId } = stays.traveller;
     const path = `/bookings/${bookingId}/review`;
-    for (const [comment, rule] of breaking) expect([comment.slice(0, 40), await ruling(path, tom.token, { ...scores, comment })]).toEqual([comment.slice(0, 40), rule]);
+    for (const [comment, rule] of breaking)
+      expect([comment.slice(0, 40), await ruling(path, tom.token, { ...scores, comment })]).toEqual([
+        comment.slice(0, 40),
+        rule,
+      ]);
 
     // A refused review does not count as the traveller's one: 20 characters, spaces included, are enough.
     const comment = 'Clean, calm, lovely!';
@@ -113,7 +117,11 @@ describe('review rules', () => {
   it("refuses a host's comment on a guest that breaks a rule, naming it, and takes a date and 2,000 characters", async () => {
     const { bookingId } = stays.guest;
     const path = `/bookings/${bookingId}/guest-review`;
-    for (const [comment, rule] of breaking) expect([comment.slice(0, 40), await ruling(path, hal.token, { rating: 4, comment })]).toEqual([comment.slice(0, 40), rule]);
+    for (const [comment, rule] of breaking)
+      expect([comment.slice(0, 40), await ruling(path, hal.token, { rating: 4, comment })]).toEqual([
+        comment.slice(0, 40),
+        rule,
+      ]);
 
     // A date is no phone number.
     const dated = 'Arrived on 2026-12-01 and left the flat spotless.';
@@ -145,7 +153,8 @@ describe('review rules', () => {
     );
 
     const path = `/reviews/${reviewId}/reply`;
-    for (const [reply, rule] of breaking) expect([reply.slice(0, 40), await ruling(path, hal.token, { text: reply })]).toEqual([reply.slice(0, 40), rule]);
+    for (const [reply, rule] of breaking)
+      expect([reply.slice(0, 40), await ruling(path, hal.token, { text: reply })]).toEqual([reply.slice(0, 40), rule]);
     const reply = 'Thank you, come back whenever you like.';
     expect(await ruling(path, hal.token, { text: reply })).toBe('accepted');
     const reviews = await eventually(

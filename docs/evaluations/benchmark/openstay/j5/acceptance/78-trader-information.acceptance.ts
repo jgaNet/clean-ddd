@@ -17,7 +17,11 @@ afterAll(async () => {
 });
 
 const PATH = '/hosts/me/trader';
-const TRADER = { legalName: 'Hal Lettings SARL', registrationNumber: '812 345 678 RCS Lyon', address: '3 rue de la République, 69002 Lyon' };
+const TRADER = {
+  legalName: 'Hal Lettings SARL',
+  registrationNumber: '812 345 678 RCS Lyon',
+  address: '3 rue de la République, 69002 Lyon',
+};
 const traderOn = async (listingId: string, token?: string) => (await api.read(`/listings/${listingId}`, token)).trader;
 
 describe('trader information', () => {
@@ -37,7 +41,11 @@ describe('trader information', () => {
     expect(await traderOn(draft, hal.token)).toEqual(expect.objectContaining(TRADER));
 
     // Given again, it replaces the first, on every listing at once.
-    const moved = { legalName: 'Hal Lettings SAS', registrationNumber: '912 000 111 RCS Lyon', address: '8 quai Saint-Antoine, 69002 Lyon' };
+    const moved = {
+      legalName: 'Hal Lettings SAS',
+      registrationNumber: '912 000 111 RCS Lyon',
+      address: '8 quai Saint-Antoine, 69002 Lyon',
+    };
     await api.done('PUT', PATH, hal.token, moved);
     expect(await api.read(PATH, hal.token)).toMatchObject(moved);
     expect(await traderOn(published, tom.token)).toEqual(expect.objectContaining(moved));
@@ -93,10 +101,17 @@ describe('trader information', () => {
     const listingId = await api.listing(kim.token, { city: 'Annecy' });
     const organisationId = await api.create('/organisations', kim.token, { name: 'Kim Lets' });
     await api.done('POST', `/listings/${listingId}/move-to-organisation`, kim.token, { organisationId });
-    await api.done('POST', `/organisations/${organisationId}/members`, kim.token, { email: mia.email, role: 'manager' });
+    await api.done('POST', `/organisations/${organisationId}/members`, kim.token, {
+      email: mia.email,
+      role: 'manager',
+    });
 
     // A professional manager does not make the owner's listing professional.
-    const hers = { legalName: 'Mia Conciergerie', registrationNumber: 'FR-998877', address: '1 place du Marché, Annecy' };
+    const hers = {
+      legalName: 'Mia Conciergerie',
+      registrationNumber: 'FR-998877',
+      address: '1 place du Marché, Annecy',
+    };
     await api.done('PUT', PATH, mia.token, hers);
     expect(await traderOn(listingId)).toBeNull();
 
