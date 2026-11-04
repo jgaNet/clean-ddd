@@ -27,7 +27,10 @@
  *   3. the hidden tests of this feature and of every feature before it, by grade.mjs, in a worktree
  *      of the grader's own, removed once graded, so that no agent ever reads them.
  * A feature that fails 3 is graded again alone, in a worktree of its own, before anything is
- * decided: only what fails again counts (the `replayed` event keeps both gradings).
+ * decided: only what fails again counts (the `replayed` event keeps both gradings). A verdict that
+ * still refuses the tree after the last send-back is checked once more the same way, holding a lock
+ * no other ladder's replay holds, before it counts (`verdict-replayed`): J4's verdicts that failed
+ * under load passed alone.
  * The attempt delivers when 2 and 3 pass: `main` moves to it. Otherwise it escalates, and the reason
  * is recorded: `hidden` (its own test), `regression` (an earlier feature's), `ceiling` (the
  * supervisor stopped it), or `verdict` (the driver refused the tree). A feature the last model also
@@ -35,13 +38,16 @@
  * could not tell a later failure from this one. That rule was written before any run.
  *
  * Every attempt is logged in `<project>.flow/<run>.jsonl`: its model and step, its time, cost and
- * turns (the runner's figures), the reason it escalated, and the size of the tree it started from.
+ * turns (the runner's figures; a send-back continues the conversation, whose reported cost is its
+ * running total, so `costUsd` is what this agent turn added and `conversationCostUsd` the total),
+ * the reason it escalated, and the size of the tree it started from.
  * Before an escalation is counted, the failure is checked against the kit, by reading the log: a
  * defect of the kit is an amendment, and the attempts it touched are graded again.
  */
 import { execFileSync, spawn } from 'node:child_process';
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
 import { runners } from './runners.mjs';
@@ -96,6 +102,8 @@ const dependencies = plan.dependencies ?? 'copy';
 if (!DEPENDENCY_MODES.includes(dependencies)) fail(`${planFile}: dependencies is ${DEPENDENCY_MODES.join(' or ')}`);
 const port = plan.ports?.base ?? 19100;
 const grader = resolve(new URL('./grade.mjs', import.meta.url).pathname);
+// The lock a replayed verdict holds, shared by every ladder on the machine.
+const replayLock = plan.replayLock ?? join(tmpdir(), 'clean-ddd-ladder-replay.lock');
 const tooling = plan.tooling ? resolve(dirname(planFile), plan.tooling) : undefined;
 
 const flowDir = `${project}.flow`;
@@ -216,13 +224,23 @@ const feedback = lines =>
   `The driver checked your work and it is not done:\n\n${lines.join('\n')}\n\nFix it, then commit. The request is unchanged.`;
 
 /** The driver's verdict on the tree: what every campaign's driver checks, never the hidden tests. */
-async function verdict(feature, cwd, from) {
+async function verdict(feature, cwd, from, alone = false) {
   commitAll(cwd, `${feature.id}: work the agent left uncommitted`);
+  // Alone: wait for the lock every ladder's replay takes, so that no two replays run at once.
+  const locked = command => (alone ? `flock ${replayLock} ${command}` : command);
   if (!clean) {
-    const checked = await sh('yarn -s verify', cwd, 900_000);
+    const checked = await sh(locked('yarn -s verify'), cwd, alone ? 3_600_000 : 900_000);
     return checked.code === 0 ? [] : ['`yarn verify` fails:', ...tail(checked.out)];
   }
-  const gated = parse((await sh(`yarn -s architecture gate --base ${from} --mode architecture --fix --json`, cwd)).out);
+  const gated = parse(
+    (
+      await sh(
+        locked(`yarn -s architecture gate --base ${from} --mode architecture --fix --json`),
+        cwd,
+        alone ? 3_600_000 : timeoutMs,
+      )
+    ).out,
+  );
   const failing = (gated?.steps ?? []).filter(step => step.status === 'fail');
   let owed = [];
   if (hasStorm(feature)) {
@@ -269,6 +287,8 @@ async function hidden(feature, cwd, only) {
 }
 
 const money = budget({ totalUsd: budgetUsd, perAgentUsd: plan.agentBudgetUsd ?? budgetUsd });
+// What each conversation (a worktree) has reported so far: a continued one reports its running total.
+const reportedSoFar = new Map();
 let current;
 for (const signal of ['SIGTERM', 'SIGINT']) {
   process.on(signal, () => {
@@ -296,6 +316,12 @@ async function agent(feature, step, cwd, prompt, again) {
   current = undefined;
   money.settle(cwd, result.costUsd);
   const { report, ...figures } = result;
+  if (result.costUsd !== undefined) {
+    const before = again ? (reportedSoFar.get(cwd) ?? 0) : 0;
+    reportedSoFar.set(cwd, result.costUsd);
+    figures.conversationCostUsd = result.costUsd;
+    figures.costUsd = Number(Math.max(0, result.costUsd - before).toFixed(4));
+  }
   event('agent-finished', { feature: feature.id, step, model: plan.ladder[step], ...figures, report });
   const stopped = freePort(port);
   if (stopped.length) event('port-freed', { feature: feature.id, port, processes: stopped });
@@ -325,6 +351,11 @@ async function attempt(feature, step, from) {
     result = await agent(feature, step, cwd, feedback(problems), true);
     if (!result) return { reason: 'budget' };
     if (!result.stoppedBy) problems = await verdict(feature, cwd, from);
+  }
+  if (!result.stoppedBy && problems.length) {
+    const again = await verdict(feature, cwd, from, true);
+    event('verdict-replayed', { feature: feature.id, step, first: problems.slice(0, 40), still: again.slice(0, 40) });
+    problems = again;
   }
   const wallClockMs = Date.now() - begun;
   if (result.stoppedBy) return { reason: 'ceiling', cwd, wallClockMs, lines: [`stopped by ${result.stoppedBy}`] };
