@@ -1,4 +1,4 @@
-import { client, Client, database, day, eventually, Json, Running, sleep, start, stop } from './openstay';
+import { adminEnvironment, client, Client, database, day, eventually, Json, Running, sleep, start, stop } from './openstay';
 import { Currency, enabledAccount, feeOf, paymentProvider, payBooking } from './provider';
 
 /**
@@ -7,11 +7,13 @@ import { Currency, enabledAccount, feeOf, paymentProvider, payBooking } from './
  */
 const db = database('currencies');
 const provider = paymentProvider();
+const ADA = 'ada@currencies.test';
 let server: Running;
 let api: Client;
 beforeAll(async () => {
   server = await start(db.path, {
     ...(await provider.environment()),
+    ...adminEnvironment(ADA),
     JOBS_INTERVAL_SECONDS: '1',
     // Short enough for a test to see a quote stop being valid.
     QUOTE_TTL_SECONDS: '8',
@@ -219,4 +221,80 @@ describe('currencies', () => {
     expect(await search('&maxPrice=6000&currency=JPY')).toEqual([[yen, 'JPY']]);
     expect(await search('&maxPrice=4000&currency=JPY')).toEqual([]);
   }, 60000);
+
+  it('adds up the tourist tax, the cost of payments and the reconciliation one currency at a time, and sets no season across two', async () => {
+    const kit = await api.host('kit@currencies.test');
+    const tom = await api.traveller('tom4@currencies.test');
+    const ada = await api.admin(ADA);
+    const euros = await listing(kit.token, { city: 'York' });
+    const pounds = await listing(kit.token, { city: 'York', currency: 'GBP' });
+    await api.done('PUT', `/listings/${euros}/tourist-tax`, kit.token, { perGuestPerNight: 150 });
+    await api.done('PUT', `/listings/${pounds}/tourist-tax`, kit.token, { perGuestPerNight: 100 });
+    const paid: Record<string, string> = {};
+    for (const [currency, id] of [
+      ['EUR', euros],
+      ['GBP', pounds],
+    ]) {
+      paid[currency] = await api.book(tom.token, await api.quote(tom.token, id, day(0), day(1)));
+      await payBooking(api, provider, tom.token, paid[currency]);
+    }
+    const month = new Date().toISOString().slice(0, 7);
+
+    // The tourist tax: one line per city and currency.
+    expect(
+      await eventually(
+        () => api.list(`/hosts/me/tourist-tax?month=${month}`, kit.token),
+        found => found.length >= 2,
+      ),
+    ).toEqual([
+      expect.objectContaining({ city: 'York', currency: 'EUR', collected: 150 }),
+      expect.objectContaining({ city: 'York', currency: 'GBP', collected: 100 }),
+    ]);
+
+    // The cost of payments: those of the currency asked, euros when none is.
+    const succeeded = (currency: Currency) =>
+      [...provider.payments.values()].filter(each => each.status === 'succeeded' && each.currency === currency);
+    for (const currency of ['GBP', 'EUR'] as const) {
+      const expected = {
+        payments: succeeded(currency).length,
+        amount: succeeded(currency).reduce((total, each) => total + each.amount, 0),
+        fees: succeeded(currency).reduce((total, each) => total + each.fee, 0),
+      };
+      const query = currency === 'EUR' ? '' : `&currency=${currency}`;
+      expect(
+        await eventually(
+          () => api.read(`/admin/payment-costs?month=${month}${query}`, ada.token),
+          found => (found.provider as Json)?.payments === expected.payments,
+        ),
+      ).toMatchObject({ month, currency, provider: expected });
+    }
+
+    // The reconciliation: a charge the provider has in pounds under a booking paid in euros is a
+    // mismatch of its own, and the euro charge still matches.
+    provider.inject('charge', 12150, paid.EUR, 'GBP');
+    const about = await eventually(
+      async () =>
+        ((await api.read(`/admin/reconciliation?date=${day(0)}`, ada.token)).mismatches as Json[]).filter(
+          each => each.reference === paid.EUR,
+        ),
+      found => found.length > 0,
+    );
+    expect(about).toEqual([
+      expect.objectContaining({ type: 'charge', reference: paid.EUR, currency: 'GBP', provider: 12150, openstay: null }),
+    ]);
+
+    // A season set on listings of two currencies at once is refused, for both.
+    expect(
+      await api.refused('POST', '/hosts/me/seasonal-prices', kit.token, {
+        listingIds: [euros, pounds],
+        from: day(40),
+        to: day(42),
+        nightlyPrice: 20000,
+      }),
+    ).toBe(true);
+    for (const id of [euros, pounds]) {
+      const quote = await api.read(`/quotes/${await api.quote(tom.token, id, day(40), day(41))}`, tom.token);
+      expect(quote.total).toBe(10000 + 2000 + (id === euros ? 150 : 100));
+    }
+  }, 120000);
 });

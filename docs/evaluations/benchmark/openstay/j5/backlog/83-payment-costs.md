@@ -2,7 +2,7 @@
 
 Taking money is not free. Administrators want to see, month by month, what the provider took, on which payments, and who bore it.
 
-- **Through the provider.** For a month, the payments through the provider that succeeded during it (when the provider said `payment.succeeded`, as on the host's statement, request 35), bookings' (request 27) and donations' (request 80) alike:
+- **Through the provider.** For a month, the payments through the provider that succeeded during it (OpenStay's month, by its clock with `CLOCK_OFFSET_DAYS`, request 57, at the moment it learns from `payment.succeeded` that the payment succeeded, whatever time the webhook carries), bookings' (request 27) and donations' (request 80) alike:
   - `payments`: how many;
   - `amount`: what they took, added up;
   - `fees`: the provider's fees for them, each as the provider gave it.

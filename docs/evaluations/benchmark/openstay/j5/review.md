@@ -55,6 +55,7 @@ I also checked every review comment and reply in tests 57–65 against request 6
 - **Request:** `backlog/1-accounts.md:6`, `backlog/40-postgresql.md:6`, `backlog/66-suspending-accounts.md:6`.
 - **Fix:** sign in on the server that is called: `await otherApi.login(ada.email)` at 67:194 and 67:228, and `await api.login(sam.email)` for the check on `api` at 66:131. Alternatively, state in request 1 or request 40 that a token is good on every server on the database and after a restart.
 - **Severity:** blocking (certain, for a tree with per-process signing keys).
+- **Closed:** a token is used only on the server that gave it. Test 66 signs in again on each server after the reinstatement; test 67 signs both administrators in on the second server and uses those tokens there (`adaThere`, `bobThere`). No request was changed.
 
 ### B2. Test 73 reads the proof's type and size from the command's result, which a `202` tree does not give
 - **Where:** `acceptance/73-transfer-proof.acceptance.ts:89-93` (`sent` returns `outcome.result as Json`), asserted at `:110-111`, `:147-148` and `:151` (`answer.id`).
@@ -63,6 +64,7 @@ I also checked every review comment and reply in tests 57–65 against request 6
 - **Request:** `backlog/1-accounts.md:18`, `backlog/73-transfer-proof.md:20` (`{ id, type, size }, the proof's`).
 - **Fix:** reuse test 54's helper. Take `idOf(outcome.result)`, check `{ type, size }` only when the result is an object, and read type and size from `payment.transfer.proof` otherwise.
 - **Severity:** blocking (certain, for a tree that answers uploads `202`).
+- **Closed:** `sent` now returns the proof's id (`idOf`), and the answer only when it came at once. The type and size are checked on that answer when there is one, and always on `payment.transfer.proof`, with the proof's id.
 
 ### B3. Test 73 gives the proofs a 15-second deadline, and spends it creating three listings and bookings first
 - **Where:** `acceptance/73-transfer-proof.acceptance.ts:216-223`.
@@ -71,6 +73,7 @@ I also checked every review comment and reply in tests 57–65 against request 6
 - **Request:** `backlog/73-transfer-proof.md:6` ("while the booking's payment is `due`").
 - **Fix:** send each proof right after its booking (`contested`, its proof, `confirmed`, its proof, then `alone`). Also raise the TTL to 30 or 60 s; the `sleep` that follows already reads `dueBy`.
 - **Severity:** blocking (timing; it fails a correct but slower tree).
+- **Closed:** each proof is sent right after its booking, the booking left alone comes last, and `PAYMENT_TTL_SECONDS` is 30.
 
 ### B4. A server is killed right after a decision, and the refund is settled before the restarted server knows it
 - **Where:**
@@ -87,6 +90,10 @@ I also checked every review comment and reply in tests 57–65 against request 6
   - in 72, before `settleRefund`, wait until the restarted server shows the claim's refund as pending: `await eventually(() => claimOf(id), c => (c.refund as Json | null)?.status === 'pending', 30000)`;
   - in 66, set `settleAfterMs = undefined` around the kill, wait until each booking reads `refund.status === 'pending'`, then settle each refund.
 - **Severity:** blocking (a race, for one legitimate design).
+- **Closed:**
+  - in 72, the provider settles the refund only once the restarted server reads the claim's refund `pending`, and 2 s later (a refund asked just before the kill is asked again by then);
+  - in 66, `settleAfterMs` is off around the suspension and the kill; once every booking reads its refund `pending` on the restarted server, and 2 s later, the test settles each pending refund;
+  - in 89, the same for payouts: the test settles them once the restarted server lists them, which replaces resending the events.
 
 ### B5. Test 80 requires two receipts in number order, though their times can tie
 - **Where:** `acceptance/80-donations.acceptance.ts:179-184`.
@@ -95,6 +102,7 @@ I also checked every review comment and reply in tests 57–65 against request 6
 - **Request:** `backlog/46-receipts.md:7` and `:15` ("the most recent first").
 - **Fix:** `await sleep(1100)` before paying `second`, as test 33 did at J4. Alternatively, make the order "by number, the highest first" in request 46.
 - **Severity:** blocking (timing, for one plausible design).
+- **Closed:** `sleep(1100)` before the second booking is made and paid. Request 46 is unchanged.
 
 ### B6. Five lists are ordered by creation time over records made back to back
 - **Where:**
@@ -107,6 +115,7 @@ I also checked every review comment and reply in tests 57–65 against request 6
 - **Request:** `backlog/74-support.md` (API table: "the most recently opened first", "the oldest first"), `backlog/71-claims.md` (API table: "the oldest first"), `backlog/80-donations.md` (API table: "the most recent first"), `backlog/1-accounts.md:23`.
 - **Fix:** `await sleep(1100)` between the creations whose order is asserted.
 - **Severity:** blocking (rare design: times kept to the second).
+- **Closed:** `sleep(1100)` between every two creations whose order is asserted: the tickets of 74 (both cases), the claims of 71 (both cases), the donations of 80.
 
 ---
 
@@ -123,6 +132,7 @@ I also checked every review comment and reply in tests 57–65 against request 6
 - **Request:** `backlog/63-reporting-a-listing.md:9`; requests 64, 65, 67 and 68 ("on one server or two").
 - **Suggestion:** sign in on `other` for each person, as tests 51 and 55 do.
 - **Severity:** weak.
+- **Closed:** every race across two servers uses a token of each server: 63 (the traveller), 64 and 65 (both administrators), 67 (both administrators), 68 (both travellers).
 
 ### W2. Test 87 checks the per-currency statement and transparency, and none of the other sums request 87 keeps apart
 - **Where:** `acceptance/87-currencies.acceptance.ts` (whole file).
@@ -137,6 +147,8 @@ I also checked every review comment and reply in tests 57–65 against request 6
 - **Request:** `backlog/87-currencies.md:14`, `:17`, `:20`.
 - **Suggestion:** add one case with a GBP booking and a EUR booking in one city. Read `/hosts/me/tourist-tax?month=`, `/admin/payment-costs?currency=GBP` and `/admin/reconciliation`, and send one refused bulk season.
 - **Severity:** weak.
+- **Closed, but for the change of dates:** a last case of 87 has a EUR and a GBP booking in York, paid. The tourist tax reads one line per currency; `payment-costs` for `GBP` and for the default `EUR` count each currency's payments only, as the provider holds them; a charge the provider has in pounds under the euro booking is a mismatch of its own, with its `currency`; a season on the two listings is refused, and neither price changes.
+- **Left:** the change of dates keeping its currency. Request 87 refuses a change of currency once a listing is booked, so a change of dates can only read the same currency, and a case would test nothing.
 
 ### W3. Test 100 never kills a server between asking the provider for a payout and recording it
 - **Where:** `acceptance/100-pausing-payouts.acceptance.ts:126-138`.
@@ -144,6 +156,7 @@ I also checked every review comment and reply in tests 57–65 against request 6
 - **Request:** `backlog/100-pausing-payouts.md:10`.
 - **Suggestion:** after the resume, kill `restarted` as soon as the provider holds a payout, start it again, wait until it lists the payout (see B4), then assert one payout per booking.
 - **Severity:** weak.
+- **Closed:** after the two resumes, `restarted` is killed as soon as the provider holds a payout of either booking. A new server is started, and the test settles the payouts once that server lists them (B4's pattern). Each booking is still paid out once.
 
 ### W4. Test 76's five wrong codes may arrive after the code has already expired
 - **Where:** `acceptance/76-email-verification.acceptance.ts:108-121`.
@@ -151,6 +164,7 @@ I also checked every review comment and reply in tests 57–65 against request 6
 - **Request:** `backlog/76-email-verification.md:8`.
 - **Suggestion:** start the second server, and sign in there, before asking for the code.
 - **Severity:** weak.
+- **Closed:** the second server is started, and ian signed in there, before the code is asked for.
 
 ### W5. "Counts as lapsed, even before it reads so" is never tested
 - **Where:**
@@ -161,6 +175,8 @@ I also checked every review comment and reply in tests 57–65 against request 6
 - **Request:** `backlog/57-reviews.md:6`; the same rule in requests 58 and 71.
 - **Suggestion:** run one case on a server with `JOBS_INTERVAL_SECONDS: '3600'`, so that the booking still reads `confirmed` past its `dueBy`.
 - **Severity:** weak.
+- **Closed for 57 and 58:** a case of each runs on a database of its own with `JOBS_INTERVAL_SECONDS: '3600'`, three days later. The unpaid stay is refused, and a stay declared paid on the same server is reviewed.
+- **Left for 71:** request 71 says only "not `lapsed`". It does not say that an unpaid booking past its `dueBy` counts as lapsed before it reads so, so no case was added.
 
 ### W6. Test 90 leaves out two rules of request 90 about money
 - **Where:** `acceptance/90-card-fees-passed-on.acceptance.ts` (whole file).
@@ -170,6 +186,10 @@ I also checked every review comment and reply in tests 57–65 against request 6
   - a refund's receipt having `cardFee: 0`.
 - **Request:** `backlog/90-card-fees-passed-on.md:9`, `:11`, `:12`.
 - **Severity:** weak.
+- **Closed:**
+  - a refund's receipt reads `cardFee: 0` beside its payment's;
+  - a change of dates gains the line once the country is listed, and loses it once it is not;
+  - in a last case, a payment asked before its booking lapsed (the server started again a day later) succeeds, and is refunded whole, line included.
 
 ### W7. No notice test has a service that hangs
 - **Where:** tests 55, 66, 75, 76, 86 and 97. `notificationService` (`acceptance/openstay.ts:444-489`) can only refuse; it never delays an answer.
@@ -177,12 +197,14 @@ I also checked every review comment and reply in tests 57–65 against request 6
 - **Request:** `backlog/55-message-notices.md:8`, `backlog/66-suspending-accounts.md:14`.
 - **Suggestion:** give `notificationService` a `delayMs`, as `calendarServer` has, and use it in test 55.
 - **Severity:** weak.
+- **Closed:** `notificationService(refusals, { hangs })` leaves the first `hangs` attempts of each notice unanswered. Test 55 has a case with a service that never answers the first attempt: the notice is sent again, with the same body, within 4.5 s, and accepted after two attempts. Tests 66 and 76 keep a service that only refuses.
 
 ### W8. Test 67 does not check that an entry stays when its review is removed
 - **Where:** `acceptance/67-audit-log.acceptance.ts:167-188` checks a listing archived and an account closed.
 - **What is missing:** "a review removed" is the first case the request names. A tree that deletes a review's entries with the review passes.
 - **Request:** `backlog/67-audit-log.md:18`.
 - **Severity:** weak.
+- **Closed:** in a last case of 67, a stay is reviewed and the review published (the servers started again 3, then 16 days later), reported, and removed by the decision that upholds the report: its `report-upheld` entry stays. The file's servers now run with a 30-day `PAYMENT_TTL_SECONDS`, so that the unpaid stay took place.
 
 ---
 
@@ -192,11 +214,13 @@ I also checked every review comment and reply in tests 57–65 against request 6
 - **Request:** `backlog/51-conversations.md:11`: "its managers … read and write too … Its viewers read and write nothing."
 - **Effect:** the same request lists conversations "as traveller, host, manager or viewer", and requests 52 and 53 say viewers read. So the sentence most likely means "read, and write nothing", but read literally it shuts viewers out. Tests 51:163, 52:53 and 56:60 expect viewers to read.
 - **Fix:** "Its viewers read it, and write nothing."
+- **Closed:** request 51 says "Its viewers read it, and write nothing."
 
 ### R2. Request 52 requires a `404` where request 1 lets the application answer later
 - **Request:** `backlog/52-unread-messages.md:8`: "Marking a conversation the caller does not read is answered `404`".
 - **Effect:** test 52:112 requires a synchronous `404` from `POST /conversations/{id}/read`. A tree that answers every command `202`, which request 1 allows, gives `202` and then an `ERROR`.
 - **Fix:** either say "refused" (and test with `api.refused`), or say in request 52 that this route answers at once.
+- **Closed:** a `404` at once would contradict request 1, which lets a change answer later. Request 52 now says "Marking a conversation the caller does not read is refused, as any request about a conversation that does not exist for the caller (request 51)." Test 52 accepts a `202` that ends in `ERROR`, and still wants `404` when the refusal comes at once.
 
 ### R3. A payment's month: the webhook's `created`, or OpenStay's clock?
 - **Request:**
@@ -205,18 +229,23 @@ I also checked every review comment and reply in tests 57–65 against request 6
   - `backlog/35-host-statement.md:6`: "At the time the provider said it happened (the webhook)".
 - **Effect:** the test provider dates its events by the machine's clock, while OpenStay's clock is moved by `CLOCK_OFFSET_DAYS`. Tests 81:162-182, 82:177-219 and 83:146-178 move OpenStay into next month, have the provider say `payment.succeeded`, and expect next month. A tree that dates by the webhook's `created`, as request 35 says and as "when the provider said" invites, files the payment in this month and fails all three. Test 72:154 avoids the question with a wide date range.
 - **Fix:** say in 35, 81, 82 and 83 which time to use. For example: "the time OpenStay handled the provider's webhook, on OpenStay's clock".
+- **Closed:** requests 81, 82 and 83 now count a payment, a fee or a donation in OpenStay's month, by its clock with `CLOCK_OFFSET_DAYS`, at the moment it learns from `payment.succeeded` that it succeeded, whatever time the webhook carries. That is what the tests read. Request 35 is outside this pass and unchanged: no test of 35 moves the clock.
 
 ### R4. "`^` and `$` are implied" with an alternation
 - **Request:** `backlog/79-registration-numbers.md:5`: "a regular expression the whole number must match … (`^` and `$` are implied). … groups and `|` are enough".
 - **Effect:** wrapping the pattern literally as `^A\d|B\d$` accepts `A1X` and `XB2`. Test 79:150-155 expects them refused, that is `^(?:A\d|B\d)$`. "The whole number must match" supports the test, but "implied" invites the literal wrap.
 - **Fix:** "the pattern must match the whole number, as if written `^(?:pattern)$`".
+- **Closed:** request 79 says "a regular expression the whole number must match, letters' case included, as if written `^(?:pattern)$`".
 
 ### R5. Request 97 names a `review` notice kind that request 75 does not have
 - **Request:** `backlog/97-import-conflicts.md:12`: "request 75 turns off only `message`, `booking-requested`, `booking-confirmed` and `review`".
 - **Effect:** request 75 has no `review` kind. An agent at request 97 may add one to `PUT/GET /accounts/me/notices`. Test 75 reads those kinds with `toMatchObject`, so no test fails, but the requests disagree on the list of kinds.
 - **Fix:** drop "and `review`" from request 97.
+- **Closed:** request 97 says "request 75 turns off only `message`, `booking-requested` and `booking-confirmed`".
 
 ### R6. Does a conflict that ends and comes back send a second notice?
 - **Request:** `backlog/97-import-conflicts.md:9`: "For each conflict, the listing's host gets a notice", against `:11`: "Once per event (its calendar and its `UID`) and booking: … not again when the event moves".
 - **Effect:** in test 97:114-119 an event leaves the booking's nights (the conflict is no longer listed) and comes back. The test expects no second notice. "For each conflict" could be read as a new notice for the new conflict.
 - **Fix:** "Once per event and booking, ever: an event that leaves the booking's nights and comes back sends nothing more."
+- **Closed:** request 97 says "Once per event (its calendar and its `UID`) and booking, ever: not at every sweep, not again when the event moves, nor when it leaves the booking's nights and comes back, not twice with two servers or after a restart."
+

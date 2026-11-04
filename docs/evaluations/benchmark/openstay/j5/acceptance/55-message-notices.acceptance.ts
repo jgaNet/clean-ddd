@@ -6,8 +6,8 @@ import { client, Client, database, eventually, kill, notificationService, Runnin
  * across two servers and crashes.
  */
 const services: ReturnType<typeof notificationService>[] = [];
-const outside = (refusals: number) => {
-  const service = notificationService(refusals);
+const outside = (refusals: number, hangs = 0) => {
+  const service = notificationService(refusals, { hangs });
   services.push(service);
   return service;
 };
@@ -217,4 +217,29 @@ describe('notices of new messages', () => {
       crashDb.remove();
     }
   }, 240000);
+
+  it('sends a notice again when the service does not answer within two seconds', async () => {
+    // The service holds the first attempt of each notice open and never answers it; it accepts the next.
+    const silent = outside(0, 1);
+    const own = database('message-notices-silent');
+    const running = await start(own.path, { NOTIFY_URL: await silent.url() });
+    try {
+      const through = client(running.port);
+      const hal = await through.host('hal@silent.notices.test');
+      const tom = await through.traveller('tom@silent.notices.test');
+      const listingId = await through.listing(hal.token);
+      const id = await through.create('/conversations', tom.token, { listingId, text: 'Is anyone there?' });
+      const [notice] = await waitFor(silent, id, hal.id, 1, 20000);
+      expect(notice).toMatchObject({ kind: 'message', accountId: hal.id, conversationId: id });
+      await sleep(3000);
+      const attempts = silent.attemptsOf(String(notice.id));
+      expect(attempts).toHaveLength(2);
+      for (const attempt of attempts) expect(attempt.body).toEqual(notice);
+      // Given up after two seconds, sent again within a second of that.
+      expect(attempts[1].at - attempts[0].at).toBeLessThanOrEqual(4500);
+    } finally {
+      await stop(running);
+      own.remove();
+    }
+  }, 90000);
 });

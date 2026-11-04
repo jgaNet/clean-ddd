@@ -137,16 +137,40 @@ describe('pausing payouts', () => {
     expect(payoutsFor(before)).toEqual([]);
     expect(payoutsFor(during)).toEqual([]);
 
-    // Both servers resume at once: each booking is paid out once.
-    const resumed = await Promise.all([
-      restarted.api.act('POST', '/admin/payouts/resume', restarted.token),
-      second.api.act('POST', '/admin/payouts/resume', second.token),
-    ]);
-    expect(resumed.some(each => each.accepted)).toBe(true);
-    expect(await status(second.api, second.token)).toMatchObject({ paused: false, since: null, reason: null });
-    const token = await restarted.api.login(hal.email);
+    // Both servers resume at once, and a server is killed as soon as the provider holds a payout: each
+    // booking is paid out once. The provider settles the payouts once a server started again knows them.
+    provider.state.settleAfterMs = undefined;
+    let last: Awaited<ReturnType<typeof another>>;
+    let token: string;
+    try {
+      const resumed = await Promise.all([
+        restarted.api.act('POST', '/admin/payouts/resume', restarted.token),
+        second.api.act('POST', '/admin/payouts/resume', second.token),
+      ]);
+      expect(resumed.some(each => each.accepted)).toBe(true);
+      await eventually(
+        async () => [...payoutsFor(before), ...payoutsFor(during)],
+        found => found.length > 0,
+        20000,
+      );
+      await kill(restarted.server);
+      expect(await status(second.api, second.token)).toMatchObject({ paused: false, since: null, reason: null });
+      last = await another(first.db.path);
+      provider.attach(last.server.port);
+      token = await last.api.login(hal.email);
+      await eventually(
+        () => last.api.list('/hosts/me/payouts', token),
+        found => found.length >= 2,
+        20000,
+      );
+      await sleep(2000);
+      for (const payout of [...payoutsFor(before), ...payoutsFor(during)].filter(each => each.status === 'pending'))
+        provider.settlePayout(payout.id, true);
+    } finally {
+      provider.state.settleAfterMs = 200;
+    }
     await eventually(
-      () => restarted.api.list('/hosts/me/payouts', token),
+      () => last.api.list('/hosts/me/payouts', token),
       found => found.filter(each => each.status === 'paid').length >= 2,
       20000,
     );

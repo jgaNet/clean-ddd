@@ -8,8 +8,8 @@ Sometimes another site gives away a night OpenStay already sold. The booking mad
 - **A request accepted later.** A request (request 7) still waiting keeps its nights as a booking does, but is no conflict. Once accepted, it is one from the next sweep.
 - **The host is told.** For each conflict, the listing's host gets a notice: `POST {NOTIFY_URL}` with the body `{ id, kind: "calendar-conflict", hostId, bookingId, listingId, url, uid, from, to, lang }`. `url` is the calendar's address, `uid`, `from` and `to` the event's (`from` its first night, `to` the day after its last), and `lang` the host's language (request 86).
   - It is sent as request 10 sends notices: again, with the same body, until the service accepts it with a `2xx`, and never lost to a crash.
-  - Once per event (its calendar and its `UID`) and booking: not at every sweep, not again when the event moves, not twice with two servers or after a restart.
-  - It cannot be turned off (request 75 turns off only `message`, `booking-requested`, `booking-confirmed` and `review`).
+  - Once per event (its calendar and its `UID`) and booking, ever: not at every sweep, not again when the event moves, nor when it leaves the booking's nights and comes back, not twice with two servers or after a restart.
+  - It cannot be turned off (request 75 turns off only `message`, `booking-requested` and `booking-confirmed`).
   - Without `NOTIFY_URL`, nothing is sent; the conflict is listed all the same.
 - **Who reads the conflicts.** The listing's host, and the managers and viewers of its organisation (request 24). To anyone else the route answers `404`.
 

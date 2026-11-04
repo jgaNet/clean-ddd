@@ -5,6 +5,7 @@ import {
   database,
   day,
   eventually,
+  idOf,
   JPEG,
   Json,
   padded,
@@ -86,10 +87,17 @@ const confirm = (bookingId: string, token: string, on = api) =>
   on.act('POST', `/bookings/${bookingId}/transfer/confirm`, token);
 const contest = (bookingId: string, token: string, reason: string, on = api) =>
   on.act('POST', `/bookings/${bookingId}/transfer/contest`, token, { reason });
+/**
+ * An accepted proof: its id, and the answer when it came at once (`{ id, type, size }`). A proof answered
+ * later (request 1) has its id as the operation's result, and its type and size are read on the payment.
+ */
 const sent = async (bookingId: string, bytes: Uint8Array, name: string, token = tom.token, on = api) => {
   const outcome = await on.upload(proof(bookingId), token, bytes, name);
   if (!outcome.accepted) throw new Error(`the proof of ${bookingId} was refused: ${JSON.stringify(outcome.result)}`);
-  return outcome.result as Json;
+  const id = idOf(outcome.result);
+  expect(id).not.toBe('');
+  const answer = typeof outcome.result === 'object' && outcome.result !== null ? (outcome.result as Json) : null;
+  return { id, answer };
 };
 const typeOf = (contentType: string) => contentType.split(';')[0].trim().toLowerCase();
 
@@ -106,13 +114,12 @@ describe('proof of a direct payment', () => {
       expect(await transferOf(bookingId)).toBeNull();
       expect((await api.download(proof(bookingId), tom.token)).status).toBe(404);
 
-      const answer = await sent(bookingId, file.bytes, file.name);
-      expect(answer).toMatchObject({ type: file.type, size: file.bytes.length });
-      expect(typeof answer.id).toBe('string');
+      const { id, answer } = await sent(bookingId, file.bytes, file.name);
+      if (answer) expect(answer).toMatchObject({ id, type: file.type, size: file.bytes.length });
       const transfer = await transferOf(bookingId);
       expect(transfer).toMatchObject({
         status: 'proof-sent',
-        proof: { id: answer.id, name: file.name, type: file.type, size: file.bytes.length },
+        proof: { id, name: file.name, type: file.type, size: file.bytes.length },
       });
       expect(typeof transfer?.at).toBe('string');
       expect(await transferOf(bookingId, hal.token)).toMatchObject({ status: 'proof-sent' });
@@ -144,11 +151,11 @@ describe('proof of a direct payment', () => {
 
     // At the limits: 5 MB exactly, a name of 255 characters.
     const name = `${'x'.repeat(251)}.pdf`;
-    const answer = await sent(bookingId, padded(PDF, 5_242_880), name);
-    expect(answer).toMatchObject({ type: 'application/pdf', size: 5_242_880 });
-    expect(await transferOf(bookingId)).toMatchObject({ proof: { name, size: 5_242_880 } });
+    const { id, answer } = await sent(bookingId, padded(PDF, 5_242_880), name);
+    if (answer) expect(answer).toMatchObject({ type: 'application/pdf', size: 5_242_880 });
+    expect(await transferOf(bookingId)).toMatchObject({ proof: { id, name, type: 'application/pdf', size: 5_242_880 } });
     expect(await refused(PNG, 'another.png')).toBe(true);
-    expect(await transferOf(bookingId)).toMatchObject({ proof: { id: answer.id, type: 'application/pdf' } });
+    expect(await transferOf(bookingId)).toMatchObject({ proof: { id, type: 'application/pdf' } });
   }, 90000);
 
   it('takes no proof for a payment that is not due: under way, paid through the provider, or declared paid', async () => {
@@ -213,14 +220,17 @@ describe('proof of a direct payment', () => {
 
   it('keeps a booking past its dueBy while the host checks, and lets it lapse at the next sweep once contested', async () => {
     const own = database('transfer-proof-lapse');
-    const lapsing = await start(own.path, { ...environment, PAYMENT_TTL_SECONDS: '15' });
+    const lapsing = await start(own.path, { ...environment, PAYMENT_TTL_SECONDS: '30' });
     try {
       const on = client(lapsing.port);
       const ian = await on.host('ian@transfer-proof.test');
       const sue = await on.traveller('sue@transfer-proof.test');
-      const [contested, confirmed, alone] = [await due(on, ian, sue), await due(on, ian, sue), await due(on, ian, sue)];
+      // Each proof right after its booking, well within its deadline; the booking left alone comes last.
+      const contested = await due(on, ian, sue);
       await sent(contested, PDF, 'transfer.pdf', sue.token, on);
+      const confirmed = await due(on, ian, sue);
       await sent(confirmed, JPEG, 'transfer.jpg', sue.token, on);
+      const alone = await due(on, ian, sue);
       const dueBy = Date.parse(String((await paymentOf(alone, sue.token, on)).dueBy));
       await sleep(Math.max(0, dueBy - Date.now()) + 1000);
       // The booking without a proof lapses (request 30); the two with one do not.

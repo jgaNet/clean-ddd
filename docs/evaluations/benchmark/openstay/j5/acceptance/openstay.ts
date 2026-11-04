@@ -439,9 +439,11 @@ export type Client = ReturnType<typeof client>;
 /**
  * The outside notification service of request 10, as the tests play it. It records every attempt
  * with its time, refuses the first `refusals` attempts of each notice (503), and accepts the next.
- * While `accepting` is false it refuses everything.
+ * While `accepting` is false it refuses everything. With `hangs`, the first `hangs` attempts of each
+ * notice get no answer at all, before the refusals are counted (requests 55, 66, 76: a service that
+ * does not answer within two seconds).
  */
-export function notificationService(refusals = 3) {
+export function notificationService(refusals = 3, { hangs = 0 } = {}) {
   const attempts: { at: number; body: Json }[] = [];
   const accepted = new Map<string, Json>();
   const tries = new Map<string, number>();
@@ -460,7 +462,9 @@ export function notificationService(refusals = 3) {
       const id = String(body.id);
       const tried = (tries.get(id) ?? 0) + 1;
       tries.set(id, tried);
-      if (!state.accepting || tried <= refusals) {
+      // No answer: the request stays open until the caller gives up, or the service closes.
+      if (tried <= hangs) return;
+      if (!state.accepting || tried <= hangs + refusals) {
         response.writeHead(503).end();
         return;
       }
@@ -484,7 +488,11 @@ export function notificationService(refusals = 3) {
      * `kind` when it is given (`message`, `email-verification`, `calendar-conflict`: requests 55, 76, 97).
      */
     notices: (kind?: string) => [...accepted.values()].filter(body => kind === undefined || body.kind === kind),
-    close: () => new Promise<void>(resolve => server.close(() => resolve())),
+    close: () =>
+      new Promise<void>(resolve => {
+        server.close(() => resolve());
+        server.closeAllConnections();
+      }),
   };
 }
 

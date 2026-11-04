@@ -106,10 +106,13 @@ describe('unread messages', () => {
     expect(await counts(tom.token, fromTom, 0)).toEqual({ unread: 0, total: 0 });
   }, 60000);
 
-  it('answers 404 to marking a conversation the caller does not read, and 401 without a token', async () => {
+  it('refuses marking a conversation the caller does not read, and answers 401 without a token', async () => {
     const { tom, una, listingId } = await anOrganisation('who.unread');
     const id = await api.create('/conversations', tom.token, { listingId, text: 'A private question' });
-    expect((await api.call('POST', `/conversations/${id}/read`, una.token)).status).toBe(404);
+    // Refused at once or later (request 1): a refusal at once is 404, as for anything that does not exist.
+    const marked = await api.call('POST', `/conversations/${id}/read`, una.token);
+    if (marked.status !== 202) expect(marked.status).toBe(404);
+    expect(await api.refused('POST', `/conversations/${id}/read`, una.token)).toBe(true);
     expect((await api.call('POST', `/conversations/${id}/read`)).status).toBe(401);
     expect((await api.call('GET', '/conversations/unread')).status).toBe(401);
     expect(await total(una.token)).toBe(0);
