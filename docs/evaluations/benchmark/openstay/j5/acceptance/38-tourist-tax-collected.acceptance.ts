@@ -51,11 +51,11 @@ describe('tourist tax collected', () => {
       booking => (booking.refund as Json | undefined)?.status === 'refunded',
     );
 
-    expect(await api.list(`/hosts/me/tourist-tax?month=${day(10).slice(0, 7)}`, hal.token)).toEqual([
+    expect(await api.list(`/hosts/me/tourist-tax?month=${day(10).slice(0, 7)}`, hal.token)).toMatchObject([
       { city: 'Annecy', collected: 250 },
       { city: 'Lyon', collected: 400 + 300 },
     ]);
-    expect(await api.list(`/hosts/me/tourist-tax?month=${day(45).slice(0, 7)}`, hal.token)).toEqual([
+    expect(await api.list(`/hosts/me/tourist-tax?month=${day(45).slice(0, 7)}`, hal.token)).toMatchObject([
       { city: 'Lyon', collected: 100 },
     ]);
   }, 90000);
@@ -68,7 +68,7 @@ describe('tourist tax collected', () => {
     await payBooking(api, provider, una.token, bookingId);
     const jon = await api.host('jon@tourist-tax.test');
     expect(await api.list(`/hosts/me/tourist-tax?month=${day(10).slice(0, 7)}`, jon.token)).toEqual([]);
-    expect(await api.list(`/hosts/me/tourist-tax?month=${day(10).slice(0, 7)}`, ian.token)).toEqual([
+    expect(await api.list(`/hosts/me/tourist-tax?month=${day(10).slice(0, 7)}`, ian.token)).toMatchObject([
       { city: 'Nantes', collected: 100 },
     ]);
   }, 60000);

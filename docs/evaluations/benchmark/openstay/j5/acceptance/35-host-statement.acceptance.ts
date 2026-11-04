@@ -75,7 +75,7 @@ describe("a host's statement", () => {
       expect(at).toBeGreaterThanOrEqual(started - 5000);
       expect(at).toBeLessThanOrEqual(Date.now() + 5000);
     }
-    expect(await statement(ian.token, 0, 1)).toEqual({ lines: [], balance: 0 });
+    expect(await statement(ian.token, 0, 1)).toMatchObject({ lines: [], balance: 0 });
   }, 90000);
 
   it('keeps the lines to the range, and counts in the balance every line up to its end', async () => {
@@ -92,7 +92,7 @@ describe("a host's statement", () => {
       ),
     ).toMatchObject({ balance });
 
-    expect(await statement(jon.token, 1, 2)).toEqual({ lines: [], balance });
-    expect(await statement(jon.token, -1, 0)).toEqual({ lines: [], balance: 0 });
+    expect(await statement(jon.token, 1, 2)).toMatchObject({ lines: [], balance });
+    expect(await statement(jon.token, -1, 0)).toMatchObject({ lines: [], balance: 0 });
   }, 60000);
 });

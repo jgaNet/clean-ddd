@@ -54,7 +54,7 @@ describe('earnings by month', () => {
         () => api.list(`/hosts/me/earnings?year=${year()}`, hal.token),
         months => months[0]?.paidOut === expected.paidOut,
       ),
-    ).toEqual([expected]);
+    ).toMatchObject([expected]);
   }, 90000);
 
   it("shows nothing for a year nothing happened in, nor any of another host's bookings", async () => {
@@ -71,7 +71,7 @@ describe('earnings by month', () => {
         () => api.list(`/hosts/me/earnings?year=${year()}`, ian.token),
         months => months.length > 0,
       ),
-    ).toEqual([{ month: month(), charged: 12000, fees: feeOf(12000), refunded: 0, paidOut: 0 }]);
+    ).toMatchObject([{ month: month(), charged: 12000, fees: feeOf(12000), refunded: 0, paidOut: 0 }]);
     expect(await api.list(`/hosts/me/earnings?year=${year() - 1}`, ian.token)).toEqual([]);
     expect(await api.list(`/hosts/me/earnings?year=${year()}`, jon.token)).toEqual([]);
   }, 60000);

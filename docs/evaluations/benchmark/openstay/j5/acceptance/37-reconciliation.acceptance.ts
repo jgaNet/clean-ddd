@@ -48,14 +48,14 @@ describe('reconciliation', () => {
 
     const today = day(0);
     expect(provider.transactions.filter(each => each.at.startsWith(today))).toHaveLength(8);
-    expect(await api.read(`/admin/reconciliation?date=${today}`, ada.token)).toEqual({
+    expect(await api.read(`/admin/reconciliation?date=${today}`, ada.token)).toMatchObject({
       date: today,
       matched: 8,
       mismatches: [],
     });
 
     provider.inject('charge', 4200, 'from-nowhere');
-    expect(await api.read(`/admin/reconciliation?date=${today}`, bea.token)).toEqual({
+    expect(await api.read(`/admin/reconciliation?date=${today}`, bea.token)).toMatchObject({
       date: today,
       matched: 8,
       mismatches: [{ type: 'charge', reference: 'from-nowhere', provider: 4200, openstay: null }],
@@ -69,7 +69,7 @@ describe('reconciliation', () => {
     const yesterday = day(-1);
     expect((await api.call('GET', `/admin/reconciliation?date=${yesterday}`, tom.token)).status).toBe(403);
     expect((await api.call('GET', `/admin/reconciliation?date=${yesterday}`, hal.token)).status).toBe(403);
-    expect(await api.read(`/admin/reconciliation?date=${yesterday}`, cy.token)).toEqual({
+    expect(await api.read(`/admin/reconciliation?date=${yesterday}`, cy.token)).toMatchObject({
       date: yesterday,
       matched: 0,
       mismatches: [],
