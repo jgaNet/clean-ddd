@@ -86,7 +86,7 @@ class OnGreetedSaveAndTell(EventHandler[Greeted]):
         await asyncio.sleep(0)
         for who in ("ann", "bob"):
             self._store.collection[who] = "told"
-            publish_integration_event(Told(who=who), context)
+            await publish_integration_event(Told(who=who), context)
             if event.then == "fail" and who == "bob":
                 return Failure(NotFoundException("Test", "bob is gone"))
         return Success(None)
@@ -131,7 +131,7 @@ async def test_a_reaction_commits_what_it_saved_and_tells_after_the_commit_throu
         (Told(who="ann"), True),
         (Told(who="bob"), True),
     ]
-    assert reaction.outbox.pending() == []
+    assert await reaction.outbox.pending() == []
 
 
 async def test_a_reaction_that_fails_half_way_undoes_all_of_it_so_a_second_delivery_starts_clean(
@@ -142,7 +142,7 @@ async def test_a_reaction_that_fails_half_way_undoes_all_of_it_so_a_second_deliv
     assert done.status is OperationStatus.ERROR
     assert reaction.store.collection == {}
     assert reaction.bus.published == []
-    assert reaction.outbox.pending() == []
+    assert await reaction.outbox.pending() == []
 
 
 async def test_a_reaction_runs_beside_another_to_the_same_fact_and_beside_the_open_transaction_that_published_it(

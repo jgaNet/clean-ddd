@@ -11,6 +11,9 @@ reactions call it directly. A reaction tells other contexts a fact the same way,
 transaction commits, relayed after it, under the entry's id. A context without a unit of work
 (a handler's unit test) has no outbox: there the events go straight to the bus once the use case
 has succeeded, as ``after_commit`` promises.
+
+Both are async and awaited by their callers, since storing the events is a write to the outbox,
+and a durable outbox is I/O like any repository.
 """
 
 from collections.abc import Callable, Sequence
@@ -20,19 +23,19 @@ from architecture.domain.aggregate_root import AggregateRoot
 from architecture.domain.event import Event, IntegrationEvent
 
 
-def publish_domain_events(aggregate: AggregateRoot, context: ExecutionContext) -> None:
-    _durable(aggregate.pull_domain_events, context)
+async def publish_domain_events(aggregate: AggregateRoot, context: ExecutionContext) -> None:
+    await _durable(aggregate.pull_domain_events, context)
 
 
-def publish_integration_event(event: IntegrationEvent, context: ExecutionContext) -> None:
+async def publish_integration_event(event: IntegrationEvent, context: ExecutionContext) -> None:
     """Tells other contexts a fact the way a domain event is told (ADR 30): appended to the outbox
     when the reaction's transaction commits, relayed after it, under the entry's id. The reaction
     that translates a domain event into the published contract calls it; nothing publishes an
     integration event straight to the bus, where a rollback could not take it back."""
-    _durable(lambda: [event], context)
+    await _durable(lambda: [event], context)
 
 
-def _durable(events: Callable[[], Sequence[Event]], context: ExecutionContext) -> None:
+async def _durable(events: Callable[[], Sequence[Event]], context: ExecutionContext) -> None:
     """At commit, the events are appended to the outbox; without a unit of work, they are published
     once the use case has succeeded."""
     unit_of_work = context.unit_of_work
@@ -47,7 +50,7 @@ def _durable(events: Callable[[], Sequence[Event]], context: ExecutionContext) -
 
     outbox = unit_of_work.outbox
 
-    def store() -> None:
-        outbox.append(events())
+    async def store() -> None:
+        await outbox.append(events())
 
-    context.before_commit(store)
+    await context.before_commit(store)

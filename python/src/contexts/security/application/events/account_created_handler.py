@@ -26,7 +26,7 @@ class AccountCreatedHandler(EventHandler[AccountCreatedEvent]):
         validation_token = await self._tokens.issue(
             TokenPayload(subject_id=event.account_id, subject_type=TokenTypes.VALIDATION)
         )
-        publish_integration_event(
+        await publish_integration_event(
             AccountCreatedIntegrationEvent(
                 account_id=event.account_id, email=event.email, validation_token=validation_token
             ),

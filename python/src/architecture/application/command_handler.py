@@ -69,11 +69,11 @@ class CommandHandler[C: CommandEvent](EventHandler[C]):
     async def execute(self, command: C, context: ExecutionContext) -> Result[Any]:
         """The use case. Implement it in each concrete handler."""
 
-    def publish_domain_events(self, aggregate: AggregateRoot, context: ExecutionContext) -> None:
+    async def publish_domain_events(self, aggregate: AggregateRoot, context: ExecutionContext) -> None:
         """Makes every domain event the aggregate recorded during ``execute()`` durable with the
         transaction, and lets the context publish it once committed, so listeners never see
-        facts that end up rolled back, and never miss one that was."""
-        publish_domain_events(aggregate, context)
+        facts that end up rolled back, and never miss one that was. Awaited: the outbox is I/O."""
+        await publish_domain_events(aggregate, context)
 
     async def _execute_until_uncontended(self, command: C, context: ExecutionContext) -> Result[Any]:
         """The use case in its transaction; again, from a fresh read, when the first run lost a

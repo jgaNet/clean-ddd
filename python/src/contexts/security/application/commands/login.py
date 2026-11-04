@@ -39,6 +39,6 @@ class LoginCommandHandler(CommandHandler[LoginCommandEvent]):
             return authenticated
 
         await self._accounts.save(account)
-        self.publish_domain_events(account, context)
+        await self.publish_domain_events(account, context)
 
         return Success(await self._tokens.issue(TokenPayload(subject_id=account.id.value, subject_type=account.role)))

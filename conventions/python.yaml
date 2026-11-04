@@ -435,7 +435,7 @@ concepts:
     canonical: [src/architecture/application/outbox.py]
     examples: [src/architecture/infrastructure/outbox.py, src/architecture/application/domain_events.py]
     example: '[`outbox.py`](src/architecture/application/outbox.py) (the port and `relay_outbox()`), [`infrastructure/outbox.py`](src/architecture/infrastructure/outbox.py), [`domain_events.py`](src/architecture/application/domain_events.py) (appends at commit)'
-    notes: 'the port is a `Protocol` with three plain methods; the in-memory adapter is an `InMemoryDataSource`, so the unit of work snapshots it with the other stores; `before_commit()` is where the append happens, and the context relays after the outermost commit'
+    notes: 'the port is a `Protocol` with three async methods, since a durable outbox is a table; the in-memory adapter is an `InMemoryDataSource`, so the unit of work snapshots it with the other stores; `before_commit()` is where the append happens, and the context relays after the outermost commit'
   retry-on-conflict:
     canonical: [src/architecture/application/command_handler.py]
     examples: [src/architecture/application/test_command_handler.py]

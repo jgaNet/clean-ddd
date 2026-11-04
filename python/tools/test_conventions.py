@@ -394,12 +394,12 @@ def test_a_command_listed_under_an_alias_of_its_event_class_is_not_seen_caught_b
     ]
 
 
-# What a policy publishes: a reaction tells other contexts through the outbox, ``publish_integration_event(
+# What a policy publishes: a reaction tells other contexts through the outbox, ``await publish_integration_event(
 # XIntegrationEvent(...), context)`` (ADR 30), and that call is what the reader reads; a bus's own
 # ``publish(...)`` is read too, since the Tracker's decorated bus publishes that way.
 
 ON_SHARED = "src/contexts/notes/application/events/note_shared_handler.py"
-TOLD = "        publish_integration_event(\n            NoteSharedIntegrationEvent("
+TOLD = "        await publish_integration_event(\n            NoteSharedIntegrationEvent("
 ON_SHARED_LOST = "ARCH-ONE-APPLICATION: Notes: the policy on NoteShared differs: publishes [NoteShared] → []"
 
 
@@ -418,7 +418,7 @@ def test_an_integration_event_published_from_a_variable_is_not_seen_caught_by_th
         (
             ON_SHARED,
             "            ),\n            context,\n        )\n",
-            "        )\n        publish_integration_event(told, context)\n",
+            "        )\n        await publish_integration_event(told, context)\n",
         ),
     )
     assert found == [STALE_INVENTORY, ON_SHARED_LOST]

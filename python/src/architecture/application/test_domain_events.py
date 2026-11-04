@@ -58,8 +58,8 @@ class RecordingOutbox(InMemoryOutbox):
         super().__init__()
         self.appended: list[str] = []
 
-    def append(self, events: Sequence[Event]) -> list[OutboxEntry]:
-        entries = super().append(events)
+    async def append(self, events: Sequence[Event]) -> list[OutboxEntry]:
+        entries = await super().append(events)
         self.appended.extend(entry.id for entry in entries)
         return entries
 
@@ -68,8 +68,8 @@ def context_with(outbox: InMemoryOutbox, bus: RecordingBus) -> ExecutionContext:
     return ExecutionContext(trace_id="trace", event_bus=bus, unit_of_work=InMemoryUnitOfWork([outbox.store], outbox))
 
 
-def pending_events(outbox: InMemoryOutbox) -> list[Event]:
-    return [entry.event for entry in outbox.pending()]
+async def pending_events(outbox: InMemoryOutbox) -> list[Event]:
+    return [entry.event for entry in await outbox.pending()]
 
 
 async def test_stores_at_commit_everything_the_aggregate_recorded_during_the_transaction_and_publishes_after() -> None:
@@ -79,16 +79,16 @@ async def test_stores_at_commit_everything_the_aggregate_recorded_during_the_tra
 
     async def work() -> Result[None]:
         greeter.greet("alice")
-        publish_domain_events(greeter, context)
+        await publish_domain_events(greeter, context)
         greeter.greet("bob")  # recorded after the call, still inside the transaction
-        assert outbox.pending() == []
+        assert await outbox.pending() == []
         assert bus.published == []
         return Success(None)
 
     await context.with_transaction(work)
     assert bus.published == [Greeted(name="alice"), Greeted(name="bob")]
     assert greeter.pull_domain_events() == []
-    assert outbox.pending() == []
+    assert await outbox.pending() == []
 
 
 async def test_publishes_each_fact_with_its_outbox_entry_as_the_message_id_so_the_bus_can_recognise_it() -> None:
@@ -99,7 +99,7 @@ async def test_publishes_each_fact_with_its_outbox_entry_as_the_message_id_so_th
     async def work() -> Result[None]:
         greeter.greet("alice")
         greeter.greet("bob")
-        publish_domain_events(greeter, context)
+        await publish_domain_events(greeter, context)
         return Success(None)
 
     await context.with_transaction(work)
@@ -114,12 +114,12 @@ async def test_stores_nothing_and_leaves_the_events_on_the_aggregate_when_the_tr
 
     async def work() -> Result[None]:
         greeter.greet("alice")
-        publish_domain_events(greeter, context)
+        await publish_domain_events(greeter, context)
         return Failure(NotAllowedException("Test", "refused"))
 
     await context.with_transaction(work)
     assert bus.published == []
-    assert outbox.pending() == []
+    assert await outbox.pending() == []
     assert len(greeter.pull_domain_events()) == 1
 
 
@@ -132,23 +132,23 @@ async def test_keeps_a_fact_the_relay_could_not_publish_and_the_next_commit_publ
 
     async def first() -> Result[None]:
         greeter.greet("alice")
-        publish_domain_events(greeter, context)
+        await publish_domain_events(greeter, context)
         return Success(None)
 
     await context.with_transaction(first)
     assert bus.published == []
-    assert pending_events(outbox) == [Greeted(name="alice")]
+    assert await pending_events(outbox) == [Greeted(name="alice")]
 
     other = Greeter(Id("h"))
 
     async def second() -> Result[None]:
         other.greet("bob")
-        publish_domain_events(other, context)
+        await publish_domain_events(other, context)
         return Success(None)
 
     await context.with_transaction(second)
     assert bus.published == [Greeted(name="alice"), Greeted(name="bob")]
-    assert outbox.pending() == []
+    assert await outbox.pending() == []
 
 
 async def test_goes_straight_to_the_bus_once_the_use_case_succeeded_when_there_is_no_unit_of_work() -> None:
@@ -158,7 +158,7 @@ async def test_goes_straight_to_the_bus_once_the_use_case_succeeded_when_there_i
 
     async def work() -> Result[None]:
         greeter.greet("alice")
-        publish_domain_events(greeter, context)
+        await publish_domain_events(greeter, context)
         assert bus.published == []
         return Success(None)
 
@@ -175,8 +175,8 @@ async def test_stores_and_publishes_at_once_outside_any_transaction_a_reaction_a
     greeter = Greeter(Id("g"))
 
     greeter.greet("alice")
-    publish_domain_events(greeter, context)
+    await publish_domain_events(greeter, context)
 
     assert bus.published == [Greeted(name="alice")]
-    assert outbox.pending() == []
+    assert await outbox.pending() == []
     assert greeter.pull_domain_events() == []

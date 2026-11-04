@@ -1,3 +1,5 @@
+import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -73,6 +75,15 @@ def context_with(unit_of_work: UnitOfWork | None = None, bus: Any = None) -> Exe
 OK: Result[None] = Success(None)
 
 
+def log_step(log: list[str], line: str) -> Callable[[], Awaitable[None]]:
+    """A ``before_commit`` step that writes a line in the log: a step is async, as a write to a durable outbox is."""
+
+    async def step() -> None:
+        log.append(line)
+
+    return step
+
+
 async def test_runs_the_callback_only_once_the_transaction_is_committed() -> None:
     unit_of_work = FakeUnitOfWork()
     context = context_with(unit_of_work)
@@ -90,19 +101,36 @@ async def test_runs_a_before_commit_step_inside_the_transaction_after_the_work_t
     unit_of_work = FakeUnitOfWork()
     context = context_with(unit_of_work, LoggingBus(unit_of_work.log))
 
-    def before_commit() -> None:
+    async def before_commit() -> None:
         unit_of_work.log.append("before commit")
-        unit_of_work.outbox.append([Fact()])
+        await unit_of_work.outbox.append([Fact()])
 
     async def work() -> Result[None]:
         context.after_commit(lambda: unit_of_work.log.append("callback"))
-        context.before_commit(before_commit)
+        await context.before_commit(before_commit)
         unit_of_work.log.append("work")
         return OK
 
     await context.with_transaction(work)
     assert unit_of_work.log == ["begin", "work", "before commit", "commit", "publish", "callback"]
-    assert unit_of_work.outbox.pending() == []
+    assert await unit_of_work.outbox.pending() == []
+
+
+async def test_awaits_the_before_commit_steps_one_after_the_other_in_the_order_they_were_registered() -> None:
+    unit_of_work = FakeUnitOfWork()
+    context = context_with(unit_of_work)
+
+    async def slow() -> None:
+        await asyncio.sleep(0.01)  # a write that takes a while: the next step waits for it
+        unit_of_work.log.append("first step")
+
+    async def work() -> Result[None]:
+        await context.before_commit(slow)
+        await context.before_commit(log_step(unit_of_work.log, "second step"))
+        return OK
+
+    await context.with_transaction(work)
+    assert unit_of_work.log == ["begin", "first step", "second step", "commit"]
 
 
 async def test_drops_the_before_commit_step_with_the_callback_when_the_transaction_fails() -> None:
@@ -110,7 +138,7 @@ async def test_drops_the_before_commit_step_with_the_callback_when_the_transacti
     context = context_with(unit_of_work)
 
     async def work() -> Result[None]:
-        context.before_commit(lambda: unit_of_work.log.append("before commit"))
+        await context.before_commit(log_step(unit_of_work.log, "before commit"))
         context.after_commit(lambda: unit_of_work.log.append("callback"))
         return Failure(UnknownException("nope"))
 
@@ -118,17 +146,17 @@ async def test_drops_the_before_commit_step_with_the_callback_when_the_transacti
     assert unit_of_work.log == ["begin", "rollback"]
 
 
-def test_runs_a_before_commit_step_at_once_outside_of_a_transaction_and_relays_the_outbox() -> None:
+async def test_runs_a_before_commit_step_at_once_outside_of_a_transaction_and_relays_the_outbox() -> None:
     unit_of_work = FakeUnitOfWork()
     context = context_with(unit_of_work, LoggingBus(unit_of_work.log))
 
-    def step() -> None:
+    async def step() -> None:
         unit_of_work.log.append("step")
-        unit_of_work.outbox.append([Fact()])
+        await unit_of_work.outbox.append([Fact()])
 
-    context.before_commit(step)
+    await context.before_commit(step)
     assert unit_of_work.log == ["step", "publish"]
-    assert unit_of_work.outbox.pending() == []
+    assert await unit_of_work.outbox.pending() == []
 
 
 async def test_drops_the_callback_when_the_transaction_fails() -> None:
@@ -171,7 +199,7 @@ async def test_keeps_nothing_from_a_transaction_whose_unit_of_work_could_not_rol
     context = context_with(unit_of_work)
 
     async def refused() -> Result[None]:
-        context.before_commit(lambda: unit_of_work.log.append("stale step"))
+        await context.before_commit(log_step(unit_of_work.log, "stale step"))
         context.after_commit(lambda: unit_of_work.log.append("stale callback"))
         return Failure(UnknownException("refused"))
 

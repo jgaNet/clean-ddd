@@ -13,7 +13,9 @@ The bootstrap builds one per HTTP request; tests build one by hand::
 A handler reads ``context.auth`` to know the caller and passes ``context`` on when it publishes.
 ``with_transaction()``, ``before_commit()`` and ``after_commit()`` are what make "durable, then
 published" possible: the events are appended to the unit of work's outbox at commit and relayed
-after it (ADR 3, ADR 24).
+after it (ADR 3, ADR 24). A ``before_commit`` step is async, since writing to a durable outbox is
+I/O: the steps are awaited one after the other, inside the transaction, and the relay is awaited
+after the commit.
 """
 
 from __future__ import annotations
@@ -103,14 +105,15 @@ class ExecutionContext:
         self._unit_of_work = unit_of_work
         self._logger = logger
         self._in_transaction = False
-        self._before_commit: list[Callable[[], None]] = []
+        self._before_commit: list[Callable[[], Awaitable[None]]] = []
         self._after_commit: list[Callable[[], None]] = []
 
     async def with_transaction[T](self, fn: Callable[[], Awaitable[Result[T]]]) -> Result[T]:
         """Runs ``fn`` inside the unit of work when there is one: the ``before_commit`` steps
         registered during ``fn`` run inside the transaction once ``fn`` has succeeded (the outbox
         is written there), then the transaction commits, then the outbox is relayed through the
-        bus, then the ``after_commit`` callbacks run. A failed result or a raise rolls back and
+        bus, then the ``after_commit`` callbacks run. The steps are awaited in the order they were
+        registered, and the relay is awaited before the callbacks. A failed result or a raise rolls back and
         drops every step and callback — whatever the failure, so a context is clean for its next
         transaction even after a unit of work that could not begin or roll back. Nested calls join
         the outer transaction: everything happens at the outermost one. The context owns that
@@ -123,7 +126,7 @@ class ExecutionContext:
             result = await self._run_in_unit_of_work(fn, outermost)
             if outermost and isinstance(result, Success):
                 callbacks, self._after_commit = self._after_commit, []
-                self._relay()
+                await self._relay()
                 for callback in callbacks:
                     callback()
             return result
@@ -133,15 +136,17 @@ class ExecutionContext:
                 self._before_commit = []
                 self._after_commit = []
 
-    def before_commit(self, step: Callable[[], None]) -> None:
-        """Runs ``step`` inside the current transaction, once the use case has succeeded and just
+    async def before_commit(self, step: Callable[[], Awaitable[None]]) -> None:
+        """Awaits ``step`` inside the current transaction, once the use case has succeeded and just
         before the commit: where ``publish_domain_events()`` appends the aggregate's events to the
         outbox, so that they are durable with the state they describe and gone with it on a
-        rollback. Outside of any transaction (a handler's unit test calling ``execute()`` directly)
-        there is nothing to wait for: the step runs immediately and the outbox is relayed at once."""
+        rollback. The step is async because a durable outbox is I/O; it is called only then, so a
+        step dropped by a rollback never starts. Outside of any transaction (a handler's unit test
+        calling ``execute()`` directly) there is nothing to wait for: the step is awaited
+        immediately and the outbox is relayed at once."""
         if not self._in_transaction:
-            step()
-            self._relay()
+            await step()
+            await self._relay()
             return
         self._before_commit.append(step)
 
@@ -167,23 +172,24 @@ class ExecutionContext:
             logger=self._logger,
         )
 
-    def _relay(self) -> None:
+    async def _relay(self) -> None:
         """Publishes what the unit of work's outbox holds, with this context (ADR 24)."""
         if self._unit_of_work is not None:
-            relay_outbox(self._unit_of_work.outbox, self._event_bus, self)
+            await relay_outbox(self._unit_of_work.outbox, self._event_bus, self)
 
-    def _run_before_commit(self) -> None:
-        """The ``before_commit`` steps, inside the transaction, once the outermost use case has succeeded."""
+    async def _run_before_commit(self) -> None:
+        """The ``before_commit`` steps, awaited in order inside the transaction, once the outermost
+        use case has succeeded."""
         steps, self._before_commit = self._before_commit, []
         for step in steps:
-            step()
+            await step()
 
     async def _run_in_unit_of_work[T](self, fn: Callable[[], Awaitable[Result[T]]], outermost: bool) -> Result[T]:
         unit_of_work = self._unit_of_work
         if unit_of_work is None:
             result = await fn()
             if outermost and isinstance(result, Success):
-                self._run_before_commit()
+                await self._run_before_commit()
             return result
 
         if outermost:
@@ -205,7 +211,7 @@ class ExecutionContext:
             await unit_of_work.rollback_transaction()
             return result
         try:
-            self._run_before_commit()
+            await self._run_before_commit()
             await unit_of_work.commit_transaction()
         except Exception as error:
             await unit_of_work.rollback_transaction()

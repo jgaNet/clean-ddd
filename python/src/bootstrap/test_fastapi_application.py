@@ -35,7 +35,7 @@ class TellTheArchiving(EventHandler[NoteArchived]):
     """A reaction that tells other contexts, as a domain event handler does (ADR 30)."""
 
     async def execute(self, event: NoteArchived, context: ExecutionContext) -> Result[None]:
-        publish_integration_event(ArchivingTold(note_id=event.note_id), context)
+        await publish_integration_event(ArchivingTold(note_id=event.note_id), context)
         return Success(None)
 
 
@@ -61,20 +61,20 @@ async def test_the_relay_at_start_runs_a_reaction_in_a_unit_of_work_so_what_it_t
     await bus.subscribe(name_of(ArchivingTold), listener)
 
     # What a run that died after its commit left pending.
-    outbox.append([NoteArchived(note_id="n-1")])
+    await outbox.append([NoteArchived(note_id="n-1")])
     durable: list[str] = []
     append = outbox.append
 
-    def recording(events: Sequence[Event]) -> list[OutboxEntry]:
-        entries = append(events)
+    async def recording(events: Sequence[Event]) -> list[OutboxEntry]:
+        entries = await append(events)
         durable.extend(entry.id for entry in entries)
         return entries
 
     monkeypatch.setattr(outbox, "append", recording)
 
-    relay_outbox(outbox, bus, app.execution_context("startup"))
+    await relay_outbox(outbox, bus, app.execution_context("startup"))
     await bus.settle()
 
     assert len(listener.told) == 1
     assert listener.told[0] in durable
-    assert outbox.pending() == []
+    assert await outbox.pending() == []
