@@ -126,8 +126,9 @@ describe('suspending an account', () => {
     }
 
     await reinstate(sam.id);
-    const fresh = await otherApi.login(sam.email);
+    // A token is used on the server that gave it: no request says another server takes it.
     for (const on of [api, otherApi]) {
+      const fresh = await on.login(sam.email);
       expect(await me(on, fresh)).toBe(200);
       for (const token of earlier) expect(await me(on, token)).toBe(401);
     }
@@ -332,12 +333,30 @@ describe('suspending an account', () => {
       bookings.push(bookingId);
     }
 
-    await suspend(zed.id);
-    await kill(server);
-    server = await start(db.path, environment);
-    api = client(server.port);
-    for (const traveller of travellers) traveller.token = await api.login(traveller.email);
-    ada.token = await api.login(ada.email);
+    // The provider settles the refunds once the servers know them (a refund asked just before the kill
+    // is asked again by the new server, and its webhook must find it).
+    provider.state.settleAfterMs = undefined;
+    try {
+      await suspend(zed.id);
+      await kill(server);
+      server = await start(db.path, environment);
+      api = client(server.port);
+      for (const traveller of travellers) traveller.token = await api.login(traveller.email);
+      ada.token = await api.login(ada.email);
+
+      for (const [n, bookingId] of bookings.entries())
+        await eventually(
+          () => booking(bookingId, travellers[n].token),
+          each => each.status === 'cancelled' && (each.refund as Json | undefined)?.status === 'pending',
+          30000,
+        );
+      await sleep(2000);
+      for (const paymentId of payments)
+        for (const refund of refundsOfPayment(paymentId).filter(each => each.status === 'pending'))
+          provider.settleRefund(refund.id);
+    } finally {
+      provider.state.settleAfterMs = 200;
+    }
 
     for (const [n, bookingId] of bookings.entries()) {
       const read = await eventually(

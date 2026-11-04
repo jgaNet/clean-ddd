@@ -364,6 +364,14 @@ describe('a claim decided with money', () => {
       provider.attach(server.port);
       api = client(server.port);
       await signIn();
+      // The new server reads the refund as asked of the provider, and has had time to ask again for
+      // one the old server asked just before the kill: only then does the provider settle it.
+      await eventually(
+        () => claimOf(id),
+        claim => (claim.refund as Json | null)?.status === 'pending',
+        30000,
+      );
+      await sleep(2000);
       const [refund] = await eventually(
         async () => refundsAt('killed'),
         found => found.length > 0,

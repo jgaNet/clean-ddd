@@ -107,11 +107,13 @@ describe('email verification', () => {
 
   it('spends the code after five wrong ones, sent at the same moment to two servers, until a new one is asked for', async () => {
     const ian = await api.traveller('ian@email-verification.test');
-    const code = String((await ask(ian)).code);
+    // The second server runs, and ian is signed in there, before the code is asked for: the five wrong
+    // codes arrive well within its time to live.
     const second = await start(db.path, environment);
     try {
       const other = client(second.port);
       const token = await other.login(ian.email);
+      const code = String((await ask(ian)).code);
       const outcomes = await Promise.all(
         wrong(code, 5).map((guess, n) => (n % 2 ? verify(token, guess, other) : verify(ian.token, guess))),
       );

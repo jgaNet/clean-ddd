@@ -2,11 +2,13 @@ import {
   adminEnvironment,
   client,
   Client,
+  clock,
   database,
   day,
   eventually,
   Json,
   kill,
+  restart,
   Running,
   sleep,
   start,
@@ -18,7 +20,12 @@ import {
  * nothing else written, nothing changed, nothing lost to a crash or doubled by a second server.
  */
 const db = database('audit-log');
-const environment = { JOBS_INTERVAL_SECONDS: '1', ...adminEnvironment('ada@audit.test', 'bob@audit.test') };
+// A long payment deadline (request 30), so that a stay not paid has not lapsed once it took place.
+const environment = {
+  JOBS_INTERVAL_SECONDS: '1',
+  PAYMENT_TTL_SECONDS: String(30 * 86400),
+  ...adminEnvironment('ada@audit.test', 'bob@audit.test'),
+};
 let server: Running;
 let other: Running;
 let api: Client;
@@ -188,10 +195,15 @@ describe('the audit log', () => {
   }, 60000);
 
   it('has exactly one entry per decision with two servers, and keeps one answered just before a crash', async () => {
+    // A token is used on the server that gave it: each administrator signs in on the second server too.
+    const adaThere = await otherApi.login(ada.email);
+    const bobThere = await otherApi.login(bob.email);
     const subjects: string[] = [];
     for (const on of [api, otherApi, api, otherApi]) {
       const id = await api.listing(hal.token, { city: 'Auditville' });
-      await on.done('POST', `/admin/reports/${await report(id, kim)}/dismiss`, ada.token, { note: 'Fine.' });
+      await on.done('POST', `/admin/reports/${await report(id, kim)}/dismiss`, on === api ? ada.token : adaThere, {
+        note: 'Fine.',
+      });
       subjects.push(id);
     }
     // Two administrators closing one report at the same moment, on two servers: one decision.
@@ -199,7 +211,7 @@ describe('the audit log', () => {
     const racedReport = await report(raced, kim);
     const outcomes = await Promise.all([
       api.act('POST', `/admin/reports/${racedReport}/dismiss`, ada.token, { note: 'Fine.' }),
-      otherApi.act('POST', `/admin/reports/${racedReport}/uphold`, bob.token, { note: 'Not fine.' }),
+      otherApi.act('POST', `/admin/reports/${racedReport}/uphold`, bobThere, { note: 'Not fine.' }),
     ]);
     expect(outcomes.filter(outcome => outcome.accepted)).toHaveLength(1);
     // A decision answered as done, then the server killed at once.
@@ -225,6 +237,38 @@ describe('the audit log', () => {
       ),
     ]);
     expect(await audit(crashed.id)).toHaveLength(1);
-    expect((await otherApi.list(`/admin/audit?subjectId=${crashed.id}`, ada.token)).length).toBe(1);
+    expect((await otherApi.list(`/admin/audit?subjectId=${crashed.id}`, adaThere)).length).toBe(1);
   }, 120000);
+
+  it('keeps the entry of a review removed by the decision itself', async () => {
+    // A stay of tom's that took place, and its review, published once its window closed (request 57).
+    const listingId = await api.listing(hal.token, { city: 'Auditville' });
+    const bookingId = await api.book(tom.token, await api.quote(tom.token, listingId, day(0), day(1)));
+    const later = async (days: number) => {
+      server = await restart(server, db.path, { ...environment, ...clock(days) });
+      other = await restart(other, db.path, { ...environment, ...clock(days) });
+      api = client(server.port);
+      otherApi = client(other.port);
+      for (const person of [ada, bob, hal, tom, una]) person.token = await api.login(person.email);
+    };
+    await later(3);
+    const reviewId = await api.create(`/bookings/${bookingId}/review`, tom.token, {
+      cleanliness: 2,
+      accuracy: 1,
+      communication: 2,
+      comment: 'Nothing like the photos, and nobody answered.',
+    });
+    await later(16);
+    const reviews = () => api.list(`/listings/${listingId}/reviews`);
+    expect((await eventually(reviews, found => found.length === 1)).map(each => each.id)).toEqual([reviewId]);
+
+    const reportId = await api.create(`/reviews/${reviewId}/report`, una.token, { reason: 'Written by a competitor.' });
+    await api.done('POST', `/admin/reports/${reportId}/uphold`, ada.token, { note: 'Not a real stay review.' });
+    expect(await eventually(reviews, found => found.length === 0)).toEqual([]);
+    expect(await entries(reviewId, 1)).toEqual([
+      expect.objectContaining({ adminId: ada.id, action: 'report-upheld', subjectId: reviewId, note: 'Not a real stay review.' }),
+    ]);
+    await sleep(2000);
+    expect(await audit(reviewId)).toHaveLength(1);
+  }, 180000);
 });

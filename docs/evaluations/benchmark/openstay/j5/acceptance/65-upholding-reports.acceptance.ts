@@ -337,6 +337,11 @@ describe('upholding a report', () => {
   }, 60000);
 
   it('lets one of two administrators upholding two reports of one listing at the same moment close both, on one server or two', async () => {
+    // A token is used on the server that gave it: each administrator signs in on the second server too.
+    const tokens = new Map([
+      [api, { ada: ada.token, bob: bob.token }],
+      [otherApi, { ada: await otherApi.login(ada.email), bob: await otherApi.login(bob.email) }],
+    ]);
     for (const apis of [
       [api, otherApi],
       [api, api],
@@ -345,8 +350,8 @@ describe('upholding a report', () => {
       const first = await report(id, tom);
       const second = await report(id, una, 'unsafe');
       const outcomes = await Promise.all([
-        apis[0].act('POST', `/admin/reports/${first}/uphold`, ada.token, { note: 'A scam.' }),
-        apis[1].act('POST', `/admin/reports/${second}/uphold`, bob.token, { note: 'Unsafe.' }),
+        apis[0].act('POST', `/admin/reports/${first}/uphold`, tokens.get(apis[0])!.ada, { note: 'A scam.' }),
+        apis[1].act('POST', `/admin/reports/${second}/uphold`, tokens.get(apis[1])!.bob, { note: 'Unsafe.' }),
       ]);
       expect(outcomes.filter(outcome => outcome.accepted)).toHaveLength(1);
       const winner = outcomes[0].accepted ? { note: 'A scam.', closedBy: ada.id } : { note: 'Unsafe.', closedBy: bob.id };

@@ -152,19 +152,30 @@ describe('suspicious accounts', () => {
   }, 120000);
 
   it('raises one flag of each kind for cancellations or messages sent at the same moment to two servers', async () => {
+    // A token is used on the server that gave it: each traveller signs in on the second server too.
     const vic = await api.traveller('vic@flags.test');
+    const vicThere = await otherApi.login(vic.email);
     const booked = await bookings(vic, 6, 70);
     const cancelled = await Promise.all(
-      booked.map((bookingId, n) => (n % 2 ? otherApi : api).act('POST', `/bookings/${bookingId}/cancel`, vic.token)),
+      booked.map((bookingId, n) =>
+        n % 2
+          ? otherApi.act('POST', `/bookings/${bookingId}/cancel`, vicThere)
+          : api.act('POST', `/bookings/${bookingId}/cancel`, vic.token),
+      ),
     );
     // The request promises one flag, not that every one of them is taken at once: one refused is sent again.
     for (const [n, outcome] of cancelled.entries()) if (!outcome.accepted) await cancel(booked[n], vic.token);
 
     const wes = await api.traveller('wes@flags.test');
+    const wesThere = await otherApi.login(wes.email);
     const listings = await hosts('host-wes-', 8);
     const message = { text: 'Free in May? We are four.' };
     const written = await Promise.all(
-      listings.map((id, n) => (n % 2 ? otherApi : api).act('POST', '/conversations', wes.token, { listingId: id, ...message })),
+      listings.map((id, n) =>
+        n % 2
+          ? otherApi.act('POST', '/conversations', wesThere, { listingId: id, ...message })
+          : api.act('POST', '/conversations', wes.token, { listingId: id, ...message }),
+      ),
     );
     for (const [n, outcome] of written.entries())
       if (!outcome.accepted) await api.create('/conversations', wes.token, { listingId: listings[n], ...message });

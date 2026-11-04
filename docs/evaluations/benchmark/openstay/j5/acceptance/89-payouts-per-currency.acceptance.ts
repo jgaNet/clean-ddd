@@ -253,23 +253,29 @@ describe('payouts per currency', () => {
     expect(payoutsTo(account)).toEqual([]);
 
     const second = await start(db.path, environment);
+    // The provider settles the payouts once the servers know them (a payout asked just before the kill is
+    // asked again by a server still running, and its webhook must find it).
+    provider.state.settleAfterMs = undefined;
     try {
-      await api.done('PUT', '/hosts/me/payout-schedule', kai.token, { schedule: 'weekly', weekday: today() });
-      await eventually(
-        async () => payoutsTo(account),
-        found => found.length > 0,
-        20000,
-      );
-      await kill(server);
-      server = await start(db.path, environment);
-      provider.attach(server.port);
-      api = client(server.port);
-      const token = await api.login(kai.email);
-      // What the provider said while the server was down is said again.
-      for (const event of provider.events.filter(
-        each => each.type.startsWith('payout.') && each.data.account === account.id,
-      ))
-        provider.resend(event);
+      let token: string;
+      try {
+        await api.done('PUT', '/hosts/me/payout-schedule', kai.token, { schedule: 'weekly', weekday: today() });
+        await eventually(
+          async () => payoutsTo(account),
+          found => found.length > 0,
+          20000,
+        );
+        await kill(server);
+        server = await start(db.path, environment);
+        provider.attach(server.port);
+        api = client(server.port);
+        token = await api.login(kai.email);
+        await listed(token, found => found.length >= 2);
+        await sleep(2000);
+        for (const payout of payoutsTo(account).filter(each => each.status === 'pending')) provider.settlePayout(payout.id);
+      } finally {
+        provider.state.settleAfterMs = 200;
+      }
       await listed(token, found => found.length >= 2 && found.every(each => each.status === 'paid'));
       await api.done('PUT', '/hosts/me/payout-schedule', token, { schedule: 'daily' });
       await sleep(4000);

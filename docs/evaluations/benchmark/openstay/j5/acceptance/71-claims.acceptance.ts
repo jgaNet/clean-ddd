@@ -292,6 +292,8 @@ describe('claims after a stay', () => {
       note: 'Three cold nights',
     });
 
+    // A second apart: the order is by when each was opened, which may be kept to the second (request 1).
+    await sleep(1100);
     const second = await opened(bookingId, hal.token, 500, 'A towel went missing');
     expect(await claimOf(second, tom.token)).toMatchObject({ openedBy: 'host', status: 'open' });
     for (const token of [tom.token, hal.token]) {
@@ -310,6 +312,7 @@ describe('claims after a stay', () => {
     expect(await api.hidden(`/bookings/${stays.seen}/claims`, una.token)).toBe(true);
     expect((await api.list(`/bookings/${stays.seen}/claims`, vic.token)).map(each => each.id)).toEqual([seen]);
 
+    await sleep(1100);
     const listed = await opened(stays.listed, hal.token, 7000, 'The garden furniture was broken');
     await api.done('POST', `/claims/${listed}/answer`, tom.token, { text: 'It was broken when I arrived' });
     const mine = (claims: Json[]) => claims.map(each => String(each.id)).filter(each => [seen, listed].includes(each));

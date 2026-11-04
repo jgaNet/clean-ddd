@@ -110,7 +110,9 @@ describe('support', () => {
   it('shows a ticket to its account and the administrators only, and lists each account its own, the most recent first', async () => {
     const tom = await api.traveller('tom3@support.test');
     const una = await api.traveller('una3@support.test');
+    // A second apart: the order is by when each was opened, which may be kept to the second (request 1).
     const first = await open(tom.token, 'First question');
+    await sleep(1100);
     const second = await open(tom.token, 'Second question');
     const hers = await open(una.token, 'Her question');
 
@@ -130,7 +132,9 @@ describe('support', () => {
   it('lists every ticket to the administrators, the oldest first, or those of one status, and to nobody else', async () => {
     const tom = await api.traveller('tom4@support.test');
     const opened = await open(tom.token, 'Opened');
+    await sleep(1100);
     const answered = await open(tom.token, 'Answered');
+    await sleep(1100);
     const closed = await open(tom.token, 'Closed');
     await api.done('POST', `/support/tickets/${answered}/messages`, ada.token, { text: 'Here is your answer.' });
     await api.done('POST', `/support/tickets/${closed}/close`, tom.token);

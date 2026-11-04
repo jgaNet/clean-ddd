@@ -1,4 +1,18 @@
-import { adminEnvironment, client, Client, database, day, eventually, Json, Running, start, stop } from './openstay';
+import {
+  adminEnvironment,
+  client,
+  Client,
+  clock,
+  database,
+  day,
+  eventually,
+  Json,
+  restart,
+  Running,
+  sleep,
+  start,
+  stop,
+} from './openstay';
 import { cardFeeOf, enabledAccount, feeOf, paymentProvider, payBooking } from './provider';
 
 /**
@@ -8,15 +22,17 @@ import { cardFeeOf, enabledAccount, feeOf, paymentProvider, payBooking } from '.
  */
 const db = database('card-fees');
 const provider = paymentProvider();
+let environment: Record<string, string>;
 let server: Running;
 let api: Client;
 let ada: { id: string; email: string; token: string };
 beforeAll(async () => {
-  server = await start(db.path, {
+  environment = {
     ...(await provider.environment()),
     ...adminEnvironment('ada@card-fees.test'),
     JOBS_INTERVAL_SECONDS: '1',
-  });
+  };
+  server = await start(db.path, environment);
   provider.attach(server.port);
   api = client(server.port);
   ada = await api.admin('ada@card-fees.test');
@@ -237,6 +253,20 @@ describe('card fees passed on where the law allows', () => {
       refundable: 10000,
     });
     expect((await refundsOf(byTraveller.payment.id)).map(each => each.amount)).toEqual([10000]);
+    // The refund's receipt carries no card fee; the payment's carries the line.
+    const receipts = await eventually(
+      () => api.list('/receipts/mine', tom.token),
+      found => found.some(each => each.kind === 'refund' && each.bookingId === byTraveller.bookingId),
+      20000,
+    );
+    const ofBooking = receipts.filter(each => each.bookingId === byTraveller.bookingId);
+    expect(ofBooking).toHaveLength(2);
+    expect(ofBooking).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'refund', amount: 10000, cardFee: 0 }),
+        expect.objectContaining({ kind: 'payment', amount: 10000 + LINE, cardFee: LINE }),
+      ]),
+    );
 
     // Cancelled by the host: everything refundable, still but the line.
     const byHost = await book(20);
@@ -313,5 +343,58 @@ describe('card fees passed on where the law allows', () => {
       await stop(other);
       alone.remove();
     }
+  }, 120000);
+
+  it('prices a change of dates as a quote would be today, line or not', async () => {
+    const hal = await api.host('hal6@card-fees.test');
+    const tom = await api.traveller('tom6@card-fees.test');
+    await passThrough([]);
+    const id = await listing(hal.token, 'GB');
+    const bookingId = await api.book(tom.token, (await quoted(tom.token, id, 50, 51)).id);
+    expect(cardFeeLines(await api.read(`/bookings/${bookingId}`, tom.token))).toEqual([]);
+
+    await passThrough(['GB']);
+    await api.done('POST', `/bookings/${bookingId}/change-dates`, tom.token, { checkIn: day(52), checkOut: day(53) });
+    const withLine = await api.read(`/bookings/${bookingId}`, tom.token);
+    expect(withLine).toMatchObject({ checkIn: day(52), total: 10000 + LINE });
+    expect(cardFeeLines(withLine)).toEqual([expect.objectContaining({ for: 'external', amount: LINE })]);
+
+    await passThrough([]);
+    await api.done('POST', `/bookings/${bookingId}/change-dates`, tom.token, { checkIn: day(54), checkOut: day(55) });
+    const without = await api.read(`/bookings/${bookingId}`, tom.token);
+    expect(without).toMatchObject({ checkIn: day(54), total: 10000 });
+    expect(cardFeeLines(without)).toEqual([]);
+  }, 60000);
+
+  it('refunds whole, the line included, a payment that succeeds after its booking lapsed', async () => {
+    const hal = await api.host('hal7@card-fees.test');
+    const tom = await api.traveller('tom7@card-fees.test');
+    await passThrough(['GB']);
+    const id = await listing(hal.token, 'GB');
+    const bookingId = await api.book(tom.token, (await quoted(tom.token, id, 10, 11)).id);
+    await api.done('POST', `/bookings/${bookingId}/pay`, tom.token);
+    const [payment] = provider.paymentFor(bookingId);
+    expect(payment).toMatchObject({ amount: 10000 + LINE });
+
+    // A day later (request 57), the payment's deadline of an hour (request 30) is long past.
+    server = await restart(server, db.path, { ...environment, ...clock(1) });
+    provider.attach(server.port);
+    api = client(server.port);
+    const token = await api.login(tom.email);
+    await eventually(
+      () => api.read(`/bookings/${bookingId}`, token),
+      booking => booking.status === 'lapsed',
+      30000,
+    );
+    provider.pay(payment.id);
+    const refunds = () => [...provider.refunds.values()].filter(each => each.payment === payment.id);
+    await eventually(
+      async () => refunds(),
+      found => found.length > 0,
+      20000,
+    );
+    await sleep(2000);
+    expect(refunds().map(each => each.amount)).toEqual([10000 + LINE]);
+    expect((await api.read(`/bookings/${bookingId}`, token)).status).toBe('lapsed');
   }, 120000);
 });

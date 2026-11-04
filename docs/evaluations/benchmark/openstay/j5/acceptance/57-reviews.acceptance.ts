@@ -230,4 +230,29 @@ describe('a review after a stay', () => {
     });
     expect(String(reviews[0].createdAt).slice(0, 10)).toBe(day(15));
   }, 60000);
+
+  it('refuses a review of a stay still unpaid past its dueBy, even while it reads confirmed', async () => {
+    // No sweep for an hour (request 30): the unpaid booking may still read confirmed three days later.
+    const own = database('reviews-unswept');
+    const slow = { ...base, JOBS_INTERVAL_SECONDS: '3600' };
+    let running = await start(own.path, slow);
+    try {
+      let on = client(running.port);
+      const hal = await on.host('hal@unswept.reviews.test');
+      const ned = await on.traveller('ned@unswept.reviews.test');
+      const listingId = await on.listing(hal.token);
+      const unpaid = await on.book(ned.token, await on.quote(ned.token, listingId, day(0), day(1)));
+      const declared = await on.book(ned.token, await on.quote(ned.token, listingId, day(1), day(2)));
+      await on.done('POST', `/bookings/${declared}/declare-paid`, hal.token);
+      running = await restart(running, own.path, { ...slow, ...clock(3) });
+      on = client(running.port);
+      const token = await on.login(ned.email);
+      expect((await on.act('POST', `/bookings/${unpaid}/review`, token, VALID)).accepted).toBe(false);
+      // A stay paid directly, on the same server, is reviewed.
+      expect((await on.act('POST', `/bookings/${declared}/review`, token, VALID)).accepted).toBe(true);
+    } finally {
+      await stop(running);
+      own.remove();
+    }
+  }, 90000);
 });

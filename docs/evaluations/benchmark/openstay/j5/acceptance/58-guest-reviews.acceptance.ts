@@ -225,4 +225,29 @@ describe('the host reviews the guest', () => {
     expect(reviews.map(each => each.id)).toEqual([idOf(later.result), written.hal]);
     expect(String(reviews[0].createdAt).slice(0, 10)).toBe(day(16));
   }, 60000);
+
+  it('refuses a guest review of a stay still unpaid past its dueBy, even while it reads confirmed', async () => {
+    // No sweep for an hour (request 30): the unpaid booking may still read confirmed three days later.
+    const own = database('guest-reviews-unswept');
+    const slow = { ...base, JOBS_INTERVAL_SECONDS: '3600' };
+    let running = await start(own.path, slow);
+    try {
+      let on = client(running.port);
+      const hal = await on.host('hal@unswept.guest-reviews.test');
+      const ned = await on.traveller('ned@unswept.guest-reviews.test');
+      const listingId = await on.listing(hal.token);
+      const unpaid = await on.book(ned.token, await on.quote(ned.token, listingId, day(0), day(1)));
+      const declared = await on.book(ned.token, await on.quote(ned.token, listingId, day(1), day(2)));
+      await on.done('POST', `/bookings/${declared}/declare-paid`, hal.token);
+      running = await restart(running, own.path, { ...slow, ...clock(3) });
+      on = client(running.port);
+      const token = await on.login(hal.email);
+      expect((await on.act('POST', `/bookings/${unpaid}/guest-review`, token, GUEST)).accepted).toBe(false);
+      // A stay paid directly, on the same server, is reviewed.
+      expect((await on.act('POST', `/bookings/${declared}/guest-review`, token, GUEST)).accepted).toBe(true);
+    } finally {
+      await stop(running);
+      own.remove();
+    }
+  }, 90000);
 });

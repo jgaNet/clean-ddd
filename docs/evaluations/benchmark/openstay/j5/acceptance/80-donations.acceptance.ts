@@ -83,6 +83,8 @@ describe('donations', () => {
 
     provider.pay(payment.id);
     expect(await statusIs(id, tom.token, 'paid')).toMatchObject({ status: 'paid', amount: 500, fee: feeOf(500) });
+    // A second apart: their order is by when they were made, which may be kept to the second (request 1).
+    await sleep(1100);
     const smallest = await give(tom.token, { amount: 100 });
     expect(smallest.payment.amount).toBe(100);
     expect(provider.paymentFor(reference(id))).toHaveLength(1);
@@ -163,6 +165,8 @@ describe('donations', () => {
     await payBooking(api, provider, tom.token, first);
     provider.pay(donation.payment.id);
     await statusIs(donation.id, tom.token, 'paid');
+    // A second apart: the most recent receipt first, and receipts may be dated to the second (request 46).
+    await sleep(1100);
     const second = await api.book(tom.token, await api.quote(tom.token, later, day(5), day(6)));
     await payBooking(api, provider, tom.token, second);
     await sleep(2000);

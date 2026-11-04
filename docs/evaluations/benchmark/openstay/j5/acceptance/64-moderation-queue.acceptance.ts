@@ -230,6 +230,11 @@ describe('the moderation queue', () => {
   }, 60000);
 
   it('lets exactly one of two administrators close a report at the same moment, on one server or two', async () => {
+    // A token is used on the server that gave it: each administrator signs in on the second server too.
+    const tokens = new Map([
+      [api, { ada: ada.token, bob: bob.token }],
+      [otherApi, { ada: await otherApi.login(ada.email), bob: await otherApi.login(bob.email) }],
+    ]);
     for (const [round, apis] of [
       [api, otherApi],
       [api, api],
@@ -238,8 +243,8 @@ describe('the moderation queue', () => {
       const listingId = await api.listing(hal.token, { city: 'Moderville' });
       const id = await listingReport(listingId, round % 2 ? una : kim);
       const [dismissal, upholding] = await Promise.all([
-        apis[0].act('POST', `/admin/reports/${id}/dismiss`, ada.token, { note: 'Fine as it is.' }),
-        apis[1].act('POST', `/admin/reports/${id}/uphold`, bob.token, { note: 'Not fine at all.' }),
+        apis[0].act('POST', `/admin/reports/${id}/dismiss`, tokens.get(apis[0])!.ada, { note: 'Fine as it is.' }),
+        apis[1].act('POST', `/admin/reports/${id}/uphold`, tokens.get(apis[1])!.bob, { note: 'Not fine at all.' }),
       ]);
       expect([dismissal.accepted, upholding.accepted].filter(Boolean)).toHaveLength(1);
       expect(await reportOf(id)).toMatchObject(

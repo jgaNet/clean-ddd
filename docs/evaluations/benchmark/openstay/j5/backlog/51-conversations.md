@@ -8,7 +8,7 @@ A traveller has a question before booking, or about a stay already booked. They 
 - **A message** is a text of 1 to 2,000 characters.
 - **Who reads, who writes.**
   - The traveller and the listing's host read the conversation and write in it.
-  - When the listing belongs to an organisation (request 23), its managers (request 24) read and write too, for the host's side: a message a manager writes has the manager's own id as `senderId`. Its viewers read and write nothing.
+  - When the listing belongs to an organisation (request 23), its managers (request 24) read and write too, for the host's side: a message a manager writes has the manager's own id as `senderId`. Its viewers read it, and write nothing.
   - To anyone else, the conversation does not exist (`404`).
 - **In order.** Messages come back in the order they were sent, each with when it was sent (`sentAt`, a time as request 1 says).
 - **Each person's list.** A signed-in account lists every conversation it may read, as traveller, host, manager or viewer, the most recent message first.

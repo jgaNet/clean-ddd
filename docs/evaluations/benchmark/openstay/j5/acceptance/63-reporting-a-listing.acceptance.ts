@@ -117,11 +117,15 @@ describe('reporting a listing', () => {
     const id = await api.listing(hal.token, { city: 'Reportville' });
     for (const round of [0, 1, 2]) {
       const tom = await api.traveller(`tom7-${round}@report-listing.test`);
+      // A token is used on the server that gave it.
+      const there = await otherApi.login(tom.email);
       const outcomes = await Promise.all(
-        [api, otherApi, api, otherApi].map(each => each.act('POST', `/listings/${id}/report`, tom.token, { reason: 'scam' })),
+        [api, otherApi, api, otherApi].map(each =>
+          each.act('POST', `/listings/${id}/report`, each === api ? tom.token : there, { reason: 'scam' }),
+        ),
       );
       expect(outcomes.filter(outcome => outcome.accepted)).toHaveLength(1);
-      expect((await otherApi.act('POST', `/listings/${id}/report`, tom.token, { reason: 'scam' })).accepted).toBe(false);
+      expect((await otherApi.act('POST', `/listings/${id}/report`, there, { reason: 'scam' })).accepted).toBe(false);
     }
   }, 90000);
 });
