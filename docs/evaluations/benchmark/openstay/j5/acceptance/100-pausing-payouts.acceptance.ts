@@ -67,8 +67,8 @@ describe('pausing payouts', () => {
     const hal = await api.host('hal@pausing-payouts.test');
     for (const other of [tom.token, hal.token]) {
       expect((await api.call('GET', '/admin/payouts/status', other)).status).toBe(403);
-      expect((await api.call('POST', '/admin/payouts/pause', other, { reason: REASON })).status).toBe(403);
-      expect((await api.call('POST', '/admin/payouts/resume', other)).status).toBe(403);
+      expect(await api.refused('POST', '/admin/payouts/pause', other, { reason: REASON })).toBe(true);
+      expect(await api.refused('POST', '/admin/payouts/resume', other)).toBe(true);
     }
     expect(await status(api, token)).toMatchObject({ paused: false, since: null, reason: null });
     expect(await api.refused('POST', '/admin/payouts/resume', token)).toBe(true);

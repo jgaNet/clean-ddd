@@ -151,7 +151,7 @@ describe('tax rates that change on a date', () => {
     expect(await rules('Nowhere')).toEqual([]);
     for (const token of [tom.token, hal.token]) {
       expect((await api.call('GET', path('Vannes'), token)).status).toBe(403);
-      expect((await api.call('PUT', path('Vannes'), token, { kind: 'per-guest-night', amount: 100 })).status).toBe(403);
+      expect(await api.refused('PUT', path('Vannes'), token, { kind: 'per-guest-night', amount: 100 })).toBe(true);
     }
     expect((await rule('Vannes', { kind: 'per-guest-night', amount: 100, from: day(-1) })).accepted).toBe(false);
     expect((await rule('Vannes', { kind: 'per-guest-night', amount: 100, from: 'next spring' })).accepted).toBe(false);

@@ -45,7 +45,7 @@ describe('versions of the terms', () => {
 
   it('is published by administrators only, a version never changing, and read by anyone', async () => {
     const tom = await api.traveller('tom2@terms.test');
-    expect((await api.call('POST', '/admin/terms', tom.token, { version: 'v1', text: 'The terms.' })).status).toBe(403);
+    expect(await api.refused('POST', '/admin/terms', tom.token, { version: 'v1', text: 'The terms.' })).toBe(true);
     for (const [version, text] of [
       ['v 1', 'The terms.'],
       ['v/1', 'The terms.'],

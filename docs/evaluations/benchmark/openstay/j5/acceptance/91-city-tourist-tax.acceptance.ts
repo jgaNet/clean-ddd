@@ -168,14 +168,12 @@ describe('tourist tax set by the city', () => {
     const id = await api.listing(hal.token, { city: 'Menton' });
     for (const token of [tom.token, hal.token])
       expect(
-        (
-          await api.call('PUT', '/admin/cities/Menton/tourist-tax', token, {
-            kind: 'percent',
-            percent: 2,
-            capPerGuestNight: 100,
-          })
-        ).status,
-      ).toBe(403);
+        await api.refused('PUT', '/admin/cities/Menton/tourist-tax', token, {
+          kind: 'percent',
+          percent: 2,
+          capPerGuestNight: 100,
+        }),
+      ).toBe(true);
 
     for (const body of [
       { kind: 'percent', percent: 0, capPerGuestNight: 100 },

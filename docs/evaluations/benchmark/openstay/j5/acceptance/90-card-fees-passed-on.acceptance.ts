@@ -70,7 +70,7 @@ describe('card fees passed on where the law allows', () => {
     await passThrough(['DE']);
     expect(await api.read(path, ada.token)).toMatchObject({ countries: ['DE'] });
 
-    expect((await api.call('PUT', path, hal.token, { countries: ['FR'] })).status).toBe(403);
+    expect(await api.refused('PUT', path, hal.token, { countries: ['FR'] })).toBe(true);
     expect((await api.call('GET', path, hal.token)).status).toBe(403);
     await passThrough([]);
     expect(await api.read(path, ada.token)).toMatchObject({ countries: [] });

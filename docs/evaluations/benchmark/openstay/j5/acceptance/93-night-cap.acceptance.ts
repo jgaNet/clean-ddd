@@ -210,7 +210,7 @@ describe('a cap on nights per year', () => {
     const ian = await api.host('ian5@night-cap.test');
     const tom = await api.traveller('tom5@night-cap.test');
     for (const token of [tom.token, hal.token]) {
-      expect((await api.call('PUT', capPath('Mons'), token, { nights: 10 })).status).toBe(403);
+      expect(await api.refused('PUT', capPath('Mons'), token, { nights: 10 })).toBe(true);
       expect((await api.call('GET', capPath('Mons'), token)).status).toBe(403);
     }
     for (const nights of [0, 366, '10']) expect((await setCap('Mons', nights)).accepted).toBe(false);
