@@ -46,7 +46,7 @@ describe('reporting a listing', () => {
 
   it('refuses a reason outside the list, details over 1,000 characters, and anyone not signed in', async () => {
     const hal = await api.host('hal2@report-listing.test');
-    const tom = await api.traveller('tom2@report-listing.test');
+    const tom = await api.traveller('tom-reason@report-listing.test');
     const id = await api.listing(hal.token, { city: 'Reportville' });
     expect((await report(id, tom.token, { reason: 'spam' })).accepted).toBe(false);
     expect((await report(id, tom.token, { reason: 'fraud' })).accepted).toBe(false);
@@ -59,7 +59,7 @@ describe('reporting a listing', () => {
 
   it('refuses a listing the account cannot see: a draft, a suspended or an archived one, or none', async () => {
     const hal = await api.host('hal3@report-listing.test');
-    const tom = await api.traveller('tom3@report-listing.test');
+    const tom = await api.traveller('tom-unseen@report-listing.test');
     const draft = await api.listing(hal.token, { city: 'Reportville' }, false);
     const suspended = await api.listing(hal.token, { city: 'Reportville' });
     await api.done('POST', `/listings/${suspended}/suspend`, hal.token);
@@ -73,7 +73,7 @@ describe('reporting a listing', () => {
     const hal = await api.host('hal4@report-listing.test');
     const mia = await api.host('mia4@report-listing.test');
     const vic = await api.traveller('vic4@report-listing.test');
-    const tom = await api.traveller('tom4@report-listing.test');
+    const tom = await api.traveller('tom-host-side@report-listing.test');
     const id = await api.listing(hal.token, { city: 'Reportville' });
     const organisationId = await api.create('/organisations', hal.token, { name: 'Hal & Co' });
     await api.done('POST', `/listings/${id}/move-to-organisation`, hal.token, { organisationId });

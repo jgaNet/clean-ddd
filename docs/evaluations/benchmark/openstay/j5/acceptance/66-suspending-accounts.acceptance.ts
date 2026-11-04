@@ -246,7 +246,8 @@ describe('suspending an account', () => {
 
     // What stays: the stay already begun, its bookings as a traveller, and what is due for the stay begun.
     expect(await booking(begun, tom.token)).toMatchObject({ status: 'confirmed' });
-    expect(await booking(asTraveller, joe.token)).toMatchObject({ status: 'confirmed' });
+    // joe's tokens are refused while he is suspended (request 66): his booking as a traveller is read by its host.
+    expect(await booking(asTraveller, lou.token)).toMatchObject({ status: 'confirmed' });
     provider.account(payoutAccount.id, 'enabled');
     const payouts = await eventually(
       async () => [...provider.payouts.values()].filter(each => each.reference === begun),
