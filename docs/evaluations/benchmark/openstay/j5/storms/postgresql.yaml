@@ -1,0 +1,18 @@
+# Feature 40 of OpenStay's J4 (../backlog/40-postgresql.md), as the session decided it.
+schemaVersion: 1
+feature: postgresql
+intent: The application keeps its state in PostgreSQL; nothing a client sees changes.
+done: true
+hotSpots:
+- question: How?
+  decision: One database, one schema per context (U7), the outbox and each inbox included; the agent of this feature does
+    it, as an architecture task with its ADR.
+- question: What does it add to the wall?
+  decision: 'Nothing: no command, query or fact changes. Done from the start; the hidden tests and the gate hold it.'
+contexts:
+- id: Booking
+  commands: []
+  queries: []
+  events: []
+  policies: []
+links: []

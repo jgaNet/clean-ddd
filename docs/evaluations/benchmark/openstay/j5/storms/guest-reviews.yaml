@@ -1,0 +1,38 @@
+# Feature 58 of OpenStay's J5 (../backlog/58-guest-reviews.md), as the session decided it.
+schemaVersion: 1
+feature: guest-reviews
+intent: The host side reviews the guest; the two reviews of a stay are published together.
+done: false
+hotSpots:
+- question: Published together?
+  decision: The StayReviews aggregate per booking holds both reviews and publishes them together, when the second is written
+    or the window closes.
+- question: Who reviews the guest?
+  decision: 'The listing''s host or a manager of its organisation: Reviews asks Listings through a port it owns.'
+contexts:
+- id: Reviews
+  commands:
+  - name: ReviewGuest
+    actor: a signed-in account
+    route: POST /bookings/{id}/guest-review
+    aggregate: StayReviews
+    events:
+    - GuestReviewed
+  queries:
+  - name: GetGuestReviews
+    actor: a signed-in account
+    route: GET /accounts/{id}/guest-reviews
+  events:
+  - GuestReviewed
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Booking
+  downstream: Reviews
+  contracts:
+  - Stays
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Reviews
+  contracts:
+  - ListingHosts

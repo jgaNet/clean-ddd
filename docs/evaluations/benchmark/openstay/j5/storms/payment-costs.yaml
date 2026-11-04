@@ -1,0 +1,23 @@
+# Feature 83 of OpenStay's J5 (../backlog/83-payment-costs.md), as the session decided it.
+schemaVersion: 1
+feature: payment-costs
+intent: Administrators read, month by month, what the provider took and who bore it.
+done: false
+hotSpots:
+- question: Who bore the fee?
+  decision: 'Payments'' ledger already knows: a booking''s fee is its host''s, a donation''s OpenStay''s.'
+contexts:
+- id: Payments
+  commands: []
+  queries:
+  - name: GetPaymentCosts
+    actor: a signed-in account
+    route: GET /admin/payment-costs
+  events: []
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Payments
+  contracts:
+  - Administrators

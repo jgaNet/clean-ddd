@@ -1,0 +1,37 @@
+# Feature 55 of OpenStay's J5 (../backlog/55-message-notices.md), as the session decided it.
+schemaVersion: 1
+feature: message-notices
+intent: The other side of a conversation is told of a new message, at most once per window.
+done: false
+hotSpots:
+- question: Who keeps the window?
+  decision: 'Notifications'' rule, on Messaging''s MessageSent: the last notice per recipient and conversation; Messaging
+    knows nothing of notices.'
+contexts:
+- id: Messaging
+  commands: []
+  queries: []
+  events:
+  - MessageSent
+  policies:
+  - 'on': MessageSent
+    kind: domain-event
+    publishes:
+    - MessageSent
+    events: []
+- id: Notifications
+  commands: []
+  queries: []
+  events: []
+  policies:
+  - 'on': MessageSent
+    kind: integration-event
+    publishes: []
+    events:
+    - NoticeOwed
+links:
+- mechanism: integration-event
+  upstream: Messaging
+  downstream: Notifications
+  contracts:
+  - MessageSent

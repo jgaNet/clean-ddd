@@ -1,0 +1,34 @@
+# Feature 94 of OpenStay's J5 (../backlog/94-hosts-report.md), as the session decided it.
+schemaVersion: 1
+feature: hosts-report
+intent: Administrators read, for a year, what each host earned through OpenStay, by country and currency.
+done: false
+hotSpots:
+- question: Its numbers?
+  decision: Payments, which knows what was paid and refunded; it asks Booking for the nights and Listings for the country
+    through ports it owns.
+contexts:
+- id: Payments
+  commands: []
+  queries:
+  - name: GetHostsReport
+    actor: a signed-in account
+    route: GET /admin/hosts-report
+  events: []
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Booking
+  downstream: Payments
+  contracts:
+  - StayNights
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Payments
+  contracts:
+  - ListingCountries
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Payments
+  contracts:
+  - Administrators

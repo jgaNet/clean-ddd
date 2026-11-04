@@ -1,0 +1,45 @@
+# Feature 97 of OpenStay's J5 (../backlog/97-import-conflicts.md), as the session decided it.
+schemaVersion: 1
+feature: import-conflicts
+intent: An imported event on nights already booked here leaves the booking standing, and the host is told once.
+done: false
+hotSpots:
+- question: Who tells the host?
+  decision: Notifications, on Booking's CalendarConflictFound (V11), once per event and booking; the notice carries the host's
+    language.
+contexts:
+- id: Booking
+  commands: []
+  queries:
+  - name: GetCalendarConflicts
+    actor: a signed-in account
+    route: GET /listings/{id}/calendar-conflicts
+  events:
+  - CalendarConflictFound
+  policies:
+  - 'on': CalendarConflictFound
+    kind: domain-event
+    publishes:
+    - CalendarConflictFound
+    events: []
+- id: Notifications
+  commands: []
+  queries: []
+  events: []
+  policies:
+  - 'on': CalendarConflictFound
+    kind: integration-event
+    publishes: []
+    events:
+    - NoticeOwed
+links:
+- mechanism: integration-event
+  upstream: Booking
+  downstream: Notifications
+  contracts:
+  - CalendarConflictFound
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Notifications
+  contracts:
+  - RecipientLanguages

@@ -21,27 +21,33 @@ This repository was built on a bet: an architecture made explicit and enforced m
 - the same architecture as prose, without the tooling;
 - a plain TypeScript project.
 
-It ran a seven-feature backlog, a feature across six contexts, five more features on grown trees, a move to SQLite, and a weaker model. The results, with every log and grade, are in the article [Does Clean Architecture help an AI agent write software?](https://jganet.github.io/clean-ddd/) and in [the records](docs/evaluations/README.md).
+It ran a seven-feature backlog, a feature across six contexts, five more features on grown trees, a move to SQLite, and a weaker model. A second benchmark, [OpenStay](docs/evaluations/benchmark/openstay/README.md), then built a lodging marketplace for longer: three plain trees and three Clean DDD trees, each feature from the smallest model up, now at fifty features with money through a payment provider and a move to PostgreSQL not announced in advance. The results, with every log and grade, are in the article [Does Clean Architecture help an AI agent write software?](https://jganet.github.io/clean-ddd/) and in [the records](docs/evaluations/README.md).
 
 **It does not make an agent faster or better.**
 - In every experiment, the plain project delivered as much.
 - The architecture arms took 1.4–2.8 times its time and 3.1–6.0 times its cost.
 - Two independent readers found no difference in quality.
 - A weaker model was not helped either.
+- **OpenStay says the same at fifty features** ([J4's record](docs/evaluations/2026-11-03-openstay-j4.md)):
+  - every tree delivered every feature and passes all 51 hidden test files;
+  - the plain trees never needed more than the smallest model, where the Clean DDD trees needed a larger one for 8 features of 152;
+  - the plain arm stayed 1.5–3.7 times cheaper at features 26 to 50;
+  - the hypothesis that the plain arm would need larger models sooner as it grew is not supported: at 8,000–9,000 source lines, the plain trees still fit in an agent's context.
 
-**It buys three things, each measured:**
+**It buys four things, each measured:**
 
 | | What was measured |
 | --- | --- |
-| **Changes stay in their layer** | Moving every tree to SQLite touched no file of a context's Domain or Application. Adapters, wiring and the building blocks took it all. The plain trees changed the code of every module. |
+| **Changes stay in their layer** | Moving every tree to SQLite touched no file of a context's Domain or Application. Adapters, wiring and the building blocks took it all. The plain trees changed the code of every module. In OpenStay, the move to PostgreSQL moved no aggregate and no rule in the Clean DDD trees (one port changed its signature, in two of them), and rewrote about twenty rule files in each plain tree. It cost the same in both arms. |
+| **Fewer defects the tests cannot see, in the money** | An independent reading of OpenStay's six trees at fifty features found a double payout possible in one plain tree, under two servers, that every hidden test passes. No Clean DDD tree failed an item of money, and their contexts stayed apart. Neither arm states every rule once. |
 | **The structure does not drift, with the tooling** | Two trees held to the rules by prose alone had 0 and 20 import violations after the backlog. Five features later, the second had 24. Trees held by the tooling have none. |
 | **Agents can work in parallel safely** | One agent per bounded context, against a frozen contract, integrated by one writer, lost no feature where naive parallel agents lost three. On a six-context feature it was 21% sooner than one agent, at 1.7 times the cost. |
 
 **So the project is offered as a guardrail and a coordinator for agents, not as an accelerator** ([ADR 31](docs/adr/0031-the-architecture-is-a-guardrail-and-a-coordinator-not-an-accelerator.md)). It is for a team that has chosen Clean Architecture and DDD for what they do to the code, and wants its agents to keep to them as the code grows. It is also for running several agents on one codebase without conflicts. For a small application with no team and no long horizon in view, a plain project serves an agent better.
 
 The next work is ordered by what could change that verdict:
-1. **Failures and concurrency under test.** A crash between a commit and a publication, two writers at once, a consumer that fails. These are what the outbox and the version check are for. Every arm gets the same requirements, so the plain one must build the guarantees itself.
-2. **Grading kept apart on four scores:** correctness, robustness, maintainability, cost of change.
+1. **Failures and concurrency under test.** A crash between a commit and a publication, two writers at once, a consumer that fails. These are what the outbox and the version check are for. Every arm gets the same requirements, so the plain one must build the guarantees itself. OpenStay's hidden tests now crash servers, run two at once and replay webhooks, and still missed the double payout a reader found; its fifth checkpoint, running now, adds a chaos suite on the money.
+2. **Grading kept apart on four scores:** correctness, robustness, maintainability, cost of change. OpenStay grades on all four from J4; at a hundred features, its fifth checkpoint also tests a limited context, vague requests, a maintainer who did not write the tree, debugging and review.
 3. **Taking bookkeeping off the agents:** the gate regenerates the documents and marks a carried storm done itself. The rule on refusals that the weaker model's failure exposed is now in the contract ([ADR 32](docs/adr/0032-a-command-body-is-refused-for-its-shape-only.md)).
 4. **Narrowing the cost:** a small generator from the storm, measured on what it saves in total, and a lighter profile with ports only at the edges.
 

@@ -1,0 +1,17 @@
+# Feature 29 of OpenStay's J4 (../backlog/29-webhooks-as-they-come.md), as the session decided it.
+schemaVersion: 1
+feature: webhooks-as-they-come
+intent: Webhooks late, twice or out of order still move money once.
+done: true
+hotSpots:
+- question: Once?
+  decision: The provider's event id is recorded in Payments in the transaction that applies it (U4).
+- question: In any order?
+  decision: Each state moves only forward; succeeded is final (U4).
+contexts:
+- id: Payments
+  commands: []
+  queries: []
+  events: []
+  policies: []
+links: []

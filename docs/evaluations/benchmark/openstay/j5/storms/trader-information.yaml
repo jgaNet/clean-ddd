@@ -1,0 +1,39 @@
+# Feature 78 of OpenStay's J5 (../backlog/78-trader-information.md), as the session decided it.
+schemaVersion: 1
+feature: trader-information
+intent: A host declares themselves professional with their trader information, shown on each of their listings.
+done: false
+hotSpots:
+- question: Where?
+  decision: In Accounts, which knows who someone is (V12).
+- question: Shown on listings?
+  decision: Listings asks Accounts through its existing port (Hosts), as it is now.
+contexts:
+- id: Accounts
+  commands:
+  - name: DeclareTraderInformation
+    actor: a signed-in account
+    route: PUT /hosts/me/trader
+    aggregate: Account
+    events:
+    - TraderInformationDeclared
+  - name: ClearTraderInformation
+    actor: a signed-in account
+    route: POST /hosts/me/trader/clear
+    aggregate: Account
+    events:
+    - TraderInformationCleared
+  queries:
+  - name: GetTraderInformation
+    actor: a signed-in account
+    route: GET /hosts/me/trader
+  events:
+  - TraderInformationCleared
+  - TraderInformationDeclared
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Listings
+  contracts:
+  - Hosts

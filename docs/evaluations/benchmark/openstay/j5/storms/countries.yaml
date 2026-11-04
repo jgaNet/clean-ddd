@@ -1,0 +1,27 @@
+# Feature 84 of OpenStay's J5 (../backlog/84-countries.md), as the session decided it.
+schemaVersion: 1
+feature: countries
+intent: A listing is in a country, FR unless set; changing it undoes the verification.
+done: false
+hotSpots:
+- question: Default FR?
+  decision: Listings' value object, with its default for the listings that predate it.
+contexts:
+- id: Listings
+  commands:
+  - name: SetListingCountry
+    actor: a signed-in account
+    route: PUT /listings/{id}/country
+    aggregate: Listing
+    events:
+    - ListingCountrySet
+  queries: []
+  events:
+  - ListingCountrySet
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Listings
+  contracts:
+  - Collaborators

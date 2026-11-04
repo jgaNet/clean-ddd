@@ -1,0 +1,47 @@
+# Feature 82 of OpenStay's J5 (../backlog/82-transparency.md), as the session decided it.
+schemaVersion: 1
+feature: transparency
+intent: An administrator enters a month's running costs; anyone reads the month's bookings, fees, donations and cost per booking.
+done: false
+hotSpots:
+- question: Its numbers?
+  decision: Sustainability asks Booking and Payments through ports it owns; Accounts says who the administrators are.
+- question: In the audit log?
+  decision: Sustainability publishes AdministratorDecided on RunningCostsSet (V5).
+contexts:
+- id: Sustainability
+  commands:
+  - name: SetRunningCosts
+    actor: a signed-in account
+    route: PUT /admin/running-costs/{month}
+    aggregate: RunningCosts
+    events:
+    - RunningCostsSet
+  queries:
+  - name: GetTransparency
+    actor: anyone
+    route: GET /transparency
+  events:
+  - RunningCostsSet
+  policies:
+  - 'on': RunningCostsSet
+    kind: domain-event
+    publishes:
+    - AdministratorDecided
+    events: []
+links:
+- mechanism: owned-port
+  upstream: Booking
+  downstream: Sustainability
+  contracts:
+  - MonthlyBookings
+- mechanism: owned-port
+  upstream: Payments
+  downstream: Sustainability
+  contracts:
+  - ProviderFees
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Sustainability
+  contracts:
+  - Administrators

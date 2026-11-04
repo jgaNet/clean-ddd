@@ -1,0 +1,18 @@
+# Feature 48 of OpenStay's J4 (../backlog/48-earnings-by-month.md), as the session decided it.
+schemaVersion: 1
+feature: earnings-by-month
+intent: A host reads their earnings, fees, refunds and payouts by month.
+done: true
+hotSpots:
+- question: From where?
+  decision: The ledger, as the statement.
+contexts:
+- id: Payments
+  commands: []
+  queries:
+  - name: GetMyEarnings
+    actor: a signed-in account
+    route: GET /hosts/me/earnings
+  events: []
+  policies: []
+links: []

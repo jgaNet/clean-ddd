@@ -1,0 +1,54 @@
+# Feature 100 of OpenStay's J5 (../backlog/100-pausing-payouts.md), as the session decided it.
+schemaVersion: 1
+feature: pausing-payouts
+intent: An administrator pauses every payout and resumes them, with none lost or doubled.
+done: false
+hotSpots:
+- question: Every server, across a restart?
+  decision: A fact in Payments' store, read by the payout sweep in its transaction.
+- question: In the audit log?
+  decision: Payments publishes AdministratorDecided on PayoutsPaused and PayoutsResumed (V5).
+contexts:
+- id: Payments
+  commands:
+  - name: PausePayouts
+    actor: a signed-in account
+    route: POST /admin/payouts/pause
+    aggregate: PayoutPause
+    events:
+    - PayoutsPaused
+  - name: ResumePayouts
+    actor: a signed-in account
+    route: POST /admin/payouts/resume
+    aggregate: PayoutPause
+    events:
+    - PayoutsResumed
+  queries:
+  - name: GetPayoutStatus
+    actor: a signed-in account
+    route: GET /admin/payouts/status
+  events:
+  - PayoutsPaused
+  - PayoutsResumed
+  policies:
+  - 'on': PayoutsPaused
+    kind: domain-event
+    publishes:
+    - AdministratorDecided
+    events: []
+  - 'on': PayoutsResumed
+    kind: domain-event
+    publishes:
+    - AdministratorDecided
+    events: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Payments
+  contracts:
+  - Administrators
+- mechanism: integration-event
+  upstream: Payments
+  downstream: Backoffice
+  contracts:
+  - AdministratorDecided

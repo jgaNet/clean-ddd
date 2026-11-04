@@ -1,0 +1,28 @@
+# Feature 60 of OpenStay's J5 (../backlog/60-host-replies.md), as the session decided it.
+schemaVersion: 1
+feature: host-replies
+intent: The host side replies once, for good, to a published review of its listing.
+done: false
+hotSpots:
+- question: One, final?
+  decision: 'On the review, in the StayReviews aggregate: refused when one exists; the version check refuses the second of
+    two at once.'
+contexts:
+- id: Reviews
+  commands:
+  - name: ReplyToReview
+    actor: a signed-in account
+    route: POST /reviews/{id}/reply
+    aggregate: StayReviews
+    events:
+    - ReviewReplied
+  queries: []
+  events:
+  - ReviewReplied
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Listings
+  downstream: Reviews
+  contracts:
+  - ListingHosts

@@ -1,0 +1,43 @@
+# Feature 64 of OpenStay's J5 (../backlog/64-moderation-queue.md), as the session decided it.
+schemaVersion: 1
+feature: moderation-queue
+intent: Administrators read the open reports, oldest first, and dismiss or uphold each subject once.
+done: false
+hotSpots:
+- question: Closing every report on a subject?
+  decision: 'One decision per subject: a ModerationCase per subject holds its reports and closes them all at once; its version
+    check lets one of two administrators win.'
+- question: Who is an administrator?
+  decision: Accounts decides from ADMIN_EMAILS; Moderation asks through a port it owns.
+contexts:
+- id: Moderation
+  commands:
+  - name: DismissReport
+    actor: a signed-in account
+    route: POST /admin/reports/{id}/dismiss
+    aggregate: ModerationCase
+    events:
+    - ReportDismissed
+  - name: UpholdReport
+    actor: a signed-in account
+    route: POST /admin/reports/{id}/uphold
+    aggregate: ModerationCase
+    events:
+    - ReportUpheld
+  queries:
+  - name: GetOpenReports
+    actor: a signed-in account
+    route: GET /admin/reports
+  - name: GetReport
+    actor: a signed-in account
+    route: GET /admin/reports/{id}
+  events:
+  - ReportDismissed
+  - ReportUpheld
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Moderation
+  contracts:
+  - Administrators

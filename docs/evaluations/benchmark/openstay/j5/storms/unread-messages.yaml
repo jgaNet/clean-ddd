@@ -1,0 +1,25 @@
+# Feature 52 of OpenStay's J5 (../backlog/52-unread-messages.md), as the session decided it.
+schemaVersion: 1
+feature: unread-messages
+intent: Each reader of a conversation sees how many of its messages are unread for them, until they mark it read.
+done: false
+hotSpots:
+- question: Per reader, not per message?
+  decision: Each reader's last read position, kept on the conversation; marking read records it.
+contexts:
+- id: Messaging
+  commands:
+  - name: MarkConversationRead
+    actor: a signed-in account
+    route: POST /conversations/{id}/read
+    aggregate: Conversation
+    events:
+    - ConversationRead
+  queries:
+  - name: GetUnreadMessages
+    actor: a signed-in account
+    route: GET /conversations/unread
+  events:
+  - ConversationRead
+  policies: []
+links: []

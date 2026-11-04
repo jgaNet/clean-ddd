@@ -1,0 +1,49 @@
+# Feature 61 of OpenStay's J5 (../backlog/61-review-rules.md), as the session decided it.
+schemaVersion: 1
+feature: review-rules
+intent: The review rules are public, a review that breaks one is refused naming it, and a published review can be reported.
+done: false
+hotSpots:
+- question: Shared with 53?
+  decision: 'No: the patterns are Reviews'' own value object; Messaging''s are its own (one rule each, not a shared helper).'
+- question: Whose is the report?
+  decision: 'Moderation''s (V3): Reviews refuses a second report by the same account and tells Moderation by an integration
+    event.'
+contexts:
+- id: Reviews
+  commands:
+  - name: ReportReview
+    actor: a signed-in account
+    route: POST /reviews/{id}/report
+    aggregate: StayReviews
+    events:
+    - ReviewReported
+  queries:
+  - name: GetReviewRules
+    actor: anyone
+    route: GET /review-rules
+  events:
+  - ReviewReported
+  policies:
+  - 'on': ReviewReported
+    kind: domain-event
+    publishes:
+    - ReviewReported
+    events: []
+- id: Moderation
+  commands: []
+  queries: []
+  events:
+  - ReportMade
+  policies:
+  - 'on': ReviewReported
+    kind: integration-event
+    publishes: []
+    events:
+    - ReportMade
+links:
+- mechanism: integration-event
+  upstream: Reviews
+  downstream: Moderation
+  contracts:
+  - ReviewReported

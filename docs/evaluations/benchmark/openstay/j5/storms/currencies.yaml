@@ -1,0 +1,30 @@
+# Feature 87 of OpenStay's J5 (../backlog/87-currencies.md), as the session decided it.
+schemaVersion: 1
+feature: currencies
+intent: A listing is priced in a currency, and every amount that follows from a stay stays in it.
+done: false
+hotSpots:
+- question: How does money gain a currency?
+  decision: A Money value, amount and currency in minor units, in the shared kernel, used by every context that carries an
+    amount (V9); the agent of this feature makes it, as an architecture task with its ADR.
+- question: Changing a listing's currency?
+  decision: Listings' command, refused once the listing has a booking or a quote still valid.
+contexts:
+- id: Listings
+  commands:
+  - name: SetListingCurrency
+    actor: a signed-in account
+    route: PUT /listings/{id}/currency
+    aggregate: Listing
+    events:
+    - ListingCurrencySet
+  queries: []
+  events:
+  - ListingCurrencySet
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Listings
+  contracts:
+  - Collaborators

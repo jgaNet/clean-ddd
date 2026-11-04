@@ -1,0 +1,85 @@
+# Feature 65 of OpenStay's J5 (../backlog/65-upholding-reports.md), as the session decided it.
+schemaVersion: 1
+feature: upholding-reports
+intent: An upheld report suspends the listing by moderation, removes the review, or hides the message; an administrator reinstates
+  a listing.
+done: false
+hotSpots:
+- question: Applying the decision?
+  decision: Moderation publishes ReportUpheld, with the kind and the subject, once per subject; Listings suspends by moderation,
+    Reviews removes, Messaging hides, each in its own words.
+- question: Who reinstates a listing?
+  decision: An administrator, on Listings, which asks Accounts who the administrators are through a port it owns.
+contexts:
+- id: Moderation
+  commands: []
+  queries: []
+  events:
+  - ReportUpheld
+  policies:
+  - 'on': ReportUpheld
+    kind: domain-event
+    publishes:
+    - ReportUpheld
+    events: []
+- id: Listings
+  commands:
+  - name: ReinstateListing
+    actor: a signed-in account
+    route: POST /admin/listings/{id}/reinstate
+    aggregate: Listing
+    events:
+    - ListingReinstated
+  queries: []
+  events:
+  - ListingReinstated
+  - ListingSuspendedByModeration
+  policies:
+  - 'on': ReportUpheld
+    kind: integration-event
+    publishes: []
+    events:
+    - ListingSuspendedByModeration
+- id: Reviews
+  commands: []
+  queries: []
+  events:
+  - ReviewRemoved
+  policies:
+  - 'on': ReportUpheld
+    kind: integration-event
+    publishes: []
+    events:
+    - ReviewRemoved
+- id: Messaging
+  commands: []
+  queries: []
+  events:
+  - MessageHidden
+  policies:
+  - 'on': ReportUpheld
+    kind: integration-event
+    publishes: []
+    events:
+    - MessageHidden
+links:
+- mechanism: integration-event
+  upstream: Moderation
+  downstream: Listings
+  contracts:
+  - ReportUpheld
+- mechanism: integration-event
+  upstream: Moderation
+  downstream: Reviews
+  contracts:
+  - ReportUpheld
+- mechanism: integration-event
+  upstream: Moderation
+  downstream: Messaging
+  contracts:
+  - ReportUpheld
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Listings
+  contracts:
+  - Administrators

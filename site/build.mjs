@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ARMS, bars, dotRange, groupedColumns, legend, table } from './charts.mjs';
+import { openstay as O } from './openstay.mjs';
 import { page } from './page.mjs';
 
 const here = new URL('.', import.meta.url).pathname;
@@ -46,6 +47,17 @@ const graded = 11 + 4 + [X.E1.A, X.E1.D, X.E1.P, X.E2, X.E4.A, X.E4.D, X.E4.P].f
 const allTimes = experiments.flatMap(e => ['A', 'D'].map(arm => times(e, arm)));
 const allCosts = experiments.flatMap(e => ['A', 'D'].map(arm => times(e, arm, 'usd')));
 const span = values => `${Math.min(...values).toFixed(1)}–${Math.max(...values).toFixed(1)}`;
+
+// OpenStay, checkpoint by checkpoint (site/openstay.mjs, copied from its three records).
+const lowHigh = (values, digits = 2) => `${Math.min(...values).toFixed(digits)}–${Math.max(...values).toFixed(digits)}`;
+// How many times cheaper the simple arm was: the cheapest Clean DDD tree over the dearest simple one, up to the reverse.
+const cheaper = c =>
+  `${(Math.min(...c.cost.clean) / Math.max(...c.cost.simple)).toFixed(1)}–${(
+    Math.max(...c.cost.clean) / Math.min(...c.cost.simple)
+  ).toFixed(1)}`;
+const osJ4 = O.checkpoints[2];
+const osEscalated = arm => O.checkpoints.reduce((total, c) => total + c.escalated[arm][0], 0);
+const osDelivered = arm => O.checkpoints.reduce((total, c) => total + c.escalated[arm][1], 0);
 
 // The reading, harmonized (docs/evaluations/flow/control/reading/README.md).
 const reading = {
@@ -225,6 +237,25 @@ const charts = {
       })),
     ),
   }),
+  openstayCost: dotRange({
+    id: 'chart-openstay-cost',
+    title: 'OpenStay: cost per tree at each checkpoint, each agent counted once',
+    unit: '',
+    prefix: '$',
+    digits: 2,
+    rows: O.checkpoints.flatMap(c => [
+      {
+        arm: 'P',
+        label: `${c.name}, simple`,
+        values: c.cost.simple.map((usd, i) => ({ label: `${c.name}, simple-${i + 1}`, value: usd })),
+      },
+      {
+        arm: 'A',
+        label: `${c.name}, Clean DDD`,
+        values: c.cost.clean.map((usd, i) => ({ label: `${c.name}, clean-${i + 1}`, value: usd })),
+      },
+    ]),
+  }),
   probes: groupedColumns({
     id: 'chart-probes',
     title: 'Files a developer would edit for each change request, mean of each arm’s trees',
@@ -342,6 +373,28 @@ const tables = {
   ),
 };
 
+tables.openstay = table(
+  'OpenStay: each checkpoint, by arm',
+  [
+    'Checkpoint',
+    'Features',
+    'Above the smallest model, simple',
+    'Above the smallest model, Clean DDD',
+    'Cost per tree, simple',
+    'Cost per tree, Clean DDD',
+    'Simple cheaper by',
+  ],
+  O.checkpoints.map(c => [
+    c.name,
+    c.features,
+    `${c.escalated.simple[0]} of ${c.escalated.simple[1]}`,
+    `${c.escalated.clean[0]} of ${c.escalated.clean[1]}`,
+    `$${lowHigh(c.cost.simple)}`,
+    `$${lowHigh(c.cost.clean)}`,
+    `${cheaper(c)}×`,
+  ]),
+);
+
 const readingRows = reading.rows
   .map(
     ([arm, run, lenient, strict]) =>
@@ -352,8 +405,8 @@ const readingRows = reading.rows
 const body = `
 <header class="title">
 <h1>Does Clean Architecture help an AI agent write software?</h1>
-<p class="dek">We built a reference implementation of Clean Architecture and Domain-Driven Design whose rules are data, a tool that holds code to them, and a flow that lets several agents build features in parallel. Then we measured whether any of it helps an agent deliver, including where it should help most: a weaker model, a growing codebase, a change of storage. On our benchmark, it did not. It did keep changes in their place, and only the tool kept the structure from drifting.</p>
-<p class="byline">30 October 2026 · The <a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> experiments · Every number below is read from the records in the repository.</p>
+<p class="dek">We built a reference implementation of Clean Architecture and Domain-Driven Design whose rules are data, a tool that holds code to them, and a flow that lets several agents build features in parallel. Then we measured whether any of it helps an agent deliver, including where it should help most: a weaker model, a growing codebase, a change of storage. On our benchmark, it did not. It did keep changes in their place, and only the tool kept the structure from drifting. A second, larger benchmark, a lodging marketplace now at fifty features with money and a database migration, says the same so far, and shows where the architecture does pay: in what the tests cannot see.</p>
+<p class="byline">30 October 2026, updated 4 November 2026 with OpenStay's first fifty features · The <a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> experiments · Every number below is read from the records in the repository.</p>
 </header>
 
 <div class="answer">
@@ -372,8 +425,9 @@ const body = `
 <li><strong>A move to real storage.</strong> In the architecture trees the change stayed out of the domain, as promised, yet it still took twice as long as in the plain project.</li>
 <li><strong>The fan-out's contract given to one agent.</strong> It did not make that agent sooner: the fan-out's speed is its parallelism.</li>
 </ul>
-<p>In every experiment that had a plain arm, the architecture arms took ${span(allTimes)} times the plain project's time and ${span(allCosts)} times its cost. What the architecture did buy is now measured: changes kept in their layer, and, with our tool only, a structure that does not drift as the code grows.</p>
-<p><strong>The limits of this answer:</strong> one model family, one application of twelve features, a handful of runs, and graders who are agents.</p>
+<p><strong>Then a larger application, built for longer.</strong> OpenStay, a lodging marketplace, has now taken fifty features in three checkpoints, on three plain trees and three Clean DDD trees, each feature from the smallest model up. Its money goes through a payment provider the tests play, and its storage moved to PostgreSQL without notice. Every tree delivered every feature and passes all 51 hidden test files. The plain trees never needed more than the smallest model; the Clean DDD trees needed a larger one for ${osEscalated('clean')} features in ${osDelivered('clean')}. The plain arm stayed ${cheaper(osJ4)} times cheaper at features 26 to 50. Where the Clean DDD trees were better is what the tests cannot see: the storage change touched no rule there and about twenty rule files in each plain tree, and an independent reading found a double payout possible in one plain tree and no money defect in any Clean DDD tree (<a href="#openstay">section 9</a>).</p>
+<p>In every experiment on the notes application that had a plain arm, the architecture arms took ${span(allTimes)} times the plain project's time and ${span(allCosts)} times its cost. What the architecture did buy is now measured: changes kept in their layer, and, with our tool only, a structure that does not drift as the code grows.</p>
+<p><strong>The limits of this answer:</strong> one model family, two applications (twelve features, then fifty), a handful of runs or three trees per arm, and graders who are agents.</p>
 </div>
 
 <div class="stats">
@@ -524,10 +578,39 @@ ${charts.e4lines}
 ${tables.e4}
 <p>All six trees passed, with no regression. <strong>The prediction on where the change lands held:</strong> no architecture run touched a context's domain or use cases, only adapters, wiring and the building blocks. The plain runs changed every module, since storage is not apart from the rules there. <strong>It did not make the change cheaper.</strong> P took ${range(X.E4.P, 'minutes')} minutes, against ${range(X.E4.A, 'minutes')} for A and ${range(X.E4.D, 'minutes')} for D. Within the architecture arms, the size of the change followed a design choice, a table per aggregate or one document each, and not the arm.</p>
 
-<h2>9. What this still does not show</h2>
+<h2 id="openstay">9. A larger application: OpenStay, fifty features</h2>
+<p>Twelve features of a notes application left the main question open: does the architecture start to pay once the code no longer fits in an agent's head? ${link(O.records.protocol, 'OpenStay')} is the longer test. It is a lodging marketplace, from ${link(O.records.brief, 'a brief')} with rules about nights, money and permissions, built feature by feature in checkpoints of ten to twenty-five features.</p>
 <ul>
-<li><strong>A product's lifetime.</strong> Twelve features are still small. E3's direction needs several trees and many more features to become a result.</li>
-<li><strong>Concurrency and crashes under test.</strong> The outbox and the optimistic concurrency now run on real storage, but no test makes two writers race or kills the server between a commit and a publication.</li>
+<li><strong>Two arms, three trees each.</strong> The simple arm is a plain TypeScript project held to <code>yarn verify</code>. The Clean DDD arm is a project our tool created, held to the gate, with each feature's event storm decided with the maintainer before it runs.</li>
+<li><strong>A ladder of models.</strong> Each feature starts with the smallest model of the family, and goes one step up only when its attempt fails: the gate or <code>yarn verify</code>, the feature's hidden tests, or any earlier feature's. A failing hidden test is replayed alone before it counts, so that machine load does not pass for a defect.</li>
+<li><strong>The hypothesis, written before any run:</strong> as the trees grow, the simple arm needs the larger models sooner than the Clean DDD arm.</li>
+</ul>
+<p>Three checkpoints have run: the ${link(O.records.pilot, 'pilot')} (features 1–10: listings, search, quotes, bookings), ${link(O.records.j3, 'J3')} (11–25, with a change of permissions not announced in advance) and ${link(O.records.j4, 'J4')} (26–50: payments, refunds and payouts through a provider the tests play, webhooks late, twice or out of order, and storage moved to PostgreSQL without notice).</p>
+${charts.openstayCost}
+${tables.openstay}
+<p class="note">Each dot is a tree. "Above the smallest model" counts the escalations that reproduced; the others were machine load or a defect of the kit, each checked and recorded. J3's clean-1 is counted once, as J4's record corrects it.</p>
+<p><strong>Everyone delivered, again.</strong> At J4, graded again one tree at a time on a quiet machine, every tree passes all 51 hidden test files, 306 of 306, and every Clean DDD tree passes its gate. The strongest model was never needed in either arm.</p>
+<p><strong>The hypothesis is not supported at fifty features, and J4 points the other way.</strong> The simple trees, 8,000 to 9,000 source lines, still fit in an agent's context, and needed nothing above the smallest model in 150 features of 150. The Clean DDD trees, three times larger (${O.source.clean[0].toLocaleString('en-US')}–${O.source.clean[1].toLocaleString('en-US')} lines), needed a larger model for ${osEscalated('clean')} features of ${osDelivered('clean')}, six of them at J4. Each was a defect of the attempt: a storm's command named otherwise, a failed payout reused instead of replaced, a webhook about something unknown refused.</p>
+<p><strong>The cost gap narrowed after the pilot, then held.</strong> The simple arm was ${cheaper(O.checkpoints[0])} times cheaper over the first ten features, ${cheaper(O.checkpoints[1])} times over the next fifteen, and ${cheaper(osJ4)} times over J4's twenty-five. At J4, its median attempt cost $0.28–0.43, against $0.82–1.08.</p>
+<p><strong>The change not announced in advance landed where the architecture said it would.</strong> All six trees moved to PostgreSQL at the smallest model.</p>
+<ul>
+<li><strong>In the Clean DDD trees, no aggregate and no rule moved,</strong> of ${O.postgres.clean.files.join(', ')} files changed: the contexts' infrastructure and the building blocks took it. The one Application change was a port's signature, in two trees.</li>
+<li><strong>In the simple trees, the rules query the database directly,</strong> and the new driver is asynchronous: about ${O.postgres.simple.ruleFiles.join(', ')} rule files were rewritten, of ${O.postgres.simple.files.join(', ')} changed.</li>
+<li><strong>It did not make the change cheaper:</strong> $${lowHigh(O.postgres.simple.usd)} in the simple arm, $${lowHigh(O.postgres.clean.usd)} in the Clean DDD arm. A small model rewrites forty files mechanically for little, and the reader found no rule that changed meaning in any rewrite.</li>
+</ul>
+<p><strong>What the tests cannot see is where the arms differ.</strong> Three fresh agents read the six final trees against ${link('docs/evaluations/benchmark/openstay/j4/reading.md', 'a rubric')} written before any tree was read.</p>
+<ul>
+<li><strong>Money.</strong> One simple tree can pay a host twice: two servers running the payout job at the same moment each write a payout, and nothing refuses the second. It passes every hidden test, which run one server's job at a time. We read the code, and the claim holds. No Clean DDD tree fails an item of money.</li>
+<li><strong>Parts apart.</strong> The Clean DDD trees keep their contexts apart, in all three trees; the simple trees partly.</li>
+<li><strong>Rules stated once</strong> is no better in either arm. The simple trees repeat what is still refundable and what a payout owes; the Clean DDD trees repeat who may act on a listing, once per context.</li>
+<li><strong>The cost of a change, read rather than made.</strong> For three change requests, the readers named every file a developer would edit. A change touches 2 to 3 times as many files in a Clean DDD tree, and takes 2 to 4 times fewer lines to find.</li>
+</ul>
+<p><strong>What this adds to the first answer.</strong> At fifty features, on precise requests, with one agent writing the whole tree, the architecture still costs more and delivers no more. What it buys is now seen on a larger application: a change of storage kept out of the rules, no defect in the money where a plain tree could pay twice, and contexts that stay apart. A fifth checkpoint, running now, takes the trees to a hundred features. Beside it, eight side experiments each remove one condition that favours the plain arm: a limited context, vague requests, chaos on the money, a fresh maintainer, injected defects to debug, and pull requests to review, plus a fan-out by context and generated boilerplate for the Clean DDD arm.</p>
+
+<h2>10. What this still does not show</h2>
+<ul>
+<li><strong>A product's lifetime.</strong> Fifty features of OpenStay are still a young product, and the plain trees still fit in an agent's context. The fifth checkpoint takes them to a hundred.</li>
+<li><strong>Concurrency and crashes under test.</strong> OpenStay's hidden tests now kill servers, run two at once and replay webhooks, and still missed a double payout a reader found. The chaos suite of the fifth checkpoint tests money under failure on every final tree.</li>
 <li><strong>People.</strong> Agents read the code here, not developers who must maintain it for years. The locality E4 shows matters to a reviewer; we did not price it.</li>
 <li><strong>Another model family.</strong> The weaker model was the smallest of the same family.</li>
 <li><strong>Independence.</strong> One person designed the architecture, the benchmark and the rubric, and agents graded the trees. The API's asynchronous protocol came from the architecture, which, if anything, favoured it.</li>
@@ -540,9 +623,10 @@ ${tables.e4}
 <li>the kits, written before the runs: ${link('docs/evaluations/benchmark', 'benchmark/')};</li>
 <li>the drivers and the grader: ${link('.claude/flow', '.claude/flow/')};</li>
 <li>the records: ${link('docs/evaluations/2026-10-30-flow-phase-4-pilot.md', 'the pilot')}, ${link('docs/evaluations/2026-10-30-flow-phase-4-campaign.md', 'the campaign')}, ${link('docs/evaluations/2026-10-30-flow-control.md', 'the control')} and ${link(X.source, 'the four experiments after it')};</li>
+<li>OpenStay: ${link(O.records.protocol, 'its protocol and kits')}, and the records of ${link(O.records.pilot, 'its pilot')}, ${link(O.records.j3, 'J3')} and ${link(O.records.j4, 'J4')}; its six trees are in their own repository, one branch per tree and checkpoint;</li>
 <li>the logs, grades and readings: ${link('docs/evaluations/flow', 'flow/')}.</li>
 </ul>
-<p>The figures on this page are read from those files by ${link('site/collect.mjs', 'site/collect.mjs')}.</p>
+<p>The figures on this page are read from those files by ${link('site/collect.mjs', 'site/collect.mjs')}; OpenStay's are copied from its records' tables into ${link('site/openstay.mjs', 'site/openstay.mjs')}, each with the record it comes from.</p>
 
 <footer>clean-ddd · experiments run and written up with an AI assistant. Corrections welcome as issues on the repository.</footer>
 `;
@@ -552,7 +636,7 @@ writeFileSync(
   page({
     title: 'Architecture and AI agents',
     description:
-      'Does Clean Architecture and DDD help an AI coding agent? A controlled benchmark with and without the architecture, on a strong and a weaker model, over a growing codebase and a change of storage.',
+      'Does Clean Architecture and DDD help an AI coding agent? A controlled benchmark with and without the architecture, on a strong and a weaker model, over a growing codebase and a change of storage, then a lodging marketplace built to fifty features.',
     body,
   }),
 );

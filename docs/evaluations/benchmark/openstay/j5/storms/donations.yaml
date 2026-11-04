@@ -1,0 +1,100 @@
+# Feature 80 of OpenStay's J5 (../backlog/80-donations.md), as the session decided it.
+schemaVersion: 1
+feature: donations
+intent: An account gives to OpenStay through the provider, alone or beside a booking, never as part of a booking's money.
+done: false
+hotSpots:
+- question: Where do donations live?
+  decision: In a new context, Sustainability (V8); it asks Booking through a port whether a named booking is the donor's.
+- question: The provider's payment?
+  decision: 'Through Payments (V8): Sustainability''s DonationPledged opens a DonationPayment of its own, asked of the provider
+    once; Payments'' DonationPaid and DonationFailed come back. The payUrl is read through a port Sustainability owns over
+    Payments'' read model.'
+contexts:
+- id: Sustainability
+  commands:
+  - name: Donate
+    actor: a signed-in account
+    route: POST /donations
+    aggregate: Donation
+    events:
+    - DonationPledged
+  queries:
+  - name: GetDonation
+    actor: a signed-in account
+    route: GET /donations/{id}
+  - name: GetMyDonations
+    actor: a signed-in account
+    route: GET /donations/mine
+  events:
+  - DonationFailed
+  - DonationPaid
+  - DonationPledged
+  policies:
+  - 'on': DonationPledged
+    kind: domain-event
+    publishes:
+    - DonationPledged
+    events: []
+  - 'on': DonationPaid
+    kind: integration-event
+    publishes: []
+    events:
+    - DonationPaid
+  - 'on': DonationFailed
+    kind: integration-event
+    publishes: []
+    events:
+    - DonationFailed
+- id: Payments
+  commands:
+  - name: ApplyProviderDonationEvent
+    actor: anyone
+    route: POST /payments/webhook
+    aggregate: DonationPayment
+    events:
+    - DonationPaymentFailed
+    - DonationPaymentSucceeded
+  queries: []
+  events:
+  - DonationPaymentFailed
+  - DonationPaymentStarted
+  - DonationPaymentSucceeded
+  policies:
+  - 'on': DonationPledged
+    kind: integration-event
+    publishes: []
+    events:
+    - DonationPaymentStarted
+  - 'on': DonationPaymentSucceeded
+    kind: domain-event
+    publishes:
+    - DonationPaid
+    events: []
+  - 'on': DonationPaymentFailed
+    kind: domain-event
+    publishes:
+    - DonationFailed
+    events: []
+links:
+- mechanism: integration-event
+  upstream: Sustainability
+  downstream: Payments
+  contracts:
+  - DonationPledged
+- mechanism: integration-event
+  upstream: Payments
+  downstream: Sustainability
+  contracts:
+  - DonationPaid
+  - DonationFailed
+- mechanism: owned-port
+  upstream: Payments
+  downstream: Sustainability
+  contracts:
+  - DonationPayments
+- mechanism: owned-port
+  upstream: Booking
+  downstream: Sustainability
+  contracts:
+  - TravellerBookings

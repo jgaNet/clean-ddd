@@ -1,0 +1,40 @@
+# Feature 57 of OpenStay's J5 (../backlog/57-reviews.md), as the session decided it.
+schemaVersion: 1
+feature: reviews
+intent: The traveller of a stay that took place reviews it once, in the 14 days after the check-out; it is published when
+  the window closes.
+done: false
+hotSpots:
+- question: Where do reviews live?
+  decision: In a new context, Reviews (V2); it asks Booking through a port it owns whether a stay took place, with its traveller,
+    listing, check-out and who reads it.
+- question: Today?
+  decision: 'CLOCK_OFFSET_DAYS is the clock every context is given: time is a parameter.'
+- question: Once, under two servers?
+  decision: One StayReviews aggregate per booking (the aggregate of feature 58), keyed on the booking; the second writer is
+    refused.
+contexts:
+- id: Reviews
+  commands:
+  - name: ReviewStay
+    actor: a signed-in account
+    route: POST /bookings/{id}/review
+    aggregate: StayReviews
+    events:
+    - StayReviewed
+  queries:
+  - name: GetBookingReviews
+    actor: a signed-in account
+    route: GET /bookings/{id}/reviews
+  - name: GetListingReviews
+    actor: anyone
+    route: GET /listings/{id}/reviews
+  events:
+  - StayReviewed
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Booking
+  downstream: Reviews
+  contracts:
+  - Stays

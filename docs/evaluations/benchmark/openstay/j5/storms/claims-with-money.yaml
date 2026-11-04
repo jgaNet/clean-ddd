@@ -1,0 +1,46 @@
+# Feature 72 of OpenStay's J5 (../backlog/72-claims-with-money.md), as the session decided it.
+schemaVersion: 1
+feature: claims-with-money
+intent: A claim decided for the traveller with an amount refunds them through the provider, never more than is still refundable.
+done: false
+hotSpots:
+- question: How does the money move?
+  decision: Support publishes ClaimRefundDecided (V6); Payments applies it as it applies a host's refund (32).
+- question: Never more than refundable?
+  decision: Payments' Payment caps it, as for 32; its version check keeps a decision and a host's refund at once within what
+    was paid.
+- question: The claim shows its refund?
+  decision: Support asks Payments through a port it owns.
+contexts:
+- id: Support
+  commands: []
+  queries: []
+  events:
+  - ClaimDecided
+  policies:
+  - 'on': ClaimDecided
+    kind: domain-event
+    publishes:
+    - ClaimRefundDecided
+    events: []
+- id: Payments
+  commands: []
+  queries: []
+  events: []
+  policies:
+  - 'on': ClaimRefundDecided
+    kind: integration-event
+    publishes: []
+    events:
+    - RefundOwed
+links:
+- mechanism: integration-event
+  upstream: Support
+  downstream: Payments
+  contracts:
+  - ClaimRefundDecided
+- mechanism: owned-port
+  upstream: Payments
+  downstream: Support
+  contracts:
+  - ClaimRefunds

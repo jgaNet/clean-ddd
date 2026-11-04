@@ -1,0 +1,16 @@
+# Feature 25.1 of OpenStay's J4 (../backlog/25.1-hosts-own-routes.md), as the session decided it.
+schemaVersion: 1
+feature: hosts-own-routes
+intent: The routes under /hosts/me reach only the listings the caller hosts, whatever their role in an organisation.
+done: true
+hotSpots:
+- question: What does the defect add to the wall?
+  decision: 'Nothing new: a rule of the bulk commands (BlockNightsInListings, SetSeasonalPriceInListings) that already exist
+    — the caller hosts each listing named. Done from the start, like search-filters.'
+contexts:
+- id: Booking
+  commands: []
+  queries: []
+  events: []
+  policies: []
+links: []

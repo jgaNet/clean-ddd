@@ -1,0 +1,56 @@
+# Feature 93 of OpenStay's J5 (../backlog/93-night-cap.md), as the session decided it.
+schemaVersion: 1
+feature: night-cap
+intent: A city caps the nights a listing may be let in a year; what would pass it is refused.
+done: false
+hotSpots:
+- question: Two at once?
+  decision: Booking checks within the listing's calendar transaction, which already prevents double bookings; it asks Regulations
+    for the city's cap through a port it owns.
+- question: In the audit log?
+  decision: Regulations publishes AdministratorDecided on CityNightCapSet (V5).
+contexts:
+- id: Regulations
+  commands:
+  - name: SetCityNightCap
+    actor: a signed-in account
+    route: PUT /admin/cities/{city}/night-cap
+    aggregate: CityRules
+    events:
+    - CityNightCapSet
+  queries:
+  - name: GetCityNightCap
+    actor: a signed-in account
+    route: GET /admin/cities/{city}/night-cap
+  events:
+  - CityNightCapSet
+  policies:
+  - 'on': CityNightCapSet
+    kind: domain-event
+    publishes:
+    - AdministratorDecided
+    events: []
+- id: Booking
+  commands: []
+  queries:
+  - name: GetNightsBooked
+    actor: a signed-in account
+    route: GET /listings/{id}/nights-booked
+  events: []
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Regulations
+  downstream: Booking
+  contracts:
+  - CityNightCaps
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Regulations
+  contracts:
+  - Administrators
+- mechanism: integration-event
+  upstream: Regulations
+  downstream: Backoffice
+  contracts:
+  - AdministratorDecided

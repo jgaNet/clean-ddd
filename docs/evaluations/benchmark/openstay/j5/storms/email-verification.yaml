@@ -1,0 +1,57 @@
+# Feature 76 of OpenStay's J5 (../backlog/76-email-verification.md), as the session decided it.
+schemaVersion: 1
+feature: email-verification
+intent: An account verifies its email with a code sent through the notice service, and may change its email.
+done: false
+hotSpots:
+- question: The code?
+  decision: Accounts' aggregate makes, keeps and spends it; Notifications sends it, on Accounts' EmailVerificationRequested,
+    always on.
+contexts:
+- id: Accounts
+  commands:
+  - name: RequestEmailVerification
+    actor: a signed-in account
+    route: POST /accounts/me/email/verify-request
+    aggregate: Account
+    events:
+    - EmailVerificationRequested
+  - name: VerifyEmail
+    actor: a signed-in account
+    route: POST /accounts/me/email/verify
+    aggregate: Account
+    events:
+    - EmailVerified
+  - name: ChangeEmail
+    actor: a signed-in account
+    route: PUT /accounts/me/email
+    aggregate: Account
+    events:
+    - EmailChanged
+  queries: []
+  events:
+  - EmailChanged
+  - EmailVerificationRequested
+  - EmailVerified
+  policies:
+  - 'on': EmailVerificationRequested
+    kind: domain-event
+    publishes:
+    - EmailVerificationRequested
+    events: []
+- id: Notifications
+  commands: []
+  queries: []
+  events: []
+  policies:
+  - 'on': EmailVerificationRequested
+    kind: integration-event
+    publishes: []
+    events:
+    - NoticeOwed
+links:
+- mechanism: integration-event
+  upstream: Accounts
+  downstream: Notifications
+  contracts:
+  - EmailVerificationRequested

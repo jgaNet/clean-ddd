@@ -1,0 +1,27 @@
+# Feature 43 of OpenStay's J4 (../backlog/43-promotion-codes.md), as the session decided it.
+schemaVersion: 1
+feature: promotion-codes
+intent: A host's codes, whose last use cannot be used twice.
+done: true
+hotSpots:
+- question: The last use?
+  decision: A PromotionCode aggregate in Pricing; the booking takes a use through StayPrices in its own transaction, behind
+    the code's version check.
+contexts:
+- id: Pricing
+  commands:
+  - name: CreatePromotionCode
+    actor: a signed-in account
+    route: POST /listings/{param}/codes
+    aggregate: PromotionCode
+    events:
+    - PromotionCodeCreated
+  queries:
+  - name: GetPromotionCodes
+    actor: a signed-in account
+    route: GET /listings/{param}/codes
+  events:
+  - PromotionCodeCreated
+  - PromotionCodeUsed
+  policies: []
+links: []

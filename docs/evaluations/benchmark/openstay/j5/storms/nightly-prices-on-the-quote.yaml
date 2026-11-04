@@ -1,0 +1,15 @@
+# Feature 44 of OpenStay's J4 (../backlog/44-nightly-prices-on-the-quote.md), as the session decided it.
+schemaVersion: 1
+feature: nightly-prices-on-the-quote
+intent: A quote and a booking show each night's price.
+done: true
+hotSpots:
+- question: What does it add to the wall?
+  decision: 'Nothing new: the quote''s read model shows what StayPrices answered. Done from the start.'
+contexts:
+- id: Booking
+  commands: []
+  queries: []
+  events: []
+  policies: []
+links: []

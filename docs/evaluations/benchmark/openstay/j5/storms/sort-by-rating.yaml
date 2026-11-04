@@ -1,0 +1,17 @@
+# Feature 62 of OpenStay's J5 (../backlog/62-sort-by-rating.md), as the session decided it.
+schemaVersion: 1
+feature: sort-by-rating
+intent: A search may be sorted by rating, and says which order it is in.
+done: true
+hotSpots:
+- question: Who sorts?
+  decision: Booking's search, with the rating from its port over Reviews' read model (feature 59).
+- question: What does it add to the wall?
+  decision: 'Nothing: a rule on the existing search and port. Done from the start.'
+contexts:
+- id: Booking
+  commands: []
+  queries: []
+  events: []
+  policies: []
+links: []
