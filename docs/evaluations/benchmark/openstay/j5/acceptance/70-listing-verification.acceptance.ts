@@ -123,9 +123,9 @@ describe('listing verification', () => {
     await api.done('PUT', `/listings/${id}/location`, hal.token, { latitude: 45.75, longitude: 4.85 });
 
     await verify(id);
-    await api.done('PUT', `/listings/${id}`, hal.token, { ...description, city: 'Moveville-sur-Rhône' });
+    await api.done('PUT', `/listings/${id}`, hal.token, { ...description, city: 'Moveville-Est' });
     expect(verification(await page(id))).toEqual(NOT_VERIFIED);
-    expect(verification(await inSearch('Moveville-sur-Rhône', id))).toEqual(NOT_VERIFIED);
+    expect(verification(await inSearch('Moveville-Est', id))).toEqual(NOT_VERIFIED);
     expect(verification(await inMine(id))).toEqual(NOT_VERIFIED);
 
     await verify(id);
