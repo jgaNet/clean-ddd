@@ -25,3 +25,26 @@ J4's reading named the files a developer would edit for three changes, without m
   - the files read and the files changed, from the transcript;
   - the lines changed.
 - **The hidden tests** are written and passed on the solvability tree before any probe runs, as for the ladder's.
+
+## The earlier cases P2 supersedes
+
+P2 changes a rule five earlier cases assert: a strict cancellation refunds half the cleaning fee, and none of it on the day of check-in. On a P2 attempt these five cases are expected to fail and are not counted as regressions; P2's own test asserts the new rule in their place. Every other case of 1 to 100 is.
+
+| File | Case |
+| --- | --- |
+| 8-cancel-a-booking | makes refundable what the policy gives by days before check-in, and the tourist tax in full |
+| 31-refunds | asks the provider for the refundable amount, under the booking id, and reads pending, then refunded |
+| 31-refunds | sends nothing for a booking never paid, nor for a refundable amount of zero |
+| 32-host-refunds | refunds what the host or a manager gives, through the provider, listed oldest first with the cancellation |
+| 94-hosts-report | reports each host, country and currency, what counts and what does not, and who is reportable |
+
+The five fail on the solvability tree's P2 and on no other probe.
+
+## How the probes were checked
+
+An agent wrote the three probes on the solvability tree from the requests, each on its own branch from the tree's J5 end (`c33599f`): P1 `911e3d5`, +583/−42 in 8 files; P2 `e754d5f`, +59/−21 in 6 files; P3 `0f5f5e7`, +221/−8 in 3 files. Each probe's own test passes (9, 5 and 7 cases), and each branch's `yarn verify`. Graded on 1 to 100:
+- P1 passes all 101 files;
+- P2 fails the five cases above, and nothing else;
+- P3 fails one case of 97, a sweep's timing, which passed when graded again ([the ladder's README](../../README.md#how-it-was-checked-before-use)).
+
+It found no case of a probe's test that asserts what its request does not say.
