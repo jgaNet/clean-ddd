@@ -55,7 +55,11 @@ describe('registration numbers by city', () => {
     expect((await setRule('Nantes', { required: true, pattern: '(\\d{3}' })).accepted).toBe(false);
     expect((await setRule('Nantes', { required: true, pattern: null })).accepted).toBe(false);
     expect((await setRule('Nantes', { required: true, pattern: '\\d{6}' }, hal.token)).accepted).toBe(false);
-    expect((await setRule('Nantes', { required: true, pattern: '\\d{6}' }, undefined)).accepted).toBe(false);
+    // With no token at all: `setRule`'s default would sign it as the administrator.
+    expect(
+      (await api.act('PUT', '/admin/cities/Nantes/registration', undefined, { required: true, pattern: '\\d{6}' }))
+        .accepted,
+    ).toBe(false);
     expect(await ruleOf('Nantes')).toEqual(expect.objectContaining({ required: false, pattern: null }));
     await api.done('PUT', '/admin/cities/Nantes/registration', ada.token, { required: true, pattern: '\\d{6}' });
     expect((await setRule('Nantes', { required: false, pattern: null }, hal.token)).accepted).toBe(false);
