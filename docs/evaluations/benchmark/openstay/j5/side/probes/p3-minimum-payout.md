@@ -12,7 +12,7 @@ Small payouts cost hosts a bank fee each. A host may ask to be paid only once en
   - What waits is still due. A failed payout (request 34) is owed again, and counts toward the minimum.
   - Each booking is paid out once, across a crash and on two servers.
   - What waits under a minimum is not held by the pause (request 100), nor counted in the dashboard's `heldPayouts` (request 99).
-- **Who.** A host, for themselves.
+- **Who.** A host, for themselves; anyone else is refused.
 
 The API works as request 1 says; the work runs every `JOBS_INTERVAL_SECONDS` at least (request 30).
 
