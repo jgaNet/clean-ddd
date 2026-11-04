@@ -188,13 +188,12 @@ function domainEvent(context, name, aggregate) {
   const aggregateFile = files.find(path => basename(path) === `${aggregate}.ts`);
   const imported = aggregateFile
     ? [...read(aggregateFile).matchAll(/from '([^']+)'/g)]
-        .map(match => trees.find(tree => match[1].startsWith(tree.alias + '/')) && match[1])
-        .filter(Boolean)
-        .map(path => {
-          const tree = trees.find(each => path.startsWith(each.alias + '/'));
-          return join(project, tree.path, path.slice(tree.alias.length + 1) + '.ts');
+        .map(([, from]) => {
+          if (from.startsWith('./')) return join(dirname(aggregateFile), `${from}.ts`);
+          const tree = trees.find(each => from.startsWith(each.alias + '/'));
+          return tree && join(project, tree.path, `${from.slice(tree.alias.length + 1)}.ts`);
         })
-        .filter(path => existsSync(path) && (read(path).match(/extends DomainEvent\b/g) ?? []).length === 1)
+        .filter(path => path && existsSync(path) && (read(path).match(/extends DomainEvent\b/g) ?? []).length === 1)
     : [];
   const single = imported.find(path => !basename(path).endsWith('Events.ts'));
   if (single) {
@@ -221,7 +220,7 @@ function command(context, { name, actor, route, aggregate, events = [] }) {
   const handler = join(dir, `${name}CommandHandler.ts`);
   const params = route ? routeOf(route).params : [];
   if (!existsSync(dir)) {
-    write(event, `import { CommandEvent } from '@Architecture/Domain';\n\n/** ${actor ?? 'Someone'} asks ${route ? `it at ${route}` : 'for it'}. ${todo}: the body's fields. */\nexport class ${name}CommandEvent extends CommandEvent<${paramsType(params) ?? 'Record<string, never>'}> {}\n`);
+    write(event, `import { CommandEvent } from '@Architecture/Domain';\n\n/** ${actor ? actor[0].toUpperCase() + actor.slice(1) : 'Someone'} asks ${route ? `it at ${route}` : 'for it'}. ${todo}: the body's fields. */\nexport class ${name}CommandEvent extends CommandEvent<${paramsType(params) ?? 'Record<string, never>'}> {}\n`);
     write(handler, `import { CommandHandler, ExecutionContext } from '@Architecture/Application';\nimport { IResult, Result, UnknownException } from '@Architecture/Domain';\n\n${importOf(`${name}CommandEvent`, event)}\n\n/**\n * ${todo}: ${actor ?? 'the caller'} asks it; it reaches ${aggregate ?? 'its aggregate'}${events.length ? `, which records ${events.join(', ')}` : ''}.\n * Not written yet: it refuses every call until the rule is.\n */\nexport class ${name}CommandHandler extends CommandHandler<${name}CommandEvent> {\n  async execute(_: ${name}CommandEvent, __: ExecutionContext): Promise<IResult<unknown>> {\n    return Result.fail(new UnknownException('${name} is not written yet'));\n  }\n}\n`);
     write(join(dir, `${name}CommandHandler.spec.ts`), `import { describe, it } from '@jest/globals';\n\ndescribe('${name}CommandHandler', () => {\n  it.todo('${name}: the way it goes when it is allowed, and each refusal (${todo})');\n});\n`);
     barrel(commandsDir(context), [`export { ${name}CommandEvent } from '${alias(event)}';`, `export { ${name}CommandHandler } from '${alias(handler)}';`]);
@@ -294,7 +293,7 @@ function routes(context, operations, routesName) {
     '',
     ...[...imports].sort(),
     '',
-    `/** ${context}'s routes of ${feature}: each builds its command or asks its query, and nothing else. ${todo}: the status each answers, the body's fields. */`,
+    `/** The ${context} context's routes of ${feature}: each builds its command or asks its query, and nothing else. ${todo}: the status each answers, the body's fields. */`,
     `export class ${controllerName} {`,
     usesModule && '  readonly #module: Module;\n\n  constructor({ module }: { module: Module }) {\n    this.#module = module;\n  }\n',
     methods.join('\n\n'),
@@ -302,7 +301,11 @@ function routes(context, operations, routesName) {
     '}\n',
   ].filter(line => line !== false && line !== 0).join('\n'));
 
-  const bodies = todoRoutes.filter(op => op.kind === 'command' && ['post', 'put', 'patch'].includes(op.method));
+  // A body schema, `type: object` only, where a body is sure to come: a PUT or PATCH, or a POST that creates (no path
+  // parameter). A POST on an action of an existing thing (`/{id}/suspend`) may come with no body, which the schema would refuse.
+  const bodies = todoRoutes.filter(
+    op => op.kind === 'command' && (['put', 'patch'].includes(op.method) || (op.method === 'post' && !op.params.length)),
+  );
   const schemaPath = join(rest, 'Routes', `${feature}.routes.schema.ts`);
   if (bodies.length) create(schemaPath, `// The bodies' shapes, by type only (API-BODY-SHAPE). ${todo}: each field, its type and whether it is required; whether a value is allowed is the domain's to refuse.\n\n${bodies.map(op => `export const ${op.name}BodySchema = { type: 'object' };`).join('\n')}\n`);
   const moduleKey = `${camel(context)}Module`;
@@ -311,7 +314,7 @@ function routes(context, operations, routesName) {
     "import { Module } from '@Architecture/Application';\n",
     importOf(controllerName, controllerPath),
     bodies.length && importOf(bodies.map(op => `${op.name}BodySchema`), schemaPath),
-    `\n/** ${context}'s routes of ${feature}, generated from its storm. */`,
+    `\n/** The ${context} context's routes of ${feature}, generated from its storm. */`,
     `export const ${routesName} = function (\n  fastify: FastifyInstance,\n  ${usesModule ? `{ ${moduleKey} }` : '_options'}: { ${moduleKey}: Module },\n  done: () => void,\n) {`,
     `  const controller = new ${controllerName}(${usesModule ? `{ module: ${moduleKey} }` : ''});\n`,
     ...todoRoutes.map(op => `  fastify.${op.method}('${op.path}', ${bodies.includes(op) ? `{ schema: { body: ${op.name}BodySchema } }` : '{}'}, controller.${camel(op.name)}.bind(controller));\n`),
@@ -327,7 +330,7 @@ function routes(context, operations, routesName) {
   const mounts = [...text.matchAll(/\.registerRoutes\(\s*'([^']*)'/g)].map(m => m[1]);
   const mount = mounts.sort((a, b) => mounts.filter(m => m === b).length - mounts.filter(m => m === a).length)[0];
   const first = text.match(/\n\s*\.registerRoutes\(/);
-  text = `${text.slice(0, first.index)}\n.registerRoutes('${mount}', ${routesName}, { ${moduleKey}: ${expression} })${text.slice(first.index)}`;
+  text = `${text.slice(0, first.index)}\n.registerRoutes('${mount}', ${routesName}, { ${expression === moduleKey ? moduleKey : `${moduleKey}: ${expression}`} })${text.slice(first.index)}`;
   write(root, withImports(text, [importOf(routesName, routesPath)]));
 }
 
@@ -354,7 +357,8 @@ for (const [context, { imports, entries }] of Object.entries(wiring)) {
   let text = read(path);
   const fresh = entries.filter(([, entry]) => !text.includes(entry.match(/new (\w+)\(/)[0]));
   if (!fresh.length) continue;
-  for (const [key, entry] of fresh) text = listInModule(text, context, key, entry);
+  for (const key of new Set(fresh.map(([key]) => key)))
+    text = listInModule(text, context, key, fresh.filter(([k]) => k === key).map(([, entry]) => entry).join(',\n'));
   write(path, withImports(text, [...new Set(imports)].filter(line => fresh.some(([, entry]) => line.split(/[{}]/)[1].split(',').some(n => entry.includes(n.trim()))))));
 }
 
