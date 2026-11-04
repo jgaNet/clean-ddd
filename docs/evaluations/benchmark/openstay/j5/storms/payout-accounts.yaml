@@ -1,0 +1,42 @@
+# Feature 26 of OpenStay's J4 (../backlog/26-payout-accounts.md), as the session decided it.
+schemaVersion: 1
+feature: payout-accounts
+intent: A host connects an account with the provider to be paid; only the provider's word enables it.
+done: true
+hotSpots:
+- question: Whose aggregate?
+  decision: Payments' PayoutAccount, one per host (J4 session U1); asking again gives the same one.
+- question: Who changes its status?
+  decision: The provider only, through account.updated (U3, U4); the webhook route is Payments' presentation, anyone may call
+    it, the signature decides.
+contexts:
+- id: Payments
+  commands:
+  - name: OpenPayoutAccount
+    actor: a signed-in account
+    route: POST /hosts/me/payout-account
+    aggregate: PayoutAccount
+    events:
+    - PayoutAccountOpened
+  - name: ApplyProviderEvent
+    actor: anyone
+    route: POST /payments/webhook
+    aggregate: PayoutAccount
+    events:
+    - PayoutAccountEnabled
+    - PayoutAccountDisabled
+  queries:
+  - name: GetPayoutAccount
+    actor: a signed-in account
+    route: GET /hosts/me/payout-account
+  events:
+  - PayoutAccountEnabled
+  - PayoutAccountDisabled
+  - PayoutAccountOpened
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Payments
+  contracts:
+  - Hosts

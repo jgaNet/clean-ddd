@@ -1,0 +1,66 @@
+# Feature 50 of OpenStay's J4 (../backlog/50-closing-an-account.md), as the session decided it.
+schemaVersion: 1
+feature: closing-an-account
+intent: An account closes; personal data goes, the money's record stays.
+done: true
+hotSpots:
+- question: What does each context do?
+  decision: Accounts publishes AccountClosed; Listings archives the listings and forgets the favourites, Booking forgets the
+    holds and shows no contact.
+- question: Refused while a stay is to come?
+  decision: Accounts asks Booking through a port it owns (StaysToCome).
+contexts:
+- id: Accounts
+  commands:
+  - name: CloseAccount
+    actor: a signed-in account
+    route: POST /accounts/me/close
+    aggregate: Account
+    events:
+    - AccountClosed
+  queries: []
+  events:
+  - AccountClosed
+  policies:
+  - 'on': AccountClosed
+    kind: domain-event
+    publishes:
+    - AccountClosed
+    events: []
+- id: Listings
+  commands: []
+  queries: []
+  events: []
+  policies:
+  - 'on': AccountClosed
+    kind: integration-event
+    publishes: []
+    events:
+    - ListingArchived
+- id: Booking
+  commands: []
+  queries: []
+  events:
+  - HoldReleased
+  policies:
+  - 'on': AccountClosed
+    kind: integration-event
+    publishes: []
+    events:
+    - HoldReleased
+links:
+- mechanism: integration-event
+  upstream: Accounts
+  downstream: Listings
+  contracts:
+  - AccountClosed
+- mechanism: integration-event
+  upstream: Accounts
+  downstream: Booking
+  contracts:
+  - AccountClosed
+- mechanism: owned-port
+  upstream: Booking
+  downstream: Accounts
+  contracts:
+  - StaysToCome

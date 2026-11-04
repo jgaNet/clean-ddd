@@ -1,0 +1,25 @@
+# Feature 37 of OpenStay's J4 (../backlog/37-reconciliation.md), as the session decided it.
+schemaVersion: 1
+feature: reconciliation
+intent: An administrator compares the provider's transactions with OpenStay's, by day.
+done: true
+hotSpots:
+- question: Who is an administrator?
+  decision: Accounts decides from ADMIN_EMAILS; Payments asks through a port it owns (U6).
+- question: Comparing what?
+  decision: The ledger and the provider's transactions, through the provider port.
+contexts:
+- id: Payments
+  commands: []
+  queries:
+  - name: Reconcile
+    actor: a signed-in account
+    route: GET /admin/reconciliation
+  events: []
+  policies: []
+links:
+- mechanism: owned-port
+  upstream: Accounts
+  downstream: Payments
+  contracts:
+  - Administrators

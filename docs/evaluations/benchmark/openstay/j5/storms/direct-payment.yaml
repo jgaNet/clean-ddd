@@ -1,0 +1,47 @@
+# Feature 36 of OpenStay's J4 (../backlog/36-direct-payment.md), as the session decided it.
+schemaVersion: 1
+feature: direct-payment
+intent: A host declares a booking paid directly; it is never shown as verified.
+done: true
+hotSpots:
+- question: Where?
+  decision: 'A state of the Payment: declared, never verified, and no payout.'
+- question: And the lapse?
+  decision: Booking hears BookingDeclaredPaid and stops the lapse, as it does for BookingPaid.
+- question: Who may?
+  decision: The listing's host or a manager, through ListingActors (feature 32).
+contexts:
+- id: Payments
+  commands:
+  - name: DeclarePaidDirectly
+    actor: a signed-in account
+    route: POST /bookings/{param}/declare-paid
+    aggregate: Payment
+    events:
+    - PaymentDeclared
+  queries: []
+  events:
+  - PaymentDeclared
+  policies:
+  - 'on': PaymentDeclared
+    kind: domain-event
+    publishes:
+    - BookingDeclaredPaid
+    events: []
+- id: Booking
+  commands: []
+  queries: []
+  events:
+  - BookingMarkedPaid
+  policies:
+  - 'on': BookingDeclaredPaid
+    kind: integration-event
+    publishes: []
+    events:
+    - BookingMarkedPaid
+links:
+- mechanism: integration-event
+  upstream: Payments
+  downstream: Booking
+  contracts:
+  - BookingDeclaredPaid

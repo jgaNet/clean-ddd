@@ -1,0 +1,18 @@
+# Feature 38 of OpenStay's J4 (../backlog/38-tourist-tax-collected.md), as the session decided it.
+schemaVersion: 1
+feature: tourist-tax-collected
+intent: A host reads the tourist tax collected per city and month.
+done: true
+hotSpots:
+- question: From where?
+  decision: The ledger, with the tax each booking event carried.
+contexts:
+- id: Payments
+  commands: []
+  queries:
+  - name: GetTouristTaxCollected
+    actor: a signed-in account
+    route: GET /hosts/me/tourist-tax
+  events: []
+  policies: []
+links: []

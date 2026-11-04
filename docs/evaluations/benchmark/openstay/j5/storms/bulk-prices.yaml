@@ -1,0 +1,22 @@
+# Feature 45 of OpenStay's J4 (../backlog/45-bulk-prices.md), as the session decided it.
+schemaVersion: 1
+feature: bulk-prices
+intent: A host prices many nights at once, all or nothing.
+done: true
+hotSpots:
+- question: Whose?
+  decision: 'Pricing''s ListingPrices: one aggregate, one transaction.'
+contexts:
+- id: Pricing
+  commands:
+  - name: SetNightlyPrices
+    actor: a signed-in account
+    route: PUT /listings/{param}/prices
+    aggregate: ListingPrices
+    events:
+    - NightlyPricesSet
+  queries: []
+  events:
+  - NightlyPricesSet
+  policies: []
+links: []
