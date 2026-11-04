@@ -22,7 +22,7 @@ export class MarkAsReadNotificationCommandHandler extends CommandHandler<MarkAsR
     if (read.isFailure()) return read;
 
     await this.notifications.save(notification);
-    this.publishDomainEvents(notification, context);
+    await this.publishDomainEvents(notification, context);
 
     return Result.ok();
   }

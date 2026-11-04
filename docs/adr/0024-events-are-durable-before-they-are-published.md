@@ -43,3 +43,12 @@ The relay marked an entry published as soon as the bus had it, and the reactions
 - **Each subscriber's inbox is decided by that subscriber's own outcome,** not by the operation's status. One operation is shared by every subscriber, so its status said how the last of them ended. A subscriber that succeeded beside one that failed was therefore handed the message again.
 
 [`Outbox.spec.ts`](../../typescript/src/Architecture/Application/Outbox.spec.ts) pins both, and each language holds the same. A store's outbox still needs an inbox of its own, written in each reaction's transaction, for a fact relayed again after a crash to reach each subscriber once.
+
+## Revision: the outbox port is asynchronous
+
+The port was synchronous in TypeScript and Python, while every repository port there is asynchronous. An in-memory outbox fits a synchronous port. A durable one does not: it is a table, written in the transaction's connection, and that driver is asynchronous. OpenStay's J4 moved six agent-built trees to PostgreSQL, and in every Clean DDD tree the building blocks had to change first: the outbox port, `relayOutbox()` and the steps before the commit ([the record](../evaluations/2026-11-03-openstay-j4.md#the-change-not-announced-in-advance-storage-on-postgresql)).
+
+- **The port's three methods are asynchronous** in every language whose I/O is: `append`, `pending` and `markPublished` (`mark_published`). Rust's already were. Go's are not, since blocking I/O is Go's way.
+- **`relayOutbox()` is asynchronous, and the context awaits it** after the commit and at the start.
+- **The steps before the commit may be asynchronous,** and the context awaits them in order, inside the transaction.
+- **`publishDomainEvents()` and `publishIntegrationEvent()` are asynchronous, and their callers await them,** as Rust's already did: `await this.publishDomainEvents(aggregate, context)`. Inside a transaction they only register the step. Outside one (a handler's unit spec), the events are stored and relayed before the promise settles.

@@ -30,7 +30,7 @@ export class SignUpCommandHandler extends CommandHandler<SignUpCommandEvent> {
     if (account.isFailure()) return account;
 
     await this.accountRepository.save(account.data);
-    this.publishDomainEvents(account.data, context);
+    await this.publishDomainEvents(account.data, context);
 
     return Result.ok(account.data._id.value);
   }

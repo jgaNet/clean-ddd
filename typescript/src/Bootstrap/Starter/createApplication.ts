@@ -36,6 +36,6 @@ export async function createApplication({
   // an in-memory outbox, and the line is where a store's outbox would be relayed. The context is
   // one a request would get, with a unit of work of its own, so that each reaction it delivers
   // runs in a transaction of its own and publishes through the outbox, as after a request.
-  relayOutbox(InMemoryOutbox.shared, app.getEventBus(), app.executionContext('startup'));
+  await relayOutbox(InMemoryOutbox.shared, app.getEventBus(), app.executionContext('startup'));
   return app;
 }

@@ -21,7 +21,7 @@ class ArchivingTold extends IntegrationEvent<{ noteId: string }> {}
 class TellTheArchiving extends EventHandler<NoteArchived> {
   async execute({ payload }: NoteArchived, context: ExecutionContext): Promise<IResult> {
     await Promise.resolve();
-    publishIntegrationEvent(ArchivingTold.set({ noteId: payload.noteId }), context);
+    await publishIntegrationEvent(ArchivingTold.set({ noteId: payload.noteId }), context);
     return Result.ok();
   }
 }
@@ -52,13 +52,15 @@ describe('the relay at start', () => {
     const appended = jest.spyOn(InMemoryOutbox.shared, 'append');
 
     // What a run that died after its commit left pending.
-    InMemoryOutbox.shared.append([NoteArchived.set({ noteId: 'n-1' })]);
-    relayOutbox(InMemoryOutbox.shared, app.getEventBus(), app.executionContext('startup'));
+    await InMemoryOutbox.shared.append([NoteArchived.set({ noteId: 'n-1' })]);
+    await relayOutbox(InMemoryOutbox.shared, app.getEventBus(), app.executionContext('startup'));
     await eventually(() => told.length > 0);
 
-    const durable = appended.mock.results.flatMap(each => each.value as { id: string }[]).map(entry => entry.id);
+    const durable = (await Promise.all(appended.mock.results.map(each => each.value as Promise<{ id: string }[]>)))
+      .flat()
+      .map(entry => entry.id);
     expect(told).toHaveLength(1);
     expect(durable).toContain(told[0]);
-    expect(InMemoryOutbox.shared.pending()).toEqual([]);
+    expect(await InMemoryOutbox.shared.pending()).toEqual([]);
   });
 });

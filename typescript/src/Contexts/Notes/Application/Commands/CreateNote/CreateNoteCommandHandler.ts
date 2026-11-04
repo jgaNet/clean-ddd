@@ -20,7 +20,7 @@ export class CreateNoteCommandHandler extends CommandHandler<CreateNoteCommandEv
 
     const saved = await this.noteRepository.save(note.data);
     if (saved.isFailure()) return saved;
-    this.publishDomainEvents(note.data, context);
+    await this.publishDomainEvents(note.data, context);
 
     return Result.ok(note.data._id.value);
   }

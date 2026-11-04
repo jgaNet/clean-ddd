@@ -8,7 +8,7 @@ export class AccountValidatedHandler extends EventHandler<AccountValidatedEvent>
   async execute({ payload }: AccountValidatedEvent, context: ExecutionContext): Promise<IResult> {
     context.logger?.debug(`Account ${payload.accountId} validated`, { traceId: context.traceId });
 
-    publishIntegrationEvent(
+    await publishIntegrationEvent(
       AccountValidatedIntegrationEvent.set({ accountId: payload.accountId, email: payload.email }),
       context,
     );

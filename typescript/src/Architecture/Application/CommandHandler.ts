@@ -70,8 +70,8 @@ export abstract class CommandHandler<T extends CommandEvent<unknown>> extends Ev
    * The events are taken from the aggregate now but published only once the surrounding
    * transaction is committed, so listeners never see facts that end up rolled back.
    */
-  protected publishDomainEvents(aggregate: AggregateRoot, context: ExecutionContext): void {
-    publishDomainEvents(aggregate, context);
+  protected async publishDomainEvents(aggregate: AggregateRoot, context: ExecutionContext): Promise<void> {
+    await publishDomainEvents(aggregate, context);
   }
 
   /**

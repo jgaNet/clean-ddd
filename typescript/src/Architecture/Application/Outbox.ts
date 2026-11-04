@@ -26,13 +26,18 @@ export interface OutboxEntry {
   event: Event<unknown>;
 }
 
+/**
+ * Asynchronous like every port that reaches a store: a durable outbox is a table, written in the
+ * transaction's connection, and an outbox whose methods returned at once could only be kept in
+ * memory.
+ */
 export interface Outbox {
   /** Stores the events with the transaction's writes, to be rolled back with them. The entries, in order. */
-  append(events: Event<unknown>[]): OutboxEntry[];
+  append(events: Event<unknown>[]): Promise<OutboxEntry[]>;
   /** What is durable and not yet published, oldest first. */
-  pending(): OutboxEntry[];
+  pending(): Promise<OutboxEntry[]>;
   /** Acknowledges a delivery: the entry will not be published again. */
-  markPublished(id: string): void;
+  markPublished(id: string): Promise<void>;
 }
 
 /**
@@ -54,22 +59,31 @@ const onTheirWay = new Set<string>();
  * others. The context's relay after each commit and the bootstrap's at start are the two callers.
  * Returns the entries handed to the bus.
  */
-export function relayOutbox(outbox: Outbox, eventBus: EventBus, context: ExecutionContext): OutboxEntry[] {
+export async function relayOutbox(
+  outbox: Outbox,
+  eventBus: EventBus,
+  context: ExecutionContext,
+): Promise<OutboxEntry[]> {
   const handed: OutboxEntry[] = [];
-  for (const entry of outbox.pending()) {
+  for (const entry of await outbox.pending()) {
     if (onTheirWay.has(entry.id)) continue;
     try {
       const delivered = eventBus.publish(entry.event, context, entry.id)?.delivered;
       handed.push(entry);
       if (!delivered) {
-        outbox.markPublished(entry.id);
+        await outbox.markPublished(entry.id);
         continue;
       }
       onTheirWay.add(entry.id);
       void delivered
-        .then(everyOne => {
-          if (everyOne) outbox.markPublished(entry.id);
+        .then(async everyOne => {
+          if (everyOne) await outbox.markPublished(entry.id);
         })
+        .catch(error =>
+          context.logger?.error(`Outbox entry ${entry.id} (${entry.event.name}) stays pending`, error, {
+            traceId: context.traceId,
+          }),
+        )
         .finally(() => onTheirWay.delete(entry.id));
     } catch (error) {
       context.logger?.error(`Outbox entry ${entry.id} (${entry.event.name}) stays pending`, error, {

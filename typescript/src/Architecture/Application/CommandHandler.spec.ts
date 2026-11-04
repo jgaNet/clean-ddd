@@ -46,7 +46,7 @@ class GreetHandler extends CommandHandler<Greet> {
 
     const greeter = new Greeter(new Id('greeter'));
     greeter.greet(payload.name);
-    this.publishDomainEvents(greeter, context);
+    await this.publishDomainEvents(greeter, context);
 
     return Result.ok(`Hello ${payload.name}`);
   }
@@ -113,7 +113,7 @@ describe('CommandHandler.handle()', () => {
       expect.any(ExecutionContext),
       expect.any(String),
     );
-    expect(unitOfWork.outbox.pending()).toEqual([]);
+    expect(await unitOfWork.outbox.pending()).toEqual([]);
   });
 
   it('runs the use case again from a fresh read when it lost a race, and answers with the second run', async () => {

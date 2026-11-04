@@ -27,7 +27,7 @@ export class EditNoteCommandHandler extends CommandHandler<EditNoteCommandEvent>
 
     const saved = await this.noteRepository.save(note);
     if (saved.isFailure()) return saved;
-    this.publishDomainEvents(note, context);
+    await this.publishDomainEvents(note, context);
 
     return Result.ok();
   }

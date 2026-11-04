@@ -14,7 +14,7 @@ export class NoteSharedHandler extends EventHandler<NoteSharedEvent> {
   async execute({ payload }: NoteSharedEvent, context: ExecutionContext): Promise<IResult> {
     context.logger?.debug(`Note ${payload.noteId} shared with ${payload.recipientId}`, { traceId: context.traceId });
 
-    publishIntegrationEvent(
+    await publishIntegrationEvent(
       NoteSharedIntegrationEvent.set({
         noteId: payload.noteId,
         title: payload.title,

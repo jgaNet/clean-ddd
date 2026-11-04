@@ -46,21 +46,21 @@ describe('relayOutbox', () => {
     await bus.subscribe(BookingConfirmed.name, reaction);
     const outbox = new InMemoryOutbox();
     const context = new ExecutionContext({ traceId: 'relay', auth: {}, eventBus: bus });
-    const [entry] = outbox.append([BookingConfirmed.set({ bookingId: 'b-1' })]);
+    const [entry] = await outbox.append([BookingConfirmed.set({ bookingId: 'b-1' })]);
 
     reaction.hold();
-    relayOutbox(outbox, bus, context);
+    await relayOutbox(outbox, bus, context);
     await settle();
     // The reaction has not committed: a crash now must find the fact still owed.
-    expect(outbox.pending()).toEqual([entry]);
+    expect(await outbox.pending()).toEqual([entry]);
     // A second relay (the next commit's) does not hand out an entry already on its way.
-    relayOutbox(outbox, bus, context);
+    await relayOutbox(outbox, bus, context);
     await settle();
     expect(reaction.handled).toBe(1);
 
     reaction.release();
     await settle();
-    expect(outbox.pending()).toEqual([]);
+    expect(await outbox.pending()).toEqual([]);
   });
 
   it('does not hand out an entry on its way again through another adapter over the same entries', async () => {
@@ -75,19 +75,19 @@ describe('relayOutbox', () => {
       markPublished: id => table.markPublished(id),
     });
     const context = new ExecutionContext({ traceId: 'relay', auth: {}, eventBus: bus });
-    const [entry] = overTheTable().append([BookingConfirmed.set({ bookingId: 'b-3' })]);
+    const [entry] = await overTheTable().append([BookingConfirmed.set({ bookingId: 'b-3' })]);
 
     reaction.hold();
-    relayOutbox(overTheTable(), bus, context);
+    await relayOutbox(overTheTable(), bus, context);
     await settle();
-    relayOutbox(overTheTable(), bus, context);
+    await relayOutbox(overTheTable(), bus, context);
     await settle();
     expect(reaction.handled).toBe(1);
-    expect(table.pending()).toEqual([entry]);
+    expect(await table.pending()).toEqual([entry]);
 
     reaction.release();
     await settle();
-    expect(table.pending()).toEqual([]);
+    expect(await table.pending()).toEqual([]);
   });
 
   it('keeps an entry whose reaction failed pending, and hands it again to that subscriber only', async () => {
@@ -98,17 +98,17 @@ describe('relayOutbox', () => {
     await bus.subscribe(BookingConfirmed.name, refused);
     const outbox = new InMemoryOutbox();
     const context = new ExecutionContext({ traceId: 'relay', auth: {}, eventBus: bus });
-    const [entry] = outbox.append([BookingConfirmed.set({ bookingId: 'b-2' })]);
+    const [entry] = await outbox.append([BookingConfirmed.set({ bookingId: 'b-2' })]);
 
     refused.failing = true;
-    relayOutbox(outbox, bus, context);
+    await relayOutbox(outbox, bus, context);
     await settle();
-    expect(outbox.pending()).toEqual([entry]);
+    expect(await outbox.pending()).toEqual([entry]);
 
     refused.failing = false;
-    relayOutbox(outbox, bus, context);
+    await relayOutbox(outbox, bus, context);
     await settle();
-    expect(outbox.pending()).toEqual([]);
+    expect(await outbox.pending()).toEqual([]);
     expect([told.handled, refused.handled]).toEqual([1, 2]);
   });
 });

@@ -26,7 +26,7 @@ export class AccountCreatedHandler extends EventHandler<AccountCreatedEvent> {
       subjectType: TokenTypes.VALIDATION,
     });
 
-    publishIntegrationEvent(
+    await publishIntegrationEvent(
       AccountCreatedIntegrationEvent.set({ accountId: payload.accountId, email: payload.email, validationToken }),
       context,
     );

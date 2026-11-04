@@ -116,7 +116,7 @@ export class ExecutionContext {
   readonly #unitOfWork?: UnitOfWork;
   readonly #logger?: Logger;
   #inTransaction = false;
-  #beforeCommit: Array<() => void> = [];
+  #beforeCommit: Array<() => void | Promise<void>> = [];
   #afterCommit: Array<() => void> = [];
 
   constructor(options: ExecutionContextOptions) {
@@ -152,7 +152,7 @@ export class ExecutionContext {
       if (outermost && result.isSuccess()) {
         const callbacks = this.#afterCommit;
         this.#afterCommit = [];
-        this.relay();
+        await this.relay();
         callbacks.forEach(callback => callback());
       }
 
@@ -171,20 +171,21 @@ export class ExecutionContext {
    * the commit: where `publishDomainEvents()` appends the aggregate's events to the outbox, so
    * that they are durable with the state they describe and gone with it on a rollback.
    * Outside of any transaction (a handler's unit spec calling `execute()` directly) there is
-   * nothing to wait for: the step runs immediately and what it stored is relayed at once.
+   * nothing to wait for: the step runs immediately and what it stored is relayed at once, and the
+   * promise settles when both are done. A step may be asynchronous: the outbox is a store.
    */
-  beforeCommit(step: () => void): void {
+  async beforeCommit(step: () => void | Promise<void>): Promise<void> {
     if (!this.#inTransaction) {
-      step();
-      this.relay();
+      await step();
+      await this.relay();
       return;
     }
     this.#beforeCommit.push(step);
   }
 
   /** Publishes what the unit of work's outbox holds, with each entry's id as the message's (ADR 24). */
-  private relay(): void {
-    if (this.#unitOfWork) relayOutbox(this.#unitOfWork.outbox, this.#eventBus, this);
+  private async relay(): Promise<void> {
+    if (this.#unitOfWork) await relayOutbox(this.#unitOfWork.outbox, this.#eventBus, this);
   }
 
   /**
@@ -200,17 +201,17 @@ export class ExecutionContext {
     this.#afterCommit.push(callback);
   }
 
-  /** The `beforeCommit` steps, inside the transaction, once the outermost use case has succeeded. */
-  private runBeforeCommit(): void {
+  /** The `beforeCommit` steps, inside the transaction, in order, once the outermost use case has succeeded. */
+  private async runBeforeCommit(): Promise<void> {
     const steps = this.#beforeCommit;
     this.#beforeCommit = [];
-    steps.forEach(step => step());
+    for (const step of steps) await step();
   }
 
   private async runInUnitOfWork<T>(fn: () => Promise<IResult<T>>, outermost: boolean): Promise<IResult<T>> {
     if (!this.#unitOfWork) {
       const result = await fn();
-      if (outermost && result.isSuccess()) this.runBeforeCommit();
+      if (outermost && result.isSuccess()) await this.runBeforeCommit();
       return result;
     }
 
@@ -241,7 +242,7 @@ export class ExecutionContext {
       return result;
     }
     try {
-      this.runBeforeCommit();
+      await this.runBeforeCommit();
       await this.#unitOfWork.commitTransaction();
       return result;
     } catch (error) {
