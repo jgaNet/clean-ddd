@@ -340,14 +340,26 @@ export function client(port: number) {
    * A raw file sent as the body of a command, `Content-Type: application/octet-stream`, its name in
    * `?name=` (left out when `name` is undefined), followed to its outcome as `act` follows any
    * command: `api.upload(`/conversations/${id}/attachments`, token, PDF, 'plan.pdf')` (requests 54, 73).
+   *
+   * A server may refuse a file over its limit before reading it: it answers `413` and closes the
+   * connection while the file is still being sent. Whether the client reads that `413` or meets the
+   * closed connection (`EPIPE`, `ECONNRESET`) is a race; the server refused the file either way, and
+   * the upload is refused. (Added during J5, 5 November: request 54's test met the race on two trees.)
    */
-  const upload = (path: string, token: string | undefined, bytes: Uint8Array, name?: string) =>
-    act(
-      'POST',
-      name === undefined ? path : `${path}${path.includes('?') ? '&' : '?'}name=${encodeURIComponent(name)}`,
-      token,
-      bytes,
-    );
+  const upload = async (path: string, token: string | undefined, bytes: Uint8Array, name?: string) => {
+    try {
+      return await act(
+        'POST',
+        name === undefined ? path : `${path}${path.includes('?') ? '&' : '?'}name=${encodeURIComponent(name)}`,
+        token,
+        bytes,
+      );
+    } catch (error) {
+      const code = (error as { cause?: { code?: string } }).cause?.code;
+      if (code !== 'EPIPE' && code !== 'ECONNRESET') throw error;
+      return { accepted: false, result: `the server closed the connection while the file was sent (${code})` };
+    }
+  };
   /** Whether a command was refused. */
   const refused = async (method: string, path: string, token?: string, body?: unknown) =>
     !(await act(method, path, token, body)).accepted;
