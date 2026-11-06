@@ -24,6 +24,12 @@ import { paymentProvider, payBooking } from './provider';
 const db = database('claims');
 const provider = paymentProvider();
 const ADA = 'ada@claims.test';
+/**
+ * Who answered a claim. Until 6 November the request did not say what `by` holds, beside an `openedBy` that names a
+ * side, so the side that answered is taken too; the request now says the account's id.
+ */
+const answeredBy = (accountId: string, side: 'traveller' | 'host') =>
+  expect.stringMatching(new RegExp(`^(${accountId}|${side})$`));
 let environment: Record<string, string>;
 let server: Running;
 let api: Client;
@@ -200,7 +206,7 @@ describe('claims after a stay', () => {
     const answered = await claimOf(id, tom.token);
     expect(answered).toMatchObject({
       status: 'answered',
-      answer: { text: 'The window was broken before the stay', by: hal.id },
+      answer: { text: 'The window was broken before the stay', by: answeredBy(hal.id, 'host') },
       decision: null,
     });
     expect(typeof (answered.answer as Json).at).toBe('string');
@@ -246,7 +252,7 @@ describe('claims after a stay', () => {
     expect(await claimOf(id, hal.token)).toMatchObject({
       openedBy: 'host',
       status: 'answered',
-      answer: { text: 'The stain was there when I arrived', by: tom.id },
+      answer: { text: 'The stain was there when I arrived', by: answeredBy(tom.id, 'traveller') },
     });
 
     // Opened by the host, decided while still open: the answer then comes too late.
