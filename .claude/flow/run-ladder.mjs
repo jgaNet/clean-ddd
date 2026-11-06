@@ -413,7 +413,9 @@ for (const feature of backlog) {
   // A resumed run goes on from the step after the last one this feature escalated from: the steps
   // already judged are not tried again (J5: a restart mid-ladder would otherwise give a feature that
   // escalated twice a fresh ladder).
-  const judged = before.filter(each => each.event === 'escalated' && each.feature === feature.id).map(each => each.step);
+  const judged = before
+    .filter(each => each.event === 'escalated' && each.feature === feature.id)
+    .map(each => each.step);
   const firstStep = judged.length ? Math.max(...judged) + 1 : 0;
   event('feature-start', { feature: feature.id, from, ...(firstStep > 0 && { firstStep }) });
   let deliveredAt;
@@ -475,7 +477,9 @@ async function triage(feature) {
     .map(line => parse(line))
     .filter(each => each?.event === 'escalated' && each.feature === feature.id);
   const steps = escalations.map(each => {
-    const reportPath = String(each.report ?? '').split(' ').pop();
+    const reportPath = String(each.report ?? '')
+      .split(' ')
+      .pop();
     const report = reportPath && existsSync(reportPath) ? parse(readFileSync(reportPath, 'utf8')) : undefined;
     const said = (report?.features ?? []).filter(f => !f.M2?.pass).flatMap(f => f.M2.said ?? []);
     return { step: each.step, reason: each.reason, head: each.head, failed: each.lines ?? [], said };
@@ -504,9 +508,13 @@ async function triage(feature) {
     existsSync(testFile) ? readFileSync(testFile, 'utf8') : '(not found)',
   ].join('\n');
   const judged = await new Promise(done => {
-    const child = spawn('claude', ['-p', prompt, '--output-format', 'json', '--model', plan.triage.judge, '--tools', ''], {
-      cwd: tmpdir(),
-    });
+    const child = spawn(
+      'claude',
+      ['-p', prompt, '--output-format', 'json', '--model', plan.triage.judge, '--tools', ''],
+      {
+        cwd: tmpdir(),
+      },
+    );
     let out = '';
     child.stdout.on('data', chunk => (out += chunk));
     child.on('close', () => done(parse(out)?.result ?? ''));
