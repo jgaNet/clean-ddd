@@ -409,9 +409,14 @@ for (const feature of backlog) {
     continue;
   }
   const from = git(project, 'rev-parse', 'main');
-  event('feature-start', { feature: feature.id, from });
+  // A resumed run goes on from the step after the last one this feature escalated from: the steps
+  // already judged are not tried again (J5: a restart mid-ladder would otherwise give a feature that
+  // escalated twice a fresh ladder).
+  const judged = before.filter(each => each.event === 'escalated' && each.feature === feature.id).map(each => each.step);
+  const firstStep = judged.length ? Math.max(...judged) + 1 : 0;
+  event('feature-start', { feature: feature.id, from, ...(firstStep > 0 && { firstStep }) });
   let deliveredAt;
-  for (let step = 0; step < plan.ladder.length && deliveredAt === undefined; step++) {
+  for (let step = firstStep; step < plan.ladder.length && deliveredAt === undefined; step++) {
     const tried = await attempt(feature, step, from);
     if (tried.reason === 'budget') {
       event('budget', { feature: feature.id, step, spentUsd: money.spent(), budgetUsd });
