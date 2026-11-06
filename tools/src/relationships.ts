@@ -65,8 +65,11 @@ export function missingRelationshipTests(crossed: ContextLink[], changed: Change
     .map(
       link =>
         `${relationshipName(link)} (${link.contracts.join(', ') || link.mechanism}) is crossed by this change and no test ` +
-        `ending in ${suffix} changed with it is named "${relationshipName(link)}": add one that makes the thing in ` +
-        `${link.upstream} through the API and finds it in ${link.downstream} through the API, by the id ${link.upstream} answered.`,
+        `ending in ${suffix} changed with it is named "${relationshipName(link)}". Add one that makes the thing in ` +
+        `${link.upstream} through the API and keeps the id that very request answered (its \`{ id }\`, or its operation's ` +
+        `result), then reads ${link.downstream} through the API and finds the thing by that same id. When the thing is ` +
+        `made about another one, the id is the made thing's, not the other's: a report of a message is found by the ` +
+        `report's id, which the event must carry, not by the message's.`,
     );
 }
 
