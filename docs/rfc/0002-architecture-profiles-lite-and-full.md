@@ -1,8 +1,30 @@
 # RFC 0002 — Architecture profiles: a Lite profile beside Full, held by one engine
 
-**Status:** proposed. Discovery and storm only. No decision is taken here, nothing is implemented, and the Full
-profile is not touched. Every hot spot below is a question for the maintainer, with options, their costs, and a
-recommendation that is the facilitator's, not a decision.
+**Status:** proposed. Discovery and storm; four hot spots decided by the maintainer on 6 November (below), the
+others still open with the facilitator's recommendation. Nothing is implemented, and the Full profile is not touched.
+
+**Decided (the maintainer, 6 November):**
+
+- **H1, the floor: the large one** (§5, H1, option A). Two of its lines are not mechanical today: identity born
+  once, and who reaches a command held at the transport. They are gaps to close in both profiles, not assumptions.
+- **H5, granularity: per context.** Each context declares its profile, guided by its subdomain's kind in
+  `domain.yaml`. A migration is per context, with an ADR.
+- **H8, the cost threshold: Lite is "not supported" unless its median cost per delivered feature is at most 0.6×
+  Full's, with no overlap of ranges.** It must also keep Full's structural passes (O6, O11, O8), and have no more
+  triaged FAILEDs or real regressions than Full.
+- **H8, the campaign: Lite alone against the historical records.** Three Lite trees on requests 1–50, compared with
+  J2–J4's Simple and Full trees. The comparison is weaker, and the record must say how:
+  - the machine, the harness and the kit changed between J2–J4 and the Lite run;
+  - J2–J4's budgets were not equal across arms after J2;
+  - Lite's rules were designed with J2–J5's results in view, and are evaluated on requests 1–50, which those
+    results come from.
+  
+  A cheap mitigation, to decide when the protocol is registered: rerun one Simple and one Full tree on requests 1–10
+  beside the Lite trees, as a calibration of the machine and the harness, not as a comparison.
+
+**Still open, with the facilitator's recommendation:** H2 (which mechanisms Lite drops), H3 (the trigger table
+chooses, the agent proposes), H4 (each held rule names its check), H6 (Lite → Full per context, neither move
+assumed reversible), H7 (`strategy` calibrated again for Lite).
 **Origin:** [ADR 31](../adr/0031-the-architecture-is-a-guardrail-and-a-coordinator-not-an-accelerator.md) put "a
 lighter profile" on the agenda: ports only at the edges, without the full tactical pattern, measured as its own arm,
 declared in the contract under its own name if kept, "never a set of rules quietly skipped". This RFC is that item.
@@ -310,7 +332,7 @@ Checks the engine would run, written here as requirements:
 
 ## 11. Benchmark protocol (proposed, to register before any Lite run)
 
-- **Arms.** Simple, Lite, Full, three trees each. Same ladder (smallest → strongest), same per-tree and per-agent budgets for every arm, same timeouts, the same machine, run at the same time.
+- **Arms (decided: Lite alone against the records).** Three Lite trees, compared with J2–J4's Simple and Full trees. Same ladder (smallest → strongest), the current harness (resume at the step after the last escalation, triage before FAILED), budgets at least Full's J4 ceilings, so that Lite is never starved where Full was not. The proposal it replaced, three fresh arms run at the same time, stays the stronger design if this one is inconclusive.
 - **Requests.** The OpenStay backlog from request 1.
   - Lite cannot start from a Full tree at 50: the conversion would be the experimenter's work, not the arm's.
   - Lite's design used the records of 1–64, so the **evaluation window is features none of its rules was tuned on**. Options are listed in Q4 below.
