@@ -19,6 +19,6 @@ The API works as request 1 says.
 | `POST /v1/bookings/{id}/claims` `{ amount, description }` | creates the claim, `{ id }` |
 | `GET /v1/bookings/{id}/claims` | `200 [ claim ]`, the booking's claims, the oldest first |
 | `POST /v1/claims/{id}/answer` `{ text }` | |
-| `GET /v1/claims/{id}` | `200 { id, bookingId, openedBy, amount, description, createdAt, answer, status, decision }`: `openedBy` `traveller` or `host`; `answer` is `{ text, by, at }` or `null`; `status` `open`, `answered` or `decided`; `decision` is `{ outcome, note, at }` or `null` |
+| `GET /v1/claims/{id}` | `200 { id, bookingId, openedBy, amount, description, createdAt, answer, status, decision }`: `openedBy` `traveller` or `host`; `answer` is `{ text, by, at }` or `null`, `by` the id of the account that answered; `status` `open`, `answered` or `decided`; `decision` is `{ outcome, note, at }` or `null` |
 | `POST /v1/admin/claims/{id}/decide` `{ outcome, note }` | `outcome` `traveller`, `host` or `rejected` |
 | `GET /v1/admin/claims` | `200 [ claim ]`, the `open` and `answered` claims, the oldest first |

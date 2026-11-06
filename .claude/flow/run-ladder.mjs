@@ -185,7 +185,8 @@ function size(cwd) {
 
 const hasStorm = feature => existsSync(join(kit, 'storms', `${feature.id}.yaml`));
 const request = feature => readFileSync(join(kit, 'backlog', `${feature.n}-${feature.id}.md`), 'utf8').trim();
-const last = Math.max(...backlog.map(each => each.n));
+// A plan that runs part of a backlog (a probe) may say how long the whole one is, so the prompt reads as it did.
+const last = plan.of ?? Math.max(...backlog.map(each => each.n));
 // A backlog entry of `kind: report` is a defect a user reported in what is already delivered, given
 // as a feature is (its request, its storm if any, its hidden test), and graded the same way.
 const opening = feature =>
@@ -409,9 +410,16 @@ for (const feature of backlog) {
     continue;
   }
   const from = git(project, 'rev-parse', 'main');
-  event('feature-start', { feature: feature.id, from });
+  // A resumed run goes on from the step after the last one this feature escalated from: the steps
+  // already judged are not tried again (J5: a restart mid-ladder would otherwise give a feature that
+  // escalated twice a fresh ladder).
+  const judged = before
+    .filter(each => each.event === 'escalated' && each.feature === feature.id)
+    .map(each => each.step);
+  const firstStep = judged.length ? Math.max(...judged) + 1 : 0;
+  event('feature-start', { feature: feature.id, from, ...(firstStep > 0 && { firstStep }) });
   let deliveredAt;
-  for (let step = 0; step < plan.ladder.length && deliveredAt === undefined; step++) {
+  for (let step = firstStep; step < plan.ladder.length && deliveredAt === undefined; step++) {
     const tried = await attempt(feature, step, from);
     if (tried.reason === 'budget') {
       event('budget', { feature: feature.id, step, spentUsd: money.spent(), budgetUsd });
@@ -446,10 +454,73 @@ for (const feature of backlog) {
   if (deliveredAt !== undefined) outcomes[feature.id] = `DELIVERED at step ${deliveredAt}`;
   else if (stopped) outcomes[feature.id] = 'NOT STARTED';
   else {
-    outcomes[feature.id] = 'FAILED';
-    event('failed', { feature: feature.id });
+    // The last model failed too: the tree stops, and a maintainer calls it FAILED, or the kit's, by the
+    // rule written before the runs (the kit's triage.md), from what this note gathers.
+    outcomes[feature.id] = 'NEEDS TRIAGE';
+    event('needs-triage', { feature: feature.id, ...(await triage(feature)) });
     stopped = true;
   }
+}
+
+/**
+ * What a maintainer reads before calling a feature every model failed FAILED (J5: two such failures were the kit's —
+ * an upload race, a field the request never defined — and were found by hand). Gathered for any tree alike:
+ * - each step's escalation, the tests it failed and what they said;
+ * - whether every step failed the same tests (a fault no model got past is worth a second look), and how many;
+ * - when the plan names a judge model, its answer to one question: does the request, read alone, decide what the
+ *   failing assertion expects? It reads the request and the failing test, never the tree's code or its arm.
+ */
+async function triage(feature) {
+  const escalations = readFileSync(log, 'utf8')
+    .trim()
+    .split('\n')
+    .map(line => parse(line))
+    .filter(each => each?.event === 'escalated' && each.feature === feature.id);
+  const steps = escalations.map(each => {
+    const reportPath = String(each.report ?? '')
+      .split(' ')
+      .pop();
+    const report = reportPath && existsSync(reportPath) ? parse(readFileSync(reportPath, 'utf8')) : undefined;
+    const said = (report?.features ?? []).filter(f => !f.M2?.pass).flatMap(f => f.M2.said ?? []);
+    return { step: each.step, reason: each.reason, head: each.head, failed: each.lines ?? [], said };
+  });
+  const sets = steps.map(each => [...each.failed].sort().join('\n'));
+  const failedTests = [...new Set(steps.flatMap(each => each.failed))];
+  const signals = {
+    steps,
+    sameFailureEveryStep: sets.length > 1 && sets.every(each => each === sets[0]),
+    failedTests: failedTests.length,
+  };
+  if (!plan.triage?.judge || feature.kind === 'report') return signals;
+  const testFile = join(kit, 'acceptance', `${feature.n}-${feature.id}.acceptance.ts`);
+  const prompt = [
+    'A benchmark grades an implementation of a product request with a hidden test the implementer never sees. Every model failed the assertions below.',
+    'Read the request as the implementer did, and say whether its text decides what the failing assertions expect: a field, a value, an id, a status, an order.',
+    'Answer only with JSON: {"determined": true|false, "quote": "the words of the request that decide it, or empty", "why": "one or two sentences"}.',
+    '',
+    '----- the request -----',
+    request(feature),
+    '',
+    '----- what the failing assertions said, at the last step -----',
+    ...(steps.at(-1)?.said ?? []),
+    '',
+    '----- the hidden test -----',
+    existsSync(testFile) ? readFileSync(testFile, 'utf8') : '(not found)',
+  ].join('\n');
+  const judged = await new Promise(done => {
+    const child = spawn(
+      'claude',
+      ['-p', prompt, '--output-format', 'json', '--model', plan.triage.judge, '--tools', ''],
+      {
+        cwd: tmpdir(),
+      },
+    );
+    let out = '';
+    child.stdout.on('data', chunk => (out += chunk));
+    child.on('close', () => done(parse(out)?.result ?? ''));
+  });
+  const verdict = parse(String(judged).match(/\{[\s\S]*\}/)?.[0] ?? '');
+  return { ...signals, judge: verdict ?? { unreadable: String(judged).slice(0, 500) } };
 }
 
 const all = backlog.every(f => String(outcomes[f.id]).startsWith('DELIVERED'));

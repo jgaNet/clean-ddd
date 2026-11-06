@@ -125,6 +125,12 @@ export interface ArchitectureContract {
   enforcers: Record<Enforcement, string>;
   /** The commands a change must pass before it is done, in CI's order. */
   checks: string[];
+  /**
+   * When present, the gate asks every relationship between two contexts that a change crosses for a test
+   * of its own, changed with it, named for the pair (`Messaging → Moderation`): the files whose name ends in
+   * `suffix`. Absent: the gate asks nothing (experimental, J5's probes).
+   */
+  relationshipTests?: { suffix: string };
   /** What `create --language <id>` makes of this language's directory; absent when the binding says nothing about it yet. */
   create?: CreateSpec;
   layers: string[];
