@@ -6,6 +6,7 @@ import { checkConventions } from './check';
 import { inspectInventory } from './inventory';
 import { DEFAULT_LANGUAGE, loadArchitectureContract } from './load';
 import { changedFiles, checkMode } from './modes';
+import { checkRelationshipTests } from './relationships';
 import { carriedButOpen, loadExpectedStorm, STORMS_DIR } from './storms';
 import { ModeName } from './types';
 
@@ -173,12 +174,23 @@ export async function runGate({
     steps.push({ name, stage, ...(command && { command }), status: 'skipped', durationMs: 0 });
 
   // 1. The mode: what the change touched, committed since the base and not yet committed.
-  const [mode, modeMs] = timed(() => {
-    const changed = new Set(changedFiles(base, root));
-    if (base !== 'working') for (const file of changedFiles('working', root)) changed.add(file);
-    return checkMode(held, [...changed], contract, base);
-  });
+  const changed = new Set(changedFiles(base, root));
+  if (base !== 'working') for (const file of changedFiles('working', root)) changed.add(file);
+  const [mode, modeMs] = timed(() => checkMode(held, [...changed], contract, base));
   record({ name: `mode ${held}`, stage: 'architecture', ok: mode.ok, durationMs: modeMs, lines: mode.problems });
+
+  // 1b. When the binding asks for it: each relationship between two contexts the change crosses, with a
+  //     test of its own (experimental).
+  if (contract.relationshipTests) {
+    const [missing, crossedMs] = timed(() => checkRelationshipTests(contract, root, [...changed]));
+    record({
+      name: 'relationships crossed',
+      stage: 'architecture',
+      ok: missing.length === 0,
+      durationMs: crossedMs,
+      lines: missing,
+    });
+  }
 
   // 2. The conventions check. For the reference's own language it is the first of `checks`; for
   //    another, the language's tool holds its tree and this check holds the contract, the map and

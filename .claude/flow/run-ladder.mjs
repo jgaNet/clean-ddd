@@ -185,7 +185,8 @@ function size(cwd) {
 
 const hasStorm = feature => existsSync(join(kit, 'storms', `${feature.id}.yaml`));
 const request = feature => readFileSync(join(kit, 'backlog', `${feature.n}-${feature.id}.md`), 'utf8').trim();
-const last = Math.max(...backlog.map(each => each.n));
+// A plan that runs part of a backlog (a probe) may say how long the whole one is, so the prompt reads as it did.
+const last = plan.of ?? Math.max(...backlog.map(each => each.n));
 // A backlog entry of `kind: report` is a defect a user reported in what is already delivered, given
 // as a feature is (its request, its storm if any, its hidden test), and graded the same way.
 const opening = feature =>
