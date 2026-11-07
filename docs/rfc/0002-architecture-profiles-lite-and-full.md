@@ -1,7 +1,7 @@
 # RFC 0002 — Architecture profiles: a Lite profile beside Full, held by one engine
 
-**Status:** proposed. Discovery and storm; four hot spots decided by the maintainer on 6 November (below), the
-others still open with the facilitator's recommendation. Nothing is implemented, and the Full profile is not touched.
+**Status:** proposed, every hot spot decided (6 and 7 November, below). The next step is the ADR (§12, step 1).
+Nothing is implemented, and the Full profile is not touched.
 
 **Decided (the maintainer, 6 November):**
 
@@ -22,9 +22,19 @@ others still open with the facilitator's recommendation. Nothing is implemented,
   A cheap mitigation, to decide when the protocol is registered: rerun one Simple and one Full tree on requests 1–10
   beside the Lite trees, as a calibration of the machine and the harness, not as a comparison.
 
-**Still open, with the facilitator's recommendation:** H2 (which mechanisms Lite drops), H3 (the trigger table
-chooses, the agent proposes), H4 (each held rule names its check), H6 (Lite → Full per context, neither move
-assumed reversible), H7 (`strategy` calibrated again for Lite).
+**Decided (the maintainer, 7 November):**
+
+- **H2: Lite drops the ceremony inside a context.** Gone: the command bus, the `CommandEvent` class, the handler
+  class, the `202` and ports inside a context. A use case is a function of its ports, called by the route, which
+  answers at once. Aggregates and domain events come in only where a trigger asks for them (§5, H2's table).
+  Everything at the boundaries stays: integration events, outbox, owned ports, the map, wiring as data.
+- **H3 and H4: the trigger table chooses, the gate holds it.** An agent proposes a mechanism a trigger calls for. It
+  comes in by an ADR. A rule held only by review is listed as a gap of the profile, never presented as a guarantee.
+- **H6 and H7: as recommended.**
+  - Lite → Full is per context, with an ADR. Full → Lite only for mechanisms nothing uses. Neither move is assumed
+    reversible.
+  - The split by context and the contracts between agents are unchanged. `strategy` is calibrated again on Lite's
+    own measurements.
 **Origin:** [ADR 31](../adr/0031-the-architecture-is-a-guardrail-and-a-coordinator-not-an-accelerator.md) put "a
 lighter profile" on the agenda: ports only at the edges, without the full tactical pattern, measured as its own arm,
 declared in the contract under its own name if kept, "never a set of rules quietly skipped". This RFC is that item.
