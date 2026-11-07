@@ -14,7 +14,7 @@ OpenStay lives on what people give, and says in the open what it costs to run: m
 - **The audit log.** Each entry of running costs is an entry of the audit log (request 67), `{ id, at, adminId, action, subjectId, note }`: `action` `running-costs-set`, `subjectId` the month (`2026-10`), `note` `null`. It is read at `GET /v1/admin/audit?subjectId=<month>`, oldest first.
 - **Who.** Only administrators enter running costs: the route answers `403` to anyone else.
 
-The API works as request 1 says. `{month}` and `month` are `YYYY-MM`; a month that is not one is refused (`400` for the page).
+The API works as request 1 says. `{month}` and `month` are `YYYY-MM`; a month that is not one is refused (`400` for the page). A request without `month` is refused too (`400`): the page never falls back to the current month.
 
 ## The API
 
