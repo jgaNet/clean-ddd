@@ -281,7 +281,10 @@ async function hidden(feature, cwd, only) {
   return {
     graded: true,
     failing: failing.map(each => each.feature),
-    own: failing.filter(each => each.feature === feature.id).flatMap(each => each.M2.failed),
+    // A file that failed without naming a test (its run crashed, or was killed) still failed: it is never an empty list.
+    own: failing
+      .filter(each => each.feature === feature.id)
+      .flatMap(each => (each.M2.failed.length ? each.M2.failed : [`${each.feature}: ${each.M2.tests}`])),
     earlier: failing.filter(each => each.feature !== feature.id).map(each => each.feature),
     report: out,
   };
