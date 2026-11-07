@@ -112,7 +112,11 @@ const log = join(flowDir, `${run}.jsonl`);
 mkdirSync(runDir, { recursive: true });
 const resuming = args.includes('--resume');
 if (existsSync(log) && !resuming) fail(`${log} exists: a run id is used once`);
-const before = resuming && existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse) : [];
+const logged = resuming && existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse) : [];
+// A `revoked` event (the maintainer's, when the harness judged a feature wrongly) sets aside what was logged for that
+// feature before it: its delivery and its escalations no longer count, and the events after it say where it resumes.
+const revokedAt = new Map(logged.flatMap((each, index) => (each.event === 'revoked' ? [[each.feature, index]] : [])));
+const before = logged.filter((each, index) => !(index < (revokedAt.get(each.feature) ?? -1)));
 const delivered = new Set(before.filter(each => each.event === 'delivered').map(each => each.feature));
 
 const event = (name, data = {}) => {
