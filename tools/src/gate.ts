@@ -6,7 +6,7 @@ import { checkConventions } from './check';
 import { inspectInventory } from './inventory';
 import { DEFAULT_LANGUAGE, loadArchitectureContract } from './load';
 import { changedFiles, checkMode } from './modes';
-import { checkRelationshipTests } from './relationships';
+import { checkRelationshipTests, crossedRelationshipTests, relationshipTestsThatMissTheChange } from './relationships';
 import { carriedButOpen, loadExpectedStorm, STORMS_DIR } from './storms';
 import { ModeName } from './types';
 
@@ -182,7 +182,7 @@ export async function runGate({
   // 1b. When the binding asks for it: each relationship between two contexts the change crosses, with a
   //     test of its own (experimental).
   if (contract.relationshipTests) {
-    const [missing, crossedMs] = timed(() => checkRelationshipTests(contract, root, [...changed]));
+    const [missing, crossedMs] = timed(() => checkRelationshipTests(contract, root, [...changed], base));
     record({
       name: 'relationships crossed',
       stage: 'architecture',
@@ -190,6 +190,27 @@ export async function runGate({
       durationMs: crossedMs,
       lines: missing,
     });
+    // ADR 34: with a command to run them, the relationship tests that add a case must fail at the base.
+    const run = contract.relationshipTests.run;
+    if (run && missing.length === 0 && !blocked) {
+      const [blind, blindMs] = timed(() =>
+        relationshipTestsThatMissTheChange({
+          root,
+          base,
+          tests: crossedRelationshipTests(contract, root, [...changed], base),
+          run,
+          languageRoot: contract.language.root,
+          exec,
+        }),
+      );
+      record({
+        name: 'relationship tests see the change',
+        stage: 'architecture',
+        ok: blind.length === 0,
+        durationMs: blindMs,
+        lines: blind,
+      });
+    }
   }
 
   // 2. The conventions check. For the reference's own language it is the first of `checks`; for

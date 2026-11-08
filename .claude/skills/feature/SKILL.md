@@ -118,7 +118,9 @@ When a feature crosses a relationship between two contexts, the thing keeps the 
 (DOMAIN-IDENTITY): the integration event carries it, and the receiving side builds on it. Where the binding
 asks for it, the gate also asks for an end-to-end test named for the pair (`Notes → Notifications`) that
 makes the thing upstream through the API, keeps the id that very request answered, and finds the thing
-downstream by that id (ADR 33).
+downstream by that id (ADR 33). The gate asks it of a relationship whose contracts the change touches: the event or the
+port, the file that builds, consumes or answers it, or a mention of it the change writes (ADR 35). A case it adds must
+fail without the change: the gate runs it at the base (ADR 34).
 
 ## If you need to change a protected tree, stop
 

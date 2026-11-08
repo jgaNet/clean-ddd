@@ -18,6 +18,10 @@
  *   ports: { base: 19100 }
  *   tooling: ../vendor/clean-ddd-0.2.0.tgz                  # clean only, optional: the package the grader runs
  *   features: [accounts, …]     # optional: only these, in the backlog's order
+ *   machine: { ladders: 3 }     # optional: how many ladders run at once on the machine (FLOW_LADDERS overrides it)
+ *
+ * The ladder refuses to start on a Node older than the project's `engines.node`, and puts its own Node first on the
+ * PATH of every command it runs; it waits for one of `machine.ladders` slots before it starts (machine.mjs).
  *
  * For each feature, in order, from the project's `main`:
  *   1. an attempt with the next model of the ladder, in a fresh worktree at the commit the feature
@@ -50,6 +54,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
+import { nodeMismatch, pathWithThisNode, takeSlot } from './machine.mjs';
 import { runners } from './runners.mjs';
 import { budget, DEPENDENCY_MODES, freePort, provideDependencies } from './supervision.mjs';
 
@@ -68,6 +73,10 @@ for (const key of ['run', 'arm', 'kit', 'base', 'ladder']) if (!plan[key]) fail(
 if (!['simple', 'clean'].includes(plan.arm)) fail(`${planFile}: arm is simple or clean`);
 if (!Array.isArray(plan.ladder) || !plan.ladder.length) fail(`${planFile}: ladder lists at least one model`);
 const clean = plan.arm === 'clean';
+// The machine the comparison runs on (machine.mjs): the Node the project declares, and a bounded number of ladders.
+const nodeProblem = nodeMismatch(project);
+if (nodeProblem) fail(nodeProblem);
+const ladderSlots = Number(process.env.FLOW_LADDERS ?? plan.machine?.ladders ?? 3);
 const run = plan.run;
 const kit = resolve(dirname(planFile), plan.kit);
 const backlog = yaml
@@ -85,7 +94,7 @@ const commandRunner = {
     const done = await new Promise(resolveRun => {
       const child = spawn('sh', ['-c', plan.agent.command], {
         cwd,
-        env: { ...process.env, MODEL: model, PROMPT: prompt },
+        env: { ...process.env, PATH: pathWithThisNode(), MODEL: model, PROMPT: prompt },
         stdio: 'ignore',
       });
       child.on('close', code => resolveRun(code));
@@ -135,7 +144,13 @@ const commitAll = (cwd, message) => {
   git(cwd, '-c', 'user.name=flow', '-c', 'user.email=flow@example.com', 'commit', '-qm', message);
   return true;
 };
-const env = { ...process.env, YARN_IGNORE_ENGINES: 'true', FORCE_COLOR: '0', NO_COLOR: '1' };
+const env = {
+  ...process.env,
+  PATH: pathWithThisNode(),
+  YARN_IGNORE_ENGINES: 'true',
+  FORCE_COLOR: '0',
+  NO_COLOR: '1',
+};
 function sh(command, cwd, timeout = timeoutMs) {
   return new Promise(done => {
     const child = spawn('sh', ['-c', command], { cwd, env, detached: true });
@@ -394,8 +409,13 @@ async function attempt(feature, step, from) {
 // A resumed run keeps the commit it started from: its main has moved since, and the grader compares the dependencies,
 // and the gate the changes, with this commit.
 const baseCommit = before.find(each => each.event === 'started')?.baseCommit ?? git(project, 'rev-parse', plan.base);
+await takeSlot({
+  max: ladderSlots,
+  onWait: () => event('waiting-for-slot', { ladders: ladderSlots }),
+});
 const started = Date.now();
 event(resuming ? 'resumed' : 'started', {
+  node: process.versions.node,
   arm: plan.arm,
   project,
   baseCommit,
