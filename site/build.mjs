@@ -2,7 +2,7 @@
 /**
  * The article, built from site/data.json (node site/collect.mjs writes it from the records):
  *
- *   node site/collect.mjs && node site/build.mjs   → site/article.html
+ *   node site/collect.mjs && node site/build.mjs   → site/article.html   (yarn site, at the root, builds the whole site)
  *
  * The page that presents the project, site/index.html, is built by node site/home.mjs and links here.
  */

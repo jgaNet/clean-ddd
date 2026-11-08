@@ -42,7 +42,7 @@ jobs:
 
       - name: The site is what its scripts build from the records (a stale page fails)
         run: |
-          node site/collect.mjs && node site/build.mjs && node site/home.mjs
+          yarn site
           git diff --exit-code -- site/
 
       - name: Format

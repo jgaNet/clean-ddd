@@ -4,7 +4,7 @@
  * ground, Inter, the orange → pink → violet gradient, pill buttons, translucent panels. The
  * article is a page of its own, site/article.html (node site/build.mjs), reached from here.
  *
- *   node site/home.mjs   → site/index.html
+ *   node site/home.mjs   → site/index.html   (yarn site, at the root, builds the whole site)
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -144,7 +144,7 @@ const body = `
 <h1>Une architecture que l’outillage fait respecter, <br>mesurée avec des agents IA</h1>
 <p>Une implémentation de référence, écrite pour être lue, dont les règles sont de la donnée. Verdict mesuré : elle ne rend pas un agent plus rapide ; elle l’empêche de dériver.</p>
 <div class="hero-actions">
-<a class="btn btn-primary" href="${article}">Lire les résultats</a>
+<a class="btn btn-primary" href="${article}" hreflang="en">Lire les résultats <small>(en anglais)</small></a>
 <a class="btn" href="${repo}" target="_blank" rel="noopener">Voir le code</a>
 </div>
 <ul class="proof" aria-label="En chiffres">
@@ -346,6 +346,12 @@ const html = `<!doctype html>
 <meta property="og:title" content="CLEAN-DDD — Clean Architecture &amp; DDD, une implémentation de référence">
 <meta property="og:description" content="Une architecture que l’outillage fait respecter, en quatre langages, mesurée avec des agents IA : elle ne rend pas un agent plus rapide, elle l’empêche de dériver.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://jganet.github.io/clean-ddd/">
+<meta property="og:image" content="https://jganet.github.io/clean-ddd/assets/img/open-graph.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <style>
 @font-face {
@@ -391,6 +397,7 @@ code { font-family: var(--mono); font-size: 0.9em; letter-spacing: 0; }
 .btn:focus-visible { outline: 2px solid #ec4899; outline-offset: 2px; }
 .btn-primary { font-weight: 600; color: #fff; border: none; background-image: var(--gradient); background-size: 200% auto; background-position: left; transition: background-position 0.5s; }
 .btn-primary:hover { background-position: right; color: #fff; }
+.btn small { font-size: 0.8em; font-weight: 500; opacity: 0.85; margin-left: 0.25rem; }
 .btn-sm { padding: 0.375rem 0.5rem; font-size: 0.75rem; font-weight: 600; box-shadow: none; }
 @media (min-width: 768px) { .btn { padding-left: 2rem; padding-right: 2rem; } .btn-sm { padding-left: 0.75rem; padding-right: 0.75rem; } }
 .btn-gradient-vertical { background-image: linear-gradient(180deg, #4c3584, #e43b7d, #ff5211); background-size: 300% 300%; animation: gradient-shift 30s ease infinite; }
