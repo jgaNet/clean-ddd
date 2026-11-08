@@ -128,9 +128,10 @@ export interface ArchitectureContract {
   /**
    * When present, the gate asks every relationship between two contexts that a change crosses for a test
    * of its own, changed with it, named for the pair (`Messaging → Moderation`): the files whose name ends in
-   * `suffix`. Absent: the gate asks nothing (experimental, J5's probes).
+   * `suffix`. Absent: the gate asks nothing. With `run` (a command, `{files}` the tests, from the language's
+   * directory), a test that adds a case is also run at the base and must fail there (ADR 34).
    */
-  relationshipTests?: { suffix: string };
+  relationshipTests?: { suffix: string; run?: string };
   /** What `create --language <id>` makes of this language's directory; absent when the binding says nothing about it yet. */
   create?: CreateSpec;
   layers: string[];
