@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>clean-ddd — Clean Architecture &amp; DDD, une implémentation de référence</title>
+<title>CLEAN-DDD — Clean Architecture &amp; DDD, une implémentation de référence</title>
 <meta name="description" content="Une implémentation de référence de la Clean Architecture et du Domain-Driven Design, écrite pour être lue, en TypeScript, Rust, Python et Go, depuis une seule architecture qui est de la donnée et que l’outillage fait respecter ; puis mesurée avec des agents de code IA.">
-<meta property="og:title" content="clean-ddd — Clean Architecture &amp; DDD, une implémentation de référence">
+<meta property="og:title" content="CLEAN-DDD — Clean Architecture &amp; DDD, une implémentation de référence">
 <meta property="og:description" content="Une petite application, chaque concept une fois, quatre langages, une architecture qui est de la donnée. Mesurée avec des agents IA.">
 <meta property="og:type" content="website">
 <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -116,43 +116,6 @@ code { font-family: var(--mono); font-size: 0.9em; letter-spacing: 0; }
   .hero-actions { max-width: 32rem; flex-direction: row; justify-content: center; }
   .hero-actions .btn { width: auto; }
 }
-
-/* ---------- Pac-Man ---------- */
-.pacman-track { --pac-size: 28px; --pac-dot: 6px; --pac-duration: 7s; position: absolute; bottom: 24px; left: 0; width: 100%; height: var(--pac-size); z-index: 10; pointer-events: none; container-type: inline-size; }
-@media (min-width: 768px) { .pacman-track { --pac-size: 48px; --pac-dot: 10px; --pac-duration: 12s; bottom: 32px; } }
-.pacman-dot { position: absolute; top: calc((var(--pac-size) - var(--pac-dot)) / 2); width: var(--pac-dot); height: var(--pac-dot); margin-left: calc(var(--pac-dot) / -2); border-radius: 50%; background: #fff5e0; box-shadow: 0 0 6px 1px rgba(228, 59, 125, 0.8); animation-duration: var(--pac-duration); animation-timing-function: linear; animation-iteration-count: infinite; }
-.pacman { position: absolute; bottom: 0; left: 0; will-change: transform; width: var(--pac-size); height: var(--pac-size); border-radius: 50%; background: linear-gradient(135deg, #ff5211, #e43b7d, #4c3584); box-shadow: 0 0 calc(var(--pac-size) / 3) rgba(228, 59, 125, 0.6); animation: pacman-move var(--pac-duration) linear infinite, pacman-chomp 0.4s linear infinite; }
-@keyframes pacman-move { from { transform: translateX(-100%); } to { transform: translateX(calc(100cqw - 100%)); } }
-@keyframes pacman-chomp { 0%, 100% { clip-path: polygon(100% 74%, 44% 48%, 100% 21%, 100% 0, 0 0, 0 100%, 100% 100%); } 50% { clip-path: polygon(100% 50%, 100% 50%, 100% 50%, 100% 0, 0 0, 0 100%, 100% 100%); } }
-.pacman-dot:nth-child(1) { left: 4.000%; animation-name: dot-0; }
-@keyframes dot-0 { 0%, 4.000% { opacity: 1; transform: scale(1); } 5.000%, 100% { opacity: 0; transform: scale(0); } }
-.pacman-dot:nth-child(2) { left: 11.077%; animation-name: dot-1; }
-@keyframes dot-1 { 0%, 11.077% { opacity: 1; transform: scale(1); } 12.077%, 100% { opacity: 0; transform: scale(0); } }
-.pacman-dot:nth-child(3) { left: 18.154%; animation-name: dot-2; }
-@keyframes dot-2 { 0%, 18.154% { opacity: 1; transform: scale(1); } 19.154%, 100% { opacity: 0; transform: scale(0); } }
-.pacman-dot:nth-child(4) { left: 25.231%; animation-name: dot-3; }
-@keyframes dot-3 { 0%, 25.231% { opacity: 1; transform: scale(1); } 26.231%, 100% { opacity: 0; transform: scale(0); } }
-.pacman-dot:nth-child(5) { left: 32.308%; animation-name: dot-4; }
-@keyframes dot-4 { 0%, 32.308% { opacity: 1; transform: scale(1); } 33.308%, 100% { opacity: 0; transform: scale(0); } }
-.pacman-dot:nth-child(6) { left: 39.385%; animation-name: dot-5; }
-@keyframes dot-5 { 0%, 39.385% { opacity: 1; transform: scale(1); } 40.385%, 100% { opacity: 0; transform: scale(0); } }
-.pacman-dot:nth-child(7) { left: 46.462%; animation-name: dot-6; }
-@keyframes dot-6 { 0%, 46.462% { opacity: 1; transform: scale(1); } 47.462%, 100% { opacity: 0; transform: scale(0); } }
-.pacman-dot:nth-child(8) { left: 53.538%; animation-name: dot-7; }
-@keyframes dot-7 { 0%, 53.538% { opacity: 1; transform: scale(1); } 54.538%, 100% { opacity: 0; transform: scale(0); } }
-.pacman-dot:nth-child(9) { left: 60.615%; animation-name: dot-8; }
-@keyframes dot-8 { 0%, 60.615% { opacity: 1; transform: scale(1); } 61.615%, 100% { opacity: 0; transform: scale(0); } }
-.pacman-dot:nth-child(10) { left: 67.692%; animation-name: dot-9; }
-@keyframes dot-9 { 0%, 67.692% { opacity: 1; transform: scale(1); } 68.692%, 100% { opacity: 0; transform: scale(0); } }
-.pacman-dot:nth-child(11) { left: 74.769%; animation-name: dot-10; }
-@keyframes dot-10 { 0%, 74.769% { opacity: 1; transform: scale(1); } 75.769%, 100% { opacity: 0; transform: scale(0); } }
-.pacman-dot:nth-child(12) { left: 81.846%; animation-name: dot-11; }
-@keyframes dot-11 { 0%, 81.846% { opacity: 1; transform: scale(1); } 82.846%, 100% { opacity: 0; transform: scale(0); } }
-.pacman-dot:nth-child(13) { left: 88.923%; animation-name: dot-12; }
-@keyframes dot-12 { 0%, 88.923% { opacity: 1; transform: scale(1); } 89.923%, 100% { opacity: 0; transform: scale(0); } }
-.pacman-dot:nth-child(14) { left: 96.000%; animation-name: dot-13; }
-@keyframes dot-13 { 0%, 96.000% { opacity: 1; transform: scale(1); } 97.000%, 100% { opacity: 0; transform: scale(0); } }
-@media (prefers-reduced-motion: reduce) { .pacman-dot { animation: none !important; } .pacman { display: none; } }
 
 /* ---------- Sections ---------- */
 .section { position: relative; }
@@ -283,7 +246,7 @@ footer { position: relative; padding: 1.5rem; overflow: hidden; background: radi
 <div class="header-backdrop"></div>
 <div class="header-inner">
 <div class="header-brand">
-<a class="header-logo" href="./" aria-label="clean-ddd, accueil"><span class="wordmark">clean-ddd</span></a>
+<a class="header-logo" href="./" aria-label="CLEAN-DDD, accueil"><span class="wordmark">CLEAN-DDD</span></a>
 <button class="menu-toggle" type="button" aria-controls="main-nav" aria-expanded="false" aria-label="Ouvrir le menu">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path class="bar-top" d="M4 6h16"/><path class="bar-mid" d="M4 12h16"/><path class="bar-bottom" d="M4 18h16"/></svg>
 </button>
@@ -315,23 +278,6 @@ footer { position: relative; padding: 1.5rem; overflow: hidden; background: radi
 <a class="btn btn-primary" href="article.html">Lire l’article</a>
 <a class="btn" href="https://github.com/jgaNet/clean-ddd" target="_blank" rel="noopener">Parcourir le dépôt</a>
 </div>
-</div>
-<div class="pacman-track" aria-hidden="true">
-<div class="pacman-dot"></div>
-<div class="pacman-dot"></div>
-<div class="pacman-dot"></div>
-<div class="pacman-dot"></div>
-<div class="pacman-dot"></div>
-<div class="pacman-dot"></div>
-<div class="pacman-dot"></div>
-<div class="pacman-dot"></div>
-<div class="pacman-dot"></div>
-<div class="pacman-dot"></div>
-<div class="pacman-dot"></div>
-<div class="pacman-dot"></div>
-<div class="pacman-dot"></div>
-<div class="pacman-dot"></div>
-<div class="pacman"></div>
 </div>
 </section>
 
@@ -666,7 +612,7 @@ rust: the same application as typescript
 <footer>
 <div class="footer-inner">
 <div class="footer-card">
-<a class="brand" href="./">clean-ddd</a>
+<a class="brand" href="./">CLEAN-DDD</a>
 <p class="footer-links"><a href="article.html" hreflang="en">L’article</a> · <a href="https://github.com/jgaNet/clean-ddd" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/adr" target="_blank" rel="noopener">Décisions</a> · <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/README.md" target="_blank" rel="noopener">Registres</a></p>
 <p class="legal first">Licence MIT · <code>npm i clean-ddd</code> pour l’outillage</p>
 </div>

@@ -175,7 +175,7 @@ const body = `
 <div class="header-backdrop"></div>
 <div class="header-inner">
 <div class="header-brand">
-<a class="header-logo" href="./" aria-label="clean-ddd, accueil"><span class="wordmark">clean-ddd</span></a>
+<a class="header-logo" href="./" aria-label="CLEAN-DDD, accueil"><span class="wordmark">CLEAN-DDD</span></a>
 <button class="menu-toggle" type="button" aria-controls="main-nav" aria-expanded="false" aria-label="Ouvrir le menu">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path class="bar-top" d="M4 6h16"/><path class="bar-mid" d="M4 12h16"/><path class="bar-bottom" d="M4 18h16"/></svg>
 </button>
@@ -207,10 +207,6 @@ const body = `
 <a class="btn btn-primary" href="${article}">Lire l’article</a>
 <a class="btn" href="${repo}" target="_blank" rel="noopener">Parcourir le dépôt</a>
 </div>
-</div>
-<div class="pacman-track" aria-hidden="true">
-${Array.from({ length: 14 }, () => '<div class="pacman-dot"></div>').join('\n')}
-<div class="pacman"></div>
 </div>
 </section>
 
@@ -431,7 +427,7 @@ ${languages
 <footer>
 <div class="footer-inner">
 <div class="footer-card">
-<a class="brand" href="./">clean-ddd</a>
+<a class="brand" href="./">CLEAN-DDD</a>
 <p class="footer-links"><a href="${article}" hreflang="en">L’article</a> · <a href="${repo}" target="_blank" rel="noopener">GitHub</a> · <a href="${blob('docs/adr')}" target="_blank" rel="noopener">Décisions</a> · <a href="${blob('docs/evaluations/README.md')}" target="_blank" rel="noopener">Registres</a></p>
 <p class="legal first">Licence MIT · <code>npm i clean-ddd</code> pour l’outillage</p>
 </div>
@@ -440,20 +436,14 @@ ${languages
 </footer>
 `;
 
-const dots = Array.from({ length: 14 }, (_, i) => {
-  const left = 4 + (i * 92) / 13;
-  return `.pacman-dot:nth-child(${i + 1}) { left: ${left.toFixed(3)}%; animation-name: dot-${i}; }
-@keyframes dot-${i} { 0%, ${left.toFixed(3)}% { opacity: 1; transform: scale(1); } ${(left + 1).toFixed(3)}%, 100% { opacity: 0; transform: scale(0); } }`;
-}).join('\n');
-
 const html = `<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>clean-ddd — Clean Architecture &amp; DDD, une implémentation de référence</title>
+<title>CLEAN-DDD — Clean Architecture &amp; DDD, une implémentation de référence</title>
 <meta name="description" content="Une implémentation de référence de la Clean Architecture et du Domain-Driven Design, écrite pour être lue, en TypeScript, Rust, Python et Go, depuis une seule architecture qui est de la donnée et que l’outillage fait respecter ; puis mesurée avec des agents de code IA.">
-<meta property="og:title" content="clean-ddd — Clean Architecture &amp; DDD, une implémentation de référence">
+<meta property="og:title" content="CLEAN-DDD — Clean Architecture &amp; DDD, une implémentation de référence">
 <meta property="og:description" content="Une petite application, chaque concept une fois, quatre langages, une architecture qui est de la donnée. Mesurée avec des agents IA.">
 <meta property="og:type" content="website">
 <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -564,16 +554,6 @@ code { font-family: var(--mono); font-size: 0.9em; letter-spacing: 0; }
   .hero-actions { max-width: 32rem; flex-direction: row; justify-content: center; }
   .hero-actions .btn { width: auto; }
 }
-
-/* ---------- Pac-Man ---------- */
-.pacman-track { --pac-size: 28px; --pac-dot: 6px; --pac-duration: 7s; position: absolute; bottom: 24px; left: 0; width: 100%; height: var(--pac-size); z-index: 10; pointer-events: none; container-type: inline-size; }
-@media (min-width: 768px) { .pacman-track { --pac-size: 48px; --pac-dot: 10px; --pac-duration: 12s; bottom: 32px; } }
-.pacman-dot { position: absolute; top: calc((var(--pac-size) - var(--pac-dot)) / 2); width: var(--pac-dot); height: var(--pac-dot); margin-left: calc(var(--pac-dot) / -2); border-radius: 50%; background: #fff5e0; box-shadow: 0 0 6px 1px rgba(228, 59, 125, 0.8); animation-duration: var(--pac-duration); animation-timing-function: linear; animation-iteration-count: infinite; }
-.pacman { position: absolute; bottom: 0; left: 0; will-change: transform; width: var(--pac-size); height: var(--pac-size); border-radius: 50%; background: linear-gradient(135deg, #ff5211, #e43b7d, #4c3584); box-shadow: 0 0 calc(var(--pac-size) / 3) rgba(228, 59, 125, 0.6); animation: pacman-move var(--pac-duration) linear infinite, pacman-chomp 0.4s linear infinite; }
-@keyframes pacman-move { from { transform: translateX(-100%); } to { transform: translateX(calc(100cqw - 100%)); } }
-@keyframes pacman-chomp { 0%, 100% { clip-path: polygon(100% 74%, 44% 48%, 100% 21%, 100% 0, 0 0, 0 100%, 100% 100%); } 50% { clip-path: polygon(100% 50%, 100% 50%, 100% 50%, 100% 0, 0 0, 0 100%, 100% 100%); } }
-${dots}
-@media (prefers-reduced-motion: reduce) { .pacman-dot { animation: none !important; } .pacman { display: none; } }
 
 /* ---------- Sections ---------- */
 .section { position: relative; }
