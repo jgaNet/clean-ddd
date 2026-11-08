@@ -37,7 +37,7 @@ The evidence, from [OpenStay's J5](../evaluations/benchmark/openstay/j5/README.m
 
 - An integration event that announces a thing has the thing's id in its payload, and the consumer's factory takes an id.
 - A feature that crosses a relationship carries one more test. It is the one that fails first when the two sides disagree on identity, wiring or delivery.
-- The step is a reminder, not a proof. It checks that a test named for the pair changed, not what the test asserts. The gate message says what to assert, and a reviewer reads it.
+- On its own, the step is a reminder, not a proof: it checks that a test named for the pair changed, not what the test asserts. [ADR 34](0034-a-relationship-test-must-see-the-change.md) adds the executed half, where a binding gives the command: a test that adds a case must fail at the base.
 
 ## When to revisit
 

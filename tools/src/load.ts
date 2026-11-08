@@ -291,7 +291,10 @@ export function loadArchitectureContract(
     enforcers: (isObject(binding.enforcers) ? binding.enforcers : {}) as Record<Enforcement, string>,
     checks: strings(binding.checks),
     ...(isObject(binding.relationship_tests) && {
-      relationshipTests: { suffix: String(binding.relationship_tests.suffix ?? '.spec.ts') },
+      relationshipTests: {
+        suffix: String(binding.relationship_tests.suffix ?? '.spec.ts'),
+        ...(binding.relationship_tests.run !== undefined && { run: String(binding.relationship_tests.run) }),
+      },
     }),
     ...(create && { create }),
     layers: Object.keys(layersRaw),
