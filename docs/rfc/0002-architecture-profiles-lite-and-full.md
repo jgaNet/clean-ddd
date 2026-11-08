@@ -12,7 +12,7 @@ Nothing is implemented, and the Full profile is not touched.
 - **H8, the cost threshold: Lite is "not supported" unless its median cost per delivered feature is at most 0.6×
   Full's, with no overlap of ranges.** It must also keep Full's structural passes (O6, O11, O8), and have no more
   triaged FAILEDs or real regressions than Full.
-- **H8, the campaign: Lite alone against the historical records.** Three Lite trees on requests 1–50, compared with
+- **H8, the campaign (superseded on 8 November, below): Lite alone against the historical records.** Three Lite trees on requests 1–50, compared with
   J2–J4's Simple and Full trees. The comparison is weaker, and the record must say how:
   - the machine, the harness and the kit changed between J2–J4 and the Lite run;
   - J2–J4's budgets were not equal across arms after J2;
@@ -21,6 +21,18 @@ Nothing is implemented, and the Full profile is not touched.
   
   A cheap mitigation, to decide when the protocol is registered: rerun one Simple and one Full tree on requests 1–10
   beside the Lite trees, as a calibration of the machine and the harness, not as a comparison.
+
+**Decided (the maintainer, 8 November, after the review of J5):**
+
+- **H8, the campaign: three arms at the same time,** Simple, Lite and Full, on requests none of them was tuned on (a
+  new application), after a calibration all three run together (OpenStay's requests 1–10, not counted). The records
+  were made on another machine, harness and kit, and Lite's rules were drawn from OpenStay's requests: comparing Lite
+  with them would measure the difference twice. The draft protocol:
+  [`three-arms/README.md`](../evaluations/benchmark/three-arms/README.md). The threshold (0.6× Full's median, no
+  overlap) is unchanged.
+- **Lite's triggers stay few, objective and held by the gate** (H3, H4): the campaign measures how often a Lite feature
+  brings a mechanism in, and what the gate refused, so that a profile that costs more to decide than it saves to write
+  is seen.
 
 **Decided (the maintainer, 7 November):**
 
@@ -342,7 +354,7 @@ Checks the engine would run, written here as requirements:
 
 ## 11. Benchmark protocol (proposed, to register before any Lite run)
 
-- **Arms (decided: Lite alone against the records).** Three Lite trees, compared with J2–J4's Simple and Full trees. Same ladder (smallest → strongest), the current harness (resume at the step after the last escalation, triage before FAILED), budgets at least Full's J4 ceilings, so that Lite is never starved where Full was not. The proposal it replaced, three fresh arms run at the same time, stays the stronger design if this one is inconclusive.
+- **Arms (decided on 8 November: three arms at the same time, on requests no kit was tuned on, with a shared calibration; [the draft protocol](../evaluations/benchmark/three-arms/README.md)).** This replaces the decision of 6 November below, after the review of J5 showed the records were made on another machine, harness and kit. What was decided before: **Lite alone against the records.** Three Lite trees, compared with J2–J4's Simple and Full trees. Same ladder (smallest → strongest), the current harness (resume at the step after the last escalation, triage before FAILED), budgets at least Full's J4 ceilings, so that Lite is never starved where Full was not. The proposal it replaced, three fresh arms run at the same time, stays the stronger design if this one is inconclusive.
 - **Requests.** The OpenStay backlog from request 1.
   - Lite cannot start from a Full tree at 50: the conversion would be the experimenter's work, not the arm's.
   - Lite's design used the records of 1–64, so the **evaluation window is features none of its rules was tuned on**. Options are listed in Q4 below.
