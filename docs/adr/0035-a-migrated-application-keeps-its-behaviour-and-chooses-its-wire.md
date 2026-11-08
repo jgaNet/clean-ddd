@@ -56,3 +56,12 @@ Switching to `native` is removing the façade. The check holds the setting: a co
 - **If a migrated application needs the wait somewhere other than a façade** in a way the grammar forbids (a synchronous command inside a context), that is a request for a second HTTP grammar in the contract, decided for every language, not an exception for one route.
 - **If the deadline's degradation to `202` turns out to break the clients it was meant to keep**, the façade may hold the connection longer or answer the legacy's own timeout; either is a change to the façade's kind in the contract, and this record is revised with the case that asked for it.
 - **If the first migration done by hand shows that the storm cannot be read from the legacy** — the facts too implicit, the words too mixed — the skill facilitates the session with the people who know the legacy, and reads the code as evidence rather than as the room.
+
+## Revision: the kind is in the contract
+
+The change after this record declares the compatibility route in the contract and holds it, as the decision asked.
+
+- **The contract** names the two wires under `migration.api` (`native`, `compat`), each with what it means, and the rule ARCH-COMPAT-ROUTE, held by the check.
+- **The binding** carries the choice: `migration.api`, and under `compat` the `compatibility_routes`, each with its method and path, the one `operation` of the inventory it stands for, the `file` under the transport that serves it, and `retires`. A retirement is a date the check holds — a route past its date is refused until it is removed or decided again — or the condition in words, which the check cannot hold and does not. An application that was not migrated has no `migration` section, which is `native` with nothing declared.
+- **The check** refuses a route served from outside the transport, one bound to nothing the inventory lists, one with no retirement, one past its date, any route declared under `native`, and, in the tree this tooling reads, a file outside the transport and the building blocks that imports the wait; a spec may, since a test helper is a caller in one exchange too. The inventory it asks is the tree's where this tooling reads one, and the one the language's tool wrote elsewhere.
+- **The façade itself is not written here.** The reference was migrated from nothing and declares no route; the first compatibility route is written in the first migration done by hand, and what it needs that the building blocks lack is reported then.

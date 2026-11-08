@@ -9,6 +9,8 @@ import {
   ContractError,
   Enforcement,
   Language,
+  Migration,
+  MigrationApi,
   Rule,
   SUPPORTED_SCHEMA_VERSION,
   Mode,
@@ -18,6 +20,7 @@ import {
   Verb,
   VocabularyRow,
 } from './types';
+import { validateMigration } from './migration';
 
 /**
  * Loads the three YAML files — the contract (architecture.yaml), the concepts (concepts.yaml)
@@ -247,6 +250,29 @@ export function loadArchitectureContract(
     };
   }
 
+  // The wires a migrated application may answer on, and this application's choice (ADR 35). YAML
+  // reads a bare date as a Date; the binding means the day, as a string.
+  const migrationApis = Object.fromEntries(
+    Object.entries(
+      isObject(architecture.migration) && isObject(architecture.migration.api) ? architecture.migration.api : {},
+    ).map(([api, meaning]) => [api, String(meaning)]),
+  );
+  const migration: Migration | undefined = isObject(binding.migration)
+    ? {
+        api: String(binding.migration.api ?? 'native') as MigrationApi,
+        routes: (Array.isArray(binding.migration.compatibility_routes) ? binding.migration.compatibility_routes : [])
+          .filter(isObject)
+          .map(route => ({
+            method: String(route.method ?? '').toUpperCase(),
+            path: String(route.path ?? ''),
+            operation: String(route.operation ?? ''),
+            file: route.file ? local.path(String(route.file)) : '',
+            retires:
+              route.retires instanceof Date ? route.retires.toISOString().slice(0, 10) : String(route.retires ?? ''),
+          })),
+      }
+    : undefined;
+
   const boundVocabulary = isObject(binding.vocabulary) ? binding.vocabulary : {};
   const vocabulary: VocabularyRow[] = (
     (concepts.vocabulary as { word: string; meaning: string }[] | undefined) ?? []
@@ -303,6 +329,8 @@ export function loadArchitectureContract(
     verbs,
     checklists,
     modes,
+    migrationApis,
+    ...(migration && { migration }),
     tests,
     vocabulary,
     sources,
@@ -310,7 +338,12 @@ export function loadArchitectureContract(
 }
 
 /** Everything a loaded contract can still get wrong, one line each; empty means the contract is sound. */
-export function validateContract(contract: ArchitectureContract, root: string = repositoryRoot()): string[] {
+export function validateContract(
+  contract: ArchitectureContract,
+  root: string = repositoryRoot(),
+  /** The day a compatibility route's retirement is held against, `YYYY-MM-DD`; today unless a test says otherwise. */
+  today?: string,
+): string[] {
   const problems: string[] = [];
   const ids = new Set<string>();
   const idShape = /^[A-Z]+-[A-Z0-9-]+$/;
@@ -441,5 +474,8 @@ export function validateContract(contract: ArchitectureContract, root: string = 
     if (!kinds.has(kind))
       problems.push(`${bindingFile}: has a checklist for ${kind}, which ${contractFile} does not define`);
   }
+
+  // A migrated application's wire, and the compatibility routes it declares (ADR 35).
+  problems.push(...validateMigration(contract, root, today));
   return problems;
 }
