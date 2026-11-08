@@ -5,9 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CLEAN-DDD — Clean Architecture &amp; DDD, une implémentation de référence</title>
 <meta name="description" content="Une implémentation de référence de la Clean Architecture et du Domain-Driven Design, écrite pour être lue, en TypeScript, Rust, Python et Go, depuis une seule architecture qui est de la donnée et que l’outillage fait respecter ; puis mesurée avec des agents de code IA.">
+<link rel="alternate" hreflang="fr" href="https://jganet.github.io/clean-ddd/">
+<link rel="alternate" hreflang="en" href="https://jganet.github.io/clean-ddd/en/">
+<link rel="alternate" hreflang="x-default" href="https://jganet.github.io/clean-ddd/">
 <meta property="og:title" content="CLEAN-DDD — Clean Architecture &amp; DDD, une implémentation de référence">
 <meta property="og:description" content="Une architecture que l’outillage fait respecter, en quatre langages, mesurée avec des agents IA : elle ne rend pas un agent plus rapide, elle l’empêche de dériver.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://jganet.github.io/clean-ddd/">
+<meta property="og:image" content="https://jganet.github.io/clean-ddd/assets/img/open-graph.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <style>
 @font-face {
@@ -53,6 +62,7 @@ code { font-family: var(--mono); font-size: 0.9em; letter-spacing: 0; }
 .btn:focus-visible { outline: 2px solid #ec4899; outline-offset: 2px; }
 .btn-primary { font-weight: 600; color: #fff; border: none; background-image: var(--gradient); background-size: 200% auto; background-position: left; transition: background-position 0.5s; }
 .btn-primary:hover { background-position: right; color: #fff; }
+.btn small { font-size: 0.8em; font-weight: 500; opacity: 0.85; margin-left: 0.25rem; }
 .btn-sm { padding: 0.375rem 0.5rem; font-size: 0.75rem; font-weight: 600; box-shadow: none; }
 @media (min-width: 768px) { .btn { padding-left: 2rem; padding-right: 2rem; } .btn-sm { padding-left: 0.75rem; padding-right: 0.75rem; } }
 .btn-gradient-vertical { background-image: linear-gradient(180deg, #4c3584, #e43b7d, #ff5211); background-size: 300% 300%; animation: gradient-shift 30s ease infinite; }
@@ -257,10 +267,11 @@ footer { position: relative; padding: 1.5rem; overflow: hidden; background: radi
 <li><a href="#concepts">Concepts</a></li>
 <li><a href="#tooling">Outillage</a></li>
 <li><a href="#languages">Langages</a></li>
+<li><a href="article.html" hreflang="en">L’article</a></li>
 </ul>
 </nav>
 <div class="header-actions">
-<a class="lang-switch" href="article.html" hreflang="en" lang="en">L’ARTICLE</a>
+<a class="lang-switch" href="en/" hreflang="en" lang="en" aria-label="English version">EN</a>
 <a class="btn btn-primary btn-sm" href="https://github.com/jgaNet/clean-ddd" target="_blank" rel="noopener">GITHUB</a>
 </div>
 </div>
@@ -274,14 +285,14 @@ footer { position: relative; padding: 1.5rem; overflow: hidden; background: radi
 <h1>Une architecture que l’outillage fait respecter, <br>mesurée avec des agents IA</h1>
 <p>Une implémentation de référence, écrite pour être lue, dont les règles sont de la donnée. Verdict mesuré : elle ne rend pas un agent plus rapide ; elle l’empêche de dériver.</p>
 <div class="hero-actions">
-<a class="btn btn-primary" href="article.html">Lire les résultats</a>
+<a class="btn btn-primary" href="article.html" hreflang="en">Lire les résultats <small>(en anglais)</small></a>
 <a class="btn" href="https://github.com/jgaNet/clean-ddd" target="_blank" rel="noopener">Voir le code</a>
 </div>
 <ul class="proof" aria-label="En chiffres">
 <li><b>32</b> exécutions d’agents notées</li>
 <li><b>1.4–2.8×</b> le temps du projet nu</li>
 <li><b>0</b> fichier du domaine touché par un changement de base</li>
-<li><b>0</b> violation d’import avec l’outillage</li>
+<li><b>20→24</b> violations d’import sans l’outillage, aucune avec</li>
 </ul>
 </div>
 </section>

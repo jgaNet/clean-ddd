@@ -23,7 +23,7 @@ The evidence, from [OpenStay's J5](../evaluations/benchmark/openstay/j5/README.m
   - The receiving side passes it to its aggregate's factory (`create({ id, … })`) instead of generating a new one.
   - A thing made *about* another one (a report about a message, a notification about a shared note) is a thing of its own, with its own id. That id is the one its event must carry: the report's, not the message's.
 - **A relationship crossed is tested.** When a binding turns it on (`relationship_tests`), the gate asks every relationship between two contexts that a change crosses for a test changed with it.
-  - A change crosses a relationship when it touches either end: a file of the downstream context that names one of its contracts, or a file of the upstream context that builds one of its integration events.
+  - A change crosses a relationship when it touches either end: a file of the downstream context that names one of its contracts, or a file of the upstream context that builds one of its integration events. [ADR 35](0035-a-relationship-is-crossed-where-the-change-touches-its-contracts.md) narrowed this to the contracts the change touches.
   - The test is named for the pair (`describe('Notes → Notifications', …)`).
   - It makes the thing upstream through the API and keeps the id that very request answered: its `{ id }`, or its operation's result.
   - It then reads the downstream context through the API and finds the thing by that same id.

@@ -451,6 +451,7 @@ Non-obvious choices are recorded as short ADRs in [`docs/adr`](docs/adr):
 32. [A command's body is refused for its shape only; whether a value is allowed is the domain's](docs/adr/0032-a-command-body-is-refused-for-its-shape-only.md)
 33. [Identity is born once, and a relationship crossed is tested](docs/adr/0033-identity-is-born-once-and-a-relationship-crossed-is-tested.md)
 34. [A relationship test must see the change: its new cases fail without it](docs/adr/0034-a-relationship-test-must-see-the-change.md)
+35. [A relationship is crossed where the change touches one of its contracts](docs/adr/0035-a-relationship-is-crossed-where-the-change-touches-its-contracts.md)
 36. [A migrated application keeps its behaviour, and chooses the wire it answers on](docs/adr/0036-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md)
 
 What is deliberately *not* here — a DI container, an ORM, a message broker, a generic saga — is listed with its reason and the day it would come in the TypeScript README's [What is deliberately not here](typescript/README.md#what-is-deliberately-not-here); the known gaps of each language are at the end of its README.

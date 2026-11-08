@@ -1,24 +1,26 @@
 #!/usr/bin/env node
 /**
- * The page that presents the project, site/index.html, in French, in the visual codes of exostic.com: dark
+ * The page that presents the project, site/index.html, in French and in English, in the visual codes of exostic.com: dark
  * ground, Inter, the orange → pink → violet gradient, pill buttons, translucent panels. The
  * article is a page of its own, site/article.html (node site/build.mjs), reached from here.
  *
- *   node site/home.mjs   → site/index.html
+ *   node site/home.mjs   → site/index.html (French), site/en/index.html (English)   (yarn site, at the root, builds the whole site)
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { figures, span } from './figures.mjs';
+import { drift, figures, quotes, span, verifyQuotes } from './figures.mjs';
 
 const here = new URL('.', import.meta.url).pathname;
 const data = JSON.parse(readFileSync(join(here, 'data.json'), 'utf8'));
 const { graded, allTimes, allCosts } = figures(data);
+verifyQuotes(join(here, '..'));
+const [driftBefore, driftAfter] = drift(data);
 
 const repo = 'https://github.com/jgaNet/clean-ddd';
 const blob = path => `${repo}/blob/main/${path}`;
-const article = 'article.html';
-const year = new Date().getUTCFullYear();
+// The year the site was published; a clock here would make the built page differ from one day to the next.
+const year = 2026;
 
 // Icons: one path each, drawn on a 24-unit grid, stroked with the current colour.
 const icon = {
@@ -51,38 +53,279 @@ const terminal = (title, lines) => `<div class="terminal" role="img" aria-label=
   .join('\n')}</pre>
 </div>`;
 
-const pillars = [
-  {
-    icon: 'cube',
-    title: 'Une petite application, lisible',
-    text: 'Des notes partagées, des comptes, des notifications, le suivi de chaque opération. Chaque concept DDD et Clean Architecture y apparaît exactement une fois.',
+// Every word the page says, in each of its languages; the CLI's output in the terminal panels stays as printed.
+const locales = {
+  fr: {
+    lang: 'fr',
+    path: '',
+    other: { code: 'EN', path: 'en/', label: 'English version', lang: 'en' },
+    title: 'CLEAN-DDD — Clean Architecture & DDD, une implémentation de référence',
+    description:
+      'Une implémentation de référence de la Clean Architecture et du Domain-Driven Design, écrite pour être lue, en TypeScript, Rust, Python et Go, depuis une seule architecture qui est de la donnée et que l’outillage fait respecter ; puis mesurée avec des agents de code IA.',
+    ogDescription:
+      'Une architecture que l’outillage fait respecter, en quatre langages, mesurée avec des agents IA : elle ne rend pas un agent plus rapide, elle l’empêche de dériver.',
+    ogImage: 'open-graph.png',
+    home: 'CLEAN-DDD, accueil',
+    menu: 'Ouvrir le menu',
+    navLabel: 'Navigation principale',
+    nav: {
+      what: 'Le projet',
+      measured: 'Mesures',
+      concepts: 'Concepts',
+      tooling: 'Outillage',
+      languages: 'Langages',
+      article: 'L’article',
+    },
+    hero: {
+      tagline: 'Clean Architecture &amp; DDD · TypeScript · Rust · Python · Go',
+      title: 'Une architecture que l’outillage fait respecter, <br>mesurée avec des agents IA',
+      text: 'Une implémentation de référence, écrite pour être lue, dont les règles sont de la donnée. Verdict mesuré : elle ne rend pas un agent plus rapide ; elle l’empêche de dériver.',
+      read: 'Lire les résultats <small>(en anglais)</small>',
+      code: 'Voir le code',
+      proofLabel: 'En chiffres',
+      proof: [
+        'exécutions d’agents notées',
+        'le temps du projet nu',
+        'fichier du domaine touché par un changement de base',
+        'violations d’import sans l’outillage, aucune avec',
+      ],
+    },
+    what: {
+      tagline: 'Le projet',
+      title: 'Une architecture, quatre langages, zéro convention tacite',
+      pillars: [
+        [
+          'cube',
+          'Une petite application, lisible',
+          'Des notes partagées, des comptes, des notifications, le suivi de chaque opération. Chaque concept DDD et Clean Architecture y apparaît exactement une fois.',
+        ],
+        [
+          'layers',
+          'Une architecture qui est de la donnée',
+          'Les couches, qui importe qui, chaque règle sous un identifiant stable : un contrat YAML dont sont générés le linter et les vérifications. Une frontière qui cède quand ça arrange n’en est pas une.',
+        ],
+        [
+          'globe',
+          'Quatre langages, une seule API',
+          'TypeScript, Rust, Python et Go, chacun avec sa chaîne d’outils. Un même scénario boîte noire passe sur les quatre serveurs ; un même inventaire les tient égaux.',
+        ],
+      ],
+    },
+    measured: {
+      tagline: 'Mesures',
+      title: 'Ce que ça coûte, ce que ça apporte',
+      sub: 'Deux benchmarks ont fait construire la même application par des agents, avec et sans l’architecture, face à des tests cachés. Le résultat est écrit tel quel.',
+      costTitle: 'Ça coûte : du temps et de l’argent.',
+      cost: (time, cost) =>
+        `Dans chaque expérience, le projet nu a livré autant, pour ${time} fois moins de temps et ${cost} fois moins cher. Un modèle plus faible n’a pas été aidé non plus.`,
+      buysTitle: 'Ça apporte : une structure qui tient.',
+      buys: 'Les changements restent dans leur couche, les contextes restent séparés, l’argent n’est pas payé deux fois, et plusieurs agents travaillent sur une même base de code sans conflit.',
+      note: article =>
+        `Un garde-fou et un coordinateur pour les agents, pas un accélérateur. <a href="${article}" hreflang="en">L’article</a>, en anglais, détaille chaque expérience, chaque chiffre lu dans les registres du dépôt.`,
+    },
+    concepts: {
+      tagline: 'Concepts',
+      title: 'Chaque concept, une fois, au même endroit dans chaque langage',
+      list: [
+        ['cube', 'Racine d’agrégat', 'génère son identité, enregistre ses événements, porte sa version.'],
+        ['tag', 'Objet-valeur', 'valide une fois : create() refuse, fromSnapshot() lève.'],
+        ['bolt', 'Événement de domaine', 'un fait, durable avec l’état, publié après le commit.'],
+        ['arrows', 'Événement d’intégration', 'le contrat entre deux contextes, dans le noyau partagé.'],
+        ['terminal', 'Commande et requête', 'un seul handler par commande ; une requête renvoie un modèle de lecture.'],
+        ['doc', 'Result, pas exception', 'un refus est une valeur ; lever est réservé aux bugs.'],
+        ['clock', 'Outbox', 'les événements sont stockés avec l’état et relayés ensuite.'],
+        ['branch', 'Concurrence optimiste', 'save() refuse un agrégat périmé ; le handler redécide, trois fois.'],
+        ['link', 'Ports et adaptateurs', 'tout ce qui n’est pas fonction de l’état métier passe par un port.'],
+        ['map', 'Carte des contextes', 'chaque relation déclarée une fois, tenue au code par la vérification.'],
+        ['storm', 'Politique', 'une réaction à un fait, dans sa propre transaction.'],
+        ['shield', 'Deux modes', 'une fonctionnalité reste dans l’architecture ; la changer est une décision.'],
+      ],
+    },
+    tooling: {
+      tagline: 'Outillage',
+      title: 'L’architecture répond, puis vérifie',
+      askTitle: 'Avant d’écrire : demander',
+      ask: [
+        ['Une règle, expliquée', 'L’énoncé, la raison, la remédiation, le fichier qui la montre.'],
+        ['Un import, jugé', 'Ce fichier peut-il importer celui-là, et quelle règle le dit.'],
+        [
+          'Une fonctionnalité, décidée',
+          'Un event storm facilité, écrit en mots communs aux quatre langages ; une checklist dit quoi écrire et où.',
+        ],
+      ],
+      proveTitle: 'Après avoir écrit : prouver',
+      prove: [
+        [
+          'Le mode fonctionnalité',
+          'Refuse tout changement hors des contextes : briques de base, noyau partagé, conventions, décisions.',
+        ],
+        [
+          'La vérification des conventions',
+          'Chaque fichier nommé existe, chaque lien résout, chaque sonde d’import se comporte, la carte des contextes est vraie.',
+        ],
+        [
+          'Un inventaire, quatre arbres',
+          'Chaque langage écrit ce que son arbre dit de l’application ; la vérification en refuse deux qui diffèrent.',
+        ],
+      ],
+      checks: 'les vérifications',
+    },
+    languages: {
+      tagline: 'Langages',
+      title: 'Lancez-la dans le langage que vous lisez le mieux',
+      sub: 'Même port, même API sous <code>/v1</code>. Le README de chaque langage suit une requête de bout en bout ; son guide dit comment y travailler, à la main ou avec un agent.',
+      run: 'Lancer le serveur',
+      check: 'La tenir à l’architecture',
+    },
+    founder: {
+      tagline: 'Qui le fait',
+      text: 'Ingénierie produit, logicielle et système. Référence, outillage et expériences sont construits et rédigés avec un assistant IA ; les corrections sont bienvenues en issues.',
+      issue: 'Ouvrir une issue',
+    },
+    footer: {
+      article: 'L’article',
+      decisions: 'Décisions',
+      records: 'Registres',
+      legal: 'Licence MIT · <code>npm i clean-ddd</code> pour l’outillage',
+      note: 'une architecture, quatre langages, chaque chiffre lu dans les registres.',
+    },
   },
-  {
-    icon: 'layers',
-    title: 'Une architecture qui est de la donnée',
-    text: 'Les couches, qui importe qui, chaque règle sous un identifiant stable : un contrat YAML dont sont générés le linter et les vérifications. Une frontière qui cède quand ça arrange n’en est pas une.',
+  en: {
+    lang: 'en',
+    path: 'en/',
+    other: { code: 'FR', path: '../', label: 'Version française', lang: 'fr' },
+    title: 'CLEAN-DDD — Clean Architecture & DDD, a reference implementation',
+    description:
+      'A reference implementation of Clean Architecture and Domain-Driven Design, written to be read, in TypeScript, Rust, Python and Go, from one architecture that is data and that tooling holds the code to; then measured with AI coding agents.',
+    ogDescription:
+      'An architecture tooling holds the code to, in four languages, measured with AI agents: it does not make an agent faster, it keeps it from drifting.',
+    ogImage: 'open-graph.en.png',
+    home: 'CLEAN-DDD, home',
+    menu: 'Open the menu',
+    navLabel: 'Main navigation',
+    nav: {
+      what: 'The project',
+      measured: 'Measured',
+      concepts: 'Concepts',
+      tooling: 'Tooling',
+      languages: 'Languages',
+      article: 'The article',
+    },
+    hero: {
+      tagline: 'Clean Architecture &amp; DDD · TypeScript · Rust · Python · Go',
+      title: 'An architecture tooling holds the code to, <br>measured with AI agents',
+      text: 'A reference implementation, written to be read, whose rules are data. The measured verdict: it does not make an agent faster; it keeps it from drifting.',
+      read: 'Read the results',
+      code: 'See the code',
+      proofLabel: 'In figures',
+      proof: [
+        'agent runs graded',
+        'the plain project’s time',
+        'domain file touched by a change of storage',
+        'import violations without the tooling, none with it',
+      ],
+    },
+    what: {
+      tagline: 'The project',
+      title: 'One architecture, four languages, no tacit convention',
+      pillars: [
+        [
+          'cube',
+          'One small application, readable',
+          'Shared notes, accounts, notifications, the tracking of every operation. Every DDD and Clean Architecture concept appears in it exactly once.',
+        ],
+        [
+          'layers',
+          'An architecture that is data',
+          'The layers, who imports whom, every rule under a stable id: a YAML contract the linter and the checks are generated from. A boundary that gives way when convenient is not one.',
+        ],
+        [
+          'globe',
+          'Four languages, one API',
+          'TypeScript, Rust, Python and Go, each with its own toolchain. One black-box scenario passes against the four servers; one inventory holds them equal.',
+        ],
+      ],
+    },
+    measured: {
+      tagline: 'Measured',
+      title: 'What it costs, what it buys',
+      sub: 'Two benchmarks had agents build the same application, with and without the architecture, against hidden tests. The result is written as it came.',
+      costTitle: 'It costs: time and money.',
+      cost: (time, cost) =>
+        `In every experiment the plain project delivered as much, in ${time} times less time and ${cost} times cheaper. A weaker model was not helped either.`,
+      buysTitle: 'It buys: a structure that holds.',
+      buys: 'Changes stay in their layer, contexts stay apart, money is not paid twice, and several agents work on one codebase without conflicts.',
+      note: article =>
+        `A guardrail and a coordinator for agents, not an accelerator. <a href="${article}">The article</a> details every experiment, every figure read from the repository’s records.`,
+    },
+    concepts: {
+      tagline: 'Concepts',
+      title: 'Every concept, once, in the same place in each language',
+      list: [
+        ['cube', 'Aggregate root', 'generates its identity, records its events, carries its version.'],
+        ['tag', 'Value object', 'validates once: create() refuses, fromSnapshot() throws.'],
+        ['bolt', 'Domain event', 'a fact, durable with the state, published after the commit.'],
+        ['arrows', 'Integration event', 'the contract between two contexts, in the shared kernel.'],
+        ['terminal', 'Command and query', 'one handler per command; a query returns a read model.'],
+        ['doc', 'Result, not exception', 'a refusal is a value; throwing is for bugs.'],
+        ['clock', 'Outbox', 'events are stored with the state and relayed afterwards.'],
+        ['branch', 'Optimistic concurrency', 'save() refuses a stale aggregate; the handler re-decides, three times.'],
+        ['link', 'Ports and adapters', 'anything that is not a function of the business state goes through a port.'],
+        ['map', 'Context map', 'every relationship declared once, held to the code by the check.'],
+        ['storm', 'Policy', 'a reaction to a fact, in a transaction of its own.'],
+        ['shield', 'Two modes', 'a feature stays inside the architecture; changing it is a decision.'],
+      ],
+    },
+    tooling: {
+      tagline: 'Tooling',
+      title: 'The architecture answers, then checks',
+      askTitle: 'Before writing: ask',
+      ask: [
+        ['A rule, explained', 'The statement, the reason, the remediation, the file that shows it.'],
+        ['An import, judged', 'May this file import that one, and which rule says so.'],
+        [
+          'A feature, decided',
+          'A facilitated event storm, written in words the four languages share; a checklist says what to write and where.',
+        ],
+      ],
+      proveTitle: 'After writing: prove',
+      prove: [
+        [
+          'The feature mode',
+          'Refuses any change outside the contexts: building blocks, shared kernel, conventions, decisions.',
+        ],
+        [
+          'The conventions check',
+          'Every named file exists, every link resolves, every import probe behaves, the context map is true.',
+        ],
+        [
+          'One inventory, four trees',
+          'Each language writes what its tree says the application is; the check refuses two that differ.',
+        ],
+      ],
+      checks: 'the checks',
+    },
+    languages: {
+      tagline: 'Languages',
+      title: 'Run it in the language you read best',
+      sub: 'Same port, same API under <code>/v1</code>. Each language’s README follows one request end to end; its guide says how to work in it, by hand or with an agent.',
+      run: 'Run the server',
+      check: 'Hold it to the architecture',
+    },
+    founder: {
+      tagline: 'Who makes it',
+      text: 'Product, software and system engineering. Reference, tooling and experiments are built and written up with an AI assistant; corrections are welcome as issues.',
+      issue: 'Open an issue',
+    },
+    footer: {
+      article: 'The article',
+      decisions: 'Decisions',
+      records: 'Records',
+      legal: 'MIT license · <code>npm i clean-ddd</code> for the tooling',
+      note: 'one architecture, four languages, every figure read from the records.',
+    },
   },
-  {
-    icon: 'globe',
-    title: 'Quatre langages, une seule API',
-    text: 'TypeScript, Rust, Python et Go, chacun avec sa chaîne d’outils. Un même scénario boîte noire passe sur les quatre serveurs ; un même inventaire les tient égaux.',
-  },
-];
-
-const concepts = [
-  ['cube', 'Racine d’agrégat', 'génère son identité, enregistre ses événements, porte sa version.'],
-  ['tag', 'Objet-valeur', 'valide une fois : create() refuse, fromSnapshot() lève.'],
-  ['bolt', 'Événement de domaine', 'un fait, durable avec l’état, publié après le commit.'],
-  ['arrows', 'Événement d’intégration', 'le contrat entre deux contextes, dans le noyau partagé.'],
-  ['terminal', 'Commande et requête', 'un seul handler par commande ; une requête renvoie un modèle de lecture.'],
-  ['doc', 'Result, pas exception', 'un refus est une valeur ; lever est réservé aux bugs.'],
-  ['clock', 'Outbox', 'les événements sont stockés avec l’état et relayés ensuite.'],
-  ['branch', 'Concurrence optimiste', 'save() refuse un agrégat périmé ; le handler redécide, trois fois.'],
-  ['link', 'Ports et adaptateurs', 'tout ce qui n’est pas fonction de l’état métier passe par un port.'],
-  ['map', 'Carte des contextes', 'chaque relation déclarée une fois, tenue au code par la vérification.'],
-  ['storm', 'Politique', 'une réaction à un fait, dans sa propre transaction.'],
-  ['shield', 'Deux modes', 'une fonctionnalité reste dans l’architecture ; la changer est une décision.'],
-];
+};
 
 const languages = [
   {
@@ -107,27 +350,34 @@ const languages = [
   },
 ];
 
-const body = `
+const item = ([title, text]) =>
+  `<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>${title}</h4><p>${text}</p></div></div>`;
+
+// The body of the page in one language; `up` leads from the page's directory back to the site's root.
+const body = (L, up) => {
+  const article = `${up}article.html`;
+  return `
 <header id="header">
 <div class="header-backdrop"></div>
 <div class="header-inner">
 <div class="header-brand">
-<a class="header-logo" href="./" aria-label="CLEAN-DDD, accueil"><span class="wordmark">CLEAN-DDD</span></a>
-<button class="menu-toggle" type="button" aria-controls="main-nav" aria-expanded="false" aria-label="Ouvrir le menu">
+<a class="header-logo" href="./" aria-label="${L.home}"><span class="wordmark">CLEAN-DDD</span></a>
+<button class="menu-toggle" type="button" aria-controls="main-nav" aria-expanded="false" aria-label="${L.menu}">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path class="bar-top" d="M4 6h16"/><path class="bar-mid" d="M4 12h16"/><path class="bar-bottom" d="M4 18h16"/></svg>
 </button>
 </div>
-<nav id="main-nav" class="header-nav" aria-label="Navigation principale">
+<nav id="main-nav" class="header-nav" aria-label="${L.navLabel}">
 <ul>
-<li><a href="#what">Le projet</a></li>
-<li><a href="#measured">Mesures</a></li>
-<li><a href="#concepts">Concepts</a></li>
-<li><a href="#tooling">Outillage</a></li>
-<li><a href="#languages">Langages</a></li>
+<li><a href="#what">${L.nav.what}</a></li>
+<li><a href="#measured">${L.nav.measured}</a></li>
+<li><a href="#concepts">${L.nav.concepts}</a></li>
+<li><a href="#tooling">${L.nav.tooling}</a></li>
+<li><a href="#languages">${L.nav.languages}</a></li>
+<li><a href="${article}" hreflang="en">${L.nav.article}</a></li>
 </ul>
 </nav>
 <div class="header-actions">
-<a class="lang-switch" href="${article}" hreflang="en" lang="en">L’ARTICLE</a>
+<a class="lang-switch" href="${L.other.path}" hreflang="${L.other.lang}" lang="${L.other.lang}" aria-label="${L.other.label}">${L.other.code}</a>
 <a class="btn btn-primary btn-sm" href="${repo}" target="_blank" rel="noopener">GITHUB</a>
 </div>
 </div>
@@ -137,18 +387,18 @@ const body = `
 <section class="hero">
 <div class="hero-picture" aria-hidden="true"><div class="glow glow-a"></div><div class="glow glow-b"></div><div class="glow glow-c"></div></div>
 <div class="hero-content">
-<p class="tagline">Clean Architecture &amp; DDD · TypeScript · Rust · Python · Go</p>
-<h1>Une architecture que l’outillage fait respecter, <br>mesurée avec des agents IA</h1>
-<p>Une implémentation de référence, écrite pour être lue, dont les règles sont de la donnée. Verdict mesuré : elle ne rend pas un agent plus rapide ; elle l’empêche de dériver.</p>
+<p class="tagline">${L.hero.tagline}</p>
+<h1>${L.hero.title}</h1>
+<p>${L.hero.text}</p>
 <div class="hero-actions">
-<a class="btn btn-primary" href="${article}">Lire les résultats</a>
-<a class="btn" href="${repo}" target="_blank" rel="noopener">Voir le code</a>
+<a class="btn btn-primary" href="${article}" hreflang="en">${L.hero.read}</a>
+<a class="btn" href="${repo}" target="_blank" rel="noopener">${L.hero.code}</a>
 </div>
-<ul class="proof" aria-label="En chiffres">
-<li><b>${graded}</b> exécutions d’agents notées</li>
-<li><b>${span(allTimes)}×</b> le temps du projet nu</li>
-<li><b>0</b> fichier du domaine touché par un changement de base</li>
-<li><b>0</b> violation d’import avec l’outillage</li>
+<ul class="proof" aria-label="${L.hero.proofLabel}">
+<li><b>${graded}</b> ${L.hero.proof[0]}</li>
+<li><b>${span(allTimes)}×</b> ${L.hero.proof[1]}</li>
+<li><b>${quotes.sqliteDomainFiles.value}</b> ${L.hero.proof[2]}</li>
+<li><b>${driftBefore}→${driftAfter}</b> ${L.hero.proof[3]}</li>
 </ul>
 </div>
 </section>
@@ -156,16 +406,16 @@ const body = `
 <section id="what" class="section">
 <div class="section-inner">
 <div class="headline">
-<p class="tagline">Le projet</p>
-<h2>Une architecture, quatre langages, zéro convention tacite</h2>
+<p class="tagline">${L.what.tagline}</p>
+<h2>${L.what.title}</h2>
 </div>
 <div class="cards">
-${pillars
+${L.what.pillars
   .map(
-    card => `<div class="card">
-${svg(card.icon)}
-<h3>${card.title}</h3>
-<p>${card.text}</p>
+    ([name, title, text]) => `<div class="card">
+${svg(name)}
+<h3>${title}</h3>
+<p>${text}</p>
 </div>`,
   )
   .join('\n')}
@@ -176,32 +426,32 @@ ${svg(card.icon)}
 <section id="measured" class="section">
 <div class="section-inner narrow">
 <div class="headline">
-<p class="tagline">Mesures</p>
-<h2>Ce que ça coûte, ce que ça apporte</h2>
-<p class="sub">Deux benchmarks ont fait construire la même application par des agents, avec et sans l’architecture, face à des tests cachés. Le résultat est écrit tel quel.</p>
+<p class="tagline">${L.measured.tagline}</p>
+<h2>${L.measured.title}</h2>
+<p class="sub">${L.measured.sub}</p>
 </div>
 <div class="verdict">
 <div>
-<h3>Ça coûte : du temps et de l’argent.</h3>
-<p>Dans chaque expérience, le projet nu a livré autant, pour ${span(allTimes)} fois moins de temps et ${span(allCosts)} fois moins cher. Un modèle plus faible n’a pas été aidé non plus.</p>
+<h3>${L.measured.costTitle}</h3>
+<p>${L.measured.cost(span(allTimes), span(allCosts))}</p>
 </div>
 <div>
-<h3>Ça apporte : une structure qui tient.</h3>
-<p>Les changements restent dans leur couche, les contextes restent séparés, l’argent n’est pas payé deux fois, et plusieurs agents travaillent sur une même base de code sans conflit.</p>
+<h3>${L.measured.buysTitle}</h3>
+<p>${L.measured.buys}</p>
 </div>
 </div>
-<p class="verdict-note">Un garde-fou et un coordinateur pour les agents, pas un accélérateur. <a href="${article}" hreflang="en">L’article</a>, en anglais, détaille chaque expérience, chaque chiffre lu dans les registres du dépôt.</p>
+<p class="verdict-note">${L.measured.note(article)}</p>
 </div>
 </section>
 
 <section id="concepts" class="section">
 <div class="section-inner narrow">
 <div class="headline">
-<p class="tagline">Concepts</p>
-<h2>Chaque concept, une fois, au même endroit dans chaque langage</h2>
+<p class="tagline">${L.concepts.tagline}</p>
+<h2>${L.concepts.title}</h2>
 </div>
 <div class="domains compact">
-${concepts
+${L.concepts.list
   .map(
     ([name, title, text], index) => `<div class="domain">
 ${svg(name, `icon${index % 2 ? ' is-primary' : ''}`)}
@@ -215,17 +465,15 @@ ${svg(name, `icon${index % 2 ? ' is-primary' : ''}`)}
 
 <section id="tooling" class="content">
 <div class="content-head">
-<p class="tagline">Outillage</p>
-<h2>L’architecture répond, puis vérifie</h2>
+<p class="tagline">${L.tooling.tagline}</p>
+<h2>${L.tooling.title}</h2>
 </div>
 <div class="content-body">
 <div class="content-row">
 <div class="content-text">
-<h3 class="lead">Avant d’écrire : demander</h3>
+<h3 class="lead">${L.tooling.askTitle}</h3>
 <div class="content-items">
-<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>Une règle, expliquée</h4><p>L’énoncé, la raison, la remédiation, le fichier qui la montre.</p></div></div>
-<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>Un import, jugé</h4><p>Ce fichier peut-il importer celui-là, et quelle règle le dit.</p></div></div>
-<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>Une fonctionnalité, décidée</h4><p>Un event storm facilité, écrit en mots communs aux quatre langages ; une checklist dit quoi écrire et où.</p></div></div>
+${L.tooling.ask.map(item).join('\n')}
 </div>
 </div>
 <div class="content-image">
@@ -253,15 +501,13 @@ ${terminal('yarn architecture', [
 <div class="content-body">
 <div class="content-row reversed">
 <div class="content-text">
-<h3 class="lead">Après avoir écrit : prouver</h3>
+<h3 class="lead">${L.tooling.proveTitle}</h3>
 <div class="content-items">
-<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>Le mode fonctionnalité</h4><p>Refuse tout changement hors des contextes : briques de base, noyau partagé, conventions, décisions.</p></div></div>
-<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>La vérification des conventions</h4><p>Chaque fichier nommé existe, chaque lien résout, chaque sonde d’import se comporte, la carte des contextes est vraie.</p></div></div>
-<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>Un inventaire, quatre arbres</h4><p>Chaque langage écrit ce que son arbre dit de l’application ; la vérification en refuse deux qui diffèrent.</p></div></div>
+${L.tooling.prove.map(item).join('\n')}
 </div>
 </div>
 <div class="content-image">
-${terminal('les vérifications', [
+${terminal(L.tooling.checks, [
   '$ yarn architecture mode feature --base main',
   'feature mode: the 3 changed file(s) are within it.',
   '',
@@ -285,18 +531,18 @@ ${terminal('les vérifications', [
 <section id="languages" class="section">
 <div class="section-inner">
 <div class="headline">
-<p class="tagline">Langages</p>
-<h2>Lancez-la dans le langage que vous lisez le mieux</h2>
-<p class="sub">Même port, même API sous <code>/v1</code>. Le README de chaque langage suit une requête de bout en bout ; son guide dit comment y travailler, à la main ou avec un agent.</p>
+<p class="tagline">${L.languages.tagline}</p>
+<h2>${L.languages.title}</h2>
+<p class="sub">${L.languages.sub}</p>
 </div>
 <div class="cards languages">
 ${languages
   .map(
     language => `<div class="card">
 <h3>${language.name}</h3>
-<p class="label">Lancer le serveur</p>
+<p class="label">${L.languages.run}</p>
 <pre><code>${escape(language.run)}</code></pre>
-<p class="label">La tenir à l’architecture</p>
+<p class="label">${L.languages.check}</p>
 <pre><code>${escape(language.check)}</code></pre>
 </div>`,
   )
@@ -307,15 +553,15 @@ ${languages
 
 <section class="founder">
 <div class="founder-box">
-<img src="assets/img/exostic.svg" width="144" height="21" alt="Exostic">
+<img src="${up}assets/img/exostic.svg" width="144" height="21" alt="Exostic">
 <div class="founder-text">
-<p class="tagline">Qui le fait</p>
+<p class="tagline">${L.founder.tagline}</p>
 <h2>Jérémy Gay, Exostic</h2>
-<p>Ingénierie produit, logicielle et système. Référence, outillage et expériences sont construits et rédigés avec un assistant IA ; les corrections sont bienvenues en issues.</p>
+<p>${L.founder.text}</p>
 </div>
 <div class="founder-actions">
 <a class="btn btn-sm" href="https://exostic.com/" target="_blank" rel="noopener">exostic.com</a>
-<a class="founder-link" href="${repo}/issues" target="_blank" rel="noopener">Ouvrir une issue</a>
+<a class="founder-link" href="${repo}/issues" target="_blank" rel="noopener">${L.founder.issue}</a>
 </div>
 </div>
 </section>
@@ -325,32 +571,43 @@ ${languages
 <div class="footer-inner">
 <div class="footer-card">
 <a class="brand" href="./">CLEAN-DDD</a>
-<p class="footer-links"><a href="${article}" hreflang="en">L’article</a> · <a href="${repo}" target="_blank" rel="noopener">GitHub</a> · <a href="${blob('docs/adr')}" target="_blank" rel="noopener">Décisions</a> · <a href="${blob('docs/evaluations/README.md')}" target="_blank" rel="noopener">Registres</a></p>
-<p class="legal first">Licence MIT · <code>npm i clean-ddd</code> pour l’outillage</p>
+<p class="footer-links"><a href="${article}" hreflang="en">${L.footer.article}</a> · <a href="${repo}" target="_blank" rel="noopener">GitHub</a> · <a href="${blob('docs/adr')}" target="_blank" rel="noopener">${L.footer.decisions}</a> · <a href="${blob('docs/evaluations/README.md')}" target="_blank" rel="noopener">${L.footer.records}</a></p>
+<p class="legal first">${L.footer.legal}</p>
 </div>
-<p class="footer-note">© ${year} <a href="https://exostic.com/" target="_blank" rel="noopener">Exostic</a> · une architecture, quatre langages, chaque chiffre lu dans les registres.</p>
+<p class="footer-note">© ${year} <a href="https://exostic.com/" target="_blank" rel="noopener">Exostic</a> · ${L.footer.note}</p>
 </div>
 </footer>
 `;
+};
 
-const html = `<!doctype html>
-<html lang="fr">
+const site = 'https://jganet.github.io/clean-ddd/';
+const page = (L, up) => `<!doctype html>
+<html lang="${L.lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CLEAN-DDD — Clean Architecture &amp; DDD, une implémentation de référence</title>
-<meta name="description" content="Une implémentation de référence de la Clean Architecture et du Domain-Driven Design, écrite pour être lue, en TypeScript, Rust, Python et Go, depuis une seule architecture qui est de la donnée et que l’outillage fait respecter ; puis mesurée avec des agents de code IA.">
-<meta property="og:title" content="CLEAN-DDD — Clean Architecture &amp; DDD, une implémentation de référence">
-<meta property="og:description" content="Une architecture que l’outillage fait respecter, en quatre langages, mesurée avec des agents IA : elle ne rend pas un agent plus rapide, elle l’empêche de dériver.">
+<title>${L.title.replace('&', '&amp;')}</title>
+<meta name="description" content="${L.description}">
+<link rel="alternate" hreflang="fr" href="${site}">
+<link rel="alternate" hreflang="en" href="${site}en/">
+<link rel="alternate" hreflang="x-default" href="${site}">
+<meta property="og:title" content="${L.title.replace('&', '&amp;')}">
+<meta property="og:description" content="${L.ogDescription}">
 <meta property="og:type" content="website">
-<link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<meta property="og:url" content="${site}${L.path}">
+<meta property="og:image" content="${site}assets/img/${L.ogImage}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="${up}favicon.svg" type="image/svg+xml">
+<link rel="preload" href="${up}assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <style>
 @font-face {
   font-family: 'Inter Variable';
   font-style: normal;
   font-display: swap;
   font-weight: 100 900;
-  src: url('assets/fonts/inter-latin-wght-normal.woff2') format('woff2-variations');
+  src: url('${up}assets/fonts/inter-latin-wght-normal.woff2') format('woff2-variations');
 }
 :root {
   --bg: #0b012e;
@@ -388,6 +645,7 @@ code { font-family: var(--mono); font-size: 0.9em; letter-spacing: 0; }
 .btn:focus-visible { outline: 2px solid #ec4899; outline-offset: 2px; }
 .btn-primary { font-weight: 600; color: #fff; border: none; background-image: var(--gradient); background-size: 200% auto; background-position: left; transition: background-position 0.5s; }
 .btn-primary:hover { background-position: right; color: #fff; }
+.btn small { font-size: 0.8em; font-weight: 500; opacity: 0.85; margin-left: 0.25rem; }
 .btn-sm { padding: 0.375rem 0.5rem; font-size: 0.75rem; font-weight: 600; box-shadow: none; }
 @media (min-width: 768px) { .btn { padding-left: 2rem; padding-right: 2rem; } .btn-sm { padding-left: 0.75rem; padding-right: 0.75rem; } }
 .btn-gradient-vertical { background-image: linear-gradient(180deg, #4c3584, #e43b7d, #ff5211); background-size: 300% 300%; animation: gradient-shift 30s ease infinite; }
@@ -575,7 +833,7 @@ footer { position: relative; padding: 1.5rem; overflow: hidden; background: radi
 </style>
 </head>
 <body>
-${body}
+${body(L, up)}
 <script>
 // The header takes its backdrop once the page has scrolled; the menu button opens the navigation on a phone.
 const header = document.getElementById('header');
@@ -594,5 +852,11 @@ document.querySelectorAll('.header-nav a').forEach(link => link.addEventListener
 </html>
 `;
 
-writeFileSync(join(here, 'index.html'), html);
-process.stdout.write('site/index.html written\n');
+for (const [L, directory, up] of [
+  [locales.fr, '', ''],
+  [locales.en, 'en', '../'],
+]) {
+  mkdirSync(join(here, directory), { recursive: true });
+  writeFileSync(join(here, directory, 'index.html'), page(L, up));
+  process.stdout.write(`site/${directory ? `${directory}/` : ''}index.html written\n`);
+}
