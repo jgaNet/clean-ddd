@@ -15,6 +15,12 @@
  * a cap it may not spend past. `stoppedBy` says why an agent was stopped before it finished:
  * `timeout` when it ran past `timeoutMs`, `cancel` when the driver stopped it.
  *
+ * When the agent has stopped, for whatever reason, both runners `reap` what it left running in
+ * `cwd`: a background command the agent started runs in a process group of its own, so the
+ * group kill misses it, and an end-to-end suite that never exits outlives the agent and holds the
+ * memory the next step needs (J5, 8 November: a gate and a hung `jest` left by two timed-out
+ * steps, 2 GB each). `reaped` counts them, when there were any.
+ *
  * - `claude-cli`: Claude Code headless (`claude -p --output-format json`), in its own process
  *   group, stopped by group.
  * - `claude-sdk`: the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`), resolved from the
@@ -22,9 +28,9 @@
  *   controller.
  */
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync, readlinkSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const TOOLS = ['Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep'];
@@ -41,6 +47,42 @@ const tail = (text, count = 20) =>
     .split('\n')
     .filter(Boolean)
     .slice(-count);
+
+/**
+ * Kills every process whose working directory is `dir` or under it, but this one and its parent,
+ * and says how many. Reads `/proc`: where there is none, it kills nothing.
+ */
+export function reap(dir) {
+  const root = resolve(dir);
+  let entries;
+  try {
+    entries = readdirSync('/proc');
+  } catch {
+    return 0;
+  }
+  let killed = 0;
+  for (const entry of entries) {
+    if (!/^\d+$/.test(entry) || [process.pid, process.ppid].includes(Number(entry))) continue;
+    let cwd;
+    try {
+      cwd = readlinkSync(`/proc/${entry}/cwd`);
+    } catch {
+      continue;
+    }
+    if (cwd !== root && !cwd.startsWith(`${root}/`)) continue;
+    try {
+      process.kill(Number(entry), 'SIGKILL');
+      killed++;
+    } catch {
+      // gone, or not ours
+    }
+  }
+  return killed;
+}
+const reaped = dir => {
+  const count = reap(dir);
+  return count > 0 ? { reaped: count } : {};
+};
 
 /** The fields every runner reports, from a Claude result message (the CLI's JSON or the SDK's last message). */
 const fromResult = json => ({
@@ -99,6 +141,7 @@ const claudeCli = {
           exitCode: code,
           signal: signal ?? undefined,
           ...(stoppedBy && { stoppedBy }),
+          ...reaped(cwd),
           wallClockMs: Date.now() - started,
           ...(json
             ? fromResult(json)
@@ -169,6 +212,7 @@ const claudeSdk = {
         wallClockMs: Date.now() - started,
         signal: abortController.signal.aborted ? 'aborted' : undefined,
         ...(stoppedBy && { stoppedBy }),
+        ...reaped(cwd),
         ...(last ? fromResult(last) : { usage: 'absent: the SDK returned no result message' }),
         stderrTail: [String(error)],
       };
@@ -176,6 +220,7 @@ const claudeSdk = {
     clearTimeout(timer);
     return {
       exitCode: last && !last.is_error ? 0 : 1,
+      ...reaped(cwd),
       wallClockMs: Date.now() - started,
       ...(last ? fromResult(last) : { usage: 'absent: the SDK returned no result message' }),
     };
