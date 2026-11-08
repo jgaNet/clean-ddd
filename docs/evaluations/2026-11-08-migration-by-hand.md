@@ -1,6 +1,6 @@
 # 2026-11-08 — The first migration by hand: linkbox, from a plain Fastify API to a created application, on both wires
 
-[ADR 35](../adr/0035-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md) decided what a migration is and asked for one to be done by hand before the `migrate` skill is written, so that the skill describes a migration that was seen. This is that migration: a small legacy, its characterization scenario, the storm read from its code, an application made by `create`, its one context, the compatibility wire beside the native one, and the scenario passing unchanged on the first and translated on the second. Everything it produced is in [the kit](benchmark/migration/README.md); what it found is here.
+[ADR 36](../adr/0036-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md) decided what a migration is and asked for one to be done by hand before the `migrate` skill is written, so that the skill describes a migration that was seen. This is that migration: a small legacy, its characterization scenario, the storm read from its code, an application made by `create`, its one context, the compatibility wire beside the native one, and the scenario passing unchanged on the first and translated on the second. Everything it produced is in [the kit](benchmark/migration/README.md); what it found is here.
 
 ## The legacy
 
@@ -16,7 +16,7 @@
 
 ## What it found
 
-**The two wires cannot share a path.** The legacy's clients speak `POST /v1/links` and expect `201` with the link; the contract's grammar answers the same route `202` with an operation id. One route cannot do both, so the compatibility wire keeps the legacy's prefix (`/v1`) and the native grammar is served under the next one (`/v2`); removing the façade leaves the native API at `/v2`, or the transport's prefix is set back then. ADR 35 did not say this; its revision does. The storm records it as a hot spot, since it is a decision the migrated application lives with.
+**The two wires cannot share a path.** The legacy's clients speak `POST /v1/links` and expect `201` with the link; the contract's grammar answers the same route `202` with an operation id. One route cannot do both, so the compatibility wire keeps the legacy's prefix (`/v1`) and the native grammar is served under the next one (`/v2`); removing the façade leaves the native API at `/v2`, or the transport's prefix is set back then. ADR 36 did not say this; its revision does. The storm records it as a hot spot, since it is a decision the migrated application lives with.
 
 **"Translated" covers the queries too.** The first translation of the scenario moved only the commands (`202`, the Tracker, the ERROR with the rule's name) and failed on step 8: a query's refusal differs as well, `404 { message }` on the contract's grammar against `404 { error: 'link not found' }` on the legacy's. The translation is every difference between the two wires, which is exactly what a client moving from one to the other has to write.
 
@@ -29,11 +29,11 @@
 - `yarn lint` of a created application failed before any feature, on `.claude/flow/generate.mjs` (`no-console`): the flow is copied into every created application and the copied ESLint configuration linted it. The reference's `typescript/eslint.config.js` now ignores `.claude/`, so the next `create` is green on its first `lint`.
 - The canonical routes of the reference carry Swagger `tags` in their schemas, typed by `@fastify/swagger`'s augmentation, which a created application does not have; a route copied from the canonical file fails `typecheck` on `tags`. The migrated application dropped them. This is a guide gap for the created project (its guide should say so, or `create` should strip them); it is left open here.
 
-**The tooling the kit runs is the tree's, not the package's.** The published `clean-ddd` does not know `migration` yet, so the kit's application runs the reference's CLI from the repository (`tsx ../../../../../tools/src/cli.ts`) and the dependency on the package was removed from its manifest. A migration done outside this repository, after the release that carries ADR 35, needs none of this.
+**The tooling the kit runs is the tree's, not the package's.** The published `clean-ddd` does not know `migration` yet, so the kit's application runs the reference's CLI from the repository (`tsx ../../../../../tools/src/cli.ts`) and the dependency on the package was removed from its manifest. A migration done outside this repository, after the release that carries ADR 36, needs none of this.
 
 **The deadline path has no end-to-end case.** In-process every command settles before the deadline; the `202` fallback of the façade is exercised by the building block's spec alone. A migration against a slow store should add the case to its compatibility suite.
 
-**Reading the storm from the code worked at this size.** Five routes and two `push` calls gave every sticky; the hot spots were the questions, not the facts. ADR 35's revisit clause (facilitate with the people who know the legacy when the facts are too implicit) was not needed; a legacy ten times this size with implicit validations in forty places would test it.
+**Reading the storm from the code worked at this size.** Five routes and two `push` calls gave every sticky; the hot spots were the questions, not the facts. ADR 36's revisit clause (facilitate with the people who know the legacy when the facts are too implicit) was not needed; a legacy ten times this size with implicit validations in forty places would test it.
 
 ## What the `migrate` skill must say, from this run
 

@@ -1,4 +1,4 @@
-# 35. A migrated application keeps its behaviour, and chooses the wire it answers on
+# 36. A migrated application keeps its behaviour, and chooses the wire it answers on
 
 ## Context
 

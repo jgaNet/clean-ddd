@@ -213,7 +213,7 @@ concepts:
       a caller that must answer in one exchange — the compatibility route of a migrated application, serving
       the wire its clients already speak — waits for a command's outcome, for at most a deadline, on the same
       promise the outbox's relay acknowledges on; past the deadline the operation is still the answer, `202 {
-      operationId }`, and the client follows it (ADR 35)
+      operationId }`, and the client follows it (ADR 36)
     rules: []
   - id: retry-on-conflict
     name: Retry on conflict

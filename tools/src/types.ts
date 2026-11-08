@@ -101,7 +101,7 @@ export interface Tree {
   path: string;
 }
 
-/** The wire a migrated application answers on (ADR 35): the contract's grammar alone, or the legacy's routes beside it. */
+/** The wire a migrated application answers on (ADR 36): the contract's grammar alone, or the legacy's routes beside it. */
 export type MigrationApi = 'native' | 'compat';
 
 /** A compatibility route: one legacy route, served by the transport, bound to one command or query of the inventory. */
@@ -163,7 +163,7 @@ export interface ArchitectureContract {
   verbs: Verb[];
   checklists: Checklist[];
   modes: Record<ModeName, Mode>;
-  /** The wires a migrated application may answer on, from the contract: each with what it means (ADR 35). */
+  /** The wires a migrated application may answer on, from the contract: each with what it means (ADR 36). */
   migrationApis: Record<string, string>;
   /** This application's choice, from the binding; absent when it was not migrated from anything. */
   migration?: Migration;

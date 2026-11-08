@@ -1,6 +1,6 @@
 # The migration kit: linkbox, by hand
 
-What the first migration by hand produced ([the record](../../2026-11-08-migration-by-hand.md), [ADR 35](../../../adr/0035-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md)): a legacy, the scenario that characterizes it, and the application it was migrated into, which answers on the legacy's wire and on the contract's.
+What the first migration by hand produced ([the record](../../2026-11-08-migration-by-hand.md), [ADR 36](../../../adr/0036-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md)): a legacy, the scenario that characterizes it, and the application it was migrated into, which answers on the legacy's wire and on the contract's.
 
 | | |
 | --- | --- |

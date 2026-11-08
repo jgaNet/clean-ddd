@@ -29,7 +29,7 @@
  *    other language's committed inventory says the same (ARCH-ONE-APPLICATION).
  * 12. Every expected storm under conventions/storms is legal against the contract and the map, and the
  *    code carries the ones marked done and not yet the others.
- * 13. A migrated application answers on the wire its binding says (ADR 35): every compatibility route
+ * 13. A migrated application answers on the wire its binding says (ADR 36): every compatibility route
  *    stands for a command or a query the inventory lists, and nothing outside the transport waits for an
  *    operation (ARCH-COMPAT-ROUTE).
  *
@@ -333,7 +333,7 @@ export async function checkConventions(
     }
   }
 
-  // 13. A migrated application answers on the wire its binding says (ADR 35)
+  // 13. A migrated application answers on the wire its binding says (ADR 36)
 
   if (contract.migration) {
     const inventoryForMigration = readsTree ? inspectInventory(contract, root) : committedInventory();

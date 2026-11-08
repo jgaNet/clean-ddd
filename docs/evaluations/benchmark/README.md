@@ -8,7 +8,7 @@
 | [`storms/`](storms) | One storm per feature, its hot spots decided by the maintainer (2026-10-30) or carried from an earlier decision. |
 | [`acceptance/`](acceptance) | One black-box acceptance test per feature, over HTTP, against the application's composition root, and the support they share. |
 | [`rubric.md`](rubric.md) | What makes a feature pass, and what is measured. |
-| [`migration/`](migration) | The first migration by hand (ADR 35): a legacy, its characterization scenario, and the application it was migrated into, on both wires. |
+| [`migration/`](migration) | The first migration by hand (ADR 36): a legacy, its characterization scenario, and the application it was migrated into, on both wires. |
 
 ## The backlog
 

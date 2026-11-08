@@ -13,7 +13,7 @@ import {
 } from './index';
 
 /**
- * A migrated application keeps its behaviour and chooses the wire it answers on (ADR 35): the
+ * A migrated application keeps its behaviour and chooses the wire it answers on (ADR 36): the
  * binding's `migration` is held by the check (ARCH-COMPAT-ROUTE). The setting is tried on an
  * application `create` made in Python — a language whose tree this tooling does not read, so the
  * check asks the committed inventory (the Tracker's) and the files — and the scan for a wait

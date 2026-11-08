@@ -21,7 +21,7 @@ import { legacyRoutes } from '@Bootstrap/Compat/legacy.routes';
  * A new context is added here, as the Tracker is: its module after the Tracker's, its routes
  * under its own prefix.
  *
- * linkbox was migrated from a legacy whose clients speak `/v1` (ADR 35): the contract's grammar
+ * linkbox was migrated from a legacy whose clients speak `/v1` (ADR 36): the contract's grammar
  * is served under `v2`, and the legacy's wire under `v1` by the compatibility routes, for as long
  * as `legacyWire` is given. Removing the façade is removing that option and the Compat folder.
  */

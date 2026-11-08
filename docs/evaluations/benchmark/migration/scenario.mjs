@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * The characterization scenario of linkbox: what its clients rely on, recorded against the legacy
- * before any code of the migration was written, as a black box over HTTP (ADR 35). Run against
+ * before any code of the migration was written, as a black box over HTTP (ADR 36). Run against
  * the legacy it passes by construction; run against the migrated application on its compatibility
  * wire it must pass unchanged — that is the proof that the functionality did not change.
  *

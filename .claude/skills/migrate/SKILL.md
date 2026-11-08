@@ -5,7 +5,7 @@ description: Move one or several existing projects onto this architecture withou
 
 # Migrating a project
 
-A migration keeps the behaviour and chooses the wire (ADR 35).
+A migration keeps the behaviour and chooses the wire (ADR 36).
 It is a kind of work of its own: not a feature, since the functionality is given and must not change;
 not an architecture change, since the architecture is what the work moves into. Its invariant is the
 one thing to prove at the end: **the same functionality, in a new shape**. Two fidelities hide under

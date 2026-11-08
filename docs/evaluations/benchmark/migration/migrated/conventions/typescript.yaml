@@ -362,7 +362,7 @@ concepts:
       - src/Bootstrap/Fastify/FastifyApplication.ts
       - src/Bootstrap/Fastify/application.ts
 
-# linkbox was migrated from a legacy (ADR 35; the record is docs/evaluations/2026-11-08-migration-by-hand.md
+# linkbox was migrated from a legacy (ADR 36; the record is docs/evaluations/2026-11-08-migration-by-hand.md
 # of the reference). Its clients speak the legacy's wire, served under /v1 by the compatibility routes
 # below while they move to the contract's grammar under /v2; each route stands for one operation of the
 # inventory, and goes when the last client has moved.

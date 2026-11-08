@@ -63,7 +63,7 @@ modes:
     decides: [src/Architecture, src/SharedKernel/Domain]
 
 # A migrated application says here which wire it answers on and declares its compatibility routes
-# (`migration: { api, compatibility_routes }`, ADR 35; the shape is in conventions/README.md). The
+# (`migration: { api, compatibility_routes }`, ADR 36; the shape is in conventions/README.md). The
 # reference was migrated from nothing, so it has no such section.
 
 # What `clean-ddd create --language typescript` makes of this directory (ADR 10, ADR 23): the files

@@ -250,7 +250,7 @@ export function loadArchitectureContract(
     };
   }
 
-  // The wires a migrated application may answer on, and this application's choice (ADR 35). YAML
+  // The wires a migrated application may answer on, and this application's choice (ADR 36). YAML
   // reads a bare date as a Date; the binding means the day, as a string.
   const migrationApis = Object.fromEntries(
     Object.entries(
@@ -475,7 +475,7 @@ export function validateContract(
       problems.push(`${bindingFile}: has a checklist for ${kind}, which ${contractFile} does not define`);
   }
 
-  // A migrated application's wire, and the compatibility routes it declares (ADR 35).
+  // A migrated application's wire, and the compatibility routes it declares (ADR 36).
   problems.push(...validateMigration(contract, root, today));
   return problems;
 }

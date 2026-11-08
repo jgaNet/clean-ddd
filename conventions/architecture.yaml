@@ -128,7 +128,7 @@ modes:
     decides: [conventions/architecture.yaml]
     records: docs/adr
 
-# A migrated application keeps its behaviour and chooses the wire it answers on (ADR 35). The
+# A migrated application keeps its behaviour and chooses the wire it answers on (ADR 36). The
 # choice is the binding's `migration` (`api`, and under `compat` its `compatibility_routes`: method,
 # path, the one `operation` of the inventory each stands for, the `file` under the transport that
 # serves it, when it `retires` — a date the check holds, or the condition in words). Nothing of a
@@ -423,4 +423,4 @@ rules:
     remediation: >-
       Declare the route under `migration.compatibility_routes` in the binding, served from a file under the transport, bound to a command or query the inventory lists, with `retires`; remove it and say `api: native` once the clients have moved; a wait outside the transport is a route that belongs in the façade.
     enforcement: check
-    references: [docs/adr/0035-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md, conventions/README.md]
+    references: [docs/adr/0036-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md, conventions/README.md]

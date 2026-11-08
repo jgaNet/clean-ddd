@@ -1,6 +1,6 @@
 # linkbox, the legacy
 
-The project the first migration by hand starts from ([the record](../../../2026-11-08-migration-by-hand.md), [ADR 35](../../../../adr/0035-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md)): a small TypeScript API on Fastify, one file, a `Map` for a database, the rules where the requests arrive, every answer synchronous. It is the shape most software a team would move into the architecture has, at a size one person can read in five minutes.
+The project the first migration by hand starts from ([the record](../../../2026-11-08-migration-by-hand.md), [ADR 36](../../../../adr/0036-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md)): a small TypeScript API on Fastify, one file, a `Map` for a database, the rules where the requests arrive, every answer synchronous. It is the shape most software a team would move into the architecture has, at a size one person can read in five minutes.
 
 ```bash
 yarn install

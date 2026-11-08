@@ -11,7 +11,7 @@ import {
 } from '@Contexts/Links/Application/Queries';
 
 /**
- * The compatibility wire (ADR 35): linkbox's routes as its clients speak them, served while they
+ * The compatibility wire (ADR 36): linkbox's routes as its clients speak them, served while they
  * move to the contract's grammar. Each route is declared in conventions/typescript.yaml under
  * `migration`, bound to the one command or query it stands for. A command is published as a
  * controller publishes it, its outcome awaited, and the legacy's answer built from the read

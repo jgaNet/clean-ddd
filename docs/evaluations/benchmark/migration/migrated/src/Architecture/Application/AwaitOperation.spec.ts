@@ -20,7 +20,7 @@ class GreetHandler extends CommandHandler<Greet> {
   }
 }
 
-/** The outcome a compatibility route answers from (ADR 35): the handler's verdict, or the deadline. */
+/** The outcome a compatibility route answers from (ADR 36): the handler's verdict, or the deadline. */
 describe('awaitOperation', () => {
   let bus: InMemoryEventBus;
   let handler: GreetHandler;

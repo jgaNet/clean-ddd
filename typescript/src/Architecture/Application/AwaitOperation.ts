@@ -5,7 +5,7 @@
  * contract's grammar, and nothing here changes it. A transport that must answer in one exchange
  * needs the outcome before it answers: the compatibility route of a migrated application, which
  * serves the wire the application's clients already speak while they move to the contract's
- * (ADR 35). It publishes the command as any controller does, then waits here.
+ * (ADR 36). It publishes the command as any controller does, then waits here.
  *
  * The wait is on the operation's `delivered`: the promise the outbox's relay acknowledges on,
  * which settles once every subscriber the message reached has finished with it. A command has

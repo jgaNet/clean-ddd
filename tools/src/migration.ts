@@ -5,7 +5,7 @@ import type { ArchitectureContract, CompatibilityRoute } from './types';
 import type { Inventory } from './inventory';
 
 /**
- * A migrated application keeps its behaviour and chooses the wire it answers on (ADR 35). The
+ * A migrated application keeps its behaviour and chooses the wire it answers on (ADR 36). The
  * choice is the binding's `migration`: `api: native` (the contract's grammar alone) or
  * `api: compat` (the legacy's routes beside it, served by compatibility routes in the transport).
  * Nothing of a context differs between the two; what the check holds is the façade:
