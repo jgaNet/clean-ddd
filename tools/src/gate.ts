@@ -182,7 +182,7 @@ export async function runGate({
   // 1b. When the binding asks for it: each relationship between two contexts the change crosses, with a
   //     test of its own (experimental).
   if (contract.relationshipTests) {
-    const [missing, crossedMs] = timed(() => checkRelationshipTests(contract, root, [...changed]));
+    const [missing, crossedMs] = timed(() => checkRelationshipTests(contract, root, [...changed], base));
     record({
       name: 'relationships crossed',
       stage: 'architecture',
@@ -197,7 +197,7 @@ export async function runGate({
         relationshipTestsThatMissTheChange({
           root,
           base,
-          tests: crossedRelationshipTests(contract, root, [...changed]),
+          tests: crossedRelationshipTests(contract, root, [...changed], base),
           run,
           languageRoot: contract.language.root,
           exec,

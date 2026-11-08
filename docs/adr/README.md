@@ -38,5 +38,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0032](0032-a-command-body-is-refused-for-its-shape-only.md) | A command's body is refused for its shape only; whether a value is allowed is the domain's |
 | [0033](0033-identity-is-born-once-and-a-relationship-crossed-is-tested.md) | Identity is born once, and a relationship crossed is tested |
 | [0034](0034-a-relationship-test-must-see-the-change.md) | A relationship test must see the change: its new cases fail without it |
+| [0035](0035-a-relationship-is-crossed-where-the-change-touches-its-contracts.md) | A relationship is crossed where the change touches one of its contracts |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.
