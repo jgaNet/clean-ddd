@@ -110,6 +110,16 @@ end-to-end suite proves it; say in the PR what the other languages now owe, and 
 to make one server pass. An application of one language has no shared scenario: its own end-to-end
 suite is the proof.
 
+When a request says what the API answers (a field, a status, the shape of an operation's error), that shape
+wins over the code's own habit: adapt the projection where the record is made public, not the request
+(API-ONE-SURFACE). A tree whose earlier routes answer otherwise is not a reason to answer the new one the old way.
+
+When a feature crosses a relationship between two contexts, the thing keeps the id it was born with
+(DOMAIN-IDENTITY): the integration event carries it, and the receiving side builds on it. Where the binding
+asks for it, the gate also asks for an end-to-end test named for the pair (`Notes → Notifications`) that
+makes the thing upstream through the API, keeps the id that very request answered, and finds the thing
+downstream by that id (ADR 33).
+
 ## If you need to change a protected tree, stop
 
 If the work seems to need a building block, the shared kernel's model or the dependency table

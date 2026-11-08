@@ -109,7 +109,7 @@ describe('GET notes/:id', () => {
   });
 });
 
-describe('Sharing a note (Notes -> Notifications)', () => {
+describe('Notes → Notifications: sharing a note (ADR 33, a relationship crossed is tested)', () => {
   it('notifies the recipient and lets them read the note', async () => {
     // A second, validated account: bob
     const signUp = await superagent.post(`${api}/auth/signup`).send({ identifier: 'bob@notes.fr', password: 'bob' });
@@ -118,9 +118,10 @@ describe('Sharing a note (Notes -> Notifications)', () => {
     await agent.get(`${api}/auth/accounts/${bobId}/validate`);
 
     // The admin writes a note and shares it with bob
-    await agent.post(`${api}/notes`).send({ title: 'Roadmap', content: 'Q4 plans' });
-    const mine = await agent.get(`${api}/notes`);
-    const noteId: string = mine.body.find((note: { title: string }) => note.title === 'Roadmap').id;
+    // The note is found everywhere by the id its creation answered (its operation's result).
+    const create = await agent.post(`${api}/notes`).send({ title: 'Roadmap', content: 'Q4 plans' });
+    const created = await agent.get(`${api}/tracker/operations/${create.body.operationId}`);
+    const noteId: string = created.body.result;
 
     const share = await agent.post(`${api}/notes/${noteId}/share`).send({ recipientId: bobId });
     expect(share.status).toBe(202);

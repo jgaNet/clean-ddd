@@ -189,8 +189,8 @@ Proposed floor, each with what holds it today:
 | A refusal is a value | DOMAIN-RESULT (tests) |
 | A write is consistent | CONC-OPTIMISTIC (tests), *where several writers can race* |
 | A fact another context reacts to is durable with its state | EVENT-AFTER-COMMIT (tests), *for cross-context facts* |
-| Identity is born once | DOMAIN-IDENTITY (**review**, gap) |
-| Who reaches a command is said once and held at the transport | **not a rule yet** (the probe's `acceptCommand`) |
+| Identity is born once | DOMAIN-IDENTITY (**review**; [ADR 33](../adr/0033-identity-is-born-once-and-a-relationship-crossed-is-tested.md), with the relationship test in the gate where a binding turns it on) |
+| Who reaches a command is said once and held at the transport | **not a rule yet**: [RFC 0003](0003-who-reaches-a-command.md) |
 | The architecture does not change silently | the two modes (gate) |
 
 - **Option A (recommended).** The table above is the floor, and the two non-mechanical lines are stated as gaps to close in both profiles, not quietly assumed.
