@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Les articles — CLEAN-DDD</title>
-<meta name="description" content="Ce que les expériences de clean-ddd ont trouvé, article par article : le titre, l’auteur, la date.">
+<title>Un voyage de recherche, étape par étape — CLEAN-DDD</title>
+<meta name="description" content="La Clean Architecture aide-t-elle un agent IA à écrire du logiciel ? Les articles de clean-ddd, dans l’ordre où la recherche les a produits : la question de chaque étape, ce qu’elle a trouvé, ce qu’elle a laissé ouvert.">
 <link rel="alternate" hreflang="fr" href="https://jganet.github.io/clean-ddd/articles.html">
 <link rel="alternate" hreflang="en" href="https://jganet.github.io/clean-ddd/en/articles.html">
 <link rel="alternate" hreflang="x-default" href="https://jganet.github.io/clean-ddd/articles.html">
-<meta property="og:title" content="Les articles — CLEAN-DDD">
-<meta property="og:description" content="Ce que les expériences de clean-ddd ont trouvé, article par article : le titre, l’auteur, la date.">
+<meta property="og:title" content="Un voyage de recherche, étape par étape — CLEAN-DDD">
+<meta property="og:description" content="La Clean Architecture aide-t-elle un agent IA à écrire du logiciel ? Les articles de clean-ddd, dans l’ordre où la recherche les a produits : la question de chaque étape, ce qu’elle a trouvé, ce qu’elle a laissé ouvert.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://jganet.github.io/clean-ddd/articles.html">
 <meta property="og:image" content="https://jganet.github.io/clean-ddd/assets/img/open-graph.png">
@@ -159,17 +159,30 @@ code { font-family: var(--mono); font-size: 0.9em; letter-spacing: 0; }
 @media (min-width: 768px) { .cards { gap: 1.5rem; } }
 @media (min-width: 1024px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cards.languages { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
-/* ---------- The articles ---------- */
+/* ---------- The articles: a journey ---------- */
 .list .section-inner { padding-top: 8rem; }
-.posts { display: grid; gap: 1.5rem; }
+.journey { list-style: none; display: grid; gap: 0; position: relative; }
+.step { position: relative; display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); gap: 1rem; padding-bottom: 1.5rem; }
+.step:last-child { padding-bottom: 0; }
+.marker { position: relative; display: flex; justify-content: center; }
+.marker::before { content: ''; position: absolute; top: 2.5rem; bottom: -1.5rem; left: 50%; width: 2px; margin-left: -1px; background: linear-gradient(180deg, #e43b7d, rgba(76, 53, 132, 0.6)); }
+.step:last-child .marker::before { display: none; }
+.marker span { display: flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; border-radius: 9999px; background: var(--gradient); color: #fff; font-weight: 800; font-size: 1rem; box-shadow: 0 0 16px rgba(228, 59, 125, 0.45); }
 .post { padding: 1.5rem; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 0.375rem; }
 .post .dates { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #bfdbfe; }
+.post .dates .stage { color: var(--secondary); }
+.post .question { margin-top: 0.75rem; font-size: 1.125rem; line-height: 1.5; color: var(--text-soft); font-style: italic; }
 .post h3 { margin-top: 0.5rem; font-size: 1.5rem; line-height: 1.25; letter-spacing: -0.03em; }
 .post h3 a:hover { color: #fff; text-decoration: underline; text-underline-offset: 0.2em; }
-.post p:not(.dates):not(.meta) { margin-top: 0.75rem; color: var(--text-muted); }
+.post h3 + p { margin-top: 0.75rem; color: var(--text-muted); }
+.findings { margin-top: 1rem; display: grid; gap: 0.5rem 1rem; grid-template-columns: max-content minmax(0, 1fr); font-size: 0.9375rem; }
+.findings dt { font-weight: 600; color: #fff; }
+.findings dd { color: var(--text-muted); }
 .post .meta { margin-top: 1rem; font-size: 0.9375rem; color: var(--text-soft); }
 .post .meta a { text-decoration: underline; text-underline-offset: 0.2em; }
 .post .meta a:hover { color: #fff; }
+@media (max-width: 639px) { .findings { grid-template-columns: 1fr; gap: 0.25rem; } .findings dd { margin-bottom: 0.5rem; } }
+@media (min-width: 768px) { .step { grid-template-columns: 3rem minmax(0, 1fr); gap: 1.5rem; } .marker span { width: 3rem; height: 3rem; font-size: 1.125rem; } .marker::before { top: 3rem; } }
 
 /* ---------- Measured ---------- */
 .verdict { display: grid; gap: 1.5rem; }
@@ -295,29 +308,53 @@ footer { position: relative; padding: 1.5rem; overflow: hidden; background: radi
 <div class="section-inner narrow">
 <div class="headline">
 <p class="tagline">Articles</p>
-<h2>Les articles</h2>
-<p class="sub">Chaque article lit ses chiffres dans les registres du dépôt ; une correction est une issue, une mise à jour une nouvelle date.</p>
+<h2>Un voyage de recherche, étape par étape</h2>
+<p class="sub">Une seule question, « la Clean Architecture aide-t-elle un agent IA à écrire du logiciel ? », suivie d’étape en étape : chacune répond, et laisse ouvert ce que la suivante reprend. Chaque article lit ses chiffres dans les registres du dépôt.</p>
 </div>
-<div class="posts">
+<ol class="journey">
+<li class="step">
+<div class="marker" aria-hidden="true"><span>1</span></div>
 <article class="post">
-<p class="dates"><time datetime="2026-10-30">publié le 30 octobre 2026 · mis à jour le 8 novembre 2026</time></p>
+<p class="dates"><span class="stage">Étape 1 · Le contrôle</span> · <time datetime="2026-10-30">publié le 30 octobre 2026 · mis à jour le 8 novembre 2026</time></p>
+<p class="question">Une architecture explicite et imposée rend-elle un agent IA meilleur pour construire une petite application ?</p>
 <h3><a href="article.fr.html">La Clean Architecture aide-t-elle un agent IA à écrire du logiciel ?</a></h3>
 <p>Un benchmark contrôlé sur une application de notes : les mêmes sept fonctionnalités construites par des agents de code avec et sans l’architecture, face à des tests cachés, et ce que les tests ne voient pas lu par des lecteurs indépendants.</p>
+<dl class="findings">
+<dt>Ce qu’elle a trouvé</dt><dd>Non. Le projet nu a livré les mêmes sept fonctionnalités, plus tôt et moins cher, sans différence de qualité que deux lecteurs aient pu voir. L’outil a fait ce qu’il annonce : il a tenu l’architecture exactement et rendu sûre une répartition d’agents.</dd>
+<dt>Ce qu’elle a laissé ouvert</dt><dd>Là où l’architecture devrait payer : un modèle plus faible, une base de code qui grandit, un changement de stockage.</dd>
+</dl>
 <p class="meta">par <a href="https://exostic.com/" target="_blank" rel="noopener">Jérémy Gay</a> · <a href="article.fr.html">Lire l’article</a></p>
 </article>
+</li>
+<li class="step">
+<div class="marker" aria-hidden="true"><span>2</span></div>
 <article class="post">
-<p class="dates"><time datetime="2026-10-30">publié le 30 octobre 2026</time></p>
+<p class="dates"><span class="stage">Étape 2 · Les conditions</span> · <time datetime="2026-10-30">publié le 30 octobre 2026</time></p>
+<p class="question">Paie-t-elle sous les conditions où elle est censée payer ?</p>
 <h3><a href="four-more-experiments.fr.html">Là où l’architecture devrait payer : quatre expériences de plus</a></h3>
 <p>Un modèle plus faible, une base de code qui grandit, un changement de stockage, le contrat de la répartition donné à un seul agent : quatre conditions sous lesquelles l’architecture est censée payer, chacune avec sa prédiction écrite avant.</p>
+<dl class="findings">
+<dt>Ce qu’elle a trouvé</dt><dd>Pas sur une petite application. Le projet nu a encore tout livré avec un modèle plus faible et est resté le plus rapide quand les arbres ont grandi ; le changement de stockage est resté hors du domaine, comme promis, et a quand même pris deux fois plus de temps.</dd>
+<dt>Ce qu’elle a laissé ouvert</dt><dd>Savoir si ce rendement grandit avec le code, sur une application qui ne tient plus dans la tête d’un agent.</dd>
+</dl>
 <p class="meta">par <a href="https://exostic.com/" target="_blank" rel="noopener">Jérémy Gay</a> · <a href="four-more-experiments.fr.html">Lire l’article</a></p>
 </article>
+</li>
+<li class="step">
+<div class="marker" aria-hidden="true"><span>3</span></div>
 <article class="post">
-<p class="dates"><time datetime="2026-11-04">publié le 4 novembre 2026 · mis à jour le 8 novembre 2026</time></p>
+<p class="dates"><span class="stage">Étape 3 · L’échelle</span> · <time datetime="2026-11-04">publié le 4 novembre 2026 · mis à jour le 8 novembre 2026</time></p>
+<p class="question">Commence-t-elle à payer à cinquante fonctionnalités, puis vers cent ?</p>
 <h3><a href="openstay.fr.html">OpenStay : cinquante fonctionnalités, puis vers cent</a></h3>
 <p>Une place de marché de logements construite fonctionnalité par fonctionnalité par des agents, sur trois arbres nus et trois arbres Clean DDD, avec de l’argent par un prestataire de paiement et un changement de base non annoncé ; ce que les tests voient, ce qu’ils ne voient pas, et où chaque arbre s’est arrêté.</p>
+<dl class="findings">
+<dt>Ce qu’elle a trouvé</dt><dd>À cinquante, chaque arbre a livré et les arbres nus sont restés moins chers ; les arbres Clean DDD l’ont emporté sur ce que les tests ne voient pas : l’argent, les contextes séparés, un changement de base tenu hors des règles. Vers cent, chaque arbre s’est arrêté sur une règle que personne n’avait écrite, et l’énoncer a laissé passer les arbres Clean DDD.</dd>
+<dt>Ce qui reste à faire</dt><dd>Les bras de suite jusqu’à cent, une seconde correction, la lecture, et les expériences annexes.</dd>
+</dl>
 <p class="meta">par <a href="https://exostic.com/" target="_blank" rel="noopener">Jérémy Gay</a> · <a href="openstay.fr.html">Lire l’article</a></p>
 </article>
-</div>
+</li>
+</ol>
 </div>
 </section>
 

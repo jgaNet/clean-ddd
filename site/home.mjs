@@ -65,10 +65,15 @@ const locales = {
     article: 'article.fr.html',
     articles: 'articles.html',
     list: {
-      title: 'Les articles',
-      description: 'Ce que les expériences de clean-ddd ont trouvé, article par article : le titre, l’auteur, la date.',
+      title: 'Un voyage de recherche, étape par étape',
+      description:
+        'La Clean Architecture aide-t-elle un agent IA à écrire du logiciel ? Les articles de clean-ddd, dans l’ordre où la recherche les a produits : la question de chaque étape, ce qu’elle a trouvé, ce qu’elle a laissé ouvert.',
       tagline: 'Articles',
-      sub: 'Chaque article lit ses chiffres dans les registres du dépôt ; une correction est une issue, une mise à jour une nouvelle date.',
+      sub: 'Une seule question, « la Clean Architecture aide-t-elle un agent IA à écrire du logiciel ? », suivie d’étape en étape : chacune répond, et laisse ouvert ce que la suivante reprend. Chaque article lit ses chiffres dans les registres du dépôt.',
+      step: 'Étape',
+      found: 'Ce qu’elle a trouvé',
+      left: 'Ce qu’elle a laissé ouvert',
+      next: 'Ce qui reste à faire',
       by: 'par',
       published: 'publié le',
       updated: 'mis à jour le',
@@ -214,10 +219,15 @@ const locales = {
     article: 'article.html',
     articles: 'articles.html',
     list: {
-      title: 'The articles',
-      description: 'What the clean-ddd experiments found, article by article: the title, the author, the date.',
+      title: 'A research journey, step by step',
+      description:
+        'Does Clean Architecture help an AI agent write software? The clean-ddd articles in the order the research produced them: the question each step asked, what it found, what it left open.',
       tagline: 'Articles',
-      sub: 'Every article reads its figures from the repository’s records; a correction is an issue, an update a new date.',
+      sub: 'One question, “does Clean Architecture help an AI agent write software?”, followed from step to step: each answers, and leaves open what the next takes up. Every article reads its figures from the repository’s records.',
+      step: 'Step',
+      found: 'What it found',
+      left: 'What it left open',
+      next: 'What is still to do',
       by: 'by',
       published: 'published',
       updated: 'updated',
@@ -573,6 +583,8 @@ ${languages
 };
 
 // The list of the articles: each in the page's language when it has one, its title, its author, its dates.
+// The articles as a research journey: one step each, in order, with the question it asked, what it found and
+// what it left open, which the next step takes up; each in the page's language when it has one.
 const articlesMain = (L, up) => `
 <section class="section list">
 <div class="section-inner narrow">
@@ -581,9 +593,9 @@ const articlesMain = (L, up) => `
 <h2>${L.list.title}</h2>
 <p class="sub">${L.list.sub}</p>
 </div>
-<div class="posts">
+<ol class="journey">
 ${articles
-  .map(article => {
+  .map((article, index) => {
     const version = article[L.lang] ?? article[L.other.lang];
     const lang = article[L.lang] ? L.lang : L.other.lang;
     const dates = `${L.list.published} ${day(article.published, L.locale)}${
@@ -591,15 +603,23 @@ ${articles
         ? ` · ${L.list.updated} ${day(article.updated, L.locale)}`
         : ''
     }`;
-    return `<article class="post"${lang === L.lang ? '' : ` lang="${lang}"`}>
-<p class="dates"><time datetime="${article.published}">${dates}</time>${lang === L.lang ? '' : ` · <span lang="${L.lang}">${L.list.only}</span>`}</p>
+    return `<li class="step">
+<div class="marker" aria-hidden="true"><span>${index + 1}</span></div>
+<article class="post"${lang === L.lang ? '' : ` lang="${lang}"`}>
+<p class="dates"><span class="stage">${L.list.step} ${index + 1} · ${version.step}</span> · <time datetime="${article.published}">${dates}</time>${lang === L.lang ? '' : ` · <span lang="${L.lang}">${L.list.only}</span>`}</p>
+<p class="question">${version.question}</p>
 <h3><a href="${up}${version.file}"${lang === L.lang ? '' : ` hreflang="${lang}"`}>${version.title.replace('&', '&amp;')}</a></h3>
 <p>${version.description}</p>
+<dl class="findings">
+<dt>${L.list.found}</dt><dd>${version.found}</dd>
+<dt>${index + 1 < articles.length ? L.list.left : L.list.next}</dt><dd>${version.left}</dd>
+</dl>
 <p class="meta">${L.list.by} <a href="${article.author.url}" target="_blank" rel="noopener">${article.author.name}</a> · <a href="${up}${version.file}">${L.list.read}</a></p>
-</article>`;
+</article>
+</li>`;
   })
   .join('\n')}
-</div>
+</ol>
 </div>
 </section>
 `;
@@ -815,17 +835,30 @@ code { font-family: var(--mono); font-size: 0.9em; letter-spacing: 0; }
 @media (min-width: 768px) { .cards { gap: 1.5rem; } }
 @media (min-width: 1024px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cards.languages { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
-/* ---------- The articles ---------- */
+/* ---------- The articles: a journey ---------- */
 .list .section-inner { padding-top: 8rem; }
-.posts { display: grid; gap: 1.5rem; }
+.journey { list-style: none; display: grid; gap: 0; position: relative; }
+.step { position: relative; display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); gap: 1rem; padding-bottom: 1.5rem; }
+.step:last-child { padding-bottom: 0; }
+.marker { position: relative; display: flex; justify-content: center; }
+.marker::before { content: ''; position: absolute; top: 2.5rem; bottom: -1.5rem; left: 50%; width: 2px; margin-left: -1px; background: linear-gradient(180deg, #e43b7d, rgba(76, 53, 132, 0.6)); }
+.step:last-child .marker::before { display: none; }
+.marker span { display: flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; border-radius: 9999px; background: var(--gradient); color: #fff; font-weight: 800; font-size: 1rem; box-shadow: 0 0 16px rgba(228, 59, 125, 0.45); }
 .post { padding: 1.5rem; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 0.375rem; }
 .post .dates { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #bfdbfe; }
+.post .dates .stage { color: var(--secondary); }
+.post .question { margin-top: 0.75rem; font-size: 1.125rem; line-height: 1.5; color: var(--text-soft); font-style: italic; }
 .post h3 { margin-top: 0.5rem; font-size: 1.5rem; line-height: 1.25; letter-spacing: -0.03em; }
 .post h3 a:hover { color: #fff; text-decoration: underline; text-underline-offset: 0.2em; }
-.post p:not(.dates):not(.meta) { margin-top: 0.75rem; color: var(--text-muted); }
+.post h3 + p { margin-top: 0.75rem; color: var(--text-muted); }
+.findings { margin-top: 1rem; display: grid; gap: 0.5rem 1rem; grid-template-columns: max-content minmax(0, 1fr); font-size: 0.9375rem; }
+.findings dt { font-weight: 600; color: #fff; }
+.findings dd { color: var(--text-muted); }
 .post .meta { margin-top: 1rem; font-size: 0.9375rem; color: var(--text-soft); }
 .post .meta a { text-decoration: underline; text-underline-offset: 0.2em; }
 .post .meta a:hover { color: #fff; }
+@media (max-width: 639px) { .findings { grid-template-columns: 1fr; gap: 0.25rem; } .findings dd { margin-bottom: 0.5rem; } }
+@media (min-width: 768px) { .step { grid-template-columns: 3rem minmax(0, 1fr); gap: 1.5rem; } .marker span { width: 3rem; height: 3rem; font-size: 1.125rem; } .marker::before { top: 3rem; } }
 
 /* ---------- Measured ---------- */
 .verdict { display: grid; gap: 1.5rem; }

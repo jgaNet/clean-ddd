@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The articles — CLEAN-DDD</title>
-<meta name="description" content="What the clean-ddd experiments found, article by article: the title, the author, the date.">
+<title>A research journey, step by step — CLEAN-DDD</title>
+<meta name="description" content="Does Clean Architecture help an AI agent write software? The clean-ddd articles in the order the research produced them: the question each step asked, what it found, what it left open.">
 <link rel="alternate" hreflang="fr" href="https://jganet.github.io/clean-ddd/articles.html">
 <link rel="alternate" hreflang="en" href="https://jganet.github.io/clean-ddd/en/articles.html">
 <link rel="alternate" hreflang="x-default" href="https://jganet.github.io/clean-ddd/articles.html">
-<meta property="og:title" content="The articles — CLEAN-DDD">
-<meta property="og:description" content="What the clean-ddd experiments found, article by article: the title, the author, the date.">
+<meta property="og:title" content="A research journey, step by step — CLEAN-DDD">
+<meta property="og:description" content="Does Clean Architecture help an AI agent write software? The clean-ddd articles in the order the research produced them: the question each step asked, what it found, what it left open.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://jganet.github.io/clean-ddd/en/articles.html">
 <meta property="og:image" content="https://jganet.github.io/clean-ddd/assets/img/open-graph.en.png">
@@ -159,17 +159,30 @@ code { font-family: var(--mono); font-size: 0.9em; letter-spacing: 0; }
 @media (min-width: 768px) { .cards { gap: 1.5rem; } }
 @media (min-width: 1024px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cards.languages { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
-/* ---------- The articles ---------- */
+/* ---------- The articles: a journey ---------- */
 .list .section-inner { padding-top: 8rem; }
-.posts { display: grid; gap: 1.5rem; }
+.journey { list-style: none; display: grid; gap: 0; position: relative; }
+.step { position: relative; display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); gap: 1rem; padding-bottom: 1.5rem; }
+.step:last-child { padding-bottom: 0; }
+.marker { position: relative; display: flex; justify-content: center; }
+.marker::before { content: ''; position: absolute; top: 2.5rem; bottom: -1.5rem; left: 50%; width: 2px; margin-left: -1px; background: linear-gradient(180deg, #e43b7d, rgba(76, 53, 132, 0.6)); }
+.step:last-child .marker::before { display: none; }
+.marker span { display: flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; border-radius: 9999px; background: var(--gradient); color: #fff; font-weight: 800; font-size: 1rem; box-shadow: 0 0 16px rgba(228, 59, 125, 0.45); }
 .post { padding: 1.5rem; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 0.375rem; }
 .post .dates { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #bfdbfe; }
+.post .dates .stage { color: var(--secondary); }
+.post .question { margin-top: 0.75rem; font-size: 1.125rem; line-height: 1.5; color: var(--text-soft); font-style: italic; }
 .post h3 { margin-top: 0.5rem; font-size: 1.5rem; line-height: 1.25; letter-spacing: -0.03em; }
 .post h3 a:hover { color: #fff; text-decoration: underline; text-underline-offset: 0.2em; }
-.post p:not(.dates):not(.meta) { margin-top: 0.75rem; color: var(--text-muted); }
+.post h3 + p { margin-top: 0.75rem; color: var(--text-muted); }
+.findings { margin-top: 1rem; display: grid; gap: 0.5rem 1rem; grid-template-columns: max-content minmax(0, 1fr); font-size: 0.9375rem; }
+.findings dt { font-weight: 600; color: #fff; }
+.findings dd { color: var(--text-muted); }
 .post .meta { margin-top: 1rem; font-size: 0.9375rem; color: var(--text-soft); }
 .post .meta a { text-decoration: underline; text-underline-offset: 0.2em; }
 .post .meta a:hover { color: #fff; }
+@media (max-width: 639px) { .findings { grid-template-columns: 1fr; gap: 0.25rem; } .findings dd { margin-bottom: 0.5rem; } }
+@media (min-width: 768px) { .step { grid-template-columns: 3rem minmax(0, 1fr); gap: 1.5rem; } .marker span { width: 3rem; height: 3rem; font-size: 1.125rem; } .marker::before { top: 3rem; } }
 
 /* ---------- Measured ---------- */
 .verdict { display: grid; gap: 1.5rem; }
@@ -295,29 +308,53 @@ footer { position: relative; padding: 1.5rem; overflow: hidden; background: radi
 <div class="section-inner narrow">
 <div class="headline">
 <p class="tagline">Articles</p>
-<h2>The articles</h2>
-<p class="sub">Every article reads its figures from the repository’s records; a correction is an issue, an update a new date.</p>
+<h2>A research journey, step by step</h2>
+<p class="sub">One question, “does Clean Architecture help an AI agent write software?”, followed from step to step: each answers, and leaves open what the next takes up. Every article reads its figures from the repository’s records.</p>
 </div>
-<div class="posts">
+<ol class="journey">
+<li class="step">
+<div class="marker" aria-hidden="true"><span>1</span></div>
 <article class="post">
-<p class="dates"><time datetime="2026-10-30">published 30 October 2026 · updated 8 November 2026</time></p>
+<p class="dates"><span class="stage">Step 1 · The control</span> · <time datetime="2026-10-30">published 30 October 2026 · updated 8 November 2026</time></p>
+<p class="question">Does an architecture made explicit and enforced make an AI agent better at building a small application?</p>
 <h3><a href="../article.html">Does Clean Architecture help an AI agent write software?</a></h3>
 <p>A controlled benchmark on a notes application: the same seven features built by coding agents with and without the architecture, against hidden tests, and what the tests cannot see read by independent readers.</p>
+<dl class="findings">
+<dt>What it found</dt><dd>No. The plain project delivered the same seven features, sooner and cheaper, with no difference in quality two readers could see. The tool did what it claims: it held the architecture exactly and made a fan-out of agents safe.</dd>
+<dt>What it left open</dt><dd>Where the architecture should pay: a weaker model, a growing codebase, a change of storage.</dd>
+</dl>
 <p class="meta">by <a href="https://exostic.com/" target="_blank" rel="noopener">Jérémy Gay</a> · <a href="../article.html">Read the article</a></p>
 </article>
+</li>
+<li class="step">
+<div class="marker" aria-hidden="true"><span>2</span></div>
 <article class="post">
-<p class="dates"><time datetime="2026-10-30">published 30 October 2026</time></p>
+<p class="dates"><span class="stage">Step 2 · The conditions</span> · <time datetime="2026-10-30">published 30 October 2026</time></p>
+<p class="question">Does it pay under the conditions it is claimed to pay under?</p>
 <h3><a href="../four-more-experiments.html">Where the architecture should pay: four more experiments</a></h3>
 <p>A weaker model, a growing codebase, a change of storage, the fan-out’s contract given to one agent: four conditions the architecture is claimed to pay under, each run with its prediction written before.</p>
+<dl class="findings">
+<dt>What it found</dt><dd>Not on a small application. The plain project still delivered everything with a weaker model and stayed the soonest as the trees grew; the storage change stayed out of the domain, as promised, and still took twice the time.</dd>
+<dt>What it left open</dt><dd>Whether the return grows with the code, on an application that no longer fits in an agent’s head.</dd>
+</dl>
 <p class="meta">by <a href="https://exostic.com/" target="_blank" rel="noopener">Jérémy Gay</a> · <a href="../four-more-experiments.html">Read the article</a></p>
 </article>
+</li>
+<li class="step">
+<div class="marker" aria-hidden="true"><span>3</span></div>
 <article class="post">
-<p class="dates"><time datetime="2026-11-04">published 4 November 2026 · updated 8 November 2026</time></p>
+<p class="dates"><span class="stage">Step 3 · The scale</span> · <time datetime="2026-11-04">published 4 November 2026 · updated 8 November 2026</time></p>
+<p class="question">Does it start to pay at fifty features, then toward a hundred?</p>
 <h3><a href="../openstay.html">OpenStay: fifty features, then toward a hundred</a></h3>
 <p>A lodging marketplace built feature by feature by agents, on three plain trees and three Clean DDD trees, with money through a payment provider and a change of database not announced in advance; what the tests see, what they cannot, and where every tree stopped.</p>
+<dl class="findings">
+<dt>What it found</dt><dd>At fifty, every tree delivered and the plain trees stayed cheaper; the Clean DDD trees won in what the tests cannot see: the money, the contexts kept apart, a change of database kept out of the rules. Toward a hundred, every tree stopped on a rule nobody had written down, and stating it let the Clean DDD trees through.</dd>
+<dt>What is still to do</dt><dd>The follow-on arms to a hundred, a second grading, the reading, and the side experiments.</dd>
+</dl>
 <p class="meta">by <a href="https://exostic.com/" target="_blank" rel="noopener">Jérémy Gay</a> · <a href="../openstay.html">Read the article</a></p>
 </article>
-</div>
+</li>
+</ol>
 </div>
 </section>
 
