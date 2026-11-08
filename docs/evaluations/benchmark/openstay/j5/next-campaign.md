@@ -36,5 +36,6 @@ given late is applied to new code; the code it should have shaped is already the
    expires, lapses or falls due) is changed by a background job on its schedule, never by a read.
    ```
 
-   The clean arms need nothing: a query returns a read model and changes nothing there already (QUERY-READ-MODELS).
+   The clean arms need nothing: their reads are queries, apart from the commands, already (QUERY-READ-MODELS), and Full+
+   clean-3 delivered 73 at step 0.
    J5's guides are not changed; the sentence is in the next campaign's simple guide from its first request.
