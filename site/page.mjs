@@ -74,6 +74,9 @@ body {
 }
 main { max-width: 760px; margin: 0 auto; padding: 48px 16px 96px; }
 header.title { margin-bottom: 40px; }
+.home { margin: 0 0 24px; font-size: 0.9rem; }
+.home a { color: var(--text-muted); text-decoration: none; }
+.home a:hover { color: var(--link); }
 h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.01em; }
 .dek { color: var(--text-secondary); font-size: 1.15rem; margin: 0 0 16px; }
 .byline { color: var(--text-muted); font-size: 0.9rem; }
