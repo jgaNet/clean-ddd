@@ -1,0 +1,51 @@
+/**
+ * Application: registers modules and starts them against one event bus.
+ *
+ * The concrete class adds the transport. See Bootstrap/Fastify/createApplication.ts, which
+ * sets the bus, registers the modules and routes, starts the modules, seeds, and only then
+ * listens.
+ */
+
+import { EventBus } from '@Architecture/Application/EventBus';
+import { Module } from '@Architecture/Application/Module';
+
+export abstract class Application {
+  #modules = new Map<string, Module>();
+  #eventBus?: EventBus;
+
+  /** Begin serving: start the HTTP server, message consumers, etc. */
+  abstract start(): Promise<void>;
+
+  getEventBus(): EventBus {
+    if (!this.#eventBus) {
+      throw new Error('You have to call setEventBus before starting the application');
+    }
+    return this.#eventBus;
+  }
+
+  setEventBus(eventBus: EventBus) {
+    this.#eventBus = eventBus;
+    return this;
+  }
+
+  registerModule(module: Module) {
+    if (!this.#eventBus) {
+      throw new Error('You have to call setEventBus before registering modules');
+    }
+    this.#modules.set(module.name, module);
+    return this;
+  }
+
+  /** Subscribes every module's handlers to the bus. Awaited, so nothing is served before they listen. */
+  async startModules(): Promise<void> {
+    await Promise.all([...this.#modules.values()].map(module => module.start(this.#eventBus)));
+  }
+
+  getModule(name: string): Module {
+    const module = this.#modules.get(name);
+    if (!module) {
+      throw new Error(`Module ${name} not found`);
+    }
+    return module;
+  }
+}

@@ -1,0 +1,64 @@
+# The storm of linkbox, read from the legacy (ADR 35; `.claude/skills/storm/SKILL.md`): the legacy's
+# routes, its Map and its activity feed stood in for the people in the room. What it says, in the
+# inventory's words, is what the migrated application must carry — and no more, for the migration to
+# have changed no functionality. The hot spots are the questions the legacy did not answer by itself.
+#
+# The legacy, in product words: "People save links with a title; they see the ones not archived,
+# newest first; they archive a link once; they see what happened, newest first."
+
+schemaVersion: 1
+
+feature: linkbox
+intent: >-
+  A person saves a link under a title, sees the links not archived newest first, archives a link once, and
+  sees what happened to the links, newest first.
+
+done: true
+
+hotSpots:
+  - question: Who may save, archive and read links?
+    decision: Anyone, as on the legacy, which had no accounts; an operation nobody started is followed by whoever holds its id (ADR 27).
+  - question: Is a second archiving a refusal or a no-op?
+    decision: A refusal (LinkAlreadyArchived), as the legacy's 409 was; the compatibility wire maps the name back to the 409.
+  - question: Is the activity feed its own aggregate, or a projection?
+    decision: A projection — the feed holds no rule and is never written by a client; the link records the facts (LinkSaved, LinkArchived) and a policy on each writes the feed. The legacy wrote it in the same request; here it is written after the commit, which the scenario did not see.
+  - question: Where does a link's time come from?
+    decision: A parameter of the behaviour with a default (DOMAIN-NON-DETERMINISM); the saved fact carries it, and the feed shows the time of the fact.
+  - question: The legacy's clients speak /v1, and the contract's grammar cannot answer 201 on the same route.
+    decision: The native wire is served under /v2 and the legacy's under /v1 by compatibility routes in the transport, declared under `migration` in the binding, until the clients have moved.
+
+contexts:
+  - id: Links
+    commands:
+      - name: SaveLink
+        actor: anyone
+        route: POST /links
+        aggregate: Link
+        events: [LinkSaved]
+      - name: ArchiveLink
+        actor: anyone
+        route: POST /links/{param}/archive
+        aggregate: Link
+        events: [LinkArchived]
+    queries:
+      - name: GetLinks
+        actor: anyone
+        route: GET /links
+      - name: GetLink
+        actor: anyone
+        route: GET /links/{param}
+      - name: GetActivity
+        actor: anyone
+        route: GET /links/activity
+    events: [LinkArchived, LinkSaved]
+    policies:
+      - on: LinkSaved
+        kind: domain-event
+        publishes: []
+        events: []
+      - on: LinkArchived
+        kind: domain-event
+        publishes: []
+        events: []
+
+links: []
