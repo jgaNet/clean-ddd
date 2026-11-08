@@ -21,7 +21,7 @@ This repository was built on a bet: an architecture made explicit and enforced m
 - the same architecture as prose, without the tooling;
 - a plain TypeScript project.
 
-It ran a seven-feature backlog, a feature across six contexts, five more features on grown trees, a move to SQLite, and a weaker model. A second benchmark, [OpenStay](docs/evaluations/benchmark/openstay/README.md), then built a lodging marketplace for longer: three plain trees and three Clean DDD trees, each feature from the smallest model up, now at fifty features with money through a payment provider and a move to PostgreSQL not announced in advance. The results, with every log and grade, are in the article [Does Clean Architecture help an AI agent write software?](https://jganet.github.io/clean-ddd/) and in [the records](docs/evaluations/README.md).
+It ran a seven-feature backlog, a feature across six contexts, five more features on grown trees, a move to SQLite, and a weaker model. A second benchmark, [OpenStay](docs/evaluations/benchmark/openstay/README.md), then built a lodging marketplace for longer: three plain trees and three Clean DDD trees, each feature from the smallest model up, past fifty features with money through a payment provider and a move to PostgreSQL not announced in advance; at its fifth checkpoint, toward a hundred, every tree stopped on a seam where a rule was implicit ([J5's provisional record](docs/evaluations/2026-11-08-openstay-j5.md)). The results, with every log and grade, are in the article [Does Clean Architecture help an AI agent write software?](https://jganet.github.io/clean-ddd/) and in [the records](docs/evaluations/README.md).
 
 **It does not make an agent faster or better.**
 - In every experiment, the plain project delivered as much.
@@ -33,6 +33,11 @@ It ran a seven-feature backlog, a feature across six contexts, five more feature
   - the plain trees never needed more than the smallest model, where the Clean DDD trees needed a larger one for 8 features of 152;
   - the plain arm stayed 1.5–3.7 times cheaper at features 26 to 50;
   - the hypothesis that the plain arm would need larger models sooner as it grew is not supported: at 8,000–9,000 source lines, the plain trees still fit in an agent's context.
+- **Toward a hundred features, every tree stopped** ([J5's provisional record](docs/evaluations/2026-11-08-openstay-j5.md)). The plain trees went further, to 66, 73 and 73; the Clean DDD trees stopped at 51, 64 and 64. Each failure fell on a seam where a rule was implicit:
+  - the Clean DDD trees where two contexts meet: a report taken up by another context under a new id, and an anonymous command answered `202`;
+  - the plain trees where an early shortcut met a later rule: a read that lapses a booking, and what is left to refund.
+
+  Copies of the Clean DDD trees on a kit that states the first two rules pass both seams and are past 73 in two trees. Identity born once is now [ADR 33](docs/adr/0033-identity-is-born-once-and-a-relationship-crossed-is-tested.md); who reaches a command is [RFC 0003](docs/rfc/0003-who-reaches-a-command.md).
 
 **It buys four things, each measured:**
 

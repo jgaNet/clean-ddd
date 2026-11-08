@@ -5,12 +5,14 @@
  *   docs/evaluations/2026-11-01-openstay-pilot.md   features 1–10
  *   docs/evaluations/2026-11-02-openstay-j3.md      features 11–25
  *   docs/evaluations/2026-11-03-openstay-j4.md      the defect report 25.1 and features 26–50
+ *   docs/evaluations/2026-11-08-openstay-j5.md      features 51–100 (provisional: two follow-on arms still run)
  */
 export const openstay = {
   records: {
     pilot: 'docs/evaluations/2026-11-01-openstay-pilot.md',
     j3: 'docs/evaluations/2026-11-02-openstay-j3.md',
     j4: 'docs/evaluations/2026-11-03-openstay-j4.md',
+    j5: 'docs/evaluations/2026-11-08-openstay-j5.md',
     protocol: 'docs/evaluations/benchmark/openstay/README.md',
     brief: 'docs/evaluations/benchmark/openstay/brief.md',
   },
@@ -47,4 +49,37 @@ export const openstay = {
   },
   // J4: source lines at the end, per arm (range of the three trees).
   source: { simple: [8264, 9213], clean: [26821, 28890] },
+
+  // J5 (provisional), from its record: where each tree stopped, the step of each request from 51 ('F' the triaged
+  // failure), and its cost with the kit's failures set apart.
+  j5: {
+    trees: [
+      {
+        tree: 'simple-1',
+        steps: '0000000000000000000001F',
+        delivered: '51–72',
+        stopped: '73 transfer proof',
+        usd: 15.66,
+      },
+      { tree: 'simple-2', steps: '000000001001000F', delivered: '51–65', stopped: '66 suspending accounts', usd: 12.5 },
+      {
+        tree: 'simple-3',
+        steps: '0000000000100002000000F',
+        delivered: '51–72',
+        stopped: '73 transfer proof',
+        usd: 20.8,
+      },
+      { tree: 'clean-1', steps: '0000000000010F', delivered: '51–63', stopped: '64 moderation queue', usd: 21.43 },
+      { tree: 'clean-2', steps: 'F', delivered: 'none', stopped: '51 conversations', usd: 8.06 },
+      { tree: 'clean-3', steps: '0000000000000F', delivered: '51–63', stopped: '64 moderation queue', usd: 21.77 },
+    ],
+    // Full+, the Clean DDD trees from where each stopped, on the kit that says what J5 found (still running).
+    fullplus: [
+      { tree: 'clean-1', from: 64, steps: '2100000000', delivered: '64–73', usd: 38.01 },
+      { tree: 'clean-2', from: 51, steps: '0000000001F', delivered: '51–60', usd: 21.38 },
+      { tree: 'clean-3', from: 64, steps: '120100000000', delivered: '64–75', usd: 32.38 },
+    ],
+    // Two developers on request 64, delivered of two runs per arm.
+    twoDevelopers: { old: [0, 2], fullplus: [0, 2], integrator: [2, 2] },
+  },
 };
