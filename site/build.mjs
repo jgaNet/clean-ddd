@@ -2,12 +2,15 @@
 /**
  * The article, built from site/data.json (node site/collect.mjs writes it from the records):
  *
- *   node site/collect.mjs && node site/build.mjs   → site/index.html
+ *   node site/collect.mjs && node site/build.mjs   → site/article.html
+ *
+ * The page that presents the project, site/index.html, is built by node site/home.mjs and links here.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ARMS, bars, dotRange, groupedColumns, legend, table } from './charts.mjs';
+import { figures, mean, span } from './figures.mjs';
 import { openstay as O } from './openstay.mjs';
 import { page } from './page.mjs';
 
@@ -31,22 +34,10 @@ const range = (runs, key, digits = 1) => {
   const [low, high] = [Math.min(...values).toFixed(digits), Math.max(...values).toFixed(digits)];
   return low === high ? low : `${low}–${high}`;
 };
-const mean = values => values.reduce((a, b) => a + b, 0) / values.length;
 const ratio = (a, b) => (mean(a) / mean(b)).toFixed(1);
 const short = ['Accounts & notes', 'Pin', 'Tags', 'Share', 'Notify', 'Plan & quota', 'Remind'];
-// Each architecture arm's time and cost as a multiple of the plain project's, experiment by experiment.
-const experiments = [
-  { name: 'Backlog', runs: { A, D, P } },
-  { name: 'Backlog, weaker model', runs: X.E1 },
-  { name: 'Feature 8', runs: { A: [f8.A], D: [f8.D], P: [f8.P] } },
-  { name: 'Features 9–13', runs: { A: [X.E3.A], D: [X.E3.D], P: [X.E3.P] } },
-  { name: 'Move to SQLite', runs: X.E4 },
-];
-const times = (e, arm, key = 'minutes') => mean(e.runs[arm].map(r => r[key])) / mean(e.runs.P.map(r => r[key]));
-const graded = 11 + 4 + [X.E1.A, X.E1.D, X.E1.P, X.E2, X.E4.A, X.E4.D, X.E4.P].flat().length + 3;
-const allTimes = experiments.flatMap(e => ['A', 'D'].map(arm => times(e, arm)));
-const allCosts = experiments.flatMap(e => ['A', 'D'].map(arm => times(e, arm, 'usd')));
-const span = values => `${Math.min(...values).toFixed(1)}–${Math.max(...values).toFixed(1)}`;
+// Each architecture arm's time and cost as a multiple of the plain project's, experiment by experiment (site/figures.mjs).
+const { experiments, times, graded, allTimes, allCosts } = figures(data);
 
 // OpenStay, checkpoint by checkpoint (site/openstay.mjs, copied from its three records).
 const lowHigh = (values, digits = 2) => `${Math.min(...values).toFixed(digits)}–${Math.max(...values).toFixed(digits)}`;
@@ -415,6 +406,7 @@ const readingRows = reading.rows
 
 const body = `
 <header class="title">
+<p class="home"><a href="./">← clean-ddd</a></p>
 <h1>Does Clean Architecture help an AI agent write software?</h1>
 <p class="dek">We built a reference implementation of Clean Architecture and Domain-Driven Design whose rules are data, a tool that holds code to them, and a flow that lets several agents build features in parallel. Then we measured whether any of it helps an agent deliver, including where it should help most: a weaker model, a growing codebase, a change of storage. On our benchmark, it did not. It did keep changes in their place, and only the tool kept the structure from drifting. A second, larger benchmark, a lodging marketplace with money and a database migration, said the same for fifty features and showed where the architecture does pay: in what the tests cannot see. Toward a hundred, every tree stopped, each on a rule nobody had written down.</p>
 <p class="byline">30 October 2026, updated 4 November 2026 with OpenStay's first fifty features, and 8 November 2026 with its fifth checkpoint, provisional · The <a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> experiments · Every number below is read from the records in the repository.</p>
@@ -688,7 +680,7 @@ ${tables.openstayFullplus}
 `;
 
 writeFileSync(
-  join(here, 'index.html'),
+  join(here, 'article.html'),
   page({
     title: 'Architecture and AI agents',
     description:
@@ -696,4 +688,4 @@ writeFileSync(
     body,
   }),
 );
-process.stdout.write('site/index.html written\n');
+process.stdout.write('site/article.html written\n');
