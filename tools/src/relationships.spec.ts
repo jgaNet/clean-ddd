@@ -6,10 +6,12 @@ import { join } from 'path';
 
 import {
   crossedRelationships,
+  readChangedFiles,
   missingRelationshipTests,
   relationshipName,
   relationshipTestsThatMissTheChange,
   testTitles,
+  touchesName,
 } from './relationships';
 import { ArchitectureContract } from './types';
 
@@ -66,6 +68,86 @@ describe('the relationships a change crosses', () => {
       contract,
     );
     expect(crossed.map(relationshipName)).toEqual(['Accounts → Moderation']);
+  });
+
+  it('counts a contract the change touches, not one a changed file names on lines the change left alone (ADR 35)', () => {
+    // J5, Full+ clean-3, request 78: a field added to one port's answer, and the wiring files that name every contract
+    const wiring = [
+      'const pricing: IListingPricing = new PricingListingPricing(pricingQueries);',
+      'const ratings: IListingRatings = new ReviewsListingRatings(reviewQueries);',
+      'const hosts: IHosts = new AccountsHosts(accountQueries);',
+    ].join('\n');
+    const all = [
+      port('Accounts', 'Listings', 'Hosts'),
+      port('Pricing', 'Listings', 'ListingPricing'),
+      port('Reviews', 'Listings', 'ListingRatings'),
+      event('Moderation', 'Listings', 'ReportUpheld'),
+    ];
+    const crossed = crossedRelationships(
+      all,
+      [
+        {
+          path: 'src/Contexts/Listings/module.local.ts',
+          before: `${wiring}\nnew GetListingQueryHandler(listingQueries, pricing, ratings);`,
+          text: `${wiring}\nnew GetListingQueryHandler(listingQueries, pricing, ratings, hosts);`,
+        },
+        {
+          path: 'src/Contexts/Listings/Application/Queries/GetListing/GetListingQueryHandler.ts',
+          before: 'constructor(private pricing: IListingPricing, private ratings: IListingRatings) {}',
+          text: 'constructor(private pricing: IListingPricing, private ratings: IListingRatings, private hosts: IHosts) {}',
+        },
+        {
+          path: 'src/Contexts/Listings/Application/Ports/IHosts.ts',
+          before: 'export interface IHosts {\n  exists(id: string): Promise<boolean>;\n}',
+          text: 'export interface IHosts {\n  exists(id: string): Promise<boolean>;\n  traderOf(id: string): Promise<Trader | null>;\n}',
+        },
+        {
+          path: 'src/Contexts/Listings/Application/Events/ReportUpheldIntegrationEventHandler.spec.ts',
+          before: '',
+          text: 'class FakeRatings implements IListingRatings {}',
+        },
+      ],
+      contract,
+    );
+    expect(crossed.map(relationshipName)).toEqual(['Accounts → Listings']);
+  });
+
+  it('counts the file whose job is the contract, even where the lines it changed do not name it', () => {
+    const crossed = crossedRelationships(
+      links,
+      [
+        {
+          path: 'src/Contexts/Moderation/Application/Events/MessageReportedIntegrationEventHandler.ts',
+          before: 'class H extends EventHandler<MessageReportedIntegrationEvent> {\n  id = Id.generate();\n}',
+          text: 'class H extends EventHandler<MessageReportedIntegrationEvent> {\n  id = event.payload.reportId;\n}',
+        },
+        {
+          path: 'src/Contexts/Reviews/Application/Events/ReviewReportedHandler.ts',
+          before: 'ReviewReportedIntegrationEvent.set({\n  reportId: review.id,\n})',
+          text: 'ReviewReportedIntegrationEvent.set({\n  reportId: report.id,\n})',
+        },
+        {
+          path: 'src/Contexts/Moderation/Infrastructure/AccountsAdministrators.ts',
+          before: 'export class AccountsAdministrators implements IAdministrators {\n  a() {}\n}',
+          text: 'export class AccountsAdministrators implements IAdministrators {\n  b() {}\n}',
+        },
+      ],
+      contract,
+    );
+    expect(crossed.map(relationshipName)).toEqual([
+      'Messaging → Moderation',
+      'Reviews → Moderation',
+      'Accounts → Moderation',
+    ]);
+  });
+
+  it('reads a mention the change wrote or removed, and every mention of a file whose base is unknown', () => {
+    expect(touchesName({ path: 'a', before: 'f(a: IHosts)', text: 'f(a: IHosts, b: IPricing)' }, 'IHosts')).toBe(false);
+    expect(touchesName({ path: 'a', before: 'f(a: IHosts)', text: 'f(a: IHosts, b: IPricing)' }, 'IPricing')).toBe(
+      true,
+    );
+    expect(touchesName({ path: 'a', before: 'x: IHostsReader', text: 'x: IHosts' }, 'IHosts')).toBe(true);
+    expect(touchesName({ path: 'a', text: 'x: IHosts' }, 'IHosts')).toBe(true);
   });
 
   it('asks each one crossed for a test changed with it, named for the pair', () => {
@@ -158,5 +240,31 @@ describe('a relationship test sees the change (ADR 34)', () => {
       relationshipTestsThatMissTheChange({ root, base: 'working', tests: [test], run: 'x', languageRoot: 'app', exec }),
     ).toEqual([]);
     expect(calls).toBe(0);
+  });
+});
+
+describe('the changed files, read at the base (ADR 35)', () => {
+  const git = (cwd: string, ...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: 'pipe' });
+  it('reads each file now and where the change forked from, an added file as empty, a deleted one not at all', () => {
+    const root = mkdtempSync(join(tmpdir(), 'relationship-files-'));
+    try {
+      git(root, 'init', '-q');
+      writeFileSync(join(root, 'kept.ts'), 'before\n');
+      writeFileSync(join(root, 'gone.ts'), 'x\n');
+      git(root, 'add', '-A');
+      git(root, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'base');
+      const base = git(root, 'rev-parse', 'HEAD').trim();
+      writeFileSync(join(root, 'kept.ts'), 'after\n');
+      writeFileSync(join(root, 'added.ts'), 'new\n');
+      rmSync(join(root, 'gone.ts'));
+      const files = readChangedFiles(root, ['kept.ts', 'added.ts', 'gone.ts'], base);
+      expect(files).toEqual([
+        { path: 'kept.ts', text: 'after\n', before: 'before\n' },
+        { path: 'added.ts', text: 'new\n', before: '' },
+      ]);
+      expect(readChangedFiles(root, ['kept.ts'], 'working')[0].before).toBe('before\n');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
