@@ -7,7 +7,7 @@ Cities set their tourist tax themselves, and it is not always a fixed amount per
   - `per-guest-night`: an `amount` per guest and night, 0 or more;
   - `percent`: a `percent`, a whole number from 1 to 10, of each night's price per guest, capped at `capPerGuestNight` (0 or more) per guest and night.
 
-  Either kind may give `childrenUnder` (1 to 18): children younger than that are exempt. Without it, or with `null`, nobody is exempt. Setting a city's rule again replaces it. No city has a rule until an administrator sets one, and there is no removing one.
+  Either kind may give `childrenUnder` (1 to 18): children younger than that are exempt. Without it, or with `null`, nobody is exempt. Setting a city's rule again replaces it. A city is named in the route and matches whatever its case, as in search (request 3): `Saint Malo`, `saint malo` and `SAINT MALO` are one city, whose rule is set, replaced and read under any of them. No city has a rule until an administrator sets one, and there is no removing one.
 - **Which listings.** Every listing whose `city` is that city, whatever its case, as search matches it (request 3), whatever its country (request 84). The rule applies to the quotes made after it is set. The host's own declaration stays on the listing, unused while its city has a rule.
 - **Children.** A quote may say how many of its guests are `children`: younger than the age the city exempts. It is 0 when not given; more children than guests is refused. Children are guests for everything else (the capacity, the extra guests' fee of request 41). Where the city exempts nobody, or has no rule, `children` changes nothing.
 - **The amount.** The taxable guests are the guests less the children (all the guests when nobody is exempt).

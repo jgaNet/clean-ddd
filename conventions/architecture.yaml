@@ -288,11 +288,13 @@ rules:
 
   - id: DOMAIN-IDENTITY
     name: identity-is-generated-by-the-domain
-    statement: An aggregate generates its own identity (`Id.generate()` in `create()`). A repository loads and saves aggregates, and answers the facts a domain rule needs about the collection (`findByEmail`, `countByOwner`); it never hands out identities and never searches for a screen.
-    why: No persistence round-trip is needed to know who an object is, and the event of its creation can carry its id.
-    remediation: Generate the Id in the factory; remove any "next id" method from the repository.
+    statement: An aggregate generates its own identity (`Id.generate()` in `create()`). A repository loads and saves aggregates, and answers the facts a domain rule needs about the collection (`findByEmail`, `countByOwner`); it never hands out identities and never searches for a screen. Identity is born once — a thing first made in one context and taken up by another keeps the id it was born with; the integration event that announces it carries that id, and the receiving side builds its object on it instead of generating a new one, so the id a client was answered finds the thing in every context.
+    why: No persistence round-trip is needed to know who an object is, and the event of its creation can carry its id; a client holds one id for one thing, and a second id made downstream is a thing it cannot find.
+    remediation: Generate the Id in the factory; remove any "next id" method from the repository. Downstream of an integration event, put the announced id in the event's payload and pass it to the receiving aggregate's factory (`create({ id, … })`), never `Id.generate()` there; a thing made about another one (a report about a message) has its own id, and that is the one its event carries.
     enforcement: review
-    references: [docs/adr/0002-identity-is-generated-by-the-domain.md]
+    references:
+      - docs/adr/0002-identity-is-generated-by-the-domain.md
+      - docs/adr/0033-identity-is-born-once-and-a-relationship-crossed-is-tested.md
 
   - id: DOMAIN-NON-DETERMINISM
     name: non-determinism-enters-as-a-value

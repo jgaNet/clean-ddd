@@ -2,7 +2,7 @@
 
 Some cities limit how many nights a home may be let to visitors in a year. OpenStay should refuse the booking that would pass the limit, rather than leave the host to find out from the city.
 
-- **A city's cap.** An administrator (an account whose email is in `ADMIN_EMAILS`, a comma-separated list, request 37) sets a city's cap: a number of `nights`, from 1 to 365, or `null` to lift it. Setting it again replaces it. No city has a cap until an administrator sets one.
+- **A city's cap.** An administrator (an account whose email is in `ADMIN_EMAILS`, a comma-separated list, request 37) sets a city's cap: a number of `nights`, from 1 to 365, or `null` to lift it. Setting it again replaces it. A city is named in the route and matches whatever its case, as in search (request 3): `Bruges`, `bruges` and `BRUGES` are one city, whose cap is set, lifted and read under any of them. No city has a cap until an administrator sets one.
 - **Which listings.** Every listing whose `city` is that city, whatever its case, as search matches it (request 3). The cap is per listing, not per host.
 - **What counts.** For a listing and a calendar year, the nights of its confirmed bookings (`status` `confirmed`) that fall in that year, by their current dates (after a change of dates, request 19). A request still waiting (request 7), a declined, expired, cancelled or lapsed booking counts nothing. A stay across the new year counts each night in the year of its date.
 - **What is refused.** Anything that would make a listing's nights in a year more than its city's cap:

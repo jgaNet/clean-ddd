@@ -43,6 +43,13 @@ checks:
   - yarn test:units
   - yarn test:e2e
 
+# Each relationship between two contexts a change crosses asks for an end-to-end test changed with it, named for
+# the pair (`describe('Notes → Notifications', …)`): it makes the thing upstream through the API, keeps the id that
+# request answered, and finds the thing downstream through the API by that id (ADR 33). The reference's is the
+# sharing of a note, in src/Contexts/Notes/Presentation/API/REST/Routes/note.routes.e2e.spec.ts.
+relationship_tests:
+  suffix: .e2e.spec.ts
+
 # What the two modes protect and decide in this language, on top of the contract and the
 # decisions, which architecture.yaml protects for every language.
 modes:

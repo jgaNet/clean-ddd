@@ -112,7 +112,11 @@ const log = join(flowDir, `${run}.jsonl`);
 mkdirSync(runDir, { recursive: true });
 const resuming = args.includes('--resume');
 if (existsSync(log) && !resuming) fail(`${log} exists: a run id is used once`);
-const before = resuming && existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse) : [];
+const logged = resuming && existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse) : [];
+// A `revoked` event (the maintainer's, when the harness judged a feature wrongly) sets aside what was logged for that
+// feature before it: its delivery and its escalations no longer count, and the events after it say where it resumes.
+const revokedAt = new Map(logged.flatMap((each, index) => (each.event === 'revoked' ? [[each.feature, index]] : [])));
+const before = logged.filter((each, index) => !(index < (revokedAt.get(each.feature) ?? -1)));
 const delivered = new Set(before.filter(each => each.event === 'delivered').map(each => each.feature));
 
 const event = (name, data = {}) => {
@@ -281,7 +285,10 @@ async function hidden(feature, cwd, only) {
   return {
     graded: true,
     failing: failing.map(each => each.feature),
-    own: failing.filter(each => each.feature === feature.id).flatMap(each => each.M2.failed),
+    // A file that failed without naming a test (its run crashed, or was killed) still failed: it is never an empty list.
+    own: failing
+      .filter(each => each.feature === feature.id)
+      .flatMap(each => (each.M2.failed.length ? each.M2.failed : [`${each.feature}: ${each.M2.tests}`])),
     earlier: failing.filter(each => each.feature !== feature.id).map(each => each.feature),
     report: out,
   };
