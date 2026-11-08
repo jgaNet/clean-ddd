@@ -12,6 +12,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { articles } from './articles.mjs';
 import { body as bodyEn } from './article/en.mjs';
 import { body as bodyFr } from './article/fr.mjs';
 import { ARMS, bars, dotRange, groupedColumns, legend, setLanguage, table } from './charts.mjs';
@@ -599,26 +600,24 @@ function render(language) {
     .join('');
 
   const site = 'https://jganet.github.io/clean-ddd/';
+  const meta = articles.find(article => article.slug === 'architecture-and-ai-agents');
   const pages = {
     en: {
-      file: 'article.html',
-      title: 'Architecture and AI agents',
-      description:
-        'Does Clean Architecture and DDD help an AI coding agent? A controlled benchmark with and without the architecture, on a strong and a weaker model, over a growing codebase and a change of storage, then a lodging marketplace built to fifty features.',
-      body: bodyEn,
       home: 'en/',
-      other: { code: 'FR', href: 'article.fr.html', lang: 'fr', label: 'Version française' },
+      list: 'en/articles.html',
+      listLabel: 'The articles',
+      other: { code: 'FR', href: meta.fr.file, lang: 'fr', label: 'Version française' },
+      body: bodyEn,
     },
     fr: {
-      file: 'article.fr.html',
-      title: 'Architecture et agents IA',
-      description:
-        'La Clean Architecture et le DDD aident-ils un agent de code IA ? Un benchmark contrôlé avec et sans l’architecture, sur un modèle fort et un plus faible, sur une base de code qui grandit et un changement de stockage, puis une place de marché de logements construite jusqu’à cinquante fonctionnalités.',
-      body: bodyFr,
       home: './',
-      other: { code: 'EN', href: 'article.html', lang: 'en', label: 'English version' },
+      list: 'articles.html',
+      listLabel: 'Les articles',
+      other: { code: 'EN', href: meta.en.file, lang: 'en', label: 'English version' },
+      body: bodyFr,
     },
   }[language];
+  const { file, title, description } = meta[language];
   const ctx = {
     A,
     D,
@@ -648,20 +647,22 @@ function render(language) {
     fix,
     usd,
     home: pages.home,
+    list: pages.list,
+    listLabel: pages.listLabel,
     other: pages.other,
   };
   writeFileSync(
-    join(here, pages.file),
+    join(here, file),
     page({
       lang: language,
-      title: pages.title,
-      description: pages.description,
-      url: `${site}${pages.file}`,
-      alternates: { en: `${site}article.html`, fr: `${site}article.fr.html` },
+      title,
+      description,
+      url: `${site}${file}`,
+      alternates: { en: `${site}${meta.en.file}`, fr: `${site}${meta.fr.file}` },
       body: pages.body(ctx),
     }),
   );
-  process.stdout.write(`site/${pages.file} written\n`);
+  process.stdout.write(`site/${file} written\n`);
 }
 
 render('en');

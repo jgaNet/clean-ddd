@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Architecture et agents IA</title>
-<meta name="description" content="La Clean Architecture et le DDD aident-ils un agent de code IA ? Un benchmark contrôlé avec et sans l’architecture, sur un modèle fort et un plus faible, sur une base de code qui grandit et un changement de stockage, puis une place de marché de logements construite jusqu’à cinquante fonctionnalités.">
-<meta property="og:title" content="Architecture et agents IA">
-<meta property="og:description" content="La Clean Architecture et le DDD aident-ils un agent de code IA ? Un benchmark contrôlé avec et sans l’architecture, sur un modèle fort et un plus faible, sur une base de code qui grandit et un changement de stockage, puis une place de marché de logements construite jusqu’à cinquante fonctionnalités.">
+<title>La Clean Architecture aide-t-elle un agent IA à écrire du logiciel ?</title>
+<meta name="description" content="Un benchmark contrôlé avec et sans l’architecture, sur un modèle fort et un plus faible, sur une base de code qui grandit et un changement de stockage, puis une place de marché de logements construite jusqu’à cinquante fonctionnalités.">
+<meta property="og:title" content="La Clean Architecture aide-t-elle un agent IA à écrire du logiciel ?">
+<meta property="og:description" content="Un benchmark contrôlé avec et sans l’architecture, sur un modèle fort et un plus faible, sur une base de code qui grandit et un changement de stockage, puis une place de marché de logements construite jusqu’à cinquante fonctionnalités.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://jganet.github.io/clean-ddd/article.fr.html">
 <link rel="alternate" hreflang="en" href="https://jganet.github.io/clean-ddd/article.html">
@@ -61,6 +61,10 @@ header.title { margin-bottom: 40px; }
 .lang-switch:hover { border-color: #fff; }
 .home a { font-weight: 800; letter-spacing: -0.04em; text-decoration: none; background: var(--gradient-text); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .home a:hover { opacity: 0.85; }
+.crumbs { display: inline-flex; align-items: center; gap: 0.5rem; }
+.crumbs span { color: var(--text-muted); }
+.crumbs a + span + a { font-weight: 500; letter-spacing: -0.01em; background: none; color: var(--text-secondary); }
+.crumbs a + span + a:hover { color: var(--text-primary); opacity: 1; }
 h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.05em; }
 .dek { color: var(--text-secondary); font-size: 1.15rem; margin: 0 0 16px; }
 .byline { color: var(--text-muted); font-size: 0.9rem; }
@@ -110,7 +114,7 @@ footer { margin-top: 64px; color: var(--text-muted); font-size: 0.85rem; border-
 <main>
 
 <header class="title">
-<p class="home"><a href="./">← CLEAN-DDD</a><a class="lang-switch" href="article.html" hreflang="en" lang="en" aria-label="English version">EN</a></p>
+<p class="home"><span class="crumbs"><a href="./">← CLEAN-DDD</a><span aria-hidden="true">·</span><a href="articles.html">Les articles</a></span><a class="lang-switch" href="article.html" hreflang="en" lang="en" aria-label="English version">EN</a></p>
 <h1>La Clean Architecture aide-t-elle un agent IA à écrire du logiciel ?</h1>
 <p class="dek">Nous avons construit une implémentation de référence de la Clean Architecture et du Domain-Driven Design dont les règles sont de la donnée, un outil qui y tient le code, et un flux qui permet à plusieurs agents de construire des fonctionnalités en parallèle. Puis nous avons mesuré si tout cela aide un agent à livrer, y compris là où cela devrait aider le plus : un modèle plus faible, une base de code qui grandit, un changement de stockage. Sur notre benchmark, non. L’architecture a bien gardé les changements à leur place, et seul l’outil a empêché la structure de dériver. Un second benchmark, plus grand, une place de marché de logements avec de l’argent et une migration de base de données, a dit la même chose pour cinquante fonctionnalités et a montré où l’architecture paie : dans ce que les tests ne voient pas. Vers la centième, chaque arbre s’est arrêté, chacun sur une règle que personne n’avait écrite.</p>
 <p class="byline">30 octobre 2026, mis à jour le 4 novembre 2026 avec les cinquante premières fonctionnalités d’OpenStay, et le 8 novembre 2026 avec son cinquième jalon, provisoire · Les expériences <a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> · Chaque chiffre ci-dessous est lu dans les registres du dépôt.</p>
