@@ -29,6 +29,9 @@
  *    other language's committed inventory says the same (ARCH-ONE-APPLICATION).
  * 12. Every expected storm under conventions/storms is legal against the contract and the map, and the
  *    code carries the ones marked done and not yet the others.
+ * 13. A migrated application answers on the wire its binding says (ADR 36): every compatibility route
+ *    stands for a command or a query the inventory lists, and nothing outside the transport waits for an
+ *    operation (ARCH-COMPAT-ROUTE).
  *
  * A client of the contract API, like the CLI; it parses no YAML itself. One root: the
  * repository's, where the contract and the shared documents live; the language's directory is
@@ -82,6 +85,8 @@ import {
   checkExpectedStorm,
   loadExpectedStorm,
   validateExpectedStorm,
+  checkMigrationAgainstInventory,
+  waitsOutsideTransport,
 } from './index';
 import type { ArchitectureContract, ContextLink, Inventory, Mechanism } from './index';
 
@@ -131,12 +136,17 @@ export async function checkConventions(
   const domainMap = loadDomainMap(root);
   // The links between contexts: read from the TypeScript tree, or, for another language, from the
   // inventory its own tool keeps current — the same links, in the same words (ARCH-ONE-APPLICATION).
-  const inventoryLinks = (): ContextLink[] | undefined => {
-    const file = posix.join(INVENTORY_DIR, `${contract.language.id}.json`);
-    if (!existsSync(join(root, file))) return undefined;
-    const inventory = JSON.parse(readFileSync(join(root, file), 'utf8')) as Inventory;
-    return inventory.links.map(link => ({ ...link, mechanism: link.mechanism as Mechanism, evidence: [file] }));
-  };
+  const committedInventoryFile = posix.join(INVENTORY_DIR, `${contract.language.id}.json`);
+  const committedInventory = (): Inventory | undefined =>
+    existsSync(join(root, committedInventoryFile))
+      ? (JSON.parse(readFileSync(join(root, committedInventoryFile), 'utf8')) as Inventory)
+      : undefined;
+  const inventoryLinks = (): ContextLink[] | undefined =>
+    committedInventory()?.links.map(link => ({
+      ...link,
+      mechanism: link.mechanism as Mechanism,
+      evidence: [committedInventoryFile],
+    }));
   const links: ContextLink[] = domainMap
     ? readsTree
       ? inspectContextLinks(contract, root)
@@ -323,6 +333,14 @@ export async function checkConventions(
     }
   }
 
+  // 13. A migrated application answers on the wire its binding says (ADR 36)
+
+  if (contract.migration) {
+    const inventoryForMigration = readsTree ? inspectInventory(contract, root) : committedInventory();
+    if (inventoryForMigration) problems.push(...checkMigrationAgainstInventory(contract, inventoryForMigration));
+  }
+  if (readsTree) problems.push(...waitsOutsideTransport(contract, root));
+
   // 4. Every relative link in the documentation resolves
 
   const linksIn = (text: string) =>
@@ -450,6 +468,6 @@ export async function checkConventions(
 
   return {
     problems,
-    summary: `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts${readsTree ? ' match the tree' : ''}; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; ${readsTree ? `no eslint-disable; ${probes.length} import probes behave and name their rule` : `the tree is held by ${contract.language.name}'s own tool`}${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}${storm ? `; the event storm is read from the code (${storm.contexts.reduce((sum, each) => sum + each.commands.length, 0)} commands, ${storm.contexts.reduce((sum, each) => sum + each.policies.length, 0)} policies)` : ''}${multi ? `; one application in ${inventories.size} inventor${inventories.size === 1 ? 'y' : 'ies'}` : ''}.`,
+    summary: `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts${readsTree ? ' match the tree' : ''}; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; ${readsTree ? `no eslint-disable; ${probes.length} import probes behave and name their rule` : `the tree is held by ${contract.language.name}'s own tool`}${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}${storm ? `; the event storm is read from the code (${storm.contexts.reduce((sum, each) => sum + each.commands.length, 0)} commands, ${storm.contexts.reduce((sum, each) => sum + each.policies.length, 0)} policies)` : ''}${multi ? `; one application in ${inventories.size} inventor${inventories.size === 1 ? 'y' : 'ies'}` : ''}${contract.migration ? `; the wire is ${contract.migration.api} (${contract.migration.routes.length} compatibility route(s))` : ''}.`,
   };
 }

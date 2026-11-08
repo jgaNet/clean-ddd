@@ -4,7 +4,7 @@ The architecture of this repository, written as data so that tooling can hold th
 
 | File | What it holds | Who reads it |
 |---|---|---|
-| [`architecture.yaml`](architecture.yaml) | the contract: the layers and which may import from which, every rule under its stable id, the HTTP verbs, the kinds of thing a feature is made of, the two modes, and the list of `languages` | every language's import linter and conventions check; `yarn architecture` |
+| [`architecture.yaml`](architecture.yaml) | the contract: the layers and which may import from which, every rule under its stable id, the HTTP verbs, the kinds of thing a feature is made of, the two modes, the wires a migrated application may answer on, and the list of `languages` | every language's import linter and conventions check; `yarn architecture` |
 | [`concepts.yaml`](concepts.yaml) | the vocabulary: every concept the documentation teaches, with its rules and its decisions; plus the words | the root README's map, each language's map |
 | [`domain.yaml`](domain.yaml) | the domain: the subdomains and their kind, each context's purpose and ubiquitous language, the context map (every relationship between two contexts, upstream first, with its patterns, its mechanism and why) and the shared kernel; names no file, and never the contracts a relationship carries, which are read from the code ([ADR 19](../docs/adr/0019-the-domain-is-data.md)) | the root README's strategic view; `yarn architecture domain`, `context <id>`; `yarn check:conventions`, which holds the map to the code both ways |
 | [`typescript.yaml`](typescript.yaml) | the TypeScript binding: the contexts, the trees and their aliases, the wiring file, the libraries, what holds each enforcement word there, the checks, what the modes protect, what a new thing of each kind is made of, the file that shows each concept and each rule, the test styles, where each word is shown | [`eslint.config.js`](../typescript/eslint.config.js), which turns the contract and the binding into import rules; [`tools/src/check.ts`](../tools/src/check.ts), which checks the tree has the shape they describe |
@@ -98,20 +98,33 @@ yarn architecture mode feature --base working   # what is uncommitted right now
 
 The plan validator reads the same lists, so a plan's `architectureChanges` and the feature mode cannot drift apart. Neither mode is a CI gate — the maintainer changes the architecture on purpose, and a gate they must fight is a gate they will remove.
 
+### Migration
+
+A migrated application keeps its behaviour and chooses the wire it answers on ([ADR 36](../docs/adr/0036-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md)): the binding's `migration` says `api: native` (the contract's grammar alone) or `api: compat` (the legacy's routes beside it, for as long as the clients take to move), and under `compat` declares each **compatibility route** — its method and path, the one command or query of the inventory it stands for, the file under the transport that serves it, and when it retires, as a date or as the condition in words. Nothing of a context differs between the two wires; switching to native is removing the routes. `yarn check:conventions` holds the declaration (ARCH-COMPAT-ROUTE): a route outside the transport, one bound to nothing the inventory lists, one past its date, a route left under `native`, and, in the tree this tooling reads, anything outside the transport that waits for an operation. An application that was not migrated has no `migration` section.
+
+```yaml
+migration:
+  api: compat
+  compatibility_routes:
+    - { method: POST, path: /users, operation: SignUp, file: src/Bootstrap/Compat/users.routes.ts, retires: 2027-01-01 }
+```
+
 Still deliberately absent: anything that writes code.
 
 ### Working here with an agent
 
 The contract is a machine interface: every command takes `--json` — valid JSON only, a `schemaVersion`, a structured error and a non-zero exit — so an agent can ask what to write and where instead of guessing, and can check a planned import before writing it. That is the whole integration; there is no server and no plugin, because a second interface to the same data is a second thing to drift.
 
-Two files make the loop the default rather than something an agent has to notice:
+Four files make the loop the default rather than something an agent has to notice:
 
 | File | What it is |
 |---|---|
 | [`.claude/skills/feature/SKILL.md`](../.claude/skills/feature/SKILL.md) | the order of operations for adding a feature: ask the contract for the shape, follow the canonical example the checklist names, prove the change with `mode feature` and the six checks |
 | [`.claude/agents/feature-author.md`](../.claude/agents/feature-author.md) | a subagent bound to the feature mode, which reports what it needed instead of working around it |
+| [`.claude/skills/storm/SKILL.md`](../.claude/skills/storm/SKILL.md) | the facilitation of an event storm before the code, written as an expected storm the code is held to |
+| [`.claude/skills/migrate/SKILL.md`](../.claude/skills/migrate/SKILL.md) | the order of operations for moving an existing project onto the architecture without changing what it does: the characterization scenario first, the storm read from the legacy, `create`, the contexts, the wire chosen and declared, the scenario replayed ([ADR 36](../docs/adr/0036-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md)) |
 
-Both name commands rather than files, so they stay true in a project generated from this one, and `yarn architecture create` copies them. The agent definition's instruction to stop rather than widen a rule is the important half: an agent that says "I needed to change the dependency table, and here is why" has found something, and an agent that quietly adds an `eslint-disable` has hidden it.
+They name commands rather than files, so they stay true in a project generated from this one, and `yarn architecture create` copies them. The agent definition's instruction to stop rather than widen a rule is the important half: an agent that says "I needed to change the dependency table, and here is why" has found something, and an agent that quietly adds an `eslint-disable` has hidden it.
 
 The feedback loop is [`docs/evaluations`](../docs/evaluations/README.md): a fresh agent is handed a small feature, graded on whether it lands the right shape, and every guess in its report becomes a sentence missing from the guide.
 

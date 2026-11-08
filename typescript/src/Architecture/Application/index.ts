@@ -4,6 +4,7 @@
  * lives here (`requireSignedIn`, which knows the roles, is in the shared kernel).
  */
 export * from './Application';
+export * from './AwaitOperation';
 export * from './CommandHandler';
 export * from './DomainEvents';
 export * from './EventBus';

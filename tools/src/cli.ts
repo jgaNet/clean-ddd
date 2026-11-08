@@ -59,6 +59,7 @@ import { changedFiles, checkMode } from './modes';
 import { DOMAIN_FILE, describeContext, describeDomain, inspectContextLinks, loadDomainMap } from './domain';
 import { describeEventStorm, inspectEventStorm, renderEventStorm, renderEventStormSvg, renderProcess } from './storm';
 import { compareInventories, describeInventory, inspectInventory, loadInventories } from './inventory';
+import { describeMigration } from './migration';
 import {
   checkExpectedStorm,
   describeExpectation,
@@ -175,6 +176,7 @@ async function main(): Promise<void> {
           concepts: contract.concepts.length,
           verbs: contract.verbs.length,
           checklists: contract.checklists.length,
+          ...(contract.migration && { migration: contract.migration }),
           sources: contract.sources,
         },
         () =>
@@ -196,6 +198,7 @@ async function main(): Promise<void> {
             `Verbs: ${contract.verbs.length} (yarn architecture verbs)`,
             `Modes: ${Object.keys(contract.modes).join(', ')} (yarn architecture mode <name>)`,
             `Checklists: ${contract.checklists.length} (yarn architecture checklists)`,
+            ...describeMigration(contract),
             '',
             list('Sources', [contract.sources.architecture, contract.sources.concepts, contract.sources.binding]),
           ].join('\n'),

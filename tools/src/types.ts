@@ -101,6 +101,27 @@ export interface Tree {
   path: string;
 }
 
+/** The wire a migrated application answers on (ADR 36): the contract's grammar alone, or the legacy's routes beside it. */
+export type MigrationApi = 'native' | 'compat';
+
+/** A compatibility route: one legacy route, served by the transport, bound to one command or query of the inventory. */
+export interface CompatibilityRoute {
+  method: string;
+  path: string;
+  /** The public name of the command or query it stands for, as the inventory spells it. */
+  operation: string;
+  /** The file that serves it, repository-relative, under the transport. */
+  file: string;
+  /** When it goes: a date (`YYYY-MM-DD`), which the check holds, or the condition in words. */
+  retires: string;
+}
+
+/** The binding's `migration`: the wire and the compatibility routes; absent when nothing was migrated. */
+export interface Migration {
+  api: MigrationApi;
+  routes: CompatibilityRoute[];
+}
+
 /** The language a contract is loaded for: its binding's id, its display name, its directory. */
 export interface Language {
   id: string;
@@ -142,6 +163,10 @@ export interface ArchitectureContract {
   verbs: Verb[];
   checklists: Checklist[];
   modes: Record<ModeName, Mode>;
+  /** The wires a migrated application may answer on, from the contract: each with what it means (ADR 36). */
+  migrationApis: Record<string, string>;
+  /** This application's choice, from the binding; absent when it was not migrated from anything. */
+  migration?: Migration;
   sources: { architecture: string; concepts: string; binding: string };
 }
 

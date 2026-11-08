@@ -1,0 +1,132 @@
+---
+name: feature
+description: Add a feature to this codebase in the shape the architecture requires — ask the contract what to write and where, follow the canonical example, then prove the change stayed inside the architecture. Use for any new use case, aggregate, value object, command, query, route or cross-context reaction.
+---
+
+# Adding a feature
+
+This repository's architecture is data, not prose: `conventions/architecture.yaml` (the contract,
+shared by every language), `conventions/concepts.yaml` (the vocabulary) and the binding of the
+language you are working in (`conventions/typescript.yaml`, `rust.yaml`, `python.yaml`, `go.yaml`) are the
+source of truth, and `yarn architecture` answers from them. **Ask it instead of guessing.** The
+tooling is the root's (`yarn install` once there): `yarn architecture …` from the root or from
+`typescript/`; from `rust/`, `python/` or `go/`, `yarn --cwd .. architecture …`, which then answers for
+that language, or `--language <id>` says which; it prints paths from the repository root. Every command takes
+`--json` (a `schemaVersion`, a structured error, a non-zero exit on an unknown id), so the answers
+can be parsed.
+
+In an application `clean-ddd create` made, there is one language and it is at the root: its binding is
+the only one, the commands run from the root, and the tool is `yarn architecture` when `package.json` defines
+it, `npx clean-ddd` otherwise.
+
+Nothing here replaces the language's `CLAUDE.md` — read it first. This is the order of operations.
+
+## 1. Find out what exists
+
+```bash
+yarn architecture inspect          # contexts, trees, layers, how much of everything
+yarn architecture concepts         # every concept, with the file that shows it
+```
+
+A project with no contexts yet needs its first one declared in its binding before any import
+rule applies to it: `yarn architecture checklist context` says what it is made of.
+
+## 2. Ask for the shape before writing it
+
+```bash
+yarn architecture checklist <aggregate|value-object|domain-service|command|query|context|…>
+yarn architecture place <kind>     # the path alone
+yarn architecture verb <read|create|act|create-under|replace|replace-part|change-part|remove>
+```
+
+The checklist names the **concept whose canonical file shows it**. Open that file and follow
+it. Do not invent a second shape for something that already has one — if a concept has a
+canonical example, the right move is to copy it, not to improve on it.
+
+Before writing any import that crosses a boundary, ask:
+
+```bash
+yarn architecture can-import <file> <specifier> [<file> <specifier> …]        # TypeScript (ESLint)
+uv run python -m tools.conventions can-import <file> <module> [<file> <module> …]   # Python, from python/
+go run ./tools/conventions can-import <file> <import-path> [<file> <import-path> …]  # Go, from go/
+```
+
+It asks the real linter and names the rule that refuses. Several pairs in one call check a
+whole planned layout at once; it exits non-zero if any pair is refused. In Rust the compiler is
+the linter: a crate's `[dependencies]` are its row of the table, and `cargo run -p conventions`
+compares them to the contract.
+
+## 3. Write a plan when the change is worth stating first
+
+When the *model* is the question — which facts, which commands, what reacts — the plan is too late: hold
+the session first with the `storm` skill, which writes what it decided as `conventions/storms/<feature>.yaml`,
+and come back here with the storm as the brief; `yarn architecture storm --expect <file>` is then the
+proof at the end, beside the checks.
+
+```bash
+yarn architecture plan validate ../conventions/plans/<name>.yaml
+yarn architecture plan explain  ../conventions/plans/<name>.yaml
+```
+
+`validate` refuses an undeclared context, an unknown kind, a route whose method contradicts its
+intent, a cross-context strategy that is neither an integration event nor an owned port, and
+anything marked new where something already exists. `explain` expands the plan into the files
+to write, with each checklist's placeholders filled with the plan's own names, the canonical
+examples to copy, and the rules the work is bound by. It generates no code.
+
+A plan is optional for a small change and worth it for anything that crosses a boundary.
+
+## 4. Write it, following the canonical example
+
+Domain first: the rule goes in the aggregate, which records the event. Then the handler, then
+infrastructure only if a port changed, then the route, then the wiring. `CLAUDE.md` has the
+step-by-step and answers the questions that come up (where the spec goes, whether an event
+needs a handler, which verb, how to compare things in a spec).
+
+A cross-context reaction runs between two contexts the context map relates (`yarn architecture
+domain`): a new consumer of an existing relationship is a feature; a pair the map does not relate is
+a new relationship, which is a decision (CTX-MAP-DECLARED) — stop and say so rather than declare it.
+
+## 5. Prove it
+
+A feature is written **inside** the architecture, never around it, and is done when the gate says so:
+
+```bash
+yarn architecture gate --base <ref>             # the commit you started from; `--json` for a script
+```
+
+The gate runs, in order, the feature mode against the base (committed and uncommitted changes alike: it
+refuses any change to the building blocks, the shared kernel, the conventions, the decisions or the
+tools — the integration events are the exception, publishing a fact is what a cross-context feature
+does), the conventions check, and the language's own checks as CI runs them (`checks` in its binding). It
+stops at the first failure of the architecture and otherwise runs every step, so one run shows all that is
+left; it exits non-zero unless every step passed. In this reference, from a language's directory, it is
+`yarn --cwd .. architecture gate --language <id> --base <ref>`.
+
+In this reference the languages answer one API, and `api/scenario.mjs` holds every server to the same shapes, field
+count included (ADR 16). A feature that changes what a client sees in one language fails the scenario
+against that server until the other languages carry it: the feature is done in its language when its
+end-to-end suite proves it; say in the PR what the other languages now owe, and never edit the scenario
+to make one server pass. An application of one language has no shared scenario: its own end-to-end
+suite is the proof.
+
+When a request says what the API answers (a field, a status, the shape of an operation's error), that shape
+wins over the code's own habit: adapt the projection where the record is made public, not the request
+(API-ONE-SURFACE). A tree whose earlier routes answer otherwise is not a reason to answer the new one the old way.
+
+When a feature crosses a relationship between two contexts, the thing keeps the id it was born with
+(DOMAIN-IDENTITY): the integration event carries it, and the receiving side builds on it. Where the binding
+asks for it, the gate also asks for an end-to-end test named for the pair (`Notes → Notifications`) that
+makes the thing upstream through the API, keeps the id that very request answered, and finds the thing
+downstream by that id (ADR 33). A case it adds must fail without the change: the gate runs it at the base (ADR 34).
+
+## If you need to change a protected tree, stop
+
+If the work seems to need a building block, the shared kernel's model or the dependency table
+changed, **that is the finding, and it is worth more than the workaround.** Say what you
+needed and why, and stop. It is not a feature any more: it is an architecture change, which
+runs under `yarn architecture mode architecture` and owes a decision record in `docs/adr`.
+
+Never fix a boundary violation by silencing the linter (an `eslint-disable`, an `#[allow]`, a
+`noqa`) — the conventions check refuses one anyway. Fix it with a port, an integration event, or
+a move.

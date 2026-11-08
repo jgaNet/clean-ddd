@@ -1,0 +1,198 @@
+import { expect, jest } from '@jest/globals';
+
+import { Event, Result, UnknownException } from '@Architecture/Domain';
+import { EventBus } from '@Architecture/Application/EventBus';
+import { ExecutionContext, UnitOfWork } from '@Architecture/Application/ExecutionContext';
+import { InMemoryOutbox } from '@Architecture/Infrastructure/Outbox/InMemoryOutbox';
+
+const eventBus = { connect: jest.fn(), publish: jest.fn(), subscribe: jest.fn() } as EventBus;
+
+class FakeUnitOfWork implements UnitOfWork {
+  active = false;
+  log: string[] = [];
+  outbox = new InMemoryOutbox();
+
+  async beginTransaction() {
+    this.active = true;
+    this.log.push('begin');
+  }
+  async commitTransaction() {
+    this.active = false;
+    this.log.push('commit');
+  }
+  async rollbackTransaction() {
+    this.active = false;
+    this.log.push('rollback');
+  }
+  hasActiveTransaction() {
+    return this.active;
+  }
+  another(): UnitOfWork {
+    return new FakeUnitOfWork();
+  }
+}
+
+beforeEach(() => jest.resetAllMocks());
+
+function contextWith(unitOfWork?: UnitOfWork): ExecutionContext {
+  return new ExecutionContext({ traceId: 'trace', eventBus, auth: {}, unitOfWork });
+}
+
+describe('ExecutionContext.afterCommit', () => {
+  it('runs the callback only once the transaction is committed', async () => {
+    const unitOfWork = new FakeUnitOfWork();
+    const context = contextWith(unitOfWork);
+
+    await context.withTransaction(async () => {
+      context.afterCommit(() => unitOfWork.log.push('callback'));
+      unitOfWork.log.push('work');
+      return Result.ok();
+    });
+
+    expect(unitOfWork.log).toEqual(['begin', 'work', 'commit', 'callback']);
+  });
+
+  it('runs a beforeCommit step inside the transaction, after the work and before the commit, then relays the outbox', async () => {
+    const unitOfWork = new FakeUnitOfWork();
+    const context = contextWith(unitOfWork);
+    jest.mocked(eventBus.publish).mockImplementation(() => {
+      unitOfWork.log.push('publish');
+      return undefined as never;
+    });
+
+    await context.withTransaction(async () => {
+      context.afterCommit(() => unitOfWork.log.push('callback'));
+      void context.beforeCommit(async () => {
+        unitOfWork.log.push('before commit');
+        await unitOfWork.outbox.append([new (class extends Event<string> {})({ payload: 'fact', name: 'Fact' })]);
+      });
+      unitOfWork.log.push('work');
+      return Result.ok();
+    });
+
+    expect(unitOfWork.log).toEqual(['begin', 'work', 'before commit', 'commit', 'publish', 'callback']);
+    expect(await unitOfWork.outbox.pending()).toEqual([]);
+  });
+
+  it('drops the beforeCommit step, with the callback, when the transaction fails', async () => {
+    const unitOfWork = new FakeUnitOfWork();
+    const context = contextWith(unitOfWork);
+
+    await context.withTransaction(async () => {
+      void context.beforeCommit(() => {
+        unitOfWork.log.push('before commit');
+      });
+      return Result.fail(new UnknownException('nope'));
+    });
+
+    expect(unitOfWork.log).toEqual(['begin', 'rollback']);
+  });
+
+  it('drops the callback when the transaction fails', async () => {
+    const unitOfWork = new FakeUnitOfWork();
+    const context = contextWith(unitOfWork);
+
+    await context.withTransaction(async () => {
+      context.afterCommit(() => unitOfWork.log.push('callback'));
+      return Result.fail(new UnknownException('nope'));
+    });
+
+    expect(unitOfWork.log).toEqual(['begin', 'rollback']);
+  });
+
+  it('drops the callback when the transaction throws', async () => {
+    const unitOfWork = new FakeUnitOfWork();
+    const context = contextWith(unitOfWork);
+
+    const result = await context.withTransaction(async () => {
+      context.afterCommit(() => unitOfWork.log.push('callback'));
+      throw new Error('boom');
+    });
+
+    expect(result.isFailure()).toBe(true);
+    expect(unitOfWork.log).toEqual(['begin', 'rollback']);
+  });
+
+  it('keeps nothing from a transaction whose unit of work could not roll back: the context is clean for the next one', async () => {
+    const unitOfWork = new (class extends FakeUnitOfWork {
+      failing = true;
+      async rollbackTransaction() {
+        await super.rollbackTransaction();
+        if (this.failing) throw new Error('the connection is gone');
+      }
+    })();
+    const context = contextWith(unitOfWork);
+
+    await expect(
+      context.withTransaction(async () => {
+        void context.beforeCommit(() => {
+          unitOfWork.log.push('stale step');
+        });
+        context.afterCommit(() => unitOfWork.log.push('stale callback'));
+        return Result.fail(new Error('refused'));
+      }),
+    ).rejects.toThrow('the connection is gone');
+
+    unitOfWork.failing = false;
+    const result = await context.withTransaction(async () => {
+      context.afterCommit(() => unitOfWork.log.push('callback'));
+      return Result.ok();
+    });
+
+    expect(result.isSuccess()).toBe(true);
+    expect(unitOfWork.log).toEqual(['begin', 'rollback', 'begin', 'commit', 'callback']);
+  });
+
+  it('owns its transaction: a unit of work that already has one open at the outermost call is a programming error', async () => {
+    const unitOfWork = new FakeUnitOfWork();
+    unitOfWork.active = true;
+    const context = contextWith(unitOfWork);
+    const fn = jest.fn(async () => Result.ok());
+
+    await expect(context.withTransaction(fn)).rejects.toThrow('the context owns its transaction');
+    expect(fn).not.toHaveBeenCalled();
+    expect(unitOfWork.log).toEqual([]);
+
+    unitOfWork.active = false;
+    expect((await context.withTransaction(fn)).isSuccess()).toBe(true);
+    expect(unitOfWork.log).toEqual(['begin', 'commit']);
+  });
+
+  it('runs the callback at the outermost commit when transactions are nested', async () => {
+    const unitOfWork = new FakeUnitOfWork();
+    const context = contextWith(unitOfWork);
+
+    await context.withTransaction(async () => {
+      await context.withTransaction(async () => {
+        context.afterCommit(() => unitOfWork.log.push('inner callback'));
+        return Result.ok();
+      });
+      unitOfWork.log.push('outer work');
+      return Result.ok();
+    });
+
+    expect(unitOfWork.log).toEqual(['begin', 'outer work', 'commit', 'inner callback']);
+  });
+
+  it('runs the callback immediately outside of a transaction', () => {
+    const context = contextWith();
+    const callback = jest.fn();
+
+    context.afterCommit(callback);
+
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it('still defers the callback without a unit of work, until the function succeeds', async () => {
+    const context = contextWith();
+    const order: string[] = [];
+
+    await context.withTransaction(async () => {
+      context.afterCommit(() => order.push('callback'));
+      order.push('work');
+      return Result.ok();
+    });
+
+    expect(order).toEqual(['work', 'callback']);
+  });
+});
