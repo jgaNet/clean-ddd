@@ -2,9 +2,9 @@
 /**
  * The article, built from site/data.json (node site/collect.mjs writes it from the records):
  *
- *   node site/collect.mjs && node site/build.mjs   → site/article.html (English), site/article.fr.html (French)
+ *   node site/collect.mjs && node site/build.mjs   → every article of site/articles.mjs, in English and in French
  *
- * The prose is in site/article/<language>.mjs; this file computes the figures, draws the charts and tables in the
+ * The prose is in site/article/<article>/<language>.mjs; this file computes the figures, draws the charts and tables in the
  * language being rendered, and hands them to the prose. `yarn site`, at the root, builds the whole site.
  *
  * The page that presents the project, site/index.html, is built by node site/home.mjs and links here.
@@ -13,8 +13,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { articles } from './articles.mjs';
-import { body as bodyEn } from './article/en.mjs';
-import { body as bodyFr } from './article/fr.mjs';
+import * as control from './article/control/index.mjs';
+import * as extensions from './article/extensions/index.mjs';
+import * as openstay from './article/openstay/index.mjs';
 import { ARMS, bars, dotRange, groupedColumns, legend, setLanguage, table } from './charts.mjs';
 import { figures, mean, quotes, span as spanIn, verifyQuotes } from './figures.mjs';
 import { openstay as O } from './openstay.mjs';
@@ -600,25 +601,29 @@ function render(language) {
     .join('');
 
   const site = 'https://jganet.github.io/clean-ddd/';
-  const meta = articles.find(article => article.slug === 'architecture-and-ai-agents');
-  const pages = {
-    en: {
-      home: 'en/',
-      list: 'en/articles.html',
-      listLabel: 'The articles',
-      other: { code: 'FR', href: meta.fr.file, lang: 'fr', label: 'Version française' },
-      body: bodyEn,
-    },
-    fr: {
-      home: './',
-      list: 'articles.html',
-      listLabel: 'Les articles',
-      other: { code: 'EN', href: meta.en.file, lang: 'en', label: 'English version' },
-      body: bodyFr,
-    },
+  // The prose of each article, by slug; a new article is a new entry here, in the registry and under site/article/.
+  const bodies = {
+    'architecture-and-ai-agents': control,
+    'where-the-architecture-should-pay': extensions,
+    openstay,
+  };
+  const other =
+    language === 'en'
+      ? { code: 'FR', lang: 'fr', label: 'Version française' }
+      : { code: 'EN', lang: 'en', label: 'English version' };
+  const where = {
+    en: { home: 'en/', list: 'en/articles.html', listLabel: 'The articles' },
+    fr: { home: './', list: 'articles.html', listLabel: 'Les articles' },
   }[language];
-  const { file, title, description } = meta[language];
-  const ctx = {
+  // Each article's file in the language being rendered, by its short name, for the links between them.
+  const hrefs = Object.fromEntries(
+    [
+      ['control', 'architecture-and-ai-agents'],
+      ['extensions', 'where-the-architecture-should-pay'],
+      ['openstay', 'openstay'],
+    ].map(([name, slug]) => [name, articles.find(article => article.slug === slug)[language].file]),
+  );
+  const shared = {
     A,
     D,
     P,
@@ -646,23 +651,26 @@ function render(language) {
     readingRows,
     fix,
     usd,
-    home: pages.home,
-    list: pages.list,
-    listLabel: pages.listLabel,
-    other: pages.other,
+    hrefs,
+    ...where,
   };
-  writeFileSync(
-    join(here, file),
-    page({
-      lang: language,
-      title,
-      description,
-      url: `${site}${file}`,
-      alternates: { en: `${site}${meta.en.file}`, fr: `${site}${meta.fr.file}` },
-      body: pages.body(ctx),
-    }),
-  );
-  process.stdout.write(`site/${file} written\n`);
+  for (const meta of articles) {
+    const { file, title, description } = meta[language];
+    const body = bodies[meta.slug][language];
+    const ctx = { ...shared, other: { ...other, href: meta[other.lang].file } };
+    writeFileSync(
+      join(here, file),
+      page({
+        lang: language,
+        title,
+        description,
+        url: `${site}${file}`,
+        alternates: { en: `${site}${meta.en.file}`, fr: `${site}${meta.fr.file}` },
+        body: body(ctx),
+      }),
+    );
+    process.stdout.write(`site/${file} written\n`);
+  }
 }
 
 render('en');
