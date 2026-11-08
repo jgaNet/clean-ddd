@@ -458,6 +458,10 @@ concepts:
       - src/Architecture/Infrastructure/Outbox/InMemoryOutbox.ts
       - src/Architecture/Application/DomainEvents.ts
     example: '[`Outbox.ts`](src/Architecture/Application/Outbox.ts) (the port and `relayOutbox()`), [`InMemoryOutbox.ts`](src/Architecture/Infrastructure/Outbox/InMemoryOutbox.ts), [`DomainEvents.ts`](src/Architecture/Application/DomainEvents.ts) (appends at commit)'
+  awaited-operation:
+    canonical:
+      - src/Architecture/Application/AwaitOperation.ts
+    example: '[`AwaitOperation.ts`](src/Architecture/Application/AwaitOperation.ts)'
   retry-on-conflict:
     canonical:
       - src/Architecture/Application/CommandHandler.ts

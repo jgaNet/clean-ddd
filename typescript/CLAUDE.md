@@ -35,7 +35,8 @@ src/Bootstrap/Fastify/            composition root (createApplication.ts) on the
 src/Bootstrap/Starter/            the composition root `create` gives a new application: the Tracker alone (ADR 27)
 src/Architecture/                 the building blocks: mechanics, no vocabulary (they do not even know the roles)
   Domain/                         Entity, AggregateRoot, ValueObject, Id, Event(+kinds), Exception, Result — depends on nothing
-  Application/                    CommandHandler, QueryHandler, EventHandler, ExecutionContext, EventBus, Outbox, Module, Application
+  Application/                    CommandHandler, QueryHandler, EventHandler, ExecutionContext, EventBus, Outbox, Module, Application,
+                                  AwaitOperation (a caller in one exchange waits for a command's outcome; ADR 35)
   Infrastructure/                 InMemoryDataSource, InMemoryEventBus (the inbox), InMemoryUnitOfWork, InMemoryOutbox, ConsoleLogger
   Presentation/                   Presenter, Format (json | htmx per request), the html tag
 src/SharedKernel/                 the shared kernel, in the DDD sense: what every context agrees on
