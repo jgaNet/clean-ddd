@@ -5,7 +5,7 @@ description: Move one or several existing projects onto this architecture withou
 
 # Migrating a project
 
-A migration keeps the behaviour and chooses the wire ([ADR 35](../../../docs/adr/0035-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md)).
+A migration keeps the behaviour and chooses the wire (ADR 35).
 It is a kind of work of its own: not a feature, since the functionality is given and must not change;
 not an architecture change, since the architecture is what the work moves into. Its invariant is the
 one thing to prove at the end: **the same functionality, in a new shape**. Two fidelities hide under
@@ -17,9 +17,8 @@ that sentence, and this skill keeps them apart from the first step:
   legacy's routes served beside the contract's grammar while the clients move) or `native` (the
   contract's grammar alone), and the choice may change later without reopening a context.
 
-What a migration costs is what [ADR 31](../../../docs/adr/0031-the-architecture-is-a-guardrail-and-a-coordinator-not-an-accelerator.md)
-measured, multiplied by the legacy's size: the first one by hand turned 101 lines into 654
-([the record](../../../docs/evaluations/2026-11-08-migration-by-hand.md), [the kit](../../../docs/evaluations/benchmark/migration/README.md)).
+What a migration costs is what ADR 31 measured, multiplied by the legacy's size: the first one by hand turned 101 lines into 654
+(the record `docs/evaluations/2026-11-08-migration-by-hand.md` and the kit `docs/evaluations/benchmark/migration/` of the clean-ddd reference).
 Say so before starting. The architecture pays where several agents work on boundaries decided in
 advance, and a legacy of several projects is exactly that; a legacy of one project with one context
 gains nothing on delivery and should know it. Data is not migrated: a schema and its rows are not
@@ -124,7 +123,7 @@ checked where the requests arrived, the aggregate records the facts the legacy w
 write, the policies write the projections, the queries answer the read models **in the shape the
 legacy answered** so that the compatibility wire has nothing to reshape. A legacy of several
 contexts is the flow's case: one agent per context, in its own worktree, against the storm as the
-frozen contract ([`.claude/flow`](../../flow/README.md)).
+frozen contract (`.claude/flow/README.md`).
 
 Two things a created application does not have, which the canonical files assume: Swagger `tags` in
 a route's schema (drop them), and the shared scenario (its own end-to-end suite is the proof).
@@ -157,8 +156,8 @@ condition in words. Each route:
   the legacy's sentence; the native wire's schema stays shape-only (API-BODY-SHAPE).
 
 No rule lives in the façade, and nothing outside the transport waits for an operation: the check
-refuses a wait in a context (ARCH-COMPAT-ROUTE). The example is
-[`legacy.routes.ts`](../../../docs/evaluations/benchmark/migration/migrated/src/Bootstrap/Compat/legacy.routes.ts).
+refuses a wait in a context (ARCH-COMPAT-ROUTE). The example is the reference's
+`docs/evaluations/benchmark/migration/migrated/src/Bootstrap/Compat/legacy.routes.ts`.
 
 ## 7. Prove it
 
@@ -185,8 +184,8 @@ node <scenario> http://127.0.0.1:<port> --native    # native: the same steps, tr
   for the record and a hot spot for the storm, not a reason to write the feed from the handler.
 
 Then `done: true` in the storm, and the record: what was guessed, what the building blocks lacked,
-what a created application left open. Every migration adds to
-[`docs/evaluations`](../../../docs/evaluations/README.md) as the first one did.
+what a created application left open. Every migration adds to the reference's
+`docs/evaluations` as the first one did.
 
 ## 8. Switching wires later
 
