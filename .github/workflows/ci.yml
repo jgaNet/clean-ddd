@@ -2,11 +2,12 @@ name: ci
 
 # One job for the tooling at the root (the `clean-ddd` package: the conventions check of the
 # whole repository, its own specs, its build), one job per language, each run from its own
-# directory with its own toolchain, and one `check` job that fans them in, which is what the
-# branch protection requires. Each language's job ends by starting its server and running the
-# one API scenario against it (api/scenario.mjs). There is no path filter on purpose: a change to
-# the contract, to a decision or to a shared document must run every language's checks, since
-# every language's documents are rendered from them.
+# directory with its own toolchain, one job for the site, and one `check` job that fans them in,
+# which is what the branch protection requires. Each language's job ends by starting its server
+# and running the one API scenario against it (api/scenario.mjs). The only path filter is the
+# site's: a change that touches nothing outside `site/` runs the site's job alone, since no
+# language reads the site; anything else runs every language's checks, since a change to the
+# contract, to a decision or to a shared document renders every language's documents.
 
 on:
   push:
@@ -15,8 +16,71 @@ on:
   pull_request:
 
 jobs:
+  # What the change touches: only the site, or anything else. On a pull request the diff is the
+  # one the pull request makes; on a push to main, the one the push makes. When the base cannot be
+  # read (a first push), everything runs.
+  scope:
+    runs-on: ubuntu-latest
+    outputs:
+      only_site: ${{ steps.files.outputs.only_site }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Does the change touch anything outside site/?
+        id: files
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+          fi
+          if [ -z "$base" ] || ! git cat-file -e "$base" 2>/dev/null; then
+            echo "no readable base: everything runs"
+            echo "only_site=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$base" "${{ github.sha }}")
+          printf '%s\n' "$changed"
+          if [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qv '^site/'; then
+            echo "only the site changed: the languages' checks are skipped"
+            echo "only_site=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "only_site=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # The site is what its scripts build from the records: a stale page fails. This job runs on
+  # every change, since the records the site reads live outside site/.
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install
+        run: yarn install --frozen-lockfile
+
+      - name: Rebuild the site and refuse a stale page
+        run: |
+          yarn site
+          git diff --exit-code -- site/
+
+      - name: Format
+        run: yarn prettier "site/**/*.mjs" --check
+
   tools:
     runs-on: ubuntu-latest
+    needs: scope
+    if: needs.scope.outputs.only_site != 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,11 +104,6 @@ jobs:
       - name: Conventions, every language and every document
         run: yarn check:conventions
 
-      - name: The site is what its scripts build from the records (a stale page fails)
-        run: |
-          yarn site
-          git diff --exit-code -- site/
-
       - name: Format
         run: yarn format:check
 
@@ -67,6 +126,8 @@ jobs:
 
   typescript:
     runs-on: ubuntu-latest
+    needs: scope
+    if: needs.scope.outputs.only_site != 'true'
     defaults:
       run:
         working-directory: typescript
@@ -108,6 +169,8 @@ jobs:
 
   rust:
     runs-on: ubuntu-latest
+    needs: scope
+    if: needs.scope.outputs.only_site != 'true'
     defaults:
       run:
         working-directory: rust
@@ -151,6 +214,8 @@ jobs:
 
   python:
     runs-on: ubuntu-latest
+    needs: scope
+    if: needs.scope.outputs.only_site != 'true'
     defaults:
       run:
         working-directory: python
@@ -199,6 +264,8 @@ jobs:
 
   go:
     runs-on: ubuntu-latest
+    needs: scope
+    if: needs.scope.outputs.only_site != 'true'
     defaults:
       run:
         working-directory: go
@@ -245,6 +312,8 @@ jobs:
   # The front end stands alone: served by the dependency-free static server, with no API behind.
   web:
     runs-on: ubuntu-latest
+    needs: scope
+    if: needs.scope.outputs.only_site != 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -262,24 +331,20 @@ jobs:
           curl -sf http://127.0.0.1:8080/me | grep -q '<script src="/js/htmx.min.js"></script>'
           curl -sf http://127.0.0.1:8080/js/api.js | grep -q 'htmx.createWebSocket'
 
-  # The one check the branch protection requires: green when every language's job is. A new
-  # language is added to `needs`, and nothing else changes.
+  # The one check the branch protection requires: green when every job that had to run is. A new
+  # language is added to `needs`, and nothing else changes. A job the scope skipped counts as green
+  # only when the change touched the site alone.
   check:
     runs-on: ubuntu-latest
-    needs: [tools, typescript, rust, python, go, web]
+    needs: [scope, site, tools, typescript, rust, python, go, web]
     if: always()
     steps:
-      - name: Every language is green
+      - name: Every job that had to run is green
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          ONLY_SITE: ${{ needs.scope.outputs.only_site }}
         run: |
-          echo "tools: ${{ needs.tools.result }}"
-          echo "typescript: ${{ needs.typescript.result }}"
-          echo "rust: ${{ needs.rust.result }}"
-          echo "python: ${{ needs.python.result }}"
-          echo "go: ${{ needs.go.result }}"
-          echo "web: ${{ needs.web.result }}"
-          test "${{ needs.tools.result }}" = "success"
-          test "${{ needs.typescript.result }}" = "success"
-          test "${{ needs.rust.result }}" = "success"
-          test "${{ needs.python.result }}" = "success"
-          test "${{ needs.go.result }}" = "success"
-          test "${{ needs.web.result }}" = "success"
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$NEEDS" | jq -e --arg only "$ONLY_SITE" '
+            to_entries | all(.value.result == "success" or ($only == "true" and .value.result == "skipped"))
+          ' > /dev/null
