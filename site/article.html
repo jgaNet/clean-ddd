@@ -9,7 +9,9 @@
 <meta property="og:description" content="Does Clean Architecture and DDD help an AI coding agent? A controlled benchmark with and without the architecture, on a strong and a weaker model, over a growing codebase and a change of storage, then a lodging marketplace built to fifty features.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://jganet.github.io/clean-ddd/article.html">
-<meta property="og:image" content="https://jganet.github.io/clean-ddd/assets/img/open-graph.png">
+<link rel="alternate" hreflang="en" href="https://jganet.github.io/clean-ddd/article.html">
+<link rel="alternate" hreflang="fr" href="https://jganet.github.io/clean-ddd/article.fr.html">
+<meta property="og:image" content="https://jganet.github.io/clean-ddd/assets/img/open-graph.en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
@@ -54,7 +56,9 @@ body {
 }
 main { max-width: 760px; margin: 0 auto; padding: 48px 16px 96px; }
 header.title { margin-bottom: 40px; }
-.home { margin: 0 0 24px; font-size: 1rem; }
+.home { margin: 0 0 24px; font-size: 1rem; display: flex; justify-content: space-between; align-items: center; }
+.lang-switch { display: inline-flex; align-items: center; padding: 0.375rem 0.5rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; line-height: 1; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 0.25rem; color: #fff; text-decoration: none; }
+.lang-switch:hover { border-color: #fff; }
 .home a { font-weight: 800; letter-spacing: -0.04em; text-decoration: none; background: var(--gradient-text); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .home a:hover { opacity: 0.85; }
 h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.05em; }
@@ -106,7 +110,7 @@ footer { margin-top: 64px; color: var(--text-muted); font-size: 0.85rem; border-
 <main>
 
 <header class="title">
-<p class="home"><a href="./">← CLEAN-DDD</a></p>
+<p class="home"><a href="en/">← CLEAN-DDD</a><a class="lang-switch" href="article.fr.html" hreflang="fr" lang="fr" aria-label="Version française">FR</a></p>
 <h1>Does Clean Architecture help an AI agent write software?</h1>
 <p class="dek">We built a reference implementation of Clean Architecture and Domain-Driven Design whose rules are data, a tool that holds code to them, and a flow that lets several agents build features in parallel. Then we measured whether any of it helps an agent deliver, including where it should help most: a weaker model, a growing codebase, a change of storage. On our benchmark, it did not. It did keep changes in their place, and only the tool kept the structure from drifting. A second, larger benchmark, a lodging marketplace with money and a database migration, said the same for fifty features and showed where the architecture does pay: in what the tests cannot see. Toward a hundred, every tree stopped, each on a rule nobody had written down.</p>
 <p class="byline">30 October 2026, updated 4 November 2026 with OpenStay's first fifty features, and 8 November 2026 with its fifth checkpoint, provisional · The <a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> experiments · Every number below is read from the records in the repository.</p>

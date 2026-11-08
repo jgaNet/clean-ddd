@@ -8,7 +8,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const mean = values => values.reduce((a, b) => a + b, 0) / values.length;
-export const span = values => `${Math.min(...values).toFixed(1)}–${Math.max(...values).toFixed(1)}`;
+export const span = (values, locale = 'en-US') => {
+  const one = value => Number(value).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return `${one(Math.min(...values))}–${one(Math.max(...values))}`;
+};
 
 export function figures(data) {
   const { A, P, D } = data.backlog;
