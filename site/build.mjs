@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ARMS, bars, dotRange, groupedColumns, legend, table } from './charts.mjs';
-import { figures, mean, span } from './figures.mjs';
+import { figures, mean, quotes, span, verifyQuotes } from './figures.mjs';
 import { openstay as O } from './openstay.mjs';
 import { page } from './page.mjs';
 
@@ -38,6 +38,7 @@ const ratio = (a, b) => (mean(a) / mean(b)).toFixed(1);
 const short = ['Accounts & notes', 'Pin', 'Tags', 'Share', 'Notify', 'Plan & quota', 'Remind'];
 // Each architecture arm's time and cost as a multiple of the plain project's, experiment by experiment (site/figures.mjs).
 const { experiments, times, graded, allTimes, allCosts } = figures(data);
+verifyQuotes(join(here, '..'));
 
 // OpenStay, checkpoint by checkpoint (site/openstay.mjs, copied from its three records).
 const lowHigh = (values, digits = 2) => `${Math.min(...values).toFixed(digits)}–${Math.max(...values).toFixed(digits)}`;
@@ -437,7 +438,7 @@ const body = `
 <div class="stat"><div class="figure">${graded}</div><div class="what">agent runs graded against hidden tests, in six experiments</div></div>
 <div class="stat"><div class="figure">${span(allTimes)}×</div><div class="what">the plain project’s time, taken by the architecture arms in each experiment</div></div>
 <div class="stat"><div class="figure">0</div><div class="what">experiments in which the architecture delivered more, sooner or cheaper</div></div>
-<div class="stat"><div class="figure">0</div><div class="what">domain files the move to SQLite touched in the architecture trees</div></div>
+<div class="stat"><div class="figure">${quotes.sqliteDomainFiles.value}</div><div class="what">domain files the move to SQLite touched in the architecture trees</div></div>
 </div>
 ${charts.summaryTime}
 ${charts.summaryCost}

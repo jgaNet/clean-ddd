@@ -9,16 +9,19 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { figures, span } from './figures.mjs';
+import { drift, figures, quotes, span, verifyQuotes } from './figures.mjs';
 
 const here = new URL('.', import.meta.url).pathname;
 const data = JSON.parse(readFileSync(join(here, 'data.json'), 'utf8'));
 const { graded, allTimes, allCosts } = figures(data);
+verifyQuotes(join(here, '..'));
+const [driftBefore, driftAfter] = drift(data);
 
 const repo = 'https://github.com/jgaNet/clean-ddd';
 const blob = path => `${repo}/blob/main/${path}`;
 const article = 'article.html';
-const year = new Date().getUTCFullYear();
+// The year the site was published; a clock here would make the built page differ from one day to the next.
+const year = 2026;
 
 // Icons: one path each, drawn on a 24-unit grid, stroked with the current colour.
 const icon = {
@@ -147,8 +150,8 @@ const body = `
 <ul class="proof" aria-label="En chiffres">
 <li><b>${graded}</b> exécutions d’agents notées</li>
 <li><b>${span(allTimes)}×</b> le temps du projet nu</li>
-<li><b>0</b> fichier du domaine touché par un changement de base</li>
-<li><b>0</b> violation d’import avec l’outillage</li>
+<li><b>${quotes.sqliteDomainFiles.value}</b> fichier du domaine touché par un changement de base</li>
+<li><b>${driftBefore}→${driftAfter}</b> violations d’import sans l’outillage, aucune avec</li>
 </ul>
 </div>
 </section>

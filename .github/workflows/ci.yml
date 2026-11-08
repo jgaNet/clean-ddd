@@ -40,6 +40,11 @@ jobs:
       - name: Conventions, every language and every document
         run: yarn check:conventions
 
+      - name: The site is what its scripts build from the records (a stale page fails)
+        run: |
+          node site/collect.mjs && node site/build.mjs && node site/home.mjs
+          git diff --exit-code -- site/
+
       - name: Format
         run: yarn format:check
 
