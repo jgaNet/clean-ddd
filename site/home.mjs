@@ -2,14 +2,15 @@
 /**
  * The page that presents the project, site/index.html, in French and in English, in the visual codes of exostic.com: dark
  * ground, Inter, the orange → pink → violet gradient, pill buttons, translucent panels. The
- * article is a page of its own in each language, site/article.html and site/article.fr.html (node site/build.mjs),
- * reached from here.
+ * articles are pages of their own (node site/build.mjs), listed by the articles page this file also writes
+ * (site/articles.html, site/en/articles.html) from site/articles.mjs.
  *
- *   node site/home.mjs   → site/index.html (French), site/en/index.html (English)   (yarn site, at the root, builds the whole site)
+ *   node site/home.mjs   → site/index.html, site/articles.html (French); site/en/index.html, site/en/articles.html (English)   (yarn site, at the root, builds the whole site)
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { articles, day } from './articles.mjs';
 import { drift, figures, quotes, span, verifyQuotes } from './figures.mjs';
 
 const here = new URL('.', import.meta.url).pathname;
@@ -58,9 +59,22 @@ const terminal = (title, lines) => `<div class="terminal" role="img" aria-label=
 const locales = {
   fr: {
     lang: 'fr',
+    locale: 'fr-FR',
     path: '',
     other: { code: 'EN', path: 'en/', label: 'English version', lang: 'en' },
     article: 'article.fr.html',
+    articles: 'articles.html',
+    list: {
+      title: 'Les articles',
+      description: 'Ce que les expériences de clean-ddd ont trouvé, article par article : le titre, l’auteur, la date.',
+      tagline: 'Articles',
+      sub: 'Chaque article lit ses chiffres dans les registres du dépôt ; une correction est une issue, une mise à jour une nouvelle date.',
+      by: 'par',
+      published: 'publié le',
+      updated: 'mis à jour le',
+      read: 'Lire l’article',
+      only: 'en anglais seulement',
+    },
     title: 'CLEAN-DDD — Clean Architecture & DDD, une implémentation de référence',
     description:
       'Une implémentation de référence de la Clean Architecture et du Domain-Driven Design, écrite pour être lue, en TypeScript, Rust, Python et Go, depuis une seule architecture qui est de la donnée et que l’outillage fait respecter ; puis mesurée avec des agents de code IA.',
@@ -76,7 +90,7 @@ const locales = {
       concepts: 'Concepts',
       tooling: 'Outillage',
       languages: 'Langages',
-      article: 'L’article',
+      articles: 'Articles',
     },
     hero: {
       tagline: 'Clean Architecture &amp; DDD · TypeScript · Rust · Python · Go',
@@ -185,7 +199,7 @@ const locales = {
       issue: 'Ouvrir une issue',
     },
     footer: {
-      article: 'L’article',
+      articles: 'Les articles',
       decisions: 'Décisions',
       records: 'Registres',
       legal: 'Licence MIT · <code>npm i clean-ddd</code> pour l’outillage',
@@ -194,9 +208,22 @@ const locales = {
   },
   en: {
     lang: 'en',
+    locale: 'en-GB',
     path: 'en/',
     other: { code: 'FR', path: '../', label: 'Version française', lang: 'fr' },
     article: 'article.html',
+    articles: 'articles.html',
+    list: {
+      title: 'The articles',
+      description: 'What the clean-ddd experiments found, article by article: the title, the author, the date.',
+      tagline: 'Articles',
+      sub: 'Every article reads its figures from the repository’s records; a correction is an issue, an update a new date.',
+      by: 'by',
+      published: 'published',
+      updated: 'updated',
+      read: 'Read the article',
+      only: 'in French only',
+    },
     title: 'CLEAN-DDD — Clean Architecture & DDD, a reference implementation',
     description:
       'A reference implementation of Clean Architecture and Domain-Driven Design, written to be read, in TypeScript, Rust, Python and Go, from one architecture that is data and that tooling holds the code to; then measured with AI coding agents.',
@@ -212,7 +239,7 @@ const locales = {
       concepts: 'Concepts',
       tooling: 'Tooling',
       languages: 'Languages',
-      article: 'The article',
+      articles: 'Articles',
     },
     hero: {
       tagline: 'Clean Architecture &amp; DDD · TypeScript · Rust · Python · Go',
@@ -321,7 +348,7 @@ const locales = {
       issue: 'Open an issue',
     },
     footer: {
-      article: 'The article',
+      articles: 'The articles',
       decisions: 'Decisions',
       records: 'Records',
       legal: 'MIT license · <code>npm i clean-ddd</code> for the tooling',
@@ -357,36 +384,10 @@ const item = ([title, text]) =>
   `<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>${title}</h4><p>${text}</p></div></div>`;
 
 // The body of the page in one language; `up` leads from the page's directory back to the site's root.
-const body = (L, up) => {
+// The index's main: the hero, the pillars, the measures, the concepts, the tooling, the languages, who makes it.
+const indexMain = (L, up) => {
   const article = `${up}${L.article}`;
   return `
-<header id="header">
-<div class="header-backdrop"></div>
-<div class="header-inner">
-<div class="header-brand">
-<a class="header-logo" href="./" aria-label="${L.home}"><span class="wordmark">CLEAN-DDD</span></a>
-<button class="menu-toggle" type="button" aria-controls="main-nav" aria-expanded="false" aria-label="${L.menu}">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path class="bar-top" d="M4 6h16"/><path class="bar-mid" d="M4 12h16"/><path class="bar-bottom" d="M4 18h16"/></svg>
-</button>
-</div>
-<nav id="main-nav" class="header-nav" aria-label="${L.navLabel}">
-<ul>
-<li><a href="#what">${L.nav.what}</a></li>
-<li><a href="#measured">${L.nav.measured}</a></li>
-<li><a href="#concepts">${L.nav.concepts}</a></li>
-<li><a href="#tooling">${L.nav.tooling}</a></li>
-<li><a href="#languages">${L.nav.languages}</a></li>
-<li><a href="${article}">${L.nav.article}</a></li>
-</ul>
-</nav>
-<div class="header-actions">
-<a class="lang-switch" href="${L.other.path}" hreflang="${L.other.lang}" lang="${L.other.lang}" aria-label="${L.other.label}">${L.other.code}</a>
-<a class="btn btn-primary btn-sm" href="${repo}" target="_blank" rel="noopener">GITHUB</a>
-</div>
-</div>
-</header>
-
-<main>
 <section class="hero">
 <div class="hero-picture" aria-hidden="true"><div class="glow glow-a"></div><div class="glow glow-b"></div><div class="glow glow-c"></div></div>
 <div class="hero-content">
@@ -568,13 +569,82 @@ ${languages
 </div>
 </div>
 </section>
+`;
+};
+
+// The list of the articles: each in the page's language when it has one, its title, its author, its dates.
+const articlesMain = (L, up) => `
+<section class="section list">
+<div class="section-inner narrow">
+<div class="headline">
+<p class="tagline">${L.list.tagline}</p>
+<h2>${L.list.title}</h2>
+<p class="sub">${L.list.sub}</p>
+</div>
+<div class="posts">
+${articles
+  .map(article => {
+    const version = article[L.lang] ?? article[L.other.lang];
+    const lang = article[L.lang] ? L.lang : L.other.lang;
+    const dates = `${L.list.published} ${day(article.published, L.locale)}${
+      article.updated && article.updated !== article.published
+        ? ` · ${L.list.updated} ${day(article.updated, L.locale)}`
+        : ''
+    }`;
+    return `<article class="post"${lang === L.lang ? '' : ` lang="${lang}"`}>
+<p class="dates"><time datetime="${article.published}">${dates}</time>${lang === L.lang ? '' : ` · <span lang="${L.lang}">${L.list.only}</span>`}</p>
+<h3><a href="${up}${version.file}"${lang === L.lang ? '' : ` hreflang="${lang}"`}>${version.title.replace('&', '&amp;')}</a></h3>
+<p>${version.description}</p>
+<p class="meta">${L.list.by} <a href="${article.author.url}" target="_blank" rel="noopener">${article.author.name}</a> · <a href="${up}${version.file}">${L.list.read}</a></p>
+</article>`;
+  })
+  .join('\n')}
+</div>
+</div>
+</section>
+`;
+
+// The header and the footer around a page's main, on the index's anchors from any page of the language.
+const chrome = (L, up, main) => {
+  // The index and the list of the articles live in the language's own directory, beside this page.
+  const index = './';
+  const list = L.articles;
+  return `
+<header id="header">
+<div class="header-backdrop"></div>
+<div class="header-inner">
+<div class="header-brand">
+<a class="header-logo" href="./" aria-label="${L.home}"><span class="wordmark">CLEAN-DDD</span></a>
+<button class="menu-toggle" type="button" aria-controls="main-nav" aria-expanded="false" aria-label="${L.menu}">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path class="bar-top" d="M4 6h16"/><path class="bar-mid" d="M4 12h16"/><path class="bar-bottom" d="M4 18h16"/></svg>
+</button>
+</div>
+<nav id="main-nav" class="header-nav" aria-label="${L.navLabel}">
+<ul>
+<li><a href="${index}#what">${L.nav.what}</a></li>
+<li><a href="${index}#measured">${L.nav.measured}</a></li>
+<li><a href="${index}#concepts">${L.nav.concepts}</a></li>
+<li><a href="${index}#tooling">${L.nav.tooling}</a></li>
+<li><a href="${index}#languages">${L.nav.languages}</a></li>
+<li><a href="${list}">${L.nav.articles}</a></li>
+</ul>
+</nav>
+<div class="header-actions">
+<a class="lang-switch" href="${L.other.path}" hreflang="${L.other.lang}" lang="${L.other.lang}" aria-label="${L.other.label}">${L.other.code}</a>
+<a class="btn btn-primary btn-sm" href="${repo}" target="_blank" rel="noopener">GITHUB</a>
+</div>
+</div>
+</header>
+
+<main>
+${main}
 </main>
 
 <footer>
 <div class="footer-inner">
 <div class="footer-card">
 <a class="brand" href="./">CLEAN-DDD</a>
-<p class="footer-links"><a href="${article}">${L.footer.article}</a> · <a href="${repo}" target="_blank" rel="noopener">GitHub</a> · <a href="${blob('docs/adr')}" target="_blank" rel="noopener">${L.footer.decisions}</a> · <a href="${blob('docs/evaluations/README.md')}" target="_blank" rel="noopener">${L.footer.records}</a></p>
+<p class="footer-links"><a href="${list}">${L.footer.articles}</a> · <a href="${repo}" target="_blank" rel="noopener">GitHub</a> · <a href="${blob('docs/adr')}" target="_blank" rel="noopener">${L.footer.decisions}</a> · <a href="${blob('docs/evaluations/README.md')}" target="_blank" rel="noopener">${L.footer.records}</a></p>
 <p class="legal first">${L.footer.legal}</p>
 </div>
 <p class="footer-note">© ${year} <a href="https://exostic.com/" target="_blank" rel="noopener">Exostic</a> · ${L.footer.note}</p>
@@ -584,20 +654,20 @@ ${languages
 };
 
 const site = 'https://jganet.github.io/clean-ddd/';
-const page = (L, up) => `<!doctype html>
+const page = (L, up, view) => `<!doctype html>
 <html lang="${L.lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${L.title.replace('&', '&amp;')}</title>
-<meta name="description" content="${L.description}">
-<link rel="alternate" hreflang="fr" href="${site}">
-<link rel="alternate" hreflang="en" href="${site}en/">
-<link rel="alternate" hreflang="x-default" href="${site}">
-<meta property="og:title" content="${L.title.replace('&', '&amp;')}">
-<meta property="og:description" content="${L.ogDescription}">
+<title>${view.title.replace('&', '&amp;')}</title>
+<meta name="description" content="${view.description}">
+<link rel="alternate" hreflang="fr" href="${site}${view.alternates.fr}">
+<link rel="alternate" hreflang="en" href="${site}en/${view.alternates.en}">
+<link rel="alternate" hreflang="x-default" href="${site}${view.alternates.fr}">
+<meta property="og:title" content="${view.title.replace('&', '&amp;')}">
+<meta property="og:description" content="${view.ogDescription}">
 <meta property="og:type" content="website">
-<meta property="og:url" content="${site}${L.path}">
+<meta property="og:url" content="${site}${L.path}${view.file}">
 <meta property="og:image" content="${site}assets/img/${L.ogImage}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -745,6 +815,18 @@ code { font-family: var(--mono); font-size: 0.9em; letter-spacing: 0; }
 @media (min-width: 768px) { .cards { gap: 1.5rem; } }
 @media (min-width: 1024px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cards.languages { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
+/* ---------- The articles ---------- */
+.list .section-inner { padding-top: 8rem; }
+.posts { display: grid; gap: 1.5rem; }
+.post { padding: 1.5rem; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 0.375rem; }
+.post .dates { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #bfdbfe; }
+.post h3 { margin-top: 0.5rem; font-size: 1.5rem; line-height: 1.25; letter-spacing: -0.03em; }
+.post h3 a:hover { color: #fff; text-decoration: underline; text-underline-offset: 0.2em; }
+.post p:not(.dates):not(.meta) { margin-top: 0.75rem; color: var(--text-muted); }
+.post .meta { margin-top: 1rem; font-size: 0.9375rem; color: var(--text-soft); }
+.post .meta a { text-decoration: underline; text-underline-offset: 0.2em; }
+.post .meta a:hover { color: #fff; }
+
 /* ---------- Measured ---------- */
 .verdict { display: grid; gap: 1.5rem; }
 .verdict { margin-top: 0.5rem; }
@@ -836,7 +918,7 @@ footer { position: relative; padding: 1.5rem; overflow: hidden; background: radi
 </style>
 </head>
 <body>
-${body(L, up)}
+${chrome(L, up, view.main)}
 <script>
 // The header takes its backdrop once the page has scrolled; the menu button opens the navigation on a phone.
 const header = document.getElementById('header');
@@ -860,6 +942,26 @@ for (const [L, directory, up] of [
   [locales.en, 'en', '../'],
 ]) {
   mkdirSync(join(here, directory), { recursive: true });
-  writeFileSync(join(here, directory, 'index.html'), page(L, up));
-  process.stdout.write(`site/${directory ? `${directory}/` : ''}index.html written\n`);
+  const views = {
+    'index.html': {
+      title: L.title,
+      description: L.description,
+      ogDescription: L.ogDescription,
+      alternates: { fr: '', en: '' },
+      file: '',
+      main: indexMain(L, up),
+    },
+    [L.articles]: {
+      title: `${L.list.title} — CLEAN-DDD`,
+      description: L.list.description,
+      ogDescription: L.list.description,
+      alternates: { fr: locales.fr.articles, en: locales.en.articles },
+      file: L.articles,
+      main: articlesMain(L, up),
+    },
+  };
+  for (const [file, view] of Object.entries(views)) {
+    writeFileSync(join(here, directory, file), page(L, up, view));
+    process.stdout.write(`site/${directory ? `${directory}/` : ''}${file} written\n`);
+  }
 }

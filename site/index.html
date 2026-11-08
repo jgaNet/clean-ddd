@@ -159,6 +159,18 @@ code { font-family: var(--mono); font-size: 0.9em; letter-spacing: 0; }
 @media (min-width: 768px) { .cards { gap: 1.5rem; } }
 @media (min-width: 1024px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cards.languages { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
+/* ---------- The articles ---------- */
+.list .section-inner { padding-top: 8rem; }
+.posts { display: grid; gap: 1.5rem; }
+.post { padding: 1.5rem; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 0.375rem; }
+.post .dates { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #bfdbfe; }
+.post h3 { margin-top: 0.5rem; font-size: 1.5rem; line-height: 1.25; letter-spacing: -0.03em; }
+.post h3 a:hover { color: #fff; text-decoration: underline; text-underline-offset: 0.2em; }
+.post p:not(.dates):not(.meta) { margin-top: 0.75rem; color: var(--text-muted); }
+.post .meta { margin-top: 1rem; font-size: 0.9375rem; color: var(--text-soft); }
+.post .meta a { text-decoration: underline; text-underline-offset: 0.2em; }
+.post .meta a:hover { color: #fff; }
+
 /* ---------- Measured ---------- */
 .verdict { display: grid; gap: 1.5rem; }
 .verdict { margin-top: 0.5rem; }
@@ -262,12 +274,12 @@ footer { position: relative; padding: 1.5rem; overflow: hidden; background: radi
 </div>
 <nav id="main-nav" class="header-nav" aria-label="Navigation principale">
 <ul>
-<li><a href="#what">Le projet</a></li>
-<li><a href="#measured">Mesures</a></li>
-<li><a href="#concepts">Concepts</a></li>
-<li><a href="#tooling">Outillage</a></li>
-<li><a href="#languages">Langages</a></li>
-<li><a href="article.fr.html">L’article</a></li>
+<li><a href="./#what">Le projet</a></li>
+<li><a href="./#measured">Mesures</a></li>
+<li><a href="./#concepts">Concepts</a></li>
+<li><a href="./#tooling">Outillage</a></li>
+<li><a href="./#languages">Langages</a></li>
+<li><a href="articles.html">Articles</a></li>
 </ul>
 </nav>
 <div class="header-actions">
@@ -278,6 +290,7 @@ footer { position: relative; padding: 1.5rem; overflow: hidden; background: radi
 </header>
 
 <main>
+
 <section class="hero">
 <div class="hero-picture" aria-hidden="true"><div class="glow glow-a"></div><div class="glow glow-b"></div><div class="glow glow-c"></div></div>
 <div class="hero-content">
@@ -528,13 +541,14 @@ rust: the same application as typescript
 </div>
 </div>
 </section>
+
 </main>
 
 <footer>
 <div class="footer-inner">
 <div class="footer-card">
 <a class="brand" href="./">CLEAN-DDD</a>
-<p class="footer-links"><a href="article.fr.html">L’article</a> · <a href="https://github.com/jgaNet/clean-ddd" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/adr" target="_blank" rel="noopener">Décisions</a> · <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/README.md" target="_blank" rel="noopener">Registres</a></p>
+<p class="footer-links"><a href="articles.html">Les articles</a> · <a href="https://github.com/jgaNet/clean-ddd" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/adr" target="_blank" rel="noopener">Décisions</a> · <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/README.md" target="_blank" rel="noopener">Registres</a></p>
 <p class="legal first">Licence MIT · <code>npm i clean-ddd</code> pour l’outillage</p>
 </div>
 <p class="footer-note">© 2026 <a href="https://exostic.com/" target="_blank" rel="noopener">Exostic</a> · une architecture, quatre langages, chaque chiffre lu dans les registres.</p>
