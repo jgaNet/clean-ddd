@@ -604,10 +604,18 @@ function render(language) {
   const pages = {
     en: {
       home: 'en/',
+      list: 'en/articles.html',
+      listLabel: 'The articles',
       other: { code: 'FR', href: meta.fr.file, lang: 'fr', label: 'Version française' },
       body: bodyEn,
     },
-    fr: { home: './', other: { code: 'EN', href: meta.en.file, lang: 'en', label: 'English version' }, body: bodyFr },
+    fr: {
+      home: './',
+      list: 'articles.html',
+      listLabel: 'Les articles',
+      other: { code: 'EN', href: meta.en.file, lang: 'en', label: 'English version' },
+      body: bodyFr,
+    },
   }[language];
   const { file, title, description } = meta[language];
   const ctx = {
@@ -639,6 +647,8 @@ function render(language) {
     fix,
     usd,
     home: pages.home,
+    list: pages.list,
+    listLabel: pages.listLabel,
     other: pages.other,
   };
   writeFileSync(

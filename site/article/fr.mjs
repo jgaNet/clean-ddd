@@ -29,11 +29,13 @@ export const body = ctx => {
     fix,
     usd,
     home,
+    list,
+    listLabel,
     other,
   } = ctx;
   return `
 <header class="title">
-<p class="home"><a href="${home}">← CLEAN-DDD</a><a class="lang-switch" href="${other.href}" hreflang="${other.lang}" lang="${other.lang}" aria-label="${other.label}">${other.code}</a></p>
+<p class="home"><span class="crumbs"><a href="${home}">← CLEAN-DDD</a><span aria-hidden="true">·</span><a href="${list}">${listLabel}</a></span><a class="lang-switch" href="${other.href}" hreflang="${other.lang}" lang="${other.lang}" aria-label="${other.label}">${other.code}</a></p>
 <h1>La Clean Architecture aide-t-elle un agent IA à écrire du logiciel ?</h1>
 <p class="dek">Nous avons construit une implémentation de référence de la Clean Architecture et du Domain-Driven Design dont les règles sont de la donnée, un outil qui y tient le code, et un flux qui permet à plusieurs agents de construire des fonctionnalités en parallèle. Puis nous avons mesuré si tout cela aide un agent à livrer, y compris là où cela devrait aider le plus : un modèle plus faible, une base de code qui grandit, un changement de stockage. Sur notre benchmark, non. L’architecture a bien gardé les changements à leur place, et seul l’outil a empêché la structure de dériver. Un second benchmark, plus grand, une place de marché de logements avec de l’argent et une migration de base de données, a dit la même chose pour cinquante fonctionnalités et a montré où l’architecture paie : dans ce que les tests ne voient pas. Vers la centième, chaque arbre s’est arrêté, chacun sur une règle que personne n’avait écrite.</p>
 <p class="byline">30 octobre 2026, mis à jour le 4 novembre 2026 avec les cinquante premières fonctionnalités d’OpenStay, et le 8 novembre 2026 avec son cinquième jalon, provisoire · Les expériences <a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> · Chaque chiffre ci-dessous est lu dans les registres du dépôt.</p>

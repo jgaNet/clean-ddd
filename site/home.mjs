@@ -96,7 +96,7 @@ const locales = {
       tagline: 'Clean Architecture &amp; DDD · TypeScript · Rust · Python · Go',
       title: 'Une architecture que l’outillage fait respecter, <br>mesurée avec des agents IA',
       text: 'Une implémentation de référence, écrite pour être lue, dont les règles sont de la donnée. Verdict mesuré : elle ne rend pas un agent plus rapide ; elle l’empêche de dériver.',
-      read: 'Lire les résultats',
+      read: 'Lire les articles',
       code: 'Voir le code',
       proofLabel: 'En chiffres',
       proof: [
@@ -245,7 +245,7 @@ const locales = {
       tagline: 'Clean Architecture &amp; DDD · TypeScript · Rust · Python · Go',
       title: 'An architecture tooling holds the code to, <br>measured with AI agents',
       text: 'A reference implementation, written to be read, whose rules are data. The measured verdict: it does not make an agent faster; it keeps it from drifting.',
-      read: 'Read the results',
+      read: 'Read the articles',
       code: 'See the code',
       proofLabel: 'In figures',
       proof: [
@@ -395,7 +395,7 @@ const indexMain = (L, up) => {
 <h1>${L.hero.title}</h1>
 <p>${L.hero.text}</p>
 <div class="hero-actions">
-<a class="btn btn-primary" href="${article}">${L.hero.read}</a>
+<a class="btn btn-primary" href="${L.articles}">${L.hero.read}</a>
 <a class="btn" href="${repo}" target="_blank" rel="noopener">${L.hero.code}</a>
 </div>
 <ul class="proof" aria-label="${L.hero.proofLabel}">
