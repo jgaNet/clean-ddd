@@ -4,6 +4,9 @@
  * were graded. The article (build.mjs) quotes them with every other number; the home page
  * (home.mjs) quotes only these.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 export const mean = values => values.reduce((a, b) => a + b, 0) / values.length;
 export const span = values => `${Math.min(...values).toFixed(1)}–${Math.max(...values).toFixed(1)}`;
 
@@ -24,3 +27,30 @@ export function figures(data) {
   const allCosts = experiments.flatMap(e => ['A', 'D'].map(arm => times(e, arm, 'usd')));
   return { experiments, times, graded, allTimes, allCosts };
 }
+
+/**
+ * The figures a record states in prose and no log carries, each with the sentence it comes from:
+ * `verifyQuotes()` reads every record and refuses a quote whose sentence is no longer there, so a
+ * figure the records stop supporting cannot stay on a page unnoticed.
+ */
+export const quotes = {
+  sqliteDomainFiles: {
+    value: 0,
+    record: 'docs/evaluations/2026-10-30-flow-extensions.md',
+    says: "No architecture run touched a context's Domain or Application.",
+  },
+};
+
+export function verifyQuotes(root) {
+  for (const [name, quote] of Object.entries(quotes)) {
+    const record = readFileSync(join(root, quote.record), 'utf8');
+    if (!record.includes(quote.says)) {
+      throw new Error(
+        `${name}: ${quote.record} no longer says "${quote.says}"; the figure ${quote.value} has no source`,
+      );
+    }
+  }
+}
+
+/** The import drift of the prose-only tree, measured after the backlog and five features later. */
+export const drift = data => [data.backlog.D[1].drift.refusals, data.extensions.E3.D.drift.refusals];

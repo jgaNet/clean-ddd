@@ -47,8 +47,9 @@
     "lint": "eslint tools",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
     "test:flow": "node --test .claude/flow/*.test.mjs",
-    "format": "prettier \"tools/**/*.{ts,mjs}\" \".claude/**/*.mjs\" \"*.{js,mjs}\" --write",
-    "format:check": "prettier \"tools/**/*.{ts,mjs}\" \".claude/**/*.mjs\" \"*.{js,mjs}\" --check",
+    "site": "node site/collect.mjs && node site/build.mjs && node site/home.mjs",
+    "format": "prettier \"tools/**/*.{ts,mjs}\" \".claude/**/*.mjs\" \"site/*.mjs\" \"*.{js,mjs}\" --write",
+    "format:check": "prettier \"tools/**/*.{ts,mjs}\" \".claude/**/*.mjs\" \"site/*.mjs\" \"*.{js,mjs}\" --check",
     "prepack": "yarn build"
   },
   "devDependencies": {
