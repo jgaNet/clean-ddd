@@ -2,7 +2,8 @@
 /**
  * The page that presents the project, site/index.html, in French and in English, in the visual codes of exostic.com: dark
  * ground, Inter, the orange → pink → violet gradient, pill buttons, translucent panels. The
- * article is a page of its own, site/article.html (node site/build.mjs), reached from here.
+ * article is a page of its own in each language, site/article.html and site/article.fr.html (node site/build.mjs),
+ * reached from here.
  *
  *   node site/home.mjs   → site/index.html (French), site/en/index.html (English)   (yarn site, at the root, builds the whole site)
  */
@@ -59,6 +60,7 @@ const locales = {
     lang: 'fr',
     path: '',
     other: { code: 'EN', path: 'en/', label: 'English version', lang: 'en' },
+    article: 'article.fr.html',
     title: 'CLEAN-DDD — Clean Architecture & DDD, une implémentation de référence',
     description:
       'Une implémentation de référence de la Clean Architecture et du Domain-Driven Design, écrite pour être lue, en TypeScript, Rust, Python et Go, depuis une seule architecture qui est de la donnée et que l’outillage fait respecter ; puis mesurée avec des agents de code IA.',
@@ -80,7 +82,7 @@ const locales = {
       tagline: 'Clean Architecture &amp; DDD · TypeScript · Rust · Python · Go',
       title: 'Une architecture que l’outillage fait respecter, <br>mesurée avec des agents IA',
       text: 'Une implémentation de référence, écrite pour être lue, dont les règles sont de la donnée. Verdict mesuré : elle ne rend pas un agent plus rapide ; elle l’empêche de dériver.',
-      read: 'Lire les résultats <small>(en anglais)</small>',
+      read: 'Lire les résultats',
       code: 'Voir le code',
       proofLabel: 'En chiffres',
       proof: [
@@ -121,7 +123,7 @@ const locales = {
       buysTitle: 'Ça apporte : une structure qui tient.',
       buys: 'Les changements restent dans leur couche, les contextes restent séparés, l’argent n’est pas payé deux fois, et plusieurs agents travaillent sur une même base de code sans conflit.',
       note: article =>
-        `Un garde-fou et un coordinateur pour les agents, pas un accélérateur. <a href="${article}" hreflang="en">L’article</a>, en anglais, détaille chaque expérience, chaque chiffre lu dans les registres du dépôt.`,
+        `Un garde-fou et un coordinateur pour les agents, pas un accélérateur. <a href="${article}">L’article</a> détaille chaque expérience, chaque chiffre lu dans les registres du dépôt.`,
     },
     concepts: {
       tagline: 'Concepts',
@@ -194,6 +196,7 @@ const locales = {
     lang: 'en',
     path: 'en/',
     other: { code: 'FR', path: '../', label: 'Version française', lang: 'fr' },
+    article: 'article.html',
     title: 'CLEAN-DDD — Clean Architecture & DDD, a reference implementation',
     description:
       'A reference implementation of Clean Architecture and Domain-Driven Design, written to be read, in TypeScript, Rust, Python and Go, from one architecture that is data and that tooling holds the code to; then measured with AI coding agents.',
@@ -355,7 +358,7 @@ const item = ([title, text]) =>
 
 // The body of the page in one language; `up` leads from the page's directory back to the site's root.
 const body = (L, up) => {
-  const article = `${up}article.html`;
+  const article = `${up}${L.article}`;
   return `
 <header id="header">
 <div class="header-backdrop"></div>
@@ -373,7 +376,7 @@ const body = (L, up) => {
 <li><a href="#concepts">${L.nav.concepts}</a></li>
 <li><a href="#tooling">${L.nav.tooling}</a></li>
 <li><a href="#languages">${L.nav.languages}</a></li>
-<li><a href="${article}" hreflang="en">${L.nav.article}</a></li>
+<li><a href="${article}">${L.nav.article}</a></li>
 </ul>
 </nav>
 <div class="header-actions">
@@ -391,7 +394,7 @@ const body = (L, up) => {
 <h1>${L.hero.title}</h1>
 <p>${L.hero.text}</p>
 <div class="hero-actions">
-<a class="btn btn-primary" href="${article}" hreflang="en">${L.hero.read}</a>
+<a class="btn btn-primary" href="${article}">${L.hero.read}</a>
 <a class="btn" href="${repo}" target="_blank" rel="noopener">${L.hero.code}</a>
 </div>
 <ul class="proof" aria-label="${L.hero.proofLabel}">
@@ -571,7 +574,7 @@ ${languages
 <div class="footer-inner">
 <div class="footer-card">
 <a class="brand" href="./">CLEAN-DDD</a>
-<p class="footer-links"><a href="${article}" hreflang="en">${L.footer.article}</a> · <a href="${repo}" target="_blank" rel="noopener">GitHub</a> · <a href="${blob('docs/adr')}" target="_blank" rel="noopener">${L.footer.decisions}</a> · <a href="${blob('docs/evaluations/README.md')}" target="_blank" rel="noopener">${L.footer.records}</a></p>
+<p class="footer-links"><a href="${article}">${L.footer.article}</a> · <a href="${repo}" target="_blank" rel="noopener">GitHub</a> · <a href="${blob('docs/adr')}" target="_blank" rel="noopener">${L.footer.decisions}</a> · <a href="${blob('docs/evaluations/README.md')}" target="_blank" rel="noopener">${L.footer.records}</a></p>
 <p class="legal first">${L.footer.legal}</p>
 </div>
 <p class="footer-note">© ${year} <a href="https://exostic.com/" target="_blank" rel="noopener">Exostic</a> · ${L.footer.note}</p>

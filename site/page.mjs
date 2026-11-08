@@ -1,7 +1,7 @@
 /** The page around the article: tokens for both themes, the reading column, the tooltip layer. */
-export function page({ title, description, body }) {
+export function page({ lang = 'en', title, description, url, alternates = {}, body }) {
   return `<!doctype html>
-<html lang="en">
+<html lang="${lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,8 +10,11 @@ export function page({ title, description, body }) {
 <meta property="og:title" content="${title}">
 <meta property="og:description" content="${description}">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://jganet.github.io/clean-ddd/article.html">
-<meta property="og:image" content="https://jganet.github.io/clean-ddd/assets/img/open-graph.png">
+<meta property="og:url" content="${url}">
+${Object.entries(alternates)
+  .map(([code, href]) => `<link rel="alternate" hreflang="${code}" href="${href}">`)
+  .join('\n')}
+<meta property="og:image" content="https://jganet.github.io/clean-ddd/assets/img/${lang === 'fr' ? 'open-graph.png' : 'open-graph.en.png'}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
@@ -56,7 +59,9 @@ body {
 }
 main { max-width: 760px; margin: 0 auto; padding: 48px 16px 96px; }
 header.title { margin-bottom: 40px; }
-.home { margin: 0 0 24px; font-size: 1rem; }
+.home { margin: 0 0 24px; font-size: 1rem; display: flex; justify-content: space-between; align-items: center; }
+.lang-switch { display: inline-flex; align-items: center; padding: 0.375rem 0.5rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; line-height: 1; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 0.25rem; color: #fff; text-decoration: none; }
+.lang-switch:hover { border-color: #fff; }
 .home a { font-weight: 800; letter-spacing: -0.04em; text-decoration: none; background: var(--gradient-text); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .home a:hover { opacity: 0.85; }
 h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.05em; }

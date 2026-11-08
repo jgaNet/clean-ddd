@@ -13,13 +13,46 @@ export const ARMS = {
   Cp: { name: 'C′ — fan-out by context', slot: 4 },
 };
 
+/** The words a chart carries itself, in each language the article is written in. */
+const TEXT = {
+  en: {
+    arms: {
+      A: 'A — architecture + tool',
+      P: 'P — plain project',
+      D: 'D — architecture, no tool',
+      Cp: 'C′ — fan-out by context',
+    },
+    swipe: 'Swipe sideways to see the whole chart; the table below holds every value.',
+    table: 'table',
+    locale: 'en-US',
+  },
+  fr: {
+    arms: {
+      A: 'A — architecture + outil',
+      P: 'P — projet nu',
+      D: 'D — architecture, sans outil',
+      Cp: 'C′ — répartition par contexte',
+    },
+    swipe: 'Faites glisser latéralement pour voir tout le graphique ; le tableau dessous donne chaque valeur.',
+    table: 'tableau',
+    locale: 'fr-FR',
+  },
+};
+let text = TEXT.en;
+
+/** The language the charts are drawn in from now on: the arms' names, the hints, the number format. */
+export function setLanguage(lang) {
+  text = TEXT[lang];
+  for (const arm of Object.keys(ARMS)) ARMS[arm].name = text.arms[arm];
+}
+
 const escape = value =>
   String(value).replace(
     /[&<>"']/g,
     char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char],
   );
 const fmt = (value, digits = 1) =>
-  Number(value).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  Number(value).toLocaleString(text.locale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const niceMax = value => {
   const step = 10 ** Math.floor(Math.log10(value || 1));
   for (const factor of [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (factor * step >= value) return factor * step;
@@ -35,6 +68,9 @@ const ticks = max => {
   return Array.from({ length: count + 1 }, (_, index) => (max * index) / count);
 };
 const color = arm => `var(--series-${ARMS[arm].slot})`;
+/** An amount with its unit prefix, where the language puts it: `$12.34` in English, `12,34 $` in French. */
+const amount = (prefix, formatted) =>
+  prefix === '$' && text.locale === 'fr-FR' ? `${formatted} $` : `${prefix}${formatted}`;
 
 /** The legend: a swatch beside each arm's name, text in ink, never in the series color. */
 export function legend(arms, shape = 'dot') {
@@ -52,7 +88,7 @@ export function legend(arms, shape = 'dot') {
 
 /** A table view, the chart's twin: every value readable without hovering. */
 export function table(caption, head, rows) {
-  return `<details class="table-view"><summary>${escape(caption)} — table</summary><table><thead><tr>${head
+  return `<details class="table-view"><summary>${escape(caption)} — ${text.table}</summary><table><thead><tr>${head
     .map(cell => `<th>${escape(cell)}</th>`)
     .join('')}</tr></thead><tbody>${rows
     .map(row => `<tr>${row.map(cell => `<td>${escape(cell)}</td>`).join('')}</tr>`)
@@ -76,7 +112,7 @@ export function dotRange({ id, title, unit, rows, max, digits = 1, prefix = '' }
   const grid = ticks(scaleMax)
     .map(
       tick =>
-        `<line x1="${x(tick)}" x2="${x(tick)}" y1="${top - 4}" y2="${height - 26}" class="grid"/><text x="${x(tick)}" y="${height - 8}" class="tick" text-anchor="middle">${prefix}${fmt(tick, tick % 1 ? 1 : 0)}</text>`,
+        `<line x1="${x(tick)}" x2="${x(tick)}" y1="${top - 4}" y2="${height - 26}" class="grid"/><text x="${x(tick)}" y="${height - 8}" class="tick" text-anchor="middle">${amount(prefix, fmt(tick, tick % 1 ? 1 : 0))}</text>`,
     )
     .join('');
   const marks = rows
@@ -91,13 +127,13 @@ export function dotRange({ id, title, unit, rows, max, digits = 1, prefix = '' }
 ${row.values
   .map(
     v =>
-      `<circle cx="${x(v.value)}" cy="${y}" r="5.5" fill="${color(row.arm)}" class="dot" tabindex="0" data-tip="${escape(`${v.label}: ${prefix}${fmt(v.value, digits)}${unit ? ` ${unit}` : ''}`)}"/>`,
+      `<circle cx="${x(v.value)}" cy="${y}" r="5.5" fill="${color(row.arm)}" class="dot" tabindex="0" data-tip="${escape(`${v.label}: ${amount(prefix, fmt(v.value, digits))}${unit ? ` ${unit}` : ''}`)}"/>`,
   )
   .join('')}
-<text x="${width - right + 10}" y="${y + 4}" class="value">${values.length > 1 ? `${prefix}${fmt(low, digits)}–${fmt(high, digits)}` : `${prefix}${fmt(median, digits)}`}</text></g>`;
+<text x="${width - right + 10}" y="${y + 4}" class="value">${values.length > 1 ? `${amount(prefix, fmt(low, digits))}–${fmt(high, digits)}` : `${amount(prefix, fmt(median, digits))}`}</text></g>`;
     })
     .join('');
-  return `<figure class="chart" id="${id}"><figcaption>${escape(title)}</figcaption><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(title)}">${grid}${marks}</svg></div></figure>`;
+  return `<figure class="chart" id="${id}"><figcaption>${escape(title)}</figcaption><p class="swipe">${text.swipe}</p><div class="plot"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(title)}">${grid}${marks}</svg></div></figure>`;
 }
 
 /** Columns grouped by category, one per arm, from one baseline. */
@@ -116,7 +152,7 @@ export function groupedColumns({ id, title, unit, categories, series, digits = 1
   const grid = ticks(scaleMax)
     .map(
       tick =>
-        `<line x1="${left}" x2="${width - right}" y1="${y(tick)}" y2="${y(tick)}" class="${tick ? 'grid' : 'axis'}"/><text x="${left - 8}" y="${y(tick) + 4}" class="tick" text-anchor="end">${prefix}${fmt(tick, tick % 1 ? 1 : 0)}</text>`,
+        `<line x1="${left}" x2="${width - right}" y1="${y(tick)}" y2="${y(tick)}" class="${tick ? 'grid' : 'axis'}"/><text x="${left - 8}" y="${y(tick) + 4}" class="tick" text-anchor="end">${amount(prefix, fmt(tick, tick % 1 ? 1 : 0))}</text>`,
     )
     .join('');
   const groups = categories
@@ -132,7 +168,7 @@ export function groupedColumns({ id, title, unit, categories, series, digits = 1
           const h = top + plotHeight - y0;
           const r = Math.min(4, h);
           const path = `M${x0},${top + plotHeight} V${y0 + r} Q${x0},${y0} ${x0 + r},${y0} H${x0 + bar - r} Q${x0 + bar},${y0} ${x0 + bar},${y0 + r} V${top + plotHeight} Z`;
-          return `<path d="${path}" fill="${color(s.arm)}" class="bar" tabindex="0" data-tip="${escape(`${ARMS[s.arm].name} · ${category}: ${prefix}${fmt(value, digits)}${unit ? ` ${unit}` : ''}`)}"/>`;
+          return `<path d="${path}" fill="${color(s.arm)}" class="bar" tabindex="0" data-tip="${escape(`${ARMS[s.arm].name} · ${category}: ${amount(prefix, fmt(value, digits))}${unit ? ` ${unit}` : ''}`)}"/>`;
         })
         .join('');
       return `${columns}<text x="${left + c * band + band / 2}" y="${top + plotHeight + 18}" class="tick" text-anchor="middle">${escape(category)}</text>`;
@@ -141,7 +177,7 @@ export function groupedColumns({ id, title, unit, categories, series, digits = 1
   return `<figure class="chart" id="${id}"><figcaption>${escape(title)}</figcaption>${legend(
     series.map(s => s.arm),
     'rect',
-  )}<p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(title)}">${grid}${groups}</svg></div></figure>`;
+  )}<p class="swipe">${text.swipe}</p><div class="plot"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(title)}">${grid}${groups}</svg></div></figure>`;
 }
 
 /** Horizontal bars, one per item, the value at the tip. */
@@ -161,8 +197,8 @@ export function bars({ id, title, unit, items, digits = 1, prefix = '' }) {
       const h = 20;
       const r = Math.min(4, w);
       const path = `M${left},${y0} H${left + w - r} Q${left + w},${y0} ${left + w},${y0 + r} V${y0 + h - r} Q${left + w},${y0 + h} ${left + w - r},${y0 + h} H${left} Z`;
-      return `<text x="${left - 14}" y="${y0 + 15}" class="label" text-anchor="end">${escape(item.label ?? ARMS[item.arm].name)}</text><path d="${path}" fill="${color(item.arm)}" class="bar" tabindex="0" data-tip="${escape(`${item.label ?? ARMS[item.arm].name}: ${prefix}${fmt(item.value, digits)}${unit ? ` ${unit}` : ''}${item.note ? ` — ${item.note}` : ''}`)}"/><text x="${left + w + 8}" y="${y0 + 15}" class="value">${prefix}${fmt(item.value, digits)}${unit ? ` ${unit}` : ''}</text>`;
+      return `<text x="${left - 14}" y="${y0 + 15}" class="label" text-anchor="end">${escape(item.label ?? ARMS[item.arm].name)}</text><path d="${path}" fill="${color(item.arm)}" class="bar" tabindex="0" data-tip="${escape(`${item.label ?? ARMS[item.arm].name}: ${amount(prefix, fmt(item.value, digits))}${unit ? ` ${unit}` : ''}${item.note ? ` — ${item.note}` : ''}`)}"/><text x="${left + w + 8}" y="${y0 + 15}" class="value">${amount(prefix, fmt(item.value, digits))}${unit ? ` ${unit}` : ''}</text>`;
     })
     .join('');
-  return `<figure class="chart" id="${id}"><figcaption>${escape(title)}</figcaption><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(title)}"><line x1="${left}" x2="${left}" y1="${top}" y2="${height - 8}" class="axis"/>${marks}</svg></div></figure>`;
+  return `<figure class="chart" id="${id}"><figcaption>${escape(title)}</figcaption><p class="swipe">${text.swipe}</p><div class="plot"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(title)}"><line x1="${left}" x2="${left}" y1="${top}" y2="${height - 8}" class="axis"/>${marks}</svg></div></figure>`;
 }
