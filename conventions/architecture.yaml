@@ -128,6 +128,17 @@ modes:
     decides: [conventions/architecture.yaml]
     records: docs/adr
 
+# A migrated application keeps its behaviour and chooses the wire it answers on (ADR 36). The
+# choice is the binding's `migration` (`api`, and under `compat` its `compatibility_routes`: method,
+# path, the one `operation` of the inventory each stands for, the `file` under the transport that
+# serves it, when it `retires` — a date the check holds, or the condition in words). Nothing of a
+# context differs between the two wires; switching to native is removing the routes.
+migration:
+  rule: ARCH-COMPAT-ROUTE
+  api:
+    native: The contract's grammar alone. No compatibility route is declared; the legacy's scenario is translated before it is replayed.
+    compat: The legacy's routes beside the contract's grammar, served by compatibility routes in the transport; the legacy's scenario is replayed as recorded.
+
 # Two kinds of file that are not a layer.
 wiring_file:
   id: ARCH-WIRING
@@ -402,3 +413,14 @@ rules:
     remediation: Fix the tree that differs, never the inventory — a missing command, a route that differs, a policy that reaches other events is a divergence to close in the code; then regenerate the inventory with the language's tool and commit it.
     enforcement: check
     references: [docs/adr/0021-one-application-every-language-writes-the-same-inventory.md, conventions/README.md]
+
+  - id: ARCH-COMPAT-ROUTE
+    name: a-compatibility-route-is-declared-bound-and-retired
+    statement: >-
+      A compatibility route — the legacy's wire a migrated application serves while its clients move to the contract's grammar — lives in the transport and nowhere else, is declared in the language's binding under `migration` with the one command or query of the inventory it stands for and the condition of its retirement, waits for the outcome with the awaited operation and answers the legacy's shape; under `api: native` none is declared, and nothing outside the transport waits for an operation.
+    why: >-
+      While both wires are served the wire is written twice, and the second copy stays honest only if each route names the one operation it stands for, says when it goes, and lives where the grammar does not reach; a route in a context that waited for its outcome would be a second HTTP grammar inside the architecture.
+    remediation: >-
+      Declare the route under `migration.compatibility_routes` in the binding, served from a file under the transport, bound to a command or query the inventory lists, with `retires`; remove it and say `api: native` once the clients have moved; a wait outside the transport is a route that belongs in the façade.
+    enforcement: check
+    references: [docs/adr/0036-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md, conventions/README.md]

@@ -1,0 +1,396 @@
+# The TypeScript binding of the architecture contract: where this language keeps the trees that
+# architecture.yaml reasons about, which file shows each concept of concepts.yaml, which tool holds
+# each rule, and what a new thing of each kind is made of in this language's idiom. It adds no
+# rule: a rule lives in architecture.yaml, under one id for every language (ARCH-ONE-CONTRACT).
+#
+# Paths are relative to `root`, the directory of this language; the loader turns them into
+# repository-relative paths, so every tool, document and diff speaks the same ones. The decision
+# behind the file is docs/adr/0011-one-reference-several-languages.md.
+
+# Created by `clean-ddd create` from the clean-ddd reference. `contexts` holds the ones it
+# started with: declare yours there, or no import rule applies to its files. A concept whose
+# canonical file this application does not have yet is not listed under `concepts`; add it
+# back with the file when you write it.
+
+schemaVersion: 1
+language: typescript
+name: TypeScript
+root: .
+contexts:
+  - Tracker
+  - Links
+contexts_tree:
+  alias: '@Contexts'
+  path: src/Contexts
+architecture:
+  alias: '@Architecture'
+  path: src/Architecture
+kernel:
+  alias: '@SharedKernel'
+  path: src/SharedKernel
+bootstrap:
+  alias: '@Bootstrap'
+  path: src/Bootstrap
+wiring: module.local.ts
+libraries:
+  - fastify
+  - '@fastify/**'
+  - jose
+  - bcryptjs
+  - ws
+enforcers:
+  linter: ESLint, generated from `architecture.yaml`
+  check: '`yarn check:conventions`'
+  types: the type checker
+  tests: a spec
+  review: review (stated here, not yet mechanical)
+  evaluations: fresh-agent evaluations
+checks:
+  - yarn check:conventions
+  - yarn format:check
+  - yarn lint
+  - yarn typecheck
+  - yarn test:units
+  - yarn test:e2e
+relationship_tests:
+  suffix: .e2e.spec.ts
+  run: yarn -s test {files}
+modes:
+  feature:
+    protected:
+      - src/Architecture
+      - src/SharedKernel
+      - eslint.config.js
+    allowed:
+      - src/SharedKernel/Application/IntegrationEvents
+  architecture:
+    decides:
+      - src/Architecture
+      - src/SharedKernel/Domain
+create:
+  copy:
+    - src/Architecture
+    - src/SharedKernel/Domain
+    - src/SharedKernel/Application/Guards.ts
+    - src/SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents.ts
+    - src/Contexts/Tracker/Application
+    - src/Contexts/Tracker/Infrastructure
+    - src/Contexts/Tracker/Presentation/API/REST/Controllers
+    - src/Contexts/Tracker/Presentation/API/REST/Routes/index.ts
+    - src/Contexts/Tracker/Presentation/API/REST/Routes/operation.routes.ts
+    - src/Contexts/Tracker/Presentation/API/REST/Routes/operation.routes.schema.ts
+    - src/Contexts/Tracker/module.local.ts
+    - src/Bootstrap/Fastify/FastifyApplication.ts
+    - src/Bootstrap/Fastify/fastify.d.ts
+    - src/Bootstrap/Fastify/application.ts
+    - src/Bootstrap/Fastify/createApplication.ts
+    - src/Bootstrap/Fastify/createApplication.e2e.spec.ts
+    - tsconfig.json
+    - tsconfig.test.json
+    - jest.config.js
+    - eslint.config.js
+    - .prettierrc.json
+    - .prettierignore
+    - .nvmrc
+  contracts: src/SharedKernel/Application/IntegrationEvents
+  manifest: package.json
+  dependencies:
+    - uuid
+    - dotenv
+    - tslib
+    - fastify
+    - '@fastify/cors'
+  devDependencies:
+    - '@jest/globals'
+    - '@types/jest'
+    - '@types/node'
+    - cross-env
+    - eslint
+    - jest
+    - js-yaml
+    - nodemon
+    - prettier
+    - ts-jest
+    - tsx
+    - typescript
+    - typescript-eslint
+  scripts:
+    - start:dev
+    - typecheck
+    - test
+    - test:units
+    - test:e2e
+    - lint
+    - format
+    - format:check
+  install: yarn install
+  test: yarn test:units
+rules:
+  ARCH-TREES:
+    references:
+      - src/Architecture
+      - src/SharedKernel
+  ARCH-EXECUTION-CONTEXT:
+    references:
+      - src/Architecture/Application/ExecutionContext.ts
+  DOMAIN-RESULT:
+    references:
+      - src/Architecture/Application/CommandHandler.spec.ts
+  DOMAIN-RECORDS-EVENTS:
+    references:
+      - src/Architecture/Domain/AggregateRoot.ts
+  EVENT-AFTER-COMMIT:
+    references:
+      - src/Architecture/Application/DomainEvents.spec.ts
+      - src/Architecture/Infrastructure/EventBus/InMemoryEventBus.spec.ts
+  CONC-OPTIMISTIC:
+    references:
+      - src/Architecture/Application/CommandHandler.spec.ts
+  API-ONE-SURFACE:
+    references:
+      - src/Contexts/Tracker/Application/Projections/OperationProjection.ts
+  API-BODY-SHAPE:
+    references:
+      - eslint.config.js
+verbs: {}
+checklists:
+  aggregate:
+    place: src/Contexts/<Context>/Domain/<Aggregate>/<Aggregate>.ts
+    parts:
+      - >-
+        The aggregate itself: a private constructor, `create()` (validates, generates the Id, records the
+        creation event), `fromSnapshot()` (records nothing, throws on corrupted data), `toSnapshot()`,
+        `super(id, version)` for the version it was read at.
+      - '`DTOs.ts` beside it: the snapshot shape, `version` included.'
+      - >-
+        `<Aggregate>Exceptions.ts`: one file, one base exception for the aggregate, a PascalCase `type` per
+        rule.
+      - '`Events/<Aggregate>Events.ts`: the facts its behaviours record, past tense, minimal payload.'
+      - >-
+        `Ports/I<Aggregate>Repository.ts`: `findById`, `save` returning `IResult`, plus the facts a rule needs
+        about the collection.
+      - '`Ports/I<Aggregate>Queries.ts` and its read models, when a screen reads it.'
+      - '`<Aggregate>.spec.ts` beside it: every rule, and the round-trip through the snapshot.'
+      - >-
+        An in-memory adapter per port under `Infrastructure/`, and a contract spec once a port promises an
+        order or a filter.
+      - 'Wiring in `module.local.ts`: the store, the adapters, the handlers.'
+  value-object:
+    place: src/Contexts/<Context>/Domain/<Aggregate>/<Name>.ts
+    parts:
+      - >-
+        `static create()` returning `IResult`, a private constructor, the rule as a `static readonly` constant
+        when there is a number.
+      - One exception per rule the user could act on differently, in the aggregate's exceptions file.
+      - '`equalsValue()` when the value is structured (an object, an array); primitives need nothing.'
+      - '`<Name>.spec.ts` beside it: what it accepts, what it refuses, and equality.'
+  domain-service:
+    place: src/Contexts/<Context>/Domain/<Aggregate>/<Rule>.ts
+    parts:
+      - >-
+        Named after the rule it holds (`AccountRegistration`, `NoteSharing`, `NoteBookmarking`), not after a
+        layer.
+      - >-
+        Takes the ports it needs in its constructor; returns `IResult`; holds no logging, no transaction, no
+        publishing.
+      - >-
+        Used when a rule spans several aggregates or needs a fact about the collection; a rule about one
+        aggregate stays a behaviour.
+      - '`<Rule>.spec.ts` beside it, with a small fake of each port.'
+  command:
+    place: src/Contexts/<Context>/Application/Commands/<UseCase>/
+    parts:
+      - '`<UseCase>CommandEvent.ts`: a named payload, nothing more.'
+      - >-
+        `<UseCase>CommandHandler.ts`: `requireSignedIn` at the top of `execute()`, load, ask the aggregate or
+        the domain service, save (check the `IResult`), `publishDomainEvents`. A command anyone may send (a
+        sign-up) has no `requireSignedIn`; its caller follows it by the operation id it was answered, signed
+        in or not (ADR 27).
+      - A `guard()` override only for a rule that needs no caller id, such as administrators only.
+      - >-
+        Two lines in `Application/Commands/index.ts`, each through the alias
+        (`@Contexts/<Context>/Application/Commands/<UseCase>/<UseCase>CommandHandler`), never a relative path;
+        no barrel in the use-case folder.
+      - A spec with at least a happy path and one refusal; through `handle()` when the rule is in `guard()`.
+      - >-
+        A route answering `202 { operationId }`, its JSON schema, and the handler registered in
+        `module.local.ts`. A create never answers its new id: the handler returns it, and the client reads it
+        as the operation's `result` at `GET /v1/tracker/operations/:id`.
+      - >-
+        An end-to-end case when the flow is user-visible, in
+        `Presentation/API/REST/Routes/<things>.routes.e2e.spec.ts` beside the routes: it boots the application
+        on a free port and speaks HTTP, as the composition root's own `createApplication.e2e.spec.ts` does.
+  query:
+    place: src/Contexts/<Context>/Application/Queries/<UseCase>/
+    parts:
+      - A read model and a method on the queries port, with the order and the unknown-id answer in its JSDoc.
+      - 'The handler reads the port and nothing else: no sorting, no second port, no aggregate.'
+      - One line in `Application/Queries/index.ts`.
+      - A spec when the handler holds a visibility or role rule.
+      - >-
+        A route answering synchronously, refusals through the controller's `refuse()`, the response fields
+        listed in the schema.
+  integration-event:
+    place: src/SharedKernel/Application/IntegrationEvents/<Aggregate>IntegrationEvents.ts
+    parts:
+      - >-
+        A class extending `IntegrationEvent<Payload>`, named for the fact in the publishing context's public
+        words, in that context's file.
+      - A payload carrying everything a consumer needs, so it never queries back.
+      - >-
+        A domain event handler in the publishing context that translates the domain event into it and calls
+        `publishIntegrationEvent()` — that is where a fact leaves its context, through the outbox, never
+        straight to the bus.
+      - An anti-corruption handler in each consuming context, registered in its `module.local.ts`.
+      - >-
+        Adding one is not an architecture change: the folder is where a context publishes, and a feature may
+        publish.
+  event-handler:
+    place: src/Contexts/<Context>/Application/Events/<Name>Handler.ts
+    parts:
+      - >-
+        Extends `EventHandler<TheEvent>`; `execute()` returns an `IResult`; no guard — the fact was already
+        allowed.
+      - >-
+        A reaction inside its own context, or the translation of a domain event into an integration event, or
+        an anti-corruption layer over another context's contract.
+      - >-
+        It runs in a transaction of its own, opened by the base class (ADR 30): save what it changes, call
+        `publishDomainEvents()` for an aggregate it changed and `publishIntegrationEvent()` for a fact it
+        tells other contexts, and return a failed `Result` to undo all of it. It is not made idempotent by
+        hand: a fan-out that fails half-way is undone whole, and the bus hands a fact to it once.
+      - >-
+        The facts it publishes carry what the consumer needs as it was at that moment (who the note was shared
+        with when it was archived), in the domain event, rather than read back later; a time in an integration
+        event's payload is an ISO 8601 string.
+      - Registered in `module.local.ts` under `domainEvents` or `integrationEvents`.
+      - '`<Name>Handler.spec.ts` beside it.'
+  context:
+    place: src/Contexts/<Context>/
+    parts:
+      - Declared in `contexts` in this file, or no import rule applies to it.
+      - >-
+        Described in `conventions/domain.yaml`: its subdomain, its purpose and its language; a relationship to
+        another context is declared there before the code carries it (CTX-MAP-DECLARED).
+      - The four layers and nothing else beside `module.local.ts`.
+      - 'Its own vocabulary: a word that means something else here is a sign the context is right.'
+      - >-
+        It asks other contexts through ports it owns, and tells them through integration events; never both
+        sides of an import.
+      - >-
+        Registered in the composition root (`src/Bootstrap/Fastify/createApplication.ts`): its module after
+        the Tracker's, its routes under its own prefix (`/notes`), which the transport serves under the API's
+        (`/v1/notes`).
+tests: []
+vocabulary: {}
+concepts:
+  entity:
+    canonical:
+      - src/Architecture/Domain/Entity.ts
+  aggregate-root:
+    canonical:
+      - src/Architecture/Domain/AggregateRoot.ts
+  value-object:
+    canonical:
+      - src/SharedKernel/Domain/Email.ts
+  identity:
+    canonical:
+      - src/Architecture/Domain/Id.ts
+  result:
+    canonical:
+      - src/Architecture/Domain/Result.ts
+  optimistic-concurrency:
+    canonical:
+      - src/Architecture/Domain/AggregateRoot.ts
+  guard:
+    canonical:
+      - src/SharedKernel/Application/Guards.ts
+  base-handler:
+    canonical:
+      - src/Architecture/Application/CommandHandler.ts
+  execution-context:
+    canonical:
+      - src/Architecture/Application/ExecutionContext.ts
+  publish-after-commit:
+    canonical:
+      - src/Architecture/Application/CommandHandler.ts
+  transactional-outbox:
+    canonical:
+      - src/Architecture/Application/Outbox.ts
+    examples:
+      - src/Architecture/Infrastructure/Outbox/InMemoryOutbox.ts
+      - src/Architecture/Application/DomainEvents.ts
+  awaited-operation:
+    canonical:
+      - src/Architecture/Application/AwaitOperation.ts
+  retry-on-conflict:
+    canonical:
+      - src/Architecture/Application/CommandHandler.ts
+    examples:
+      - src/Architecture/Application/CommandHandler.spec.ts
+  projection-read-model:
+    canonical:
+      - src/Contexts/Tracker/Application/Projections/OperationProjection.ts
+      - src/Contexts/Tracker/Application/ReadModel/OperationRecord.ts
+  module:
+    canonical:
+      - src/Architecture/Application/Module.ts
+  event-bus:
+    canonical:
+      - src/Architecture/Infrastructure/EventBus/InMemoryEventBus.ts
+  idempotent-delivery:
+    canonical:
+      - src/Architecture/Infrastructure/EventBus/InMemoryEventBus.ts
+    examples:
+      - src/Architecture/Infrastructure/EventBus/InMemoryEventBus.spec.ts
+  decorator:
+    canonical:
+      - src/Contexts/Tracker/Infrastructure/TrackedEventBus.ts
+  unit-of-work:
+    canonical:
+      - src/Architecture/Infrastructure/UnitOfWork/InMemoryUnitOfWork.ts
+  the-database:
+    canonical:
+      - src/Architecture/Infrastructure/DataSources/InMemoryDataSource.ts
+  presenters:
+    canonical:
+      - src/Architecture/Presentation/Format.ts
+  composition-root:
+    canonical:
+      - src/Bootstrap/Fastify/createApplication.ts
+      - src/Architecture/Application/Application.ts
+      - src/Bootstrap/Fastify/FastifyApplication.ts
+      - src/Bootstrap/Fastify/application.ts
+
+# linkbox was migrated from a legacy (ADR 36; the record is docs/evaluations/2026-11-08-migration-by-hand.md
+# of the reference). Its clients speak the legacy's wire, served under /v1 by the compatibility routes
+# below while they move to the contract's grammar under /v2; each route stands for one operation of the
+# inventory, and goes when the last client has moved.
+migration:
+  api: compat
+  compatibility_routes:
+    - method: POST
+      path: /links
+      operation: SaveLink
+      file: src/Bootstrap/Compat/legacy.routes.ts
+      retires: when the mobile application 2.x is out of support
+    - method: GET
+      path: /links
+      operation: GetLinks
+      file: src/Bootstrap/Compat/legacy.routes.ts
+      retires: when the mobile application 2.x is out of support
+    - method: GET
+      path: '/links/{id}'
+      operation: GetLink
+      file: src/Bootstrap/Compat/legacy.routes.ts
+      retires: when the mobile application 2.x is out of support
+    - method: POST
+      path: '/links/{id}/archive'
+      operation: ArchiveLink
+      file: src/Bootstrap/Compat/legacy.routes.ts
+      retires: when the mobile application 2.x is out of support
+    - method: GET
+      path: /activity
+      operation: GetActivity
+      file: src/Bootstrap/Compat/legacy.routes.ts
+      retires: when the mobile application 2.x is out of support

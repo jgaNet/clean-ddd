@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noUnusedParameters": false,
+    "noUnusedLocals": false,
+    "allowUnusedLabels": true,
+    "outDir": "dist",
+    "rootDir": "."
+  },
+  "include": ["src/**/*.ts"]
+}

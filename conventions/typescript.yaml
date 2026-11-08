@@ -63,6 +63,10 @@ modes:
   architecture:
     decides: [src/Architecture, src/SharedKernel/Domain]
 
+# A migrated application says here which wire it answers on and declares its compatibility routes
+# (`migration: { api, compatibility_routes }`, ADR 36; the shape is in conventions/README.md). The
+# reference was migrated from nothing, so it has no such section.
+
 # What `clean-ddd create --language typescript` makes of this directory (ADR 10, ADR 23): the files
 # copied as they are (the building blocks with their specs, the shared kernel's model, the
 # configuration; never the tooling, which the new application takes as a dependency), the
@@ -459,6 +463,10 @@ concepts:
       - src/Architecture/Infrastructure/Outbox/InMemoryOutbox.ts
       - src/Architecture/Application/DomainEvents.ts
     example: '[`Outbox.ts`](src/Architecture/Application/Outbox.ts) (the port and `relayOutbox()`), [`InMemoryOutbox.ts`](src/Architecture/Infrastructure/Outbox/InMemoryOutbox.ts), [`DomainEvents.ts`](src/Architecture/Application/DomainEvents.ts) (appends at commit)'
+  awaited-operation:
+    canonical:
+      - src/Architecture/Application/AwaitOperation.ts
+    example: '[`AwaitOperation.ts`](src/Architecture/Application/AwaitOperation.ts)'
   retry-on-conflict:
     canonical:
       - src/Architecture/Application/CommandHandler.ts

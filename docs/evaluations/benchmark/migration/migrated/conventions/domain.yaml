@@ -1,0 +1,53 @@
+# The domain, as data: the subdomains and their kind, each bounded context with its purpose and its
+# language, and the context map — every relationship between two contexts, the pattern it follows,
+# the mechanism that carries it and why. The conventions check holds it to the binding (a context
+# declared there is described here) and to the code (a link between two contexts that this map does
+# not declare is refused, and so is a relationship nothing carries: CTX-MAP-DECLARED). It starts
+# with the contexts this application was created with, described as the reference describes them;
+# each context of your own is described here when it is declared in the binding.
+# `clean-ddd rule CTX-MAP-DECLARED` explains the rule; `clean-ddd concept context-map` the idea.
+schemaVersion: 1
+name: linkbox
+purpose: >-
+  Keeping the links worth coming back to, and seeing what happened to them.
+subdomains:
+  - id: links
+    name: Links
+    kind: core
+    why: >-
+      Saving a link and archiving it is the whole of what linkbox does for its users; the activity feed is how
+      they see it happen.
+    contexts:
+      - Links
+  - id: operations
+    name: Operations
+    kind: generic
+    why: >-
+      Every command is accepted first and answered later; recording each operation and letting a client follow
+      it to its outcome is plumbing any asynchronous application needs, and has no domain of its own.
+    contexts:
+      - Tracker
+contexts:
+  - id: Links
+    purpose: >-
+      The links a person keeps: saved with a title and an address, listed newest first until archived, and the
+      feed of what happened to them.
+    language:
+      - term: Link
+        meaning: an http(s) address kept under a title, saved once and archived once.
+      - term: Archived
+        meaning: a link kept out of the list and still found by its id; it is never deleted.
+      - term: Activity
+        meaning: what happened to the links, newest first — a link saved, a link archived — as the facts the link recorded.
+  - id: Tracker
+    purpose: >-
+      What became of each command: every operation the bus dispatches is recorded with its outcome, so that a
+      caller answered 202 can follow it to success or refusal.
+    language:
+      - term: Operation
+        meaning: one dispatch of one command or event, with its public name, its status and its result or error.
+      - term: Outcome
+        meaning: how an operation ended — SUCCESS with its result, or ERROR with the refusal.
+      - term: Trace
+        meaning: the id that ties an operation to the request that asked for it and to the operations it caused.
+relationships: []

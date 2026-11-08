@@ -173,7 +173,8 @@ const ARCHITECTURE = binding.architecture;
 const KERNEL = binding.kernel;
 
 export default tseslint.config(
-  { ignores: ['dist/', 'coverage/', '**/*.d.ts', '**/*.min.js'] },
+  // `.claude/` is the flow a created application carries (scripts of its own, not of this tree).
+  { ignores: ['dist/', 'coverage/', '.claude/', '**/*.d.ts', '**/*.min.js'] },
   ...tseslint.configs.recommended,
   {
     rules: {
