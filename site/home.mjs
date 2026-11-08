@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The page that presents the project, site/index.html, in the visual codes of exostic.com: dark
+ * The page that presents the project, site/index.html, in French, in the visual codes of exostic.com: dark
  * ground, Inter, the orange → pink → violet gradient, pill buttons, translucent panels. The
  * article is a page of its own, site/article.html (node site/build.mjs), reached from here.
  *
@@ -44,107 +44,44 @@ const svg = (name, cls = 'icon') =>
 
 const escape = text => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 // A terminal panel: the prompt lines in the accent colour, the rest as the CLI printed it.
-const terminal = (title, lines) => `<div class="terminal" role="img" aria-label="${title}">
+const terminal = (title, lines) => `<div class="terminal" role="img" aria-label="${title}" lang="en">
 <div class="terminal-bar"><span></span><span></span><span></span><em>${title}</em></div>
 <pre>${lines
   .map(line => (line.startsWith('$ ') ? `<b>$</b> <i>${escape(line.slice(2))}</i>` : escape(line)))
   .join('\n')}</pre>
 </div>`;
 
-const whatItIs = [
+const pillars = [
   {
     icon: 'cube',
-    title: 'One small application',
-    text: 'Notes you can share, accounts, notifications, the tracking of every operation. The business is small on purpose: the point is the shape.',
-  },
-  {
-    icon: 'globe',
-    title: 'Four languages, one architecture',
-    text: 'TypeScript, Rust, Python and Go, each in its own directory with its own toolchain. The same layers, the same rules, the same HTTP API.',
+    title: 'Une petite application, lisible',
+    text: 'Des notes partagées, des comptes, des notifications, le suivi de chaque opération. Chaque concept DDD et Clean Architecture y apparaît exactement une fois.',
   },
   {
     icon: 'layers',
-    title: 'The architecture is data',
-    text: 'The layers, who may import whom, every rule under a stable id, the HTTP grammar: a YAML contract the import rules of every language are generated from.',
+    title: 'Une architecture qui est de la donnée',
+    text: 'Les couches, qui importe qui, chaque règle sous un identifiant stable : un contrat YAML dont sont générés le linter et les vérifications. Une frontière qui cède quand ça arrange n’en est pas une.',
   },
   {
-    icon: 'shield',
-    title: 'Rules held by tooling',
-    text: 'A linter generated from the table, a conventions check, the compiler and the tests. A boundary that can be crossed when convenient is not a boundary.',
-  },
-  {
-    icon: 'storm',
-    title: 'Decided in a storm, held in the code',
-    text: 'A feature’s model is decided in a facilitated event-storming session, written down, and the code is held to it until nothing is owed.',
-  },
-  {
-    icon: 'people',
-    title: 'Measured with AI agents',
-    text: 'Two benchmarks ran coding agents with and without the architecture, against hidden tests, and wrote down what it buys and what it costs.',
+    icon: 'globe',
+    title: 'Quatre langages, une seule API',
+    text: 'TypeScript, Rust, Python et Go, chacun avec sa chaîne d’outils. Un même scénario boîte noire passe sur les quatre serveurs ; un même inventaire les tient égaux.',
   },
 ];
 
 const concepts = [
-  [
-    'cube',
-    'Aggregate root',
-    'Generates its own identity, records its own events inside a behaviour, carries the version it was read at.',
-  ],
-  [
-    'tag',
-    'Value object',
-    'Validates once and is reused by both paths: create() returns a refusal, fromSnapshot() throws on corrupted data.',
-  ],
-  [
-    'bolt',
-    'Domain event',
-    'A fact an aggregate recorded, made durable with the state in the same transaction and published after the commit.',
-  ],
-  [
-    'arrows',
-    'Integration event',
-    'The contract between two contexts, published in the shared kernel in the public words of the context that announces it.',
-  ],
-  [
-    'terminal',
-    'Command and query',
-    'A command has exactly one handler and is answered later; a query returns a read model shaped for a screen, never an aggregate.',
-  ],
-  [
-    'doc',
-    'Result, not exception',
-    'A refused command is a failed Result carrying the rule’s exception; a throw is for programming errors only.',
-  ],
-  [
-    'clock',
-    'Outbox',
-    'Events are stored with the state and relayed after the commit, so a listener only ever sees facts that are durable.',
-  ],
-  [
-    'branch',
-    'Optimistic concurrency',
-    'save() stores version + 1 and refuses a stale aggregate; the handler re-reads and re-decides, up to three attempts.',
-  ],
-  [
-    'link',
-    'Ports and adapters',
-    'Anything that is not a function of the business state lives behind a port named for what it decides.',
-  ],
-  [
-    'map',
-    'Context map',
-    'Every relationship between two contexts is declared once, with its pattern, its mechanism and why; the check holds it to the code.',
-  ],
-  [
-    'storm',
-    'Policy',
-    'A reaction to a fact, in a transaction of its own; a second reaction to the same intent, never a second handler.',
-  ],
-  [
-    'shield',
-    'Two modes of work',
-    'A feature stays inside the architecture; a change to the architecture is a decision, with the ADR that explains it.',
-  ],
+  ['cube', 'Racine d’agrégat', 'génère son identité, enregistre ses événements, porte sa version.'],
+  ['tag', 'Objet-valeur', 'valide une fois : create() refuse, fromSnapshot() lève.'],
+  ['bolt', 'Événement de domaine', 'un fait, durable avec l’état, publié après le commit.'],
+  ['arrows', 'Événement d’intégration', 'le contrat entre deux contextes, dans le noyau partagé.'],
+  ['terminal', 'Commande et requête', 'un seul handler par commande ; une requête renvoie un modèle de lecture.'],
+  ['doc', 'Result, pas exception', 'un refus est une valeur ; lever est réservé aux bugs.'],
+  ['clock', 'Outbox', 'les événements sont stockés avec l’état et relayés ensuite.'],
+  ['branch', 'Concurrence optimiste', 'save() refuse un agrégat périmé ; le handler redécide, trois fois.'],
+  ['link', 'Ports et adaptateurs', 'tout ce qui n’est pas fonction de l’état métier passe par un port.'],
+  ['map', 'Carte des contextes', 'chaque relation déclarée une fois, tenue au code par la vérification.'],
+  ['storm', 'Politique', 'une réaction à un fait, dans sa propre transaction.'],
+  ['shield', 'Deux modes', 'une fonctionnalité reste dans l’architecture ; la changer est une décision.'],
 ];
 
 const languages = [
@@ -175,22 +112,22 @@ const body = `
 <div class="header-backdrop"></div>
 <div class="header-inner">
 <div class="header-brand">
-<a class="header-logo" href="./" aria-label="clean-ddd, home"><span class="wordmark">clean-ddd</span></a>
-<button class="menu-toggle" type="button" aria-controls="main-nav" aria-expanded="false" aria-label="Open the menu">
+<a class="header-logo" href="./" aria-label="CLEAN-DDD, accueil"><span class="wordmark">CLEAN-DDD</span></a>
+<button class="menu-toggle" type="button" aria-controls="main-nav" aria-expanded="false" aria-label="Ouvrir le menu">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path class="bar-top" d="M4 6h16"/><path class="bar-mid" d="M4 12h16"/><path class="bar-bottom" d="M4 18h16"/></svg>
 </button>
 </div>
-<nav id="main-nav" class="header-nav" aria-label="Main navigation">
+<nav id="main-nav" class="header-nav" aria-label="Navigation principale">
 <ul>
-<li><a href="#what">What it is</a></li>
-<li><a href="#measured">Measured</a></li>
+<li><a href="#what">Le projet</a></li>
+<li><a href="#measured">Mesures</a></li>
 <li><a href="#concepts">Concepts</a></li>
-<li><a href="#tooling">Tooling</a></li>
-<li><a href="#languages">Languages</a></li>
+<li><a href="#tooling">Outillage</a></li>
+<li><a href="#languages">Langages</a></li>
 </ul>
 </nav>
 <div class="header-actions">
-<a class="lang-switch" href="${article}">THE ARTICLE</a>
+<a class="lang-switch" href="${article}" hreflang="en" lang="en">L’ARTICLE</a>
 <a class="btn btn-primary btn-sm" href="${repo}" target="_blank" rel="noopener">GITHUB</a>
 </div>
 </div>
@@ -200,29 +137,30 @@ const body = `
 <section class="hero">
 <div class="hero-picture" aria-hidden="true"><div class="glow glow-a"></div><div class="glow glow-b"></div><div class="glow glow-c"></div></div>
 <div class="hero-content">
-<p class="tagline">Clean Architecture &amp; Domain-Driven Design</p>
-<h1>A reference implementation,<br>written to be read</h1>
-<p>One small application, every concept exactly once, in TypeScript, Rust, Python and Go, from one architecture that is data and is held by tooling rather than by convention. Then measured: does any of it help an AI agent write software?</p>
+<p class="tagline">Clean Architecture &amp; DDD · TypeScript · Rust · Python · Go</p>
+<h1>Une architecture que l’outillage fait respecter, <br>mesurée avec des agents IA</h1>
+<p>Une implémentation de référence, écrite pour être lue, dont les règles sont de la donnée. Verdict mesuré : elle ne rend pas un agent plus rapide ; elle l’empêche de dériver.</p>
 <div class="hero-actions">
-<a class="btn btn-primary" href="${article}">Read the article</a>
-<a class="btn" href="${repo}" target="_blank" rel="noopener">Browse the repository</a>
+<a class="btn btn-primary" href="${article}">Lire les résultats</a>
+<a class="btn" href="${repo}" target="_blank" rel="noopener">Voir le code</a>
 </div>
-</div>
-<div class="pacman-track" aria-hidden="true">
-${Array.from({ length: 14 }, () => '<div class="pacman-dot"></div>').join('\n')}
-<div class="pacman"></div>
+<ul class="proof" aria-label="En chiffres">
+<li><b>${graded}</b> exécutions d’agents notées</li>
+<li><b>${span(allTimes)}×</b> le temps du projet nu</li>
+<li><b>0</b> fichier du domaine touché par un changement de base</li>
+<li><b>0</b> violation d’import avec l’outillage</li>
+</ul>
 </div>
 </section>
 
 <section id="what" class="section">
 <div class="section-inner">
 <div class="headline">
-<p class="tagline">What it is</p>
-<h2>One architecture, rendered in four languages</h2>
-<p class="sub">Every Domain-Driven Design and Clean Architecture concept appears exactly once, in the simplest form that still does its job. The rules are checked by tooling, in every language, under the same ids.</p>
+<p class="tagline">Le projet</p>
+<h2>Une architecture, quatre langages, zéro convention tacite</h2>
 </div>
 <div class="cards">
-${whatItIs
+${pillars
   .map(
     card => `<div class="card">
 ${svg(card.icon)}
@@ -238,35 +176,21 @@ ${svg(card.icon)}
 <section id="measured" class="section">
 <div class="section-inner narrow">
 <div class="headline">
-<p class="tagline">Measured</p>
-<h2>What it buys, and what it costs</h2>
-<p class="sub">The repository was built on a bet: an architecture made explicit and enforced makes AI agents better at building software. The bet was then measured, in two benchmarks, against hidden acceptance tests no agent saw.</p>
-</div>
-<div class="stats">
-<div class="stat"><div class="figure">${graded}</div><div class="what">agent runs graded against hidden tests, in six experiments on the notes application</div></div>
-<div class="stat"><div class="figure">${span(allTimes)}×</div><div class="what">the plain project’s time, taken by the architecture arms in each experiment</div></div>
-<div class="stat"><div class="figure">${span(allCosts)}×</div><div class="what">the plain project’s cost, in each experiment</div></div>
-<div class="stat"><div class="figure">0</div><div class="what">domain files the move to SQLite touched in the architecture trees</div></div>
+<p class="tagline">Mesures</p>
+<h2>Ce que ça coûte, ce que ça apporte</h2>
+<p class="sub">Deux benchmarks ont fait construire la même application par des agents, avec et sans l’architecture, face à des tests cachés. Le résultat est écrit tel quel.</p>
 </div>
 <div class="verdict">
 <div>
-<h3>It does not make an agent faster or better.</h3>
-<p>In every experiment the plain project delivered as much, sooner and cheaper; a weaker model was not helped either. A lodging marketplace built to fifty features said the same, and toward a hundred every tree stopped on a rule nobody had written down.</p>
+<h3>Ça coûte : du temps et de l’argent.</h3>
+<p>Dans chaque expérience, le projet nu a livré autant, pour ${span(allTimes)} fois moins de temps et ${span(allCosts)} fois moins cher. Un modèle plus faible n’a pas été aidé non plus.</p>
 </div>
 <div>
-<h3>It buys four things, each measured.</h3>
-<p>Changes stay in their layer. Fewer defects the tests cannot see, in the money. A structure that does not drift, with the tooling. And several agents on one codebase, one per bounded context, without conflicts.</p>
+<h3>Ça apporte : une structure qui tient.</h3>
+<p>Les changements restent dans leur couche, les contextes restent séparés, l’argent n’est pas payé deux fois, et plusieurs agents travaillent sur une même base de code sans conflit.</p>
 </div>
 </div>
-<p class="verdict-note">So the project is offered as a guardrail and a coordinator for agents, not as an accelerator. Every number, log and grade is in the repository, and the article reads them from there.</p>
-</div>
-</section>
-
-<section class="cta">
-<div class="cta-box">
-<h2>Does Clean Architecture help an AI agent write software?</h2>
-<p>The article: two benchmarks, with and without the architecture, on a strong and a weaker model, over a growing codebase, a change of storage, then a marketplace with money in it.</p>
-<a class="btn btn-primary btn-gradient-vertical" href="${article}">Read the article</a>
+<p class="verdict-note">Un garde-fou et un coordinateur pour les agents, pas un accélérateur. <a href="${article}" hreflang="en">L’article</a>, en anglais, détaille chaque expérience, chaque chiffre lu dans les registres du dépôt.</p>
 </div>
 </section>
 
@@ -274,18 +198,14 @@ ${svg(card.icon)}
 <div class="section-inner narrow">
 <div class="headline">
 <p class="tagline">Concepts</p>
-<h2>Every concept, once, in each language</h2>
-<p class="sub">The vocabulary is data too. Each concept names its rules and its decisions, and each language’s binding names the one file that shows it. The map says what a language still owes.</p>
+<h2>Chaque concept, une fois, au même endroit dans chaque langage</h2>
 </div>
-<div class="domains">
+<div class="domains compact">
 ${concepts
   .map(
     ([name, title, text], index) => `<div class="domain">
 ${svg(name, `icon${index % 2 ? ' is-primary' : ''}`)}
-<div>
-<h3>${title}</h3>
-<p>${text}</p>
-</div>
+<p><strong>${title}</strong> ${text}</p>
 </div>`,
   )
   .join('\n')}
@@ -295,17 +215,17 @@ ${svg(name, `icon${index % 2 ? ' is-primary' : ''}`)}
 
 <section id="tooling" class="content">
 <div class="content-head">
-<p class="tagline">Tooling</p>
-<h2>Ask it, change it, hold it</h2>
+<p class="tagline">Outillage</p>
+<h2>L’architecture répond, puis vérifie</h2>
 </div>
 <div class="content-body">
 <div class="content-row">
 <div class="content-text">
-<h3 class="lead">The architecture answers from its own data</h3>
+<h3 class="lead">Avant d’écrire : demander</h3>
 <div class="content-items">
-<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>Any rule, explained</h4><p>Statement, why, remediation and the file that shows it, in the language you ask from; <code>--json</code> for a tool.</p></div></div>
-<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>Any import, judged before it is written</h4><p>Would this file be allowed to import that one, and which rule says so.</p></div></div>
-<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>The domain, the storm, the inventory</h4><p>The context map with its contracts read from the code, the event storm and its board, what each tree says the application is.</p></div></div>
+<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>Une règle, expliquée</h4><p>L’énoncé, la raison, la remédiation, le fichier qui la montre.</p></div></div>
+<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>Un import, jugé</h4><p>Ce fichier peut-il importer celui-là, et quelle règle le dit.</p></div></div>
+<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>Une fonctionnalité, décidée</h4><p>Un event storm facilité, écrit en mots communs aux quatre langages ; une checklist dit quoi écrire et où.</p></div></div>
 </div>
 </div>
 <div class="content-image">
@@ -315,16 +235,17 @@ ${terminal('yarn architecture', [
   'Dependencies point inward and contexts stay apart — each file',
   'imports only what its row of the dependency table allows;',
   'there is no exception and none may be added.',
-  'Why:',
-  '  A boundary that can be crossed when convenient is not a',
-  '  boundary; the table is the architecture.',
   '',
   '$ yarn architecture can-import typescript/src/Contexts/Notes/Domain/Note/Note.ts \\',
   '    @Contexts/Security/Domain/Account/Account',
   'refused by ARCH-DOMAIN: typescript/src/Contexts/Notes/Domain/Note/Note.ts',
   "may not import '@Contexts/Security/Domain/Account/Account'",
-  'The Domain layer depends on nothing outside its own Domain, the',
-  "building blocks' Domain and the shared kernel's Domain.",
+  '',
+  '$ yarn architecture checklist command --language rust',
+  'A new command goes in rust/src/contexts/<context>/application/',
+  '  src/commands/<use_case>.rs',
+  'Canonical example:',
+  '  rust/src/contexts/notes/application/src/commands/edit_note.rs',
 ])}
 </div>
 </div>
@@ -332,57 +253,29 @@ ${terminal('yarn architecture', [
 <div class="content-body">
 <div class="content-row reversed">
 <div class="content-text">
-<h3 class="lead">A feature is decided first, then held</h3>
+<h3 class="lead">Après avoir écrit : prouver</h3>
 <div class="content-items">
-<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>A storm before the code</h4><p>The facts first, then who asks for them, what decides, what reacts, what a screen needs. What the session decided is written down, in words every language shares.</p></div></div>
-<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>A checklist for every kind of thing</h4><p>What a new command is made of and where it goes, with the canonical file to copy, in the language you write.</p></div></div>
-<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>Two modes, enforced</h4><p>The feature mode refuses a change to the building blocks, the shared kernel, the conventions or the decisions. The architecture mode asks for the ADR.</p></div></div>
+<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>Le mode fonctionnalité</h4><p>Refuse tout changement hors des contextes : briques de base, noyau partagé, conventions, décisions.</p></div></div>
+<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>La vérification des conventions</h4><p>Chaque fichier nommé existe, chaque lien résout, chaque sonde d’import se comporte, la carte des contextes est vraie.</p></div></div>
+<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>Un inventaire, quatre arbres</h4><p>Chaque langage écrit ce que son arbre dit de l’application ; la vérification en refuse deux qui diffèrent.</p></div></div>
 </div>
 </div>
 <div class="content-image">
-${terminal('a feature, end to end', [
-  '$ yarn architecture storm --expect conventions/storms/share-a-note.yaml',
-  'share-a-note (done): The owner of a note shares it with another',
-  'account, which can then read it, and the people a note is shared',
-  'with are told about it.',
-  'The code carries the storm: the typescript inventory is the expected one.',
-  '',
-  '$ yarn architecture checklist command --language rust',
-  'A new command goes in rust/src/contexts/<context>/application/',
-  '  src/commands/<use_case>.rs',
-  '- The command: a struct with a named payload and nothing more …',
-  '- The handler in the same file …',
-  'Canonical example:',
-  '  rust/src/contexts/notes/application/src/commands/edit_note.rs',
-  '',
+${terminal('les vérifications', [
   '$ yarn architecture mode feature --base main',
   'feature mode: the 3 changed file(s) are within it.',
-])}
-</div>
-</div>
-</div>
-<div class="content-body">
-<div class="content-row">
-<div class="content-text">
-<h3 class="lead">Every tree says the same application</h3>
-<div class="content-items">
-<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>One API, one scenario</h4><p>A black-box client of 32 steps walks whichever server is up and passes against each: the same routes, status codes, body shapes and public names.</p></div></div>
-<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>One inventory, held equal</h4><p>Each language’s tool writes what its tree says the application is; the check refuses two that differ. A difference is closed in the tree, never in the inventory.</p></div></div>
-<div class="content-item"><span class="bullet">${svg('check', 'bullet-icon')}</span><div><h4>A map that is real</h4><p>Every file the concept map names exists, every link resolves, nothing silences the linter, and the generated import rules refuse and allow what the probes say.</p></div></div>
-</div>
-</div>
-<div class="content-image">
-${terminal('the checks', [
+  '',
+  '$ yarn architecture storm --expect conventions/storms/share-a-note.yaml',
+  'The code carries the storm: the typescript inventory is the expected one.',
+  '',
   '$ yarn architecture inventory rust',
   'rust: the same application as typescript',
   '',
   '$ yarn check:conventions',
   '✓ contract v1, TypeScript binding: 30 rules, 49 concepts, 4 contexts',
-  '  match the tree; 4 language(s) in the map; the documents are rendered',
-  '  from it; every documentation link resolves; no eslint-disable;',
+  '  match the tree; every documentation link resolves; no eslint-disable;',
   '  1365 import probes behave and name their rule; the context map is',
-  '  true to the code (4 links); the event storm is read from the code',
-  '  (11 commands, 9 policies); one application in 4 inventories.',
+  '  true to the code (4 links); one application in 4 inventories.',
 ])}
 </div>
 </div>
@@ -392,18 +285,18 @@ ${terminal('the checks', [
 <section id="languages" class="section">
 <div class="section-inner">
 <div class="headline">
-<p class="tagline">Languages</p>
-<h2>Run it, in the language you read best</h2>
-<p class="sub">Every server listens on the same port and answers the same API under <code>/v1</code>. Each language has its own README, where the request is followed end to end, and its own guide for working in it, by hand or with an agent.</p>
+<p class="tagline">Langages</p>
+<h2>Lancez-la dans le langage que vous lisez le mieux</h2>
+<p class="sub">Même port, même API sous <code>/v1</code>. Le README de chaque langage suit une requête de bout en bout ; son guide dit comment y travailler, à la main ou avec un agent.</p>
 </div>
 <div class="cards languages">
 ${languages
   .map(
     language => `<div class="card">
 <h3>${language.name}</h3>
-<p class="label">Run the server</p>
+<p class="label">Lancer le serveur</p>
 <pre><code>${escape(language.run)}</code></pre>
-<p class="label">Hold it to the architecture</p>
+<p class="label">La tenir à l’architecture</p>
 <pre><code>${escape(language.check)}</code></pre>
 </div>`,
   )
@@ -416,13 +309,13 @@ ${languages
 <div class="founder-box">
 <img src="assets/img/exostic.svg" width="144" height="21" alt="Exostic">
 <div class="founder-text">
-<p class="tagline">Who makes it</p>
+<p class="tagline">Qui le fait</p>
 <h2>Jérémy Gay, Exostic</h2>
-<p>Product, software and system engineering. The reference, its tooling and the experiments are built and written up with an AI assistant; corrections are welcome as issues on the repository.</p>
+<p>Ingénierie produit, logicielle et système. Référence, outillage et expériences sont construits et rédigés avec un assistant IA ; les corrections sont bienvenues en issues.</p>
 </div>
 <div class="founder-actions">
 <a class="btn btn-sm" href="https://exostic.com/" target="_blank" rel="noopener">exostic.com</a>
-<a class="founder-link" href="${repo}/issues" target="_blank" rel="noopener">Open an issue</a>
+<a class="founder-link" href="${repo}/issues" target="_blank" rel="noopener">Ouvrir une issue</a>
 </div>
 </div>
 </section>
@@ -431,30 +324,24 @@ ${languages
 <footer>
 <div class="footer-inner">
 <div class="footer-card">
-<a class="brand" href="./">clean-ddd</a>
-<p class="footer-links"><a href="${article}">The article</a> · <a href="${repo}" target="_blank" rel="noopener">GitHub</a> · <a href="${blob('docs/adr')}" target="_blank" rel="noopener">Decisions</a> · <a href="${blob('docs/evaluations/README.md')}" target="_blank" rel="noopener">Records</a></p>
-<p class="legal first">MIT license · <code>npm i clean-ddd</code> for the tooling</p>
+<a class="brand" href="./">CLEAN-DDD</a>
+<p class="footer-links"><a href="${article}" hreflang="en">L’article</a> · <a href="${repo}" target="_blank" rel="noopener">GitHub</a> · <a href="${blob('docs/adr')}" target="_blank" rel="noopener">Décisions</a> · <a href="${blob('docs/evaluations/README.md')}" target="_blank" rel="noopener">Registres</a></p>
+<p class="legal first">Licence MIT · <code>npm i clean-ddd</code> pour l’outillage</p>
 </div>
-<p class="footer-note">© ${year} <a href="https://exostic.com/" target="_blank" rel="noopener">Exostic</a> · one architecture, four languages, every number read from the records.</p>
+<p class="footer-note">© ${year} <a href="https://exostic.com/" target="_blank" rel="noopener">Exostic</a> · une architecture, quatre langages, chaque chiffre lu dans les registres.</p>
 </div>
 </footer>
 `;
 
-const dots = Array.from({ length: 14 }, (_, i) => {
-  const left = 4 + (i * 92) / 13;
-  return `.pacman-dot:nth-child(${i + 1}) { left: ${left.toFixed(3)}%; animation-name: dot-${i}; }
-@keyframes dot-${i} { 0%, ${left.toFixed(3)}% { opacity: 1; transform: scale(1); } ${(left + 1).toFixed(3)}%, 100% { opacity: 0; transform: scale(0); } }`;
-}).join('\n');
-
 const html = `<!doctype html>
-<html lang="en">
+<html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>clean-ddd — Clean Architecture &amp; DDD, a reference implementation</title>
-<meta name="description" content="A reference implementation of Clean Architecture and Domain-Driven Design, written to be read, in TypeScript, Rust, Python and Go from one architecture that is data and held by tooling; then measured with AI coding agents.">
-<meta property="og:title" content="clean-ddd — Clean Architecture &amp; DDD, a reference implementation">
-<meta property="og:description" content="One small application, every concept once, four languages, one architecture that is data. Measured with AI agents.">
+<title>CLEAN-DDD — Clean Architecture &amp; DDD, une implémentation de référence</title>
+<meta name="description" content="Une implémentation de référence de la Clean Architecture et du Domain-Driven Design, écrite pour être lue, en TypeScript, Rust, Python et Go, depuis une seule architecture qui est de la donnée et que l’outillage fait respecter ; puis mesurée avec des agents de code IA.">
+<meta property="og:title" content="CLEAN-DDD — Clean Architecture &amp; DDD, une implémentation de référence">
+<meta property="og:description" content="Une architecture que l’outillage fait respecter, en quatre langages, mesurée avec des agents IA : elle ne rend pas un agent plus rapide, elle l’empêche de dériver.">
 <meta property="og:type" content="website">
 <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <style>
@@ -545,35 +432,32 @@ code { font-family: var(--mono); font-size: 0.9em; letter-spacing: 0; }
 }
 
 /* ---------- Hero ---------- */
-.hero { position: relative; height: 100vh; height: 100svh; min-height: 640px; width: 100%; overflow: hidden; }
+.hero { position: relative; min-height: 100svh; width: 100%; overflow: hidden; }
 .hero-picture { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 120%, rgba(76, 53, 132, 0.55), transparent 60%); }
 .glow { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.55; }
 .glow-a { width: 42vw; height: 42vw; left: -8vw; top: 8vh; background: #4c3584; }
 .glow-b { width: 36vw; height: 36vw; right: -6vw; top: 18vh; background: rgba(228, 59, 125, 0.45); }
 .glow-c { width: 30vw; height: 30vw; left: 38vw; bottom: -14vh; background: rgba(255, 82, 17, 0.3); }
-.hero-content { position: absolute; inset: 0; padding: 5.5rem 1.5rem 2.5rem; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+.hero-content { position: relative; min-height: 100svh; padding: 6rem 1.5rem 3rem; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
 .hero .tagline { margin-bottom: 1rem; }
-.hero h1 { font-size: 2.5rem; line-height: 1.1; margin-bottom: 1.25rem; color: #e5e7eb; max-width: 20ch; }
+.hero h1 { font-size: 2.25rem; line-height: 1.1; margin-bottom: 1.25rem; color: #e5e7eb; max-width: 30ch; }
+.hero h1 br { display: none; }
 .hero p:not(.tagline) { max-width: 48rem; margin: 0 auto 1.5rem; font-size: 1.125rem; line-height: 1.65rem; color: var(--text-soft); }
 .hero-actions { max-width: 20rem; margin: 0 auto; padding-top: 0.5rem; display: flex; flex-direction: column; gap: 1rem; width: 100%; }
 .hero-actions .btn { width: 100%; }
 @media (min-width: 640px) {
   .hero-content { padding-left: 0; padding-right: 0; }
-  .hero h1 { font-size: 3.25rem; }
+  .hero h1 { font-size: 3rem; }
+  .hero h1 br { display: initial; }
   .hero p:not(.tagline) { font-size: 1.25rem; line-height: 1.75rem; }
   .hero-actions { max-width: 32rem; flex-direction: row; justify-content: center; }
   .hero-actions .btn { width: auto; }
 }
 
-/* ---------- Pac-Man ---------- */
-.pacman-track { --pac-size: 28px; --pac-dot: 6px; --pac-duration: 7s; position: absolute; bottom: 24px; left: 0; width: 100%; height: var(--pac-size); z-index: 10; pointer-events: none; container-type: inline-size; }
-@media (min-width: 768px) { .pacman-track { --pac-size: 48px; --pac-dot: 10px; --pac-duration: 12s; bottom: 32px; } }
-.pacman-dot { position: absolute; top: calc((var(--pac-size) - var(--pac-dot)) / 2); width: var(--pac-dot); height: var(--pac-dot); margin-left: calc(var(--pac-dot) / -2); border-radius: 50%; background: #fff5e0; box-shadow: 0 0 6px 1px rgba(228, 59, 125, 0.8); animation-duration: var(--pac-duration); animation-timing-function: linear; animation-iteration-count: infinite; }
-.pacman { position: absolute; bottom: 0; left: 0; will-change: transform; width: var(--pac-size); height: var(--pac-size); border-radius: 50%; background: linear-gradient(135deg, #ff5211, #e43b7d, #4c3584); box-shadow: 0 0 calc(var(--pac-size) / 3) rgba(228, 59, 125, 0.6); animation: pacman-move var(--pac-duration) linear infinite, pacman-chomp 0.4s linear infinite; }
-@keyframes pacman-move { from { transform: translateX(-100%); } to { transform: translateX(calc(100cqw - 100%)); } }
-@keyframes pacman-chomp { 0%, 100% { clip-path: polygon(100% 74%, 44% 48%, 100% 21%, 100% 0, 0 0, 0 100%, 100% 100%); } 50% { clip-path: polygon(100% 50%, 100% 50%, 100% 50%, 100% 0, 0 0, 0 100%, 100% 100%); } }
-${dots}
-@media (prefers-reduced-motion: reduce) { .pacman-dot { animation: none !important; } .pacman { display: none; } }
+/* ---------- Proof strip ---------- */
+.proof { list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 1.5rem; width: 100%; max-width: 56rem; margin: 3rem auto 0; padding-top: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.1); font-size: 0.875rem; line-height: 1.3; color: var(--text-muted); }
+.proof b { display: block; font-size: 1.75rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1.1; background: var(--gradient-text); -webkit-background-clip: text; background-clip: text; color: transparent; font-variant-numeric: tabular-nums; }
+@media (min-width: 768px) { .proof { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 /* ---------- Sections ---------- */
 .section { position: relative; }
@@ -601,12 +485,8 @@ ${dots}
 @media (min-width: 1024px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cards.languages { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 /* ---------- Measured ---------- */
-.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-.stat { padding: 1.25rem 1.5rem; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 0.375rem; }
-.stat .figure { font-size: 2.25rem; font-weight: 800; line-height: 1.1; letter-spacing: -0.04em; background: var(--gradient-text); -webkit-background-clip: text; background-clip: text; color: transparent; font-variant-numeric: tabular-nums; }
-.stat .what { margin-top: 0.5rem; font-size: 0.9rem; line-height: 1.35; color: var(--text-muted); }
-@media (min-width: 768px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.5rem; } }
 .verdict { display: grid; gap: 1.5rem; }
+.verdict { margin-top: 0.5rem; }
 .verdict h3 { font-size: 1.25rem; line-height: 1.75rem; letter-spacing: -0.025em; color: #fff; }
 .verdict p { margin-top: 0.75rem; color: var(--text-muted); }
 @media (min-width: 768px) { .verdict { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3rem; } }
@@ -620,16 +500,12 @@ ${dots}
 .domain h3 { font-size: 1.25rem; line-height: 1.75rem; letter-spacing: -0.025em; }
 .domain p { margin-top: 0.75rem; color: var(--text-muted); }
 @media (min-width: 640px) { .domains { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.domains.compact { gap: 1.5rem 2rem; }
+.domains.compact .domain { align-items: center; }
+.domains.compact .domain p { margin: 0; color: var(--text-muted); }
+.domains.compact .domain strong { color: #fff; font-weight: 600; }
+.domains.compact .icon { width: 2.5rem; height: 2.5rem; padding: 0.5rem; }
 @media (min-width: 768px) { .domain .icon { width: 3rem; height: 3rem; padding: 0.75rem; } .domain h3 { font-size: 1.3rem; } }
-
-/* ---------- Call to action ---------- */
-.cta { max-width: 72rem; margin: 0 auto; padding: 3rem 1rem; }
-.cta-box { max-width: 48rem; margin: 0 auto; padding: 1.5rem; text-align: center; border: 1px solid var(--border); border-radius: 0.375rem; }
-.cta-box h2 { font-size: 1.75rem; line-height: 1.2; margin-bottom: 1rem; }
-.cta-box p { font-size: 1.125rem; line-height: 1.65rem; color: var(--text-dim); }
-.cta-box .btn { margin-top: 1.5rem; width: 100%; max-width: 20rem; }
-@media (min-width: 640px) { .cta { padding-left: 1.5rem; padding-right: 1.5rem; } .cta-box h2 { font-size: 2.25rem; } .cta-box p { font-size: 1.25rem; line-height: 1.75rem; } .cta-box .btn { width: auto; } }
-@media (min-width: 768px) { .cta { padding-top: 5rem; padding-bottom: 5rem; } }
 
 /* ---------- Content blocks (text + terminal) ---------- */
 .content { padding: 4rem 0; }

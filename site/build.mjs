@@ -406,7 +406,7 @@ const readingRows = reading.rows
 
 const body = `
 <header class="title">
-<p class="home"><a href="./">← clean-ddd</a></p>
+<p class="home"><a href="./">← CLEAN-DDD</a></p>
 <h1>Does Clean Architecture help an AI agent write software?</h1>
 <p class="dek">We built a reference implementation of Clean Architecture and Domain-Driven Design whose rules are data, a tool that holds code to them, and a flow that lets several agents build features in parallel. Then we measured whether any of it helps an agent deliver, including where it should help most: a weaker model, a growing codebase, a change of storage. On our benchmark, it did not. It did keep changes in their place, and only the tool kept the structure from drifting. A second, larger benchmark, a lodging marketplace with money and a database migration, said the same for fifty features and showed where the architecture does pay: in what the tests cannot see. Toward a hundred, every tree stopped, each on a rule nobody had written down.</p>
 <p class="byline">30 October 2026, updated 4 November 2026 with OpenStay's first fifty features, and 8 November 2026 with its fifth checkpoint, provisional · The <a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> experiments · Every number below is read from the records in the repository.</p>
