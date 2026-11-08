@@ -115,14 +115,16 @@ Still deliberately absent: anything that writes code.
 
 The contract is a machine interface: every command takes `--json` — valid JSON only, a `schemaVersion`, a structured error and a non-zero exit — so an agent can ask what to write and where instead of guessing, and can check a planned import before writing it. That is the whole integration; there is no server and no plugin, because a second interface to the same data is a second thing to drift.
 
-Two files make the loop the default rather than something an agent has to notice:
+Four files make the loop the default rather than something an agent has to notice:
 
 | File | What it is |
 |---|---|
 | [`.claude/skills/feature/SKILL.md`](../.claude/skills/feature/SKILL.md) | the order of operations for adding a feature: ask the contract for the shape, follow the canonical example the checklist names, prove the change with `mode feature` and the six checks |
 | [`.claude/agents/feature-author.md`](../.claude/agents/feature-author.md) | a subagent bound to the feature mode, which reports what it needed instead of working around it |
+| [`.claude/skills/storm/SKILL.md`](../.claude/skills/storm/SKILL.md) | the facilitation of an event storm before the code, written as an expected storm the code is held to |
+| [`.claude/skills/migrate/SKILL.md`](../.claude/skills/migrate/SKILL.md) | the order of operations for moving an existing project onto the architecture without changing what it does: the characterization scenario first, the storm read from the legacy, `create`, the contexts, the wire chosen and declared, the scenario replayed ([ADR 35](../docs/adr/0035-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md)) |
 
-Both name commands rather than files, so they stay true in a project generated from this one, and `yarn architecture create` copies them. The agent definition's instruction to stop rather than widen a rule is the important half: an agent that says "I needed to change the dependency table, and here is why" has found something, and an agent that quietly adds an `eslint-disable` has hidden it.
+They name commands rather than files, so they stay true in a project generated from this one, and `yarn architecture create` copies them. The agent definition's instruction to stop rather than widen a rule is the important half: an agent that says "I needed to change the dependency table, and here is why" has found something, and an agent that quietly adds an `eslint-disable` has hidden it.
 
 The feedback loop is [`docs/evaluations`](../docs/evaluations/README.md): a fresh agent is handed a small feature, graded on whether it lands the right shape, and every guess in its report becomes a sentence missing from the guide.
 

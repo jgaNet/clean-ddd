@@ -117,7 +117,7 @@ What the CLI prints is also rendered: [the domain](#the-domain) below, [the stor
 
 4. **Regenerate what the code renders**: the inventory of the language (`yarn conventions:write`, `cargo run -p conventions -- inventory --write`, `uv run python -m tools.conventions inventory --write`, `go run ./tools/conventions inventory --write`) and, at the root, `yarn conventions:write` for the storm and the documents; the check refuses a stale one. A feature that changes what a client sees fails the scenario against the other servers until they carry it: that is the list of what they owe ([ADR 16](docs/adr/0016-one-api-for-every-language.md)).
 
-With an agent, the same loop is a procedure: the [`feature` skill](.claude/skills/feature/SKILL.md) asks the contract first and proves the change last, and the [`feature-author`](.claude/agents/feature-author.md) subagent is bound to the feature mode, told to stop and report rather than work around a rule.
+With an agent, the same loop is a procedure: the [`feature` skill](.claude/skills/feature/SKILL.md) asks the contract first and proves the change last, and the [`feature-author`](.claude/agents/feature-author.md) subagent is bound to the feature mode, told to stop and report rather than work around a rule. An existing project is moved onto the architecture by the [`migrate` skill](.claude/skills/migrate/SKILL.md): its behaviour characterized by a scenario first, its storm read from its code, the wire it answers on chosen and declared, and the scenario replayed on the result ([ADR 35](docs/adr/0035-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md)).
 
 ### Change the architecture
 

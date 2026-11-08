@@ -34,7 +34,7 @@ go/                             the Go implementation (a package per layer, tool
 tools/                          the tooling, one package for every language: the contract API, the CLI, the conventions check
                                 (tools/src, built by tools/build.mjs, published to npm as clean-ddd); package.json at the root
                                 drives it: yarn architecture, yarn check:conventions, yarn conventions:write
-.claude/                        the feature skill and the feature-author agent
+.claude/                        the skills (feature, storm, migrate), the feature-author agent, the flow
 ```
 
 Every path the contract carries is relative to this directory, in every tool's output and in every document: `typescript/src/Contexts/Notes/Domain/Note/Note.ts`, `docs/adr/0001-….md`.
