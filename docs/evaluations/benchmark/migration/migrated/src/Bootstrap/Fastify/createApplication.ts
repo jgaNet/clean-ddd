@@ -32,14 +32,17 @@ export async function createApplication({
   webOrigins = String(process.env.WEB_ORIGINS || '')
     .split(',')
     .filter(Boolean),
-  legacyWire = { prefix: process.env.LEGACY_API_PREFIX || 'v1' } as { prefix: string } | undefined,
+  legacyWire = { prefix: process.env.LEGACY_API_PREFIX || 'v1' } as { prefix: string; timeoutMs?: number } | undefined,
 }: {
   logger?: Logger;
   apiPrefix?: string;
   port?: number;
   webOrigins?: string[];
-  /** The prefix the legacy's clients speak, served by the compatibility routes; `undefined` serves the native wire alone. */
-  legacyWire?: { prefix: string };
+  /**
+   * The prefix the legacy's clients speak, served by the compatibility routes, and how long a route waits for a
+   * command's outcome before it answers the contract's `202`; `undefined` serves the native wire alone.
+   */
+  legacyWire?: { prefix: string; timeoutMs?: number };
 } = {}): Promise<FastifyApplication> {
   const app = new FastifyApplication({ logger, apiPrefix, port, webOrigins })
     .setEventBus(trackedEventBus)
@@ -47,8 +50,13 @@ export async function createApplication({
     .registerRoutes('/tracker/operations', operationRoutes, { operationsModule: localTrackerModule })
     .registerModule(localLinksModule)
     .registerRoutes('/links', linkRoutes, { linksModule: localLinksModule });
-  if (legacyWire)
-    app.fastify.register(legacyRoutes, { prefix: `/${legacyWire.prefix}`, linksModule: localLinksModule });
+  if (legacyWire) {
+    app.fastify.register(legacyRoutes, {
+      prefix: `/${legacyWire.prefix}`,
+      linksModule: localLinksModule,
+      timeoutMs: legacyWire.timeoutMs,
+    });
+  }
 
   await app.startModules();
   // What a previous run made durable and did not publish goes out now (ADR 24): nothing, with

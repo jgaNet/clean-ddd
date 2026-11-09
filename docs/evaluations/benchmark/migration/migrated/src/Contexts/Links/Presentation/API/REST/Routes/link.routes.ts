@@ -20,23 +20,28 @@ export const linkRoutes = function (
   done: () => void,
 ) {
   const controller = new FastifyLinkController({ module: linksModule });
+  const tags = ['links'];
 
   fastify.post<{ Body: SaveLinkReqBody }>(
     '/',
-    { schema: { body: SaveLinkReqBodySchema, response: CommandResSchema } },
+    { schema: { tags, body: SaveLinkReqBodySchema, response: CommandResSchema } },
     controller.saveLink.bind(controller),
   );
-  fastify.get('/', { schema: { response: GetLinksResSchema } }, controller.getLinks.bind(controller));
+  fastify.get('/', { schema: { tags, response: GetLinksResSchema } }, controller.getLinks.bind(controller));
   // A static segment under the context's prefix, so that it cannot collide with /:id.
-  fastify.get('/activity', { schema: { response: GetActivityResSchema } }, controller.getActivity.bind(controller));
+  fastify.get(
+    '/activity',
+    { schema: { tags, response: GetActivityResSchema } },
+    controller.getActivity.bind(controller),
+  );
   fastify.get<{ Params: LinkIdParams }>(
     '/:id',
-    { schema: { params: LinkIdParamsSchema, response: GetLinkResSchema } },
+    { schema: { tags, params: LinkIdParamsSchema, response: GetLinkResSchema } },
     controller.getLink.bind(controller),
   );
   fastify.post<{ Params: LinkIdParams }>(
     '/:id/archive',
-    { schema: { params: LinkIdParamsSchema, response: CommandResSchema } },
+    { schema: { tags, params: LinkIdParamsSchema, response: CommandResSchema } },
     controller.archiveLink.bind(controller),
   );
 

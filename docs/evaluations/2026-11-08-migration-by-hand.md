@@ -27,11 +27,11 @@
 **Two things a created application leaves open, fixed in the reference:**
 
 - `yarn lint` of a created application failed before any feature, on `.claude/flow/generate.mjs` (`no-console`): the flow is copied into every created application and the copied ESLint configuration linted it. The reference's `typescript/eslint.config.js` now ignores `.claude/`, so the next `create` is green on its first `lint`.
-- The canonical routes of the reference carry Swagger `tags` in their schemas, typed by `@fastify/swagger`'s augmentation, which a created application does not have; a route copied from the canonical file fails `typecheck` on `tags`. The migrated application dropped them. This is a guide gap for the created project (its guide should say so, or `create` should strip them); it is left open here.
+- The canonical routes of the reference carry Swagger `tags` in their schemas, a field Fastify's own `FastifySchema` does not have: in the reference `@fastify/swagger` declares it, and a created application has no documentation, so a route copied from the canonical file failed `typecheck` on `tags` in some shapes (a schema with `params` and a response, not one with a response alone). The migrated application dropped them first; the reference's `fastify.d.ts`, which `create` copies, now declares the field with the documentation's own type, so the two declarations merge and a copied route compiles everywhere.
 
 **The tooling the kit runs is the tree's, not the package's.** The published `clean-ddd` does not know `migration` yet, so the kit's application runs the reference's CLI from the repository (`tsx ../../../../../tools/src/cli.ts`) and the dependency on the package was removed from its manifest. A migration done outside this repository, after the release that carries ADR 36, needs none of this.
 
-**The deadline path has no end-to-end case.** In-process every command settles before the deadline; the `202` fallback of the façade is exercised by the building block's spec alone. A migration against a slow store should add the case to its compatibility suite.
+**The deadline path cannot be reached end to end in-process**: every command settles before the deadline. The façade's `202` fallback is held by a spec of the façade itself ([`legacy.routes.spec.ts`](benchmark/migration/migrated/src/Bootstrap/Compat/legacy.routes.spec.ts)), on a bus whose operations never settle, with the deadline as an option of the compatibility routes (`legacyWire.timeoutMs`): a command past the deadline answers `202 { operationId }` and nothing else. A migration against a slow store can also reach it end to end, and should.
 
 **Reading the storm from the code worked at this size.** Five routes and two `push` calls gave every sticky; the hot spots were the questions, not the facts. ADR 36's revisit clause (facilitate with the people who know the legacy when the facts are too implicit) was not needed; a legacy ten times this size with implicit validations in forty places would test it.
 
@@ -41,7 +41,7 @@ In the order the skill will ask for it:
 
 1. Record the characterization scenario against the legacy before anything else, field for field, filtered to its own run; replay it twice.
 2. Read the storm from the legacy: routes → commands and queries; the stores → aggregates; the writes a request makes beside its main one → facts and policies. Every question the code does not answer is a hot spot to decide with the people who own the legacy, and to write down.
-3. `create`, then one context per lane of the storm, in the shape of the reference's canonical files; drop what a created project does not have (`tags`).
+3. `create`, then one context per lane of the storm, in the shape of the reference's canonical files.
 4. Choose the wire, declare it: `migration.api`, and under `compat` the five lines per route. Keep the legacy's prefix for the façade and serve the native grammar under the next one. Map every refusal by the rule's name, in a table in the façade; own the legacy's leniency there.
 5. Prove: the scenario unchanged on the compatibility wire, translated on the native one (commands and query refusals both), the six checks, `storm --expect` carried, and the storm `done`.
 
