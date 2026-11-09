@@ -40,5 +40,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0034](0034-a-relationship-test-must-see-the-change.md) | A relationship test must see the change: its new cases fail without it |
 | [0035](0035-a-relationship-is-crossed-where-the-change-touches-its-contracts.md) | A relationship is crossed where the change touches one of its contracts |
 | [0036](0036-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md) | A migrated application keeps its behaviour, and chooses the wire it answers on |
+| [0037](0037-a-decision-for-every-feature-is-taken-once.md) | A decision for every feature is taken once: a later request does not overturn it in silence, and a decision taken late is applied to the code before it |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

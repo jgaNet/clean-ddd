@@ -35,6 +35,9 @@
  * still refuses the tree after the last send-back is checked once more the same way, holding a lock
  * no other ladder's replay holds, before it counts (`verdict-replayed`): J4's verdicts that failed
  * under load passed alone.
+ * With `regressionCheck: { from: n }` in the plan, an earlier feature that still fails is graded n times on the commit
+ * the attempt started from: one that fails there too is not counted against the attempt, which delivers with it named
+ * as `unstable` for the triage (`regressions-on-from` keeps the gradings). Off when the plan does not say it.
  * The attempt delivers when 2 and 3 pass: `main` moves to it. Otherwise it escalates, and the reason
  * is recorded: `hidden` (its own test), `regression` (an earlier feature's), `ceiling` (the
  * supervisor stopped it), or `verdict` (the driver refused the tree). A feature the last model also
@@ -56,7 +59,7 @@ import { dirname, join, resolve } from 'node:path';
 
 import { nodeMismatch, pathWithThisNode, takeSlot } from './machine.mjs';
 import { runners } from './runners.mjs';
-import { budget, DEPENDENCY_MODES, freePort, provideDependencies } from './supervision.mjs';
+import { budget, DEPENDENCY_MODES, freePort, provideDependencies, regressionsAgainstFrom } from './supervision.mjs';
 
 const args = process.argv.slice(2);
 const option = (name, fallback) => (args.includes(`--${name}`) ? args[args.indexOf(`--${name}`) + 1] : fallback);
@@ -114,6 +117,11 @@ const grader = resolve(new URL('./grade.mjs', import.meta.url).pathname);
 // The lock a replayed verdict holds, shared by every ladder on the machine.
 const replayLock = plan.replayLock ?? join(tmpdir(), 'clean-ddd-ladder-replay.lock');
 const tooling = plan.tooling ? resolve(dirname(planFile), plan.tooling) : undefined;
+// Off unless the plan asks: an earlier feature that fails an attempt is graded on the commit the attempt started from,
+// `from` times, before it counts as a regression (a plan written before this option keeps the old rule on resume).
+const regressionCheck = plan.regressionCheck;
+if (regressionCheck !== undefined && !(Number.isInteger(regressionCheck?.from) && regressionCheck.from > 0))
+  fail(`${planFile}: regressionCheck is { from: <how many gradings on the start, at least 1> }`);
 
 const flowDir = `${project}.flow`;
 const runDir = join(flowDir, 'worktrees', run);
@@ -282,11 +290,11 @@ async function verdict(feature, cwd, from, alone = false) {
 }
 
 /** The hidden tests of the features up to this one, graded where no agent reads them. */
-async function hidden(feature, cwd, only) {
-  const out = join(runDir, `grade-${feature.id}-${only ? 'replay-' : ''}${Date.now()}.json`);
+async function hidden(feature, cwd, only, ref) {
+  const out = join(runDir, `grade-${feature.id}-${ref ? 'from-' : only ? 'replay-' : ''}${Date.now()}.json`);
   const graded = await sh(
     [
-      `node ${grader} --project ${project} --ref ${git(cwd, 'rev-parse', 'HEAD')} --base ${baseCommit}`,
+      `node ${grader} --project ${project} --ref ${ref ?? git(cwd, 'rev-parse', 'HEAD')} --base ${baseCommit}`,
       `--kit ${kit} --upto ${feature.n} --keep false --out ${out}`,
       only ? `--only ${only.join(',')}` : '',
       clean ? (tooling ? `--tooling ${tooling}` : '') : '--control plain',
@@ -401,9 +409,30 @@ async function attempt(feature, step, from) {
     if (replay.graded) tests = { ...replay, report: `${tests.report} ${replay.report}` };
   }
   if (tests.own.length) return { reason: 'hidden', cwd, wallClockMs, lines: tests.own, report: tests.report };
+  // With `regressionCheck`, an earlier feature that still fails is graded on the commit this attempt started from: one
+  // that fails there too was unstable before the attempt (J5's test 71 met a job that had not run yet, on a tree whose
+  // rule was right), and is kept for the triage rather than escalated. Only what passed on the start is a regression.
+  let unstable = [];
+  if (tests.earlier.length && regressionCheck) {
+    const gradings = [];
+    for (let time = 0; time < regressionCheck.from; time++)
+      gradings.push(await hidden(feature, cwd, tests.earlier, from));
+    const judged = regressionsAgainstFrom(tests.earlier, gradings);
+    event('regressions-on-from', {
+      feature: feature.id,
+      step,
+      from,
+      earlier: tests.earlier,
+      regression: judged.regression,
+      unstable: judged.unstable,
+      reports: gradings.map(grading => grading.report).filter(Boolean),
+    });
+    unstable = judged.unstable;
+    tests = { ...tests, earlier: judged.regression };
+  }
   if (tests.earlier.length)
     return { reason: 'regression', cwd, wallClockMs, lines: tests.earlier, report: tests.report };
-  return { reason: undefined, cwd, wallClockMs, report: tests.report };
+  return { reason: undefined, cwd, wallClockMs, report: tests.report, ...(unstable.length && { unstable }) };
 }
 
 // A resumed run keeps the commit it started from: its main has moved since, and the grader compares the dependencies,
@@ -476,6 +505,8 @@ for (const feature of backlog) {
       model: plan.ladder[step],
       head: git(project, 'rev-parse', 'main'),
       report: tried.report,
+      // Earlier features that failed here and on the start too: delivered, and owed a look at the kit (triage.md).
+      ...(tried.unstable && { unstable: tried.unstable }),
     });
   }
   if (deliveredAt !== undefined) outcomes[feature.id] = `DELIVERED at step ${deliveredAt}`;

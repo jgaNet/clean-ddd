@@ -100,6 +100,14 @@ beforeAll(async () => {
   await api.done('POST', `/bookings/${stays.cancelled}/cancel`, tom.token);
 
   await later(2);
+  // The unpaid stay lapses when the job runs, up to JOBS_INTERVAL_SECONDS after the start (request 30):
+  // the tests ask about it once it has. (Added during J5, 9 November: a claim asked before the job ran
+  // found the stay still confirmed, on a tree whose rule was right.)
+  await eventually(
+    () => api.read(`/bookings/${stays.lapsed}`, tom.token),
+    booking => (booking as { status?: string }).status === 'lapsed',
+    60000,
+  );
 }, 180000);
 afterAll(async () => {
   await stop(server);

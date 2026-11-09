@@ -53,6 +53,7 @@ clean-ddd domain                  the subdomains and the context map, its contra
 clean-ddd context <id>            one bounded context: purpose, language, what it depends on, who depends on it
 clean-ddd storm [<context>]       the event storm read from the code (--markdown, --svg for the board)
 clean-ddd storm validate <file>   an expected storm, against the contract, the map and the code
+clean-ddd storm decisions [--about <words>]   the hot spots every storm decided or left open, to read before deciding again
 clean-ddd storm --expect <file>   what the code still owes an expected storm; --markdown, --svg overlay the board
 clean-ddd inventory [<language>]  what the tree says the application is; with a language, where its inventory differs
 clean-ddd plan validate|explain <file>      a feature plan, before the code

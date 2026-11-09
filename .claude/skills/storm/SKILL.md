@@ -16,6 +16,13 @@ code says today, `architecture domain` the subdomains, the contexts with their l
 context map, `architecture context <id>` one context. Read them before the session starts; the
 session adds to that wall, it does not redraw it.
 
+The wall also holds what earlier sessions decided: `yarn architecture storm decisions --about <words>` lists the hot
+spots of every storm, with their decisions, that name the request's subjects (a refusal, a provider, a deadline, who
+sees what). Read it before the session too. A request that touches a decided hot spot does not overturn it by being
+later: ask the room whether the decision stands or changes, and write the answer as a hot spot of this storm. A change
+is applied to the code that carried the old decision, in this feature, never left for the next one (ADR 37 of the
+clean-ddd reference).
+
 ## 1. The big picture: the facts
 
 Ask for what happens, as facts in the past tense, in the words of the people in the room:
@@ -60,6 +67,11 @@ For each fact, in the order of the wall:
 Mark every disagreement, doubt or open question as a **hot spot**, with the question as asked.
 Do not resolve it by yourself: ask the room, propose the options with what each costs, and write
 the decision down in their words. A hot spot left open is left open in the file.
+
+Ask of each decision whether it holds for this feature or for every feature. How a refusal is answered, when something
+that falls due changes, what a missing outside system means: a choice that must be the same everywhere is not a
+storm's to keep. It is an ADR, and a rule of the contract when a tool can hold it (`yarn architecture mode
+architecture`); the storm's hot spot names the ADR.
 
 ## 3. Write it down, and check it
 
@@ -107,3 +119,4 @@ contract it gains; `--expect` shows it under "changed by this storm".
 - Declare a context or a relationship from inside a storm: both are decisions, made first.
 - Edit the storm to make the code pass: a difference is closed in the code or brought back to
   the session as a discovery.
+- Let a later request overturn a decided hot spot in silence: the room keeps it or changes it, and says which.

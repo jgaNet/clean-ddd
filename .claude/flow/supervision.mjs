@@ -149,3 +149,18 @@ export function freePort(port) {
   }
   return holders;
 }
+
+/**
+ * What an attempt's regressions are once the earlier features that failed on it have been graded on the commit it
+ * started from (`regressionCheck` in the plan, ADR 37's J5 finding): a feature that also fails there is not this
+ * attempt's doing — the test or the tree was unstable before it — and is kept apart as `unstable`, for the triage;
+ * only what passed on the start, every time it was graded there, is a `regression`. A grading that could not be read
+ * proves nothing either way, and leaves the feature a regression.
+ */
+export function regressionsAgainstFrom(earlier, gradingsOnFrom) {
+  const failedOnFrom = new Set(gradingsOnFrom.filter(grading => grading.graded).flatMap(grading => grading.failing));
+  return {
+    regression: earlier.filter(feature => !failedOnFrom.has(feature)),
+    unstable: earlier.filter(feature => failedOnFrom.has(feature)),
+  };
+}
