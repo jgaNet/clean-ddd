@@ -12,7 +12,7 @@
  *   ladder: [<smallest>, <intermediate>, <strongest>]       # the models, in the order a feature climbs them
  *   agent: { runner: claude-cli, timeoutMinutes: 60 }
  *   retry: { perFeature: 1 }    # the driver's verdict sent back to the same conversation, within an attempt
- *   budgetUsd: 40               # the run's ceiling, reserved before each agent starts
+ *   budgetUsd: 40               # the run's ceiling, across resumes, reserved before each agent starts
  *   agentBudgetUsd: 8           # the most one attempt may spend
  *   dependencies: copy
  *   ports: { base: 19100 }
@@ -318,6 +318,12 @@ async function hidden(feature, cwd, only, ref) {
 }
 
 const money = budget({ totalUsd: budgetUsd, perAgentUsd: plan.agentBudgetUsd ?? budgetUsd });
+// The ceiling is the run's, not the process's: a resumed run counts what its earlier processes spent (J5: clean-3,
+// resumed five times, would otherwise have had its whole budget again at each resume).
+const spentBefore = logged
+  .filter(each => each.event === 'agent-finished')
+  .reduce((sum, each) => sum + (each.costUsd ?? 0), 0);
+if (spentBefore > 0) money.settle('before this process', spentBefore);
 // What each conversation (a worktree) has reported so far: a continued one reports its running total.
 const reportedSoFar = new Map();
 let current;
@@ -451,6 +457,7 @@ event(resuming ? 'resumed' : 'started', {
   runner: runner.name,
   ladder: plan.ladder,
   budgetUsd,
+  ...(spentBefore > 0 && { spentBeforeUsd: Number(spentBefore.toFixed(4)) }),
   delivered: [...delivered],
 });
 
