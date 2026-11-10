@@ -1,6 +1,6 @@
 # RFC 0004 — The integrator is a role of the flow, not a step after it
 
-**Status:** proposed (8 November). Nothing is implemented beyond what `run-slices.mjs` already does. It asks the maintainer to decide four hot spots (§4).
+**Status:** decided (10 November), in [ADR 38](../adr/0038-the-integrator-is-one-role-every-multi-agent-run-has.md): one module, the relationship tests on the merged result only, two rounds; the ladder's fan-out by context calls it. The text below is the proposal as it was.
 
 ## 1. The problem
 

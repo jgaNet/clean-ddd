@@ -41,5 +41,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0035](0035-a-relationship-is-crossed-where-the-change-touches-its-contracts.md) | A relationship is crossed where the change touches one of its contracts |
 | [0036](0036-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md) | A migrated application keeps its behaviour, and chooses the wire it answers on |
 | [0037](0037-a-decision-for-every-feature-is-taken-once.md) | A decision for every feature is taken once: a later request does not overturn it in silence, and a decision taken late is applied to the code before it |
+| [0038](0038-the-integrator-is-one-role-every-multi-agent-run-has.md) | The integrator is one role every multi-agent run has: one module, two rounds, and the relationship tests run on the merged result only |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

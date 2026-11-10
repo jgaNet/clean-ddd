@@ -19,6 +19,11 @@
  *   tooling: ../vendor/clean-ddd-0.2.0.tgz                  # clean only, optional: the package the grader runs
  *   features: [accounts, …]     # optional: only these, in the backlog's order
  *   machine: { ladders: 3 }     # optional: how many ladders run at once on the machine (FLOW_LADDERS overrides it)
+ *   gradeTimeoutMinutes: 60     # optional: the time one grading is given
+ *   fanOut: { rounds: 2 }       # clean only, optional: a feature whose storm lists several contexts is written by one
+ *                               # agent per context, and integrated by integrator.mjs (ADR 38)
+ *   push: { remote: <url|name>, branch: trees/<x>, logBranch: logs/<x> }   # optional: after each delivery, the tree's
+ *                               # main is pushed, and the log and the gradings are committed to logBranch and pushed
  *
  * The ladder refuses to start on a Node older than the project's `engines.node`, and puts its own Node first on the
  * PATH of every command it runs; it waits for one of `machine.ladders` slots before it starts (machine.mjs).
@@ -44,6 +49,16 @@
  * fails is FAILED, and the tree stops there: every later feature builds on it, and its hidden tests
  * could not tell a later failure from this one. That rule was written before any run.
  *
+ * With `fanOut`, an attempt at a feature whose storm lists more than one context is written by one agent per context,
+ * each with the step's model, on a branch of its own, in parallel. The storm's first context owns the feature: its
+ * agent owns its context's folder and everything no other context's agent owns (the composition root, the conventions,
+ * the decisions); each other agent owns its context's folder and the integration events it publishes. Each is told
+ * what it owns, and talks to the others through a channel (`channel say|wait|read`). Each owner's verdict is the gate
+ * on its branch without --fix, and its scope (a file another owner owns is refused); the relationship tests are left
+ * out of it, since only the merged feature can pass them (ADR 38). Then the integrator merges the branches, runs the
+ * clean arm's verdict on the merged result, routes each failure to its owner, two rounds at most; the merged result is
+ * graded as any attempt's head is.
+ *
  * Every attempt is logged in `<project>.flow/<run>.jsonl`: its model and step, its time, cost and
  * turns (the runner's figures; a send-back continues the conversation, whose reported cost is its
  * running total, so `costUsd` is what this agent turn added and `conversationCostUsd` the total),
@@ -52,11 +67,22 @@
  * defect of the kit is an amendment, and the attempts it touched are graded again.
  */
 import { execFileSync, spawn } from 'node:child_process';
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
+import { integrate, ownerOf } from './integrator.mjs';
 import { nodeMismatch, pathWithThisNode, takeSlot } from './machine.mjs';
 import { runners } from './runners.mjs';
 import { budget, DEPENDENCY_MODES, freePort, provideDependencies, regressionsAgainstFrom } from './supervision.mjs';
@@ -113,6 +139,14 @@ const budgetUsd = plan.budgetUsd ?? 40;
 const dependencies = plan.dependencies ?? 'copy';
 if (!DEPENDENCY_MODES.includes(dependencies)) fail(`${planFile}: dependencies is ${DEPENDENCY_MODES.join(' or ')}`);
 const port = plan.ports?.base ?? 19100;
+const gradeTimeoutMs = (plan.gradeTimeoutMinutes ?? 60) * 60_000;
+const fanOut = plan.fanOut;
+if (fanOut !== undefined && !clean) fail(`${planFile}: fanOut is for the clean arm`);
+if (fanOut !== undefined && !(Number.isInteger(fanOut?.rounds ?? 2) && (fanOut?.rounds ?? 2) >= 0))
+  fail(`${planFile}: fanOut is { rounds: <how many rounds the integrator sends failures back> }`);
+const publishTo = plan.push;
+if (publishTo !== undefined && !(publishTo.remote && publishTo.branch))
+  fail(`${planFile}: push is { remote, branch, logBranch? }`);
 const grader = resolve(new URL('./grade.mjs', import.meta.url).pathname);
 // The lock a replayed verdict holds, shared by every ladder on the machine.
 const replayLock = plan.replayLock ?? join(tmpdir(), 'clean-ddd-ladder-replay.lock');
@@ -152,6 +186,63 @@ const commitAll = (cwd, message) => {
   git(cwd, '-c', 'user.name=flow', '-c', 'user.email=flow@example.com', 'commit', '-qm', message);
   return true;
 };
+/**
+ * With `push` in the plan: the tree's main pushed to its branch, and the run's log with its gradings committed to the
+ * log branch and pushed, so that a tree and its record outlive the machine (J5 lost both with one). A failure to push is
+ * logged and the run goes on.
+ */
+function publish(why) {
+  if (!publishTo) return;
+  const failed = [];
+  try {
+    git(project, 'push', '-q', publishTo.remote, `main:refs/heads/${publishTo.branch}`);
+  } catch (error) {
+    failed.push(`main: ${String(error.message).split('\n')[0]}`);
+  }
+  if (publishTo.logBranch) {
+    try {
+      const index = join(flowDir, `${run}.publish-index`);
+      const withIndex = { ...process.env, GIT_INDEX_FILE: index };
+      const plumb = (...gitArgs) =>
+        execFileSync('git', gitArgs, { cwd: project, env: withIndex, encoding: 'utf8', maxBuffer: 1 << 26 }).trim();
+      rmSync(index, { force: true });
+      plumb('read-tree', '--empty');
+      const files = [
+        [log, `${run}.jsonl`],
+        ...readdirSync(runDir)
+          .filter(name => /^grade-.*\.json$/.test(name))
+          .map(name => [join(runDir, name), `gradings/${name}`]),
+      ];
+      for (const [file, path] of files)
+        plumb('update-index', '--add', '--cacheinfo', `100644,${plumb('hash-object', '-w', file)},${path}`);
+      const tree = plumb('write-tree');
+      const ref = `refs/heads/${publishTo.logBranch}`;
+      let parent;
+      try {
+        parent = plumb('rev-parse', '--verify', '-q', ref);
+      } catch {
+        parent = undefined;
+      }
+      const commit = plumb(
+        '-c',
+        'user.name=flow',
+        '-c',
+        'user.email=flow@example.com',
+        'commit-tree',
+        tree,
+        ...(parent ? ['-p', parent] : []),
+        '-m',
+        `${run}: ${why}`,
+      );
+      plumb('update-ref', ref, commit);
+      rmSync(index, { force: true });
+      git(project, 'push', '-q', publishTo.remote, `${ref}:${ref}`);
+    } catch (error) {
+      failed.push(`log: ${String(error.message).split('\n')[0]}`);
+    }
+  }
+  if (failed.length) event('publish-failed', { why, failed });
+}
 const env = {
   ...process.env,
   PATH: pathWithThisNode(),
@@ -260,18 +351,23 @@ async function verdict(feature, cwd, from, alone = false) {
     const checked = await sh(locked('yarn -s verify'), cwd, alone ? 3_600_000 : 900_000);
     return checked.code === 0 ? [] : ['`yarn verify` fails:', ...tail(checked.out)];
   }
-  const gated = parse(
-    (
-      await sh(
-        locked(`yarn -s architecture gate --base ${from} --mode architecture --fix --json`),
-        cwd,
-        alone ? 3_600_000 : timeoutMs,
-      )
-    ).out,
-  );
-  const failing = (gated?.steps ?? []).filter(step => step.status === 'fail');
+  return flatten(await cleanSteps(feature, cwd, from, { lock: alone ? replayLock : undefined }));
+}
+
+const flatten = steps => steps.flatMap(step => [`${step.name}:`, ...(step.lines ?? []).map(line => `  ${line}`)]);
+
+/**
+ * The clean arm's verdict as failing steps: the gate from the start (with --fix: the storm marked done, the documents
+ * rendered), and, with `storm`, what the code still owes the feature's storm. `lock` serialises it with every other
+ * holder of that lock; `without` leaves out the steps an owner of part of a feature is not judged on.
+ */
+async function cleanSteps(feature, cwd, from, { lock, fix = true, storm = true, without = () => false } = {}) {
+  const command = `yarn -s architecture gate --base ${from} --mode architecture${fix ? ' --fix' : ''} --json`;
+  const gated = parse((await sh(lock ? `flock ${lock} ${command}` : command, cwd, lock ? 3_600_000 : timeoutMs)).out);
+  if (!gated) return [{ name: 'the gate did not answer', lines: [] }];
+  const failing = (gated.steps ?? []).filter(step => step.status === 'fail' && !without(step));
   let owed = [];
-  if (hasStorm(feature)) {
+  if (storm && hasStorm(feature)) {
     const done = join(runDir, 'storms', `${feature.id}.yaml`);
     mkdirSync(dirname(done), { recursive: true });
     writeFileSync(
@@ -282,10 +378,9 @@ async function verdict(feature, cwd, from, alone = false) {
       'the storm could not be read',
     ];
   }
-  if (!gated) return ['the gate did not answer'];
   return [
-    ...failing.flatMap(step => [`${step.name}:`, ...(step.lines ?? []).map(line => `  ${line}`)]),
-    ...(owed.length ? ['The storm still owes:', ...owed.map(line => `  ${line}`)] : []),
+    ...failing.map(step => ({ name: step.name, lines: step.lines ?? [] })),
+    ...(owed.length ? [{ name: 'The storm still owes', lines: owed }] : []),
   ];
 }
 
@@ -300,7 +395,7 @@ async function hidden(feature, cwd, only, ref) {
       clean ? (tooling ? `--tooling ${tooling}` : '') : '--control plain',
     ].join(' '),
     project,
-    3_600_000,
+    gradeTimeoutMs,
   );
   const report = existsSync(out) ? parse(readFileSync(out, 'utf8')) : undefined;
   if (!report) return { graded: false, lines: tail(graded.out, 30) };
@@ -326,31 +421,40 @@ const spentBefore = logged
 if (spentBefore > 0) money.settle('before this process', spentBefore);
 // What each conversation (a worktree) has reported so far: a continued one reports its running total.
 const reportedSoFar = new Map();
-let current;
+// The agents running now: one, or one per owner of a feature written in parallel.
+const running = new Set();
 for (const signal of ['SIGTERM', 'SIGINT']) {
   process.on(signal, () => {
-    current?.stop?.();
+    for (const handle of running) handle?.stop?.();
     event('finished', { state: 'CANCELLED', costUsd: money.spent() });
+    publish('cancelled');
     process.exit(130);
   });
 }
 
-/** One agent turn; undefined when the budget cannot reserve one. */
-async function agent(feature, step, cwd, prompt, again) {
+/**
+ * One agent turn; undefined when the budget cannot reserve one. An owner of part of a feature has a port and an
+ * environment of its own (`owner`, `agentPort`, `extraEnv`).
+ */
+async function agent(feature, step, cwd, prompt, again, { owner, agentPort = port, extraEnv = {} } = {}) {
   const cap = money.reserve(cwd);
   if (cap === undefined) return undefined;
+  let handle;
   const result = await runner.run({
     prompt,
     cwd,
     project,
     model: plan.ladder[step],
     again,
-    env: { ...env, PORT: String(port) },
+    env: { ...env, ...extraEnv, PORT: String(agentPort) },
     timeoutMs,
     maxBudgetUsd: cap,
-    onProcess: handle => (current = handle),
+    onProcess: child => {
+      handle = child;
+      running.add(child);
+    },
   });
-  current = undefined;
+  running.delete(handle);
   money.settle(cwd, result.costUsd);
   const { report, ...figures } = result;
   if (result.costUsd !== undefined) {
@@ -359,13 +463,347 @@ async function agent(feature, step, cwd, prompt, again) {
     figures.conversationCostUsd = result.costUsd;
     figures.costUsd = Number(Math.max(0, result.costUsd - before).toFixed(4));
   }
-  event('agent-finished', { feature: feature.id, step, model: plan.ladder[step], ...figures, report });
-  const stopped = freePort(port);
-  if (stopped.length) event('port-freed', { feature: feature.id, port, processes: stopped });
+  event('agent-finished', {
+    feature: feature.id,
+    step,
+    model: plan.ladder[step],
+    ...(owner && { owner }),
+    ...figures,
+    report,
+  });
+  const stopped = freePort(agentPort);
+  if (stopped.length) event('port-freed', { feature: feature.id, port: agentPort, processes: stopped });
   return result;
 }
 
-/** One attempt at one step of the ladder: its agent, the verdict sent back, the hidden tests. */
+/** One agent writes the feature: its verdict sent back `retries` times, then checked once more alone. */
+async function writtenAlone(feature, step, from, cwd) {
+  let result = await agent(feature, step, cwd, brief(feature, from), false);
+  if (!result) return { reason: 'budget' };
+  let problems = result.stoppedBy ? [] : await verdict(feature, cwd, from);
+  for (let turn = 0; !result.stoppedBy && problems.length && turn < retries; turn++) {
+    result = await agent(feature, step, cwd, feedback(problems), true);
+    if (!result) return { reason: 'budget' };
+    if (!result.stoppedBy) problems = await verdict(feature, cwd, from);
+  }
+  if (!result.stoppedBy && problems.length) {
+    const again = await verdict(feature, cwd, from, true);
+    event('verdict-replayed', { feature: feature.id, step, first: problems.slice(0, 40), still: again.slice(0, 40) });
+    problems = again;
+  }
+  if (result.stoppedBy) return { reason: 'ceiling', lines: [`stopped by ${result.stoppedBy}`] };
+  if (problems.length) return { reason: 'verdict', lines: problems.slice(0, 80) };
+  return {};
+}
+
+const contextsTree = 'src/Contexts/';
+// What every owner may write: the documents the tooling renders. The decisions (`docs/adr/`) are the feature owner's.
+const generated = /^(README\.md|CLAUDE\.md|docs\/(?!adr\/).*)$/;
+// The steps and the tests only the merged feature can pass: the relationship tests (ADR 33, 38). A test step is left
+// out of an owner's verdict when every test it names as failing is a relationship's (`Upstream → Downstream`).
+const relationshipStep = step => {
+  if (step.name === 'relationships crossed' || step.name === 'relationship tests see the change') return true;
+  const failed = (step.lines ?? []).map(line => line.trim()).filter(line => line.startsWith('●'));
+  return failed.length > 0 && failed.every(line => line.includes('→'));
+};
+const slug = name => name.replace(/[^A-Za-z0-9]+/g, '-').toLowerCase();
+
+/**
+ * The owners of a feature written in parallel: one per context its storm lists, when it lists more than one. The
+ * first context owns the feature: its folder, and everything no other owner owns. Each other owner owns its folder
+ * and the integration events it publishes. Listed in the order a file's owner is looked up: the feature's owner last.
+ */
+function ownersOf(feature) {
+  if (!hasStorm(feature)) return [];
+  const storm = yaml.load(readFileSync(join(kit, 'storms', `${feature.id}.yaml`), 'utf8'));
+  const contexts = [...new Set((storm.contexts ?? []).map(each => each.id).filter(Boolean))];
+  if (contexts.length < 2) return [];
+  const [main, ...others] = contexts;
+  return [
+    ...others.map(name => ({
+      name,
+      owns: [`^${contextsTree}${name}/`, `^src/SharedKernel/.*IntegrationEvents/${name}[A-Z]?[^/]*$`],
+      says: `the ${name} context (\`${contextsTree}${name}/\`) and the integration events it publishes (\`src/SharedKernel/…/IntegrationEvents/${name}…\`)`,
+    })),
+    {
+      name: main,
+      feature: true,
+      owns: [`^${contextsTree}${main}/`, '.*'],
+      says: `the ${main} context (\`${contextsTree}${main}/\`) and everything no other owner owns: the composition root, the shared kernel, the conventions, and the decisions under \`docs/adr/\` (a context or a relationship declared, an ADR)`,
+    },
+  ];
+}
+
+/** The channel the owners of one attempt talk through: one append-only file, one command on their PATH. */
+function channel(dir) {
+  mkdirSync(join(dir, 'bin'), { recursive: true });
+  const file = join(dir, 'channel.log');
+  writeFileSync(file, '');
+  const script = join(dir, 'bin', 'channel');
+  writeFileSync(
+    script,
+    `#!/bin/bash
+# channel say <text> | channel wait [seconds] | channel read
+F=${file}; SEEN=${dir}/.seen-$TEAM
+case "$1" in
+  say) shift; echo "[$(date -u +%T) $TEAM] $*" >> "$F"; wc -l < "$F" > "$SEEN"; echo "said";;
+  read) cat "$F"; wc -l < "$F" > "$SEEN";;
+  wait) s=\${2:-100}; [ "$s" -gt 100 ] && s=100; seen=$(cat "$SEEN" 2>/dev/null || echo 0); end=$(( $(date +%s) + s ))
+    while [ "$(date +%s)" -lt $end ]; do
+      new=$(tail -n +$((seen + 1)) "$F" | grep -v "^\\[[0-9:]* $TEAM\\]")
+      if [ -n "$new" ]; then echo "$new"; wc -l < "$F" > "$SEEN"; exit 0; fi
+      sleep 2
+    done; echo "(nothing new from the others in \${s} s; call channel wait again to keep waiting)";;
+  *) echo "usage: channel say <text> | channel wait [seconds] | channel read"; exit 2;;
+esac
+`,
+  );
+  chmodSync(script, 0o755);
+  return { bin: join(dir, 'bin'), file };
+}
+
+const ownerBrief = (feature, from, storm, team, teams) =>
+  [
+    opening(feature),
+    'Read `CLAUDE.md` first and follow it. Do not ask questions of the user: decide, and say in your final report what was unclear.',
+    '',
+    `The feature's storm, decided with the product's owner before you started, is \`conventions/storms/${feature.id}.yaml\`: its hot spots are decided, do not change them. \`yarn architecture storm --expect conventions/storms/${feature.id}.yaml\` says what the code still owes it.`,
+    '',
+    `**You are one of ${teams.length} agents writing this feature at the same time, one per context it changes.** You are the ${team.name} owner, on the branch \`${team.branch}\`. You own ${team.says}. ${teams
+      .filter(other => other !== team)
+      .map(other => `The ${other.name} owner owns ${other.says}, on the branch \`${other.branch}\`.`)
+      .join(' ')} The driver refuses a change to a file you do not own: what you need there, ask its owner for.`,
+    '',
+    '**Talking to the other owners.** Only through the channel:',
+    '- `channel say "<text>"` writes to it;',
+    '- `channel wait` waits until another owner writes (100 seconds at most per call; call it again to wait longer) and prints what was written;',
+    '- `channel read` prints everything said so far.',
+    `Their work is on their branches, in this same repository: \`git log <branch>\`, \`git show <branch>:<path>\`, \`git diff ${storm}..<branch>\`. Never commit on a branch but yours. When you rely on something another context gives (an event, its payload, a port, an id), agree its shape in the channel first.`,
+    '',
+    `You are done when \`yarn architecture gate --base ${from} --mode architecture\` passes on your branch, apart from the relationship tests, which only the merged feature can pass, and from what is another owner's: then say so in the channel and in your final report. Commit your work on the current branch; do not push. If you start a server, use port ${team.port}.`,
+    "Then the integrator merges every owner's branch, runs the gate on the result, and sends each failure to the owner of the files it names.",
+    '',
+    feature.kind === 'report'
+      ? "The report, in the user's words:"
+      : 'The feature, in product words, with the API it answers:',
+    '',
+    request(feature),
+  ].join('\n');
+
+/**
+ * One agent per owner writes the feature, in parallel, each on its own branch from the storm's commit; then the
+ * integrator (integrator.mjs) merges them in `cwd` and holds the merged result to the clean arm's verdict.
+ */
+async function writtenByOwners(feature, step, from, cwd, id, owners) {
+  const storm = git(cwd, 'rev-parse', 'HEAD');
+  const talk = channel(join(runDir, `${id}.channel`));
+  const gateLock = join(runDir, `${id}.gate.lock`);
+  const teams = owners.map((owner, index) => ({
+    ...owner,
+    cwd: join(runDir, `${id}-${slug(owner.name)}`),
+    branch: `run/${run}/${id}-${slug(owner.name)}`,
+    port: port + 1 + index,
+  }));
+  const featureOwner = teams.find(team => team.feature).name;
+  const options = team => ({
+    owner: team.name,
+    agentPort: team.port,
+    extraEnv: { PATH: `${talk.bin}:${env.PATH}`, TEAM: team.name },
+  });
+  for (const team of teams) {
+    if (existsSync(team.cwd)) git(project, 'worktree', 'remove', '--force', team.cwd);
+    git(project, 'worktree', 'add', '-q', '-B', team.branch, team.cwd, storm);
+    provideDependencies(project, team.cwd, dependencies);
+  }
+  let budgetOut = false;
+  let ceiling;
+  try {
+    /** An owner's verdict: its scope, and the gate on its branch without the relationship tests. */
+    const ownerVerdict = async team => {
+      commitAll(team.cwd, `${feature.id}: ${team.name}'s work left uncommitted`);
+      // A file another owner owns is out of scope, unless it is that owner's own version (a branch merged in).
+      const blob = (ref, file) => {
+        try {
+          return git(team.cwd, 'rev-parse', `${ref}:${file}`);
+        } catch {
+          return 'absent';
+        }
+      };
+      const outside = git(team.cwd, 'diff', '--name-only', storm, 'HEAD')
+        .split('\n')
+        .filter(Boolean)
+        .filter(file => !generated.test(file))
+        .filter(file => {
+          const owner = teams.find(each => each.name === ownerOf(file, teams));
+          return owner !== team && blob('HEAD', file) !== blob(owner.branch, file);
+        });
+      const steps = await cleanSteps(feature, team.cwd, from, {
+        lock: gateLock,
+        fix: false,
+        storm: false,
+        without: relationshipStep,
+      });
+      return [
+        ...(outside.length
+          ? [
+              'Files another owner owns (undo your change to them, or ask their owner in the channel):',
+              ...outside.map(file => `  ${file}`),
+            ]
+          : []),
+        ...flatten(steps),
+      ];
+    };
+    const work = async team => {
+      let result = await agent(
+        feature,
+        step,
+        team.cwd,
+        ownerBrief(feature, from, storm, team, teams),
+        false,
+        options(team),
+      );
+      if (!result) return { budget: true };
+      let problems = result.stoppedBy ? [] : await ownerVerdict(team);
+      for (let turn = 0; !result.stoppedBy && problems.length && turn < retries; turn++) {
+        result = await agent(feature, step, team.cwd, feedback(problems), true, options(team));
+        if (!result) return { budget: true };
+        if (!result.stoppedBy) problems = await ownerVerdict(team);
+      }
+      commitAll(team.cwd, `${feature.id}: ${team.name}'s work left uncommitted`);
+      event('owner-verdict', {
+        feature: feature.id,
+        step,
+        owner: team.name,
+        pass: problems.length === 0,
+        lines: problems.slice(0, 40),
+        ...(result.stoppedBy && { stoppedBy: result.stoppedBy }),
+      });
+      return { result };
+    };
+    const worked = await Promise.all(teams.map(work));
+    if (worked.some(each => each.budget)) return { reason: 'budget' };
+    ceiling = worked.find(each => each.result.stoppedBy)?.result.stoppedBy;
+    if (ceiling) return { reason: 'ceiling', lines: [`an owner was stopped by ${ceiling}`] };
+
+    const order = [...teams.filter(team => !team.feature), teams.find(team => team.feature)];
+    const merge = async () => {
+      git(cwd, 'reset', '-q', '--hard', storm);
+      git(cwd, 'clean', '-fdq');
+      for (const team of order) {
+        try {
+          git(
+            cwd,
+            '-c',
+            'user.name=flow',
+            '-c',
+            'user.email=flow@example.com',
+            'merge',
+            '--no-ff',
+            '-q',
+            '-m',
+            `Merge ${team.name}'s part`,
+            team.branch,
+          );
+        } catch {
+          const files = git(cwd, 'diff', '--name-only', '--diff-filter=U').split('\n').filter(Boolean);
+          // Documents the tooling renders conflict when two owners rendered them: either side does, the gate renders
+          // them again with --fix.
+          if (files.length && files.every(file => generated.test(file))) {
+            for (const file of files) git(cwd, 'checkout', '--ours', '--', file);
+            git(cwd, 'add', '--', ...files);
+            git(
+              cwd,
+              '-c',
+              'user.name=flow',
+              '-c',
+              'user.email=flow@example.com',
+              'commit',
+              '-qm',
+              `Merge ${team.name}'s part`,
+            );
+            continue;
+          }
+          git(cwd, 'merge', '--abort');
+          return { conflict: { owner: team.name, files } };
+        }
+      }
+      return {};
+    };
+    const gate = async () => {
+      commitAll(cwd, `${feature.id}: merged`);
+      const steps = await cleanSteps(feature, cwd, from);
+      commitAll(cwd, `${feature.id}: the gate's bookkeeping`);
+      return { pass: steps.length === 0, steps };
+    };
+    const send = async (name, kind, lines) => {
+      const team = teams.find(each => each.name === name);
+      const others = teams.filter(each => each !== team).map(each => `\`${each.branch}\``);
+      const message =
+        kind === 'conflict'
+          ? [
+              `The integrator could not merge your branch with the other owners' (${others.join(', ')}). It conflicts in:`,
+              '',
+              ...lines.map(file => `  ${file}`),
+              '',
+              `Merge their branches into yours (\`git merge <branch>\`), resolve the conflicts, keep the gate passing on your branch, and commit. Read the channel first (\`channel read\`).`,
+            ]
+          : [
+              `The integrator merged every owner's branch and ran the gate on the result. These failures name files you own${team.feature ? ', or no owner’s file, and the feature is yours' : ''}:`,
+              '',
+              ...lines,
+              '',
+              `Read the channel first (\`channel read\`): another owner may have asked you for something. Merge the other owners' branches into yours if you need their work to reproduce it (${others.join(', ')}), fix what is yours, commit, and tell the others in the channel what you changed that they rely on.`,
+            ];
+      const result = await agent(feature, step, team.cwd, message.join('\n'), true, options(team));
+      if (!result) budgetOut = true;
+      else if (result.stoppedBy) ceiling = result.stoppedBy;
+      commitAll(team.cwd, `${feature.id}: ${team.name}'s work left uncommitted`);
+    };
+    const integrated = await integrate({
+      owners: teams,
+      featureOwner,
+      merge,
+      gate,
+      send,
+      rounds: fanOut.rounds ?? 2,
+      log: (name, data) => event(name, { feature: feature.id, step, ...data }),
+    });
+    event('integrated', {
+      feature: feature.id,
+      step,
+      pass: integrated.pass,
+      rounds: integrated.rounds.length,
+      channel: readFileSync(talk.file, 'utf8').split('\n').filter(Boolean).length,
+    });
+    if (budgetOut) return { reason: 'budget' };
+    if (integrated.pass) return {};
+    if (integrated.conflict)
+      return {
+        reason: 'verdict',
+        lines: [
+          `The owners' branches still conflict (${integrated.conflict.owner}'s):`,
+          ...integrated.conflict.files.map(file => `  ${file}`),
+        ],
+      };
+    // As one agent's verdict is: checked once more alone before it counts.
+    const first = Object.values(integrated.left ?? {}).flat();
+    const again = await cleanSteps(feature, cwd, from, { lock: replayLock });
+    commitAll(cwd, `${feature.id}: the gate's bookkeeping`);
+    event('verdict-replayed', {
+      feature: feature.id,
+      step,
+      first: first.slice(0, 40),
+      still: flatten(again).slice(0, 40),
+    });
+    if (again.length) return { reason: ceiling ? 'ceiling' : 'verdict', lines: flatten(again).slice(0, 80) };
+    return {};
+  } finally {
+    // The owners' branches keep their work; their worktrees and dependencies go, as an attempt's do.
+    for (const team of teams) if (existsSync(team.cwd)) git(project, 'worktree', 'remove', '--force', team.cwd);
+  }
+}
+
+/** One attempt at one step of the ladder: its agent (or its owners'), the verdict sent back, the hidden tests. */
 async function attempt(feature, step, from) {
   const id = `${feature.id}-${step}`;
   const cwd = join(runDir, id);
@@ -380,23 +818,21 @@ async function attempt(feature, step, from) {
     commitAll(cwd, `storm: ${feature.id}, decided before the run`);
   }
   const begun = Date.now();
-  event('attempt', { feature: feature.id, step, model: plan.ladder[step], from, tree: size(cwd) });
-  let result = await agent(feature, step, cwd, brief(feature, from), false);
-  if (!result) return { reason: 'budget' };
-  let problems = result.stoppedBy ? [] : await verdict(feature, cwd, from);
-  for (let turn = 0; !result.stoppedBy && problems.length && turn < retries; turn++) {
-    result = await agent(feature, step, cwd, feedback(problems), true);
-    if (!result) return { reason: 'budget' };
-    if (!result.stoppedBy) problems = await verdict(feature, cwd, from);
-  }
-  if (!result.stoppedBy && problems.length) {
-    const again = await verdict(feature, cwd, from, true);
-    event('verdict-replayed', { feature: feature.id, step, first: problems.slice(0, 40), still: again.slice(0, 40) });
-    problems = again;
-  }
+  const owners = fanOut ? ownersOf(feature) : [];
+  event('attempt', {
+    feature: feature.id,
+    step,
+    model: plan.ladder[step],
+    from,
+    tree: size(cwd),
+    ...(owners.length && { owners: owners.map(owner => owner.name) }),
+  });
+  const written = owners.length
+    ? await writtenByOwners(feature, step, from, cwd, id, owners)
+    : await writtenAlone(feature, step, from, cwd);
   const wallClockMs = Date.now() - begun;
-  if (result.stoppedBy) return { reason: 'ceiling', cwd, wallClockMs, lines: [`stopped by ${result.stoppedBy}`] };
-  if (problems.length) return { reason: 'verdict', cwd, wallClockMs, lines: problems.slice(0, 80) };
+  if (written.reason === 'budget') return written;
+  if (written.reason) return { ...written, cwd, wallClockMs };
   let tests = await hidden(feature, cwd);
   if (!tests.graded) return { reason: 'ungraded', cwd, wallClockMs, lines: tests.lines };
   // A failure is replayed alone before it counts: graded beside three other trees, a server that
@@ -502,6 +938,7 @@ for (const feature of backlog) {
         lines: tried.lines,
         report: tried.report,
       });
+      publish(`${feature.id} escalated at step ${step}`);
       continue;
     }
     git(project, 'merge', '-q', '--ff-only', head);
@@ -515,6 +952,7 @@ for (const feature of backlog) {
       // Earlier features that failed here and on the start too: delivered, and owed a look at the kit (triage.md).
       ...(tried.unstable && { unstable: tried.unstable }),
     });
+    publish(`${feature.id} delivered at step ${step}`);
   }
   if (deliveredAt !== undefined) outcomes[feature.id] = `DELIVERED at step ${deliveredAt}`;
   else if (stopped) outcomes[feature.id] = 'NOT STARTED';
@@ -523,6 +961,7 @@ for (const feature of backlog) {
     // rule written before the runs (the kit's triage.md), from what this note gathers.
     outcomes[feature.id] = 'NEEDS TRIAGE';
     event('needs-triage', { feature: feature.id, ...(await triage(feature)) });
+    publish(`${feature.id} needs triage`);
     stopped = true;
   }
 }
@@ -596,4 +1035,5 @@ event('finished', {
   costUsd: money.spent(),
   leadTimeMs: Date.now() - started,
 });
+publish('finished');
 process.exit(all ? 0 : 1);

@@ -59,6 +59,33 @@ The SDK's agent process is not in a process group of its own: if the driver is k
 - **A regression checked on the start.** With `regressionCheck: { from: n }` in a ladder's plan, an earlier feature that still fails an attempt after its replay is graded `n` times on the commit the attempt started from. One that fails there too was unstable before the attempt, and the attempt is not escalated for it: it delivers, with the feature named `unstable` for the triage (`regressions-on-from` keeps the gradings). Only what passed on the start is a regression. OpenStay's J5 escalated an attempt that had passed its own tests because an earlier test asked before a job had run (test 71). The option is off unless the plan says it, so a ladder resumed on a plan written before it keeps its rule. `regressionsAgainstFrom` in [`supervision.mjs`](supervision.mjs) decides, and is tested.
 - **A supervisor.** A runner says why it stopped an agent (`stoppedBy`: `timeout` or `cancel`). After every agent, the driver stops whatever still listens on the agent's port, with its process group (a watcher would start it again), and records what it stopped (`port-freed`). It finds them by the port, through `/proc`, never by name.
 
+## Several agents on one feature, and the integrator
+
+- **The integrator** ([`integrator.mjs`](integrator.mjs), ADR 38 of the reference) is the role every run where several agents write one feature has. Each round, it:
+  - merges every owner's branch onto the feature's start;
+  - runs the gate on the merged result;
+  - sends each failing step to the owner of a file it names, or to the feature's owner when it names none.
+
+  It stops after two rounds. Git, the gate and the agents are passed in, and [`integrator.test.mjs`](integrator.test.mjs) tests the routing and the bound without them.
+- **The ladder's fan-out by context.** With `fanOut: { rounds: 2 }` in a clean arm's plan, a feature whose storm lists several contexts is written by one agent per context, in parallel, each with the step's model.
+  - **Ownership:**
+    - The storm's first context owns the feature. Its agent owns its folder and everything no other agent owns (the composition root, the shared kernel, the conventions, the decisions).
+    - Each other agent owns its context's folder and the integration events it publishes.
+  - **The owners talk** through a channel (`channel say|wait|read`, on their `PATH`), and read each other's branches in the same repository.
+  - **An owner's verdict** is:
+    - its scope (a file another owner owns is refused, unless it is that owner's own version, merged in);
+    - the gate on its branch, without `--fix` and without the relationship tests, which only the merged feature can pass.
+
+    The owners' gates on one attempt take a lock, so their test suites do not run at once.
+  - **The merged result** is held to the clean arm's verdict, checked once more alone if it fails, and graded like any attempt's head.
+  - **The log** says who did what: `agent-finished` carries the `owner`, then come `owner-verdict`, `integrator` (each round) and `integrated`.
+- **A tree that outlives the machine.** With `push: { remote, branch, logBranch }`:
+  - after each delivery, escalation, triage and at the end, the tree's `main` is pushed to `branch`;
+  - the run's log and its gradings are committed to `logBranch` (with git's plumbing, outside any worktree) and pushed.
+
+  A failed push is logged (`publish-failed`) and the run goes on. OpenStay's J5 lost its trees and their logs with a machine.
+- **The time one grading is given** is `gradeTimeoutMinutes` (60 by default): J5's largest tree needed more under load.
+
 ## Rehearsing a kit before its runs
 
 Every campaign so far found defects in its own kit while grading, after the agents had been paid:
