@@ -208,6 +208,53 @@ http:
       shape: GET /auth/validate?validation_token=…
       when: A command behind a link someone clicks in an email. The exception, not a pattern to copy. The link carries its own proof, so its handler says anyone may ask for it (API-CALLER-AT-TRANSPORT).
 
+# The grammar of the Lite profile (ADR 40): the same verbs for the same intents, and every command
+# answered at once, by the use case the route calls — no 202, no operation to follow. A refusal is
+# answered at once too: 400 with the rule's exception (`{ type, message }`) for a rule the domain
+# refuses, 401 to a caller who is not signed in, 403 to a signed-in caller the rule refuses, 404 for
+# a thing that is not there, 409 for a thing another writer changed since it was read. A command
+# whose outcome is read later is not in this grammar: it brings in the bus and the operations
+# (the trigger command-answered-later), by an ADR.
+http-lite:
+  rule: ARCH-PRESENTATION
+  verbs:
+    - intent: read
+      verb: GET
+      shape: GET /notes/:id
+      when: A query. It never changes state, and answers 200 with its read model.
+    - intent: create
+      verb: POST
+      shape: POST /notes
+      when: A command that brings a new thing into existence. Answers 201 with the new thing's id (`{ id }`), at once.
+    - intent: act
+      verb: POST
+      shape: POST /notes/:id/share
+      when: A command that is an action on an existing thing, named after the action. Answers 200 with what the use case returns, or 204 when it returns nothing.
+    - intent: create-under
+      verb: POST
+      shape: POST /notes/:id/comments
+      when: A command that adds one item to a collection the URL names. Answers 201 with the item's id.
+    - intent: replace
+      verb: PUT
+      shape: PUT /notes/:id
+      when: A command that replaces the editable content of a thing. Answers 200 or 204, at once.
+    - intent: replace-part
+      verb: PUT
+      shape: PUT /notes/:id/tags
+      when: A command that replaces one named part of a thing, wholesale. Answers 200 or 204, at once.
+    - intent: change-part
+      verb: PATCH
+      shape: PATCH /notifications/:id/read
+      when: A command that changes part of a thing's state without replacing it. Answers 200 or 204, at once.
+    - intent: remove
+      verb: DELETE
+      shape: DELETE /notes/:id/bookmark
+      when: A command that removes a thing the caller created and the URL identifies. Answers 204. A thing with a lifecycle is archived, not deleted.
+    - intent: link-in-an-email
+      verb: GET
+      shape: GET /auth/validate?validation_token=…
+      when: A command behind a link someone clicks in an email. The exception, not a pattern to copy. Answers at once; the link carries its own proof, so its use case says anyone may ask for it.
+
 # The kinds of thing a feature is made of, each pointing at the concept whose canonical file
 # shows it. Where one goes and what it is made of in a given language is the binding's
 # `checklists`, under the same kinds.
@@ -230,11 +277,19 @@ checklists:
 #   - `conditional`: the rules it holds only where a trigger fires, each with its trigger, one of the
 #     closed set the engine can see in the inventory (`yarn architecture profiles` lists them);
 #   - `gaps`: the rules it holds by `review` alone, named as gaps, never presented as guarantees;
-#   - `grammar`: the HTTP grammar it answers on (a section of this file with `verbs`: `http`);
-#   - `checklists`: the kinds of thing its features are made of (`all`, or a list of `checklists`' kinds).
+#   - `grammar`: the HTTP grammar it answers on (a section of this file with `verbs`: `http`, `http-lite`);
+#   - `checklists`: the kinds of thing its features are made of (`all`, or a list of `checklists`' kinds);
+#   - `mechanisms`: what it does with each mechanism of Full that no rule mandates, RFC 0002's H2 table
+#     as data, each with its reason — `kept`; `not_used`, with the trigger that brings it in (`until`),
+#     by an ADR, where there is one the engine can see; or `uses`, a shape of its own in its place. A
+#     profile that says nothing here uses every mechanism, as written.
 # Exactly one profile is the default. A binding names the profile of a context (`profiles: { <Context>:
-# <profile> }`); a context it does not name is held to the default, and changing one is an architecture
-# change with an ADR. The conventions check holds every profile (P1–P4, P6 of RFC 0002).
+# <profile> }`); a context it does not name is held to the binding's `default_profile` when it says one
+# (an application created Lite), else to the default, and changing one is an architecture change with an
+# ADR. A binding holds a profile other than the default only where it says how, under `profiles_held`
+# (its checklists, the files that show its mechanisms); one that does not reports it as a gap ("Lite: not
+# held"), and the check refuses a context held to it there. The conventions check holds every profile
+# (P1–P4, P6 of RFC 0002).
 #
 # The floor: the guarantees no profile may drop, each with the rules that hold it. A floor rule may be held
 # on a trigger where the guarantee itself is conditional (a write races only where several writers can, a
@@ -277,6 +332,104 @@ profiles:
     gaps: [ARCH-MODULES-DATA, ARCH-EXECUTION-CONTEXT, DOMAIN-IDENTITY, DOMAIN-NON-DETERMINISM]
     grammar: http
     checklists: all
+  lite:
+    name: Lite
+    why: >-
+      An experiment (RFC 0002, ADR 40), held in TypeScript alone: every boundary of Full kept — the layers,
+      the contexts apart, the context map, integration events through the outbox, the ports a context
+      owns, wiring as data — and the ceremony inside a context dropped. A use case is a function of its
+      ports, listed in the context's Module and called by the route, which answers at once; aggregates and
+      domain events come in where a trigger fires, by an ADR. Promoted, kept as an experiment or removed by
+      the criteria registered before its campaign.
+    # Every rule named, so that a rule added later is a decision for Lite rather than held by default.
+    holds:
+      - ARCH-DOMAIN
+      - ARCH-APPLICATION
+      - ARCH-APPLICATION-SPECS
+      - ARCH-INFRASTRUCTURE
+      - ARCH-PRESENTATION
+      - ARCH-WIRING
+      - ARCH-E2E
+      - ARCH-RELATIVE
+      - ARCH-INWARD
+      - ARCH-TREES
+      - ARCH-CONTEXT-DECLARED
+      - ARCH-MODULES-DATA
+      # The Module lists each use case once and every route calls one it lists: the check reads both.
+      - ARCH-ONE-HANDLER
+      - ARCH-EXECUTION-CONTEXT
+      - DOMAIN-RESULT
+      - DOMAIN-IDENTITY
+      - DOMAIN-NON-DETERMINISM
+      - QUERY-READ-MODELS
+      - CTX-CONTRACTS
+      - ARCH-MAP-IS-REAL
+      - ARCH-LEARNABLE
+      - ARCH-ONE-CONTRACT
+      - API-ONE-SURFACE
+      - API-BODY-SHAPE
+      # A command answered at once keeps its own 4xx, which the rule says; a query's refusal is 401 or 403 as in Full.
+      - API-CALLER-AT-TRANSPORT
+      - CTX-MAP-DECLARED
+      - ARCH-ONE-APPLICATION
+      - ARCH-COMPAT-ROUTE
+    waives: {}
+    conditional:
+      # Domain events come in where something reacts to one; then only an aggregate records them.
+      DOMAIN-RECORDS-EVENTS: reacts-to-domain-event
+      # An aggregate comes in where two writers can race on one thing: its version, its snapshot.
+      DOMAIN-CREATE-VS-RECONSTITUTE: several-writers
+      CONC-OPTIMISTIC: several-writers
+      # A fact another context reacts to is durable with its state: the outbox, as in Full.
+      EVENT-AFTER-COMMIT: publishes-integration-event
+    gaps: [ARCH-MODULES-DATA, ARCH-EXECUTION-CONTEXT, DOMAIN-IDENTITY, DOMAIN-NON-DETERMINISM]
+    grammar: http-lite
+    checklists: all
+    mechanisms:
+      command-bus:
+        not_used: >-
+          The command bus, the CommandEvent class and the handler class: the route calls the use case the
+          Module lists, and one function decides one command.
+        until: command-answered-later
+      operations:
+        not_used: >-
+          The 202, the operation and the Tracker a client follows it at: a command is answered at once, by
+          its use case's result.
+        until: command-answered-later
+      aggregates:
+        not_used: >-
+          An aggregate for everything: a use case validates with value objects and the domain's functions,
+          and writes through its store.
+        until: several-writers
+      domain-events:
+        not_used: A fact nothing reacts to is not recorded.
+        until: reacts-to-domain-event
+      queries-port:
+        not_used: A query is a function of the store it reads, returning a read model.
+      ports-inside-a-context:
+        not_used: >-
+          Ports only at the edges — the store, an outside system, another context; nothing inside a
+          context is behind an interface it implements itself.
+      one-file-per-concept:
+        not_used: A file per use-case group and per thing, not a folder per use case.
+      use-case:
+        uses: >-
+          A use case is a function of its ports, named for its intent, run by the building block in the
+          request's transaction, retried from a fresh read on a conflict, refused with a Result.
+      answered-at-once:
+        uses: The transport answers a use case's result at once, a refusal with its status and the rule's exception.
+      integration-events:
+        kept: A fact another context reacts to is a contract in the shared kernel, as in Full.
+      outbox:
+        kept: An integration event is made durable with the state it describes and published after the commit.
+      inbox:
+        kept: The bus delivers a message it already delivered once only, by the outbox entry's id.
+      owned-ports:
+        kept: A context asks another through a port it owns, answered by an adapter over the other's read model.
+      context-map:
+        kept: Every relationship between two contexts is declared before the code carries it.
+      module-as-data:
+        kept: One wiring file per context, listing its use cases and its reactions as data.
 
 # The rules that are not a row of the table. Each says how it is enforced.
 rules:

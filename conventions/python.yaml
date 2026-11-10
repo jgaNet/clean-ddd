@@ -560,3 +560,8 @@ concepts:
       [`__main__.py`](src/bootstrap/__main__.py) is the process entry point, and
       [`starter/create_application.py`](src/bootstrap/starter/create_application.py) the composition a created
       application starts from (the Tracker alone; ADR 27)
+
+# Lite: not held (ADR 40). The Lite profile is an experiment held in TypeScript alone: this binding has
+# no `profiles_held.lite`, so the check refuses a context of Python held to it, and `create --language
+# python --profile lite` is refused. What would close the gap is TypeScript's shape in this language's
+# idiom — a use case as a function of its ports, a transport answering at once — and that section here.

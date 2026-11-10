@@ -568,3 +568,8 @@ concepts:
       listens; [`main.rs`](src/bootstrap/src/main.rs) is the process entry point, and
       [`starter/src/lib.rs`](src/bootstrap/starter/src/lib.rs) the composition a created application starts
       from (the Tracker alone, with its own entry point; ADR 27)
+
+# Lite: not held (ADR 40). The Lite profile is an experiment held in TypeScript alone: this binding has
+# no `profiles_held.lite`, so the check refuses a context of Rust held to it, and `create --language
+# rust --profile lite` is refused. What would close the gap is TypeScript's shape in this language's
+# idiom — a use case as a function of its ports, a transport answering at once — and that section here.

@@ -29,6 +29,14 @@ export interface InventoryCommand {
   route?: string;
   aggregate?: string;
   events: string[];
+  /**
+   * `at-once` for a use case the route calls and answers by its result (the Lite profile, ADR 40);
+   * absent for a command whose outcome is read later, behind a 202 (Full's grammar). Absent in every
+   * inventory of a tree held to Full, so that those stay as they were.
+   */
+  answered?: 'at-once';
+  /** The integration events a use case answered at once publishes itself, through the outbox; absent when none. */
+  publishes?: string[];
 }
 
 export interface InventoryQuery {
@@ -90,6 +98,8 @@ export function inventoryOf(storm: EventStorm, language: string): Inventory {
             ...(command.route && { route: canonicalRoute(command.route) }),
             ...(command.aggregate && { aggregate: command.aggregate }),
             events: sorted(command.events),
+            ...(command.answered && { answered: command.answered }),
+            ...(command.publishes?.length && { publishes: sorted(command.publishes) }),
           }))
           .sort(byName),
         queries: context.readModels
@@ -131,7 +141,13 @@ export function canonicalInventory(inventory: Inventory): Inventory {
       .sort((a, b) => a.id.localeCompare(b.id))
       .map(context => ({
         id: context.id,
-        commands: [...context.commands].map(command => ({ ...command, events: sorted(command.events) })).sort(byName),
+        commands: [...context.commands]
+          .map(command => ({
+            ...command,
+            events: sorted(command.events),
+            ...(command.publishes && { publishes: sorted(command.publishes) }),
+          }))
+          .sort(byName),
         queries: [...context.queries].sort(byName),
         events: sorted(context.events),
         policies: [...context.policies]
@@ -168,7 +184,7 @@ export function loadInventories(root: string): Map<string, Inventory> {
 }
 
 export const describeCommand = (command: InventoryCommand) =>
-  `${command.name} (${command.actor}${command.route ? `, ${command.route}` : ''}${command.aggregate ? `, ${command.aggregate}` : ''} → ${command.events.join(', ') || 'nothing'})`;
+  `${command.name} (${command.actor}${command.route ? `, ${command.route}` : ''}${command.aggregate ? `, ${command.aggregate}` : ''} → ${command.events.join(', ') || 'nothing'}${command.publishes?.length ? `; publishes ${command.publishes.join(', ')}` : ''}${command.answered ? `; answered ${command.answered.replace('-', ' ')}` : ''})`;
 export const describeQuery = (query: InventoryQuery) =>
   `${query.name} (${query.actor}${query.route ? `, ${query.route}` : ''})`;
 export const describePolicy = (policy: InventoryPolicy) =>
@@ -275,6 +291,8 @@ export function inventoryChanges(committed: Inventory, tree: Inventory): string[
       ['route', command => quoted(command.route)],
       ['aggregate', command => quoted(command.aggregate)],
       ['events', command => list(command.events)],
+      ['answered', command => quoted(command.answered)],
+      ['publishes', command => list(command.publishes ?? [])],
     ]);
     compare(context.id, 'query', context.queries, twin.queries, query => query.name, [
       ['actor', query => quoted(query.actor)],

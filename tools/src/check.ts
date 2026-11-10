@@ -90,6 +90,7 @@ import {
   validateExpectedStorm,
   checkMigrationAgainstInventory,
   waitsOutsideTransport,
+  profileOf,
 } from './index';
 import type { ArchitectureContract, ContextLink, Inventory, Mechanism } from './index';
 
@@ -429,7 +430,7 @@ export async function checkConventions(
 
   return {
     problems,
-    summary: `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts${readsTree ? ' match the tree' : ''}; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; ${readsTree ? `no eslint-disable; ${probes.length} import probes behave and name their rule` : `the tree is held by ${contract.language.name}'s own tool`}${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}${storm ? `; the event storm is read from the code (${storm.contexts.reduce((sum, each) => sum + each.commands.length, 0)} commands, ${storm.contexts.reduce((sum, each) => sum + each.policies.length, 0)} policies)` : ''}${multi ? `; one application in ${inventories.size} inventor${inventories.size === 1 ? 'y' : 'ies'}` : ''}${contract.profiles.length ? `; ${contract.profiles.length} profile(s) held to the floor (${contract.contexts.filter(context => contract.contextProfiles[context] !== undefined).length} context(s) off the default)` : ''}${contract.migration ? `; the wire is ${contract.migration.api} (${contract.migration.routes.length} compatibility route(s))` : ''}.`,
+    summary: `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts${readsTree ? ' match the tree' : ''}; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; ${readsTree ? `no eslint-disable; ${probes.length} import probes behave and name their rule` : `the tree is held by ${contract.language.name}'s own tool`}${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}${storm ? `; the event storm is read from the code (${storm.contexts.reduce((sum, each) => sum + each.commands.length, 0)} commands, ${storm.contexts.reduce((sum, each) => sum + each.policies.length, 0)} policies)` : ''}${multi ? `; one application in ${inventories.size} inventor${inventories.size === 1 ? 'y' : 'ies'}` : ''}${contract.profiles.length ? `; ${contract.profiles.length} profile(s) held to the floor (${contract.contexts.filter(context => profileOf(contract, context) !== contract.profiles.find(profile => profile.default)?.id).length} context(s) off the default)` : ''}${contract.migration ? `; the wire is ${contract.migration.api} (${contract.migration.routes.length} compatibility route(s))` : ''}.`,
   };
 }
 

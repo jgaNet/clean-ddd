@@ -68,8 +68,19 @@ for (const language of contract.languages) {
   const binding = yaml(readFileSync(join(root, `conventions/${language}.yaml`), 'utf8'));
   copyInto(`conventions/${language}.yaml`);
   if (!binding.create) continue;
-  for (const entry of [...binding.create.copy, binding.create.manifest]) {
+  // What `create --profile <id>` copies for a profile the binding holds beside the default (ADR 40).
+  const profileCopies = Object.values(binding.profiles_held ?? {}).flatMap(held => held?.create?.copy ?? []);
+  for (const entry of [...binding.create.copy, ...profileCopies, binding.create.manifest]) {
     copyInto(join(binding.root, typeof entry === 'string' ? entry : entry.from));
+  }
+  // The files that show each mechanism of a profile the binding holds, which a created application keeps
+  // where they were copied.
+  for (const held of Object.values(binding.profiles_held ?? {})) {
+    for (const files of Object.values(held?.shows ?? {})) {
+      for (const path of Array.isArray(files) ? files : [files]) {
+        if (existsSync(join(root, binding.root, path))) copyInto(join(binding.root, path));
+      }
+    }
   }
   // The contexts a created application starts with keep their description in the map and, where the
   // language's tool commits one, their lines of the inventory.

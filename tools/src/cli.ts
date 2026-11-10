@@ -11,7 +11,8 @@
  *   yarn architecture verb <intent>           which HTTP verb and path shape a use case takes
  *   yarn architecture checklist <kind>        what a new aggregate, value object, command … is made of
  *   yarn architecture place <kind>            where it goes, path only
- *   yarn architecture create <dir> [--name x] [--language <id>]   a new application on this architecture, in that language, with none of its business
+ *   yarn architecture create <dir> [--name x] [--language <id>] [--profile lite]   a new application on this architecture, in that language, with none of its business
+ *   (--profile <id> on any question: the contract as a context held to that profile reads it — its grammar, its checklists)
  *   yarn architecture mode feature [--base <ref>]     did this change leave the architecture alone
  *   yarn architecture mode architecture [--base <ref>] does it record the decision it makes
  *   yarn architecture gate [--base <ref>] [--mode feature|architecture] [--fix]   is this change done: the mode, the conventions check and the
@@ -62,7 +63,16 @@ import { DOMAIN_FILE, describeContext, describeDomain, inspectContextLinks, load
 import { describeEventStorm, inspectEventStorm, renderEventStorm, renderEventStormSvg, renderProcess } from './storm';
 import { compareInventories, describeInventory, inspectInventory, loadInventories } from './inventory';
 import { describeMigration } from './migration';
-import { TRIGGERS, contextProfileChangesSince, describeProfiles, profileMatrix, profileOf } from './profiles';
+import {
+  TRIGGERS,
+  contextProfileChangesSince,
+  contractUnder,
+  describeProfiles,
+  profileMatrix,
+  profileOf,
+  profileTriggers,
+  profilesHeldBy,
+} from './profiles';
 import {
   checkExpectedStorm,
   describeExpectation,
@@ -80,9 +90,10 @@ import type { ModeName } from './types';
 const args = process.argv.slice(2);
 const json = args.includes('--json');
 const languageFlag = args.includes('--language') ? args[args.indexOf('--language') + 1] : undefined;
-const valued = ['--language', '--expect'];
+const valued = ['--language', '--expect', '--profile'];
 const expectFlag = args.includes('--expect') ? args[args.indexOf('--expect') + 1] : undefined;
-const flagged = ['--json', '--language', '--markdown', '--svg', '--expect', '--write'];
+const profileFlag = args.includes('--profile') ? args[args.indexOf('--profile') + 1] : undefined;
+const flagged = ['--json', '--language', '--markdown', '--svg', '--expect', '--write', '--profile'];
 const [command, ...rest] = args.filter((arg, index) => !flagged.includes(arg) && !valued.includes(args[index - 1]));
 
 const here = typedFrom();
@@ -113,11 +124,18 @@ let root = '';
 
 function create(): void {
   const [directory] = rest;
-  if (!directory) return fail('usage', 'usage: yarn architecture create <dir> [--name <name>]');
+  if (!directory)
+    return fail('usage', 'usage: yarn architecture create <dir> [--name <name>] [--language <id>] [--profile <id>]');
   const name = rest.includes('--name') ? rest[rest.indexOf('--name') + 1] : directory.split('/').filter(Boolean).pop();
   let created;
   try {
-    created = createApplication(resolve(here, directory), name ?? 'my-app', referenceSource(here), languageFlag);
+    created = createApplication(
+      resolve(here, directory),
+      name ?? 'my-app',
+      referenceSource(here),
+      languageFlag,
+      profileFlag,
+    );
   } catch (error) {
     return fail('cannot-create', error instanceof Error ? error.message : String(error));
   }
@@ -126,7 +144,7 @@ function create(): void {
       `${created.name}: ${created.files} files in ${created.directory}`,
       '',
       `The building blocks, the shared kernel, the tooling and the contract — ${created.rules} rules,`,
-      `${created.concepts} concepts — and no business: ${created.contexts.length ? `${created.contexts.join(', ')} to follow every command, and ` : ''}the contexts are yours to write.`,
+      `${created.concepts} concepts — and no business: ${created.contexts.length ? `${created.contexts.join(', ')} to follow every command, and ` : ''}the contexts are yours to write${created.profile ? `, held to the ${created.profile} profile` : ''}.`,
       '',
       'Next:',
       ...created.next.map(line => `  ${line}`),
@@ -156,6 +174,24 @@ async function main(): Promise<void> {
       return fail('unknown-language', `No binding for "${language}". Languages: ${contract.languages.join(', ')}`);
     }
     if (language && language !== contract.language.id) contract = loadArchitectureContract(root, language);
+    // The contract as a context held to a profile reads it (ADR 40): its grammar and its checklists. The
+    // binding's own default (`default_profile`, an application created Lite) unless `--profile` names one.
+    const viewed = profileFlag ?? contract.bindingProfile;
+    if (viewed) {
+      if (!contract.profiles.some(profile => profile.id === viewed)) {
+        return fail(
+          'unknown-profile',
+          `No profile "${viewed}". Profiles: ${contract.profiles.map(profile => profile.id).join(', ')}`,
+        );
+      }
+      if (!profilesHeldBy(contract).includes(viewed)) {
+        return fail(
+          'profile-not-held',
+          `${contract.language.name} does not hold the profile "${viewed}" (a gap of its binding)`,
+        );
+      }
+      contract = contractUnder(contract, viewed);
+    }
   } catch (error) {
     if (error instanceof ContractError) return fail(error.code, error.message);
     throw error;
@@ -246,6 +282,15 @@ async function main(): Promise<void> {
         (map?.subdomains ?? []).flatMap(subdomain => subdomain.contexts.map(context => [context, subdomain.kind])),
       );
       const matrix = profileMatrix(contract);
+      // What a trigger brings into a context held to a profile that conditions on it, read from the tree
+      // this tooling reads (TypeScript's); a context held to Full holds everything already.
+      const offDefault = contract.contexts.some(
+        context => profileOf(contract, context) !== contract.profiles.find(profile => profile.default)?.id,
+      );
+      const fired =
+        offDefault && contract.language.id === 'typescript'
+          ? profileTriggers(contract, inspectInventory(contract, root))
+          : [];
       return out(
         {
           schemaVersion,
@@ -254,15 +299,19 @@ async function main(): Promise<void> {
             ...profile,
             rules: Object.fromEntries(matrix.map(row => [row.rule, row.stances[profile.id]])),
           })),
+          held: profilesHeldBy(contract),
           contexts: contract.contexts.map(context => ({
             context,
             profile: profileOf(contract, context),
             named: contract.contextProfiles[context] !== undefined,
             ...(kinds[context] && { subdomain: kinds[context] }),
+            fires: fired
+              .filter(entry => entry.context === context)
+              .map(({ trigger, rules, mechanisms }) => ({ trigger, rules, mechanisms })),
           })),
           triggers: Object.values(TRIGGERS).map(({ id, means }) => ({ id, means })),
         },
-        () => describeProfiles(contract, kinds),
+        () => describeProfiles(contract, kinds, fired),
       );
     }
     case 'verb': {

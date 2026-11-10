@@ -34,8 +34,11 @@ export interface Trigger {
 const triggers: Trigger[] = [
   {
     id: 'publishes-integration-event',
-    means: 'one of the context’s policies publishes an integration event: a fact leaves the context',
-    fires: context => context.policies.some(policy => policy.publishes.length > 0),
+    means:
+      'one of the context’s policies, or a use case it answers at once, publishes an integration event: a fact leaves the context',
+    fires: context =>
+      context.policies.some(policy => policy.publishes.length > 0) ||
+      context.commands.some(command => (command.publishes?.length ?? 0) > 0),
   },
   {
     id: 'reacts-to-integration-event',
@@ -56,11 +59,11 @@ const triggers: Trigger[] = [
     },
   },
   {
-    // The contract's grammar answers every command it lists with a 202 and an operation read later; a
-    // command answered at once is not a command of the inventory today.
+    // Full's grammar answers a command with a 202 and an operation read later; a use case of the Lite
+    // profile is answered at once, and the inventory says so (`answered: at-once`).
     id: 'command-answered-later',
     means: 'the context has a command whose outcome is read later (an operation behind a 202)',
-    fires: context => context.commands.length > 0,
+    fires: context => context.commands.some(command => command.answered !== 'at-once'),
   },
   {
     id: 'asks-another-context',
@@ -100,9 +103,70 @@ export function stanceOf(profile: Profile, rule: Rule): Stance {
 export const defaultProfile = (contract: ArchitectureContract): Profile | undefined =>
   contract.profiles.find(profile => profile.default);
 
-/** The profile a context is held to: the one its binding names, or the default. */
+/**
+ * The profile a context is held to: the one its binding names for it, else the binding's own default
+ * (`default_profile`, an application created Lite), else the contract's default.
+ */
 export const profileOf = (contract: ArchitectureContract, context: string): string | undefined =>
-  contract.contextProfiles[context] ?? defaultProfile(contract)?.id;
+  contract.contextProfiles[context] ?? contract.bindingProfile ?? defaultProfile(contract)?.id;
+
+/**
+ * The profiles this binding holds: the default, which it holds by being a binding, and every one it
+ * says how it holds under `profiles_held`. Another profile is a gap of this language ("Lite: not held",
+ * ARCH-ONE-CONTRACT): no context may be held to it here.
+ */
+export const profilesHeldBy = (contract: ArchitectureContract): string[] => [
+  ...contract.profiles.filter(profile => profile.default).map(profile => profile.id),
+  ...Object.keys(contract.profilesHeld).filter(id =>
+    contract.profiles.some(profile => profile.id === id && !profile.default),
+  ),
+];
+
+/**
+ * The contract as a context held to `profile` reads it: its grammar's verbs, and the checklists the
+ * binding gives that profile where they differ from its own (`profiles_held.<id>.checklists`). The
+ * default profile, or one this binding does not hold, reads the contract as it is.
+ */
+export function contractUnder(contract: ArchitectureContract, profile: string): ArchitectureContract {
+  const found = contract.profiles.find(candidate => candidate.id === profile);
+  const held = contract.profilesHeld[profile];
+  if (!found || found.default || !held) return contract;
+  return {
+    ...contract,
+    verbs: found.grammar === 'http' ? contract.verbs : (contract.grammarVerbs[found.grammar] ?? contract.verbs),
+    checklists: contract.checklists.map(
+      checklist => held.checklists.find(own => own.kind === checklist.kind) ?? checklist,
+    ),
+  };
+}
+
+/**
+ * The triggers that fire for each context held to a profile that conditions rules or mechanisms on
+ * them, with what each brings in: the rules the profile then holds there, and the mechanisms that come
+ * in by an ADR (MechanismRequired, RFC 0002 §2). A context held to Full has none: it holds everything.
+ */
+export function profileTriggers(
+  contract: ArchitectureContract,
+  inventory: Inventory,
+): { context: string; profile: string; trigger: string; rules: string[]; mechanisms: string[] }[] {
+  const found: { context: string; profile: string; trigger: string; rules: string[]; mechanisms: string[] }[] = [];
+  for (const context of contract.contexts) {
+    const profile = contract.profiles.find(candidate => candidate.id === profileOf(contract, context));
+    if (!profile) continue;
+    for (const trigger of Object.keys(TRIGGERS)) {
+      const rules = Object.entries(profile.conditional)
+        .filter(([, on]) => on === trigger)
+        .map(([rule]) => rule);
+      const mechanisms = Object.entries(profile.mechanisms)
+        .filter(([, mechanism]) => mechanism.until === trigger)
+        .map(([mechanism]) => mechanism);
+      if ((rules.length || mechanisms.length) && triggerFires(trigger, context, inventory)) {
+        found.push({ context, profile: profile.id, trigger, rules, mechanisms });
+      }
+    }
+  }
+  return found;
+}
 
 /** The read model of §3 of RFC 0002: rule × profile → held, waived (with reason) or conditional (with trigger). */
 export function profileMatrix(contract: ArchitectureContract): { rule: string; stances: Record<string, Stance> }[] {
@@ -113,7 +177,20 @@ export function profileMatrix(contract: ArchitectureContract): { rule: string; s
 }
 
 /** What a profile may say: it holds, waives and conditions rules; it never words one (ARCH-ONE-CONTRACT). */
-const PROFILE_KEYS = ['name', 'why', 'default', 'holds', 'waives', 'conditional', 'gaps', 'grammar', 'checklists'];
+const PROFILE_KEYS = [
+  'name',
+  'why',
+  'default',
+  'holds',
+  'waives',
+  'conditional',
+  'gaps',
+  'grammar',
+  'checklists',
+  'mechanisms',
+];
+/** How a profile classifies a mechanism: one of these words, with its reason. */
+const MECHANISM_STANCES = ['kept', 'not_used', 'uses'];
 /** What holds a floor guarantee that is not a rule: the two modes, which the gate runs. */
 const HELD_BY = ['modes'];
 
@@ -142,6 +219,9 @@ export function validateProfiles(contract: ArchitectureContract, root?: string):
   const rules = new Map(contract.rules.map(rule => [rule.id, rule]));
   const declared = contract.profiles.map(profile => profile.id);
 
+  const held = profilesHeldBy(contract);
+  const notHeld = (profile: string) =>
+    `${contract.language.name} does not hold the profile "${profile}": its binding says how under "profiles_held.${profile}", or reports it as a gap (ARCH-ONE-CONTRACT)`;
   for (const [context, profile] of Object.entries(contract.contextProfiles)) {
     if (!contract.contexts.includes(context)) {
       problems.push(`${binding}: names a profile for ${context}, which it does not declare under "contexts" (P6)`);
@@ -150,6 +230,54 @@ export function validateProfiles(contract: ArchitectureContract, root?: string):
       problems.push(
         `${binding}: holds ${context} to the profile "${profile}", which ${file} does not declare${declared.length ? `: one of ${declared.join(', ')}` : ''} (P6)`,
       );
+    } else if (!held.includes(profile)) {
+      problems.push(`${binding}: holds ${context} to the profile "${profile}"; ${notHeld(profile)} (P6)`);
+    }
+  }
+  if (contract.bindingProfile !== undefined) {
+    if (!declared.includes(contract.bindingProfile)) {
+      problems.push(
+        `${binding}: "default_profile" is "${contract.bindingProfile}", which ${file} does not declare${declared.length ? `: one of ${declared.join(', ')}` : ''} (P6)`,
+      );
+    } else if (!held.includes(contract.bindingProfile)) {
+      problems.push(
+        `${binding}: "default_profile" is "${contract.bindingProfile}"; ${notHeld(contract.bindingProfile)} (P6)`,
+      );
+    }
+  }
+  for (const [id, holding] of Object.entries(contract.profilesHeld)) {
+    const profile = contract.profiles.find(candidate => candidate.id === id);
+    if (!profile) {
+      problems.push(`${binding}: says how it holds the profile "${id}", which ${file} does not declare (P6)`);
+      continue;
+    }
+    if (profile.default) {
+      problems.push(
+        `${binding}: says how it holds "${id}", the default, which every binding holds by its own sections`,
+      );
+    }
+    for (const mechanism of Object.keys(holding.shows)) {
+      const classified = profile.mechanisms[mechanism];
+      if (!classified) {
+        problems.push(
+          `${binding} profiles_held.${id}: shows "${mechanism}", which the profile does not classify (one of ${Object.keys(profile.mechanisms).join(', ')})`,
+        );
+      } else if (classified.stance === 'not-used') {
+        problems.push(`${binding} profiles_held.${id}: shows "${mechanism}", which the profile does not use`);
+      }
+    }
+    for (const [mechanism, classified] of Object.entries(profile.mechanisms)) {
+      if (classified.stance === 'uses' && !holding.shows[mechanism]?.length) {
+        problems.push(
+          `${binding} profiles_held.${id}: names no file that shows "${mechanism}", a shape of the profile's own`,
+        );
+      }
+    }
+    for (const checklist of holding.checklists) {
+      if (!checklist.place)
+        problems.push(`${binding} profiles_held.${id} checklist "${checklist.kind}": "place" is missing`);
+      if (!checklist.parts.length)
+        problems.push(`${binding} profiles_held.${id} checklist "${checklist.kind}": lists no parts`);
     }
   }
   if (!contract.profiles.length) {
@@ -257,6 +385,31 @@ export function validateProfiles(contract: ArchitectureContract, root?: string):
       }
     }
 
+    // The mechanisms (RFC 0002, H2): each kept, not used or replaced, with its reason; one not used
+    // comes in on a trigger the engine can see (P4), or by a decision alone.
+    const rawMechanisms = isObject(rawProfile.mechanisms) ? rawProfile.mechanisms : {};
+    for (const [mechanism, classified] of Object.entries(profile.mechanisms)) {
+      const said = isObject(rawMechanisms[mechanism]) ? Object.keys(rawMechanisms[mechanism] as Raw) : undefined;
+      const stances = said?.filter(key => MECHANISM_STANCES.includes(key)) ?? [classified.stance];
+      if (said && (stances.length !== 1 || said.some(key => !MECHANISM_STANCES.includes(key) && key !== 'until'))) {
+        problems.push(
+          `${where}: the mechanism "${mechanism}" says one of ${MECHANISM_STANCES.join(', ')}, with its reason, and "until" for one not used`,
+        );
+      }
+      if (!classified.why.trim()) problems.push(`${where}: the mechanism "${mechanism}" says no reason`);
+      if (classified.until !== undefined) {
+        if (classified.stance !== 'not-used') {
+          problems.push(
+            `${where}: the mechanism "${mechanism}" is ${classified.stance}; only one not used comes in "until" a trigger`,
+          );
+        } else if (!TRIGGERS[classified.until]) {
+          problems.push(
+            `${where}: the mechanism "${mechanism}" comes in on "${classified.until}", which is not a trigger the engine can see; one of ${Object.keys(TRIGGERS).join(', ')} (P4)`,
+          );
+        }
+      }
+    }
+
     if (!contract.grammars.includes(profile.grammar)) {
       problems.push(
         `${where}: answers on the grammar "${profile.grammar}", which is not a section of ${file} with verbs: one of ${contract.grammars.join(', ')}`,
@@ -273,8 +426,8 @@ export function validateProfiles(contract: ArchitectureContract, root?: string):
 
 /**
  * The contexts whose profile differs between two readings of a binding, one line each (`Notes: full →
- * lite`); a context neither names is held to the default in both, and a context dropped from the
- * binding is not a change of profile.
+ * lite`); a context neither names is held to the binding's default (`default_profile`) or the
+ * contract's in both, and a context dropped from the binding is not a change of profile.
  */
 export function contextProfileChanges(before: unknown, after: unknown, defaultId: string): string[] {
   const profilesOf = (binding: unknown): Record<string, string> =>
@@ -283,11 +436,16 @@ export function contextProfileChanges(before: unknown, after: unknown, defaultId
       : {};
   const contextsOf = (binding: unknown): string[] =>
     isObject(binding) && Array.isArray(binding.contexts) ? binding.contexts.map(String) : [];
+  // A context it does not name is held to the binding's own default when it says one (`default_profile`).
+  const defaultOf = (binding: unknown): string =>
+    isObject(binding) && typeof binding.default_profile === 'string' ? binding.default_profile : defaultId;
   const was = profilesOf(before);
   const is = profilesOf(after);
+  const from = (context: string) => was[context] ?? defaultOf(before);
+  const to = (context: string) => is[context] ?? defaultOf(after);
   return contextsOf(after)
-    .filter(context => (was[context] ?? defaultId) !== (is[context] ?? defaultId))
-    .map(context => `${context}: ${was[context] ?? defaultId} → ${is[context] ?? defaultId}`);
+    .filter(context => from(context) !== to(context))
+    .map(context => `${context}: ${from(context)} → ${to(context)}`);
 }
 
 /**
@@ -329,8 +487,16 @@ export function contextProfileChangesSince(
     .filter(entry => entry.changes.length > 0);
 }
 
-/** The profiles in words, for a person at a terminal: the floor, each profile, the profile of each context. */
-export function describeProfiles(contract: ArchitectureContract, kinds: Record<string, string> = {}): string {
+/**
+ * The profiles in words, for a person at a terminal: the floor, each profile with its mechanisms, the
+ * profiles this language holds, the profile of each context, and — given what fired (`profileTriggers`)
+ * — what a trigger brings into a context held to a profile that conditions on it.
+ */
+export function describeProfiles(
+  contract: ArchitectureContract,
+  kinds: Record<string, string> = {},
+  fired: ReturnType<typeof profileTriggers> = [],
+): string {
   if (!contract.profiles.length) return `${contract.sources.architecture} declares no profiles: it is held as written.`;
   const lines = ['Floor (no profile may drop it):'];
   for (const guarantee of contract.floor) {
@@ -348,13 +514,33 @@ export function describeProfiles(contract: ArchitectureContract, kinds: Record<s
     for (const [id, reason] of Object.entries(profile.waives)) lines.push(`  waives ${id}: ${reason}`);
     for (const [id, trigger] of Object.entries(profile.conditional)) lines.push(`  holds ${id} where ${trigger}`);
     if (profile.gaps.length) lines.push(`  gaps (held by review alone): ${profile.gaps.join(', ')}`);
+    for (const [id, mechanism] of Object.entries(profile.mechanisms)) {
+      const stance = mechanism.stance === 'not-used' ? 'does not use' : mechanism.stance;
+      lines.push(
+        `  ${stance} ${id}${mechanism.until ? ` (until ${mechanism.until}, by an ADR)` : ''}: ${mechanism.why}`,
+      );
+    }
   }
+  const held = profilesHeldBy(contract);
+  const notHeld = contract.profiles.filter(profile => !held.includes(profile.id)).map(profile => profile.name);
+  lines.push(
+    '',
+    `${contract.language.name} holds ${held.join(', ')}${notHeld.length ? `; ${notHeld.map(name => `${name}: not held`).join(', ')} (a gap of this language)` : ''}.`,
+  );
   lines.push('', `Contexts (${contract.language.name}):`);
   for (const context of contract.contexts) {
     const named = contract.contextProfiles[context] !== undefined;
+    const by = named ? '' : contract.bindingProfile !== undefined ? ' (the binding’s default)' : ' (the default)';
     lines.push(
-      `  ${context} — ${profileOf(contract, context)}${named ? '' : ' (the default)'}${kinds[context] ? `, a ${kinds[context]} subdomain` : ''}`,
+      `  ${context} — ${profileOf(contract, context)}${by}${kinds[context] ? `, a ${kinds[context]} subdomain` : ''}`,
     );
+    for (const each of fired.filter(entry => entry.context === context)) {
+      const brings = [
+        ...each.rules.map(rule => `holds ${rule}`),
+        ...each.mechanisms.map(mechanism => `${mechanism} comes in by an ADR`),
+      ];
+      lines.push(`    ${each.trigger} fires: ${brings.join('; ')}`);
+    }
   }
   lines.push('', 'Triggers a profile may hold a rule on:');
   for (const trigger of Object.values(TRIGGERS)) lines.push(`  ${trigger.id} — ${trigger.means}`);
