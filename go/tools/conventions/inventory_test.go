@@ -24,13 +24,14 @@ func repositoryRootForTest(t *testing.T) string {
 	return root
 }
 
-// copyOfTheTree is a copy of the Go directory beside a copy of the conventions and the
-// inventories, so a violation can be written into it; it returns the copy's repository root.
+// copyOfTheTree is a copy of the Go directory beside a copy of the conventions, the inventories
+// and the shared scenario (a file the binding names), so a violation can be written into it; it
+// returns the copy's repository root.
 func copyOfTheTree(t *testing.T) string {
 	t.Helper()
 	root := filepath.Join(t.TempDir(), "repo")
 	source := repositoryRootForTest(t)
-	for _, dir := range []string{"conventions", "go", filepath.Join("docs", "inventory")} {
+	for _, dir := range []string{"conventions", "go", filepath.Join("docs", "inventory"), "api"} {
 		from := filepath.Join(source, dir)
 		err := filepath.WalkDir(from, func(p string, entry fs.DirEntry, err error) error {
 			if err != nil {

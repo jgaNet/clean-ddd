@@ -87,12 +87,12 @@ func inboxViewOf(inbox queries.Inbox) inboxView {
 	return inboxView{Notifications: views, Total: inbox.Total, Unread: inbox.Unread}
 }
 
-func refuseNotification(w http.ResponseWriter, err error) {
-	status := presentation.StatusOf(err)
+func refuseNotification(w http.ResponseWriter, ctx *application.ExecutionContext, err error) {
+	status := presentation.StatusOf(ctx, err)
 	if exception, ok := domain.Refusal(err); ok && exception.Type == "NotificationNotFound" {
 		status = http.StatusNotFound
 	}
-	presentation.Refuse(w, err, status)
+	presentation.Refuse(w, ctx, err, status)
 }
 
 // inboxFilters reads the page from the query string: limit (20), offset (0), onlyUnread (false).
@@ -127,7 +127,7 @@ func Routes(mux *http.ServeMux, prefix string, module *application.Module) {
 		}
 		// Shape only (API-BODY-SHAPE): the channels go on as the names the client sent, and an
 		// unknown one, or none, is the domain's refusal, on the operation.
-		presentation.Accept(w, presentation.ContextOf(r), commands.SendNotificationCommandEvent{
+		presentation.Accept(w, r, module, commands.SendNotificationCommandEvent{
 			RecipientID: body.RecipientID,
 			Title:       body.Title,
 			Content:     body.Content,
@@ -140,19 +140,19 @@ func Routes(mux *http.ServeMux, prefix string, module *application.Module) {
 		ctx := presentation.ContextOf(r)
 		filters, err := inboxFilters(r)
 		if err != nil {
-			presentation.Refuse(w, err, http.StatusBadRequest)
+			presentation.Refuse(w, ctx, err, http.StatusBadRequest)
 			return
 		}
 		params := queries.GetNotificationsParams{RecipientID: r.PathValue("recipientId"), Filters: filters}
 		inbox, err := application.Query(application.QueryOf[*queries.GetNotificationsHandler](module), params, ctx)
 		if err != nil {
-			refuseNotification(w, err)
+			refuseNotification(w, ctx, err)
 			return
 		}
 		presentation.WriteJSON(w, http.StatusOK, inboxViewOf(inbox))
 	})
 
 	mux.HandleFunc("PATCH "+prefix+"/{id}/read", func(w http.ResponseWriter, r *http.Request) {
-		presentation.Accept(w, presentation.ContextOf(r), commands.MarkAsReadNotificationCommandEvent{NotificationID: r.PathValue("id")})
+		presentation.Accept(w, r, module, commands.MarkAsReadNotificationCommandEvent{NotificationID: r.PathValue("id")})
 	})
 }

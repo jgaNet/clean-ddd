@@ -105,19 +105,20 @@ func TestWhatAReferenceMustNotDo(t *testing.T) {
 		t.Fatal("the password is nowhere on the record")
 	}
 
-	// Never let an anonymous caller validate an account
+	// Never let an anonymous caller validate an account by id: an administrator's command,
+	// refused at once with 401 and nothing published (API-CALLER-AT-TRANSPORT, ADR 39)
 	signedUp = app.Anonymous().Post("/auth/signup", map[string]string{"identifier": "grace@user.fr", "password": "grace"})
 	accountID := app.Accepted(admin, signedUp)["result"].(string)
-	attempt := app.Anonymous().Get("/auth/accounts/" + accountID + "/validate")
-	if attempt.Status != http.StatusAccepted {
-		t.Fatalf("attempt: %d", attempt.Status)
-	}
-	refused := app.Accepted(admin, attempt)
-	if refused["status"] != "ERROR" || refused["error"].(map[string]any)["type"] != "NotAllowed" {
-		t.Fatalf("refused: %v", refused)
-	}
+	app.RefusedAtOnce(app.Anonymous().Get("/auth/accounts/"+accountID+"/validate"), "anonymous validation by id")
 	if admin.Get("/auth/accounts/" + accountID).Object()["status"] != "PENDING" {
 		t.Fatal("still pending")
+	}
+
+	// But let anyone follow the emailed link: the token is its proof, and the handler judges it
+	attempt := app.Anonymous().Get("/auth/validate?validation_token=not-a-token")
+	refused := app.Accepted(admin, attempt)
+	if refused["name"] != "ValidateAccount" || refused["status"] != "ERROR" || refused["error"].(map[string]any)["type"] != "NotAllowed" {
+		t.Fatalf("refused: %v", refused)
 	}
 
 	// Never record a login: the token is not an operation's result

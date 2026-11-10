@@ -78,12 +78,12 @@ func sharedItemViews(items []note.SharedListItem) []sharedItemView {
 	return views
 }
 
-func refuseNote(w http.ResponseWriter, err error) {
-	status := presentation.StatusOf(err)
+func refuseNote(w http.ResponseWriter, ctx *application.ExecutionContext, err error) {
+	status := presentation.StatusOf(ctx, err)
 	if exception, ok := domain.Refusal(err); ok && exception.Type == "NoteNotFound" {
 		status = http.StatusNotFound
 	}
-	presentation.Refuse(w, err, status)
+	presentation.Refuse(w, ctx, err, status)
 }
 
 // Routes registers the context's routes under prefix (/v1/notes) on the application's mux.
@@ -95,14 +95,14 @@ func Routes(mux *http.ServeMux, prefix string, module *application.Module) {
 		if !presentation.DecodeBody(w, r, &body) {
 			return
 		}
-		presentation.Accept(w, presentation.ContextOf(r), commands.CreateNoteCommandEvent{Title: body.Title, Content: body.Content})
+		presentation.Accept(w, r, module, commands.CreateNoteCommandEvent{Title: body.Title, Content: body.Content})
 	})
 
 	mux.HandleFunc("GET "+prefix, func(w http.ResponseWriter, r *http.Request) {
 		ctx := presentation.ContextOf(r)
 		items, err := application.Query(application.QueryOf[*queries.GetMyNotesHandler](module), application.NoParams{}, ctx)
 		if err != nil {
-			refuseNote(w, err)
+			refuseNote(w, ctx, err)
 			return
 		}
 		presentation.WriteJSON(w, http.StatusOK, listItemViews(items))
@@ -112,7 +112,7 @@ func Routes(mux *http.ServeMux, prefix string, module *application.Module) {
 		ctx := presentation.ContextOf(r)
 		items, err := application.Query(application.QueryOf[*queries.GetNotesSharedWithMeHandler](module), application.NoParams{}, ctx)
 		if err != nil {
-			refuseNote(w, err)
+			refuseNote(w, ctx, err)
 			return
 		}
 		presentation.WriteJSON(w, http.StatusOK, sharedItemViews(items))
@@ -126,7 +126,7 @@ func Routes(mux *http.ServeMux, prefix string, module *application.Module) {
 		ctx := presentation.ContextOf(r)
 		detail, err := application.Query(application.QueryOf[*queries.GetNoteHandler](module), r.PathValue("id"), ctx)
 		if err != nil {
-			refuseNote(w, err)
+			refuseNote(w, ctx, err)
 			return
 		}
 		presentation.WriteJSON(w, http.StatusOK, detailViewOf(detail))
@@ -137,15 +137,15 @@ func Routes(mux *http.ServeMux, prefix string, module *application.Module) {
 		if !presentation.DecodeBody(w, r, &body) {
 			return
 		}
-		presentation.Accept(w, presentation.ContextOf(r), commands.EditNoteCommandEvent{NoteID: r.PathValue("id"), Title: body.Title, Content: body.Content})
+		presentation.Accept(w, r, module, commands.EditNoteCommandEvent{NoteID: r.PathValue("id"), Title: body.Title, Content: body.Content})
 	})
 
 	mux.HandleFunc("POST "+prefix+"/{id}/archive", func(w http.ResponseWriter, r *http.Request) {
-		presentation.Accept(w, presentation.ContextOf(r), commands.ArchiveNoteCommandEvent{NoteID: r.PathValue("id")})
+		presentation.Accept(w, r, module, commands.ArchiveNoteCommandEvent{NoteID: r.PathValue("id")})
 	})
 
 	mux.HandleFunc("POST "+prefix+"/{id}/restore", func(w http.ResponseWriter, r *http.Request) {
-		presentation.Accept(w, presentation.ContextOf(r), commands.RestoreNoteCommandEvent{NoteID: r.PathValue("id")})
+		presentation.Accept(w, r, module, commands.RestoreNoteCommandEvent{NoteID: r.PathValue("id")})
 	})
 
 	mux.HandleFunc("POST "+prefix+"/{id}/share", func(w http.ResponseWriter, r *http.Request) {
@@ -153,10 +153,10 @@ func Routes(mux *http.ServeMux, prefix string, module *application.Module) {
 		if !presentation.DecodeBody(w, r, &body) {
 			return
 		}
-		presentation.Accept(w, presentation.ContextOf(r), commands.ShareNoteCommandEvent{NoteID: r.PathValue("id"), RecipientID: body.RecipientID})
+		presentation.Accept(w, r, module, commands.ShareNoteCommandEvent{NoteID: r.PathValue("id"), RecipientID: body.RecipientID})
 	})
 
 	mux.HandleFunc("POST "+prefix+"/{id}/suggest-title", func(w http.ResponseWriter, r *http.Request) {
-		presentation.Accept(w, presentation.ContextOf(r), commands.SuggestNoteTitleCommandEvent{NoteID: r.PathValue("id")})
+		presentation.Accept(w, r, module, commands.SuggestNoteTitleCommandEvent{NoteID: r.PathValue("id")})
 	})
 }

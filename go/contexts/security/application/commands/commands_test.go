@@ -282,6 +282,36 @@ func TestValidateAccount(t *testing.T) {
 	})
 }
 
+// Who reaches a command (API-CALLER-AT-TRANSPORT) is what its handler says, asked through the
+// Module as the transport asks it: anyone may sign up, anyone may follow the emailed link, and
+// every other command of the context needs a signed-in caller.
+func TestWhoReachesTheCommandsOfAccounts(t *testing.T) {
+	f := newFixture()
+	module := &application.Module{
+		Name: "Security",
+		Commands: []application.Subscription{
+			application.Command(commands.NewSignUpHandler(f.repository, f.registration, f.hasher)),
+			application.Command(commands.NewValidateAccountHandler(f.repository, f.tokens)),
+			application.Command(commands.NewRegisterAdminHandler(f.repository, f.registration, f.hasher)),
+		},
+	}
+	cases := []struct {
+		name    string
+		command domain.Event
+		anyone  bool
+	}{
+		{"signing up", commands.SignUpCommandEvent{Email: "user@user.fr", Password: "secret"}, true},
+		{"following the emailed link", commands.ValidateAccountCommandEvent{ValidationToken: "the-token"}, true},
+		{"validating by id, an administrator's", commands.ValidateAccountCommandEvent{AccountID: "account-1"}, false},
+		{"opening an administrator's account", commands.RegisterAdminCommandEvent{Email: "root@example.com", Password: "secret"}, false},
+	}
+	for _, c := range cases {
+		if got := module.AnyoneMayAsk(c.command); got != c.anyone {
+			t.Errorf("%s: anyone may ask = %v, want %v", c.name, got, c.anyone)
+		}
+	}
+}
+
 // The rule of RegisterAdmin is in Guard, which only the template runs: through a subscription
 // and an operation, as the bus would.
 func registerAdmin(f *fixture, role kernel.Role) *application.Operation {

@@ -11,7 +11,9 @@ import (
 // its events — and answers with R (an id, a suggestion; Nothing when there is nothing to say).
 // Everything else that every command needs is done once, in Run:
 //
-//  1. Guard        authorization: may this caller run this command at all? (Guarded, optional)
+//  0. who reaches it  a signed-in caller unless the handler says anyone may ask (OpenToAnyone,
+//     optional), asked by the transport before it publishes (API-CALLER-AT-TRANSPORT)
+//  1. Guard       authorization: may this caller run this command at all? (Guarded, optional)
 //  2. logging      what ran, and whether it failed
 //  3. transaction  Execute runs inside the context's unit of work when there is one
 //  4. safety net   an unexpected panic becomes a failed result instead of a crash
@@ -32,6 +34,16 @@ type CommandHandler[C domain.Event, R any] interface {
 // it at all. Business rules about *what* they may do to *which* object belong in the aggregate.
 type Guarded interface {
 	Guard(context *ExecutionContext) error
+}
+
+// OpenToAnyone is the marker a handler implements, once, when anyone may ask for its command —
+// signing up, a link that carries its own proof, a provider's webhook — and no other handler
+// does (API-CALLER-AT-TRANSPORT, ADR 39). Without it a command needs a signed-in caller: the
+// transport's presentation.Accept asks the Module (AnyoneMayAsk) before it publishes, and
+// refuses a caller who is not signed in with 401, publishing nothing. It says who reaches the
+// command, not what the caller may do: that stays Guard's, Execute's and the aggregate's.
+type OpenToAnyone[C domain.Event] interface {
+	AnyoneMayAsk(command C) bool
 }
 
 // Nothing is what a command that has nothing to answer returns; the operation records no result.
@@ -116,3 +128,10 @@ func (c command[C, R]) Handle(operation *Operation) {
 }
 
 func (c command[C, R]) Inner() any { return c.handler }
+
+// anyoneMayAsk is what the handler says of this command (OpenToAnyone); false when it says nothing.
+func (c command[C, R]) anyoneMayAsk(event domain.Event) bool {
+	open, marked := any(c.handler).(OpenToAnyone[C])
+	cmd, typed := event.(C)
+	return marked && typed && open.AnyoneMayAsk(cmd)
+}

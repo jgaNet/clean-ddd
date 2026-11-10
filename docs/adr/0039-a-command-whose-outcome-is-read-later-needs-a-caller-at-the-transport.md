@@ -72,8 +72,17 @@ The maintainer decided the RFC's four hot spots on 10 November.
     published. `status_of(&error, &context)` beside it gives the queries `401` or `403`.
   - The conventions check refuses a context's presentation crate that dispatches, publishes, builds an operation or
     answers `202` by itself (H4), since Rust has no linter of its own to carry it.
-- **Go reports it as a gap** in its binding and its README's known gaps. Until it carries the marker and the helper
-  in its idiom, the scenario fails against its server at the steps above. That is the list of what it owes.
+- **Go holds it.**
+  - The marker is an optional interface, `application.OpenToAnyone`: a handler that has `AnyoneMayAsk(command) bool`.
+    A handler without it needs a signed-in caller. Signing up and validating an account carry it, the second only for
+    the emailed token, as in TypeScript.
+  - The helper is [`presentation.Accept(w, r, module, command)`](../../go/architecture/presentation/http.go); it asks
+    the Module, which asks the handler it lists, before it publishes. Every `202` route calls it, and `StatusOf()`
+    beside it gives the queries `401` or `403` through `NotAllowedStatus()`.
+  - The conventions check refuses a context's route that calls `Publish`, or answers `202`, by itself, naming the
+    file and the line ([`caller.go`](../../go/tools/conventions/caller.go), H4). The scenario passes against the Go
+    server.
+- **The four languages hold it**, and the scenario passes unchanged against each server.
 - OpenStay J5b's clean-3 applies the rule in its own tree from request 50, as Full+ did, recorded as an ADR of that
   tree.
 

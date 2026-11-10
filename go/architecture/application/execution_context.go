@@ -13,6 +13,9 @@ type Auth struct {
 	Role      string
 }
 
+// SignedIn is whether somebody is behind the call: a subject the authentication recognised.
+func (a Auth) SignedIn() bool { return a.SubjectID != "" }
+
 // UnitOfWork is the transaction boundary: a database's four verbs, or the in-memory stores' snapshot.
 type UnitOfWork interface {
 	BeginTransaction() error
