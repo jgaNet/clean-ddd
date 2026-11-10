@@ -64,6 +64,10 @@ header.title { margin-bottom: 40px; }
 .lang-switch:hover { border-color: #fff; }
 .home a { font-weight: 800; letter-spacing: -0.04em; text-decoration: none; background: var(--gradient-text); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .home a:hover { opacity: 0.85; }
+.crumbs { display: inline-flex; align-items: center; gap: 0.5rem; }
+.crumbs span { color: var(--text-muted); }
+.crumbs a + span + a { font-weight: 500; letter-spacing: -0.01em; background: none; color: var(--text-secondary); }
+.crumbs a + span + a:hover { color: var(--text-primary); opacity: 1; }
 h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.05em; }
 .dek { color: var(--text-secondary); font-size: 1.15rem; margin: 0 0 16px; }
 .byline { color: var(--text-muted); font-size: 0.9rem; }

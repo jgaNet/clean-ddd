@@ -14,4 +14,15 @@ declare module 'fastify' {
     /** Set by the preHandler hook: the request's trace, caller, bus, unit of work and logger. */
     executionContext: ExecutionContext;
   }
+
+  /**
+   * A route's schema may say which group of the API it belongs to (`tags: ['notes']`), as every
+   * canonical route does. The documentation (`@fastify/swagger`) declares the same field when it
+   * is served; an application created from this reference has no documentation yet, and the
+   * routes it copies must compile there all the same (the first migration by hand found them
+   * refused). The type is the documentation's, so the two declarations merge.
+   */
+  interface FastifySchema {
+    tags?: readonly string[];
+  }
 }

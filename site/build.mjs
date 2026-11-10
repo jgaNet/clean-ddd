@@ -2,9 +2,9 @@
 /**
  * The article, built from site/data.json (node site/collect.mjs writes it from the records):
  *
- *   node site/collect.mjs && node site/build.mjs   → site/article.html (English), site/article.fr.html (French)
+ *   node site/collect.mjs && node site/build.mjs   → every article of site/articles.mjs, in English and in French
  *
- * The prose is in site/article/<language>.mjs; this file computes the figures, draws the charts and tables in the
+ * The prose is in site/article/<article>/<language>.mjs; this file computes the figures, draws the charts and tables in the
  * language being rendered, and hands them to the prose. `yarn site`, at the root, builds the whole site.
  *
  * The page that presents the project, site/index.html, is built by node site/home.mjs and links here.
@@ -12,8 +12,10 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { body as bodyEn } from './article/en.mjs';
-import { body as bodyFr } from './article/fr.mjs';
+import { articles } from './articles.mjs';
+import * as control from './article/control/index.mjs';
+import * as extensions from './article/extensions/index.mjs';
+import * as openstay from './article/openstay/index.mjs';
 import { ARMS, bars, dotRange, groupedColumns, legend, setLanguage, table } from './charts.mjs';
 import { figures, mean, quotes, span as spanIn, verifyQuotes } from './figures.mjs';
 import { openstay as O } from './openstay.mjs';
@@ -606,27 +608,29 @@ function render(language) {
     .join('');
 
   const site = 'https://jganet.github.io/clean-ddd/';
-  const pages = {
-    en: {
-      file: 'article.html',
-      title: 'Architecture and AI agents',
-      description:
-        'Does Clean Architecture and DDD help an AI coding agent? A controlled benchmark with and without the architecture, on a strong and a weaker model, over a growing codebase and a change of storage, then a lodging marketplace built to fifty features.',
-      body: bodyEn,
-      home: 'en/',
-      other: { code: 'FR', href: 'article.fr.html', lang: 'fr', label: 'Version française' },
-    },
-    fr: {
-      file: 'article.fr.html',
-      title: 'Architecture et agents IA',
-      description:
-        'La Clean Architecture et le DDD aident-ils un agent de code IA ? Un benchmark contrôlé avec et sans l’architecture, sur un modèle fort et un plus faible, sur une base de code qui grandit et un changement de stockage, puis une place de marché de logements construite jusqu’à cinquante fonctionnalités.',
-      body: bodyFr,
-      home: './',
-      other: { code: 'EN', href: 'article.html', lang: 'en', label: 'English version' },
-    },
+  // The prose of each article, by slug; a new article is a new entry here, in the registry and under site/article/.
+  const bodies = {
+    'architecture-and-ai-agents': control,
+    'where-the-architecture-should-pay': extensions,
+    openstay,
+  };
+  const other =
+    language === 'en'
+      ? { code: 'FR', lang: 'fr', label: 'Version française' }
+      : { code: 'EN', lang: 'en', label: 'English version' };
+  const where = {
+    en: { home: 'en/', list: 'en/articles.html', listLabel: 'The articles' },
+    fr: { home: './', list: 'articles.html', listLabel: 'Les articles' },
   }[language];
-  const ctx = {
+  // Each article's file in the language being rendered, by its short name, for the links between them.
+  const hrefs = Object.fromEntries(
+    [
+      ['control', 'architecture-and-ai-agents'],
+      ['extensions', 'where-the-architecture-should-pay'],
+      ['openstay', 'openstay'],
+    ].map(([name, slug]) => [name, articles.find(article => article.slug === slug)[language].file]),
+  );
+  const shared = {
     A,
     D,
     P,
@@ -654,21 +658,26 @@ function render(language) {
     readingRows,
     fix,
     usd,
-    home: pages.home,
-    other: pages.other,
+    hrefs,
+    ...where,
   };
-  writeFileSync(
-    join(here, pages.file),
-    page({
-      lang: language,
-      title: pages.title,
-      description: pages.description,
-      url: `${site}${pages.file}`,
-      alternates: { en: `${site}article.html`, fr: `${site}article.fr.html` },
-      body: pages.body(ctx),
-    }),
-  );
-  process.stdout.write(`site/${pages.file} written\n`);
+  for (const meta of articles) {
+    const { file, title, description } = meta[language];
+    const body = bodies[meta.slug][language];
+    const ctx = { ...shared, other: { ...other, href: meta[other.lang].file } };
+    writeFileSync(
+      join(here, file),
+      page({
+        lang: language,
+        title,
+        description,
+        url: `${site}${file}`,
+        alternates: { en: `${site}${meta.en.file}`, fr: `${site}${meta.fr.file}` },
+        body: body(ctx),
+      }),
+    );
+    process.stdout.write(`site/${file} written\n`);
+  }
 }
 
 render('en');

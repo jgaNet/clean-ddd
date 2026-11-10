@@ -125,8 +125,8 @@ legacy answered** so that the compatibility wire has nothing to reshape. A legac
 contexts is the flow's case: one agent per context, in its own worktree, against the storm as the
 frozen contract (`.claude/flow/README.md`).
 
-Two things a created application does not have, which the canonical files assume: Swagger `tags` in
-a route's schema (drop them), and the shared scenario (its own end-to-end suite is the proof).
+One thing a created application does not have, which the canonical files assume: the shared scenario
+(its own end-to-end suite is the proof).
 
 ## 6. Write the compatibility wire (under `compat`)
 
@@ -150,7 +150,8 @@ condition in words. Each route:
   is the operation's result, read back through the query; a refusal is mapped **from the rule's
   name to the legacy's status and sentence**, in one table at the top of the file;
 - **answers the contract's grammar past the deadline**: `202 { operationId }`, followed at the
-  Tracker; nothing is cancelled;
+  Tracker; nothing is cancelled. Make the deadline an option of the routes and hold the path with a
+  spec on a bus whose operations never settle, since in-process every command settles in time;
 - **owns the legacy's leniency**: a field the legacy read as missing when it was of the wrong type is
   coerced here (to the empty string, say), so that the domain refuses it by name and the name maps to
   the legacy's sentence; the native wire's schema stays shape-only (API-BODY-SHAPE).

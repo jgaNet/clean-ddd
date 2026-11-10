@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where the architecture should pay: four more experiments</title>
+<meta name="description" content="A weaker model, a growing codebase, a change of storage, the fan-out’s contract given to one agent: four conditions the architecture is claimed to pay under, each run with its prediction written before.">
+<meta property="og:title" content="Where the architecture should pay: four more experiments">
+<meta property="og:description" content="A weaker model, a growing codebase, a change of storage, the fan-out’s contract given to one agent: four conditions the architecture is claimed to pay under, each run with its prediction written before.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://jganet.github.io/clean-ddd/four-more-experiments.html">
+<link rel="alternate" hreflang="en" href="https://jganet.github.io/clean-ddd/four-more-experiments.html">
+<link rel="alternate" hreflang="fr" href="https://jganet.github.io/clean-ddd/four-more-experiments.fr.html">
+<meta property="og:image" content="https://jganet.github.io/clean-ddd/assets/img/open-graph.en.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('assets/fonts/inter-latin-wght-normal.woff2') format('woff2-variations');
+}
+:root {
+  color-scheme: dark;
+  --page: #0b012e;
+  --surface-1: rgba(51, 51, 51, 0.2);
+  --text-primary: rgb(229 236 246);
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --grid: rgba(255, 255, 255, 0.08);
+  --axis: #475569;
+  --border: rgba(255, 255, 255, 0.1);
+  --link: #f472b6;
+  --series-1: #3987e5;
+  --series-2: #ff5211;
+  --series-3: #199e70;
+  --series-4: #eda100;
+  --good: #34d399;
+  --critical: #fb7185;
+  --gradient-text: linear-gradient(to right, #ff5211, #e43b7d, #b08ae6);
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font: 17px/1.6 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+main { max-width: 760px; margin: 0 auto; padding: 48px 16px 96px; }
+header.title { margin-bottom: 40px; }
+.home { margin: 0 0 24px; font-size: 1rem; display: flex; justify-content: space-between; align-items: center; }
+.lang-switch { display: inline-flex; align-items: center; padding: 0.375rem 0.5rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; line-height: 1; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 0.25rem; color: #fff; text-decoration: none; }
+.lang-switch:hover { border-color: #fff; }
+.home a { font-weight: 800; letter-spacing: -0.04em; text-decoration: none; background: var(--gradient-text); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.home a:hover { opacity: 0.85; }
+.crumbs { display: inline-flex; align-items: center; gap: 0.5rem; }
+.crumbs span { color: var(--text-muted); }
+.crumbs a + span + a { font-weight: 500; letter-spacing: -0.01em; background: none; color: var(--text-secondary); }
+.crumbs a + span + a:hover { color: var(--text-primary); opacity: 1; }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.05em; }
+.dek { color: var(--text-secondary); font-size: 1.15rem; margin: 0 0 16px; }
+.byline { color: var(--text-muted); font-size: 0.9rem; }
+h2 { font-size: 1.4rem; margin: 56px 0 12px; line-height: 1.3; }
+h3 { font-size: 1.1rem; margin: 32px 0 8px; }
+p, li { color: var(--text-primary); }
+a { color: var(--link); }
+code { font: 0.88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--surface-1); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+blockquote { margin: 24px 0; padding: 4px 0 4px 16px; border-left: 3px solid var(--axis); color: var(--text-secondary); }
+.answer { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; margin: 24px 0; }
+.answer p { margin: 8px 0; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 24px 0; }
+.stat { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.stat .figure { font-size: 1.7rem; font-weight: 600; line-height: 1.2; }
+.stat .what { color: var(--text-secondary); font-size: 0.85rem; }
+figure.chart { margin: 28px 0 8px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 16px 8px; }
+figure.chart figcaption { font-weight: 600; margin-bottom: 8px; }
+figure.chart .plot { overflow-x: auto; }
+figure.chart .swipe { display: none; color: var(--text-muted); font-size: 0.8rem; margin: 0 0 6px; }
+@media (max-width: 640px) { figure.chart .swipe { display: block; } }
+figure.chart .plot svg { width: 100%; min-width: 600px; height: auto; display: block; overflow: visible; }
+.legend svg { flex: none; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 4px; }
+.legend .key { display: inline-flex; align-items: center; gap: 6px; }
+svg .grid { stroke: var(--grid); stroke-width: 1; }
+svg .axis { stroke: var(--axis); stroke-width: 1; }
+svg .tick { fill: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+svg .label { fill: var(--text-secondary); font-size: 13px; }
+svg .value { fill: var(--text-primary); font-size: 13px; font-variant-numeric: tabular-nums; }
+svg .dot { stroke: var(--page); stroke-width: 2; cursor: default; }
+svg .bar { cursor: default; }
+svg .dot:hover, svg .dot:focus, svg .bar:hover, svg .bar:focus { opacity: 0.8; outline: none; }
+.note { color: var(--text-muted); font-size: 0.85rem; margin: 4px 0 24px; }
+details.table-view { margin: 4px 0 24px; font-size: 0.9rem; }
+details.table-view summary { color: var(--text-muted); cursor: pointer; }
+table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 0.9rem; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+th { color: var(--text-secondary); font-weight: 600; }
+.scroll { overflow-x: auto; }
+.pass { color: var(--good); }
+.fail { color: var(--critical); }
+#tip { position: fixed; pointer-events: none; background: #1a1040; color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 0.85rem; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12); display: none; max-width: 320px; z-index: 10; }
+footer { margin-top: 64px; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--grid); padding-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+
+<header class="title">
+<p class="home"><span class="crumbs"><a href="en/">← CLEAN-DDD</a><span aria-hidden="true">·</span><a href="en/articles.html">The articles</a></span><a class="lang-switch" href="four-more-experiments.fr.html" hreflang="fr" lang="fr" aria-label="Version française">FR</a></p>
+<h1>Where the architecture should pay: four more experiments</h1>
+<p class="dek">The first benchmark said that Clean Architecture and DDD did not help an AI agent deliver a small application, and named what it could not show. Four experiments, each written down with its prediction before it ran, took one condition the architecture is claimed to pay under: a weaker model, a growing codebase, a change of storage, and the fan-out's contract given to a single agent.</p>
+<p class="byline">30 October 2026 · The <a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> experiments · Every number below is read from the records in the repository.</p>
+</header>
+
+<div class="answer">
+<p><strong>The short answer.</strong> None of the four conditions turned the first answer around. The plain project still delivered everything with a weaker model, stayed the soonest as the trees grew, and took the move to real storage in half the architecture's time. The fan-out's contract, given to one agent, did not make it sooner: the fan-out's gain is its parallelism. What the architecture did buy is measured here: the storage change stayed out of the domain, and only the tool kept the structure from drifting.</p>
+<p>The arms, the hidden tests and the grader are those of <a href="article.html">the first benchmark</a>: A is the architecture with our tool, D the architecture as prose, P a plain TypeScript project, C′ the fan-out by context.</p>
+</div>
+
+<h2>The protocol</h2>
+<p><a href="article.html">The control</a> named what it could not show. We wrote four more experiments, with their predictions, before running them (<a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/extensions/README.md">the protocol</a>). Same driver, same grader, hidden tests no agent saw. Grading found three defects in our own kit, all recorded as amendments and applied to every tree alike.</p>
+
+<h2>E1. A weaker model</h2>
+<p>The literature finds that architecture documentation helps weaker models most. We ran the backlog with the smallest model of the same family, two runs per arm.</p>
+<figure class="chart" id="chart-e1-time"><figcaption>E1, a weaker model: time to deliver the seven-feature backlog (minutes), beside the strong model</figcaption><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 262" role="img" aria-label="E1, a weaker model: time to deliver the seven-feature backlog (minutes), beside the strong model"><line x1="190" x2="190" y1="8" y2="236" class="grid"/><text x="190" y="254" class="tick" text-anchor="middle">0</text><line x1="295" x2="295" y1="8" y2="236" class="grid"/><text x="295" y="254" class="tick" text-anchor="middle">15</text><line x1="400" x2="400" y1="8" y2="236" class="grid"/><text x="400" y="254" class="tick" text-anchor="middle">30</text><line x1="505" x2="505" y1="8" y2="236" class="grid"/><text x="505" y="254" class="tick" text-anchor="middle">45</text><line x1="610" x2="610" y1="8" y2="236" class="grid"/><text x="610" y="254" class="tick" text-anchor="middle">60</text><g><text x="176" y="38" class="label" text-anchor="end">A, weaker model</text>
+<line x1="528.5445" x2="585.42335" y1="34" y2="34" stroke="var(--series-1)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="528.5445" cy="34" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="A weaker, run 1 (6/7): 48.4 min"/><circle cx="585.42335" cy="34" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="A weaker, run 2 (7/7): 56.5 min"/>
+<text x="620" y="38" class="value">48.4–56.5</text></g><g><text x="176" y="82" class="label" text-anchor="end">D, weaker model</text>
+<line x1="415.8515" x2="463.38161666666673" y1="78" y2="78" stroke="var(--series-3)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="415.8515" cy="78" r="5.5" fill="var(--series-3)" class="dot" tabindex="0" data-tip="D weaker, run 1 (7/7): 32.3 min"/><circle cx="463.38161666666673" cy="78" r="5.5" fill="var(--series-3)" class="dot" tabindex="0" data-tip="D weaker, run 2 (7/7): 39.1 min"/>
+<text x="620" y="82" class="value">32.3–39.1</text></g><g><text x="176" y="126" class="label" text-anchor="end">P, weaker model</text>
+<line x1="325.76418333333334" x2="347.0716" y1="122" y2="122" stroke="var(--series-2)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="325.76418333333334" cy="122" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="P weaker, run 1 (7/7): 19.4 min"/><circle cx="347.0716" cy="122" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="P weaker, run 2 (7/7): 22.4 min"/>
+<text x="620" y="126" class="value">19.4–22.4</text></g><g><text x="176" y="170" class="label" text-anchor="end">A, strong model</text>
+<line x1="437.13908333333336" x2="509.1470333333333" y1="166" y2="166" stroke="var(--series-1)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="509.1470333333333" cy="166" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="A strong, pilot: 45.6 min"/><circle cx="470.8591333333333" cy="166" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="A strong, run 2: 40.1 min"/><circle cx="437.13908333333336" cy="166" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="A strong, run 3: 35.3 min"/>
+<text x="620" y="170" class="value">35.3–45.6</text></g><g><text x="176" y="214" class="label" text-anchor="end">P, strong model</text>
+<line x1="288.34929999999997" x2="320.2282333333333" y1="210" y2="210" stroke="var(--series-2)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="303.7563" cy="210" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="P strong, run 1: 16.3 min"/><circle cx="320.2282333333333" cy="210" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="P strong, run 2: 18.6 min"/><circle cx="288.34929999999997" cy="210" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="P strong, run 3: 14.0 min"/>
+<text x="620" y="214" class="value">14.0–18.6</text></g></svg></div></figure>
+<figure class="chart" id="chart-e1-cost"><figcaption>E1, a weaker model: reported cost of the backlog (US dollars)</figcaption><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 174" role="img" aria-label="E1, a weaker model: reported cost of the backlog (US dollars)"><line x1="190" x2="190" y1="8" y2="148" class="grid"/><text x="190" y="166" class="tick" text-anchor="middle">$0</text><line x1="295" x2="295" y1="8" y2="148" class="grid"/><text x="295" y="166" class="tick" text-anchor="middle">$1.5</text><line x1="400" x2="400" y1="8" y2="148" class="grid"/><text x="400" y="166" class="tick" text-anchor="middle">$3</text><line x1="505" x2="505" y1="8" y2="148" class="grid"/><text x="505" y="166" class="tick" text-anchor="middle">$4.5</text><line x1="610" x2="610" y1="8" y2="148" class="grid"/><text x="610" y="166" class="tick" text-anchor="middle">$6</text><g><text x="176" y="38" class="label" text-anchor="end">A, weaker model</text>
+<line x1="455.1526185" x2="527.6879156" y1="34" y2="34" stroke="var(--series-1)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="455.1526185" cy="34" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="A weaker, run 1: $3.79"/><circle cx="527.6879156" cy="34" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="A weaker, run 2: $4.82"/>
+<text x="620" y="38" class="value">$3.79–4.82</text></g><g><text x="176" y="82" class="label" text-anchor="end">D, weaker model</text>
+<line x1="372.86426760000006" x2="430.9250949" y1="78" y2="78" stroke="var(--series-3)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="372.86426760000006" cy="78" r="5.5" fill="var(--series-3)" class="dot" tabindex="0" data-tip="D weaker, run 1: $2.61"/><circle cx="430.9250949" cy="78" r="5.5" fill="var(--series-3)" class="dot" tabindex="0" data-tip="D weaker, run 2: $3.44"/>
+<text x="620" y="82" class="value">$2.61–3.44</text></g><g><text x="176" y="126" class="label" text-anchor="end">P, weaker model</text>
+<line x1="228.8381476" x2="251.5068349" y1="122" y2="122" stroke="var(--series-2)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="228.8381476" cy="122" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="P weaker, run 1: $0.55"/><circle cx="251.5068349" cy="122" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="P weaker, run 2: $0.88"/>
+<text x="620" y="126" class="value">$0.55–0.88</text></g></svg></div></figure>
+<details class="table-view"><summary>E1, a weaker model — table</summary><table><thead><tr><th>Arm</th><th>Run</th><th>Minutes</th><th>Cost</th><th>Features passing</th><th>Import refusals</th></tr></thead><tbody><tr><td>A</td><td>run 1</td><td>48.4</td><td>$3.79</td><td>6/7</td><td>—</td></tr><tr><td>A</td><td>run 2</td><td>56.5</td><td>$4.82</td><td>7/7</td><td>—</td></tr><tr><td>D</td><td>run 1</td><td>32.3</td><td>$2.61</td><td>7/7</td><td>2</td></tr><tr><td>D</td><td>run 2</td><td>39.1</td><td>$3.44</td><td>7/7</td><td>0</td></tr><tr><td>P</td><td>run 1</td><td>19.4</td><td>$0.55</td><td>7/7</td><td>—</td></tr><tr><td>P</td><td>run 2</td><td>22.4</td><td>$0.88</td><td>7/7</td><td>—</td></tr></tbody></table></details>
+<p>The plain project delivered 7/7 twice, in 19.4–22.4 minutes for $0.55–0.88. The architecture with the tool delivered 6/7 and 7/7 in 48.4–56.5 minutes. Its one failure is a 400 from the request schema, where the request wanted a 202 and a refused outcome. Our own guide then told the agent to put the list of allowed values in the schema. That was a gap in the architecture, since closed, not a slip of the agent. <strong>The architecture did not help the weaker model deliver</strong>, and the weaker model paid relatively more to read it: about 6.0 times P's cost, against 4.2 times with the strong model.</p>
+
+<h2>E2. Was the fan-out's speed its contract?</h2>
+<p>On feature 8, the fan-out C′ was 21% sooner than one agent. But C′ also had a contract stage: a plan per context, frozen events and read models, and the acceptance test. We gave one agent all of it, from the same commit.</p>
+<figure class="chart" id="chart-e2"><figcaption>E2, feature 8: active minutes of one agent with the fan-out’s whole contract (A+)</figcaption><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 152" role="img" aria-label="E2, feature 8: active minutes of one agent with the fan-out’s whole contract (A+)"><line x1="190" x2="190" y1="8" y2="144" class="axis"/><text x="176" y="29" class="label" text-anchor="end">A, request and storm</text><path d="M190,14 H535.0666666666666 Q539.0666666666666,14 539.0666666666666,18 V30 Q539.0666666666666,34 535.0666666666666,34 H190 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A, request and storm: 23.8 min — campaign"/><text x="547.0666666666666" y="29" class="value">23.8 min</text><text x="176" y="63" class="label" text-anchor="end">A+, run 1</text><path d="M190,48 H549.3344 Q553.3344,48 553.3344,52 V64 Q553.3344,68 549.3344,68 H190 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A+, run 1: 24.8 min — 8/8 tests, no regression"/><text x="561.3344" y="63" class="value">24.8 min</text><text x="176" y="97" class="label" text-anchor="end">A+, run 2</text><path d="M190,82 H515.6890666666667 Q519.6890666666667,82 519.6890666666667,86 V98 Q519.6890666666667,102 515.6890666666667,102 H190 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A+, run 2: 22.5 min — 8/8 tests, no regression"/><text x="527.6890666666667" y="97" class="value">22.5 min</text><text x="176" y="131" class="label" text-anchor="end">C′, six slices</text><path d="M190,116 H463.2 Q467.2,116 467.2,120 V132 Q467.2,136 463.2,136 H190 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="C′, six slices: 18.9 min — campaign"/><text x="475.2" y="131" class="value">18.9 min</text></svg></div></figure>
+<details class="table-view"><summary>E2, feature 8 — table</summary><table><thead><tr><th>Agent</th><th>Minutes</th><th>Cost</th><th>Feature 8 tests</th><th>Features 1–7 afterwards</th></tr></thead><tbody><tr><td>A, request and storm</td><td>23.8</td><td>$8.67</td><td>8/8</td><td>no regression</td></tr><tr><td>A+, run 1</td><td>24.8</td><td>$8.53</td><td>8/8</td><td>no regression</td></tr><tr><td>A+, run 2</td><td>22.5</td><td>$8.24</td><td>8/8</td><td>no regression</td></tr><tr><td>C′, six slices</td><td>18.9</td><td>$15.07</td><td>8/8</td><td>no regression</td></tr></tbody></table></details>
+<p>With the whole contract, one agent took 22.5–24.8 minutes, as long as without it. <strong>The fan-out's gain was parallelism, not the contract.</strong> The contract is what makes the parallelism safe; on its own it bought nothing measurable.</p>
+
+<h2>E3. Five more features</h2>
+<p>Architectural decay is said to grow with code size. One finished tree per arm took five more features that change what exists: comments, a note's history with a restore, editors on a shared note, deleting an account and everything it owns, and search.</p>
+<figure class="chart" id="chart-e3-features"><figcaption>E3, five more features: minutes per feature, one tree per arm</figcaption><div class="legend"><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-1)"/></svg>A — architecture + tool</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-3)"/></svg>D — architecture, no tool</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-2)"/></svg>P — plain project</span></div><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 258" role="img" aria-label="E3, five more features: minutes per feature, one tree per arm"><line x1="48" x2="708" y1="216" y2="216" class="axis"/><text x="40" y="220" class="tick" text-anchor="end">0</text><line x1="48" x2="708" y1="166" y2="166" class="grid"/><text x="40" y="170" class="tick" text-anchor="end">2</text><line x1="48" x2="708" y1="116" y2="116" class="grid"/><text x="40" y="120" class="tick" text-anchor="end">4</text><line x1="48" x2="708" y1="66" y2="66" class="grid"/><text x="40" y="70" class="tick" text-anchor="end">6</text><line x1="48" x2="708" y1="16" y2="16" class="grid"/><text x="40" y="20" class="tick" text-anchor="end">8</text><path d="M79,216 V76.17375000000001 Q79,72.17375000000001 83,72.17375000000001 H97 Q101,72.17375000000001 101,76.17375000000001 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Comments: 5.8 min"/><path d="M103,216 V93.53875000000001 Q103,89.53875000000001 107,89.53875000000001 H121 Q125,89.53875000000001 125,93.53875000000001 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Comments: 5.1 min"/><path d="M127,216 V152.655 Q127,148.655 131,148.655 H145 Q149,148.655 149,152.655 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Comments: 2.7 min"/><text x="114" y="234" class="tick" text-anchor="middle">Comments</text><path d="M211,216 V132.88541666666666 Q211,128.88541666666666 215,128.88541666666666 H229 Q233,128.88541666666666 233,132.88541666666666 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · History: 3.5 min"/><path d="M235,216 V128.30875 Q235,124.30875 239,124.30875 H253 Q257,124.30875 257,128.30875 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · History: 3.7 min"/><path d="M259,216 V152.1591666666667 Q259,148.1591666666667 263,148.1591666666667 H277 Q281,148.1591666666667 281,152.1591666666667 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · History: 2.7 min"/><text x="246" y="234" class="tick" text-anchor="middle">History</text><path d="M343,216 V118.49583333333334 Q343,114.49583333333334 347,114.49583333333334 H361 Q365,114.49583333333334 365,118.49583333333334 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Editors: 4.1 min"/><path d="M367,216 V69.22874999999999 Q367,65.22874999999999 371,65.22874999999999 H385 Q389,65.22874999999999 389,69.22874999999999 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Editors: 6.0 min"/><path d="M391,216 V135.93208333333334 Q391,131.93208333333334 395,131.93208333333334 H409 Q413,131.93208333333334 413,135.93208333333334 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Editors: 3.4 min"/><text x="378" y="234" class="tick" text-anchor="middle">Editors</text><path d="M475,216 V56.34 Q475,52.34 479,52.34 H493 Q497,52.34 497,56.34 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Delete account: 6.5 min"/><path d="M499,216 V35.11583333333334 Q499,31.11583333333334 503,31.11583333333334 H517 Q521,31.11583333333334 521,35.11583333333334 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Delete account: 7.4 min"/><path d="M523,216 V138.00375000000003 Q523,134.00375000000003 527,134.00375000000003 H541 Q545,134.00375000000003 545,138.00375000000003 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Delete account: 3.3 min"/><text x="510" y="234" class="tick" text-anchor="middle">Delete account</text><path d="M607,216 V142.38416666666666 Q607,138.38416666666666 611,138.38416666666666 H625 Q629,138.38416666666666 629,142.38416666666666 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Search: 3.1 min"/><path d="M631,216 V146.16916666666668 Q631,142.16916666666668 635,142.16916666666668 H649 Q653,142.16916666666668 653,146.16916666666668 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Search: 3.0 min"/><path d="M655,216 V110.45583333333333 Q655,106.45583333333333 659,106.45583333333333 H673 Q677,106.45583333333333 677,110.45583333333333 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Search: 4.4 min"/><text x="642" y="234" class="tick" text-anchor="middle">Search</text></svg></div></figure>
+<figure class="chart" id="chart-e3-growth"><figcaption>E3: mean minutes per feature, on the same tree, before and after it grew</figcaption><div class="legend"><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-1)"/></svg>A — architecture + tool</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-3)"/></svg>D — architecture, no tool</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-2)"/></svg>P — plain project</span></div><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 258" role="img" aria-label="E3: mean minutes per feature, on the same tree, before and after it grew"><line x1="48" x2="708" y1="216" y2="216" class="axis"/><text x="40" y="220" class="tick" text-anchor="end">0</text><line x1="48" x2="708" y1="166" y2="166" class="grid"/><text x="40" y="170" class="tick" text-anchor="end">1.5</text><line x1="48" x2="708" y1="116" y2="116" class="grid"/><text x="40" y="120" class="tick" text-anchor="end">3</text><line x1="48" x2="708" y1="66" y2="66" class="grid"/><text x="40" y="70" class="tick" text-anchor="end">4.5</text><line x1="48" x2="708" y1="16" y2="16" class="grid"/><text x="40" y="20" class="tick" text-anchor="end">6</text><path d="M178,216 V73.9027777777778 Q178,69.9027777777778 182,69.9027777777778 H196 Q200,69.9027777777778 200,73.9027777777778 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Features 2–7: 4.4 min"/><path d="M202,216 V93.49018518518515 Q202,89.49018518518515 206,89.49018518518515 H220 Q224,89.49018518518515 224,93.49018518518515 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Features 2–7: 3.8 min"/><path d="M226,216 V137.06925925925927 Q226,133.06925925925927 230,133.06925925925927 H244 Q248,133.06925925925927 248,137.06925925925927 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Features 2–7: 2.5 min"/><text x="213" y="234" class="tick" text-anchor="middle">Features 2–7</text><path d="M508,216 V67.00777777777779 Q508,63.00777777777779 512,63.00777777777779 H526 Q530,63.00777777777779 530,67.00777777777779 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A — architecture + tool · Features 9–13: 4.6 min"/><path d="M532,216 V52.62966666666668 Q532,48.62966666666668 536,48.62966666666668 H550 Q554,48.62966666666668 554,52.62966666666668 V216 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D — architecture, no tool · Features 9–13: 5.0 min"/><path d="M556,216 V110.45488888888889 Q556,106.45488888888889 560,106.45488888888889 H574 Q578,106.45488888888889 578,110.45488888888889 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P — plain project · Features 9–13: 3.3 min"/><text x="543" y="234" class="tick" text-anchor="middle">Features 9–13</text></svg></div></figure>
+<details class="table-view"><summary>E3, five more features — table</summary><table><thead><tr><th>Arm</th><th>Tree</th><th>Comments</th><th>History</th><th>Editors</th><th>Delete account</th><th>Search</th><th>Per feature, 2–7</th><th>Per feature, 9–13</th><th>Cost, 9–13</th><th>Tests passing</th></tr></thead><tbody><tr><td>A</td><td>run 3</td><td>5.8</td><td>3.5</td><td>4.1</td><td>6.5</td><td>3.1</td><td>4.4</td><td>4.6</td><td>$5.67</td><td>5/5</td></tr><tr><td>D</td><td>run 2</td><td>5.1</td><td>3.7</td><td>6.0</td><td>7.4</td><td>3.0</td><td>3.8</td><td>5.0</td><td>$5.87</td><td>5/5</td></tr><tr><td>P</td><td>run 2</td><td>2.7</td><td>2.7</td><td>3.4</td><td>3.3</td><td>4.4</td><td>2.5</td><td>3.3</td><td>$1.68</td><td>5/5</td></tr></tbody></table></details>
+<p>Every arm passed every new test, with no regression. Feature 11 changed a rule of feature 4 on purpose, and only the old assertion of that rule failed. P was the soonest on four of five features. Its time per feature grew by 32%, and D's by 32%, while A's moved 5%. That is the shape the hypothesis predicted for the plain tree, but D shows it too, and each arm has one tree. <strong>It is a direction to measure over a longer horizon, not a result.</strong></p>
+<p>Without the tool, the structure drifted as the code grew: D's tree went from 20 refusals of the generated import rules in 10 files to 24 in 12. A's tree cannot drift, since the tool refuses the violation.</p>
+
+<h2>E4. Real storage</h2>
+<p>Ports and adapters exist so that storage can change in one place. One fresh agent per tree moved everything to SQLite. A hidden test then restarted the server on the same file and read everything back.</p>
+<figure class="chart" id="chart-e4-time"><figcaption>E4, storage moved to SQLite: active minutes, two trees per arm</figcaption><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 174" role="img" aria-label="E4, storage moved to SQLite: active minutes, two trees per arm"><line x1="190" x2="190" y1="8" y2="148" class="grid"/><text x="190" y="166" class="tick" text-anchor="middle">0</text><line x1="274" x2="274" y1="8" y2="148" class="grid"/><text x="274" y="166" class="tick" text-anchor="middle">3</text><line x1="358" x2="358" y1="8" y2="148" class="grid"/><text x="358" y="166" class="tick" text-anchor="middle">6</text><line x1="442" x2="442" y1="8" y2="148" class="grid"/><text x="442" y="166" class="tick" text-anchor="middle">9</text><line x1="526" x2="526" y1="8" y2="148" class="grid"/><text x="526" y="166" class="tick" text-anchor="middle">12</text><line x1="610" x2="610" y1="8" y2="148" class="grid"/><text x="610" y="166" class="tick" text-anchor="middle">15</text><g><text x="176" y="38" class="label" text-anchor="end">A — architecture + tool</text>
+<line x1="454.537" x2="539.2850666666666" y1="34" y2="34" stroke="var(--series-1)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="454.537" cy="34" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="A, run 2: 9.4 min"/><circle cx="539.2850666666666" cy="34" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="A, run 3: 12.5 min"/>
+<text x="620" y="38" class="value">9.4–12.5</text></g><g><text x="176" y="82" class="label" text-anchor="end">D — architecture, no tool</text>
+<line x1="539.3774666666667" x2="549.3678666666667" y1="78" y2="78" stroke="var(--series-3)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="539.3774666666667" cy="78" r="5.5" fill="var(--series-3)" class="dot" tabindex="0" data-tip="D, run 1: 12.5 min"/><circle cx="549.3678666666667" cy="78" r="5.5" fill="var(--series-3)" class="dot" tabindex="0" data-tip="D, run 2: 12.8 min"/>
+<text x="620" y="82" class="value">12.5–12.8</text></g><g><text x="176" y="126" class="label" text-anchor="end">P — plain project</text>
+<line x1="327.56913333333335" x2="328.56640000000004" y1="122" y2="122" stroke="var(--series-2)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="328.56640000000004" cy="122" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="P, run 2: 4.9 min"/><circle cx="327.56913333333335" cy="122" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="P, run 3: 4.9 min"/>
+<text x="620" y="126" class="value">4.9–4.9</text></g></svg></div></figure>
+<figure class="chart" id="chart-e4-lines"><figcaption>E4: source lines the storage change added, per tree</figcaption><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 220" role="img" aria-label="E4: source lines the storage change added, per tree"><line x1="190" x2="190" y1="8" y2="212" class="axis"/><text x="176" y="29" class="label" text-anchor="end">A, run 2</text><path d="M190,14 H297.76 Q301.76,14 301.76,18 V30 Q301.76,34 297.76,34 H190 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A, run 2: 381 lines — 27 files touched"/><text x="309.76" y="29" class="value">381 lines</text><text x="176" y="63" class="label" text-anchor="end">A, run 3</text><path d="M190,48 H464.66666666666663 Q468.66666666666663,48 468.66666666666663,52 V64 Q468.66666666666663,68 464.66666666666663,68 H190 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="A, run 3: 950 lines — 28 files touched"/><text x="476.66666666666663" y="63" class="value">950 lines</text><text x="176" y="97" class="label" text-anchor="end">D, run 1</text><path d="M190,82 H505.73333333333335 Q509.73333333333335,82 509.73333333333335,86 V98 Q509.73333333333335,102 505.73333333333335,102 H190 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D, run 1: 1,090 lines — 23 files touched"/><text x="517.7333333333333" y="97" class="value">1,090 lines</text><text x="176" y="131" class="label" text-anchor="end">D, run 2</text><path d="M190,116 H301.5733333333333 Q305.5733333333333,116 305.5733333333333,120 V132 Q305.5733333333333,136 301.5733333333333,136 H190 Z" fill="var(--series-3)" class="bar" tabindex="0" data-tip="D, run 2: 394 lines — 17 files touched"/><text x="313.5733333333333" y="131" class="value">394 lines</text><text x="176" y="165" class="label" text-anchor="end">P, run 2</text><path d="M190,150 H247.01333333333332 Q251.01333333333332,150 251.01333333333332,154 V166 Q251.01333333333332,170 247.01333333333332,170 H190 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P, run 2: 208 lines — 9 files touched"/><text x="259.0133333333333" y="165" class="value">208 lines</text><text x="176" y="199" class="label" text-anchor="end">P, run 3</text><path d="M190,184 H247.30666666666667 Q251.30666666666667,184 251.30666666666667,188 V200 Q251.30666666666667,204 247.30666666666667,204 H190 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="P, run 3: 209 lines — 9 files touched"/><text x="259.3066666666667" y="199" class="value">209 lines</text></svg></div></figure>
+<details class="table-view"><summary>E4, storage in SQLite — table</summary><table><thead><tr><th>Arm</th><th>Tree</th><th>Minutes</th><th>Cost</th><th>Hidden test</th><th>Regressions</th><th>Source lines added</th><th>Files touched</th></tr></thead><tbody><tr><td>A</td><td>run 2</td><td>9.4</td><td>$2.15</td><td>pass</td><td>0</td><td>381</td><td>27</td></tr><tr><td>A</td><td>run 3</td><td>12.5</td><td>$3.67</td><td>pass</td><td>0</td><td>950</td><td>28</td></tr><tr><td>D</td><td>run 1</td><td>12.5</td><td>$3.74</td><td>pass</td><td>0</td><td>1090</td><td>23</td></tr><tr><td>D</td><td>run 2</td><td>12.8</td><td>$2.95</td><td>pass</td><td>0</td><td>394</td><td>17</td></tr><tr><td>P</td><td>run 2</td><td>4.9</td><td>$1.00</td><td>pass</td><td>0</td><td>208</td><td>9</td></tr><tr><td>P</td><td>run 3</td><td>4.9</td><td>$0.90</td><td>pass</td><td>0</td><td>209</td><td>9</td></tr></tbody></table></details>
+<p>All six trees passed, with no regression. <strong>The prediction on where the change lands held:</strong> no architecture run touched a context's domain or use cases, only adapters, wiring and the building blocks. The plain runs changed every module, since storage is not apart from the rules there. <strong>It did not make the change cheaper.</strong> P took 4.9 minutes, against 9.4–12.5 for A and 12.5–12.8 for D. Within the architecture arms, the size of the change followed a design choice, a table per aggregate or one document each, and not the arm.</p>
+
+<h2>What the four add to the first answer</h2>
+<p>On a small application, the architecture costs more under every condition where it was claimed to pay, and delivers no more. Two of its promises hold and are now measured: a change of storage stays out of the domain, and the structure does not drift when the tool holds it. Whether that return grows with the code is what <a href="openstay.html">OpenStay</a>, a larger application built for longer, was then run to see.</p>
+
+<h2>What this still does not show</h2>
+<ul>
+<li><strong>A longer horizon.</strong> Five more features on one tree per arm show a direction, not a result; OpenStay takes the same question past fifty features.</li>
+<li><strong>Another model family.</strong> The weaker model was the smallest of the same family.</li>
+<li><strong>Sample size.</strong> Two runs per arm in E1 and E4, one tree per arm in E3, two in E2.</li>
+</ul>
+
+<h2>Reproduce it</h2>
+<p>Everything is in the repository:</p>
+<ul>
+<li>the protocol and its predictions, written before the runs: <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/extensions/README.md">extensions/</a>;</li>
+<li>the drivers and the grader: <a href="https://github.com/jgaNet/clean-ddd/blob/main/.claude/flow">.claude/flow/</a>;</li>
+<li>the record: <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/2026-10-30-flow-extensions.md">the four experiments</a>;</li>
+<li>the logs, grades and readings: <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/flow/extensions">flow/extensions/</a>.</li>
+</ul>
+<p>The figures on this page are read from those files by <a href="https://github.com/jgaNet/clean-ddd/blob/main/site/collect.mjs">site/collect.mjs</a>.</p>
+
+<footer>clean-ddd · experiments run and written up with an AI assistant. Corrections welcome as issues on the repository.</footer>
+
+</main>
+<div id="tip" role="tooltip"></div>
+<script>
+// One tooltip for every mark: the value first, from the mark's data-tip, set as text (never as HTML).
+const tip = document.getElementById('tip');
+const show = (mark, x, y) => {
+  tip.textContent = mark.getAttribute('data-tip');
+  tip.style.display = 'block';
+  const width = tip.offsetWidth;
+  tip.style.left = Math.min(x + 12, window.innerWidth - width - 8) + 'px';
+  tip.style.top = (y + 14) + 'px';
+};
+const hide = () => { tip.style.display = 'none'; };
+document.querySelectorAll('[data-tip]').forEach(mark => {
+  mark.addEventListener('pointermove', event => show(mark, event.clientX, event.clientY));
+  mark.addEventListener('pointerleave', hide);
+  mark.addEventListener('focus', () => { const box = mark.getBoundingClientRect(); show(mark, box.right, box.top); });
+  mark.addEventListener('blur', hide);
+});
+</script>
+</body>
+</html>

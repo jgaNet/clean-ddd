@@ -39,7 +39,7 @@ const refuse = (reply: FastifyReply, error: Exception) => {
 
 export const legacyRoutes = function (
   fastify: FastifyInstance,
-  { linksModule }: { linksModule: Module },
+  { linksModule, timeoutMs }: { linksModule: Module; timeoutMs?: number },
   done: () => void,
 ) {
   /** The legacy read a field as a string or treated it as missing; the domain then refuses what is missing. */
@@ -55,7 +55,9 @@ export const legacyRoutes = function (
   fastify.post<{ Body: { url?: unknown; title?: unknown } }>('/links', async (req, reply) => {
     const body = req.body ?? {};
     const command = SaveLinkCommandEvent.set({ url: asString(body.url), title: asString(body.title) });
-    const operation = await awaitOperation(req.executionContext.eventBus.publish(command, req.executionContext));
+    const operation = await awaitOperation(req.executionContext.eventBus.publish(command, req.executionContext), {
+      timeoutMs,
+    });
     if (!hasOutcome(operation)) return reply.code(202).send({ operationId: operation.id });
     if (operation.result?.isFailure()) return refuse(reply, operation.result.error);
     return readLink(req, reply, operation.result?.data as string, 201);
@@ -70,7 +72,9 @@ export const legacyRoutes = function (
 
   fastify.post<{ Params: { id: string } }>('/links/:id/archive', async (req, reply) => {
     const command = ArchiveLinkCommandEvent.set({ linkId: req.params.id });
-    const operation = await awaitOperation(req.executionContext.eventBus.publish(command, req.executionContext));
+    const operation = await awaitOperation(req.executionContext.eventBus.publish(command, req.executionContext), {
+      timeoutMs,
+    });
     if (!hasOutcome(operation)) return reply.code(202).send({ operationId: operation.id });
     if (operation.result?.isFailure()) return refuse(reply, operation.result.error);
     return readLink(req, reply, req.params.id, 200);
