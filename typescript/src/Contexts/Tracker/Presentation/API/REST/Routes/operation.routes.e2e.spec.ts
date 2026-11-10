@@ -63,6 +63,6 @@ describe('Tracker: following an operation', () => {
 
     const signed = await shareUnknownNote();
     const stranger = await superagent.get(`${api}/tracker/operations/${signed.body.operationId}`).ok(() => true);
-    expect(stranger.status).toBe(403);
+    expect(stranger.status).toBe(401); // not signed in: told to sign in, not whether it exists
   });
 });

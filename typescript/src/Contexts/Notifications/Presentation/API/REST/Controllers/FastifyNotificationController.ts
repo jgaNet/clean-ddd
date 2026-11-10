@@ -1,7 +1,8 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 
 import { Exception, NotAllowedException } from '@Architecture/Domain';
-import { Module } from '@Architecture/Application';
+import { ExecutionContext, Module } from '@Architecture/Application';
+import { acceptCommand, notAllowedStatus } from '@Architecture/Presentation/AcceptCommand';
 
 import { NotificationNotFoundException } from '@Contexts/Notifications/Domain/Notification/NotificationExceptions';
 import { SendNotificationCommandEvent } from '@Contexts/Notifications/Application/Commands/SendNotification/SendNotificationCommandEvent';
@@ -22,18 +23,16 @@ export class FastifyNotificationController {
       .getQuery(GetNotificationsQueryHandler)
       .handle({ recipientId: req.params.recipientId, ...req.query }, req.executionContext);
 
-    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
+    return result.isFailure() ? this.refuse(reply, result.error, req.executionContext) : result.data;
   }
 
   async markAsRead(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
-    const context = req.executionContext;
-    const operation = context.eventBus.publish(
+    return acceptCommand(
+      req,
+      reply,
+      this.module,
       MarkAsReadNotificationCommandEvent.set({ notificationId: req.params.id }),
-      context,
     );
-
-    reply.code(202);
-    return { operationId: operation.id };
   }
 
   async sendNotification(
@@ -48,15 +47,11 @@ export class FastifyNotificationController {
     }>,
     reply: FastifyReply,
   ) {
-    const context = req.executionContext;
-    const operation = context.eventBus.publish(SendNotificationCommandEvent.set(req.body), context);
-
-    reply.code(202);
-    return { operationId: operation.id };
+    return acceptCommand(req, reply, this.module, SendNotificationCommandEvent.set(req.body));
   }
 
-  private refuse(reply: FastifyReply, error: Exception) {
-    if (error instanceof NotAllowedException) reply.code(403);
+  private refuse(reply: FastifyReply, error: Exception, context: ExecutionContext) {
+    if (error instanceof NotAllowedException) reply.code(notAllowedStatus(context));
     else if (error instanceof NotificationNotFoundException) reply.code(404);
     else reply.code(400);
 

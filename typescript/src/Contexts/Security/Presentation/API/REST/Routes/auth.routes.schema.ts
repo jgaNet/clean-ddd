@@ -111,7 +111,8 @@ export const validateAccountSchema = {
 };
 
 export const validateAccountByIdSchema = {
-  description: 'Validate an account by id (administrators only; the outcome is on the operation)',
+  description:
+    'Validate an account by id (administrators only: 401 at once to a caller who is not signed in; the outcome is on the operation)',
   tags: ['accounts'],
   params: {
     type: 'object',
@@ -121,6 +122,7 @@ export const validateAccountByIdSchema = {
   },
   response: {
     202: AcceptedSchema,
+    401: RefusedSchema,
   },
 };
 
@@ -146,6 +148,7 @@ export const getAccountByIdSchema = {
   response: {
     200: AccountSchema,
     400: RefusedSchema,
+    401: RefusedSchema,
     403: RefusedSchema,
     404: RefusedSchema,
   },

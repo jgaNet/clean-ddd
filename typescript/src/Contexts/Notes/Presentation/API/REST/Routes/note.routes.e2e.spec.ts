@@ -165,3 +165,25 @@ describe('Sharing a note with an unknown account', () => {
     expect(note.body.sharedWith).toEqual([]);
   });
 });
+
+describe('Who reaches a command (API-CALLER-AT-TRANSPORT, ADR 39)', () => {
+  it('refuses a caller who is not signed in at once with 401, and publishes nothing', async () => {
+    const refused = await superagent
+      .post(`${api}/notes`)
+      .send({ title: 'Anonymous', content: '...' })
+      .ok(() => true);
+
+    expect(refused.status).toBe(401);
+    expect(refused.body).toEqual({ message: expect.any(String) });
+    // Nothing was published under the request's trace: no operation to follow.
+    const traced = await agent.get(`${api}/tracker/operations`).query({ traceId: refused.headers['x-trace-id'] });
+    expect(traced.body).toEqual([]);
+  });
+
+  it('refuses a query to a caller who is not signed in with 401 too: one refusal, one status', async () => {
+    const anonymous = await superagent.get(`${api}/notes`).ok(() => true);
+
+    expect(anonymous.status).toBe(401);
+    expect(anonymous.body).toEqual({ message: expect.any(String) });
+  });
+});

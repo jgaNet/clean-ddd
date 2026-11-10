@@ -178,7 +178,7 @@ http:
     - intent: create
       verb: POST
       shape: POST /notes
-      when: A command that brings a new thing into existence. Answers 202 with the operation id.
+      when: A command that brings a new thing into existence. Answers 202 with the operation id, or 401 at once to a caller who is not signed in (API-CALLER-AT-TRANSPORT).
     - intent: act
       verb: POST
       shape: POST /notes/:id/share
@@ -206,7 +206,7 @@ http:
     - intent: link-in-an-email
       verb: GET
       shape: GET /auth/validate?validation_token=…
-      when: A command behind a link someone clicks in an email. The exception, not a pattern to copy.
+      when: A command behind a link someone clicks in an email. The exception, not a pattern to copy. The link carries its own proof, so its handler says anyone may ask for it (API-CALLER-AT-TRANSPORT).
 
 # The kinds of thing a feature is made of, each pointing at the concept whose canonical file
 # shows it. Where one goes and what it is made of in a given language is the binding's
@@ -397,6 +397,14 @@ rules:
     remediation: Keep `type` and `required` in the body's schema and remove any keyword that rules on a value; let the value object or the aggregate refuse the value with its exception, from the string the body sent.
     enforcement: tests
     references: [docs/adr/0032-a-command-body-is-refused-for-its-shape-only.md]
+
+  - id: API-CALLER-AT-TRANSPORT
+    name: a-command-whose-outcome-is-read-later-needs-a-caller-at-the-transport
+    statement: A command whose outcome is read later (answered 202 with an operation) needs a signed-in caller unless its handler says, once, that anyone may ask for it; the transport refuses a missing caller at once with 401, before anything is published, in the one helper every such route calls. A query that needs a caller and has none answers 401 too, 403 is for a signed-in caller the rule refuses, and a command answered at once keeps its own 4xx; the handler still asks for its caller's id and the aggregate still decides what that caller may do.
+    why: A client that is not signed in learns it at once, instead of following an operation that was never going to succeed; missing credentials are a 401 in HTTP, and one refusal has one status. Said once on the handler and held in one helper, who reaches a command cannot differ from one route to the next — routes that each checked the caller in their own way did, and a new route copied whichever it saw first.
+    remediation: Answer a 202 route through the transport's helper, never by publishing a command on the bus from the route; mark the handler of a command anyone may ask for (signing up, a link that carries its own proof, a provider's webhook) and no other; answer a query's refusal of a caller who is not signed in with 401 and of a signed-in caller with 403; leave a command answered at once its own 4xx.
+    enforcement: tests
+    references: [docs/adr/0039-a-command-whose-outcome-is-read-later-needs-a-caller-at-the-transport.md]
 
   - id: CTX-MAP-DECLARED
     name: the-context-map-is-declared-and-true

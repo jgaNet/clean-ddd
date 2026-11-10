@@ -1,7 +1,8 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 
 import { Exception, NotAllowedException, NotFoundException } from '@Architecture/Domain';
-import { Module } from '@Architecture/Application';
+import { ExecutionContext, Module } from '@Architecture/Application';
+import { acceptCommand, notAllowedStatus } from '@Architecture/Presentation/AcceptCommand';
 
 import { ValidateAccountCommandEvent } from '@Contexts/Security/Application/Commands';
 import { GetAccountQueryHandler } from '@Contexts/Security/Application/Queries';
@@ -19,21 +20,24 @@ export class FastifyAccountController {
       .getQuery(GetAccountQueryHandler)
       .handle(req.params.id, req.executionContext);
 
-    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
+    return result.isFailure() ? this.refuse(reply, result.error, req.executionContext) : result.data;
   }
 
+  /**
+   * An administrator's: a caller who is not signed in is refused at once with 401; whether a
+   * signed-in caller may validate by id is the handler's decision, on the operation.
+   */
   async validateAccountById(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
-    const context = req.executionContext;
-
-    // Whether this caller may validate by id is the handler's decision, from the context.
-    const operation = context.eventBus.publish(ValidateAccountCommandEvent.set({ accountId: req.params.id }), context);
-
-    reply.code(202);
-    return { operationId: operation.id };
+    return acceptCommand(
+      req,
+      reply,
+      this.#securityModule,
+      ValidateAccountCommandEvent.set({ accountId: req.params.id }),
+    );
   }
 
-  private refuse(reply: FastifyReply, error: Exception) {
-    if (error instanceof NotAllowedException) reply.code(403);
+  private refuse(reply: FastifyReply, error: Exception, context: ExecutionContext) {
+    if (error instanceof NotAllowedException) reply.code(notAllowedStatus(context));
     else if (error instanceof NotFoundException) reply.code(404);
     else reply.code(400);
 

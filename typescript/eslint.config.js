@@ -6,10 +6,12 @@
  * file, the libraries. Both sit in the repository's `conventions/`, found by walking up from this
  * file (one level up here; the same directory in an application `yarn architecture create` made).
  * This file translates them into `no-restricted-imports` rules, one block per context and
- * per layer, so that every context is held to the same standard. One more block holds a rule of
- * the contract that is not about imports: a command's body is refused for its shape only
+ * per layer, so that every context is held to the same standard. One more block holds two rules of
+ * the contract that are not about imports: a command's body is refused for its shape only
  * (API-BODY-SHAPE), so a request schema's `body` declares types and required fields and no value
- * rule.
+ * rule; and a command whose outcome is read later needs a caller at the transport
+ * (API-CALLER-AT-TRANSPORT), so a route publishes a command and answers `202` only through
+ * `acceptCommand()`, which refuses a caller who is not signed in with `401` first.
  *
  * The translation: the YAML says what a layer MAY import; ESLint wants what it may NOT. So we
  * enumerate every "unit" a file could import (each layer of its own context, of the building
@@ -168,6 +170,8 @@ const VALUE_RULES = [
   'maxItems',
   'uniqueItems',
 ];
+const CALLER_AT_TRANSPORT =
+  'API-CALLER-AT-TRANSPORT: a command whose outcome is read later needs a signed-in caller, refused at once with 401 before anything is published. Answer the route with `acceptCommand(req, reply, module, command)` (@Architecture/Presentation/AcceptCommand), never by publishing on the bus or answering 202 yourself; a command anyone may ask for says so on its handler (`anyoneMayAsk()`) (`yarn architecture rule API-CALLER-AT-TRANSPORT`).';
 const CONTEXTS = binding.contexts;
 const ARCHITECTURE = binding.architecture;
 const KERNEL = binding.kernel;
@@ -185,8 +189,13 @@ export default tseslint.config(
       '@typescript-eslint/no-inferrable-types': ['off'],
     },
   },
+  // Two rules of the contract held on a context's Presentation files, in one block: ESLint keeps the
+  // last `no-restricted-syntax` a file matches, so a second block would silence the first.
   // API-BODY-SHAPE: a request body's schema says its shape; whether a value is allowed is the domain's,
   // refused on the operation with the rule's exception, never as a 400 from the schema.
+  // API-CALLER-AT-TRANSPORT: a route whose command's outcome is read later goes through
+  // acceptCommand(), which answers 401 to a caller who is not signed in before anything is published;
+  // a route that publishes on the bus, or answers 202, by itself would skip that refusal.
   {
     files: [`${CONTEXTS_TREE.path}/*/Presentation/**/*.ts`],
     rules: {
@@ -196,6 +205,14 @@ export default tseslint.config(
           selector: `Property[key.name='body'] Property[key.name=/^(${VALUE_RULES.join('|')})$/]`,
           message:
             "API-BODY-SHAPE: a command's body is refused for its shape only (`type`, `required`); whether a value is allowed is the domain's to decide, on the operation. Remove the keyword and let the value object refuse the value (`yarn architecture rule API-BODY-SHAPE`).",
+        },
+        {
+          selector: `CallExpression[callee.property.name='publish']:matches([callee.object.name='eventBus'], [callee.object.property.name='eventBus'])`,
+          message: CALLER_AT_TRANSPORT,
+        },
+        {
+          selector: `CallExpression[callee.property.name=/^(code|status)$/][arguments.0.value=202]`,
+          message: CALLER_AT_TRANSPORT,
         },
       ],
     },

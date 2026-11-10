@@ -3,6 +3,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { NotAllowedException } from '@Architecture/Domain';
 import { Module } from '@Architecture/Application';
 import { formatOf, present } from '@Architecture/Presentation/Format';
+import { acceptCommand } from '@Architecture/Presentation/AcceptCommand';
 
 import {
   LoginCommandEvent,
@@ -51,27 +52,24 @@ export class FastifyAuthController {
     const context = req.executionContext;
     context.logger?.info('Creating new account', { traceId: context.traceId, email: req.body.identifier });
 
-    // The password is hashed by the handler, behind the IPasswordHasher port.
-    const operation = context.eventBus.publish(
+    // The password is hashed by the handler, behind the IPasswordHasher port; anyone may sign up.
+    return acceptCommand(
+      req,
+      reply,
+      this.#securityModule,
       SignUpCommandEvent.set({ email: req.body.identifier, password: req.body.password }),
-      context,
     );
-
-    reply.code(202);
-    return { operationId: operation.id };
   }
 
   async validate(req: FastifyRequest<{ Querystring: { validation_token: string } }>, reply: FastifyReply) {
-    const context = req.executionContext;
-
-    // The token is verified by the handler; whether it is valid is the operation's outcome.
-    const operation = context.eventBus.publish(
+    // Anyone holding the emailed token may ask; the handler verifies it, and whether it is valid
+    // is the operation's outcome.
+    return acceptCommand(
+      req,
+      reply,
+      this.#securityModule,
       ValidateAccountCommandEvent.set({ validationToken: req.query.validation_token }),
-      context,
     );
-
-    reply.code(202);
-    return { operationId: operation.id };
   }
 
   /** Login answers synchronously: the client needs the token, so the command is executed here, not published. */

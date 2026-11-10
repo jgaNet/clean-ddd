@@ -26,12 +26,14 @@ const RefusedSchema = {
 export const GetOperationsResSchema = {
   200: { description: 'Success', type: 'array', items: OperationRecordSchema },
   400: RefusedSchema,
+  401: RefusedSchema,
   403: RefusedSchema,
 } as const;
 
 export const GetOperationResSchema = {
   200: { description: 'Success', ...OperationRecordSchema },
   400: RefusedSchema,
+  401: RefusedSchema,
   403: RefusedSchema,
   404: RefusedSchema,
 } as const;

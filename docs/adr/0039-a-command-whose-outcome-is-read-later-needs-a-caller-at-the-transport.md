@@ -43,14 +43,23 @@ The maintainer decided the RFC's four hot spots on 10 November.
 
 ## Status of the implementation
 
-- **Decided, not yet in the reference.** By [ADR 37](0037-a-decision-for-every-feature-is-taken-once.md), a decision
-  taken late is applied to the code already written. That migration is the next change of the reference. It brings:
-  - a rule under one id in `conventions/architecture.yaml`;
-  - the marker on the anonymous command handlers;
-  - the helper in each language's presentation building blocks, and every `202` route converted;
-  - `401` for the anonymous queries;
-  - the scenario's steps;
-  - the guides and the TypeScript linter rule.
+- **The contract holds it, under API-CALLER-AT-TRANSPORT.** By [ADR
+  37](0037-a-decision-for-every-feature-is-taken-once.md), a decision taken late is applied to the code already
+  written. The rule is in `conventions/architecture.yaml`, and the shared scenario holds it: an anonymous validation by
+  id and an anonymous `POST /notes` are refused at once with `401`, nothing published under their trace, and the
+  anonymous queries answer `401`.
+- **TypeScript holds it.**
+  - The marker is a method on the command handler, `anyoneMayAsk(command)`, `false` by default. Signing up says
+    `true`. Validating an account says `true` only for the emailed token, which is its own proof, so the
+    administrator's validation by id is refused at once to an anonymous caller (H3) while the link in the email still
+    works.
+  - The helper is [`acceptCommand()`](../../typescript/src/Architecture/Presentation/AcceptCommand.ts), in the
+    presentation building blocks; every `202` route calls it, and `notAllowedStatus()` beside it gives the queries'
+    `401` or `403`.
+  - The linter refuses a route that publishes on the bus, or answers `202`, by itself (H4).
+- **Rust, Python and Go report it as a gap** in their bindings and their READMEs' known gaps. Until each carries the
+  marker and the helper in its idiom, the scenario fails against its server at the steps above. That is the list of
+  what each owes.
 - OpenStay J5b's clean-3 applies the rule in its own tree from request 50, as Full+ did, recorded as an ADR of that
   tree.
 

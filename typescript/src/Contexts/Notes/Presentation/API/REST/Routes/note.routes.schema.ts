@@ -51,6 +51,7 @@ export const ShareNoteReqBodySchema = {
 export const CommandResSchema = {
   202: AcceptedResSchema,
   400: ErrorResSchema,
+  401: ErrorResSchema,
   403: ErrorResSchema,
 } as const;
 
@@ -70,6 +71,7 @@ const NoteListItemSchema = {
 
 export const GetMyNotesResSchema = {
   200: { description: 'Success', type: 'array', items: NoteListItemSchema },
+  401: ErrorResSchema,
   403: ErrorResSchema,
 } as const;
 
@@ -84,6 +86,7 @@ export const GetNoteResSchema = {
       sharedWith: { type: 'array', items: { type: 'string' } },
     },
   },
+  401: ErrorResSchema,
   403: ErrorResSchema,
   404: ErrorResSchema,
 } as const;
@@ -102,6 +105,7 @@ export const GetSharedNotesResSchema = {
       },
     },
   },
+  401: ErrorResSchema,
   403: ErrorResSchema,
 } as const;
 
