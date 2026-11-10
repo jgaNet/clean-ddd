@@ -4,15 +4,27 @@ import { join } from 'path';
 
 import {
   checkConventions,
+  checkExpectedStorm,
+  contractUnder,
   createApplication,
+  describeInventory,
+  inspectEventStorm,
+  inspectInventory,
   loadArchitectureContract,
   loadDomainMap,
+  loadExpectedStorm,
+  oneHandlerProblems,
+  profileOf,
+  profilesHeldBy,
+  profileTriggers,
   referenceSource,
   repositoryRoot,
   shown,
   validateContract,
   validateDomainMap,
+  validateExpectedStorm,
 } from './index';
+import { addLiteTasks } from './lite-tasks.spec-helper';
 
 /**
  * What `yarn architecture create` promises: an application with this repository's architecture
@@ -420,5 +432,194 @@ describe('yarn architecture create --language rust', () => {
     expect(validateContract(generated, directory)).toEqual([]);
     expect(read('README.md')).toContain('cargo build');
     expect(read('CLAUDE.md')).toContain('cargo run -p conventions');
+  });
+});
+
+describe('yarn architecture create --profile lite', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'created-lite-'));
+  const created = createApplication(directory, 'my-lite-app', root, undefined, 'lite');
+  const read = (path: string) => readFileSync(join(directory, path), 'utf8');
+  const generated = () => loadArchitectureContract(directory);
+
+  afterAll(() => rmSync(directory, { recursive: true, force: true }));
+
+  it('holds its contexts to Lite in its binding, with the Lite building blocks and a composition root that starts with no context', () => {
+    expect(created).toMatchObject({ language: 'typescript', profile: 'lite', contexts: [] });
+    expect(generated().bindingProfile).toBe('lite');
+    expect(read('conventions/typescript.yaml')).toMatch(/^default_profile: lite$/m);
+    for (const path of [
+      'src/Architecture/Application/Lite/UseCase.ts',
+      'src/Architecture/Application/Lite/UseCase.spec.ts',
+      'src/Architecture/Application/Lite/LiteModule.ts',
+      'src/Architecture/Presentation/Lite/AnswerAtOnce.ts',
+      'src/Architecture/Application/Outbox.ts',
+      'src/Architecture/Application/DomainEvents.ts',
+      'src/Bootstrap/Fastify/FastifyApplication.ts',
+      'src/Bootstrap/Fastify/createApplication.e2e.spec.ts',
+      'src/SharedKernel/Application/Guards.ts',
+    ]) {
+      expect(existsSync(join(directory, path))).toBe(true);
+    }
+    expect(read('src/Bootstrap/Fastify/createApplication.ts')).toBe(
+      readFileSync(join(root, 'typescript/src/Bootstrap/LiteStarter/createApplication.ts'), 'utf8'),
+    );
+    // No operation to follow: no Tracker, no contract of its own, no starter of the reference's.
+    expect(readdirSync(join(directory, 'src/Contexts'))).toEqual(['README.md']);
+    expect(readdirSync(join(directory, 'src/SharedKernel/Application/IntegrationEvents'))).toEqual(['README.md']);
+    expect(existsSync(join(directory, 'src/Bootstrap/LiteStarter'))).toBe(false);
+    expect(read('conventions/typescript.yaml')).not.toMatch(/LiteStarter|src\/Contexts\/Notes/);
+    expect(
+      generated()
+        .create!.copy.map(entry => entry.to)
+        .filter(path => /Tracker/.test(path)),
+    ).toEqual([]);
+    expect(read('CLAUDE.md')).toMatch(/held to the Lite profile/);
+    expect(read('CLAUDE.md')).toMatch(/answerAtOnce\(\)/);
+    expect(read('README.md')).toMatch(/\*\*Lite\*\* profile/);
+  });
+
+  it('is sound on its own terms, and answers for Lite: its checklists, its grammar with no noun of the reference', () => {
+    const contract = generated();
+    expect(validateContract(contract, directory)).toEqual([]);
+    expect(profilesHeldBy(contract)).toEqual(['full', 'lite']);
+    const asLite = contractUnder(contract, 'lite');
+    expect(asLite.checklists.find(each => each.kind === 'command')!.place).toBe(
+      'src/Contexts/<Context>/Application/<Things>.ts',
+    );
+    expect(asLite.verbs.find(verb => verb.intent === 'create')).toMatchObject({ shape: 'POST /<things>' });
+    for (const verb of asLite.verbs) expect(verb.shape.toLowerCase()).not.toMatch(/note|notification|account/);
+  });
+
+  describe('with a context of its own, held to Lite', () => {
+    beforeAll(() => addLiteTasks(directory));
+
+    it('holds the context to Lite by the binding’s default, and the profile check passes', () => {
+      const contract = generated();
+      expect(contract.contexts).toEqual(['Tasks']);
+      expect(profileOf(contract, 'Tasks')).toBe('lite');
+      expect(validateContract(contract, directory)).toEqual([]);
+      expect(validateDomainMap(loadDomainMap(directory)!, [contract], directory)).toEqual([]);
+    });
+
+    it('reads its use cases: commands answered at once with their route, their caller and what they publish; its query', () => {
+      const inventory = inspectInventory(generated(), directory);
+      expect(inventory.contexts).toEqual([
+        {
+          id: 'Tasks',
+          commands: [
+            {
+              name: 'AddTask',
+              actor: 'a signed-in account',
+              route: 'POST /tasks',
+              events: [],
+              answered: 'at-once',
+            },
+            {
+              name: 'CompleteTask',
+              actor: 'a signed-in account',
+              route: 'POST /tasks/{param}/complete',
+              events: [],
+              answered: 'at-once',
+              publishes: ['TaskCompleted'],
+            },
+          ],
+          queries: [{ name: 'ListMyTasks', actor: 'a signed-in account', route: 'GET /tasks' }],
+          events: [],
+          policies: [],
+        },
+      ]);
+      expect(describeInventory(inventory)).toMatch(/CompleteTask .*publishes TaskCompleted; answered at once/);
+    });
+
+    it('fires the triggers its code meets, and no other: the outbox for what it tells, no bus for what it answers at once', () => {
+      const contract = generated();
+      expect(profileTriggers(contract, inspectInventory(contract, directory))).toEqual([
+        {
+          context: 'Tasks',
+          profile: 'lite',
+          trigger: 'publishes-integration-event',
+          rules: ['EVENT-AFTER-COMMIT'],
+          mechanisms: [],
+        },
+      ]);
+    });
+
+    it('holds ARCH-ONE-HANDLER on its wiring: each use case listed once, every route calling one it lists', () => {
+      const contract = generated();
+      expect(oneHandlerProblems(inspectEventStorm(contract, directory))).toEqual([]);
+      const wiring = read('src/Contexts/Tasks/module.local.ts');
+      try {
+        writeFileSync(
+          join(directory, 'src/Contexts/Tasks/module.local.ts'),
+          wiring
+            .replace('completeTask(taskStore), ', '')
+            .replace('addTask(taskStore)', 'addTask(taskStore), addTask(taskStore)'),
+        );
+        expect(oneHandlerProblems(inspectEventStorm(contract, directory))).toEqual([
+          'ARCH-ONE-HANDLER: Tasks: command AddTask has 2 handlers (addTask, addTask); a command has exactly one',
+          'ARCH-ONE-HANDLER: Tasks: command CompleteTask is built by a route and no handler in the Module answers it',
+        ]);
+      } finally {
+        writeFileSync(join(directory, 'src/Contexts/Tasks/module.local.ts'), wiring);
+      }
+    });
+
+    it('holds an expected storm written in Lite’s words, and refuses one that brings a command bus in silently', () => {
+      const contract = generated();
+      const inventory = inspectInventory(contract, directory);
+      const storm = (answered: string) =>
+        [
+          'schemaVersion: 1',
+          'feature: rename-a-task',
+          'intent: The owner of a task renames it.',
+          'done: false',
+          'contexts:',
+          '  - id: Tasks',
+          '    commands:',
+          '      - name: RenameTask',
+          '        actor: a signed-in account',
+          '        route: PUT /tasks/{param}',
+          '        events: []',
+          ...(answered ? [`        answered: ${answered}`] : []),
+          '    queries: []',
+          '    events: []',
+          '    policies: []',
+          'links: []',
+          '',
+        ].join('\n');
+      const file = 'conventions/storms/rename-a-task.yaml';
+      try {
+        writeFileSync(join(directory, file), storm('at-once'));
+        const expected = loadExpectedStorm(file, directory);
+        expect(validateExpectedStorm(expected, contract, inventory, directory)).toEqual([]);
+        expect(checkExpectedStorm(expected, inventory)).toEqual([]);
+        writeFileSync(join(directory, file), storm(''));
+        expect(validateExpectedStorm(loadExpectedStorm(file, directory), contract, inventory, directory)).toEqual([
+          expect.stringMatching(
+            /command "RenameTask": Tasks is held to Lite, whose commands are answered at once .*command-answered-later\), by an ADR/,
+          ),
+        ]);
+      } finally {
+        rmSync(join(directory, file), { force: true });
+      }
+    });
+  });
+});
+
+describe('yarn architecture create --profile, where a language does not hold the profile', () => {
+  it('refuses it with the gap its binding reports, and refuses a profile the contract does not declare', () => {
+    for (const language of ['python', 'go', 'rust']) {
+      const empty = mkdtempSync(join(tmpdir(), `created-lite-${language}-`));
+      expect(() => createApplication(empty, 'my-app', root, language, 'lite')).toThrow(
+        /does not hold the Lite profile: .* \(Lite: not held, a gap of this language; ADR 40\)/,
+      );
+      expect(readdirSync(empty)).toEqual([]);
+      rmSync(empty, { recursive: true, force: true });
+    }
+    const empty = mkdtempSync(join(tmpdir(), 'created-heavy-'));
+    expect(() => createApplication(empty, 'my-app', root, undefined, 'heavy')).toThrow(/no profile "heavy"/);
+    // Naming the default is the default.
+    expect(createApplication(empty, 'my-app', root, undefined, 'full').profile).toBeUndefined();
+    rmSync(empty, { recursive: true, force: true });
   });
 });

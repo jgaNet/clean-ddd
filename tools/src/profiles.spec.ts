@@ -10,6 +10,7 @@ import {
   checkMode,
   contextProfileChanges,
   contextProfileChangesSince,
+  contractUnder,
   END_MARKER,
   inspectContextLinks,
   inspectInventory,
@@ -19,6 +20,8 @@ import {
   Profile,
   profileMatrix,
   profileOf,
+  profileTriggers,
+  profilesHeldBy,
   renderDomain,
   renderedDocuments,
   repositoryRoot,
@@ -29,6 +32,7 @@ import {
   validateContract,
   validateProfiles,
 } from './index';
+import type { Inventory, InventoryContext } from './index';
 
 /**
  * Architecture profiles (ADR 40): the contract names them as data, and the conventions check holds them
@@ -40,18 +44,23 @@ import {
 const root = repositoryRoot();
 const reference = loadArchitectureContract(root);
 const full = reference.profiles.find(profile => profile.id === 'full')!;
+const lite = reference.profiles.find(profile => profile.id === 'lite')!;
 
 /** The reference's contract, with other profiles, another floor or a binding's per-context profiles. */
 const variant = (change: Partial<ArchitectureContract>): ArchitectureContract => ({ ...reference, ...change });
 /** A profile like Full, with what a test changes. */
 const profile = (change: Partial<Profile>): Profile => ({ ...full, id: 'trial', default: false, ...change });
-const problemsWith = (...profiles: Profile[]) => validateProfiles(variant({ profiles: [full, ...profiles] }));
+const problemsWith = (...profiles: Profile[]) =>
+  validateProfiles(variant({ profiles: [full, reference.profiles.find(each => each.id === 'lite')!, ...profiles] }));
 
 const REVIEW = ['ARCH-MODULES-DATA', 'ARCH-EXECUTION-CONTEXT', 'DOMAIN-IDENTITY', 'DOMAIN-NON-DETERMINISM'];
 
 describe('the profiles of the reference', () => {
   it('declares Full, the default, holding every rule of the contract and naming its review rules as gaps', () => {
-    expect(reference.profiles.map(each => [each.id, each.default])).toEqual([['full', true]]);
+    expect(reference.profiles.map(each => [each.id, each.default])).toEqual([
+      ['full', true],
+      ['lite', false],
+    ]);
     expect(full).toMatchObject({ holds: 'all', waives: {}, conditional: {}, grammar: 'http', checklists: 'all' });
     expect(full.gaps).toEqual(REVIEW);
     for (const rule of reference.rules) expect(stanceOf(full, rule).stance).toBe('held');
@@ -77,6 +86,89 @@ describe('the profiles of the reference', () => {
     expect(reference.floor.find(guarantee => guarantee.heldBy)).toMatchObject({ heldBy: 'modes', rules: [] });
   });
 
+  it('declares Lite: every rule named, none waived, the floor held or held on a trigger, its own grammar and mechanisms', () => {
+    const stances = Object.fromEntries(reference.rules.map(rule => [rule.id, stanceOf(lite, rule).stance]));
+    expect(Object.values(stances).filter(stance => stance === 'unlisted')).toEqual([]);
+    expect(lite.waives).toEqual({});
+    expect(lite.conditional).toEqual({
+      'DOMAIN-RECORDS-EVENTS': 'reacts-to-domain-event',
+      'DOMAIN-CREATE-VS-RECONSTITUTE': 'several-writers',
+      'CONC-OPTIMISTIC': 'several-writers',
+      'EVENT-AFTER-COMMIT': 'publishes-integration-event',
+    });
+    // The Module lists each use case once, and the check reads it: held, not conditional.
+    expect(stances['ARCH-ONE-HANDLER']).toBe('held');
+    for (const rule of reference.floor.flatMap(guarantee => guarantee.rules)) expect(stances[rule]).not.toBe('waived');
+    expect(lite.gaps).toEqual(REVIEW);
+    expect(lite).toMatchObject({ grammar: 'http-lite', checklists: 'all', default: false });
+    const byStance = (stance: string) =>
+      Object.entries(lite.mechanisms)
+        .filter(([, mechanism]) => mechanism.stance === stance)
+        .map(([id, mechanism]) => (mechanism.until ? `${id} until ${mechanism.until}` : id));
+    expect(byStance('not-used')).toEqual([
+      'command-bus until command-answered-later',
+      'operations until command-answered-later',
+      'aggregates until several-writers',
+      'domain-events until reacts-to-domain-event',
+      'queries-port',
+      'ports-inside-a-context',
+      'one-file-per-concept',
+    ]);
+    expect(byStance('uses')).toEqual(['use-case', 'answered-at-once']);
+    expect(byStance('kept')).toEqual([
+      'integration-events',
+      'outbox',
+      'inbox',
+      'owned-ports',
+      'context-map',
+      'module-as-data',
+    ]);
+    expect(full.mechanisms).toEqual({});
+  });
+
+  it('answers Lite on a grammar of its own: the same intents, every command at once', () => {
+    expect(reference.grammars).toEqual(['http', 'http-lite']);
+    const liteVerbs = reference.grammarVerbs['http-lite'];
+    expect(liteVerbs.map(verb => [verb.intent, verb.verb])).toEqual(
+      reference.verbs.map(verb => [verb.intent, verb.verb]),
+    );
+    expect(liteVerbs.find(verb => verb.intent === 'create')!.when).toMatch(/201/);
+    for (const verb of liteVerbs) expect(verb.when).not.toMatch(/202/);
+  });
+
+  it('is held by TypeScript alone: the other bindings report Lite as a gap, and no context of theirs may be held to it', () => {
+    expect(profilesHeldBy(reference)).toEqual(['full', 'lite']);
+    for (const language of ['rust', 'python', 'go']) {
+      const contract = loadArchitectureContract(root, language);
+      expect(profilesHeldBy(contract)).toEqual(['full']);
+      expect(readFileSync(join(root, `conventions/${language}.yaml`), 'utf8')).toMatch(/Lite: not held/);
+      expect(readFileSync(join(root, `${language}/README.md`), 'utf8')).toMatch(/Lite: not held/);
+      expect(validateProfiles({ ...contract, contextProfiles: { Notes: 'lite' } })).toEqual([
+        expect.stringMatching(
+          new RegExp(
+            `${language}.yaml: holds Notes to the profile "lite"; .* does not hold the profile "lite".*\\(P6\\)`,
+          ),
+        ),
+      ]);
+    }
+  });
+
+  it('reads the contract for a context held to Lite: its grammar and the checklists the binding gives it', () => {
+    const asLite = contractUnder(reference, 'lite');
+    expect(asLite.verbs).toBe(reference.grammarVerbs['http-lite']);
+    expect(asLite.checklists.find(each => each.kind === 'command')!.place).toBe(
+      'typescript/src/Contexts/<Context>/Application/<Things>.ts',
+    );
+    // A kind Lite makes as Full does keeps the binding's own checklist.
+    expect(asLite.checklists.find(each => each.kind === 'value-object')).toEqual(
+      reference.checklists.find(each => each.kind === 'value-object'),
+    );
+    expect(contractUnder(reference, 'full')).toBe(reference);
+    expect(contractUnder(loadArchitectureContract(root, 'rust'), 'lite').verbs).toEqual(
+      loadArchitectureContract(root, 'rust').verbs,
+    );
+  });
+
   it('holds every context of every binding to Full, which none names: the default', () => {
     for (const language of reference.languages) {
       const contract = loadArchitectureContract(root, language);
@@ -99,9 +191,12 @@ describe('the profiles of the reference', () => {
     });
     const withRule = (rule: Rule) => variant({ rules: [...reference.rules, rule] });
     expect(stanceOf(full, added('tests')).stance).toBe('held');
-    expect(validateProfiles(withRule(added('tests')))).toEqual([]);
+    // Lite names every rule, so a rule added later is a decision for Lite, not held by default.
+    const forLite = expect.stringMatching(/profile "lite": leaves the rule ARCH-ADDED-LATER unlisted.*\(P1\)/);
+    expect(validateProfiles(withRule(added('tests')))).toEqual([forLite]);
     expect(validateProfiles(withRule(added('review')))).toEqual([
       expect.stringMatching(/profile "full": holds ARCH-ADDED-LATER by review alone.*\(P3\)/),
+      forLite,
     ]);
   });
 });
@@ -181,15 +276,103 @@ describe('the profile check', () => {
     expect(() => triggerFires('when it matters', 'Notes', inventory)).toThrow(/unknown trigger/);
   });
 
+  it('P4: a command answered at once does not fire command-answered-later; one it publishes fires publishes-integration-event', () => {
+    const context = (commands: InventoryContext['commands']): Inventory => ({
+      schemaVersion: 1,
+      language: 'typescript',
+      contexts: [{ id: 'Tasks', commands, queries: [], events: [], policies: [] }],
+      links: [],
+    });
+    const addTask = { name: 'AddTask', actor: 'a signed-in account', events: [], answered: 'at-once' as const };
+    const later = { name: 'ArchiveTask', actor: 'a signed-in account', events: ['TaskArchived'] };
+    const told = { ...addTask, name: 'CompleteTask', publishes: ['TaskCompleted'] };
+    expect(triggerFires('command-answered-later', 'Tasks', context([addTask]))).toBe(false);
+    expect(triggerFires('command-answered-later', 'Tasks', context([addTask, later]))).toBe(true);
+    expect(triggerFires('publishes-integration-event', 'Tasks', context([addTask]))).toBe(false);
+    expect(triggerFires('publishes-integration-event', 'Tasks', context([addTask, told]))).toBe(true);
+
+    // What a fired trigger brings into a context held to Lite: the rules it then holds, the mechanisms an ADR brings in.
+    const held = variant({ contexts: ['Tasks'], contextProfiles: { Tasks: 'lite' } });
+    expect(profileTriggers(held, context([told, later]))).toEqual([
+      {
+        context: 'Tasks',
+        profile: 'lite',
+        trigger: 'publishes-integration-event',
+        rules: ['EVENT-AFTER-COMMIT'],
+        mechanisms: [],
+      },
+      {
+        context: 'Tasks',
+        profile: 'lite',
+        trigger: 'command-answered-later',
+        rules: [],
+        mechanisms: ['command-bus', 'operations'],
+      },
+    ]);
+    // A context held to Full holds everything already: nothing is brought in.
+    expect(profileTriggers(variant({ contexts: ['Tasks'] }), context([told, later]))).toEqual([]);
+  });
+
+  it('P4: a mechanism is kept, not used or replaced, with its reason; one not used comes in on a trigger the engine can see', () => {
+    const problems = problemsWith(
+      profile({
+        mechanisms: {
+          'command-bus': { stance: 'not-used', why: 'functions', until: 'when it grows' },
+          outbox: { stance: 'kept', why: 'durable', until: 'several-writers' },
+          aggregates: { stance: 'not-used', why: ' ' },
+        },
+      }),
+    );
+    expect(problems).toEqual([
+      expect.stringMatching(/the mechanism "command-bus" comes in on "when it grows", which is not a trigger.*\(P4\)/),
+      expect.stringMatching(/the mechanism "outbox" is kept; only one not used comes in "until" a trigger/),
+      expect.stringMatching(/the mechanism "aggregates" says no reason/),
+    ]);
+  });
+
   it('P6: a binding holds a context it declares to a profile the contract declares', () => {
-    const problems = validateProfiles(variant({ contextProfiles: { Notes: 'lite', Billing: 'full' } }));
+    const problems = validateProfiles(variant({ contextProfiles: { Notes: 'heavy', Billing: 'full' } }));
     expect(problems).toEqual([
       expect.stringMatching(
-        /typescript.yaml: holds Notes to the profile "lite", which .* does not declare: one of full \(P6\)/,
+        /typescript.yaml: holds Notes to the profile "heavy", which .* does not declare: one of full, lite \(P6\)/,
       ),
       expect.stringMatching(/typescript.yaml: names a profile for Billing, which it does not declare.*\(P6\)/),
     ]);
-    const named = variant({ contextProfiles: { Notes: 'trial' }, profiles: [full, profile({})] });
+    expect(validateProfiles(variant({ contextProfiles: { Notes: 'lite' } }))).toEqual([]);
+    // The binding's own default for the contexts it does not name: an application created Lite.
+    const createdLite = variant({ bindingProfile: 'lite' });
+    expect(validateProfiles(createdLite)).toEqual([]);
+    expect(profileOf(createdLite, 'Security')).toBe('lite');
+    expect(profileOf({ ...createdLite, contextProfiles: { Security: 'full' } }, 'Security')).toBe('full');
+    expect(validateProfiles(variant({ bindingProfile: 'heavy' }))).toEqual([
+      expect.stringMatching(/"default_profile" is "heavy", which .* does not declare.*\(P6\)/),
+    ]);
+    expect(validateProfiles({ ...loadArchitectureContract(root, 'go'), bindingProfile: 'lite' })).toEqual([
+      expect.stringMatching(/go.yaml: "default_profile" is "lite"; Go does not hold the profile "lite".*\(P6\)/),
+    ]);
+    // How a binding holds a profile: what it shows is a mechanism the profile uses or keeps, and every shape of its own is shown.
+    const holding = reference.profilesHeld.lite;
+    expect(
+      validateProfiles(
+        variant({
+          profilesHeld: {
+            lite: { ...holding, shows: { ...holding.shows, 'command-bus': ['x.ts'], saga: ['y.ts'], 'use-case': [] } },
+          },
+        }),
+      ),
+    ).toEqual([
+      expect.stringMatching(/profiles_held.lite: shows "command-bus", which the profile does not use/),
+      expect.stringMatching(/profiles_held.lite: shows "saga", which the profile does not classify/),
+      expect.stringMatching(/profiles_held.lite: names no file that shows "use-case"/),
+    ]);
+    const named = variant({
+      contextProfiles: { Notes: 'trial' },
+      profiles: [full, profile({})],
+      profilesHeld: { trial: { checklists: [], shows: {} } },
+    });
+    expect(validateProfiles(variant({ profilesHeld: { full: { checklists: [], shows: {} } } }))).toEqual([
+      expect.stringMatching(/says how it holds "full", the default/),
+    ]);
     expect(validateProfiles(named)).toEqual([]);
     expect(profileOf(named, 'Notes')).toBe('trial');
     expect(profileOf(named, 'Security')).toBe('full');
@@ -199,6 +382,7 @@ describe('the profile check', () => {
     const problems = validateProfiles(
       variant({
         profiles: [full, profile({ default: true, grammar: 'soap', checklists: ['aggregate', 'saga'] })],
+        profilesHeld: {},
         floor: [
           ...reference.floor,
           { guarantee: 'Nothing holds this', rules: [] },
@@ -211,7 +395,9 @@ describe('the profile check', () => {
     expect(problems).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/full, trial are each the default; exactly one is/),
-        expect.stringMatching(/answers on the grammar "soap", which is not a section .* with verbs: one of http/),
+        expect.stringMatching(
+          /answers on the grammar "soap", which is not a section .* with verbs: one of http, http-lite/,
+        ),
         expect.stringMatching(/names the checklist saga/),
         expect.stringMatching(
           /floor "Nothing holds this": no rule holds it, and it says neither its gap nor what holds it/,
@@ -234,11 +420,15 @@ describe('the profile check', () => {
     writeFileSync(join(dir, 'conventions/architecture.yaml'), dump(table));
     copyFileSync(join(root, 'conventions/concepts.yaml'), join(dir, 'conventions/concepts.yaml'));
     const binding = load(readFileSync(join(root, 'conventions/typescript.yaml'), 'utf8')) as Record<string, unknown>;
-    writeFileSync(join(dir, 'conventions/typescript.yaml'), dump({ ...binding, profiles: { Notes: 'trial' } }));
+    delete binding.profiles_held;
+    writeFileSync(
+      join(dir, 'conventions/typescript.yaml'),
+      dump({ ...binding, profiles: { Notes: 'trial' }, profiles_held: { trial: {} } }),
+    );
 
     const contract = loadArchitectureContract(dir);
     expect(contract.contextProfiles).toEqual({ Notes: 'trial' });
-    expect(contract.profiles.map(each => each.id)).toEqual(['full', 'trial']);
+    expect(contract.profiles.map(each => each.id)).toEqual(['full', 'lite', 'trial']);
     expect(validateProfiles(contract, dir)).toEqual([
       expect.stringMatching(
         /profile "trial": "statement" is not a word of a profile.*it never words one \(ARCH-ONE-CONTRACT\)/,
@@ -254,6 +444,7 @@ describe('the profile check', () => {
       expect.stringMatching(
         /holds Notes to the profile "trial", which conventions\/architecture.yaml does not declare \(P6\)/,
       ),
+      expect.stringMatching(/says how it holds the profile "trial", which .* does not declare \(P6\)/),
     ]);
   });
 });
@@ -271,6 +462,10 @@ describe('a context changes profile by an ADR (P6, H6)', () => {
       [],
     );
     expect(contextProfileChanges(before, { contexts: ['Notes'] }, 'full')).toEqual([]);
+    // The binding's own default moves every context it does not name.
+    expect(contextProfileChanges(before, { ...before, default_profile: 'lite' }, 'full')).toEqual([
+      'Notes: full → lite',
+    ]);
   });
 
   it('the feature mode refuses it with the rest of conventions; the architecture mode asks for the ADR', () => {
@@ -336,7 +531,16 @@ describe('P5: Full is unchanged by the profile schema', () => {
     const table = load(readFileSync(join(root, 'conventions/architecture.yaml'), 'utf8')) as Record<string, unknown>;
     delete table.profiles;
     delete table.floor;
+    // A profile's grammar and how a binding holds a profile are the profile schema too (Lite's, ADR 40).
+    delete table['http-lite'];
     writeFileSync(join(dir, 'conventions/architecture.yaml'), dump(table));
+    for (const language of reference.languages) {
+      const file = join(dir, 'conventions', `${language}.yaml`);
+      const binding = load(readFileSync(file, 'utf8')) as Record<string, unknown>;
+      delete binding.profiles_held;
+      delete binding.default_profile;
+      writeFileSync(file, dump(binding));
+    }
     return dir;
   })();
   const languages = reference.languages;
@@ -349,10 +553,24 @@ describe('P5: Full is unchanged by the profile schema', () => {
   it('the contract every renderer and the gate read is the same, but for the profiles', () => {
     const rest = (contract: ArchitectureContract) =>
       Object.fromEntries(
-        Object.entries(contract).filter(([key]) => !['floor', 'profiles', 'contextProfiles'].includes(key)),
+        Object.entries(contract).filter(
+          ([key]) =>
+            ![
+              'floor',
+              'profiles',
+              'contextProfiles',
+              'grammars',
+              'grammarVerbs',
+              'bindingProfile',
+              'profilesHeld',
+            ].includes(key),
+        ),
       );
     expect(before.map(contract => contract.profiles)).toEqual(languages.map(() => []));
-    expect(after.map(contract => contract.profiles.map(profile => profile.id))).toEqual(languages.map(() => ['full']));
+    expect(after.map(contract => contract.profiles.map(profile => profile.id))).toEqual(
+      languages.map(() => ['full', 'lite']),
+    );
+    expect(before.map(contract => contract.grammars)).toEqual(languages.map(() => ['http']));
     after.forEach((contract, index) => expect(rest(contract)).toEqual(rest(before[index])));
   });
 

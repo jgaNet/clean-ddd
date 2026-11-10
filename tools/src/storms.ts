@@ -4,6 +4,7 @@ import { load } from 'js-yaml';
 
 import { ArchitectureContract, ContractError, SUPPORTED_SCHEMA_VERSION } from './types';
 import { loadDomainMap } from './domain';
+import { profileOf } from './profiles';
 import { EventStorm, StormCommand, StormEvent, StormPolicy, StormReadModel } from './storm';
 import {
   Inventory,
@@ -94,6 +95,9 @@ export function loadExpectedStorm(file: string, root: string): ExpectedStorm {
     ...(text(entry.route) ? { route: canonicalRoute(text(entry.route)) } : {}),
     ...(text(entry.aggregate) ? { aggregate: text(entry.aggregate) } : {}),
     events: strings(entry.events),
+    // A use case answered at once, in a context held to the Lite profile (ADR 40), and what it publishes itself.
+    ...(text(entry.answered) ? { answered: text(entry.answered) as InventoryCommand['answered'] } : {}),
+    ...(strings(entry.publishes).length ? { publishes: strings(entry.publishes) } : {}),
   });
   return {
     schemaVersion: raw.schemaVersion,
@@ -201,14 +205,18 @@ export function validateExpectedStorm(
   const map = loadDomainMap(root);
   const verbs = new Set(contract.verbs.map(verb => verb.verb));
   const contexts = new Set(contract.contexts);
-  const published = new Set([
-    ...current.contexts.flatMap(context => context.policies.flatMap(policy => policy.publishes)),
-    ...storm.contexts.flatMap(context => context.policies.flatMap(policy => policy.publishes)),
-  ]);
+  const publishesOf = (context: { policies: InventoryPolicy[]; commands: InventoryCommand[] }) => [
+    ...context.policies.flatMap(policy => policy.publishes),
+    ...context.commands.flatMap(command => command.publishes ?? []),
+  ];
+  const published = new Set([...current.contexts.flatMap(publishesOf), ...storm.contexts.flatMap(publishesOf)]);
   const publisherOf = (event: string) =>
-    [...current.contexts, ...storm.contexts].find(context =>
-      context.policies.some(policy => policy.publishes.includes(event)),
-    )?.id;
+    [...current.contexts, ...storm.contexts].find(context => publishesOf(context).includes(event))?.id;
+  /** The profile a context is held to (ADR 40), and whether it uses a mechanism of Full. */
+  const profileFor = (context: string) =>
+    contract.profiles.find(profile => profile.id === profileOf(contract, context));
+  const uses = (context: string, mechanism: string) =>
+    profileFor(context)?.mechanisms[mechanism]?.stance !== 'not-used';
 
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(storm.feature))
     problems.push(`${where}: "feature" should be kebab-case (pin-a-note)`);
@@ -253,10 +261,26 @@ export function validateExpectedStorm(
       } else {
         problems.push(`${here}: names no route; a command a client cannot send is not a feature yet`);
       }
-      if (!command.aggregate) problems.push(`${here}: names no aggregate; a command asks a behaviour of one`);
-      else if (!pascal.test(command.aggregate))
+      // Under a profile that answers a command at once (Lite, ADR 40), a use case needs no aggregate and
+      // records no fact nothing reacts to; one whose outcome is read later brings the bus and the operations in.
+      const atOnce = !uses(context.id, 'command-bus');
+      if (atOnce && command.answered !== 'at-once')
+        problems.push(
+          `${here}: ${context.id} is held to ${profileFor(context.id)?.name}, whose commands are answered at once ("answered: at-once"); a command whose outcome is read later brings the command bus and the operations in (command-answered-later), by an ADR`,
+        );
+      if (!atOnce && command.answered)
+        problems.push(`${here}: is answered ${command.answered}, and ${context.id} answers a command with a 202`);
+      if (!command.aggregate) {
+        if (uses(context.id, 'aggregates'))
+          problems.push(`${here}: names no aggregate; a command asks a behaviour of one`);
+      } else if (!pascal.test(command.aggregate))
         problems.push(`${here}: the aggregate "${command.aggregate}" is PascalCase`);
-      if (!command.events.length) problems.push(`${here}: records no event; a command that changes nothing is a query`);
+      if (!command.events.length && uses(context.id, 'domain-events'))
+        problems.push(`${here}: records no event; a command that changes nothing is a query`);
+      for (const name of command.publishes ?? []) {
+        if (!pascal.test(name) || /IntegrationEvent$/.test(name))
+          problems.push(`${here}: publishes "${name}", a public name without the IntegrationEvent suffix`);
+      }
       for (const event of command.events) {
         if (!knownEvents.has(event))
           problems.push(`${here}: records "${event}", which neither the code nor this storm brings to ${context.id}`);
@@ -342,7 +366,9 @@ const carriesCommand = (actual: InventoryCommand, expected: InventoryCommand) =>
   actual.actor === expected.actor &&
   actual.route === expected.route &&
   actual.aggregate === expected.aggregate &&
-  expected.events.every(event => actual.events.includes(event));
+  actual.answered === expected.answered &&
+  expected.events.every(event => actual.events.includes(event)) &&
+  (expected.publishes ?? []).every(name => (actual.publishes ?? []).includes(name));
 const carriesPolicy = (actual: InventoryPolicy, expected: InventoryPolicy) =>
   actual.on === expected.on &&
   actual.kind === expected.kind &&
@@ -550,6 +576,8 @@ export function overlayExpectedStorm(storm: EventStorm, expected: ExpectedStorm,
         events: command.events,
         services: [],
         uses: [],
+        ...(command.answered && { answered: command.answered }),
+        ...(command.publishes && { publishes: command.publishes }),
         expected: true,
       };
       context.commands.push(sticky);

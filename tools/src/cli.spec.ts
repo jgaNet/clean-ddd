@@ -37,11 +37,42 @@ describe('yarn architecture', () => {
     const parsed = JSON.parse(stdout);
     expect(parsed.profiles.map((profile: { id: string; default: boolean }) => [profile.id, profile.default])).toEqual([
       ['full', true],
+      ['lite', false],
     ]);
     expect(parsed.profiles[0].rules['CONC-OPTIMISTIC']).toEqual({ stance: 'held', gap: false });
-    expect(parsed.contexts).toContainEqual({ context: 'Notes', profile: 'full', named: false, subdomain: 'core' });
+    expect(parsed.profiles[1].rules['CONC-OPTIMISTIC']).toEqual({
+      stance: 'conditional',
+      trigger: 'several-writers',
+      gap: false,
+    });
+    expect(parsed.held).toEqual(['full', 'lite']);
+    expect(parsed.contexts).toContainEqual({
+      context: 'Notes',
+      profile: 'full',
+      named: false,
+      subdomain: 'core',
+      fires: [],
+    });
     expect(parsed.triggers.map((trigger: { id: string }) => trigger.id)).toContain('several-writers');
-    expect(JSON.parse(architecture('profiles', '--json', '--language', 'rust').stdout).contexts).toHaveLength(4);
+    const rust = JSON.parse(architecture('profiles', '--json', '--language', 'rust').stdout);
+    expect(rust.contexts).toHaveLength(4);
+    expect(rust.held).toEqual(['full']);
+    expect(architecture('profiles', '--language', 'rust').stdout).toMatch(/Rust holds full; Lite: not held/);
+  });
+
+  it('--profile reads the contract as a context held to that profile does: its grammar, its checklists', () => {
+    expect(architecture('verb', 'create', '--profile', 'lite').stdout).toMatch(/201/);
+    expect(architecture('verb', 'create').stdout).toMatch(/202/);
+    expect(architecture('place', 'command', '--profile', 'lite').stdout.trim()).toBe(
+      'typescript/src/Contexts/<Context>/Application/<Things>.ts',
+    );
+    expect(architecture('checklist', 'command', '--profile', 'lite').stdout).toMatch(/answerAtOnce/);
+    const unknown = architecture('verbs', '--profile', 'heavy', '--json');
+    expect(unknown.status).toBe(1);
+    expect(JSON.parse(unknown.stdout).error.code).toBe('unknown-profile');
+    const notHeld = architecture('checklist', 'command', '--profile', 'lite', '--language', 'go', '--json');
+    expect(notHeld.status).toBe(1);
+    expect(JSON.parse(notHeld.stdout).error.code).toBe('profile-not-held');
   });
 
   it('rule <ID> explains a rule, in text and in JSON', () => {

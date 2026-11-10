@@ -158,6 +158,35 @@ export interface Profile {
   grammar: string;
   /** The kinds of thing its features are made of: `all` of `checklists`, or a list of their kinds. */
   checklists: 'all' | string[];
+  /**
+   * What it does with each mechanism of Full no rule mandates (RFC 0002, H2), by id; empty: every
+   * mechanism, as written (Full).
+   */
+  mechanisms: Record<string, ProfileMechanism>;
+}
+
+/**
+ * A mechanism of Full that no rule mandates (the command bus, the operations, an aggregate for
+ * everything), as a profile classifies it: kept; not used, with the trigger that brings it in by an
+ * ADR where the engine can see one; or replaced by a shape of the profile's own (`uses`).
+ */
+export interface ProfileMechanism {
+  stance: 'kept' | 'not-used' | 'uses';
+  why: string;
+  /** For `not-used`: the trigger (one of TRIGGERS) where it comes in, by an ADR. */
+  until?: string;
+}
+
+/**
+ * How a binding holds a profile other than the default (ADR 40): what a new thing of each kind is
+ * made of under it (only the kinds that differ from the binding's own checklists), the files that
+ * show each of its mechanisms, and what `create --profile <id>` copies in place of the binding's
+ * own `create` (the keys it names; the others are the binding's).
+ */
+export interface ProfileBinding {
+  checklists: Checklist[];
+  shows: Record<string, string[]>;
+  create?: Partial<CreateSpec>;
 }
 
 /** The language a contract is loaded for: its binding's id, its display name, its directory. */
@@ -213,6 +242,12 @@ export interface ArchitectureContract {
   contextProfiles: Record<string, string>;
   /** The HTTP grammars the contract holds: each top-level section with `verbs` (`http`, the contract's own). */
   grammars: string[];
+  /** The verbs of each grammar but the contract's own `http` (whose verbs are `verbs`), by grammar. */
+  grammarVerbs: Record<string, Verb[]>;
+  /** The profile a context the binding does not name is held to, when the binding says one (`default_profile`). */
+  bindingProfile?: string;
+  /** The profiles other than the default this binding holds, and how (`profiles_held`); empty: the default alone. */
+  profilesHeld: Record<string, ProfileBinding>;
   sources: { architecture: string; concepts: string; binding: string };
 }
 
