@@ -72,6 +72,9 @@ The SDK's agent process is not in a process group of its own: if the driver is k
     - The storm's first context owns the feature. Its agent owns its folder and everything no other agent owns (the composition root, the shared kernel, the conventions, the decisions).
     - Each other agent owns its context's folder and the integration events it publishes.
   - **The owners talk** through a channel (`channel say|wait|read`, on their `PATH`), and read each other's branches in the same repository.
+  - **The contract comes first.** For each relationship of the storm between two owners, the brief says who does what:
+    - the upstream owner writes the contract first (the integration event, or what the port reads), commits it and says so in the channel;
+    - the downstream owner builds on it, writes no version of its own, and writes the relationship's test in its own context's end-to-end tests.
   - **An owner's verdict** is:
     - its scope (a file another owner owns is refused, unless it is that owner's own version, merged in);
     - the gate on its branch, without `--fix` and without the relationship tests, which only the merged feature can pass.
@@ -79,6 +82,10 @@ The SDK's agent process is not in a process group of its own: if the driver is k
     The owners' gates on one attempt take a lock, so their test suites do not run at once.
   - **The merged result** is held to the clean arm's verdict, checked once more alone if it fails, and graded like any attempt's head.
   - **The log** says who did what: `agent-finished` carries the `owner`, then come `owner-verdict`, `integrator` (each round) and `integrated`.
+  - **A control before the triage.** A split feature that every step failed is written once more by one agent, with the last model.
+    - If it delivers, the tree goes on. The split failed, not the tree, and the log says so: `control`, and `control: 'one agent'` on the delivery.
+    - If it fails too, the triage follows as usual.
+    - It runs once per feature, across resumes.
 - **A tree that outlives the machine.** With `push: { remote, branch, logBranch }`:
   - after each delivery, escalation, triage and at the end, the tree's `main` is pushed to `branch`;
   - the run's log and its gradings are committed to `logBranch` (with git's plumbing, outside any worktree) and pushed.

@@ -519,11 +519,19 @@ function ownersOf(feature) {
   const contexts = [...new Set((storm.contexts ?? []).map(each => each.id).filter(Boolean))];
   if (contexts.length < 2) return [];
   const [main, ...others] = contexts;
-  return [
+  // The relationships between two owners, from the storm's links: what one gives the other.
+  const links = (storm.links ?? []).filter(
+    link => contexts.includes(link.upstream) && contexts.includes(link.downstream) && link.upstream !== link.downstream,
+  );
+  const owners = [
     ...others.map(name => ({
       name,
-      owns: [`^${contextsTree}${name}/`, `^src/SharedKernel/.*IntegrationEvents/${name}[A-Z]?[^/]*$`],
-      says: `the ${name} context (\`${contextsTree}${name}/\`) and the integration events it publishes (\`src/SharedKernel/…/IntegrationEvents/${name}…\`)`,
+      // The shared kernel names a context's events in the singular (`AccountIntegrationEvents.ts` for Accounts).
+      owns: [
+        `^${contextsTree}${name}/`,
+        `^src/SharedKernel/.*IntegrationEvents/${name.replace(/s$/, '')}[A-Za-z]*IntegrationEvents\\.ts$`,
+      ],
+      says: `the ${name} context (\`${contextsTree}${name}/\`) and the integration events it publishes (\`src/SharedKernel/…/IntegrationEvents/${name.replace(/s$/, '')}IntegrationEvents.ts\`)`,
     })),
     {
       name: main,
@@ -532,7 +540,36 @@ function ownersOf(feature) {
       says: `the ${main} context (\`${contextsTree}${main}/\`) and everything no other owner owns: the composition root, the shared kernel, the conventions, and the decisions under \`docs/adr/\` (a context or a relationship declared, an ADR)`,
     },
   ];
+  return owners.map(owner => ({ ...owner, links }));
 }
+
+/**
+ * Who does what across a relationship between two owners: the upstream writes the contract first and says so; the
+ * downstream builds on it, and writes the relationship's test, which finds the thing downstream by the id the upstream
+ * answered (ADR 33). Without it, J5's two developers waited on each other, and a test across two owners was nobody's.
+ */
+const contractsBetween = (team, teams) => {
+  const links = team.links ?? [];
+  if (!links.length) return [];
+  const contract = link =>
+    link.mechanism === 'integration-event'
+      ? `the integration event${(link.contracts ?? []).length > 1 ? 's' : ''} ${(link.contracts ?? []).map(name => `\`${name}\``).join(', ')} in the shared kernel, with the id of the thing it announces and every field the ${link.downstream} side needs`
+      : `what the ${link.upstream} side answers the ${link.downstream} side's port ${(link.contracts ?? []).map(name => `\`${name}\``).join(', ')} with (the read model the adapter reads)`;
+  return [
+    '**The contracts between you.**',
+    ...links.map(link => {
+      const role =
+        team.name === link.upstream
+          ? 'You write it first, commit it, and say in the channel that it is there, with its fields.'
+          : team.name === link.downstream
+            ? `You build on it once the ${link.upstream} owner says it is there; you do not write your own version of it. The relationship's test (named \`${link.upstream} → ${link.downstream}\`, in your context's end-to-end tests) is yours: it makes the thing on the ${link.upstream} side and finds it on yours, through the API, by the id the ${link.upstream} side answered.`
+            : 'It is not yours; read it on their branches.';
+      return `- ${link.upstream} → ${link.downstream}: ${contract(link)}. ${role}`;
+    }),
+    `${teams.length > 2 ? 'Any other contract between you is agreed in the channel the same way: the side that gives it writes it first.' : ''}`,
+    '',
+  ].filter((line, index, all) => line !== '' || index === all.length - 1);
+};
 
 /** The channel the owners of one attempt talk through: one append-only file, one command on their PATH. */
 function channel(dir) {
@@ -583,6 +620,7 @@ const ownerBrief = (feature, from, storm, team, teams) =>
     '- `channel read` prints everything said so far.',
     `Their work is on their branches, in this same repository: \`git log <branch>\`, \`git show <branch>:<path>\`, \`git diff ${storm}..<branch>\`. Never commit on a branch but yours. When you rely on something another context gives (an event, its payload, a port, an id), agree its shape in the channel first.`,
     '',
+    ...contractsBetween(team, teams),
     `You are done when \`yarn architecture gate --base ${from} --mode architecture\` passes on your branch, apart from the relationship tests, which only the merged feature can pass, and from what is another owner's: then say so in the channel and in your final report. Commit your work on the current branch; do not push. If you start a server, use port ${team.port}.`,
     "Then the integrator merges every owner's branch, runs the gate on the result, and sends each failure to the owner of the files it names.",
     '',
@@ -807,8 +845,8 @@ async function writtenByOwners(feature, step, from, cwd, id, owners) {
 }
 
 /** One attempt at one step of the ladder: its agent (or its owners'), the verdict sent back, the hidden tests. */
-async function attempt(feature, step, from) {
-  const id = `${feature.id}-${step}`;
+async function attempt(feature, step, from, { single = false } = {}) {
+  const id = `${feature.id}-${step}${single ? '-one' : ''}`;
   const cwd = join(runDir, id);
   // A run resumed after its driver was lost starts the attempt it was in again, from scratch.
   if (existsSync(cwd)) git(project, 'worktree', 'remove', '--force', cwd);
@@ -821,7 +859,7 @@ async function attempt(feature, step, from) {
     commitAll(cwd, `storm: ${feature.id}, decided before the run`);
   }
   const begun = Date.now();
-  const owners = fanOut ? ownersOf(feature) : [];
+  const owners = fanOut && !single ? ownersOf(feature) : [];
   event('attempt', {
     feature: feature.id,
     step,
@@ -829,6 +867,7 @@ async function attempt(feature, step, from) {
     from,
     tree: size(cwd),
     ...(owners.length && { owners: owners.map(owner => owner.name) }),
+    ...(single && { control: 'one agent' }),
   });
   const written = owners.length
     ? await writtenByOwners(feature, step, from, cwd, id, owners)
@@ -957,7 +996,54 @@ for (const feature of backlog) {
     });
     publish(`${feature.id} delivered at step ${step}`);
   }
-  if (deliveredAt !== undefined) outcomes[feature.id] = `DELIVERED at step ${deliveredAt}`;
+  // A feature written by its owners that every step failed is written once more by one agent, with the last model,
+  // before the triage: if one agent delivers it, the split failed, not the tree, and the tree goes on; the control is
+  // counted apart (`control`, and `control: 'one agent'` on the delivery). Once per feature, across resumes.
+  let byOneAgent = false;
+  if (
+    deliveredAt === undefined &&
+    !stopped &&
+    fanOut &&
+    ownersOf(feature).length &&
+    !before.some(each => each.event === 'control' && each.feature === feature.id)
+  ) {
+    const step = plan.ladder.length - 1;
+    const tried = await attempt(feature, step, from, { single: true });
+    if (tried.reason === 'budget') {
+      event('budget', { feature: feature.id, step, spentUsd: money.spent(), budgetUsd });
+      stopped = true;
+    } else {
+      const head = tried.cwd ? git(tried.cwd, 'rev-parse', 'HEAD') : undefined;
+      if (tried.cwd) git(project, 'worktree', 'remove', '--force', tried.cwd);
+      event('control', {
+        feature: feature.id,
+        step,
+        model: plan.ladder[step],
+        written: 'one agent',
+        delivered: !tried.reason,
+        ...(tried.reason && { reason: tried.reason, lines: tried.lines }),
+        head,
+        report: tried.report,
+      });
+      if (!tried.reason) {
+        git(project, 'merge', '-q', '--ff-only', head);
+        deliveredAt = step;
+        byOneAgent = true;
+        event('delivered', {
+          feature: feature.id,
+          step,
+          model: plan.ladder[step],
+          control: 'one agent',
+          head: git(project, 'rev-parse', 'main'),
+          report: tried.report,
+          ...(tried.unstable && { unstable: tried.unstable }),
+        });
+        publish(`${feature.id} delivered by one agent, the control`);
+      } else publish(`${feature.id}: the control failed too`);
+    }
+  }
+  if (deliveredAt !== undefined)
+    outcomes[feature.id] = `DELIVERED at step ${deliveredAt}${byOneAgent ? ' by one agent (the control)' : ''}`;
   else if (stopped) outcomes[feature.id] = 'NOT STARTED';
   else {
     // The last model failed too: the tree stops, and a maintainer calls it FAILED, or the kit's, by the

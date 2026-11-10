@@ -24,6 +24,13 @@ tuned on.
     module, two rounds, the relationship tests on the merged result only.
 
   The other requests, and every request of the simple tree, have one agent.
+- **On a split request, the contract comes first.** For each relationship of the storm between two owners:
+  - the upstream owner writes the contract first and says so in the channel;
+  - the downstream owner builds on it and writes the relationship's test.
+- **A control for the split.** A split request that every step failed is written once more by one agent, with the
+  strongest model, before the triage.
+  - If it delivers, the tree goes on, and the failure is counted as the split's, apart from the tree's.
+  - If it fails too, the triage and the repair rule follow as for any failure.
 - **Everything J5 taught, from the first request:**
 
   | | simple-3 | clean-3 |
@@ -67,9 +74,10 @@ As in J5, per tree:
 For the Clean DDD tree's split requests, also:
 - the owners' turns and their cost;
 - the integrator's rounds, and what each round routed to whom;
-- the channel's messages.
+- the channel's messages;
+- the controls: how many split requests one agent delivered after the split failed.
 
-These are read from the logs (`owner-verdict`, `integrator`, `integrated`).
+These are read from the logs (`owner-verdict`, `integrator`, `integrated`, `control`).
 
 ## Preparing the trees
 
