@@ -540,7 +540,8 @@ function channel(dir) {
   const file = join(dir, 'channel.log');
   writeFileSync(file, '');
   // A resumed attempt starts a new channel: what an owner had read of the old one would hide the new one's first lines.
-  for (const seen of readdirSync(dir).filter(name => name.startsWith('.seen-'))) rmSync(join(dir, seen), { force: true });
+  for (const seen of readdirSync(dir).filter(name => name.startsWith('.seen-')))
+    rmSync(join(dir, seen), { force: true });
   const script = join(dir, 'bin', 'channel');
   writeFileSync(
     script,
