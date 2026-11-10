@@ -391,7 +391,8 @@ async function hidden(feature, cwd, only, ref) {
   const graded = await sh(
     [
       `node ${grader} --project ${project} --ref ${ref ?? git(cwd, 'rev-parse', 'HEAD')} --base ${baseCommit}`,
-      `--kit ${kit} --upto ${feature.n} --keep false --out ${out}`,
+      // M1 is the gate the attempt's verdict has just run; the ladder decides on M2 alone (grade.mjs, --gate false).
+      `--kit ${kit} --upto ${feature.n} --keep false --gate false --out ${out}`,
       only ? `--only ${only.join(',')}` : '',
       clean ? (tooling ? `--tooling ${tooling}` : '') : '--control plain',
     ].join(' '),

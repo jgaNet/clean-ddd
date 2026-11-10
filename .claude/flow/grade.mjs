@@ -4,12 +4,14 @@
  * run's final tree, whatever the arm:
  *
  *   node .claude/flow/grade.mjs --project <dir> --ref <ref> --base <created commit> --kit <dir> [--tooling <clean-ddd.tgz>] [--out <file.json>]
- *                               [--control plain|prose] [--upto <n>] [--only <id,id>] [--keep false]
+ *                               [--control plain|prose] [--upto <n>] [--only <id,id>] [--keep false] [--gate false]
  *
  * `--upto <n>` grades the features numbered up to n only: the feature an attempt wrote and the
  * ones before it, for regressions (OpenStay's ladder, run-ladder.mjs). `--only <ids>` grades
  * those features alone, as the ladder replays a failure before it escalates. `--keep false` removes the
- * graded worktree afterwards, so that no agent working beside it can read the hidden tests.
+ * graded worktree afterwards, so that no agent working beside it can read the hidden tests. `--gate false` skips M1
+ * (reported `skipped`): the ladder decides on M2 alone and has just run the same gate as its verdict, so M1 there
+ * is the same work twice (OpenStay J5b: eight to ten minutes an attempt on the larger tree).
  *
  * In a worktree of its own at `ref`, it copies the kit's acceptance tests beside their support
  * into `src/Bootstrap/Fastify/Acceptance/`, then runs:
@@ -94,7 +96,8 @@ if (tooling) {
 
 const control = option('control');
 // A control arm's own checks, on the tree as the run left it, before the hidden tests are added.
-const checks = control ? sh('yarn -s verify', tree, 900_000) : undefined;
+const withGate = option('gate') !== 'false';
+const checks = control && withGate ? sh('yarn -s verify', tree, 900_000) : undefined;
 const acceptanceDir = join(tree, control === 'plain' ? 'src/acceptance' : 'src/Bootstrap/Fastify/Acceptance');
 mkdirSync(acceptanceDir, { recursive: true });
 for (const file of readdirSync(join(kit, 'acceptance')))
@@ -113,14 +116,20 @@ if (control === 'plain' && existsSync(support)) {
   );
 }
 const started = Date.now();
-const gate = control
-  ? {
-      verdict: checks.code === 0 ? 'pass' : 'fail',
-      steps: [
-        { name: 'yarn verify', status: checks.code === 0 ? 'pass' : 'fail', lines: checks.out.split('\n').slice(-30) },
-      ],
-    }
-  : parse(sh(`yarn -s architecture gate --base ${base} --mode architecture --json`, tree).out);
+const gate = !withGate
+  ? { verdict: 'skipped', steps: [] }
+  : control
+    ? {
+        verdict: checks.code === 0 ? 'pass' : 'fail',
+        steps: [
+          {
+            name: 'yarn verify',
+            status: checks.code === 0 ? 'pass' : 'fail',
+            lines: checks.out.split('\n').slice(-30),
+          },
+        ],
+      }
+    : parse(sh(`yarn -s architecture gate --base ${base} --mode architecture --json`, tree).out);
 // The kit's storms, held as done: then whatever the code does not carry is a difference.
 const stormsDir = join(`${project}.flow`, 'grade', `${commit.slice(0, 12)}.storms`);
 mkdirSync(stormsDir, { recursive: true });
