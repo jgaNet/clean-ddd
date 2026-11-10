@@ -20,6 +20,11 @@ export class SignUpCommandHandler extends CommandHandler<SignUpCommandEvent> {
     super();
   }
 
+  /** Anyone may sign up: there is nobody to be signed in as yet (API-CALLER-AT-TRANSPORT). */
+  anyoneMayAsk(): boolean {
+    return true;
+  }
+
   async execute({ payload }: SignUpCommandEvent, context: ExecutionContext): Promise<IResult<string>> {
     const account = await this.accountRegistration.register({
       email: payload.email,

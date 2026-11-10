@@ -150,6 +150,10 @@ rules:
     references: [src/Contexts/Tracker/Application/Projections/OperationProjection.ts, src/Contexts/Tracker/Presentation/API/REST/Routes/operation.routes.e2e.spec.ts]
   API-BODY-SHAPE:
     references: [eslint.config.js, src/Contexts/Notifications/Presentation/API/REST/Routes/notification.routes.schema.ts, src/Contexts/Notifications/Domain/Notification/DeliveryStrategy.ts]
+  # Held by the linter (a route that publishes on the bus, or answers 202, by itself is refused) and
+  # by the shared scenario; the helper every 202 route calls is the canonical file.
+  API-CALLER-AT-TRANSPORT:
+    references: [src/Architecture/Presentation/AcceptCommand.ts, eslint.config.js, ../api/scenario.mjs]
   ARCH-MAP-IS-REAL:
     references: [../tools/src/check.ts]
   CTX-MAP-DECLARED:

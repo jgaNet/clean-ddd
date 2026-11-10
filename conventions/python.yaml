@@ -160,6 +160,10 @@ rules:
     references: [src/contexts/tracker/application/projection.py, src/bootstrap/test_operation_routes_e2e.py]
   API-BODY-SHAPE:
     references: [src/contexts/notifications/presentation/routes.py, src/contexts/notifications/domain/notification/delivery_strategy.py]
+  # API-CALLER-AT-TRANSPORT is a gap here (ADR 39): Python has neither the marker on its command
+  # handlers nor the helper its 202 routes would call, so an anonymous command is still answered
+  # 202 and refused on the operation, and an anonymous query 403. The shared scenario holds the rule
+  # and fails against this server until it does; no file shows it yet, so none is named.
   ARCH-MAP-IS-REAL:
     references: [tools/conventions.py]
   ARCH-ONE-APPLICATION:

@@ -78,6 +78,12 @@ class RecordingUnitOfWork implements UnitOfWork {
   }
 }
 
+describe('CommandHandler.anyoneMayAsk()', () => {
+  it('says a command needs a signed-in caller unless its handler says otherwise (API-CALLER-AT-TRANSPORT)', () => {
+    expect(new GreetHandler().anyoneMayAsk(Greet.set({ name: 'Ada' }))).toBe(false);
+  });
+});
+
 describe('CommandHandler.handle()', () => {
   let unitOfWork: RecordingUnitOfWork;
   let eventBus: EventBus;

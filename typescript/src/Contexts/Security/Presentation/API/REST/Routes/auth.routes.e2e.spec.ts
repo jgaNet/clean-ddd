@@ -95,15 +95,24 @@ describe('What a bible must not do', () => {
     expect(JSON.stringify(operation.body)).not.toContain('S3cret-Plaintext');
   });
 
-  it('does not let an anonymous caller validate an account', async () => {
+  it("refuses an anonymous caller who validates by id at once with 401, as an administrator's command (ADR 39)", async () => {
     const signUp = await superagent.post(`${api}/auth/signup`).send({ identifier: 'grace@user.fr', password: 'grace' });
     const accountId = (await adminAgent.get(`${api}/tracker/operations/${signUp.body.operationId}`)).body.result;
 
-    const attempt = await superagent.get(`${api}/auth/accounts/${accountId}/validate`);
+    const attempt = await superagent.get(`${api}/auth/accounts/${accountId}/validate`).ok(() => true);
+    expect(attempt.status).toBe(401);
+    expect(attempt.body).toEqual({ message: expect.any(String) });
+
+    const traced = await adminAgent.get(`${api}/tracker/operations`).query({ traceId: attempt.headers['x-trace-id'] });
+    expect(traced.body).toEqual([]);
+    expect((await adminAgent.get(`${api}/auth/accounts/${accountId}`)).body.status).toBe('PENDING');
+  });
+
+  it('lets anyone follow the emailed link: the token is its proof (API-CALLER-AT-TRANSPORT)', async () => {
+    const attempt = await superagent.get(`${api}/auth/validate`).query({ validation_token: 'not-a-token' });
     expect(attempt.status).toBe(202);
 
     const operation = await adminAgent.get(`${api}/tracker/operations/${attempt.body.operationId}`);
-    expect(operation.body).toMatchObject({ status: 'ERROR', error: { type: 'NotAllowed' } });
-    expect((await adminAgent.get(`${api}/auth/accounts/${accountId}`)).body.status).toBe('PENDING');
+    expect(operation.body).toMatchObject({ name: 'ValidateAccount', status: 'ERROR', error: { type: 'NotAllowed' } });
   });
 });

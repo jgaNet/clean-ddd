@@ -149,6 +149,10 @@ rules:
     references: [src/contexts/tracker/application/src/projection.rs, src/bootstrap/tests/operation_routes.rs]
   API-BODY-SHAPE:
     references: [src/contexts/notifications/presentation/src/lib.rs, src/contexts/notifications/domain/src/notification/channel.rs]
+  # API-CALLER-AT-TRANSPORT is a gap here (ADR 39): Rust has neither the marker on its command
+  # handlers nor the helper its 202 routes would call, so an anonymous command is still answered
+  # 202 and refused on the operation, and an anonymous query 403. The shared scenario holds the rule
+  # and fails against this server until it does; no file shows it yet, so none is named.
   ARCH-MAP-IS-REAL:
     references: [tools/conventions/src/main.rs]
   ARCH-ONE-APPLICATION:
