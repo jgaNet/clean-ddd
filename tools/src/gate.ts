@@ -6,6 +6,7 @@ import { checkConventions } from './check';
 import { inspectInventory } from './inventory';
 import { DEFAULT_LANGUAGE, loadArchitectureContract } from './load';
 import { changedFiles, checkMode } from './modes';
+import { contextProfileChangesSince } from './profiles';
 import { checkRelationshipTests, crossedRelationshipTests, relationshipTestsThatMissTheChange } from './relationships';
 import { carriedButOpen, loadExpectedStorm, STORMS_DIR } from './storms';
 import { ModeName } from './types';
@@ -176,7 +177,9 @@ export async function runGate({
   // 1. The mode: what the change touched, committed since the base and not yet committed.
   const changed = new Set(changedFiles(base, root));
   if (base !== 'working') for (const file of changedFiles('working', root)) changed.add(file);
-  const [mode, modeMs] = timed(() => checkMode(held, [...changed], contract, base));
+  const [mode, modeMs] = timed(() =>
+    checkMode(held, [...changed], contract, base, contextProfileChangesSince(base, [...changed], contract, root)),
+  );
   record({ name: `mode ${held}`, stage: 'architecture', ok: mode.ok, durationMs: modeMs, lines: mode.problems });
 
   // 1b. When the binding asks for it: each relationship between two contexts the change crosses, with a

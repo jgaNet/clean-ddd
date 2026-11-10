@@ -31,6 +31,7 @@
  *   yarn architecture storm --expect <file>   what the code still owes an expected storm; --markdown, --svg lay its stickies on the board
  *   yarn architecture inventory [<language>]  what the tree says the application is, in words every language shares;
  *                                             with a language, where that language's committed inventory differs
+ *   yarn architecture profiles                the profiles the contract declares, the floor, the profile of each context
  *   yarn architecture rules | concepts | verbs | checklists   the lists
  *
  * Every command takes --json: valid JSON only on stdout, nothing decorative, exit 1 on an
@@ -61,6 +62,7 @@ import { DOMAIN_FILE, describeContext, describeDomain, inspectContextLinks, load
 import { describeEventStorm, inspectEventStorm, renderEventStorm, renderEventStormSvg, renderProcess } from './storm';
 import { compareInventories, describeInventory, inspectInventory, loadInventories } from './inventory';
 import { describeMigration } from './migration';
+import { TRIGGERS, contextProfileChangesSince, describeProfiles, profileMatrix, profileOf } from './profiles';
 import {
   checkExpectedStorm,
   describeExpectation,
@@ -236,6 +238,33 @@ async function main(): Promise<void> {
         },
         () => contract.checklists.map(checklist => `${checklist.kind.padEnd(16)} ${checklist.place}`).join('\n'),
       );
+    case 'profiles': {
+      // The profiles the contract declares, the floor, and the profile of each context (ADR 40), each
+      // context with its subdomain's kind, which guides the choice (H5).
+      const map = loadDomainMap(root);
+      const kinds: Record<string, string> = Object.fromEntries(
+        (map?.subdomains ?? []).flatMap(subdomain => subdomain.contexts.map(context => [context, subdomain.kind])),
+      );
+      const matrix = profileMatrix(contract);
+      return out(
+        {
+          schemaVersion,
+          floor: contract.floor,
+          profiles: contract.profiles.map(profile => ({
+            ...profile,
+            rules: Object.fromEntries(matrix.map(row => [row.rule, row.stances[profile.id]])),
+          })),
+          contexts: contract.contexts.map(context => ({
+            context,
+            profile: profileOf(contract, context),
+            named: contract.contextProfiles[context] !== undefined,
+            ...(kinds[context] && { subdomain: kinds[context] }),
+          })),
+          triggers: Object.values(TRIGGERS).map(({ id, means }) => ({ id, means })),
+        },
+        () => describeProfiles(contract, kinds),
+      );
+    }
     case 'verb': {
       const [intent] = rest;
       if (!intent) return fail('usage', 'usage: yarn architecture verb <intent>');
@@ -474,7 +503,13 @@ async function main(): Promise<void> {
           `Cannot compare with "${base}": no such ref. Try --base main, or --base working for uncommitted changes.`,
         );
       }
-      const verdict = checkMode(mode, changed, contract, base);
+      const verdict = checkMode(
+        mode,
+        changed,
+        contract,
+        base,
+        contextProfileChangesSince(base, changed, contract, root),
+      );
       out({ schemaVersion, ...verdict, why: contract.modes[mode]?.why }, () =>
         verdict.ok
           ? `${mode} mode: the ${changed.length} changed file(s) are within it.`
@@ -624,7 +659,7 @@ async function main(): Promise<void> {
     default:
       return fail(
         'usage',
-        'usage: yarn architecture <inspect | rules | concepts | verbs | checklists | rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind> | mode <feature|architecture> | plan <validate|explain> <file> | create <dir> | can-import <file> <specifier> …> [--json]',
+        'usage: yarn architecture <inspect | rules | concepts | verbs | checklists | profiles | rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind> | mode <feature|architecture> | plan <validate|explain> <file> | create <dir> | can-import <file> <specifier> …> [--json]',
       );
   }
 }

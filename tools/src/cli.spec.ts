@@ -30,6 +30,20 @@ describe('yarn architecture', () => {
     expect(stdout).not.toMatch(/\x1b\[/);
   });
 
+  it('profiles lists the floor, the profiles and the profile of each context, with its subdomain', () => {
+    expect(architecture('profiles').stdout).toMatch(/Full \(full\), the default/);
+    const { status, stdout } = architecture('profiles', '--json');
+    expect(status).toBe(0);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.profiles.map((profile: { id: string; default: boolean }) => [profile.id, profile.default])).toEqual([
+      ['full', true],
+    ]);
+    expect(parsed.profiles[0].rules['CONC-OPTIMISTIC']).toEqual({ stance: 'held', gap: false });
+    expect(parsed.contexts).toContainEqual({ context: 'Notes', profile: 'full', named: false, subdomain: 'core' });
+    expect(parsed.triggers.map((trigger: { id: string }) => trigger.id)).toContain('several-writers');
+    expect(JSON.parse(architecture('profiles', '--json', '--language', 'rust').stdout).contexts).toHaveLength(4);
+  });
+
   it('rule <ID> explains a rule, in text and in JSON', () => {
     expect(architecture('rule', 'ARCH-DOMAIN').stdout).toMatch(/Remediation:/);
     const { status, stdout } = architecture('rule', 'CONC-OPTIMISTIC', '--json');

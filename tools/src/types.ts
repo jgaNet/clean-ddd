@@ -122,6 +122,44 @@ export interface Migration {
   routes: CompatibilityRoute[];
 }
 
+/**
+ * A guarantee of the floor (ADR 40): what no profile may drop, with the rules that hold it. A guarantee
+ * no rule holds yet, or one held by review, says its gap; one held by something that is not a rule
+ * says what (`modes`: the two modes, which the gate runs).
+ */
+export interface FloorGuarantee {
+  guarantee: string;
+  rules: string[];
+  gap?: string;
+  heldBy?: string;
+}
+
+/**
+ * An architecture profile (ADR 40): a way of holding the contract, never a second wording of it. It
+ * holds rules, waives others with a reason, and holds some only where a mechanical trigger fires; the
+ * rules it holds by review alone are its gaps. `holds: 'all'` is every rule the contract has that the
+ * profile neither waives nor holds conditionally, so a rule added later is held until the profile says
+ * otherwise.
+ */
+export interface Profile {
+  id: string;
+  name: string;
+  why: string;
+  /** The profile a context is held to when its binding names none. Exactly one profile is. */
+  default: boolean;
+  holds: 'all' | string[];
+  /** Rule id → why this profile does not hold it. */
+  waives: Record<string, string>;
+  /** Rule id → the trigger (one of TRIGGERS) where this profile holds it. */
+  conditional: Record<string, string>;
+  /** The rules it holds by review alone: named, never presented as guarantees. */
+  gaps: string[];
+  /** The HTTP grammar it answers on: a section of the contract with `verbs` (`http`, the contract's). */
+  grammar: string;
+  /** The kinds of thing its features are made of: `all` of `checklists`, or a list of their kinds. */
+  checklists: 'all' | string[];
+}
+
 /** The language a contract is loaded for: its binding's id, its display name, its directory. */
 export interface Language {
   id: string;
@@ -167,6 +205,14 @@ export interface ArchitectureContract {
   migrationApis: Record<string, string>;
   /** This application's choice, from the binding; absent when it was not migrated from anything. */
   migration?: Migration;
+  /** The guarantees no profile may drop (ADR 40); empty when the contract declares no profiles. */
+  floor: FloorGuarantee[];
+  /** The profiles the contract declares (ADR 40); empty when it declares none, and then it is held as written. */
+  profiles: Profile[];
+  /** The binding's profile per context, as it names them; a context it does not name is held to the default. */
+  contextProfiles: Record<string, string>;
+  /** The HTTP grammars the contract holds: each top-level section with `verbs` (`http`, the contract's own). */
+  grammars: string[];
   sources: { architecture: string; concepts: string; binding: string };
 }
 

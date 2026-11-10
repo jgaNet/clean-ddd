@@ -17,6 +17,7 @@ export * from './storm';
 export * from './inventory';
 export * from './storms';
 export * from './migration';
+export * from './profiles';
 export * from './check';
 export * from './gate';
 export * from './pack';

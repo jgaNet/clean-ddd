@@ -1,7 +1,9 @@
 # RFC 0002 — Architecture profiles: a Lite profile beside Full, held by one engine
 
-**Status:** proposed, every hot spot decided (6 and 7 November, below). The next step is the ADR (§12, step 1).
-Nothing is implemented, and the Full profile is not touched.
+**Status:** accepted as [ADR 40](../adr/0040-architecture-profiles-one-contract-one-engine-profiles-as-data.md), every
+hot spot decided (6, 7 and 8 November, below). Steps 1 to 3 of §12 are done: the ADR, the profile schema in the
+contract with Full as the default profile (P5 held by a spec), and the profile check (P1–P4, P6). Lite's data and
+everything after it (steps 4–7) are not: the Full profile is the only one, and it is not changed.
 
 **Decided (the maintainer, 6 November):**
 

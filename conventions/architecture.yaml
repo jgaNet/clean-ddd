@@ -221,6 +221,64 @@ checklists:
   event-handler: { concept: domain-event-handler }
   context: { concept: module }
 
+# Architecture profiles (docs/adr/0040-architecture-profiles-one-contract-one-engine-profiles-as-data.md):
+# one contract, one engine, profiles as data. A profile is a way of holding this file, never a second
+# wording of it (ARCH-ONE-CONTRACT). It says, for every rule below and every row of the table:
+#   - `holds`: the rules it holds (`all`: every rule it neither waives nor holds on a trigger, so a rule
+#     added later is held until the profile says otherwise);
+#   - `waives`: the rules it does not hold, each with its reason;
+#   - `conditional`: the rules it holds only where a trigger fires, each with its trigger, one of the
+#     closed set the engine can see in the inventory (`yarn architecture profiles` lists them);
+#   - `gaps`: the rules it holds by `review` alone, named as gaps, never presented as guarantees;
+#   - `grammar`: the HTTP grammar it answers on (a section of this file with `verbs`: `http`);
+#   - `checklists`: the kinds of thing its features are made of (`all`, or a list of `checklists`' kinds).
+# Exactly one profile is the default. A binding names the profile of a context (`profiles: { <Context>:
+# <profile> }`); a context it does not name is held to the default, and changing one is an architecture
+# change with an ADR. The conventions check holds every profile (P1–P4, P6 of RFC 0002).
+#
+# The floor: the guarantees no profile may drop, each with the rules that hold it. A floor rule may be held
+# on a trigger where the guarantee itself is conditional (a write races only where several writers can, a
+# fact must be durable where another context reacts to it), never waived. A guarantee held by review, or
+# by no rule yet, says its gap; one held by something that is not a rule says what (`held_by: modes`).
+floor:
+  - guarantee: Dependencies point inward
+    rules: [ARCH-INWARD, ARCH-TREES]
+  - guarantee: Contexts stay apart
+    rules: [CTX-CONTRACTS, ARCH-CONTEXT-DECLARED]
+  - guarantee: Every relationship between two contexts is declared
+    rules: [CTX-MAP-DECLARED]
+  - guarantee: The domain imports no framework
+    rules: [ARCH-DOMAIN]
+  - guarantee: An invariant is enforced where its state lives, and a refusal is a value
+    rules: [DOMAIN-RESULT]
+  - guarantee: A write is consistent where several writers can race
+    rules: [CONC-OPTIMISTIC]
+  - guarantee: A fact another context reacts to is durable with its state
+    rules: [EVENT-AFTER-COMMIT]
+  - guarantee: Identity is born once
+    rules: [DOMAIN-IDENTITY]
+    gap: Held by review; the gate's relationship test sees it where a binding turns the step on (ADR 33).
+  - guarantee: Who reaches a command is said once and held at the transport
+    rules: []
+    gap: Decided (ADR 39), not a rule of this file yet; its rule joins this line when it is.
+  - guarantee: The architecture does not change silently
+    rules: []
+    held_by: modes
+
+profiles:
+  full:
+    name: Full
+    default: true
+    why: >-
+      The contract as written: every rule held, in every context, by its own enforcement, and the grammar
+      that answers a command with 202 and its operation. The profile the reference is written in.
+    holds: all
+    waives: {}
+    conditional: {}
+    gaps: [ARCH-MODULES-DATA, ARCH-EXECUTION-CONTEXT, DOMAIN-IDENTITY, DOMAIN-NON-DETERMINISM]
+    grammar: http
+    checklists: all
+
 # The rules that are not a row of the table. Each says how it is enforced.
 rules:
   - id: ARCH-INWARD
