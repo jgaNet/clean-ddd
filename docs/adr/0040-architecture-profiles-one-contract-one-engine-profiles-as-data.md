@@ -49,12 +49,12 @@ never a second wording of it (ARCH-ONE-CONTRACT).
   | A write is consistent where several writers can race | CONC-OPTIMISTIC |
   | A fact another context reacts to is durable with its state | EVENT-AFTER-COMMIT |
   | Identity is born once | DOMAIN-IDENTITY (**review**: a gap) |
-  | Who reaches a command is said once and held at the transport | **no rule yet**: decided by ADR 39, a gap until its rule is in the contract |
+  | Who reaches a command is said once and held at the transport | API-CALLER-AT-TRANSPORT (tests: the shared scenario; [ADR 39](0039-a-command-whose-outcome-is-read-later-needs-a-caller-at-the-transport.md)) |
   | The architecture does not change silently | the two modes |
 
   - A floor rule may be held on a trigger where the guarantee itself is conditional: a write races only where several
     writers can, a fact must be durable where another context reacts to it. It is never waived.
-  - The two lines that are not mechanical today are gaps to close in every profile, not assumptions.
+  - The two lines that were not mechanical when H1 was decided are gaps to close in every profile, not assumptions: who reaches a command is now a rule (ADR 39), identity born once is still held by review.
 - **What Lite drops (H2): the ceremony inside a context.**
   - Gone: the command bus, the `CommandEvent` class, the handler class, the `202`, and the ports inside a context. A use
     case is a function of its ports, called by the route, which answers at once.

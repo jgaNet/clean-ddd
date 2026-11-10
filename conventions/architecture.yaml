@@ -259,8 +259,7 @@ floor:
     rules: [DOMAIN-IDENTITY]
     gap: Held by review; the gate's relationship test sees it where a binding turns the step on (ADR 33).
   - guarantee: Who reaches a command is said once and held at the transport
-    rules: []
-    gap: Decided (ADR 39), not a rule of this file yet; its rule joins this line when it is.
+    rules: [API-CALLER-AT-TRANSPORT]
   - guarantee: The architecture does not change silently
     rules: []
     held_by: modes

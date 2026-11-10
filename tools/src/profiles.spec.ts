@@ -58,7 +58,7 @@ describe('the profiles of the reference', () => {
     expect(profileMatrix(reference)).toHaveLength(reference.rules.length);
   });
 
-  it('declares the floor of H1 with the rule ids that exist today, and its two gaps', () => {
+  it('declares the floor of H1 with the rule ids that exist today, and its gap', () => {
     expect(reference.floor.flatMap(guarantee => guarantee.rules)).toEqual([
       'ARCH-INWARD',
       'ARCH-TREES',
@@ -70,9 +70,10 @@ describe('the profiles of the reference', () => {
       'CONC-OPTIMISTIC',
       'EVENT-AFTER-COMMIT',
       'DOMAIN-IDENTITY',
+      'API-CALLER-AT-TRANSPORT',
     ]);
     const gaps = reference.floor.filter(guarantee => guarantee.gap).map(guarantee => guarantee.guarantee);
-    expect(gaps).toEqual(['Identity is born once', 'Who reaches a command is said once and held at the transport']);
+    expect(gaps).toEqual(['Identity is born once']);
     expect(reference.floor.find(guarantee => guarantee.heldBy)).toMatchObject({ heldBy: 'modes', rules: [] });
   });
 
