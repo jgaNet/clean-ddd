@@ -54,6 +54,8 @@ async fn following_an_operation() {
     let bob_id = app.sign_up_validated("bob@tracker.fr", "bob").await;
     let bob = app.agent_as("bob@tracker.fr", "bob").await;
     assert_eq!(bob.get(format!("{api}/tracker/operations")).send().await.expect("answers").status(), 403);
+    // A caller who is not signed in is told so: 401, not 403 (API-CALLER-AT-TRANSPORT)
+    assert_eq!(app.anonymous().get(format!("{api}/tracker/operations")).send().await.expect("answers").status(), 401);
     assert_eq!(
         bob.get(format!("{api}/tracker/operations/{operation_id}")).send().await.expect("answers").status(),
         404
@@ -82,7 +84,7 @@ async fn an_operation_nobody_started_is_shown_to_whoever_holds_its_id_and_one_an
     assert_eq!(operation["status"], "SUCCESS");
     assert!(operation["result"].is_string());
 
-    // An operation an account started is that account's: an anonymous caller is told to sign in.
+    // An operation an account started is that account's: an anonymous caller is told to sign in (401).
     let admin = app.admin().await;
     let shared = admin
         .post(format!("{api}/notes/00000000-0000-4000-8000-000000000000/share"))
@@ -92,7 +94,7 @@ async fn an_operation_nobody_started_is_shown_to_whoever_holds_its_id_and_one_an
         .expect("answers");
     let operation_id = app.accepted(&admin, shared).await["id"].as_str().expect("an id").to_string();
     let stranger = anonymous.get(format!("{api}/tracker/operations/{operation_id}")).send().await.expect("answers");
-    assert_eq!(stranger.status(), 403);
+    assert_eq!(stranger.status(), 401);
 
     app.stop().await;
 }

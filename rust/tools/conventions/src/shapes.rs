@@ -23,7 +23,7 @@ const HANDLER: &str = "rust/src/contexts/notes/application/src/commands/share_no
 const COMMANDS: &str = "rust/src/contexts/notes/application/src/commands/mod.rs";
 
 const SHARE_USED: &str = "use notes_application::commands::share_note::ShareNote;";
-const SHARE_BUILT: &str = "accept(&context, ShareNote { note_id: id, recipient_id: body.recipient_id })";
+const SHARE_BUILT: &str = "accept(&context, &module, ShareNote { note_id: id, recipient_id: body.recipient_id })";
 const SHARE_LISTED: &str =
     "Subscription::command(ShareNoteCommandHandler::new(repository.clone(), NoteSharing::new(accounts))),";
 const MODULE_BUILT: &str = "    Module::new(ModuleDefinition {";
@@ -191,7 +191,11 @@ fn a_command_built_through_a_use_as_alias_is_recognised_the_alias_followed_in_it
     }
     let verdict = probe(&[
         (PRESENTATION, SHARE_USED, "use notes_application::commands::share_note::ShareNote as Share;"),
-        (PRESENTATION, SHARE_BUILT, "accept(&context, Share { note_id: id, recipient_id: body.recipient_id })"),
+        (
+            PRESENTATION,
+            SHARE_BUILT,
+            "accept(&context, &module, Share { note_id: id, recipient_id: body.recipient_id })",
+        ),
     ]);
     assert_eq!(verdict, Verdict { recognised: true, caught: vec![] });
 }
@@ -202,7 +206,11 @@ fn a_command_built_through_a_type_alias_loses_its_route_caught_by_the_inventory_
         return;
     }
     let verdict = probe(&[
-        (PRESENTATION, SHARE_BUILT, "accept(&context, Share { note_id: id, recipient_id: body.recipient_id })"),
+        (
+            PRESENTATION,
+            SHARE_BUILT,
+            "accept(&context, &module, Share { note_id: id, recipient_id: body.recipient_id })",
+        ),
         (PRESENTATION, "async fn share_note(", "type Share = ShareNote;\n\nasync fn share_note("),
     ]);
     assert_caught(&verdict);
@@ -217,7 +225,7 @@ fn a_command_built_by_a_helper_the_route_calls_loses_its_route_caught_by_the_inv
         return;
     }
     let verdict = probe(&[
-        (PRESENTATION, SHARE_BUILT, "accept(&context, share(id, body.recipient_id))"),
+        (PRESENTATION, SHARE_BUILT, "accept(&context, &module, share(id, body.recipient_id))"),
         (
             PRESENTATION,
             "async fn share_note(",
@@ -279,7 +287,11 @@ fn a_command_re_exported_under_another_name_is_recognised_the_re_export_followed
             "pub mod suggest_note_title;\n\npub use share_note::ShareNote as ShareRequest;\n",
         ),
         (PRESENTATION, SHARE_USED, "use notes_application::commands::ShareRequest;"),
-        (PRESENTATION, SHARE_BUILT, "accept(&context, ShareRequest { note_id: id, recipient_id: body.recipient_id })"),
+        (
+            PRESENTATION,
+            SHARE_BUILT,
+            "accept(&context, &module, ShareRequest { note_id: id, recipient_id: body.recipient_id })",
+        ),
     ]);
     assert_eq!(verdict, Verdict { recognised: true, caught: vec![] });
 }

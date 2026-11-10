@@ -80,6 +80,13 @@ where
 {
     type Command = ValidateAccount;
 
+    /// Whoever follows the link emailed at sign-up may ask: the token it carries is its proof, and
+    /// the person following it is not signed in yet. Validating by account id is an administrator's,
+    /// so the transport refuses it at once to a caller who is not signed in (API-CALLER-AT-TRANSPORT).
+    fn anyone_may_ask(&self, command: &ValidateAccount) -> bool {
+        matches!(command, ValidateAccount::ByToken { .. })
+    }
+
     async fn execute(&self, command: ValidateAccount, context: &ExecutionContext) -> DomainResult<String> {
         let account_id = self.account_id_allowed_for(command, context).await?;
 

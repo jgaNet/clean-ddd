@@ -64,9 +64,16 @@ The maintainer decided the RFC's four hot spots on 10 November.
     blocks; every `202` route calls it, and `status_of()` beside it gives the queries' `401` or `403`.
   - The conventions check refuses, in a context's Presentation, a call that publishes on the bus or a response that
     answers `202` by itself (H4).
-- **Rust and Go report it as a gap** in their bindings and their READMEs' known gaps. Until each carries the
-  marker and the helper in its idiom, the scenario fails against its server at the steps above. That is the list of
-  what each owes.
+- **Rust holds it**, in its idiom.
+  - The marker is a provided method of the command handler trait, `anyone_may_ask(&command)`, `false` by default;
+    signing up and validating with the emailed token say `true`, as in TypeScript.
+  - The helper is [`accept(&context, &module, command)`](../../rust/src/architecture/presentation/src/lib.rs), in the
+    presentation building block: `Ok(Accepted)` and the dispatch spawned, or `Err(NotSignedIn)`, a `401`, and nothing
+    published. `status_of(&error, &context)` beside it gives the queries `401` or `403`.
+  - The conventions check refuses a context's presentation crate that dispatches, publishes, builds an operation or
+    answers `202` by itself (H4), since Rust has no linter of its own to carry it.
+- **Go reports it as a gap** in its binding and its README's known gaps. Until it carries the marker and the helper
+  in its idiom, the scenario fails against its server at the steps above. That is the list of what it owes.
 - OpenStay J5b's clean-3 applies the rule in its own tree from request 50, as Full+ did, recorded as an ADR of that
   tree.
 

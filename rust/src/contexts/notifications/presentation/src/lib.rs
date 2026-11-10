@@ -124,21 +124,27 @@ async fn get_account_notifications(
         InboxFilters { limit: query.limit, offset: query.offset, only_unread: query.only_unread.unwrap_or(false) };
     match module.query::<GetNotifications>().handle(GetNotifications { recipient_id, filters }, &context).await {
         Ok(inbox) => Json(InboxView::from(inbox)).into_response(),
-        Err(error) => refuse(error),
+        Err(error) => refuse(error, &context),
     }
 }
 
-async fn mark_as_read(Extension(context): Extension<ExecutionContext>, Path(id): Path<String>) -> Response {
-    accept(&context, MarkAsRead { notification_id: id }).into_response()
+async fn mark_as_read(
+    State(module): State<Arc<Module>>,
+    Extension(context): Extension<ExecutionContext>,
+    Path(id): Path<String>,
+) -> Response {
+    accept(&context, &module, MarkAsRead { notification_id: id }).into_response()
 }
 
 /// Who may send by hand is the handler's guard, not the route's.
 async fn send_notification(
+    State(module): State<Arc<Module>>,
     Extension(context): Extension<ExecutionContext>,
     Json(body): Json<SendNotificationBody>,
 ) -> Response {
     accept(
         &context,
+        &module,
         SendNotification {
             recipient_id: body.recipient_id,
             title: body.title,
@@ -150,7 +156,7 @@ async fn send_notification(
     .into_response()
 }
 
-fn refuse(error: Exception) -> Response {
-    let status = if error.is(NOTIFICATION_NOT_FOUND) { StatusCode::NOT_FOUND } else { status_of(&error) };
+fn refuse(error: Exception, context: &ExecutionContext) -> Response {
+    let status = if error.is(NOTIFICATION_NOT_FOUND) { StatusCode::NOT_FOUND } else { status_of(&error, context) };
     refused(status, &error)
 }

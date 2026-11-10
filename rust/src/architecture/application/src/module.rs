@@ -17,7 +17,7 @@
 //! ```
 //!
 //! Anything else a context exposes (a middleware, a service another context needs) is a public
-//! item of the same wiring crate, not a slot in the module. From a controller: `accept(&context,
+//! item of the same wiring crate, not a slot in the module. From a controller: `accept(&context, &module,
 //! CreateNote { … })` for a command, `module.query::<GetMyNotes>().handle(GetMyNotes, &context)`
 //! for a query — named by the query, so a controller never names the adapter behind it.
 

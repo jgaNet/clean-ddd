@@ -128,7 +128,8 @@ async fn what_a_reference_must_not_do() {
     assert!(operation.get("payload").is_none());
     assert!(!operation.to_string().contains("S3cret-Plaintext"));
 
-    // Never let an anonymous caller validate an account
+    // Never let an anonymous caller validate an account by id: refused at once with 401, nothing
+    // published (API-CALLER-AT-TRANSPORT)
     let signed_up = app
         .anonymous()
         .post(format!("{api}/auth/signup"))
@@ -139,8 +140,17 @@ async fn what_a_reference_must_not_do() {
     let account_id = app.accepted(&admin, signed_up).await["result"].as_str().expect("id").to_string();
     let attempt =
         app.anonymous().get(format!("{api}/auth/accounts/{account_id}/validate")).send().await.expect("answers");
-    assert_eq!(attempt.status(), 202);
-    let operation = app.accepted(&admin, attempt).await;
+    app.refused_at_once(attempt).await;
+    // The link in the email carries its own proof: anyone may follow it, and a forged token is the
+    // operation's refusal, not the transport's
+    let anonymous = app.anonymous();
+    let forged = anonymous
+        .get(format!("{api}/auth/validate"))
+        .query(&[("validation_token", "forged")])
+        .send()
+        .await
+        .expect("answers");
+    let operation = app.accepted(&anonymous, forged).await;
     assert_eq!(operation["status"], "ERROR");
     assert_eq!(operation["error"]["type"], "NotAllowed");
     let account: Value = admin

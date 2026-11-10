@@ -41,8 +41,8 @@ async fn serves_the_tracker_under_the_prefix_to_an_anonymous_caller_with_the_tra
         .expect("answers");
 
     // An operation is followed by whoever started it; nobody started this one, and an anonymous
-    // caller is told to sign in rather than whether it exists.
-    assert_eq!(response.status(), 403);
+    // caller is told to sign in (401, API-CALLER-AT-TRANSPORT) rather than whether it exists.
+    assert_eq!(response.status(), 401);
     assert_eq!(response.headers()["x-trace-id"], trace_id);
     let body: Value = response.json().await.expect("JSON");
     assert!(body["message"].is_string());
@@ -55,8 +55,9 @@ async fn serves_the_tracker_under_the_prefix_to_an_anonymous_caller_with_the_tra
 async fn lists_operations_for_an_administrator_only() {
     let (running, api) = start().await;
 
+    // Nobody signs in here: the list is refused with 401, as to any caller who is not signed in.
     let response = reqwest::get(format!("{api}/tracker/operations")).await.expect("answers");
-    assert_eq!(response.status(), 403);
+    assert_eq!(response.status(), 401);
 
     running.stop().await;
 }
