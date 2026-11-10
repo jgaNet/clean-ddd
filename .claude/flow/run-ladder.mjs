@@ -118,12 +118,13 @@ const backlog = yaml
  */
 const commandRunner = {
   name: 'command',
-  async run({ cwd, model, prompt }) {
+  async run({ cwd, model, prompt, env: given }) {
     const begun = Date.now();
     const done = await new Promise(resolveRun => {
+      // The agent's environment, as a real runner gets it (an owner's TEAM, its channel on the PATH, its PORT).
       const child = spawn('sh', ['-c', plan.agent.command], {
         cwd,
-        env: { ...process.env, PATH: pathWithThisNode(), MODEL: model, PROMPT: prompt },
+        env: { ...(given ?? process.env), PATH: given?.PATH ?? pathWithThisNode(), MODEL: model, PROMPT: prompt },
         stdio: 'ignore',
       });
       child.on('close', code => resolveRun(code));
