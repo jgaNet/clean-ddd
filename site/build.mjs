@@ -570,25 +570,32 @@ function render(language) {
 
   tables.openstayJ5 = table(
     t(
-      "OpenStay's J5 (provisional): where each tree stopped, the step of each request from 51",
-      'J5 d’OpenStay (provisoire) : où chaque arbre s’est arrêté, l’échelon de chaque demande à partir de 51',
+      "OpenStay's J5: where each tree stopped, the step of each request from 51",
+      'J5 d’OpenStay : où chaque arbre s’est arrêté, l’échelon de chaque demande à partir de 51',
     ),
     t(
       ['Tree', 'Steps from 51', 'Delivered', 'Stopped at', 'Cost'],
       ['Arbre', 'Échelons depuis 51', 'Livrées', 'Arrêté à', 'Coût'],
     ),
-    O.j5.trees.map(t => [t.tree, `<code>${t.steps}</code>`, t.delivered, t.stopped, usd(t.usd)]),
+    O.j5.trees.map(t => [t.tree, t.steps, t.delivered, t.stopped, usd(t.usd)]),
   );
   tables.openstayFullplus = table(
     t(
-      'Full+ (still running): the Clean DDD trees from where each stopped, on a kit that states what J5 found',
-      'Full+ (en cours) : les arbres Clean DDD repris là où chacun s’est arrêté, sur un kit qui énonce ce que J5 a trouvé',
+      'Full+: the Clean DDD trees from where each stopped, on a kit that states what J5 found',
+      'Full+ : les arbres Clean DDD repris là où chacun s’est arrêté, sur un kit qui énonce ce que J5 a trouvé',
     ),
     t(
-      ['Tree', 'From', 'Steps', 'Delivered so far', 'Cost so far'],
-      ['Arbre', 'Depuis', 'Échelons', 'Livrées à ce jour', 'Coût à ce jour'],
+      ['Tree', 'From', 'Steps to 8 November', 'Delivered', 'Stopped at', 'Cost to 8 November'],
+      ['Arbre', 'Depuis', 'Échelons au 8 novembre', 'Livrées', 'Arrêté à', 'Coût au 8 novembre'],
     ),
-    O.j5.fullplus.map(t => [t.tree, t.from, `<code>${t.steps}</code>`, t.delivered, usd(t.usd)]),
+    O.j5.fullplus.map(row => [
+      row.tree,
+      row.from,
+      `${row.steps}${row.stepsTo ? ` (${row.stepsTo})` : ''}`,
+      row.delivered,
+      row.stopped ?? t(`not stopped; last seen at ${row.lastSeen}`, `pas arrêté ; vu en dernier à ${row.lastSeen}`),
+      `${usd(row.usd)}${row.usdAt ? ` (${usd(row.usdAt[0])} ${t('at', 'à')} ${row.usdAt[1]})` : ''}`,
+    ]),
   );
 
   const readingRows = reading.rows
