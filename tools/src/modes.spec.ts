@@ -1,5 +1,10 @@
 import { loadArchitectureContract, repositoryRoot } from './index';
-import { checkMode } from './modes';
+import { execFileSync } from 'child_process';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+
+import { changedFiles, checkMode } from './modes';
 
 const contract = loadArchitectureContract(repositoryRoot());
 const check = (mode: 'feature' | 'architecture', changed: string[]) =>
@@ -52,5 +57,20 @@ describe('development modes', () => {
 
   it('architecture mode has nothing to say about a change that decides nothing', () => {
     expect(check('architecture', ['typescript/src/Contexts/Notes/Domain/Note/Note.ts'])).toMatchObject({ ok: true });
+  });
+});
+
+describe('what a change touches, uncommitted', () => {
+  it('names each file of an untracked directory, never the directory', () => {
+    const root = mkdtempSync(join(tmpdir(), 'modes-'));
+    try {
+      execFileSync('git', ['init', '-q'], { cwd: root });
+      mkdirSync(join(root, 'src/New/Deep'), { recursive: true });
+      writeFileSync(join(root, 'src/New/a.ts'), '');
+      writeFileSync(join(root, 'src/New/Deep/b.ts'), '');
+      expect(changedFiles('working', root).sort()).toEqual(['src/New/Deep/b.ts', 'src/New/a.ts']);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

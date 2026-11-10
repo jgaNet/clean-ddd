@@ -34,7 +34,9 @@ const under = (file: string, trees: string[]) => trees.some(tree => file === tre
 export function changedFiles(base: string, root: string = repositoryRoot()): string[] {
   const git = (args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8' });
   if (base === 'working') {
-    return git(['status', '--porcelain'])
+    // Every untracked file by its own path: by default git names an untracked directory, and a step that reads each
+    // changed file (the relationship tests) would open a directory (OpenStay J5b, a grader's copied folder).
+    return git(['status', '--porcelain', '--untracked-files=all'])
       .split('\n')
       .filter(Boolean)
       .map(line => line.slice(3).trim())
