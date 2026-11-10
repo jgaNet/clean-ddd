@@ -92,11 +92,11 @@ never a second wording of it (ARCH-ONE-CONTRACT).
 
 ## Status of the implementation
 
-Steps 1 to 3 of the RFC's plan (§12) are done:
+Steps 1 to 5 of the RFC's plan (§12) are done:
 
 - **This decision.**
-- **The schema.** `conventions/architecture.yaml` declares the `floor` and the `profiles`, with Full alone. A binding may
-  name a profile per context; none does. The loader reads both.
+- **The schema.** `conventions/architecture.yaml` declares the `floor` and the `profiles`. A binding may
+  name a profile per context; none of the reference's does. The loader reads both.
 - **The check.** The conventions check holds the validation contract of RFC 0002, §9:
   - P1, every rule held, waived with a reason, or held on a trigger, once, in every profile;
   - P2, no floor rule waived;
@@ -106,9 +106,41 @@ Steps 1 to 3 of the RFC's plan (§12) are done:
 
   P5 is a spec: Full's rendered documents are byte-identical with the profiles and without them, and the conventions
   step of the gate passes on the reference ([`profiles.spec.ts`](../../tools/src/profiles.spec.ts)).
+- **Lite's data (step 4).** `profiles.lite` in the contract, beside Full:
+  - it names every rule, so that a rule added later is a decision for Lite rather than held by default; it waives none;
+  - it holds four on a trigger: DOMAIN-RECORDS-EVENTS where a context reacts to its own domain event,
+    DOMAIN-CREATE-VS-RECONSTITUTE and CONC-OPTIMISTIC where two commands write one thing, EVENT-AFTER-COMMIT where a
+    fact leaves the context;
+  - ARCH-ONE-HANDLER stays held, not conditional: the Module lists each use case once and every route calls one it
+    lists, and the check reads both;
+  - its gaps are Full's four review rules; its grammar is `http-lite` (the same intents, every command answered at
+    once: `201 { id }`, `200`, `204`, a refusal at once with its status and the rule's exception);
+  - the ceremony it drops is not a rule, so the profile classifies it under `mechanisms`, H2's table as data: the
+    command bus and the operations come in on `command-answered-later`, aggregates on `several-writers`, domain events
+    on `reacts-to-domain-event`, each by an ADR; the queries port, the ports inside a context and one file per concept
+    are not used; the use case and the transport answering at once are its own; the boundaries are kept.
+  - The trigger `command-answered-later` now fires only for a command the inventory does not say is answered at once,
+    and `publishes-integration-event` also for a use case that publishes.
+- **TypeScript's building blocks for Lite (step 4).** A use case as a function of its ports
+  ([`UseCase.ts`](../../typescript/src/Architecture/Application/Lite/UseCase.ts): the transaction, the outbox kept, the
+  retry on a conflict, a throw turned into a failed Result), the Module listing them as data
+  ([`LiteModule.ts`](../../typescript/src/Architecture/Application/Lite/LiteModule.ts)), the transport answering at
+  once ([`AnswerAtOnce.ts`](../../typescript/src/Architecture/Presentation/Lite/AnswerAtOnce.ts)), each with its spec,
+  and the composition root an application created Lite starts from
+  ([`LiteStarter/createApplication.ts`](../../typescript/src/Bootstrap/LiteStarter/createApplication.ts)). No Full file
+  changed. The TypeScript binding says how it holds Lite under `profiles_held.lite`: its checklists, the files that
+  show each mechanism, what `create` copies. Rust, Python and Go say "Lite: not held"; the check refuses a context of
+  theirs held to it.
+- **The inventory and the storm reader (step 4)** read a Lite context: its use cases from the wiring and their
+  definitions, their routes, their caller, what they publish, and a command answered at once (`answered: at-once`, a
+  field absent from every Full inventory, which stay byte-identical). An expected storm may say it; one that gives a
+  Lite context a command answered later is refused, since that brings the bus in.
+- **`create --profile lite` (step 5).** A TypeScript application whose binding holds every context it does not name to
+  Lite (`default_profile: lite`), with the building blocks and the composition root that starts with no context; the
+  other languages refuse it with their gap. The spec writes a Lite context into one and holds the engine to it.
 
-Next (§12, steps 4–7): Lite's data, its TypeScript building blocks, the inventory and the storm reader for its shapes,
-`create --profile lite`, the pilot, then the campaign.
+Next (§12, steps 6–7): the pilot (requests 1–10, one Lite tree beside one tree of each other arm, to check the
+harness, not counted), then the registered campaign, then promotion, keep or removal by its criteria.
 
 ## Consequences
 

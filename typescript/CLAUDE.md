@@ -14,7 +14,7 @@ yarn architecture rule <ID> | concept <id> | verb <intent> | checklist <kind> | 
 yarn architecture can-import <file> <specifier> [<file> <specifier> …]     # asks ESLint before you write the import
 yarn architecture mode feature|architecture [--base <ref>|--base working]  # which rules this change is held to
 yarn architecture plan validate|explain <file>                             # a feature plan, checked against the contract
-yarn architecture create <dir> [--name <app>]                              # a new application: this architecture, none of this business
+yarn architecture create <dir> [--name <app>] [--profile lite]             # a new application: this architecture, none of this business
                                                                            # --json everywhere, for tools
 yarn typecheck          # tsc --noEmit
 yarn lint               # eslint, including the layer-boundary rules
@@ -33,13 +33,17 @@ Node ≥ 24 (`.nvmrc` = 24). All of `yarn check:conventions`, `yarn format:check
 src/Bootstrap/Fastify/            composition root (createApplication.ts) on the transport (FastifyApplication.ts, no context);
                                   application.ts is the entry point
 src/Bootstrap/Starter/            the composition root `create` gives a new application: the Tracker alone (ADR 27)
+src/Bootstrap/LiteStarter/        the one `create --profile lite` gives: no context, no Tracker (ADR 40)
 src/Architecture/                 the building blocks: mechanics, no vocabulary (they do not even know the roles)
   Domain/                         Entity, AggregateRoot, ValueObject, Id, Event(+kinds), Exception, Result — depends on nothing
   Application/                    CommandHandler, QueryHandler, EventHandler, ExecutionContext, EventBus, Outbox, Module, Application,
                                   AwaitOperation (a caller in one exchange waits for a command's outcome; ADR 36)
+    Lite/                         the Lite profile's (ADR 40): UseCase (command(), query(): a use case as a function of its
+                                  ports), LiteModule (the use cases as data); no context of this repository uses them
   Infrastructure/                 InMemoryDataSource, InMemoryEventBus (the inbox), InMemoryUnitOfWork, InMemoryOutbox, ConsoleLogger
   Presentation/                   Presenter, Format (json | htmx per request), the html tag,
                                   AcceptCommand (a 202 route's one way to publish: 401 at once without a caller; ADR 39)
+    Lite/                         AnswerAtOnce (the Lite profile's transport: the use case's result at once, no 202)
 src/SharedKernel/                 the shared kernel, in the DDD sense: what every context agrees on
   Domain/                         Email, Role
   Application/                    Guards (requireSignedIn), IntegrationEvents/ (the contracts between contexts)
