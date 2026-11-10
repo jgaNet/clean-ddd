@@ -801,9 +801,22 @@ async function writtenByOwners(feature, step, from, cwd, id, owners) {
       else if (result.stoppedBy) ceiling = result.stoppedBy;
       commitAll(team.cwd, `${feature.id}: ${team.name}'s work left uncommitted`);
     };
+    // A relationship's step names no file of its own; its test is the downstream owner's (ADR 33): the pairs it names
+    // (`Upstream → Downstream`) say whose. J5b's 56 sent it to the feature's owner three rounds running.
+    const routeStep = step =>
+      /^relationship/.test(step.name)
+        ? [
+            ...new Set(
+              (step.lines ?? []).flatMap(line =>
+                [...String(line).matchAll(/(\w+) → (\w+)/g)].map(([, , downstream]) => downstream),
+              ),
+            ),
+          ]
+        : [];
     const integrated = await integrate({
       owners: teams,
       featureOwner,
+      routeStep,
       merge,
       gate,
       send,
