@@ -1,5 +1,7 @@
 //! The REST routes of authentication and accounts. Sign-up and validation are commands:
-//! accepted (202) and followed through the operation. Login answers synchronously, with the
+//! accepted (202) and followed through the operation; anyone may sign up or follow the emailed
+//! link, and validating by id is refused at once with 401 to a caller who is not signed in
+//! (`accept()`, API-CALLER-AT-TRANSPORT). Login answers synchronously, with the
 //! token the client needs, by running the command through the module rather than publishing
 //! it, in JSON or HTMX depending on the request (see the presenters). `me` and the account by
 //! id are queries.
@@ -51,17 +53,26 @@ struct ValidationQuery {
     validation_token: String,
 }
 
-async fn sign_up(Extension(context): Extension<ExecutionContext>, Json(body): Json<CredentialsBody>) -> Response {
+async fn sign_up(
+    State(module): State<Arc<Module>>,
+    Extension(context): Extension<ExecutionContext>,
+    Json(body): Json<CredentialsBody>,
+) -> Response {
     if let Some(logger) = context.logger() {
         logger.info(context.trace_id(), &format!("Creating new account {}", body.identifier));
     }
-    // The password is hashed by the handler, behind the PasswordHasher port.
-    accept(&context, SignUp { email: body.identifier, password: body.password }).into_response()
+    // The password is hashed by the handler, behind the PasswordHasher port; anyone may sign up.
+    accept(&context, &module, SignUp { email: body.identifier, password: body.password }).into_response()
 }
 
-async fn validate(Extension(context): Extension<ExecutionContext>, Query(query): Query<ValidationQuery>) -> Response {
-    // The token is verified by the handler; whether it is valid is the operation's outcome.
-    accept(&context, ValidateAccount::ByToken { validation_token: query.validation_token }).into_response()
+async fn validate(
+    State(module): State<Arc<Module>>,
+    Extension(context): Extension<ExecutionContext>,
+    Query(query): Query<ValidationQuery>,
+) -> Response {
+    // Anyone holding the emailed token may ask; the handler verifies it, and whether it is valid
+    // is the operation's outcome.
+    accept(&context, &module, ValidateAccount::ByToken { validation_token: query.validation_token }).into_response()
 }
 
 /// Login answers synchronously: the client needs the token, so the command is run here, not published.
@@ -132,15 +143,20 @@ async fn get_account(
 ) -> Response {
     match module.query::<GetAccount>().handle(GetAccount { id }, &context).await {
         Ok(account) => Json(AccountViewModel::from(account)).into_response(),
-        Err(error) => refuse(error),
+        Err(error) => refuse(error, &context),
     }
 }
 
-async fn validate_account_by_id(Extension(context): Extension<ExecutionContext>, Path(id): Path<String>) -> Response {
-    // Whether this caller may validate by id is the handler's decision, from the context.
-    accept(&context, ValidateAccount::ById { account_id: id }).into_response()
+/// An administrator's: a caller who is not signed in is refused at once with 401; whether a
+/// signed-in caller may validate by id is the handler's decision, on the operation.
+async fn validate_account_by_id(
+    State(module): State<Arc<Module>>,
+    Extension(context): Extension<ExecutionContext>,
+    Path(id): Path<String>,
+) -> Response {
+    accept(&context, &module, ValidateAccount::ById { account_id: id }).into_response()
 }
 
-fn refuse(error: Exception) -> Response {
-    refused(status_of(&error), &error)
+fn refuse(error: Exception, context: &ExecutionContext) -> Response {
+    refused(status_of(&error, context), &error)
 }

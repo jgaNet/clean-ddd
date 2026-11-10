@@ -149,6 +149,15 @@ rules:
     references: [src/contexts/tracker/application/src/projection.rs, src/bootstrap/tests/operation_routes.rs]
   API-BODY-SHAPE:
     references: [src/contexts/notifications/presentation/src/lib.rs, src/contexts/notifications/domain/src/notification/channel.rs]
+  # Held by the conventions check (a context's presentation crate that dispatches, publishes, builds
+  # an operation or answers 202 by itself is refused) and by the shared scenario; accept(), the helper
+  # every 202 route calls, is the canonical file, and anyone_may_ask() on the command handler the marker.
+  API-CALLER-AT-TRANSPORT:
+    references:
+      - src/architecture/presentation/src/lib.rs
+      - src/architecture/application/src/command_handler.rs
+      - tools/conventions/src/caller_at_transport.rs
+      - ../api/scenario.mjs
   ARCH-MAP-IS-REAL:
     references: [tools/conventions/src/main.rs]
   ARCH-ONE-APPLICATION:
@@ -201,11 +210,11 @@ checklists:
     place: src/contexts/<context>/application/src/commands/<use_case>.rs
     parts:
       - 'The command: a struct with a named payload and nothing more, `impl Event` and `impl CommandEvent` with its `NAME`.'
-      - 'The handler in the same file: a struct generic over the ports it takes in `new()`, `impl CommandHandler` with `execute()` — the signed-in guard (`require_signed_in`) at the top, load, ask the aggregate or the domain service, save (`?` on the `DomainResult`), `publish_domain_events`. A command anyone may send (a sign-up) has no `require_signed_in`; its caller follows it by the operation id it was answered, signed in or not (ADR 27).'
+      - 'The handler in the same file: a struct generic over the ports it takes in `new()`, `impl CommandHandler` with `execute()` — the signed-in guard (`require_signed_in`) at the top, load, ask the aggregate or the domain service, save (`?` on the `DomainResult`), `publish_domain_events`. A command anyone may send (a sign-up, a link that carries its own proof) has no `require_signed_in` and says so once, by overriding `anyone_may_ask()` to answer `true` (API-CALLER-AT-TRANSPORT); its caller follows it by the operation id it was answered, signed in or not (ADR 27).'
       - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
       - 'One `pub mod` line in `commands/mod.rs`, and a `pub use` of what the wiring lists; the handlers of one aggregate share the tests at the bottom of that file.'
       - 'At least a happy path and one refusal in the tests; through `handle()` when the rule is in `guard()`.'
-      - 'A route in the context''s `presentation` crate: a function taking the request''s `Extension<ExecutionContext>` and `accept(&context, Command { … })`, answering `202 { operationId }`; the handler listed in the wiring crate with `Subscription::command`. A create never answers its new id: the handler returns it (its `Output`), and the client reads it as the operation''s `result` at `GET /v1/tracker/operations/{id}`.'
+      - 'A route in the context''s `presentation` crate: a function taking the module from `State` and the request''s `Extension<ExecutionContext>` and answering `accept(&context, &module, Command { … })`: `202 { operationId }`, or `401` at once, nothing published, to a caller who is not signed in unless the handler says anyone may ask (API-CALLER-AT-TRANSPORT); the handler listed in the wiring crate with `Subscription::command`. A create never answers its new id: the handler returns it (its `Output`), and the client reads it as the operation''s `result` at `GET /v1/tracker/operations/{id}`.'
       - 'An end-to-end case when the flow is user-visible, in a file of its own under the composition root''s `tests/` (`<things>_routes.rs`): it boots the application on a free port and speaks HTTP with `reqwest`, as the starting composition''s own [`create_application.rs`](src/bootstrap/starter/tests/create_application.rs) does; this repository''s suites boot theirs with `start_test_application()` of [`tests/support/mod.rs`](src/bootstrap/tests/support/mod.rs) and follow a `202` with `app.accepted()`.'
   query:
     place: src/contexts/<context>/application/src/queries/<use_case>.rs
@@ -526,14 +535,14 @@ concepts:
   controller:
     canonical: [src/contexts/notes/presentation/src/lib.rs]
     example: '[`notes/presentation`](src/contexts/notes/presentation/src/lib.rs); every other context''s has the same shape'
-    notes: 'the routes and their controller are one file: a function per route, `accept()` for a command, `module.query::<Q>()` for a query, `refuse()` for a refusal'
+    notes: 'the routes and their controller are one file: a function per route, `accept()` for a command (`401` at once without a caller), `module.query::<Q>()` for a query, `refuse()` for a refusal (`status_of()`: `401` not signed in, `403` signed in and not allowed)'
   routes-and-json-schemas:
     canonical:
       - src/contexts/notes/presentation/src/lib.rs
       - src/architecture/presentation/src/lib.rs
     example: >-
       the `Router` and the request bodies and views of [`notes/presentation`](src/contexts/notes/presentation/src/lib.rs),
-      on [`architecture/presentation`](src/architecture/presentation/src/lib.rs) (`Accepted`, the refusals)
+      on [`architecture/presentation`](src/architecture/presentation/src/lib.rs) (`Accepted`, `NotSignedIn`, the refusals)
     notes: 'the schema is a serde struct beside the route: axum refuses a body that does not fit it, a view says what a read model looks like outside'
   presenters:
     canonical:
@@ -564,3 +573,8 @@ concepts:
       listens; [`main.rs`](src/bootstrap/src/main.rs) is the process entry point, and
       [`starter/src/lib.rs`](src/bootstrap/starter/src/lib.rs) the composition a created application starts
       from (the Tracker alone, with its own entry point; ADR 27)
+
+# Lite: not held (ADR 40). The Lite profile is an experiment held in TypeScript alone: this binding has
+# no `profiles_held.lite`, so the check refuses a context of Rust held to it, and `create --language
+# rust --profile lite` is refused. What would close the gap is TypeScript's shape in this language's
+# idiom — a use case as a function of its ports, a transport answering at once — and that section here.

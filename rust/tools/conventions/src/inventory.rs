@@ -888,7 +888,7 @@ impl<'a> ContextReader<'a> {
             .then_some(resolved)
     }
 
-    /// The commands a controller builds, as command types: `accept(&context, X { … })`,
+    /// The commands a controller builds, as command types: `accept(&context, &module, X { … })`,
     /// `module.command::<X>()`; of a path (`commands::ShareNote { … }`, `ShareNote::new(…)`), the
     /// segment that resolves.
     fn commands_built(&self, body: &str, aliases: &BTreeMap<String, String>) -> Vec<String> {
@@ -972,16 +972,17 @@ impl<'a> ContextReader<'a> {
     }
 }
 
-/// What a controller writes where a command goes, as paths not yet resolved: the second argument of
-/// `accept(&context, …)`, the type of `module.command::<…>()`.
+/// What a controller writes where a command goes, as paths not yet resolved: an argument after the
+/// context in `accept(&context, &module, …)` (the module, a reference, starts with no path), the
+/// type of `module.command::<…>()`.
 fn commands_written(body: &str) -> Vec<Vec<&str>> {
     let mut written = Vec::new();
     for at in after_each(body, "accept(") {
         let arguments = balanced(body, at - 1, '(', ')');
-        if let Some(rest) = arguments.split_once(',').map(|(_, rest)| rest)
-            && let Some((segments, _)) = path_at(rest, 0)
-        {
-            written.push(segments);
+        for argument in top_level_arguments(arguments).into_iter().skip(1) {
+            if let Some((segments, _)) = path_at(argument, 0) {
+                written.push(segments);
+            }
         }
     }
     for at in after_each(body, "command::<") {
@@ -990,6 +991,25 @@ fn commands_written(body: &str) -> Vec<Vec<&str>> {
         }
     }
     written
+}
+
+/// The arguments of a call, split at the commas outside any bracket: `&context, X { a, b }` is two.
+fn top_level_arguments(arguments: &str) -> Vec<&str> {
+    let mut split = Vec::new();
+    let (mut depth, mut start) = (0usize, 0);
+    for (at, c) in arguments.char_indices() {
+        match c {
+            '(' | '{' | '[' => depth += 1,
+            ')' | '}' | ']' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => {
+                split.push(&arguments[start..at]);
+                start = at + 1;
+            }
+            _ => {}
+        }
+    }
+    split.push(&arguments[start..]);
+    split
 }
 
 /// The queries a controller function asks the module for: `module.query::<X>()`.
@@ -1399,7 +1419,7 @@ impl Event for AccountIntegrationEvent {
 
     const CREATES_A_NOTE: &str = "\
 async fn create_note(Extension(context): Extension<ExecutionContext>, Json(body): Json<CreateNoteBody>) -> Response {
-    accept(&context, CreateNote { note_id: body.note_id }).into_response()
+    accept(&context, &module, CreateNote { note_id: body.note_id }).into_response()
 }
 ";
     const LOGS_A_CREATED_NOTE: &str = "\
@@ -1455,7 +1475,7 @@ impl EventHandler for NoteCreatedHandler {
     fn a_command_a_controller_builds_that_no_handler_answers_is_refused() {
         let controller = "\
 async fn pin_note(Extension(context): Extension<ExecutionContext>, Path(id): Path<String>) -> Response {
-    accept(&context, PinNote { note_id: id }).into_response()
+    accept(&context, &module, PinNote { note_id: id }).into_response()
 }
 ";
         assert_eq!(
@@ -1475,14 +1495,14 @@ async fn pin_note(Extension(context): Extension<ExecutionContext>, Path(id): Pat
 use notes_application::commands::create_note::{CreateNote as Create, other};
 
 async fn create_note(Extension(context): Extension<ExecutionContext>, Json(body): Json<CreateNoteBody>) -> Response {
-    accept(&context, Create { note_id: body.note_id }).into_response()
+    accept(&context, &module, Create { note_id: body.note_id }).into_response()
 }
 ";
         assert_eq!(one_handler_problems_of(ONE_HANDLER_EACH, renamed, LOGS_A_CREATED_NOTE), Vec::<String>::new());
         // A helper, or a renaming the reader does not follow, is no command: nothing is named.
         let helper = "\
 async fn pin_note(Extension(context): Extension<ExecutionContext>, Path(id): Path<String>) -> Response {
-    accept(&context, pin(id)).into_response()
+    accept(&context, &module, pin(id)).into_response()
 }
 ";
         assert_eq!(one_handler_problems_of(ONE_HANDLER_EACH, helper, LOGS_A_CREATED_NOTE), Vec::<String>::new());

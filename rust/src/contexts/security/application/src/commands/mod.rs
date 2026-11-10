@@ -160,6 +160,20 @@ mod tests {
     }
 
     #[test]
+    fn anyone_may_sign_up_or_validate_with_the_emailed_token_and_only_a_signed_in_caller_validates_by_id() {
+        // API-CALLER-AT-TRANSPORT: what the transport's accept() asks before it publishes.
+        let fixture = Fixture::new();
+        let sign_up = SignUp { email: "alice@example.com".into(), password: "s3cret".into() };
+
+        assert!(fixture.sign_up().anyone_may_ask(&sign_up));
+        assert!(fixture.validate().anyone_may_ask(&ValidateAccount::ByToken { validation_token: "token".into() }));
+        assert!(!fixture.validate().anyone_may_ask(&ValidateAccount::ById { account_id: "alice".into() }));
+        assert!(
+            !fixture.login().anyone_may_ask(&Login { identifier: "alice@example.com".into(), password: "s".into() })
+        );
+    }
+
+    #[test]
     fn signing_up_twice_with_the_same_email_is_refused_by_the_domain_service() {
         let fixture = Fixture::new();
         fixture.signed_up("alice@example.com", "s3cret");

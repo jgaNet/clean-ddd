@@ -28,6 +28,10 @@ func NewSignUpHandler(accounts account.Repository, registration *account.Registr
 	return &SignUpHandler{accounts: accounts, registration: registration, hasher: hasher}
 }
 
+// AnyoneMayAsk: anyone may sign up, for there is nobody to be signed in as yet
+// (application.OpenToAnyone, API-CALLER-AT-TRANSPORT).
+func (h *SignUpHandler) AnyoneMayAsk(SignUpCommandEvent) bool { return true }
+
 // Execute answers with the id of the account it opened: the operation's result.
 func (h *SignUpHandler) Execute(command SignUpCommandEvent, ctx *application.ExecutionContext) (string, error) {
 	hash, err := h.hasher.Hash(command.Password)

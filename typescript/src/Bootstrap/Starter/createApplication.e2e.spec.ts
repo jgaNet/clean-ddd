@@ -24,13 +24,13 @@ describe('the application a project starts from', () => {
     });
 
     // An operation is followed by whoever started it; nobody started this one, and an anonymous
-    // caller is told to sign in rather than whether it exists.
-    expect(response.status).toBe(403);
+    // caller is told to sign in (401, API-CALLER-AT-TRANSPORT) rather than whether it exists.
+    expect(response.status).toBe(401);
     expect(await response.json()).toEqual({ message: expect.any(String) });
     expect(response.headers.get('x-trace-id')).toBe(traceId);
   });
 
   it('lists operations for an administrator only', async () => {
-    expect((await fetch(`${api}/tracker/operations`)).status).toBe(403);
+    expect((await fetch(`${api}/tracker/operations`)).status).toBe(401);
   });
 });

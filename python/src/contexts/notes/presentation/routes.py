@@ -1,7 +1,9 @@
-"""The REST routes of the Notes context. Commands are accepted (202) and processed through the
-event bus; the client follows the returned operation. Queries answer synchronously, through
-a view of the read model, or are refused with the status the refusal deserves: the context maps
-its own kinds first (``NoteNotFound`` is a 404) and falls back on ``status_of()``.
+"""The REST routes of the Notes context. Commands are accepted (202) through ``accept()``, which
+refuses a caller who is not signed in with 401 before anything is published
+(API-CALLER-AT-TRANSPORT), and processed through the event bus; the client follows the returned
+operation. Queries answer synchronously, through a view of the read model, or are refused with the
+status the refusal deserves: the context maps its own kinds first (``NoteNotFound`` is a 404) and
+falls back on ``status_of()`` (not allowed: 401 not signed in, 403 signed in).
 
 The verb follows the HTTP grammar (``yarn architecture verbs``): ``POST /notes`` creates,
 ``PUT /notes/{id}`` replaces, ``POST /notes/{id}/share`` acts; an action undone is a second act
@@ -14,10 +16,11 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from starlette.responses import JSONResponse, Response
 
+from architecture.application.execution_context import ExecutionContext
 from architecture.application.module import Module
 from architecture.domain.exception import DomainException
 from architecture.domain.result import Failure
-from architecture.presentation.http import accept, context_of, refuse, status_of
+from architecture.presentation.http import accept, context_of, refuse
 from contexts.notes.application.commands.archive_note import ArchiveNoteCommandEvent
 from contexts.notes.application.commands.create_note import CreateNoteCommandEvent
 from contexts.notes.application.commands.edit_note import EditNoteCommandEvent
@@ -66,8 +69,8 @@ def shared_item_view(note: SharedNoteListItem) -> dict[str, Any]:
     return {"id": note.id, "title": note.title, "content": note.content, "ownerId": note.owner_id}
 
 
-def refuse_note(error: DomainException) -> JSONResponse:
-    return refuse(error, 404 if isinstance(error, NoteNotFoundException) else status_of(error))
+def refuse_note(error: DomainException, context: ExecutionContext) -> JSONResponse:
+    return refuse(error, context, 404 if isinstance(error, NoteNotFoundException) else None)
 
 
 def note_routes(module: Module) -> APIRouter:
@@ -76,14 +79,14 @@ def note_routes(module: Module) -> APIRouter:
 
     @router.post("", status_code=202)
     async def create_note(request: Request, body: CreateNoteBody) -> Response:
-        return accept(context_of(request), CreateNoteCommandEvent(title=body.title, content=body.content))
+        return accept(module, context_of(request), CreateNoteCommandEvent(title=body.title, content=body.content))
 
     @router.get("")
     async def get_my_notes(request: Request) -> Response:
         context = context_of(request)
         result = await module.get_query(GetMyNotesQueryHandler).handle(None, context)
         if isinstance(result, Failure):
-            return refuse_note(result.error)
+            return refuse_note(result.error, context)
         return JSONResponse([list_item_view(note) for note in result.data])
 
     @router.get("/shared")
@@ -91,7 +94,7 @@ def note_routes(module: Module) -> APIRouter:
         context = context_of(request)
         result = await module.get_query(GetNotesSharedWithMeQueryHandler).handle(None, context)
         if isinstance(result, Failure):
-            return refuse_note(result.error)
+            return refuse_note(result.error, context)
         return JSONResponse([shared_item_view(note) for note in result.data])
 
     @router.get("/new")
@@ -103,28 +106,30 @@ def note_routes(module: Module) -> APIRouter:
         context = context_of(request)
         result = await module.get_query(GetNoteQueryHandler).handle(note_id, context)
         if isinstance(result, Failure):
-            return refuse_note(result.error)
+            return refuse_note(result.error, context)
         return JSONResponse(detail_view(result.data))
 
     @router.put("/{note_id}", status_code=202)
     async def edit_note(request: Request, note_id: str, body: EditNoteBody) -> Response:
         command = EditNoteCommandEvent(note_id=note_id, title=body.title, content=body.content)
-        return accept(context_of(request), command)
+        return accept(module, context_of(request), command)
 
     @router.post("/{note_id}/archive", status_code=202)
     async def archive_note(request: Request, note_id: str) -> Response:
-        return accept(context_of(request), ArchiveNoteCommandEvent(note_id=note_id))
+        return accept(module, context_of(request), ArchiveNoteCommandEvent(note_id=note_id))
 
     @router.post("/{note_id}/restore", status_code=202)
     async def restore_note(request: Request, note_id: str) -> Response:
-        return accept(context_of(request), RestoreNoteCommandEvent(note_id=note_id))
+        return accept(module, context_of(request), RestoreNoteCommandEvent(note_id=note_id))
 
     @router.post("/{note_id}/share", status_code=202)
     async def share_note(request: Request, note_id: str, body: ShareNoteBody) -> Response:
-        return accept(context_of(request), ShareNoteCommandEvent(note_id=note_id, recipient_id=body.recipientId))
+        return accept(
+            module, context_of(request), ShareNoteCommandEvent(note_id=note_id, recipient_id=body.recipientId)
+        )
 
     @router.post("/{note_id}/suggest-title", status_code=202)
     async def suggest_note_title(request: Request, note_id: str) -> Response:
-        return accept(context_of(request), SuggestNoteTitleCommandEvent(note_id=note_id))
+        return accept(module, context_of(request), SuggestNoteTitleCommandEvent(note_id=note_id))
 
     return router

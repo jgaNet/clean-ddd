@@ -7,7 +7,9 @@ import {
   Checklist,
   Concept,
   ContractError,
+  CreateSpec,
   Enforcement,
+  FloorGuarantee,
   Language,
   Migration,
   MigrationApi,
@@ -15,12 +17,16 @@ import {
   SUPPORTED_SCHEMA_VERSION,
   Mode,
   ModeName,
+  Profile,
+  ProfileBinding,
+  ProfileMechanism,
   TestRow,
   Tree,
   Verb,
   VocabularyRow,
 } from './types';
 import { validateMigration } from './migration';
+import { validateProfiles } from './profiles';
 
 /**
  * Loads the three YAML files — the contract (architecture.yaml), the concepts (concepts.yaml)
@@ -209,30 +215,33 @@ export function loadArchitectureContract(
     };
   });
 
-  const boundVerbs = isObject(binding.verbs) ? binding.verbs : {};
-  const verbs: Verb[] = ((architecture.http as { verbs?: Verb[] } | undefined)?.verbs ?? []).map(verb => {
-    const example = text(boundVerbs[verb.intent]);
-    return {
-      intent: verb.intent,
-      verb: verb.verb,
-      shape: verb.shape,
-      when: verb.when,
-      ...(example && { example: local.path(example) }),
-    };
-  });
+  const verbsOf = (section: unknown, boundVerbs: Raw): Verb[] =>
+    ((section as { verbs?: Verb[] } | undefined)?.verbs ?? []).map(verb => {
+      const example = text(boundVerbs[verb.intent]);
+      return {
+        intent: verb.intent,
+        verb: verb.verb,
+        shape: verb.shape,
+        when: verb.when,
+        ...(example && { example: local.path(example) }),
+      };
+    });
+  const verbs: Verb[] = verbsOf(architecture.http, isObject(binding.verbs) ? binding.verbs : {});
 
-  const boundChecklists = isObject(binding.checklists) ? binding.checklists : {};
-  const checklists: Checklist[] = Object.entries(
-    (architecture.checklists as Record<string, { concept?: string }> | undefined) ?? {},
-  ).map(([kind, entry]) => {
-    const bound = isObject(boundChecklists[kind]) ? (boundChecklists[kind] as Raw) : {};
-    return {
-      kind,
-      concept: String(entry.concept ?? ''),
-      place: bound.place ? local.path(String(bound.place)) : '',
-      parts: strings(bound.parts),
-    };
-  });
+  const kindsOf = (architecture.checklists as Record<string, { concept?: string }> | undefined) ?? {};
+  const checklistsFrom = (bound: Raw, only: boolean): Checklist[] =>
+    Object.entries(kindsOf)
+      .filter(([kind]) => !only || isObject(bound[kind]))
+      .map(([kind, entry]) => {
+        const said = isObject(bound[kind]) ? (bound[kind] as Raw) : {};
+        return {
+          kind,
+          concept: String(entry.concept ?? ''),
+          place: said.place ? local.path(String(said.place)) : '',
+          parts: strings(said.parts),
+        };
+      });
+  const checklists: Checklist[] = checklistsFrom(isObject(binding.checklists) ? binding.checklists : {}, false);
 
   const coreModes = (architecture.modes as Record<ModeName, Mode> | undefined) ?? ({} as Record<ModeName, Mode>);
   const boundModes: Partial<Record<ModeName, Partial<Mode>>> =
@@ -273,6 +282,93 @@ export function loadArchitectureContract(
       }
     : undefined;
 
+  // The profiles (ADR 40): the floor and the profiles from the contract, the profile of each context
+  // from the binding. A contract that declares none is held as written.
+  const floor: FloorGuarantee[] = (Array.isArray(architecture.floor) ? architecture.floor : [])
+    .filter(isObject)
+    .map(entry => ({
+      guarantee: String(entry.guarantee ?? ''),
+      rules: strings(entry.rules),
+      ...(text(entry.gap) && { gap: text(entry.gap) }),
+      ...(text(entry.held_by) && { heldBy: text(entry.held_by) }),
+    }));
+  const listOrAll = (value: unknown): 'all' | string[] => (value === 'all' ? 'all' : strings(value));
+  const textsOf = (value: unknown): Record<string, string> =>
+    Object.fromEntries(Object.entries(isObject(value) ? value : {}).map(([id, said]) => [id, String(said ?? '')]));
+  const profiles: Profile[] = Object.entries(isObject(architecture.profiles) ? architecture.profiles : {}).map(
+    ([id, entry]) => {
+      const raw = isObject(entry) ? entry : {};
+      return {
+        id,
+        name: String(raw.name ?? id),
+        why: String(raw.why ?? ''),
+        default: raw.default === true,
+        holds: listOrAll(raw.holds),
+        waives: textsOf(raw.waives),
+        conditional: textsOf(raw.conditional),
+        gaps: strings(raw.gaps),
+        grammar: String(raw.grammar ?? ''),
+        checklists: listOrAll(raw.checklists),
+        mechanisms: Object.fromEntries(
+          Object.entries(isObject(raw.mechanisms) ? raw.mechanisms : {}).map(([mechanism, said]) => {
+            const entry = isObject(said) ? said : {};
+            const stance: ProfileMechanism['stance'] =
+              'not_used' in entry ? 'not-used' : 'uses' in entry ? 'uses' : 'kept';
+            const why = entry.not_used ?? entry.uses ?? entry.kept;
+            return [
+              mechanism,
+              {
+                stance,
+                why: typeof why === 'string' ? why : '',
+                ...(text(entry.until) && { until: text(entry.until) }),
+              },
+            ];
+          }),
+        ),
+      };
+    },
+  );
+  const contextProfiles = textsOf(binding.profiles);
+  const grammars = Object.entries(architecture)
+    .filter(([, value]) => isObject(value) && Array.isArray(value.verbs))
+    .map(([key]) => key);
+  // The verbs of every grammar a profile may answer on, beside the contract's own (`verbs`); a binding
+  // that holds a profile names the routes that show its verbs under `profiles_held.<id>.verbs`.
+  const held = isObject(binding.profiles_held) ? binding.profiles_held : {};
+  const grammarVerbs: Record<string, Verb[]> = Object.fromEntries(
+    grammars
+      .filter(grammar => grammar !== 'http')
+      .map(grammar => {
+        const holding = profiles
+          .filter(profile => profile.grammar === grammar)
+          .map(profile => held[profile.id])
+          .find(entry => isObject(entry) && isObject(entry.verbs)) as Raw | undefined;
+        return [grammar, verbsOf(architecture[grammar], isObject(holding?.verbs) ? holding.verbs : {})];
+      }),
+  );
+  // How the binding holds each profile other than the default (ADR 40): its checklists where they
+  // differ, the files that show its mechanisms, what `create --profile` copies in place of `create`.
+  const profilesHeld: Record<string, ProfileBinding> = Object.fromEntries(
+    Object.entries(held).map(([id, entry]) => {
+      const raw = isObject(entry) ? entry : {};
+      const shows = Object.fromEntries(
+        Object.entries(isObject(raw.shows) ? raw.shows : {}).map(([mechanism, files]) => [
+          mechanism,
+          local.paths(Array.isArray(files) ? files : [files]),
+        ]),
+      );
+      return [
+        id,
+        {
+          checklists: checklistsFrom(isObject(raw.checklists) ? raw.checklists : {}, true),
+          shows,
+          ...(isObject(raw.create) && { create: createSpecOf(raw.create, local.path, true) }),
+        },
+      ];
+    }),
+  );
+  const bindingProfile = text(binding.default_profile);
+
   const boundVocabulary = isObject(binding.vocabulary) ? binding.vocabulary : {};
   const vocabulary: VocabularyRow[] = (
     (concepts.vocabulary as { word: string; meaning: string }[] | undefined) ?? []
@@ -284,24 +380,7 @@ export function loadArchitectureContract(
     doubles: local.markdown(row.doubles) ?? '',
   }));
 
-  const create = isObject(binding.create)
-    ? {
-        copy: (Array.isArray(binding.create.copy) ? binding.create.copy : []).map((entry: unknown) =>
-          isObject(entry)
-            ? { from: local.path(String(entry.from ?? '')), to: local.path(String(entry.to ?? '')) }
-            : { from: local.path(String(entry)), to: local.path(String(entry)) },
-        ),
-        contracts: local.path(String(binding.create.contracts ?? '')),
-        manifest: local.path(String(binding.create.manifest ?? '')),
-        members: strings(binding.create.members),
-        dependencies: strings(binding.create.dependencies),
-        devDependencies: strings(binding.create.devDependencies),
-        scripts: strings(binding.create.scripts),
-        inventory: binding.create.inventory === true,
-        install: String(binding.create.install ?? ''),
-        test: String(binding.create.test ?? ''),
-      }
-    : undefined;
+  const create = isObject(binding.create) ? (createSpecOf(binding.create, local.path, false) as CreateSpec) : undefined;
 
   return {
     schemaVersion: SUPPORTED_SCHEMA_VERSION,
@@ -331,10 +410,43 @@ export function loadArchitectureContract(
     modes,
     migrationApis,
     ...(migration && { migration }),
+    floor,
+    profiles,
+    contextProfiles,
+    grammars,
+    grammarVerbs,
+    ...(bindingProfile && { bindingProfile }),
+    profilesHeld,
     tests,
     vocabulary,
     sources,
   };
+}
+
+/**
+ * A binding's `create` section, its paths made repository-relative. `partial`: only the keys it names
+ * (a profile's `create`, which stands in for the binding's own where it says something).
+ */
+function createSpecOf(raw: Raw, path: (value: string) => string, partial: boolean): Partial<CreateSpec> {
+  const spec: Partial<CreateSpec> = {
+    copy: (Array.isArray(raw.copy) ? raw.copy : []).map((entry: unknown) =>
+      isObject(entry)
+        ? { from: path(String(entry.from ?? '')), to: path(String(entry.to ?? '')) }
+        : { from: path(String(entry)), to: path(String(entry)) },
+    ),
+    contracts: path(String(raw.contracts ?? '')),
+    manifest: path(String(raw.manifest ?? '')),
+    members: strings(raw.members),
+    dependencies: strings(raw.dependencies),
+    devDependencies: strings(raw.devDependencies),
+    scripts: strings(raw.scripts),
+    inventory: raw.inventory === true,
+    install: String(raw.install ?? ''),
+    test: String(raw.test ?? ''),
+  };
+  if (!partial) return spec;
+  const said = new Set(Object.keys(raw));
+  return Object.fromEntries(Object.entries(spec).filter(([key]) => said.has(key))) as Partial<CreateSpec>;
 }
 
 /** Everything a loaded contract can still get wrong, one line each; empty means the contract is sound. */
@@ -475,7 +587,46 @@ export function validateContract(
       problems.push(`${bindingFile}: has a checklist for ${kind}, which ${contractFile} does not define`);
   }
 
+  // How the binding holds a profile other than the default (ADR 40): the files it names exist, and its
+  // checklists are kinds the contract has.
+  const heldRaw = isObject(bindingRaw.profiles_held) ? bindingRaw.profiles_held : {};
+  for (const [id, holding] of Object.entries(contract.profilesHeld)) {
+    const raw = isObject(heldRaw[id]) ? (heldRaw[id] as Raw) : {};
+    for (const kind of Object.keys(isObject(raw.checklists) ? raw.checklists : {})) {
+      if (!kinds.has(kind))
+        problems.push(
+          `${bindingFile} profiles_held.${id}: has a checklist for ${kind}, which ${contractFile} does not define`,
+        );
+    }
+    for (const [mechanism, files] of Object.entries(holding.shows)) {
+      for (const file of files) {
+        if (!exists(file))
+          problems.push(`${bindingFile} profiles_held.${id}: "${mechanism}" names ${file}, which does not exist`);
+      }
+    }
+    for (const entry of holding.create?.copy ?? []) {
+      if (!exists(entry.from))
+        problems.push(`${bindingFile} profiles_held.${id} create: names ${entry.from}, which does not exist`);
+    }
+    const grammar = contract.profiles.find(profile => profile.id === id)?.grammar ?? '';
+    for (const verb of contract.grammarVerbs[grammar] ?? []) {
+      if (verb.example && !exists(verb.example))
+        problems.push(
+          `${bindingFile} profiles_held.${id} verb "${verb.intent}": names ${verb.example}, which does not exist`,
+        );
+    }
+    const intents = new Set((contract.grammarVerbs[grammar] ?? []).map(verb => verb.intent));
+    for (const intent of Object.keys(isObject(raw.verbs) ? raw.verbs : {})) {
+      if (!intents.has(intent))
+        problems.push(
+          `${bindingFile} profiles_held.${id}: names the verb ${intent}, which the grammar ${grammar} does not define`,
+        );
+    }
+  }
+
   // A migrated application's wire, and the compatibility routes it declares (ADR 36).
   problems.push(...validateMigration(contract, root, today));
+  // The profiles the contract declares, and the profile the binding names for each context (ADR 40).
+  problems.push(...validateProfiles(contract, root));
   return problems;
 }

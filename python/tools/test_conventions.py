@@ -40,6 +40,9 @@ def copy(tmp_path: Path) -> Path:
     shutil.copytree(HERE / "src", root / "python" / "src")
     shutil.copytree(HERE / "tools", root / "python" / "tools")
     shutil.copytree(HERE.parent / "docs" / "inventory", root / "docs" / "inventory")
+    # The binding names the shared scenario as a file that shows API-CALLER-AT-TRANSPORT.
+    (root / "api").mkdir()
+    shutil.copy(HERE.parent / "api" / "scenario.mjs", root / "api" / "scenario.mjs")
     return root / "python"
 
 
@@ -422,3 +425,39 @@ def test_an_integration_event_published_from_a_variable_is_not_seen_caught_by_th
         ),
     )
     assert found == [STALE_INVENTORY, ON_SHARED_LOST]
+
+
+def caller_at_transport_refusals(here: Path) -> list[str]:
+    return [problem for problem in refusals(here) if problem.startswith("API-CALLER-AT-TRANSPORT:")]
+
+
+def test_refuses_a_route_that_publishes_a_command_or_answers_202_by_itself_naming_the_rule(copy: Path) -> None:
+    routes = copy / "src/contexts/notes/presentation/routes.py"
+    through_the_helper = "return accept(module, context_of(request), ArchiveNoteCommandEvent(note_id=note_id))"
+    by_itself = (
+        "context = context_of(request)\n"
+        "        operation = context.event_bus.publish(ArchiveNoteCommandEvent(note_id=note_id), context)\n"
+        '        return JSONResponse({"operationId": operation.id}, status_code=202)'
+    )
+    source = routes.read_text(encoding="utf-8")
+    assert through_the_helper in source
+    routes.write_text(source.replace(through_the_helper, by_itself), encoding="utf-8")
+    (copy / "src/contexts/notes/presentation/stray.py").write_text(
+        "def answer(response: object) -> None:\n    response.status_code = 202\n"
+    )
+
+    found = caller_at_transport_refusals(copy)
+
+    assert len(found) == 3
+    assert any("routes.py" in problem and "publishes on the bus by itself" in problem for problem in found)
+    assert any("routes.py" in problem and "answers 202 by itself" in problem for problem in found)
+    assert any("stray.py:2 answers 202 by itself" in problem for problem in found)
+    assert all("accept(module, context_of(request), TheCommand(...))" in problem for problem in found)
+
+
+def test_a_route_decorator_may_document_202_and_a_test_may_publish(copy: Path) -> None:
+    # The tree's routes say `@router.post(..., status_code=202)`; a test of the presentation may use the bus.
+    (copy / "src/contexts/notes/presentation/test_stray.py").write_text(
+        "def test_x(context: object) -> None:\n    context.event_bus.publish(object(), context)\n"
+    )
+    assert caller_at_transport_refusals(copy) == []

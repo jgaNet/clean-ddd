@@ -37,7 +37,7 @@ def operation_routes(module: Module) -> APIRouter:
         context = context_of(request)
         result = await module.get_query(GetOperationsQueryHandler).handle(OperationFilters(trace_id=traceId), context)
         if isinstance(result, Failure):
-            return refuse(result.error)
+            return refuse(result.error, context)
         return JSONResponse([operation_view(record) for record in result.data])
 
     @router.get("/{operation_id}")
@@ -45,7 +45,7 @@ def operation_routes(module: Module) -> APIRouter:
         context = context_of(request)
         result = await module.get_query(GetOperationQueryHandler).handle(operation_id, context)
         if isinstance(result, Failure):
-            return refuse(result.error)
+            return refuse(result.error, context)
         return JSONResponse(operation_view(result.data))
 
     return router

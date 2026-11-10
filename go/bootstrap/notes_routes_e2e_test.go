@@ -29,9 +29,11 @@ func TestANoteIsWrittenListedReadEditedArchivedAndRestored(t *testing.T) {
 	if empty.Status != http.StatusOK || empty.Text != "[]\n" && len(empty.Array()) != 0 {
 		t.Fatalf("empty list: %d %s", empty.Status, empty.Text)
 	}
-	if app.Anonymous().Get("/notes").Status != http.StatusForbidden {
-		t.Fatal("anonymous is refused")
+	if anonymous := app.Anonymous().Get("/notes"); anonymous.Status != http.StatusUnauthorized || len(anonymous.Object()) != 1 {
+		t.Fatalf("anonymous is refused with 401 { message }: %d %s", anonymous.Status, anonymous.Text)
 	}
+	// A command whose outcome is read later needs a caller (API-CALLER-AT-TRANSPORT)
+	app.RefusedAtOnce(app.Anonymous().Post("/notes", map[string]string{"title": "anonymous", "content": "..."}), "anonymous POST /notes")
 
 	created := app.Accepted(admin, admin.Post("/notes", map[string]string{"title": "title", "content": "content"}))
 	if created["status"] != "SUCCESS" || created["name"] != "CreateNote" {

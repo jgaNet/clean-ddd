@@ -172,6 +172,8 @@ export interface CreatedApplication {
   directory: string;
   name: string;
   language: string;
+  /** The profile its contexts are held to when it is not the default (`create --profile lite`; ADR 40). */
+  profile?: string;
   /** The contexts it starts with: plumbing every application needs, never the reference's business (ADR 27). */
   contexts: string[];
   /** The commands to run first, in the language's words. */
@@ -187,18 +189,37 @@ export function createApplication(
   name: string,
   source: string = referenceSource(),
   language?: string,
+  /** The profile its contexts are held to (ADR 40); the contract's default when none is named. */
+  profile?: string,
 ): CreatedApplication {
   if (existsSync(directory) && readdirSync(directory).length) {
     throw new Error(`${directory} is not empty; a new application is created in an empty directory`);
   }
   const contract = loadArchitectureContract(source, language);
-  const spec = contract.create;
-  if (!spec) {
+  const base = contract.create;
+  if (!base) {
     throw new ContractError(
       `${contract.sources.binding} says nothing about create yet: a \`create\` section names what to copy and what to write for ${contract.language.name}`,
       'malformed',
     );
   }
+  // A profile other than the default (Lite): the binding says what to copy for it, or the language does
+  // not hold it yet, which is its binding's gap to report, not a scaffold to improvise.
+  const chosen = profile === undefined ? undefined : contract.profiles.find(each => each.id === profile);
+  if (profile !== undefined && !chosen) {
+    throw new ContractError(
+      `no profile "${profile}" in ${contract.sources.architecture}: one of ${contract.profiles.map(each => each.id).join(', ')}`,
+      'malformed',
+    );
+  }
+  const held = chosen && !chosen.default ? chosen : undefined;
+  if (held && !contract.profilesHeld[held.id]?.create) {
+    throw new ContractError(
+      `${contract.language.name} does not hold the ${held.name} profile: ${contract.sources.binding} says nothing about it under "profiles_held.${held.id}" (${held.name}: not held, a gap of this language; ADR 40). Create the application without --profile, or in TypeScript, the one language that holds it`,
+      'malformed',
+    );
+  }
+  const spec: CreateSpec = { ...base, ...(held ? contract.profilesHeld[held.id].create : {}) };
   const local = inApplication(contract);
   const languageDir = join(source, contract.language.root);
 
@@ -293,7 +314,7 @@ export function createApplication(
   const concepts = contract.concepts
     .map(concept => surviving(concept, directory, local))
     .filter((concept): concept is Concept => concept !== undefined);
-  writeContract(directory, source, contract, concepts, name, contexts);
+  writeContract(directory, source, contract, concepts, name, contexts, held?.id);
 
   // 4. The documents, rendered from that contract exactly as this repository renders its own,
   //    the manifest, and — where the language's own tool holds its inventory — an empty one.
@@ -304,8 +325,8 @@ export function createApplication(
     contexts,
     language: { ...contract.language, root: '.' },
   };
-  writeFileSync(join(directory, 'README.md'), readme(lean, name, local));
-  writeFileSync(join(directory, 'CLAUDE.md'), claude(lean, name, local));
+  writeFileSync(join(directory, 'README.md'), readme(lean, name, local, held?.name));
+  writeFileSync(join(directory, 'CLAUDE.md'), claude(lean, name, local, held?.name));
   mkdirSync(join(directory, 'docs/adr'), { recursive: true });
   writeFileSync(join(directory, 'docs/adr/README.md'), adrIndex());
   // The two contracts that keep contexts apart once there are several, present from the first day
@@ -330,6 +351,7 @@ export function createApplication(
     directory,
     name,
     language: contract.language.id,
+    ...(held && { profile: held.id }),
     contexts,
     next: [
       `cd ${directory} && ${spec.install}`,
@@ -360,6 +382,8 @@ function writeContract(
   concepts: Concept[],
   name: string,
   contexts: string[],
+  /** The profile its contexts are held to, when it is not the default: the binding's `default_profile`. */
+  profile?: string,
 ): void {
   mkdirSync(join(directory, 'conventions/plans'), { recursive: true });
   const yaml = { lineWidth: 110, noRefs: true };
@@ -378,9 +402,11 @@ function writeContract(
   const table = load(contractText) as Record<string, unknown>;
   table.languages = [contract.language.id];
   prune(table, directory);
-  // The verb table keeps its grammar and loses this repository's nouns.
-  for (const verb of (table.http as { verbs?: { intent: string; shape: string }[] })?.verbs ?? []) {
-    verb.shape = neutralShape(verb.shape, verb.intent);
+  // Every verb table keeps its grammar and loses this repository's nouns: the contract's and each profile's.
+  for (const section of Object.values(table)) {
+    const verbs = (section as { verbs?: unknown } | null)?.verbs;
+    if (!Array.isArray(verbs)) continue;
+    for (const verb of verbs as { intent: string; shape: string }[]) verb.shape = neutralShape(verb.shape, verb.intent);
   }
   const note = [
     '# Created by `clean-ddd create` from the clean-ddd reference. The URL shapes in',
@@ -422,6 +448,32 @@ function writeContract(
   const binding = load(bindingText) as Record<string, unknown>;
   binding.root = '.';
   binding.contexts = contexts;
+  // A context's profile (ADR 40) goes with the context: the ones it did not keep are the reference's.
+  if (typeof binding.profiles === 'object' && binding.profiles !== null) {
+    const kept = Object.entries(binding.profiles).filter(([context]) => contexts.includes(context));
+    if (kept.length) binding.profiles = Object.fromEntries(kept);
+    else delete binding.profiles;
+  }
+  // The profiles the binding holds beside the default (ADR 40) stay held here: the files that show their
+  // mechanisms where they were copied, and none of what `create` copies for them, which is the
+  // reference's business. An application created under one of them holds its contexts to it, and its
+  // `create` is the one that made it.
+  const profilesHeld = (binding.profiles_held ?? {}) as Record<string, Record<string, unknown>>;
+  if (profile && typeof profilesHeld[profile]?.create === 'object') {
+    binding.create = { ...(binding.create as object), ...(profilesHeld[profile].create as object) };
+  }
+  for (const entry of Object.values(profilesHeld)) {
+    delete entry.create;
+    const shows = (entry.shows ?? {}) as Record<string, string[]>;
+    entry.shows = Object.fromEntries(
+      Object.entries(shows)
+        .map(([mechanism, files]): [string, string[]] => [mechanism, files.filter(file => exists(directory, file))])
+        .filter(([, files]) => files.length),
+    );
+    const verbs = (entry.verbs ?? {}) as Record<string, string>;
+    for (const [intent, file] of Object.entries(verbs)) if (!exists(directory, file)) delete verbs[intent];
+  }
+  if (profile) binding.default_profile = profile;
   // What was copied under another name is, here, the application's own file at that name.
   const created = binding.create as { copy?: unknown[] } | undefined;
   if (Array.isArray(created?.copy)) {
@@ -456,6 +508,13 @@ function writeContract(
     '# started with: declare yours there, or no import rule applies to its files. A concept whose',
     '# canonical file this application does not have yet is not listed under `concepts`; add it',
     '# back with the file when you write it.',
+    ...(profile
+      ? [
+          `# \`default_profile: ${profile}\`: every context it does not name under \`profiles\` is held to that`,
+          '# profile (ADR 40 of the reference); `clean-ddd profiles` says what it holds, and moving a context',
+          '# to another profile is an architecture change with an ADR.',
+        ]
+      : []),
     '',
     '',
   ].join('\n');
@@ -512,7 +571,12 @@ const toolCheck = (contract: ArchitectureContract): string =>
   contract.create?.manifest.endsWith('package.json') ? 'yarn check:conventions' : 'npx clean-ddd check';
 
 /** `local` turns the reference's repository-relative paths into the application's own (`python/src/…` → `src/…`). */
-function readme(contract: ArchitectureContract, name: string, local: (path: string) => string): string {
+function readme(
+  contract: ArchitectureContract,
+  name: string,
+  local: (path: string) => string,
+  profile?: string,
+): string {
   const spec = contract.create as CreateSpec;
   const layers = (['domain', 'application', 'infrastructure', 'presentation'] as const).filter(layer =>
     contract.concepts.some(concept => concept.layer === layer && shown(concept)),
@@ -534,6 +598,13 @@ function readme(contract: ArchitectureContract, name: string, local: (path: stri
     `An application built on the Clean Architecture and Domain-Driven Design reference implementation`,
     `[clean-ddd](https://github.com/jgaNet/clean-ddd), in ${contract.language.name}: its building blocks, its shared kernel, its`,
     'architecture contract and its checks, with none of its business.',
+    ...(profile
+      ? [
+          '',
+          `Its contexts are held to the **${profile}** profile: a use case is a function of its ports, called by its route,`,
+          `which answers at once; every boundary of the full profile is kept. \`${tool(contract)} profiles\` says what it holds.`,
+        ]
+      : []),
     '',
     '## What is here',
     '',
@@ -598,7 +669,12 @@ function readme(contract: ArchitectureContract, name: string, local: (path: stri
   ].join('\n');
 }
 
-function claude(contract: ArchitectureContract, name: string, local: (path: string) => string): string {
+function claude(
+  contract: ArchitectureContract,
+  name: string,
+  local: (path: string) => string,
+  profile?: string,
+): string {
   const ask = tool(contract);
   const width = Math.max(...[toolCheck(contract), ...contract.checks].map(command => command.length)) + 3;
   return [
@@ -625,11 +701,26 @@ function claude(contract: ArchitectureContract, name: string, local: (path: stri
     '',
     '## How to add a feature',
     '',
-    `Run \`${ask} checklist <kind>\` for the file list, and \`${ask} verb <intent>\``,
-    'for the route. In short: the domain first (a behaviour on the aggregate that enforces the rule and',
-    'records an event), then the command or query handler, then the adapter only if a port changed, then',
-    `the route, then the wiring in \`${contract.wiring}\`. A rule that spans aggregates or needs a port is a`,
-    'domain service. Expected failures are `Result` values, never thrown.',
+    ...(profile
+      ? [
+          `Every context here is held to the ${profile} profile (\`default_profile\` in the binding): \`${ask} profiles\` says`,
+          'which rules it holds, which it holds where a trigger fires, and what a trigger brings in — an aggregate,',
+          'a domain event, a command answered later come in by an ADR, never quietly.',
+          '',
+          `Run \`${ask} checklist <kind>\` for the file list, and \`${ask} verb <intent>\``,
+          'for the route; both answer for the profile. In short: the domain first (a value object or a function that',
+          'refuses a value with its exception), then the use case — a function of its ports, in the file of its',
+          "thing's use cases — then the store's adapter only if a method changed, then the route, which answers it at",
+          `once through \`answerAtOnce()\`, then the use case listed in the \`LiteModule\` of \`${contract.wiring}\`.`,
+          'Expected failures are `Result` values, never thrown.',
+        ]
+      : [
+          `Run \`${ask} checklist <kind>\` for the file list, and \`${ask} verb <intent>\``,
+          'for the route. In short: the domain first (a behaviour on the aggregate that enforces the rule and',
+          'records an event), then the command or query handler, then the adapter only if a port changed, then',
+          `the route, then the wiring in \`${contract.wiring}\`. A rule that spans aggregates or needs a port is a`,
+          'domain service. Expected failures are `Result` values, never thrown.',
+        ]),
     '',
     '## Things to avoid',
     '',

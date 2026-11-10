@@ -43,14 +43,46 @@ The maintainer decided the RFC's four hot spots on 10 November.
 
 ## Status of the implementation
 
-- **Decided, not yet in the reference.** By [ADR 37](0037-a-decision-for-every-feature-is-taken-once.md), a decision
-  taken late is applied to the code already written. That migration is the next change of the reference. It brings:
-  - a rule under one id in `conventions/architecture.yaml`;
-  - the marker on the anonymous command handlers;
-  - the helper in each language's presentation building blocks, and every `202` route converted;
-  - `401` for the anonymous queries;
-  - the scenario's steps;
-  - the guides and the TypeScript linter rule.
+- **The contract holds it, under API-CALLER-AT-TRANSPORT.** By [ADR
+  37](0037-a-decision-for-every-feature-is-taken-once.md), a decision taken late is applied to the code already
+  written. The rule is in `conventions/architecture.yaml`, and the shared scenario holds it: an anonymous validation by
+  id and an anonymous `POST /notes` are refused at once with `401`, nothing published under their trace, and the
+  anonymous queries answer `401`.
+- **TypeScript holds it.**
+  - The marker is a method on the command handler, `anyoneMayAsk(command)`, `false` by default. Signing up says
+    `true`. Validating an account says `true` only for the emailed token, which is its own proof, so the
+    administrator's validation by id is refused at once to an anonymous caller (H3) while the link in the email still
+    works.
+  - The helper is [`acceptCommand()`](../../typescript/src/Architecture/Presentation/AcceptCommand.ts), in the
+    presentation building blocks; every `202` route calls it, and `notAllowedStatus()` beside it gives the queries'
+    `401` or `403`.
+  - The linter refuses a route that publishes on the bus, or answers `202`, by itself (H4).
+- **Python holds it.**
+  - The marker is a method on the command handler, `anyone_may_ask(command)`, `False` by default, overridden by
+    signing up and, for the emailed token only, by validating an account, as in TypeScript.
+  - The helper is [`accept()`](../../python/src/architecture/presentation/http.py), in the presentation building
+    blocks; every `202` route calls it, and `status_of()` beside it gives the queries' `401` or `403`.
+  - The conventions check refuses, in a context's Presentation, a call that publishes on the bus or a response that
+    answers `202` by itself (H4).
+- **Rust holds it**, in its idiom.
+  - The marker is a provided method of the command handler trait, `anyone_may_ask(&command)`, `false` by default;
+    signing up and validating with the emailed token say `true`, as in TypeScript.
+  - The helper is [`accept(&context, &module, command)`](../../rust/src/architecture/presentation/src/lib.rs), in the
+    presentation building block: `Ok(Accepted)` and the dispatch spawned, or `Err(NotSignedIn)`, a `401`, and nothing
+    published. `status_of(&error, &context)` beside it gives the queries `401` or `403`.
+  - The conventions check refuses a context's presentation crate that dispatches, publishes, builds an operation or
+    answers `202` by itself (H4), since Rust has no linter of its own to carry it.
+- **Go holds it.**
+  - The marker is an optional interface, `application.OpenToAnyone`: a handler that has `AnyoneMayAsk(command) bool`.
+    A handler without it needs a signed-in caller. Signing up and validating an account carry it, the second only for
+    the emailed token, as in TypeScript.
+  - The helper is [`presentation.Accept(w, r, module, command)`](../../go/architecture/presentation/http.go); it asks
+    the Module, which asks the handler it lists, before it publishes. Every `202` route calls it, and `StatusOf()`
+    beside it gives the queries `401` or `403` through `NotAllowedStatus()`.
+  - The conventions check refuses a context's route that calls `Publish`, or answers `202`, by itself, naming the
+    file and the line ([`caller.go`](../../go/tools/conventions/caller.go), H4). The scenario passes against the Go
+    server.
+- **The four languages hold it**, and the scenario passes unchanged against each server.
 - OpenStay J5b's clean-3 applies the rule in its own tree from request 50, as Full+ did, recorded as an ADR of that
   tree.
 

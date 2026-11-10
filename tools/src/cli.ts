@@ -11,7 +11,8 @@
  *   yarn architecture verb <intent>           which HTTP verb and path shape a use case takes
  *   yarn architecture checklist <kind>        what a new aggregate, value object, command … is made of
  *   yarn architecture place <kind>            where it goes, path only
- *   yarn architecture create <dir> [--name x] [--language <id>]   a new application on this architecture, in that language, with none of its business
+ *   yarn architecture create <dir> [--name x] [--language <id>] [--profile lite]   a new application on this architecture, in that language, with none of its business
+ *   (--profile <id> on any question: the contract as a context held to that profile reads it — its grammar, its checklists)
  *   yarn architecture mode feature [--base <ref>]     did this change leave the architecture alone
  *   yarn architecture mode architecture [--base <ref>] does it record the decision it makes
  *   yarn architecture gate [--base <ref>] [--mode feature|architecture] [--fix]   is this change done: the mode, the conventions check and the
@@ -31,6 +32,7 @@
  *   yarn architecture storm --expect <file>   what the code still owes an expected storm; --markdown, --svg lay its stickies on the board
  *   yarn architecture inventory [<language>]  what the tree says the application is, in words every language shares;
  *                                             with a language, where that language's committed inventory differs
+ *   yarn architecture profiles                the profiles the contract declares, the floor, the profile of each context
  *   yarn architecture rules | concepts | verbs | checklists   the lists
  *
  * Every command takes --json: valid JSON only on stdout, nothing decorative, exit 1 on an
@@ -62,6 +64,16 @@ import { describeEventStorm, inspectEventStorm, renderEventStorm, renderEventSto
 import { compareInventories, describeInventory, inspectInventory, loadInventories } from './inventory';
 import { describeMigration } from './migration';
 import {
+  TRIGGERS,
+  contextProfileChangesSince,
+  contractUnder,
+  describeProfiles,
+  profileMatrix,
+  profileOf,
+  profileTriggers,
+  profilesHeldBy,
+} from './profiles';
+import {
   checkExpectedStorm,
   describeExpectation,
   describeStormDecisions,
@@ -78,9 +90,10 @@ import type { ModeName } from './types';
 const args = process.argv.slice(2);
 const json = args.includes('--json');
 const languageFlag = args.includes('--language') ? args[args.indexOf('--language') + 1] : undefined;
-const valued = ['--language', '--expect'];
+const valued = ['--language', '--expect', '--profile'];
 const expectFlag = args.includes('--expect') ? args[args.indexOf('--expect') + 1] : undefined;
-const flagged = ['--json', '--language', '--markdown', '--svg', '--expect', '--write'];
+const profileFlag = args.includes('--profile') ? args[args.indexOf('--profile') + 1] : undefined;
+const flagged = ['--json', '--language', '--markdown', '--svg', '--expect', '--write', '--profile'];
 const [command, ...rest] = args.filter((arg, index) => !flagged.includes(arg) && !valued.includes(args[index - 1]));
 
 const here = typedFrom();
@@ -111,11 +124,18 @@ let root = '';
 
 function create(): void {
   const [directory] = rest;
-  if (!directory) return fail('usage', 'usage: yarn architecture create <dir> [--name <name>]');
+  if (!directory)
+    return fail('usage', 'usage: yarn architecture create <dir> [--name <name>] [--language <id>] [--profile <id>]');
   const name = rest.includes('--name') ? rest[rest.indexOf('--name') + 1] : directory.split('/').filter(Boolean).pop();
   let created;
   try {
-    created = createApplication(resolve(here, directory), name ?? 'my-app', referenceSource(here), languageFlag);
+    created = createApplication(
+      resolve(here, directory),
+      name ?? 'my-app',
+      referenceSource(here),
+      languageFlag,
+      profileFlag,
+    );
   } catch (error) {
     return fail('cannot-create', error instanceof Error ? error.message : String(error));
   }
@@ -124,7 +144,7 @@ function create(): void {
       `${created.name}: ${created.files} files in ${created.directory}`,
       '',
       `The building blocks, the shared kernel, the tooling and the contract — ${created.rules} rules,`,
-      `${created.concepts} concepts — and no business: ${created.contexts.length ? `${created.contexts.join(', ')} to follow every command, and ` : ''}the contexts are yours to write.`,
+      `${created.concepts} concepts — and no business: ${created.contexts.length ? `${created.contexts.join(', ')} to follow every command, and ` : ''}the contexts are yours to write${created.profile ? `, held to the ${created.profile} profile` : ''}.`,
       '',
       'Next:',
       ...created.next.map(line => `  ${line}`),
@@ -154,6 +174,24 @@ async function main(): Promise<void> {
       return fail('unknown-language', `No binding for "${language}". Languages: ${contract.languages.join(', ')}`);
     }
     if (language && language !== contract.language.id) contract = loadArchitectureContract(root, language);
+    // The contract as a context held to a profile reads it (ADR 40): its grammar and its checklists. The
+    // binding's own default (`default_profile`, an application created Lite) unless `--profile` names one.
+    const viewed = profileFlag ?? contract.bindingProfile;
+    if (viewed) {
+      if (!contract.profiles.some(profile => profile.id === viewed)) {
+        return fail(
+          'unknown-profile',
+          `No profile "${viewed}". Profiles: ${contract.profiles.map(profile => profile.id).join(', ')}`,
+        );
+      }
+      if (!profilesHeldBy(contract).includes(viewed)) {
+        return fail(
+          'profile-not-held',
+          `${contract.language.name} does not hold the profile "${viewed}" (a gap of its binding)`,
+        );
+      }
+      contract = contractUnder(contract, viewed);
+    }
   } catch (error) {
     if (error instanceof ContractError) return fail(error.code, error.message);
     throw error;
@@ -236,6 +274,46 @@ async function main(): Promise<void> {
         },
         () => contract.checklists.map(checklist => `${checklist.kind.padEnd(16)} ${checklist.place}`).join('\n'),
       );
+    case 'profiles': {
+      // The profiles the contract declares, the floor, and the profile of each context (ADR 40), each
+      // context with its subdomain's kind, which guides the choice (H5).
+      const map = loadDomainMap(root);
+      const kinds: Record<string, string> = Object.fromEntries(
+        (map?.subdomains ?? []).flatMap(subdomain => subdomain.contexts.map(context => [context, subdomain.kind])),
+      );
+      const matrix = profileMatrix(contract);
+      // What a trigger brings into a context held to a profile that conditions on it, read from the tree
+      // this tooling reads (TypeScript's); a context held to Full holds everything already.
+      const offDefault = contract.contexts.some(
+        context => profileOf(contract, context) !== contract.profiles.find(profile => profile.default)?.id,
+      );
+      const fired =
+        offDefault && contract.language.id === 'typescript'
+          ? profileTriggers(contract, inspectInventory(contract, root))
+          : [];
+      return out(
+        {
+          schemaVersion,
+          floor: contract.floor,
+          profiles: contract.profiles.map(profile => ({
+            ...profile,
+            rules: Object.fromEntries(matrix.map(row => [row.rule, row.stances[profile.id]])),
+          })),
+          held: profilesHeldBy(contract),
+          contexts: contract.contexts.map(context => ({
+            context,
+            profile: profileOf(contract, context),
+            named: contract.contextProfiles[context] !== undefined,
+            ...(kinds[context] && { subdomain: kinds[context] }),
+            fires: fired
+              .filter(entry => entry.context === context)
+              .map(({ trigger, rules, mechanisms }) => ({ trigger, rules, mechanisms })),
+          })),
+          triggers: Object.values(TRIGGERS).map(({ id, means }) => ({ id, means })),
+        },
+        () => describeProfiles(contract, kinds, fired),
+      );
+    }
     case 'verb': {
       const [intent] = rest;
       if (!intent) return fail('usage', 'usage: yarn architecture verb <intent>');
@@ -474,7 +552,13 @@ async function main(): Promise<void> {
           `Cannot compare with "${base}": no such ref. Try --base main, or --base working for uncommitted changes.`,
         );
       }
-      const verdict = checkMode(mode, changed, contract, base);
+      const verdict = checkMode(
+        mode,
+        changed,
+        contract,
+        base,
+        contextProfileChangesSince(base, changed, contract, root),
+      );
       out({ schemaVersion, ...verdict, why: contract.modes[mode]?.why }, () =>
         verdict.ok
           ? `${mode} mode: the ${changed.length} changed file(s) are within it.`
@@ -624,7 +708,7 @@ async function main(): Promise<void> {
     default:
       return fail(
         'usage',
-        'usage: yarn architecture <inspect | rules | concepts | verbs | checklists | rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind> | mode <feature|architecture> | plan <validate|explain> <file> | create <dir> | can-import <file> <specifier> …> [--json]',
+        'usage: yarn architecture <inspect | rules | concepts | verbs | checklists | profiles | rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind> | mode <feature|architecture> | plan <validate|explain> <file> | create <dir> | can-import <file> <specifier> …> [--json]',
       );
   }
 }

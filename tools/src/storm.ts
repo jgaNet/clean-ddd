@@ -67,6 +67,10 @@ export interface StormCommand {
   services: string[];
   /** The external systems it needs: ports that are neither a repository nor a queries port. */
   uses: string[];
+  /** `at-once`: a use case the route calls and answers by its result (Lite, ADR 40); absent behind a 202. */
+  answered?: 'at-once';
+  /** The integration events a use case answered at once publishes itself, through the outbox. */
+  publishes?: string[];
   /** Laid over the board by an expected storm, not read from the code yet. */
   expected?: boolean;
 }
@@ -147,6 +151,49 @@ const listedHandlers = (list: string): string[] => {
   }
   return found;
 };
+
+/** The calls a `useCases: [...]` list makes at its own level: `addTask(taskStore)` is the use case `addTask`, built with its ports. */
+const listedCalls = (list: string): string[] => {
+  const found: string[] = [];
+  let depth = 0;
+  for (const match of list.matchAll(/(?:new\s+)?(\w+)\(|[()[\]{}]/g)) {
+    if (['(', '[', '{'].includes(match[0])) depth += 1;
+    else if ([')', ']', '}'].includes(match[0])) depth -= 1;
+    else {
+      if (depth === 0 && !match[0].startsWith('new')) found.push(match[1]);
+      depth += 1;
+    }
+  }
+  return found;
+};
+
+/**
+ * The use cases of a context held to the Lite profile (ADR 40), by the name its files export them
+ * under: `export const addTask = command('AddTask', …)` is a command named AddTask, `query(…)` a query;
+ * the text read for each is its definition, up to the next export.
+ */
+interface UseCaseDefinition {
+  kind: 'command' | 'query';
+  name: string;
+  file: string;
+  text: string;
+}
+function useCaseDefinitions(files: SourceFile[]): Map<string, UseCaseDefinition> {
+  const found = new Map<string, UseCaseDefinition>();
+  for (const file of files.filter(file => !file.path.includes('.spec.'))) {
+    const exports = [...file.text.matchAll(/^export /gm)].map(match => match.index!);
+    for (const match of file.text.matchAll(/^export const (\w+) = (command|query)(?:<[^(]*>)?\(\s*'(\w+)'/gm)) {
+      const end = exports.find(at => at > match.index!) ?? file.text.length;
+      found.set(match[1], {
+        kind: match[2] as UseCaseDefinition['kind'],
+        name: match[3],
+        file: file.path,
+        text: file.text.slice(match.index!, end),
+      });
+    }
+  }
+  return found;
+}
 
 /** The public name of a class: its intent or its fact, without the suffix of its kind (API-ONE-SURFACE). */
 export const publicName = (className: string): string =>
@@ -249,7 +296,7 @@ function inspectContext(
       .filter(link => link.mechanism === 'owned-port' && link.downstream === context)
       .flatMap(link => link.contracts.map(contract => [`I${contract}`, link.upstream] as [string, string])),
   );
-  const isStore = (port: string) => /(Repository|Queries|Records|DataSource)$/.test(port);
+  const isStore = (port: string) => /(Repository|Queries|Records|DataSource|Store)$/.test(port);
   const externalPorts = ports.filter(port => !isStore(port));
   const externals: StormExternal[] = externalPorts.map(port => ({
     name: port.replace(/^I/, ''),
@@ -329,6 +376,26 @@ function inspectContext(
     }
   }
 
+  // Lite's routes (ADR 40): a route registration that answers the use case its Module lists,
+  // `answerAtOnce(req, reply, module.useCase(addTask), …)`, read registration by registration.
+  const definitions = useCaseDefinitions(files);
+  for (const routes of files.filter(file => /fastify\.(get|post|put|patch|delete)/.test(file.text))) {
+    const registrations = [...routes.text.matchAll(/fastify\.(get|post|put|patch|delete)(?:<[^']*?>)?\(\s*'([^']*)'/g)];
+    registrations.forEach((match, index) => {
+      const body = routes.text.slice(match.index!, registrations[index + 1]?.index ?? routes.text.length);
+      const path = posix.normalize(`${mount}/${match[2]}`).replace(/\/$/, '') || '/';
+      for (const called of body.matchAll(/\.useCase\((\w+)\)/g)) {
+        const definition = definitions.get(called[1]);
+        if (!definition) continue;
+        routeOf.set(definition.name, `${match[1].toUpperCase()} ${path}`);
+        if (definition.kind === 'command') routed.add(definition.name);
+      }
+    });
+  }
+  const listedUseCases = listedCalls(section(wiringText, 'useCases'))
+    .map(factory => ({ factory, definition: definitions.get(factory) }))
+    .filter((each): each is { factory: string; definition: UseCaseDefinition } => each.definition !== undefined);
+
   const analyse = (text: string) => {
     const services = through(text);
     const behaviours = unique([...behavioursOf(text), ...services.flatMap(service => service.behaviours)]);
@@ -359,6 +426,30 @@ function inspectContext(
       ...found,
     };
   });
+
+  // A Lite use case is its own handler, answered at once; what it tells other contexts it publishes itself, through the outbox.
+  for (const { factory, definition } of listedUseCases.filter(each => each.definition.kind === 'command')) {
+    const found = analyse(definition.text);
+    const aggregate =
+      found.behaviours[0]?.split('.')[0] ?? aggregates.find(each => definition.text.includes(each.name))?.name;
+    const publishes = unique(
+      [...definition.text.matchAll(/(?:(\w+)IntegrationEvent\.set\(|new (\w+)IntegrationEvent\()/g)].map(
+        match => match[1] ?? match[2],
+      ),
+    );
+    commands.push({
+      name: definition.name,
+      handler: factory,
+      handlers: [factory],
+      file: definition.file,
+      actor: actorOf(definition.text),
+      ...(routeOf.has(definition.name) && { route: routeOf.get(definition.name) }),
+      ...(aggregate && { aggregate }),
+      ...found,
+      answered: 'at-once',
+      ...(publishes.length && { publishes }),
+    });
+  }
 
   const policyFrom = (handlerName: string, on: StormPolicy['on']): StormPolicy => {
     const handler = fileOf(files, handlerName);
@@ -416,6 +507,16 @@ function inspectContext(
       ...(routeOf.has(publicName(match[1])) && { route: routeOf.get(publicName(match[1])) }),
     };
   });
+
+  for (const { factory, definition } of listedUseCases.filter(each => each.definition.kind === 'query')) {
+    readModels.push({
+      name: definition.name,
+      handler: factory,
+      model: definition.text.match(/IResult<([^>]+)>/)?.[1]?.trim() ?? '',
+      actor: actorOf(definition.text),
+      ...(routeOf.has(definition.name) && { route: routeOf.get(definition.name) }),
+    });
+  }
 
   return { id: context, aggregates, events, commands, policies, readModels, externals, routed: [...routed].sort() };
 }

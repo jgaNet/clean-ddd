@@ -48,8 +48,9 @@ export const notificationSchema = {
           unread: { type: 'number' },
         },
       },
-      403: ErrorSchema,
       400: ErrorSchema,
+      401: ErrorSchema,
+      403: ErrorSchema,
     },
   },
   markAsRead: {
@@ -59,7 +60,7 @@ export const notificationSchema = {
       required: ['id'],
       properties: { id: { type: 'string', format: 'uuid' } },
     },
-    response: { 202: AcceptedSchema },
+    response: { 202: AcceptedSchema, 401: ErrorSchema },
   },
   sendNotification: {
     tags: ['notifications'],
@@ -75,6 +76,6 @@ export const notificationSchema = {
         metadata: { type: 'object', additionalProperties: true },
       },
     },
-    response: { 202: AcceptedSchema },
+    response: { 202: AcceptedSchema, 401: ErrorSchema },
   },
 } as const;

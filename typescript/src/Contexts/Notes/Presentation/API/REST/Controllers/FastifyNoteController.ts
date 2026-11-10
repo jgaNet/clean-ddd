@@ -1,7 +1,8 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 
-import { Event, Exception, NotAllowedException } from '@Architecture/Domain';
-import { Module } from '@Architecture/Application';
+import { Exception, NotAllowedException } from '@Architecture/Domain';
+import { ExecutionContext, Module } from '@Architecture/Application';
+import { acceptCommand, notAllowedStatus } from '@Architecture/Presentation/AcceptCommand';
 
 import { NoteNotFoundException } from '@Contexts/Notes/Domain/Note/NoteExceptions';
 import {
@@ -27,7 +28,9 @@ import { NewNoteHTMXPresenter } from '@Contexts/Notes/Presentation/Presenters';
 
 /**
  * Commands are accepted (202) and processed asynchronously through the event bus; the
- * client follows the returned operation. Queries answer synchronously.
+ * client follows the returned operation. A caller who is not signed in is refused at once with
+ * 401, before anything is published (`acceptCommand`, API-CALLER-AT-TRANSPORT). Queries answer
+ * synchronously.
  */
 export class FastifyNoteController {
   #notesModule: Module;
@@ -38,47 +41,54 @@ export class FastifyNoteController {
   }
 
   async createNote(req: FastifyRequest<{ Body: CreateNoteReqBody }>, reply: FastifyReply) {
-    return this.accept(req, reply, CreateNoteCommandEvent.set({ title: req.body.title, content: req.body.content }));
+    return acceptCommand(
+      req,
+      reply,
+      this.#notesModule,
+      CreateNoteCommandEvent.set({ title: req.body.title, content: req.body.content }),
+    );
   }
 
   async editNote(req: FastifyRequest<{ Params: NoteIdParams; Body: EditNoteReqBody }>, reply: FastifyReply) {
-    return this.accept(
+    return acceptCommand(
       req,
       reply,
+      this.#notesModule,
       EditNoteCommandEvent.set({ noteId: req.params.id, title: req.body.title, content: req.body.content }),
     );
   }
 
   async archiveNote(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
-    return this.accept(req, reply, ArchiveNoteCommandEvent.set({ noteId: req.params.id }));
+    return acceptCommand(req, reply, this.#notesModule, ArchiveNoteCommandEvent.set({ noteId: req.params.id }));
   }
 
   async restoreNote(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
-    return this.accept(req, reply, RestoreNoteCommandEvent.set({ noteId: req.params.id }));
+    return acceptCommand(req, reply, this.#notesModule, RestoreNoteCommandEvent.set({ noteId: req.params.id }));
   }
 
   async shareNote(req: FastifyRequest<{ Params: NoteIdParams; Body: ShareNoteReqBody }>, reply: FastifyReply) {
-    return this.accept(
+    return acceptCommand(
       req,
       reply,
+      this.#notesModule,
       ShareNoteCommandEvent.set({ noteId: req.params.id, recipientId: req.body.recipientId }),
     );
   }
 
   async suggestNoteTitle(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
-    return this.accept(req, reply, SuggestNoteTitleCommandEvent.set({ noteId: req.params.id }));
+    return acceptCommand(req, reply, this.#notesModule, SuggestNoteTitleCommandEvent.set({ noteId: req.params.id }));
   }
 
   async getMyNotes(req: FastifyRequest, reply: FastifyReply) {
     const result = await this.#notesModule.getQuery(GetMyNotesQueryHandler).handle(undefined, req.executionContext);
 
-    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
+    return result.isFailure() ? this.refuse(reply, result.error, req.executionContext) : result.data;
   }
 
   async getNote(req: FastifyRequest<{ Params: NoteIdParams }>, reply: FastifyReply) {
     const result = await this.#notesModule.getQuery(GetNoteQueryHandler).handle(req.params.id, req.executionContext);
 
-    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
+    return result.isFailure() ? this.refuse(reply, result.error, req.executionContext) : result.data;
   }
 
   async getNotesSharedWithMe(req: FastifyRequest, reply: FastifyReply) {
@@ -86,23 +96,15 @@ export class FastifyNoteController {
       .getQuery(GetNotesSharedWithMeQueryHandler)
       .handle(undefined, req.executionContext);
 
-    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
+    return result.isFailure() ? this.refuse(reply, result.error, req.executionContext) : result.data;
   }
 
   async newNotes() {
     return this.#newNoteForm.present();
   }
 
-  private accept(req: FastifyRequest, reply: FastifyReply, command: Event<unknown>) {
-    const context = req.executionContext;
-    const operation = context.eventBus.publish(command, context);
-
-    reply.code(202);
-    return { operationId: operation.id };
-  }
-
-  private refuse(reply: FastifyReply, error: Exception) {
-    if (error instanceof NotAllowedException) reply.code(403);
+  private refuse(reply: FastifyReply, error: Exception, context: ExecutionContext) {
+    if (error instanceof NotAllowedException) reply.code(notAllowedStatus(context));
     else if (error instanceof NoteNotFoundException) reply.code(404);
     else reply.code(400);
 

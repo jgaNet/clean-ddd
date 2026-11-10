@@ -41,6 +41,7 @@ async def test_an_inbox_lists_what_was_delivered_marks_read_once_and_stays_priva
     await app.sign_up_validated("dave@notes.fr", "dave")
     dave = await app.agent_as("dave@notes.fr", "dave")
     assert (await dave.get(f"{api}/notifications/account/{carol_id}")).status_code == 403
+    assert (await app.anonymous().get(f"{api}/notifications/account/{carol_id}")).status_code == 401
 
     # Sending by hand is an administrator's; the refusal is the guard's, on the operation
     sent = await dave.post(

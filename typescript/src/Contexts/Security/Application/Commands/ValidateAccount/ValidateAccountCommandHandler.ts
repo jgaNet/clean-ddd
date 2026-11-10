@@ -21,6 +21,15 @@ export class ValidateAccountCommandHandler extends CommandHandler<ValidateAccoun
     super();
   }
 
+  /**
+   * Whoever follows the link emailed at sign-up may ask: the token it carries is its proof, and
+   * the person following it is not signed in yet. Validating by account id is an administrator's,
+   * so the transport refuses it at once to a caller who is not signed in (API-CALLER-AT-TRANSPORT).
+   */
+  anyoneMayAsk({ payload }: ValidateAccountCommandEvent): boolean {
+    return 'validationToken' in payload;
+  }
+
   async execute({ payload }: ValidateAccountCommandEvent, context: ExecutionContext): Promise<IResult<string>> {
     const accountId = await this.accountIdAllowedFor(payload, context);
     if (accountId.isFailure()) return accountId;

@@ -4,6 +4,8 @@
  * A concrete handler only writes `execute()`: load an aggregate, call a behaviour on it,
  * save it, publish its events. Everything else that every command needs is done once, here:
  *
+ * 0. `anyoneMayAsk()` - who reaches it: a signed-in caller by default, asked by the transport
+ *                 before it publishes (API-CALLER-AT-TRANSPORT)
  * 1. `guard()`  - authorization: may this caller run this command at all?
  * 2. logging    - what ran, and whether it failed
  * 3. transaction - `execute()` runs inside the context's unit of work when there is one
@@ -52,6 +54,18 @@ export abstract class CommandHandler<T extends CommandEvent<unknown>> extends Ev
     }
 
     return operation.success(result.data);
+  }
+
+  /**
+   * Who reaches this command (API-CALLER-AT-TRANSPORT, ADR 39): a signed-in caller, unless this
+   * says anyone may ask for it. Override it, once, for a command anyone may ask for — signing up,
+   * a link that carries its own proof, a provider's webhook. The transport's `acceptCommand()`
+   * asks it before it publishes, and refuses a caller who is not signed in with 401 otherwise.
+   * It says who reaches the command, not what the caller may do: that stays `guard()`'s,
+   * `execute()`'s and the aggregate's.
+   */
+  anyoneMayAsk(_command: T): boolean {
+    return false;
   }
 
   /**

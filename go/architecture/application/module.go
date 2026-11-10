@@ -1,6 +1,10 @@
 package application
 
-import "fmt"
+import (
+	"fmt"
+
+	"clean-ddd/architecture/domain"
+)
 
 // Subscription is an event's name and the handlers that answer it; Command and Reaction build one.
 type Subscription struct {
@@ -9,7 +13,7 @@ type Subscription struct {
 }
 
 // Module wires one bounded context together: its commands, queries, domain events and
-// integration events. It is plain data plus two lookups; the business lives in the handlers
+// integration events. It is plain data plus its lookups; the business lives in the handlers
 // (ARCH-MODULES-DATA). Each context has one wiring file per environment,
 // contexts/<context>/module.go:
 //
@@ -23,7 +27,7 @@ type Subscription struct {
 // Anything else a context exposes (a middleware, a service another context needs) is a named
 // export of the same wiring file, not a slot in the module. From a route:
 //
-//	ctx.Publish(commands.CreateNoteCommandEvent{...})                          // command, async
+//	presentation.Accept(w, r, module, commands.CreateNoteCommandEvent{...})    // command, async (202, or 401)
 //	application.Query(application.QueryOf[*queries.GetMyNotesHandler](module), params, ctx) // query, sync
 type Module struct {
 	Name              string
@@ -67,6 +71,30 @@ func CommandOf[H any](m *Module) H {
 	}
 	var zero H
 	panic(fmt.Sprintf("missing command handler %T in module %s", zero, m.Name))
+}
+
+// opener is what a subscriber built by Command exposes: whether its handler lets anyone ask.
+type opener interface {
+	anyoneMayAsk(command domain.Event) bool
+}
+
+// AnyoneMayAsk is whether the handler this module lists for a command says anyone may ask for
+// it (OpenToAnyone), asked by the transport before it publishes (API-CALLER-AT-TRANSPORT). A
+// command no handler of the module answers is a wiring error: it panics.
+func (m *Module) AnyoneMayAsk(command domain.Event) bool {
+	name := domain.NameOf(command)
+	for _, subscription := range m.Commands {
+		if subscription.Channel != name || len(subscription.Handlers) == 0 {
+			continue
+		}
+		for _, handler := range subscription.Handlers {
+			if open, ok := handler.(opener); !ok || !open.anyoneMayAsk(command) {
+				return false
+			}
+		}
+		return true
+	}
+	panic(fmt.Sprintf("no handler for %s in module %s: list it in the context's wiring", name, m.Name))
 }
 
 // QueryOf finds a query handler by its type. A missing one is a wiring error: it panics.

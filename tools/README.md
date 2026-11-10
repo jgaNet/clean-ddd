@@ -22,6 +22,9 @@ cd my-app && yarn install
 yarn check:conventions                          # = clean-ddd check: the contract is sound, the tree matches it, the documents are rendered from it
 yarn architecture checklist context             # = clean-ddd checklist context
 
+npx clean-ddd create my-app --profile lite      # the same, its contexts held to the Lite profile (TypeScript only; ADR 40)
+cd my-app && yarn install && yarn check:conventions
+
 npx clean-ddd create my-app --language python   # the same, in Python: the building blocks, the shared kernel, the conventions tool
 cd my-app && uv sync
 uv run python -m tools.conventions && npx clean-ddd check   # the tree and the imports by the language's tool; the contract and the documents by this one
@@ -44,6 +47,8 @@ The API is the same module the CLI uses: `import { loadArchitectureContract, ins
 ```
 clean-ddd inspect                 what the contract holds, for this language
 clean-ddd rules | concepts | verbs | checklists      the lists
+clean-ddd profiles                the floor, the profiles and their mechanisms, the profiles this language holds, the profile of
+                                  each context and what a fired trigger brings into it (ADR 40); --json for the matrix
 clean-ddd rule <ID>               one rule: statement, why, remediation, references, the file that shows it
 clean-ddd concept <id>            one concept: canonical file, rules, decisions
 clean-ddd verb <intent>           which HTTP verb and path shape a use case takes
@@ -69,11 +74,16 @@ clean-ddd pack --plan <file>      one slice of a feature: what is its own to wri
 clean-ddd strategy --storm <file> [--priority cost|time] [--contract-minutes <n>]   one agent or a fan-out by context
                                   for this feature, from what phase 4 of the flow measured, with its inputs and the
                                   architecture task it needs first; --json for a driver to log beside its run
-clean-ddd create <dir> [--name <app>] [--language <id>]   a new application on this architecture, in that language
+clean-ddd create <dir> [--name <app>] [--language <id>] [--profile lite]   a new application on this architecture, in that
+                                  language; --profile lite holds its contexts to Lite (below)
 clean-ddd check [--write]         the conventions check; --write regenerates what it holds
 ```
 
-Every command takes `--json` (valid JSON only, a structured error and exit 1 on an unknown id) and `--language <id>`. Paths are printed relative to the repository root — the nearest directory at or above where the command was typed that holds `conventions/` — and a path typed on the command line is read from where it was typed.
+Every command takes `--json` (valid JSON only, a structured error and exit 1 on an unknown id), `--language <id>`, and `--profile <id>`, which answers as a context held to that profile reads the contract — its grammar's verbs, the checklists its binding gives it — and is the binding's `default_profile` when it says one (an application created Lite). Paths are printed relative to the repository root — the nearest directory at or above where the command was typed that holds `conventions/` — and a path typed on the command line is read from where it was typed.
+
+## A Lite application: `create --profile lite`
+
+The contract names two profiles ([ADR 40](../docs/adr/0040-architecture-profiles-one-contract-one-engine-profiles-as-data.md)): **Full**, the default, and **Lite**, an experiment held in TypeScript alone, which keeps every boundary of Full and drops the ceremony inside a context — a use case is a function of its ports, listed in its context's `LiteModule` and called by the route, which answers it at once (`http-lite`: `201 { id }`, `200`, `204`, a refusal at once with its status and the rule's exception). `create --profile lite` writes a TypeScript application whose binding holds every context it does not name to Lite (`default_profile: lite`): the building blocks, Lite's among them ([`UseCase.ts`](../typescript/src/Architecture/Application/Lite/UseCase.ts), [`LiteModule.ts`](../typescript/src/Architecture/Application/Lite/LiteModule.ts), [`AnswerAtOnce.ts`](../typescript/src/Architecture/Presentation/Lite/AnswerAtOnce.ts)), the shared kernel's model, the transport, and the composition root that starts with no context ([`LiteStarter/createApplication.ts`](../typescript/src/Bootstrap/LiteStarter/createApplication.ts)) — no Tracker, since there is no operation to follow. What it copies is the binding's `profiles_held.lite.create`. In it, `checklist <kind>` and `verb <intent>` answer for Lite, the conventions check reads its contexts' use cases into the storm and holds ARCH-ONE-HANDLER on its wiring, and `profiles` says which trigger fired where, and what it brings in by an ADR (an aggregate, a domain event, the bus for a command answered later). A language whose binding does not hold Lite refuses the option, with its gap: `create --language rust --profile lite` says "Lite: not held". The spec ([`create.spec.ts`](src/create.spec.ts)) writes a Lite context into a created application ([`lite-tasks.spec-helper.ts`](src/lite-tasks.spec-helper.ts)) and holds the engine to it.
 
 ## The gate
 
@@ -103,7 +113,7 @@ The contract, the concepts, the domain map, the bindings, the plans and the stor
 ```
 package.json          the package: name, bin (clean-ddd → tools/dist/cli.js), scripts, dev dependencies; no runtime dependency
 tools/src/            the modules, one per concern: load, query, render, plan, modes, create, probes, domain, storm,
-                      inventory, storms, check; cli.ts dispatches; index.ts is the API; *.spec.ts beside each
+                      inventory, storms, profiles, check; cli.ts dispatches; index.ts is the API; *.spec.ts beside each
 tools/build.mjs       yarn build: two esbuild bundles (cli.js, index.js), the declarations, the reference for create
 tools/dist/           the build, not committed
 ```

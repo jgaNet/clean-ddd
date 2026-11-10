@@ -82,6 +82,52 @@ func TestNamesWhatIsMissing(t *testing.T) {
 	}
 }
 
+// KnockCommandEvent may be asked for by anyone with a key: the key is the proof; without one,
+// only by a signed-in caller.
+type KnockCommandEvent struct {
+	domain.CommandEvent
+	WithKey bool
+}
+
+type knockHandler struct{}
+
+func (knockHandler) Execute(KnockCommandEvent, *ExecutionContext) (Nothing, error) {
+	return Nothing{}, nil
+}
+
+func (knockHandler) AnyoneMayAsk(command KnockCommandEvent) bool { return command.WithKey }
+
+type StrayCommandEvent struct{ domain.CommandEvent }
+
+func TestWhoReachesACommandIsWhatItsHandlerSaysASignedInCallerByDefault(t *testing.T) {
+	door := &Module{
+		Name:     "Door",
+		Commands: []Subscription{Command[WaveCommandEvent, Nothing](waveHandler{}), Command[KnockCommandEvent, Nothing](knockHandler{})},
+	}
+	if door.AnyoneMayAsk(WaveCommandEvent{}) {
+		t.Error("a handler that says nothing needs a signed-in caller (API-CALLER-AT-TRANSPORT)")
+	}
+	if !door.AnyoneMayAsk(KnockCommandEvent{WithKey: true}) {
+		t.Error("anyone may ask for a command whose handler says so")
+	}
+	if door.AnyoneMayAsk(KnockCommandEvent{WithKey: false}) {
+		t.Error("and only for what it says")
+	}
+	message := panics(t, func() { door.AnyoneMayAsk(StrayCommandEvent{}) })
+	if !strings.Contains(message, "no handler for StrayCommandEvent in module Door") {
+		t.Errorf("a command no handler answers is a wiring error: got %q", message)
+	}
+}
+
+func TestSignedInIsASubjectTheAuthenticationRecognised(t *testing.T) {
+	if (Auth{Role: "GUEST"}).SignedIn() {
+		t.Error("a guest is not signed in")
+	}
+	if !(Auth{SubjectID: "alice", Role: "USER"}).SignedIn() {
+		t.Error("alice is")
+	}
+}
+
 // listingBus notes the channels subscribed, and fails to connect when told to.
 type listingBus struct {
 	subscribed []string

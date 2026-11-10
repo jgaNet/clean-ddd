@@ -160,6 +160,11 @@ rules:
     references: [src/contexts/tracker/application/projection.py, src/bootstrap/test_operation_routes_e2e.py]
   API-BODY-SHAPE:
     references: [src/contexts/notifications/presentation/routes.py, src/contexts/notifications/domain/notification/delivery_strategy.py]
+  # Held by the conventions check (a context's Presentation that publishes on the bus, or answers 202,
+  # by itself is refused) and by the shared scenario; the helper every 202 route calls is the canonical
+  # file, and the marker is `anyone_may_ask()` on the command handler.
+  API-CALLER-AT-TRANSPORT:
+    references: [src/architecture/presentation/http.py, tools/conventions.py, ../api/scenario.mjs]
   ARCH-MAP-IS-REAL:
     references: [tools/conventions.py]
   ARCH-ONE-APPLICATION:
@@ -202,7 +207,7 @@ checklists:
       - 'The handler in the same file: a class extending `CommandHandler`, the ports it takes in `__init__`, `execute()` — the signed-in guard at the top, load, ask the aggregate or the domain service, save (return the `Failure` as is), `publish_domain_events`. A command anyone may send (a sign-up) has no `require_signed_in`; its caller follows it by the operation id it was answered, signed in or not (ADR 27).'
       - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
       - 'A test with at least a happy path and one refusal, in `test_commands.py` beside the commands; through `handle()` when the rule is in `guard()`.'
-      - 'A route in the context''s `presentation/routes.py`: an `async def` taking the `Request`, `accept(context_of(request), TheCommand(...))`, answering `202 { operationId }`; the handler listed in `module_local.py`. A create never answers its new id: the handler returns it, and the client reads it as the operation''s `result` at `GET /v1/tracker/operations/{id}`.'
+      - 'A route in the context''s `presentation/routes.py`: an `async def` taking the `Request`, `accept(module, context_of(request), TheCommand(...))`, answering `202 { operationId }`, or `401` at once to a caller who is not signed in (API-CALLER-AT-TRANSPORT); the handler listed in `module_local.py`. A command anyone may ask for (a sign-up, a link that carries its own proof) overrides `anyone_may_ask()` on its handler, and no other does. A create never answers its new id: the handler returns it, and the client reads it as the operation''s `result` at `GET /v1/tracker/operations/{id}`.'
       - 'An end-to-end case when the flow is user-visible, in `src/bootstrap/test_<context>_routes_e2e.py`: it boots the application on a free port and speaks HTTP with `httpx`, as the composition root''s own `test_create_application_e2e.py` does.'
   query:
     place: src/contexts/<context>/application/queries/<use_case>.py
@@ -556,3 +561,8 @@ concepts:
       [`__main__.py`](src/bootstrap/__main__.py) is the process entry point, and
       [`starter/create_application.py`](src/bootstrap/starter/create_application.py) the composition a created
       application starts from (the Tracker alone; ADR 27)
+
+# Lite: not held (ADR 40). The Lite profile is an experiment held in TypeScript alone: this binding has
+# no `profiles_held.lite`, so the check refuses a context of Python held to it, and `create --language
+# python --profile lite` is refused. What would close the gap is TypeScript's shape in this language's
+# idiom — a use case as a function of its ports, a transport answering at once — and that section here.

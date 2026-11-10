@@ -67,9 +67,21 @@ async fn notes_as_a_client_sees_them() {
     let unknown = admin.get(format!("{api}/notes/does-not-exist")).send().await.expect("answers");
     assert_eq!(unknown.status(), 404);
 
-    // Anonymous: refused
+    // Anonymous: a query is refused with 401, a command at once with 401 and nothing published
+    // (API-CALLER-AT-TRANSPORT)
     let refused = app.anonymous().get(format!("{api}/notes")).send().await.expect("answers");
-    assert_eq!(refused.status(), 403);
+    assert_eq!(refused.status(), 401);
+    let anonymous_create = app
+        .anonymous()
+        .post(format!("{api}/notes"))
+        .json(&json!({ "title": "anonymous", "content": "..." }))
+        .send()
+        .await
+        .expect("answers");
+    app.refused_at_once(anonymous_create).await;
+    let anonymous_archive =
+        app.anonymous().post(format!("{api}/notes/{note_id}/archive")).send().await.expect("answers");
+    app.refused_at_once(anonymous_archive).await;
 
     app.stop().await;
 }

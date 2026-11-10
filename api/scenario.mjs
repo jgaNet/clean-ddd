@@ -99,6 +99,19 @@ async function accepted(who, response) {
   record.traceId === undefined || eq(record.traceId, response.headers.get('x-trace-id'), 'the record keeps the trace');
   return record;
 }
+/**
+ * A command refused at the transport, before anything was published (API-CALLER-AT-TRANSPORT):
+ * 401 { message }, and the request's trace holds no operation.
+ */
+async function refusedAtOnce(response, what) {
+  eq(response.status, 401, `${what}: refused at once with 401`);
+  ok(isString(response.json?.message), `${what}: the 401 carries a message`, response.json);
+  ok(!('operationId' in (response.json ?? {})), `${what}: no operation to follow`, response.json);
+  const traceId = response.headers.get('x-trace-id');
+  ok(isString(traceId), `${what}: the response carries x-trace-id`);
+  const traced = await state.admin.get(`/tracker/operations?traceId=${traceId}`);
+  eq([traced.status, traced.json], [200, []], `${what}: nothing was published under its trace`);
+}
 async function outcome(who, operationId) {
   for (let attempt = 0; attempt < 100; attempt++) {
     const operation = await who.get(`/tracker/operations/${operationId}`);
@@ -247,9 +260,8 @@ await step('a new account is pending, and the record shows no payload', async ()
   eq(pending.json, { id: state.bobId, email: state.bobEmail, role: 'USER', status: 'PENDING' }, 'pending account');
   eq((await login(state.bobEmail, 'S3cret-bob')).status, 401, 'a pending account cannot log in');
 });
-await step('an anonymous caller may not validate; an administrator may', async () => {
-  const attempt = await accepted(state.admin, await anonymous.get(`/auth/accounts/${state.bobId}/validate`));
-  eq([attempt.status, attempt.error?.type], ['ERROR', 'NotAllowed'], 'anonymous validation');
+await step('an anonymous caller may not validate, refused at once with 401; an administrator may (API-CALLER-AT-TRANSPORT)', async () => {
+  await refusedAtOnce(await anonymous.get(`/auth/accounts/${state.bobId}/validate`), 'anonymous validation');
   eq((await state.admin.get(`/auth/accounts/${state.bobId}`)).json.status, 'PENDING', 'still pending');
   const validated = await accepted(state.admin, await state.admin.get(`/auth/accounts/${state.bobId}/validate`));
   eq([validated.name, validated.status], ['ValidateAccount', 'SUCCESS'], 'validation');
@@ -272,10 +284,13 @@ await step('a login is never recorded as an operation', async () => {
 });
 
 describe('Notes');
-await step('a new account has no notes; anonymous is refused', async () => {
+await step('a new account has no notes; anonymous is refused with 401', async () => {
   const mine = await state.bob.get('/notes');
   eq([mine.status, mine.json], [200, []], 'empty list');
-  eq((await anonymous.get('/notes')).status, 403, 'anonymous');
+  eq((await anonymous.get('/notes')).status, 401, 'anonymous');
+});
+await step('a command whose outcome is read later needs a caller: anonymous is refused at once with 401, nothing published (API-CALLER-AT-TRANSPORT)', async () => {
+  await refusedAtOnce(await anonymous.post('/notes', { title: 'anonymous', content: '...' }), 'anonymous POST /notes');
 });
 await step('POST /notes creates one: the operation returns its id, the list and the detail show it', async () => {
   const created = await accepted(state.bob, await state.bob.post('/notes', { title: 'title', content: 'content' }));
@@ -352,6 +367,7 @@ await step('sharing with carol: she lists it, reads it, and was notified (Notes 
 describe('Tracker');
 await step('a user may not list operations; an administrator lists them by trace', async () => {
   eq((await state.bob.get('/tracker/operations')).status, 403, 'user');
+  eq((await anonymous.get('/tracker/operations')).status, 401, 'anonymous');
   const byTrace = await state.admin.get(`/tracker/operations?traceId=${state.unknownShareTrace}`);
   eq(byTrace.status, 200, 'by trace');
   const records = byTrace.json;
@@ -366,7 +382,7 @@ await step('an operation an account started is read by that account or an admini
   await outcome(state.bob, operationId);
   eq((await state.admin.get(`/tracker/operations/${operationId}`)).status, 200, 'admin');
   eq((await state.carol.get(`/tracker/operations/${operationId}`)).status, 404, 'another user');
-  eq((await anonymous.get(`/tracker/operations/${operationId}`)).status, 403, 'anonymous, for an operation an account started');
+  eq((await anonymous.get(`/tracker/operations/${operationId}`)).status, 401, 'anonymous, for an operation an account started');
   eq((await state.admin.get('/tracker/operations/00000000-0000-4000-8000-000000000000')).status, 404, 'unknown');
 });
 
@@ -405,6 +421,7 @@ await step('the recipient marks one read, once', async () => {
 await step('an inbox is private; sending by hand is an administrator\'s', async () => {
   eq((await state.admin.get(`/notifications/account/${state.carolId}`)).status, 200, 'admin');
   eq((await state.bob.get(`/notifications/account/${state.carolId}`)).status, 403, 'another user');
+  eq((await anonymous.get(`/notifications/account/${state.carolId}`)).status, 401, 'anonymous');
   // The email channel addresses what the notification carries: the welcome notices bring the
   // address from Security's event, a notification sent by hand brings it in its metadata.
   const body = { recipientId: state.carolId, title: 'Hello', content: 'there', channels: ['EMAIL'], metadata: { email: state.carolEmail } };

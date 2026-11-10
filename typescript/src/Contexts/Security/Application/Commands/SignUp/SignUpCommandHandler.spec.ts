@@ -35,6 +35,10 @@ beforeEach(() => {
 });
 
 describe('SignUpCommandHandler', () => {
+  it('may be asked by anyone: nobody is signed in yet (API-CALLER-AT-TRANSPORT)', () => {
+    expect(handler.anyoneMayAsk()).toBe(true);
+  });
+
   it('saves a pending user account with a hashed password and publishes AccountCreated', async () => {
     const result = await handler.execute(
       SignUpCommandEvent.set({ email: 'user@user.fr', password: 'secret' }),

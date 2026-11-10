@@ -91,6 +91,26 @@ impl TestApplication {
         self.operation(client, body["operationId"].as_str().expect("an operation id")).await
     }
 
+    /// A command refused at the transport, before anything was published (API-CALLER-AT-TRANSPORT):
+    /// `401 { message }`, no operation to follow, and the request's trace holds no operation.
+    pub async fn refused_at_once(&self, response: Response) {
+        assert_eq!(response.status(), 401, "refused at once");
+        let trace_id = response.headers().get("x-trace-id").expect("a trace").to_str().expect("text").to_string();
+        let body: Value = response.json().await.expect("JSON");
+        assert!(body["message"].is_string(), "the 401 carries a message: {body}");
+        assert!(body.get("operationId").is_none(), "no operation to follow: {body}");
+        let traced = self
+            .admin()
+            .await
+            .get(format!("{}/tracker/operations", self.api))
+            .query(&[("traceId", trace_id.as_str())])
+            .send()
+            .await
+            .expect("answers");
+        assert_eq!(traced.status(), 200);
+        assert_eq!(traced.json::<Value>().await.expect("JSON"), json!([]), "nothing was published under its trace");
+    }
+
     /// Signs up a new account, validates it as the administrator, and returns its id: a fresh, usable user.
     pub async fn sign_up_validated(&self, identifier: &str, password: &str) -> String {
         let admin = self.admin().await;

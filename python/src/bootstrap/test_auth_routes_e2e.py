@@ -85,16 +85,29 @@ async def test_what_a_reference_must_not_do() -> None:
     assert "payload" not in operation
     assert "S3cret-Plaintext" not in str(operation)
 
-    # Never let an anonymous caller validate an account
+    # Never let an anonymous caller validate an account: validating by id is an administrator's,
+    # refused at once with 401 and nothing published (API-CALLER-AT-TRANSPORT, ADR 39)
     signed_up = await app.anonymous().post(
         f"{api}/auth/signup", json={"identifier": "grace@user.fr", "password": "grace"}
     )
     account_id = (await app.accepted(admin, signed_up))["result"]
     attempt = await app.anonymous().get(f"{api}/auth/accounts/{account_id}/validate")
-    assert attempt.status_code == 202
-    operation = await app.accepted(admin, attempt)
-    assert operation["status"] == "ERROR" and operation["error"]["type"] == "NotAllowed"
+    assert (attempt.status_code, attempt.json()) == (401, {"message": "Authentication required"})
+    traced = await admin.get(f"{api}/tracker/operations", params={"traceId": attempt.headers["x-trace-id"]})
+    assert traced.json() == []
     assert (await admin.get(f"{api}/auth/accounts/{account_id}")).json()["status"] == "PENDING"
+
+    # Anyone may follow the emailed link: the token is its proof, and the handler verifies it
+    followed = await app.anonymous().get(f"{api}/auth/validate", params={"validation_token": "not-a-token"})
+    operation = await app.accepted(admin, followed)
+    assert (operation["name"], operation["status"], operation["error"]["type"]) == (
+        "ValidateAccount",
+        "ERROR",
+        "NotAllowed",
+    )
+
+    # An account is not read anonymously: asked to sign in, not refused as a signed-in caller would be
+    assert (await app.anonymous().get(f"{api}/auth/accounts/{account_id}")).status_code == 401
 
     # Never record a login: the token is not an operation's result
     operations = (await admin.get(f"{api}/tracker/operations")).json()

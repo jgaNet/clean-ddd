@@ -1,5 +1,6 @@
 """The REST routes of authentication and accounts. Sign-up and validation are commands:
-accepted (202) and followed through the operation. Login answers synchronously, in JSON or
+accepted (202) and followed through the operation; anyone may ask to sign up or to validate with
+the emailed token, their handlers say so (API-CALLER-AT-TRANSPORT). Login answers synchronously, in JSON or
 HTMX depending on the request, and runs the handler through the module: the token is answered,
 and the Tracker never sees it. The two ``GET …/validate`` routes are commands on ``GET``
 because they are links clicked from an email; do not copy that for anything else."""
@@ -33,13 +34,14 @@ def auth_routes(module: Module) -> APIRouter:
         context = context_of(request)
         if context.logger:
             context.logger.info("Creating new account", {"traceId": context.trace_id, "email": body.identifier})
-        # The password is hashed by the handler, behind the PasswordHasher port.
-        return accept(context, SignUpCommandEvent(email=body.identifier, password=body.password))
+        # The password is hashed by the handler, behind the PasswordHasher port; anyone may sign up.
+        return accept(module, context, SignUpCommandEvent(email=body.identifier, password=body.password))
 
     @router.get("/validate", status_code=202)
     async def validate(request: Request, validation_token: str = Query()) -> Response:
-        # The token is verified by the handler; whether it is valid is the operation's outcome.
-        return accept(context_of(request), ValidateAccountCommandEvent(validation_token=validation_token))
+        # Anyone holding the emailed token may ask; the handler verifies it, and whether it is valid
+        # is the operation's outcome.
+        return accept(module, context_of(request), ValidateAccountCommandEvent(validation_token=validation_token))
 
     @router.post("/login")
     async def login(request: Request, body: CredentialsBody) -> Response:
@@ -79,15 +81,16 @@ def auth_routes(module: Module) -> APIRouter:
 
     @router.get("/accounts/{account_id}/validate", status_code=202, tags=["accounts"])
     async def validate_account_by_id(request: Request, account_id: str) -> Response:
-        # Whether this caller may validate by id is the handler's decision, from the context.
-        return accept(context_of(request), ValidateAccountCommandEvent(account_id=account_id))
+        # An administrator's: refused at once with 401 to a caller who is not signed in; whether a
+        # signed-in caller may validate by id is the handler's decision, from the context.
+        return accept(module, context_of(request), ValidateAccountCommandEvent(account_id=account_id))
 
     @router.get("/accounts/{account_id}", tags=["accounts"])
     async def get_account_by_id(request: Request, account_id: str) -> Response:
         context = context_of(request)
         result = await module.get_query(GetAccountQueryHandler).handle(account_id, context)
         if isinstance(result, Failure):
-            return refuse(result.error)
+            return refuse(result.error, context)
         return JSONResponse(account_view(result.data))
 
     return router

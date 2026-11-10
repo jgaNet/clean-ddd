@@ -34,7 +34,9 @@ const under = (file: string, trees: string[]) => trees.some(tree => file === tre
 export function changedFiles(base: string, root: string = repositoryRoot()): string[] {
   const git = (args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8' });
   if (base === 'working') {
-    return git(['status', '--porcelain'])
+    // Every untracked file by its own path: by default git names an untracked directory, and a step that reads each
+    // changed file (the relationship tests) would open a directory (OpenStay J5b, a grader's copied folder).
+    return git(['status', '--porcelain', '--untracked-files=all'])
       .split('\n')
       .filter(Boolean)
       .map(line => line.slice(3).trim())
@@ -49,6 +51,12 @@ export function checkMode(
   changed: string[],
   contract: ArchitectureContract,
   base: string,
+  /**
+   * The bindings this change holds to another profile for one of their contexts (ADR 40), with what moved
+   * (`contextProfileChangesSince`). A binding is protected from a feature like the rest of `conventions`;
+   * in the architecture mode, a context's profile moving is a decision, and asks for its ADR.
+   */
+  profileChanges: { file: string; changes: string[] }[] = [],
 ): ModeVerdict {
   const rules: Mode = contract.modes[mode];
   const problems: string[] = [];
@@ -62,13 +70,21 @@ export function checkMode(
       );
     }
   } else {
-    const decisive = changed.filter(file => under(file, rules.decides ?? []));
+    const moved = profileChanges.filter(entry => changed.includes(entry.file));
+    const decisive = [
+      ...new Set([...changed.filter(file => under(file, rules.decides ?? [])), ...moved.map(entry => entry.file)]),
+    ];
     const decisions = changed.filter(file => under(file, [rules.records ?? 'docs/adr']) && file.endsWith('.md'));
     if (decisive.length && !decisions.length) {
       offending = decisive;
       problems.push(
         `this change touches ${decisive.join(', ')} and records no decision: add an ADR under ${rules.records}, and link it from its index and from where the rule is stated.`,
       );
+      for (const entry of moved) {
+        problems.push(
+          `${entry.file} holds a context to another profile (${entry.changes.join('; ')}): a context changes profile by an ADR (ADR 40).`,
+        );
+      }
     }
   }
 

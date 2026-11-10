@@ -5,7 +5,10 @@
  * 1. The architecture contract is sound: schema version understood, unique rule ids, every
  *    reference and canonical file exists, every concept names rules that exist, and no binding
  *    carries a rule of its own (ARCH-MAP-IS-REAL, ARCH-ONE-CONTRACT). Every language's binding is
- *    checked, not only this one's: the root README's map is rendered from all of them.
+ *    checked, not only this one's: the root README's map is rendered from all of them. The profiles
+ *    are held there too (ADR 40): every rule held, waived with a reason or held on a trigger the engine
+ *    can see, in every profile; no floor rule waived; a rule held by review listed as a gap; each
+ *    context of a binding held to a profile the contract declares (profiles.ts).
  * 2. The tree matches it: every directory under the contexts tree is a declared context with its
  *    wiring file and nothing but layers; the two trees beside the contexts hold only layers
  *    (ARCH-CONTEXT-DECLARED).
@@ -87,6 +90,7 @@ import {
   validateExpectedStorm,
   checkMigrationAgainstInventory,
   waitsOutsideTransport,
+  profileOf,
 } from './index';
 import type { ArchitectureContract, ContextLink, Inventory, Mechanism } from './index';
 
@@ -224,50 +228,8 @@ export async function checkConventions(
     if (write) writeFileSync(join(root, file), text);
   }
 
-  /** A section with nothing in it yet (a new application has no vocabulary) needs no block. */
-  const nonEmpty = (blocks: [string, string, boolean][]): [string, string][] =>
-    blocks.filter(([, , has]) => has).map(([marker, rendered]) => [marker, rendered]);
-
-  const LAYERS = ['domain', 'application', 'infrastructure', 'presentation'] as const;
-
-  // Every language's README is rendered from its own contract, with links relative to its
-  // directory; a language renders its documents here rather than in its own tooling because the
-  // renderer reads data, and a second renderer would be a second thing to drift.
-  for (const each of contracts) {
-    const layerHas = (layer: (typeof LAYERS)[number]) =>
-      each.concepts.some(concept => concept.layer === layer && concept.canonical.length > 0);
-    const there = each.language.root;
-    renderInto(
-      posix.join(there, 'README.md'),
-      nonEmpty([
-        ...LAYERS.map((layer): [string, string, boolean] => [
-          SECTION_MARKER(layer),
-          renderConceptLayer(each, layer, there),
-          layerHas(layer),
-        ]),
-        [SECTION_MARKER('tests'), renderTests(each, there), each.tests.length > 0],
-        // The words are the contract's; a language whose binding shows none of them yet has no table to render.
-        [SECTION_MARKER('vocabulary'), renderVocabulary(each, there), each.vocabulary.some(row => row.see)],
-        [RULES_MARKER('rules'), renderRulesTable(each, there), true],
-        [RULES_MARKER('dependencies'), renderDependencyTable(each), each.contexts.length > 0],
-      ]),
-    );
-  }
-  renderInto('CLAUDE.md', [[RULES_MARKER('rules'), renderRulesList(contract)]]);
-  if (multi) {
-    const title = (layer: string) => `${layer[0].toUpperCase()}${layer.slice(1)} layer`;
-    renderInto('README.md', [
-      ...(domainMap
-        ? [[DOMAIN_MARKER, renderDomain(domainMap, links, loadStrategicConcepts(root))] as [string, string]]
-        : []),
-      [SECTION_MARKER('languages'), renderLanguages(contracts)],
-      [
-        SECTION_MARKER('map'),
-        LAYERS.map(layer => `#### ${title(layer)}\n\n${renderConceptMatrix(contracts, layer)}`).join('\n\n'),
-      ],
-      [RULES_MARKER('rules'), renderRulesTable(contract, '.', false)],
-    ]);
-  }
+  const strategicView = multi && domainMap ? renderDomain(domainMap, links, loadStrategicConcepts(root)) : undefined;
+  for (const { file, blocks } of renderedDocuments(contracts, strategicView)) renderInto(file, blocks);
 
   // 9. The event storm the documents show is the one read from the code
 
@@ -468,6 +430,68 @@ export async function checkConventions(
 
   return {
     problems,
-    summary: `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts${readsTree ? ' match the tree' : ''}; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; ${readsTree ? `no eslint-disable; ${probes.length} import probes behave and name their rule` : `the tree is held by ${contract.language.name}'s own tool`}${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}${storm ? `; the event storm is read from the code (${storm.contexts.reduce((sum, each) => sum + each.commands.length, 0)} commands, ${storm.contexts.reduce((sum, each) => sum + each.policies.length, 0)} policies)` : ''}${multi ? `; one application in ${inventories.size} inventor${inventories.size === 1 ? 'y' : 'ies'}` : ''}${contract.migration ? `; the wire is ${contract.migration.api} (${contract.migration.routes.length} compatibility route(s))` : ''}.`,
+    summary: `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts${readsTree ? ' match the tree' : ''}; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; ${readsTree ? `no eslint-disable; ${probes.length} import probes behave and name their rule` : `the tree is held by ${contract.language.name}'s own tool`}${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}${storm ? `; the event storm is read from the code (${storm.contexts.reduce((sum, each) => sum + each.commands.length, 0)} commands, ${storm.contexts.reduce((sum, each) => sum + each.policies.length, 0)} policies)` : ''}${multi ? `; one application in ${inventories.size} inventor${inventories.size === 1 ? 'y' : 'ies'}` : ''}${contract.profiles.length ? `; ${contract.profiles.length} profile(s) held to the floor (${contract.contexts.filter(context => profileOf(contract, context) !== contract.profiles.find(profile => profile.default)?.id).length} context(s) off the default)` : ''}${contract.migration ? `; the wire is ${contract.migration.api} (${contract.migration.routes.length} compatibility route(s))` : ''}.`,
   };
+}
+
+const LAYERS = ['domain', 'application', 'infrastructure', 'presentation'] as const;
+
+/**
+ * What the documents show between their markers, rendered from the contracts (step 3 of the check):
+ * every language's README, the repository's CLAUDE.md, and, when the repository holds more than the
+ * first contract's language, the root README's strategic view (`strategicView`, rendered from the map),
+ * its map across languages and its rules. The first contract is the language the check is run for.
+ * Pure: the same contracts give the same bytes, which is what holds Full's documents unchanged by the
+ * profiles (ADR 40, P5).
+ */
+export function renderedDocuments(
+  contracts: ArchitectureContract[],
+  strategicView?: string,
+): { file: string; blocks: [string, string][] }[] {
+  const [contract] = contracts;
+  /** A section with nothing in it yet (a new application has no vocabulary) needs no block. */
+  const nonEmpty = (blocks: [string, string, boolean][]): [string, string][] =>
+    blocks.filter(([, , has]) => has).map(([marker, rendered]) => [marker, rendered]);
+  const documents: { file: string; blocks: [string, string][] }[] = [];
+
+  // Every language's README is rendered from its own contract, with links relative to its
+  // directory; a language renders its documents here rather than in its own tooling because the
+  // renderer reads data, and a second renderer would be a second thing to drift.
+  for (const each of contracts) {
+    const layerHas = (layer: (typeof LAYERS)[number]) =>
+      each.concepts.some(concept => concept.layer === layer && concept.canonical.length > 0);
+    const there = each.language.root;
+    documents.push({
+      file: posix.join(there, 'README.md'),
+      blocks: nonEmpty([
+        ...LAYERS.map((layer): [string, string, boolean] => [
+          SECTION_MARKER(layer),
+          renderConceptLayer(each, layer, there),
+          layerHas(layer),
+        ]),
+        [SECTION_MARKER('tests'), renderTests(each, there), each.tests.length > 0],
+        // The words are the contract's; a language whose binding shows none of them yet has no table to render.
+        [SECTION_MARKER('vocabulary'), renderVocabulary(each, there), each.vocabulary.some(row => row.see)],
+        [RULES_MARKER('rules'), renderRulesTable(each, there), true],
+        [RULES_MARKER('dependencies'), renderDependencyTable(each), each.contexts.length > 0],
+      ]),
+    });
+  }
+  documents.push({ file: 'CLAUDE.md', blocks: [[RULES_MARKER('rules'), renderRulesList(contract)]] });
+  if (contract.language.root !== '.') {
+    const title = (layer: string) => `${layer[0].toUpperCase()}${layer.slice(1)} layer`;
+    documents.push({
+      file: 'README.md',
+      blocks: [
+        ...(strategicView !== undefined ? [[DOMAIN_MARKER, strategicView] as [string, string]] : []),
+        [SECTION_MARKER('languages'), renderLanguages(contracts)],
+        [
+          SECTION_MARKER('map'),
+          LAYERS.map(layer => `#### ${title(layer)}\n\n${renderConceptMatrix(contracts, layer)}`).join('\n\n'),
+        ],
+        [RULES_MARKER('rules'), renderRulesTable(contract, '.', false)],
+      ],
+    });
+  }
+  return documents;
 }

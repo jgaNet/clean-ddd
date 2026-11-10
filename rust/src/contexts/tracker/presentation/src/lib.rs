@@ -34,7 +34,7 @@ async fn get_operations(
 ) -> Response {
     match module.query::<GetOperations>().handle(GetOperations { trace_id: filters.trace_id }, &context).await {
         Ok(records) => Json(records).into_response(),
-        Err(error) => refuse(error),
+        Err(error) => refuse(error, &context),
     }
 }
 
@@ -45,10 +45,10 @@ async fn get_operation(
 ) -> Response {
     match module.query::<GetOperation>().handle(GetOperation { id }, &context).await {
         Ok(record) => Json(record).into_response(),
-        Err(error) => refuse(error),
+        Err(error) => refuse(error, &context),
     }
 }
 
-fn refuse(error: Exception) -> Response {
-    refused(status_of(&error), &error)
+fn refuse(error: Exception, context: &ExecutionContext) -> Response {
+    refused(status_of(&error, context), &error)
 }

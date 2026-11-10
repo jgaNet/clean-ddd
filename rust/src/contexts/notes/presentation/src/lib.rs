@@ -1,6 +1,7 @@
 //! The REST routes of the Notes context, and their controller: one function per route. Commands
 //! are accepted (202) and processed through the event bus; the client follows the returned
-//! operation. Queries answer synchronously. The verb follows what the request does to what the
+//! operation. A caller who is not signed in is refused at once with 401, before anything is
+//! published (`accept()`, API-CALLER-AT-TRANSPORT). Queries answer synchronously. The verb follows what the request does to what the
 //! URL names (the HTTP grammar of the contract): `POST /notes` creates, `PUT /notes/{id}`
 //! replaces, `POST /notes/{id}/share` acts, `GET` reads.
 //!
@@ -116,36 +117,54 @@ impl From<SharedNoteListItem> for SharedNoteListItemView {
     }
 }
 
-async fn create_note(Extension(context): Extension<ExecutionContext>, Json(body): Json<CreateNoteBody>) -> Response {
-    accept(&context, CreateNote { title: body.title, content: body.content }).into_response()
+async fn create_note(
+    State(module): State<Arc<Module>>,
+    Extension(context): Extension<ExecutionContext>,
+    Json(body): Json<CreateNoteBody>,
+) -> Response {
+    accept(&context, &module, CreateNote { title: body.title, content: body.content }).into_response()
 }
 
 async fn edit_note(
+    State(module): State<Arc<Module>>,
     Extension(context): Extension<ExecutionContext>,
     Path(id): Path<String>,
     Json(body): Json<EditNoteBody>,
 ) -> Response {
-    accept(&context, EditNote { note_id: id, title: body.title, content: body.content }).into_response()
+    accept(&context, &module, EditNote { note_id: id, title: body.title, content: body.content }).into_response()
 }
 
-async fn archive_note(Extension(context): Extension<ExecutionContext>, Path(id): Path<String>) -> Response {
-    accept(&context, ArchiveNote { note_id: id }).into_response()
+async fn archive_note(
+    State(module): State<Arc<Module>>,
+    Extension(context): Extension<ExecutionContext>,
+    Path(id): Path<String>,
+) -> Response {
+    accept(&context, &module, ArchiveNote { note_id: id }).into_response()
 }
 
-async fn restore_note(Extension(context): Extension<ExecutionContext>, Path(id): Path<String>) -> Response {
-    accept(&context, RestoreNote { note_id: id }).into_response()
+async fn restore_note(
+    State(module): State<Arc<Module>>,
+    Extension(context): Extension<ExecutionContext>,
+    Path(id): Path<String>,
+) -> Response {
+    accept(&context, &module, RestoreNote { note_id: id }).into_response()
 }
 
 async fn share_note(
+    State(module): State<Arc<Module>>,
     Extension(context): Extension<ExecutionContext>,
     Path(id): Path<String>,
     Json(body): Json<ShareNoteBody>,
 ) -> Response {
-    accept(&context, ShareNote { note_id: id, recipient_id: body.recipient_id }).into_response()
+    accept(&context, &module, ShareNote { note_id: id, recipient_id: body.recipient_id }).into_response()
 }
 
-async fn suggest_note_title(Extension(context): Extension<ExecutionContext>, Path(id): Path<String>) -> Response {
-    accept(&context, SuggestNoteTitle { note_id: id }).into_response()
+async fn suggest_note_title(
+    State(module): State<Arc<Module>>,
+    Extension(context): Extension<ExecutionContext>,
+    Path(id): Path<String>,
+) -> Response {
+    accept(&context, &module, SuggestNoteTitle { note_id: id }).into_response()
 }
 
 /// The form the HTMX front end swaps in to write a note; it posts to the same `POST /notes`.
@@ -172,7 +191,7 @@ async fn new_note() -> Response {
 async fn get_my_notes(State(module): State<Arc<Module>>, Extension(context): Extension<ExecutionContext>) -> Response {
     match module.query::<GetMyNotes>().handle(GetMyNotes, &context).await {
         Ok(notes) => Json(notes.into_iter().map(NoteListItemView::from).collect::<Vec<_>>()).into_response(),
-        Err(error) => refuse(error),
+        Err(error) => refuse(error, &context),
     }
 }
 
@@ -183,7 +202,7 @@ async fn get_note(
 ) -> Response {
     match module.query::<GetNote>().handle(GetNote { note_id: id }, &context).await {
         Ok(note) => Json(NoteDetailView::from(note)).into_response(),
-        Err(error) => refuse(error),
+        Err(error) => refuse(error, &context),
     }
 }
 
@@ -193,12 +212,12 @@ async fn get_notes_shared_with_me(
 ) -> Response {
     match module.query::<GetNotesSharedWithMe>().handle(GetNotesSharedWithMe, &context).await {
         Ok(notes) => Json(notes.into_iter().map(SharedNoteListItemView::from).collect::<Vec<_>>()).into_response(),
-        Err(error) => refuse(error),
+        Err(error) => refuse(error, &context),
     }
 }
 
 /// The context's own kinds first (a note that is not found is a 404), the common ones after.
-fn refuse(error: Exception) -> Response {
-    let status = if error.is(NOTE_NOT_FOUND) { StatusCode::NOT_FOUND } else { status_of(&error) };
+fn refuse(error: Exception, context: &ExecutionContext) -> Response {
+    let status = if error.is(NOTE_NOT_FOUND) { StatusCode::NOT_FOUND } else { status_of(&error, context) };
     refused(status, &error)
 }

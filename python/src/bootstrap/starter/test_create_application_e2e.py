@@ -19,12 +19,12 @@ async def test_serves_the_tracker_under_the_prefix_to_an_anonymous_caller_with_t
             response = await client.get(f"{api}/tracker/operations/{UNKNOWN}", headers={"x-trace-id": trace_id})
 
             # An operation is followed by whoever started it; nobody started this one, and an
-            # anonymous caller is told to sign in rather than whether it exists.
-            assert response.status_code == 403
+            # anonymous caller is told to sign in (401) rather than whether it exists.
+            assert response.status_code == 401
             assert list(response.json()) == ["message"]
             assert response.headers["x-trace-id"] == trace_id
 
-            # Listing operations is an administrator's view.
-            assert (await client.get(f"{api}/tracker/operations")).status_code == 403
+            # Listing operations is an administrator's view: an anonymous caller is asked to sign in.
+            assert (await client.get(f"{api}/tracker/operations")).status_code == 401
     finally:
         await running.stop()

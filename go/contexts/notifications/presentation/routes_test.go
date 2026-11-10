@@ -98,8 +98,8 @@ func TestAnInboxIsTheRecipientsOrAnAdministratorsAndOmitsWhatDidNotHappen(t *tes
 	if code := call(handler, http.MethodGet, "/v1/notifications/account/carol", "dave", "USER", "").Code; code != http.StatusForbidden {
 		t.Fatalf("another user may not, got %d", code)
 	}
-	if code := call(handler, http.MethodGet, "/v1/notifications/account/carol", "", "", "").Code; code != http.StatusForbidden {
-		t.Fatalf("an anonymous caller may not, got %d", code)
+	if code := call(handler, http.MethodGet, "/v1/notifications/account/carol", "", "", "").Code; code != http.StatusUnauthorized {
+		t.Fatalf("an anonymous caller may not, and is told to sign in (401), got %d", code)
 	}
 	if code := call(handler, http.MethodGet, "/v1/notifications/account/carol?limit=x", "carol", "USER", "").Code; code != http.StatusBadRequest {
 		t.Fatalf("a malformed page is a 400, got %d", code)

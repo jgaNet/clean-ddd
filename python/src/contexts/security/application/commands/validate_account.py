@@ -30,6 +30,12 @@ class ValidateAccountCommandHandler(CommandHandler[ValidateAccountCommandEvent])
         self._accounts = accounts
         self._tokens = tokens
 
+    def anyone_may_ask(self, command: ValidateAccountCommandEvent) -> bool:
+        """Whoever follows the link emailed at sign-up may ask: the token it carries is its proof, and
+        the person following it is not signed in yet. Validating by account id is an administrator's,
+        so the transport refuses it at once to a caller who is not signed in (API-CALLER-AT-TRANSPORT)."""
+        return command.validation_token is not None
+
     async def execute(self, command: ValidateAccountCommandEvent, context: ExecutionContext) -> Result[str]:
         account_id = await self._account_id_allowed_for(command, context)
         if isinstance(account_id, Failure):

@@ -63,7 +63,7 @@ func Routes(mux *http.ServeMux, prefix string, module *application.Module) {
 		params := queries.GetOperationsParams{TraceID: r.URL.Query().Get("traceId")}
 		records, err := application.Query(application.QueryOf[*queries.GetOperationsHandler](module), params, ctx)
 		if err != nil {
-			presentation.Refuse(w, err, 0)
+			presentation.Refuse(w, ctx, err, 0)
 			return
 		}
 		presentation.WriteJSON(w, http.StatusOK, operationViews(records))
@@ -73,7 +73,7 @@ func Routes(mux *http.ServeMux, prefix string, module *application.Module) {
 		ctx := presentation.ContextOf(r)
 		record, err := application.Query(application.QueryOf[*queries.GetOperationHandler](module), r.PathValue("id"), ctx)
 		if err != nil {
-			presentation.Refuse(w, err, 0)
+			presentation.Refuse(w, ctx, err, 0)
 			return
 		}
 		presentation.WriteJSON(w, http.StatusOK, operationViewOf(record))

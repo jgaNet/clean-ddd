@@ -36,6 +36,11 @@ beforeEach(async () => {
 });
 
 describe('ValidateAccountCommandHandler', () => {
+  it('may be asked by anyone with the emailed token, by id only by a signed-in caller (API-CALLER-AT-TRANSPORT)', () => {
+    expect(handler.anyoneMayAsk(ValidateAccountCommandEvent.set({ validationToken: 'token' }))).toBe(true);
+    expect(handler.anyoneMayAsk(ValidateAccountCommandEvent.set({ accountId: pendingId }))).toBe(false);
+  });
+
   it('validates with the validation token emailed at sign-up, whoever presents it', async () => {
     const validationToken = await jwt.issue({ subjectId: pendingId, subjectType: TokenTypes.VALIDATION });
 

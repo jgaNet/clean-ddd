@@ -150,6 +150,10 @@ rules:
     references: [src/Contexts/Tracker/Application/Projections/OperationProjection.ts, src/Contexts/Tracker/Presentation/API/REST/Routes/operation.routes.e2e.spec.ts]
   API-BODY-SHAPE:
     references: [eslint.config.js, src/Contexts/Notifications/Presentation/API/REST/Routes/notification.routes.schema.ts, src/Contexts/Notifications/Domain/Notification/DeliveryStrategy.ts]
+  # Held by the linter (a route that publishes on the bus, or answers 202, by itself is refused) and
+  # by the shared scenario; the helper every 202 route calls is the canonical file.
+  API-CALLER-AT-TRANSPORT:
+    references: [src/Architecture/Presentation/AcceptCommand.ts, eslint.config.js, ../api/scenario.mjs]
   ARCH-MAP-IS-REAL:
     references: [../tools/src/check.ts]
   CTX-MAP-DECLARED:
@@ -243,6 +247,71 @@ checklists:
       - 'Its own vocabulary: a word that means something else here is a sign the context is right.'
       - 'It asks other contexts through ports it owns, and tells them through integration events; never both sides of an import.'
       - 'Registered in the composition root (`src/Bootstrap/Fastify/createApplication.ts`): its module after the Tracker''s, its routes under its own prefix (`/notes`), which the transport serves under the API''s (`/v1/notes`).'
+
+# How TypeScript holds the Lite profile (ADR 40), an experiment held in this language alone: what a new
+# thing of each kind is made of in a context held to it (the kinds not named here are made as above, and
+# an aggregate or a domain event comes in only where its trigger fires, by an ADR), the files that show
+# each of its mechanisms, and what `create --profile lite` copies in place of `create`. No context of the
+# reference is held to it; a binding names one under `profiles` (or `default_profile: lite`, an
+# application created Lite), and the check refuses that in a binding with no section like this one.
+profiles_held:
+  lite:
+    checklists:
+      command:
+        place: src/Contexts/<Context>/Application/<Things>.ts
+        parts:
+          - 'A use case in the file of its thing''s use cases, one export each: `export const <intent> = command(''<Intent>'', (<ports>) => async (input, context) => …)` ([`UseCase.ts`](src/Architecture/Application/Lite/UseCase.ts)); the name is the public one, without a suffix.'
+          - '`requireSignedIn(context, ''<Context>'')` first, and its refusal returned; a use case anyone may ask for (signing up, a link that carries its own proof) has none.'
+          - 'Validate with the domain''s value objects and functions, returning their failed `Result`; generate a new thing''s id with `Id.generate()` and return it; write through the store port the use case takes, the only port it has unless it asks an outside system or another context.'
+          - 'A fact another context reacts to: `publishIntegrationEvent(<Fact>IntegrationEvent.set(…), context)`, after the write — the outbox makes it durable with the write and publishes it after the commit; a refusal undoes both.'
+          - 'Listed once in `module.local.ts`, built with its ports: `useCases: [<intent>(<store>), …]` in a `LiteModule` ([`LiteModule.ts`](src/Architecture/Application/Lite/LiteModule.ts)).'
+          - 'A route in `Presentation/<things>.routes.ts` that answers it at once and does nothing else: `answerAtOnce(req, reply, module.useCase(<intent>), input, { created: true })` for a create, without the option otherwise ([`AnswerAtOnce.ts`](src/Architecture/Presentation/Lite/AnswerAtOnce.ts)); the body''s schema says its shape only (API-BODY-SHAPE).'
+          - '`<Things>.spec.ts` beside the use cases, with the in-memory store as the double: a happy path and one refusal for each command; an end-to-end case in `Presentation/<things>.routes.e2e.spec.ts` when the flow is user-visible.'
+      query:
+        place: src/Contexts/<Context>/Application/<Things>.ts
+        parts:
+          - '`export const <question> = query(''<Question>'', (<store>) => async (input, context) => …)` in the file of its thing''s use cases, returning a read model, never an aggregate (QUERY-READ-MODELS).'
+          - 'The read model and the store''s method that answers it are declared in the store port, with the order and the answer to an unknown id in its JSDoc; the query never sorts.'
+          - 'Listed in the Module''s `useCases`, answered by `answerAtOnce()` on `GET` (`200` with the read model, a refusal with its status).'
+      context:
+        place: src/Contexts/<Context>/
+        parts:
+          - 'Declared in `contexts` in this file and held to Lite: `profiles: { <Context>: lite }`, or `default_profile: lite` in an application created Lite; described in `conventions/domain.yaml` (its subdomain, its purpose, its language), a relationship to another context declared there before the code carries it (CTX-MAP-DECLARED).'
+          - '`Domain/`: value objects, the domain''s functions and the exceptions — a not-found one extends `NotFoundException`; an aggregate only where two commands write one thing (several-writers), a domain event only where something reacts to it, each by an ADR.'
+          - '`Application/`: `<Things>.ts`, the use cases of one thing, and the ports they take at the edges — `I<Thing>Store.ts` for the store, a port for an outside system or another context; no port for anything inside the context.'
+          - '`Infrastructure/`: an adapter per port (`InMemory<Thing>Store.ts` over an `InMemoryDataSource`, which the unit of work snapshots).'
+          - '`Presentation/<things>.routes.ts`: one registration per use case, each answering through `answerAtOnce()`, the Module in the routes'' options.'
+          - '`module.local.ts`: a `LiteModule` listing its use cases built with their ports, and the reactions to other contexts'' integration events (an `EventHandler`, as in Full).'
+          - 'Registered in the composition root (`src/Bootstrap/Fastify/createApplication.ts`): its module, and its routes under its own prefix with `{ module }`.'
+    # The file that shows each mechanism the profile uses or keeps, by the profile's word.
+    shows:
+      use-case: [src/Architecture/Application/Lite/UseCase.ts, src/Architecture/Application/Lite/UseCase.spec.ts]
+      answered-at-once: [src/Architecture/Presentation/Lite/AnswerAtOnce.ts, src/Architecture/Presentation/Lite/AnswerAtOnce.spec.ts]
+      module-as-data: [src/Architecture/Application/Lite/LiteModule.ts, src/Architecture/Application/Lite/LiteModule.spec.ts]
+      outbox: [src/Architecture/Application/DomainEvents.ts, src/Architecture/Application/Outbox.ts]
+      inbox: [src/Architecture/Infrastructure/EventBus/InMemoryEventBus.ts]
+      integration-events: [src/SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts]
+      owned-ports: [src/Contexts/Notes/Domain/Note/Ports/IAccountDirectory.ts]
+    # What `create --profile lite` copies: the building blocks, the shared kernel's model, the transport
+    # and the composition root that starts with no context — a Lite command is answered at once, so there
+    # is no operation to follow and no Tracker.
+    create:
+      copy:
+        - src/Architecture
+        - src/SharedKernel/Domain
+        - src/SharedKernel/Application/Guards.ts
+        - src/Bootstrap/Fastify/FastifyApplication.ts
+        - src/Bootstrap/Fastify/fastify.d.ts
+        - src/Bootstrap/Fastify/application.ts
+        - { from: src/Bootstrap/LiteStarter/createApplication.ts, to: src/Bootstrap/Fastify/createApplication.ts }
+        - { from: src/Bootstrap/LiteStarter/createApplication.e2e.spec.ts, to: src/Bootstrap/Fastify/createApplication.e2e.spec.ts }
+        - tsconfig.json
+        - tsconfig.test.json
+        - jest.config.js
+        - eslint.config.js
+        - .prettierrc.json
+        - .prettierignore
+        - .nvmrc
 
 # One test style per layer, for the README.
 tests:

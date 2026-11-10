@@ -1,7 +1,8 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 
 import { Exception, NotAllowedException, NotFoundException } from '@Architecture/Domain';
-import { Module } from '@Architecture/Application';
+import { ExecutionContext, Module } from '@Architecture/Application';
+import { notAllowedStatus } from '@Architecture/Presentation/AcceptCommand';
 
 import { GetOperationQueryHandler, GetOperationsQueryHandler } from '@Contexts/Tracker/Application/Queries';
 
@@ -16,17 +17,17 @@ export class FastifyOperationController {
   async getOperations(req: FastifyRequest<{ Querystring: { traceId?: string } }>, reply: FastifyReply) {
     const result = await this.#module.getQuery(GetOperationsQueryHandler).handle(req.query, req.executionContext);
 
-    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
+    return result.isFailure() ? this.refuse(reply, result.error, req.executionContext) : result.data;
   }
 
   async getOperation(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
     const result = await this.#module.getQuery(GetOperationQueryHandler).handle(req.params, req.executionContext);
 
-    return result.isFailure() ? this.refuse(reply, result.error) : result.data;
+    return result.isFailure() ? this.refuse(reply, result.error, req.executionContext) : result.data;
   }
 
-  private refuse(reply: FastifyReply, error: Exception) {
-    if (error instanceof NotAllowedException) reply.code(403);
+  private refuse(reply: FastifyReply, error: Exception, context: ExecutionContext) {
+    if (error instanceof NotAllowedException) reply.code(notAllowedStatus(context));
     else if (error instanceof NotFoundException) reply.code(404);
     else reply.code(400);
 

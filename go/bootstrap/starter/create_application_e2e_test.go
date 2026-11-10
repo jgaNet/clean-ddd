@@ -56,8 +56,8 @@ func TestTheTrackerIsServedUnderThePrefixToAnAnonymousCallerWithTheTraceOfTheReq
 	response, body := get(t, api+"/tracker/operations/00000000-0000-4000-8000-000000000000", "x-trace-id", traceID)
 
 	// An operation is followed by whoever started it; nobody started this one, and an anonymous
-	// caller is told to sign in rather than whether it exists.
-	if response.StatusCode != http.StatusForbidden {
+	// caller is told to sign in (401, API-CALLER-AT-TRANSPORT) rather than whether it exists.
+	if response.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("status: %d", response.StatusCode)
 	}
 	if _, ok := body["message"].(string); !ok || len(body) != 1 {
@@ -71,7 +71,7 @@ func TestTheTrackerIsServedUnderThePrefixToAnAnonymousCallerWithTheTraceOfTheReq
 func TestOperationsAreListedForAnAdministratorOnly(t *testing.T) {
 	api := startTestApplication(t)
 
-	if response, _ := get(t, api+"/tracker/operations"); response.StatusCode != http.StatusForbidden {
+	if response, _ := get(t, api+"/tracker/operations"); response.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("status: %d", response.StatusCode)
 	}
 }

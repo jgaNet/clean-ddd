@@ -75,6 +75,9 @@ func TestTrackerListsOperationsForAnAdministratorByTraceWhenAsked(t *testing.T) 
 	if bob.Get("/tracker/operations").Status != http.StatusForbidden {
 		t.Fatal("a user may not list")
 	}
+	if app.Anonymous().Get("/tracker/operations").Status != http.StatusUnauthorized {
+		t.Fatal("nor may a caller who is not signed in, told to sign in (401)")
+	}
 	_ = bobID
 	if admin.Get("/tracker/operations/00000000-0000-4000-8000-000000000000").Status != http.StatusNotFound {
 		t.Fatal("unknown operation")
@@ -97,7 +100,8 @@ func TestTrackerShowsAnOperationNobodyStartedToWhoeverHoldsItsIDAndOneAnAccountS
 
 	admin := app.Admin()
 	signed := admin.Post("/notes/00000000-0000-4000-8000-000000000000/share", map[string]string{"recipientId": "bob"})
-	if status := anonymous.Get("/tracker/operations/" + signed.Object()["operationId"].(string)).Status; status != http.StatusForbidden {
+	// Told to sign in (401), not whether it exists (API-CALLER-AT-TRANSPORT)
+	if status := anonymous.Get("/tracker/operations/" + signed.Object()["operationId"].(string)).Status; status != http.StatusUnauthorized {
 		t.Fatalf("anonymous, for an operation an account started: %d", status)
 	}
 }
