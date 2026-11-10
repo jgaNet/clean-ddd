@@ -1,6 +1,6 @@
 # Flow
 
-The smallest driver of the clean-ddd reference's RFC 0001 (`docs/rfc/0001-architecture-aware-multi-agent-flow.md` there), phases 1 to 3: one feature, one agent in its own git worktree, one verdict from the gate, one log — then one cross-context feature, one agent per bounded context in parallel, and one writer that integrates them — then a run that survives its driver, and a second runner.
+The smallest driver of the clean-ddd reference's RFC 0001 (`docs/rfc/0001-architecture-aware-multi-agent-flow.md` there), phases 1 to 3: one feature, one agent in its own git worktree, one verdict from the gate, one log — then one cross-context feature, one agent per bounded context in parallel, and the integrator that merges them — then a run that survives its driver, and a second runner.
 
 ```bash
 node .claude/flow/run-feature.mjs --project <dir> --base <ref> --request <file> --run <id> \
@@ -18,26 +18,31 @@ node .claude/flow/run-feature.mjs --project <dir> --base <ref> --request <file> 
 node .claude/flow/run-slices.mjs --project <dir> --plan <execution-plan.yaml> [--log <file.jsonl>]
 ```
 
-The feature's contract is decided first, by a person, and committed (the contract stage): the storm, one feature plan per context, the integration contracts in the shared kernel, the relationship in the context map (declared `planned` until its code), the composition root's registration of a new context, and an acceptance test of the user-visible flow that only the integrated feature can pass. The execution plan then says how this run executes it — the base, the request, the storm, the slices with their plans, the acceptance test and the command that runs it, the model, the parallelism, the retry, the ports; its comment at the top of the script shows one.
+The feature's contract is decided first, by a person, and committed (the contract stage): the storm, one feature plan per context, the integration contracts in the shared kernel, the relationship in the context map (declared `planned` until its code), the composition root's registration of a new context, and an acceptance test of the user-visible flow that only the integrated feature can pass. The execution plan then says how this run executes it — the base, the request, the storm, the slices with their plans, the feature's owner, the acceptance test and the command that runs it, the model, the parallelism, the retry, the integrator's rounds, the ports; its comment at the top of the script shows one.
 
 - **The contract is held before anything starts:** the storm and every plan validate, and the acceptance test exists and fails at the base.
 - **The slices run at once**, each in its own worktree (`<project>.flow/worktrees/<run>/<slice>`), with its own port, told the contract is frozen and that it may change its own context's folder and nothing else.
 - **The driver's verdict per slice** is the gate, plus its scope: a file outside the slice's context is refused. A failure sends the slice back once, in the same conversation, with the lines to read; an agent whose report starts with `BLOCKED` stops the feature — the contract is a person's to change.
-- **One writer integrates:** each slice's patch applied to a worktree from the base, the contract marked carried (the storm done, the plans' parts not new), the documents regenerated, then the gate, what the code still owes the storm, and the acceptance test. The integrated branch `run/<run>/integration-<n>` is what a person reviews and merges.
+- **The integrator merges them** ([`integrator.mjs`](integrator.mjs), the same module the ladder's fan-out calls; see *Several agents on one feature* below). Its owners are the slices, each owning its context's folder; the feature's owner is the plan's `owner`, or the first slice. Each round:
+  - a new integration worktree from the base, with each slice's patch applied, the feature's owner's last; a patch that does not apply is a conflict, sent to its slice;
+  - the merged result held to what the single writer held it to: the contract marked carried (the storm done, the plans' parts not new), the documents regenerated, then the gate, what the code still owes the storm, and the acceptance test;
+  - each failing step sent to the slice whose files it names, or to the feature's owner when it names none: the slice's conversation is continued in its worktree, and the slice is then held to its own verdict again, with its `retry.perSlice`. A slice that stops there (`BLOCKED`, or failed by its own verdict) stops the feature.
 
-The log has the same shape as phase 1's, per slice, plus `contract`, `slice` (its state), `integration` and `finished`.
+  After `integration.rounds` rounds (two), the merged result is judged as it stands, and `finished` says which failure was left and whose (`left`). The integrated branch `run/<run>/integration-<n>` is what a person reviews and merges.
+
+The log has the same shape as phase 1's, per slice, plus `contract`, `slice` (its state), `integration` (each merge and each verdict on it), `integrator` (each round) and `finished`.
 
 ## Phase 3: interruption, cancellation, a second runner, the slice's pack
 
 ```bash
-node .claude/flow/run-slices.mjs --project <dir> --plan <execution-plan.yaml> [--runner claude-cli|claude-sdk]
+node .claude/flow/run-slices.mjs --project <dir> --plan <execution-plan.yaml> [--runner claude-cli|claude-sdk|command]
 node .claude/flow/run-slices.mjs --project <dir> --plan <execution-plan.yaml> --resume    # after the driver died
 node .claude/flow/run-slices.mjs --project <dir> --plan <execution-plan.yaml> --cancel    # stop a running driver
 ```
 
-- **Runners** ([`runners.mjs`](runners.mjs)): the same task, the same answer, from Claude Code headless (`claude-cli`) or the Claude Agent SDK (`claude-sdk`, resolved from the project or from `CLAUDE_AGENT_SDK`, the package's directory). Name the model in the execution plan (`agent.model`): the runner's default may be one the account cannot use. A continued conversation reports its running total, so a slice's cost is the latest figure, never a sum. When an agent stops, for any reason, the runner kills what it left running in its directory (`reap`): a background command runs in a process group of its own and outlives the group kill.
+- **Runners** ([`runners.mjs`](runners.mjs)): the same task, the same answer, from Claude Code headless (`claude-cli`) or the Claude Agent SDK (`claude-sdk`, resolved from the project or from `CLAUDE_AGENT_SDK`, the package's directory). Name the model in the execution plan (`agent.model`): the runner's default may be one the account cannot use. A continued conversation reports its running total, so a slice's cost is the latest figure, never a sum. `command` (with `agent.command`, as in the ladder) stands in for an agent to rehearse the driver without spending: it runs that shell command in the slice's worktree with the turn's prompt in `PROMPT`, and what it prints is its report. When an agent stops, for any reason, the runner kills what it left running in its directory (`reap`): a background command runs in a process group of its own and outlives the group kill.
 - **Leases.** A running slice holds a lease beside its worktree (`<slice>.lease`: the driver, the agent's process group, refreshed every 30 s). A driver that dies leaves it behind.
-- **Resume** folds the log. A slice that passed stays passed. One its driver lost is reclaimed: the agent that outlived the driver is stopped by its process group, and the agent continues the same conversation, told it was interrupted — a gate that passes on half a slice says the code is sound, not that the slice is done, so only a slice whose agent had finished is checked again rather than continued. An interrupted integration is redone in a new worktree. A finished run is left alone.
+- **Resume** folds the log. A slice that passed stays passed. One its driver lost is reclaimed: the agent that outlived the driver is stopped by its process group, and the agent continues the same conversation, told it was interrupted — a gate that passes on half a slice says the code is sound, not that the slice is done, so only a slice whose agent had finished is checked again rather than continued. An interrupted integration is redone in a new worktree, from its first round. A finished run is left alone.
 - **Cancel** signals the running driver (its pid is in `<run>.lock`): every agent is stopped, the running slices and the run are recorded `CANCELLED`, which is final.
 - **The pack.** When the project's tooling has `clean-ddd pack`, each agent is told to start with it: its part of the feature, the files that show each shape (from the reference the package carries when the project has none yet), the other slices' parts, the frozen contracts.
 
@@ -66,7 +71,9 @@ The SDK's agent process is not in a process group of its own: if the driver is k
   - runs the gate on the merged result;
   - sends each failing step to the owner of a file it names, or to the feature's owner when it names none.
 
-  It stops after two rounds. Git, the gate and the agents are passed in, and [`integrator.test.mjs`](integrator.test.mjs) tests the routing and the bound without them.
+  It stops after two rounds. Git, the gate and the agents are passed in, and [`integrator.test.mjs`](integrator.test.mjs) tests the routing and the bound without them. Two drivers call it:
+  - **the phase-2 fan-out** ([`run-slices.mjs`](run-slices.mjs)): the owners are the slices, a merge applies their patches to a new worktree from the base, and the gate is the contract marked carried, the gate, the storm's owing and the acceptance test (*Phase 2* above);
+  - **the ladder's fan-out by context**, below.
 - **The ladder's fan-out by context.** With `fanOut: { rounds: 2 }` in a clean arm's plan, a feature whose storm lists several contexts is written by one agent per context, in parallel, each with the step's model.
   - **Ownership:**
     - The storm's first context owns the feature. Its agent owns its folder and everything no other agent owns (the composition root, the shared kernel, the conventions, the decisions).
