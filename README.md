@@ -455,6 +455,7 @@ Non-obvious choices are recorded as short ADRs in [`docs/adr`](docs/adr):
 36. [A migrated application keeps its behaviour, and chooses the wire it answers on](docs/adr/0036-a-migrated-application-keeps-its-behaviour-and-chooses-its-wire.md)
 37. [A decision for every feature is taken once: a later request does not overturn it in silence, and a decision taken late is applied to the code before it](docs/adr/0037-a-decision-for-every-feature-is-taken-once.md)
 38. [The integrator is one role every multi-agent run has: one module, two rounds, and the relationship tests run on the merged result only](docs/adr/0038-the-integrator-is-one-role-every-multi-agent-run-has.md)
+39. [A command whose outcome is read later needs a signed-in caller, and the transport refuses a missing one at once with 401](docs/adr/0039-a-command-whose-outcome-is-read-later-needs-a-caller-at-the-transport.md)
 
 What is deliberately *not* here — a DI container, an ORM, a message broker, a generic saga — is listed with its reason and the day it would come in the TypeScript README's [What is deliberately not here](typescript/README.md#what-is-deliberately-not-here); the known gaps of each language are at the end of its README.
 
