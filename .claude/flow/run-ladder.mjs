@@ -869,6 +869,28 @@ async function attempt(feature, step, from, { single = false } = {}) {
     ...(owners.length && { owners: owners.map(owner => owner.name) }),
     ...(single && { control: 'one agent' }),
   });
+  // What `clean-ddd strategy` recommends for this feature, logged beside what this attempt does (RFC 0001, phase 6),
+  // so that the split's results calibrate the rule; tooling older than the command logs nothing.
+  if (fanOut && hasStorm(feature)) {
+    const advice = parse(
+      (
+        await sh(
+          `yarn -s architecture strategy --storm conventions/storms/${feature.id}.yaml --priority cost --json`,
+          cwd,
+          120_000,
+        )
+      ).out,
+    );
+    if (advice?.strategy)
+      event('strategy', {
+        feature: feature.id,
+        step,
+        ran: owners.length ? 'fan-out-by-context' : 'one agent',
+        recommended: advice.strategy,
+        estimate: advice.estimate,
+        inputs: advice.inputs,
+      });
+  }
   const written = owners.length
     ? await writtenByOwners(feature, step, from, cwd, id, owners)
     : await writtenAlone(feature, step, from, cwd);
