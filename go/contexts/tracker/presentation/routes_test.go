@@ -137,7 +137,7 @@ func TestListsForAnAdministratorByTraceWhenAskedAndRefusesTheOthers(t *testing.T
 	if code := serve(t, store, http.MethodGet, prefix+"/op-1", "bob", "USER").Code; code != http.StatusNotFound {
 		t.Fatalf("a user reading someone else's operation: %d, want 404", code)
 	}
-	if code := serve(t, store, http.MethodGet, prefix+"/op-1", "", "").Code; code != http.StatusForbidden {
-		t.Fatalf("an anonymous caller: %d, want 403", code)
+	if code := serve(t, store, http.MethodGet, prefix+"/op-1", "", "").Code; code != http.StatusUnauthorized {
+		t.Fatalf("an anonymous caller: %d, want 401 (told to sign in, not whether it exists)", code)
 	}
 }

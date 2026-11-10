@@ -1,6 +1,6 @@
 # RFC 0003 — Who reaches a command is said once, and the transport refuses at once
 
-**Status:** decided (10 November), in [ADR 39](../adr/0039-a-command-whose-outcome-is-read-later-needs-a-caller-at-the-transport.md): `401` everywhere, the routes whose outcome is read later, the email link an administrator's, held by the scenario and the linter. In the contract as API-CALLER-AT-TRANSPORT and held by TypeScript; Rust, Python and Go report it as a gap. The text below is the proposal as it was.
+**Status:** decided (10 November), in [ADR 39](../adr/0039-a-command-whose-outcome-is-read-later-needs-a-caller-at-the-transport.md): `401` everywhere, the routes whose outcome is read later, the email link an administrator's, held by the scenario and the linter. In the contract as API-CALLER-AT-TRANSPORT and held by TypeScript and Go; Rust and Python report it as a gap. The text below is the proposal as it was.
 
 ## 1. The problem
 

@@ -30,6 +30,14 @@ func NewValidateAccountHandler(accounts account.Repository, tokens auth.SignedTo
 	return &ValidateAccountHandler{accounts: accounts, tokens: tokens}
 }
 
+// AnyoneMayAsk: whoever follows the link emailed at sign-up may ask, for the token it carries
+// is its proof and the person following it is not signed in yet. Validating by account id is an
+// administrator's, so the transport refuses it at once to a caller who is not signed in
+// (application.OpenToAnyone, API-CALLER-AT-TRANSPORT).
+func (h *ValidateAccountHandler) AnyoneMayAsk(command ValidateAccountCommandEvent) bool {
+	return command.ValidationToken != ""
+}
+
 // Execute answers with the id of the account it validated.
 func (h *ValidateAccountHandler) Execute(command ValidateAccountCommandEvent, ctx *application.ExecutionContext) (string, error) {
 	accountID, err := h.accountIDAllowedFor(command, ctx)

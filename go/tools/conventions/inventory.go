@@ -341,6 +341,8 @@ type source struct {
 	pkg     string // the import path of its package
 	syntax  *ast.File
 	imports map[string]string // the local name of each import → its path
+	// positions turns a node of syntax into its line, for a problem that names one.
+	positions *token.FileSet
 }
 
 type sourceTree struct {
@@ -365,12 +367,13 @@ func readTree(root string, contract *Contract) (*sourceTree, error) {
 		if !known {
 			return nil
 		}
-		syntax, err := parser.ParseFile(token.NewFileSet(), p, nil, 0)
+		positions := token.NewFileSet()
+		syntax, err := parser.ParseFile(positions, p, nil, 0)
 		if err != nil {
 			return fmt.Errorf("%s: %w", relative, err)
 		}
 		inside, _ := insideRoot(contract, f.path)
-		s := &source{file: f, pkg: contract.ModulePath + "/" + path.Dir(inside), syntax: syntax}
+		s := &source{file: f, pkg: contract.ModulePath + "/" + path.Dir(inside), syntax: syntax, positions: positions}
 		tree.files = append(tree.files, s)
 		tree.packages[s.pkg] = append(tree.packages[s.pkg], s)
 		names[s.pkg] = syntax.Name.Name

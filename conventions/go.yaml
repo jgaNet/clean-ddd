@@ -112,6 +112,7 @@ create:
     - { from: bootstrap/starter/create_application.go, to: bootstrap/create_application.go }
     - { from: bootstrap/starter/create_application_e2e_test.go, to: bootstrap/create_application_e2e_test.go }
     # The tool, without its tests: they write violations into a copy of this repository's tree.
+    - tools/conventions/caller.go
     - tools/conventions/contract.go
     - tools/conventions/inventory.go
     - tools/conventions/linter.go
@@ -179,10 +180,15 @@ rules:
     references: [contexts/tracker/application/projection.go, bootstrap/operation_routes_e2e_test.go]
   API-BODY-SHAPE:
     references: [contexts/notifications/presentation/routes.go, contexts/notifications/domain/notification/channel.go]
-  # API-CALLER-AT-TRANSPORT is a gap here (ADR 39): Go has neither the marker on its command
-  # handlers nor the helper its 202 routes would call, so an anonymous command is still answered
-  # 202 and refused on the operation, and an anonymous query 403. The shared scenario holds the rule
-  # and fails against this server until it does; no file shows it yet, so none is named.
+  # Held by the conventions check (a context's route that publishes on the bus, or answers 202, by
+  # itself is refused, caller.go), by the tests and by the shared scenario; the helper every 202
+  # route calls is the canonical file, the marker (application.OpenToAnyone) is beside Run.
+  API-CALLER-AT-TRANSPORT:
+    references:
+      - architecture/presentation/http.go
+      - architecture/application/command_handler.go
+      - tools/conventions/caller.go
+      - ../api/scenario.mjs
   ARCH-MAP-IS-REAL:
     references: [tools/conventions/main.go]
   ARCH-ONE-APPLICATION:
@@ -226,7 +232,7 @@ checklists:
       - 'The handler in the same file: a struct named `<UseCase>Handler` taking its ports in `New<UseCase>Handler()`, with `Execute(command, ctx) (R, error)` — the signed-in guard (`kernel.RequireSignedIn`) at the top, load, ask the aggregate or the domain service, save (return the error as is), `application.PublishDomainEvents`; `R` is `application.Nothing` when there is nothing to answer. A command anyone may send (a sign-up) has no signed-in guard; its caller follows it by the operation id it was answered, signed in or not (ADR 27).'
       - 'A `Guard(ctx) error` method only for a rule that needs no caller id, such as administrators only.'
       - 'A test with at least a happy path and one refusal, in `commands_test.go` beside the commands; through `application.Run` when the rule is in `Guard`.'
-      - 'A route in the context''s `presentation/routes.go`: a handler func on the mux, `presentation.Accept(w, presentation.ContextOf(r), TheCommand{...})`, answering `202 { operationId }`; the handler listed in `module.go` with `application.Command()`. A create never answers its new id: the handler returns it (`R` is a `string`), and the client reads it as the operation''s `result` at `GET /v1/tracker/operations/{id}`.'
+      - 'A route in the context''s `presentation/routes.go`: a handler func on the mux, `presentation.Accept(w, r, module, TheCommand{...})`, answering `202 { operationId }`, or `401` at once to a caller who is not signed in (API-CALLER-AT-TRANSPORT) — a command anyone may ask for (a sign-up, a link carrying its own proof) says so on its handler, `AnyoneMayAsk(command) bool` (`application.OpenToAnyone`), and no other does; the handler listed in `module.go` with `application.Command()`. A create never answers its new id: the handler returns it (`R` is a `string`), and the client reads it as the operation''s `result` at `GET /v1/tracker/operations/{id}`.'
       - 'An end-to-end case when the flow is user-visible, in `bootstrap/<context>_routes_e2e_test.go` (package `bootstrap`): it boots the application on a free port and speaks HTTP with `net/http`, as the composition root''s own `create_application_e2e_test.go` does with `startTestApplication(t)` (the clean-ddd reference''s own suites, which boot its four contexts, use `StartTestApplication(t)` of its `bootstrap/testing.go`).'
   query:
     place: contexts/<context>/application/queries/<use_case>.go
@@ -548,14 +554,14 @@ concepts:
   controller:
     canonical: [contexts/notes/presentation/routes.go]
     example: '[`notes/presentation/routes.go`](contexts/notes/presentation/routes.go); every other context''s has the same shape'
-    notes: 'the routes and their controller are one file: a handler func per route on the `http.ServeMux`, `presentation.Accept()` for a command, `application.Query()` for a query, `refuse<Context>()` for a refusal'
+    notes: 'the routes and their controller are one file: a handler func per route on the `http.ServeMux`, `presentation.Accept()` for a command (`202`, or `401` at once without a caller), `application.Query()` for a query, `refuse<Context>()` for a refusal (`401` not signed in, `403` not allowed, `404` not found, `400` otherwise)'
   routes-and-json-schemas:
     canonical:
       - contexts/notes/presentation/routes.go
       - architecture/presentation/http.go
     example: >-
       the mux patterns, the request bodies and the views of [`notes/presentation/routes.go`](contexts/notes/presentation/routes.go),
-      on [`architecture/presentation/http.go`](architecture/presentation/http.go) (`Accept()`, the refusals, `DecodeBody()`)
+      on [`architecture/presentation/http.go`](architecture/presentation/http.go) (`Accept()`, `StatusOf()` and `Refuse()`, `DecodeBody()`)
     notes: 'the schema is a struct beside the route with JSON tags: `DecodeBody()` refuses a body that does not parse (400); a view struct says what a read model looks like outside, in camelCase'
   presenters:
     canonical:

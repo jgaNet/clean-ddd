@@ -28,6 +28,10 @@
 //  6. Every command has exactly one handler: the Module lists it once, with one handler, and
 //     every command a route or a policy builds is one the Module lists; a fact may have any
 //     number of subscribers (ARCH-ONE-HANDLER), read from the same wiring the inventory is.
+//  7. A context's routes publish a command, and answer 202, only through presentation.Accept,
+//     which refuses a caller who is not signed in with 401 first: a Presentation file that
+//     calls Publish or answers 202 by itself is refused, by file and line (API-CALLER-AT-TRANSPORT,
+//     caller.go).
 //
 // `can-import <file> <import-path> …` answers whether an import would be allowed, naming the
 // rule that refuses it. `inventory` prints the inventory as canonical JSON; `inventory --write`
@@ -107,6 +111,7 @@ func check(root string, contract *Contract) []string {
 	}
 	problems = append(problems, checkNamedFiles(root, contract)...)
 	problems = append(problems, checkOneHandler(root, contract)...)
+	problems = append(problems, checkCallerAtTransport(root, contract)...)
 	return withInventory(problems, checkInventory(root, contract))
 }
 
@@ -129,7 +134,7 @@ func summary(root string, contract *Contract) string {
 	for _, file := range files {
 		imports += len(file.imports)
 	}
-	return fmt.Sprintf("✓ contract v%d, Go binding: %d files and %d imports are the table, %d contexts match the tree, every file the binding names exists, every command has one handler; the inventory is current.",
+	return fmt.Sprintf("✓ contract v%d, Go binding: %d files and %d imports are the table, %d contexts match the tree, every file the binding names exists, every command has one handler, every route publishes through Accept; the inventory is current.",
 		contract.SchemaVersion, len(files), imports, len(contract.Contexts))
 }
 

@@ -74,6 +74,10 @@ func TestAnInboxListsWhatWasDeliveredMarksReadOnceAndStaysPrivate(t *testing.T) 
 	if dave.Get("/notifications/account/"+carolID).Status != http.StatusForbidden {
 		t.Fatal("another user may not")
 	}
+	if app.Anonymous().Get("/notifications/account/"+carolID).Status != http.StatusUnauthorized {
+		t.Fatal("a caller who is not signed in is told to sign in (401)")
+	}
+	app.RefusedAtOnce(app.Anonymous().Patch("/notifications/"+first["id"].(string)+"/read", nil), "anonymous PATCH /notifications/{id}/read")
 
 	// Sending by hand is an administrator's; the refusal is the guard's, on the operation
 	body2 := map[string]any{"recipientId": carolID, "title": "Hi", "content": "there", "channels": []string{"EMAIL"}}

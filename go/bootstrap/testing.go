@@ -107,6 +107,28 @@ func (a *TestApplication) Accepted(client *Client, response *Response) map[strin
 	return a.Operation(client, response.Object()["operationId"].(string))
 }
 
+// RefusedAtOnce asserts a command refused at the transport before anything was published
+// (API-CALLER-AT-TRANSPORT): 401 { message }, no operation to follow, and nothing traced under
+// the request's trace, as an administrator reads it.
+func (a *TestApplication) RefusedAtOnce(response *Response, what string) {
+	a.t.Helper()
+	if response.Status != http.StatusUnauthorized {
+		a.t.Fatalf("%s: expected 401 at once, got %d: %s", what, response.Status, response.Text)
+	}
+	body := response.Object()
+	if message, ok := body["message"].(string); !ok || message == "" || len(body) != 1 {
+		a.t.Fatalf("%s: the 401 carries { message } and no operation: %v", what, body)
+	}
+	traceID := response.Header.Get("x-trace-id")
+	if traceID == "" {
+		a.t.Fatalf("%s: the response carries x-trace-id", what)
+	}
+	traced := a.Admin().Get("/tracker/operations?traceId=" + traceID)
+	if traced.Status != http.StatusOK || len(traced.Array()) != 0 {
+		a.t.Fatalf("%s: nothing is published under its trace, got %d %s", what, traced.Status, traced.Text)
+	}
+}
+
 // SignUpValidated signs up a new account, validates it as the administrator, and returns its id: a fresh, usable user.
 func (a *TestApplication) SignUpValidated(identifier, password string) string {
 	a.t.Helper()
