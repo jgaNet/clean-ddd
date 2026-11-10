@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * One cross-context feature, one agent per bounded context, in parallel, then one writer that
- * integrates them (RFC 0001, phases 2 and 3).
+ * One cross-context feature, one agent per bounded context, in parallel, then the integrator that
+ * every multi-agent run has (integrator.mjs, ADR 38) merges them (RFC 0001, phases 2 and 3).
  *
- *   node .claude/flow/run-slices.mjs --project <dir> --plan <execution-plan.yaml> [--runner claude-cli|claude-sdk]
+ *   node .claude/flow/run-slices.mjs --project <dir> --plan <execution-plan.yaml> [--runner claude-cli|claude-sdk|command]
  *   node .claude/flow/run-slices.mjs --project <dir> --plan <execution-plan.yaml> --resume
  *   node .claude/flow/run-slices.mjs --project <dir> --plan <execution-plan.yaml> --cancel
  *
@@ -21,10 +21,13 @@
  *   slices:
  *     - { id: notes, context: Notes, plan: conventions/plans/notify-on-archive.notes.yaml }
  *     - { id: notifications, context: Notifications, plan: conventions/plans/notify-on-archive.notifications.yaml }
+ *   owner: notifications                              # the feature's owner (a slice's id); the first slice when absent
  *   agent: { runner: claude-cli, timeoutMinutes: 60 }   # and `model: <id>` to name one; the runner's default otherwise;
- *                                                       # `pack: false` tells the agents to read the guide instead of the pack
+ *                                                       # `pack: false` tells the agents to read the guide instead of the pack;
+ *                                                       # `runner: command` with `command: <sh>` rehearses without an agent
  *   parallelism: 2
- *   retry: { perSlice: 1 }
+ *   retry: { perSlice: 1 }                            # a slice sent back by its own verdict, after each of its turns
+ *   integration: { rounds: 2 }                        # the integrator's rounds (ADR 38: two)
  *   ports: { base: 10100 }
  *   frozen: [src/Contexts/Plans/Domain/Plan/Ports/ISpacePlanQueries.ts]   # beside each plan's own `frozen`
  *   priority: cost                                    # what `clean-ddd strategy` weighs, logged with the contract (cost | time)
@@ -42,18 +45,32 @@
  *      the contract stage froze, even inside that folder (a read model another slice imports); a failure sends
  *      the slice back once, in the same conversation, with the lines to read; an agent that says
  *      the contract is wrong (its report starts with BLOCKED) stops the feature;
- *   4. the single writer: an integration worktree from the base, each slice's patch applied, the
- *      contract marked carried (the storm done, the plans' parts not new: ADR 29), the generated
- *      documents regenerated, then the gate, what the code still owes the storm, and the
- *      acceptance test; a failure that names one slice's context sends that slice back once.
+ *   4. the integrator (`integrate()` of integrator.mjs, ADR 38), whose owners are the slices, each
+ *      owning its context's folder, and the feature's owner (`owner`, or the first slice) every
+ *      failure that names no slice's file. Each round it
+ *      - merges: a new integration worktree from the base, each slice's patch applied, the
+ *        feature's owner's last; a patch that does not apply is a conflict, its slice's;
+ *      - gates the merged result: the contract marked carried (the storm done, the plans' parts not
+ *        new: ADR 29), the generated documents regenerated, then the gate, what the code still owes
+ *        the storm, and the acceptance test;
+ *      - sends each failing step to the slice whose files it names (or to the feature's owner):
+ *        that slice's conversation is continued in its worktree with the lines to read, and the
+ *        slice is then held to its own verdict again (step 3, with its `retry.perSlice`).
+ *      After `integration.rounds` rounds (two) the merged result is judged as it stands, and the
+ *      log says which failure was left and whose (`finished`, `left`). A slice that stops in an
+ *      integration turn (BLOCKED, or FAILED by its own verdict) stops the feature.
  *
  * Interrupted, it resumes (`--resume`, phase 3): the log is folded into each slice's state; a slice
  * that passed stays passed; one whose agent was running when its driver died has the agent's
  * process group stopped if it outlived the driver, and is continued in the same conversation,
  * told it was interrupted; one whose agent had finished is checked again; the integration is
- * redone in a new worktree. Resuming a finished run changes
+ * redone in a new worktree, from its first round. Resuming a finished run changes
  * nothing. `--cancel` stops a running driver: every agent is stopped, every running slice and the
  * run are recorded CANCELLED, which is final.
+ *
+ * The log: `started` or `resumed`, `contract`, `strategy`, `slice` (each state), `agent-finished`,
+ * `gate`, `committed-leftovers`, `integration` (each merge and each merged result's verdict),
+ * `integrator` (each round, as integrator.mjs logs it) and `finished`.
  *
  * Processes are controlled by process group or abort signal, never by name. It changes nothing
  * outside the worktrees; the integrated branch `run/<run>/integration-<n>` is what a person
@@ -64,6 +81,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileS
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 
+import { integrate } from './integrator.mjs';
 import { runners } from './runners.mjs';
 import { provideDependencies } from './supervision.mjs';
 
@@ -84,11 +102,50 @@ for (const key of ['run', 'base', 'request', 'storm', 'acceptance', 'slices']) {
 }
 const run = plan.run;
 const model = plan.agent?.model;
-const runner = runners[option('runner', plan.agent?.runner ?? 'claude-cli')];
-if (!runner) fail(`no runner named ${option('runner', plan.agent?.runner)}; one of ${Object.keys(runners).join(', ')}`);
+/**
+ * `runner: command` stands in for an agent, to rehearse the driver without spending (as run-ladder's
+ * does): it runs `agent.command` in the slice's worktree, with the turn's prompt in PROMPT and the
+ * model in MODEL, in a process group of its own; what it prints is its report, and it costs nothing.
+ */
+const commandRunner = {
+  name: 'command',
+  run({ prompt, cwd, model: named, env: given, timeoutMs: timeout, onProcess }) {
+    const begun = Date.now();
+    return new Promise(done => {
+      const child = spawn('sh', ['-c', plan.agent.command], {
+        cwd,
+        env: { ...given, PROMPT: prompt, MODEL: named ?? '' },
+        detached: true,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      });
+      const stop = () => {
+        try {
+          process.kill(-child.pid, 'SIGKILL');
+        } catch {
+          // already gone
+        }
+      };
+      onProcess?.({ pgid: child.pid, stop });
+      let report = '';
+      child.stdout.on('data', chunk => (report += chunk));
+      const timer = setTimeout(stop, timeout);
+      child.on('close', code => {
+        clearTimeout(timer);
+        done({ exitCode: code, wallClockMs: Date.now() - begun, costUsd: 0, numTurns: 1, report: report.trim() });
+      });
+    });
+  },
+};
+const runnerName = option('runner', plan.agent?.runner ?? 'claude-cli');
+const runner = runnerName === 'command' ? commandRunner : runners[runnerName];
+if (!runner) fail(`no runner named ${runnerName}; one of ${[...Object.keys(runners), 'command'].join(', ')}`);
+if (runner === commandRunner && !plan.agent?.command) fail(`${planFile}: runner command needs agent.command`);
 const timeoutMs = (plan.agent?.timeoutMinutes ?? 60) * 60_000;
 const parallelism = plan.parallelism ?? 1;
 const retries = plan.retry?.perSlice ?? 1;
+const rounds = plan.integration?.rounds ?? 2;
+const featureOwner = plan.owner ?? plan.slices[0]?.id;
+if (!plan.slices.some(slice => slice.id === featureOwner)) fail(`${planFile}: owner ${featureOwner} is not a slice`);
 const portBase = plan.ports?.base ?? 10100;
 const request = readFileSync(resolve(dirname(planFile), plan.request), 'utf8').trim();
 
@@ -197,16 +254,27 @@ function worktree(id) {
   return path;
 }
 
+/** A step's lines, as an agent reads them: its name, then its lines indented. */
+const flatten = steps => steps.flatMap(step => [`${step.name}:`, ...step.lines.map(line => `  ${line}`)]);
+
+/** The gate's verdict; `failing` its failing steps, `{ name, lines }` — a verdict with none to show is one. */
 async function gate(cwd) {
   const started = Date.now();
   const result = await sh(`${tool} gate --base ${baseCommit} --json`, cwd);
   const report = parse(result.stdout);
-  const failing = (report?.steps ?? []).filter(step => step.status === 'fail');
+  const verdict = report?.verdict ?? 'unreadable';
+  let failing = (report?.steps ?? [])
+    .filter(step => step.status === 'fail')
+    .map(step => ({ name: step.name, lines: (step.lines ?? []).map(String) }));
+  // A gate that failed without a step to show, or printed nothing readable, is not a pass.
+  if (verdict !== 'pass' && !failing.length)
+    failing = [{ name: 'gate', lines: [`verdict: ${verdict}`, ...tail(result.stdout + result.stderr, 20)] }];
   return {
-    verdict: report?.verdict ?? 'unreadable',
+    verdict,
     wallClockMs: Date.now() - started,
     steps: report?.steps?.map(step => [step.name, step.status]),
-    lines: failing.flatMap(step => [`${step.name}:`, ...(step.lines ?? []).map(line => `  ${line}`)]),
+    failing,
+    lines: flatten(failing),
   };
 }
 
@@ -431,6 +499,7 @@ async function validate(slice) {
     outside,
     touchedFrozen,
     ...verdict,
+    failing: undefined, // its lines are logged already
   });
   return [
     ...(touchedFrozen.length
@@ -453,10 +522,12 @@ async function validate(slice) {
 /**
  * One turn of a slice: the agent, then the driver's verdict. `feedback` sends the agent back with
  * the lines to read (a retry); `interrupted` continues a conversation its driver lost (a resume,
- * which is not a retry).
+ * which is not a retry); `integration` continues it with what the integrator sent (a round, not a
+ * retry: the slice's own verdict then has its `retry.perSlice` again).
  */
-async function work(slice, { feedback, interrupted } = {}) {
+async function work(slice, { feedback, interrupted, integration } = {}) {
   if (feedback) slice.retries += 1;
+  if (integration) slice.retries = 0;
   slice.attempts += 1;
   event('slice', {
     slice: slice.id,
@@ -465,13 +536,16 @@ async function work(slice, { feedback, interrupted } = {}) {
     port: slice.port,
     ...(feedback && { retry: true }),
     ...(interrupted && { interrupted: true }),
+    ...(integration && { integration: true }),
   });
   const prompt = interrupted
     ? `Your work on this slice was interrupted: the driver that ran you stopped before you finished. Your worktree is as you left it. Finish the slice — inside src/Contexts/${slice.context}/ — make the gate pass with --base ${baseCommit}, commit, and give your final report. The contract is unchanged.`
-    : feedback
-      ? `The driver checked your work and it is not done:\n\n${feedback.join('\n')}\n\nFix it, inside src/Contexts/${slice.context}/, then commit. The rest of the contract is unchanged.`
-      : brief(slice, slice.port);
-  const result = await agent(slice, prompt, Boolean(feedback || interrupted));
+    : integration
+      ? integration.join('\n')
+      : feedback
+        ? `The driver checked your work and it is not done:\n\n${feedback.join('\n')}\n\nFix it, inside src/Contexts/${slice.context}/, then commit. The rest of the contract is unchanged.`
+        : brief(slice, slice.port);
+  const result = await agent(slice, prompt, Boolean(feedback || interrupted || integration));
   // A continued conversation reports its running total: the slice's cost is the latest figure.
   if (result.costUsd !== undefined) slice.cost = Math.max(slice.cost, result.costUsd);
   event('agent-finished', { slice: slice.id, attempt: slice.attempts, runner: runner.name, ...result });
@@ -532,11 +606,14 @@ function fold(slice) {
   const ready = states.find(each => each.state === 'READY');
   // A resume that was itself interrupted resumes from where the slice was before it.
   const last = states.filter(each => each.state !== 'RESUMING').at(-1);
+  const turns = states.filter(each => each.state === 'RUNNING');
+  // The retries count from the slice's last integration turn, which gave it its `retry.perSlice` again.
+  const sinceIntegration = turns.slice(turns.findLastIndex(each => each.integration) + 1);
   return {
     state: last?.state ?? 'PENDING',
     path: ready?.worktree,
-    attempts: states.filter(each => each.state === 'RUNNING').length,
-    retries: states.filter(each => each.state === 'RUNNING' && each.retry).length,
+    attempts: turns.length,
+    retries: sinceIntegration.filter(each => each.retry).length,
     cost: Math.max(0, ...mine.filter(each => each.event === 'agent-finished').map(each => each.costUsd ?? 0)),
   };
 }
@@ -572,9 +649,25 @@ if (outcomes.some(outcome => outcome !== 'PASSED')) {
   process.exit(1);
 }
 
-// 4. The single writer.
+for (const [index, slice] of slices.entries()) slice.outcome = outcomes[index];
+
+// 4. The integrator (integrator.mjs, ADR 38): the slices are its owners, each owning its context's
+// folder, as the scope check does; a failure that names no slice's file is the feature's owner's.
+const owners = slices.map(slice => ({
+  name: slice.id,
+  owns: [`^src/Contexts/${slice.context.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/`],
+}));
+const sliceOf = id => slices.find(slice => slice.id === id);
+const order = [...slices.filter(slice => slice.id !== featureOwner), sliceOf(featureOwner)];
 let integrations = history.filter(each => each.event === 'integration' && each.state === 'INTEGRATING').length;
-async function integrate() {
+let latest; // the latest integration: its id, its worktree, the verdict on it
+const conflicts = {}; // slice id → what git said when its patch did not apply
+/** A slice stopped in an integration turn (BLOCKED, or FAILED by its own verdict): the feature stops. */
+class SliceStopped extends Error {}
+
+/** A new integration worktree from the base, each slice's patch applied, the feature's owner's last. */
+async function merge() {
+  if (slices.some(slice => slice.outcome !== 'PASSED')) throw new SliceStopped();
   integrations += 1;
   const id = `integration-${integrations}`;
   const path = join(runDir, id);
@@ -586,8 +679,9 @@ async function integrate() {
   mkdirSync(runDir, { recursive: true });
   git(project, 'worktree', 'add', '-q', '-b', `run/${run}/${id}`, path, baseCommit);
   provideDependencies(project, path, plan.dependencies ?? 'copy');
+  latest = { id, path };
   event('integration', { state: 'INTEGRATING', attempt: integrations, worktree: path });
-  for (const slice of slices) {
+  for (const slice of order) {
     const patch = join(runDir, `${slice.id}-${integrations}.patch`);
     const diff = git(slice.path, 'diff', '--binary', baseCommit, 'HEAD');
     if (!diff) {
@@ -598,16 +692,31 @@ async function integrate() {
     try {
       execFileSync('git', ['apply', '--3way', '--index', patch], { cwd: path, encoding: 'utf8', stdio: 'pipe' });
     } catch (error) {
+      const unmerged = git(path, 'diff', '--name-only', '--diff-filter=U').split('\n').filter(Boolean);
+      const files = unmerged.length
+        ? unmerged
+        : git(slice.path, 'diff', '--name-only', baseCommit, 'HEAD').split('\n').filter(Boolean);
+      conflicts[slice.id] = tail(String(error.stderr ?? error), 20);
       event('integration', {
-        state: 'BLOCKED',
+        state: 'CONFLICT',
         conflict: 'git',
         slice: slice.id,
-        lines: tail(String(error.stderr ?? error), 20),
+        files,
+        lines: conflicts[slice.id],
       });
-      return { ok: false };
+      return { conflict: { owner: slice.id, files } };
     }
   }
-  // Every slice is in: the single writer says the contract is carried — the storm done, the plans'
+  return {};
+}
+
+/**
+ * The merged result, held to what the single writer held it to: the contract marked carried, the
+ * documents regenerated, then the gate, what the code still owes the storm, and the acceptance test.
+ */
+async function judge() {
+  const { path } = latest;
+  // Every slice is in: the integrator says the contract is carried — the storm done, the plans'
   // parts no longer new — and the check below then holds the code to all of it (ADR 29). A slice
   // could not say so alone: it carries its own part, and the rest is in the other worktrees.
   const carried = [plan.storm, ...slices.map(slice => slice.plan)];
@@ -630,15 +739,24 @@ async function integrate() {
     'user.email=flow@example.com',
     'commit',
     '-qm',
-    `${run}: integrate ${slices.map(s => s.id).join(', ')}`,
+    `${run}: integrate ${order.map(s => s.id).join(', ')}`,
   );
   const verdict = await gate(path);
   const owed = await sh(`${tool} storm --expect ${plan.storm} --json`, path, 300_000);
   // What the code still owes the storm, or carries that it did not foresee: either is a
   // contract incompatibility between the slices, or a discovery to bring back to the session.
-  const stillOwed = parse(owed.stdout)?.problems ?? [`unreadable: ${tail(owed.stdout + owed.stderr, 5).join(' ')}`];
+  const stillOwed = (
+    parse(owed.stdout)?.problems ?? [`unreadable: ${tail(owed.stdout + owed.stderr, 5).join(' ')}`]
+  ).map(String);
   const acceptance = await sh(plan.acceptance.command, path, 600_000);
-  const result = {
+  const steps = [
+    ...(verdict.verdict === 'pass' ? [] : verdict.failing),
+    ...(stillOwed.length ? [{ name: 'the storm, against the integrated code', lines: stillOwed }] : []),
+    ...(acceptance.code === 0
+      ? []
+      : [{ name: 'acceptance test', lines: tail(acceptance.stdout + acceptance.stderr, 60) }]),
+  ];
+  latest.result = {
     head: git(path, 'rev-parse', 'HEAD'),
     regenerated: regenerated.code === 0,
     gate: verdict.verdict,
@@ -646,35 +764,72 @@ async function integrate() {
     stormOwed: stillOwed,
     acceptance: acceptance.code === 0 ? 'pass' : 'fail',
   };
-  const lines = [
-    ...(verdict.verdict === 'pass' ? [] : verdict.lines),
-    ...(stillOwed.length ? ['the storm, against the integrated code:', ...stillOwed.map(line => `  ${line}`)] : []),
-    ...(acceptance.code === 0
-      ? []
-      : ['acceptance test:', ...tail(acceptance.stdout + acceptance.stderr, 60).map(line => `  ${line}`)]),
-  ];
-  event('integration', { verdict: lines.length ? 'fail' : 'pass', ...result, lines: lines.length ? lines : undefined });
-  return { ok: lines.length === 0, lines, result, path };
+  event('integration', {
+    verdict: steps.length ? 'fail' : 'pass',
+    ...latest.result,
+    lines: steps.length ? flatten(steps) : undefined,
+  });
+  return { pass: steps.length === 0, steps };
 }
 
-let integrated = await integrate();
-if (!integrated.ok && integrated.lines) {
-  // A failure that names exactly one slice's context goes back to that slice, once.
-  const named = slices.filter(slice => integrated.lines.some(line => line.includes(`src/Contexts/${slice.context}/`)));
-  if (named.length === 1 && named[0].retries < retries) {
-    const [slice] = named;
-    const outcome = await work(slice, {
-      feedback: ['The integration of every slice failed, in your context:', ...integrated.lines],
-    });
-    if (outcome === 'PASSED') integrated = await integrate();
-  }
+/** A slice's conversation, continued in its worktree with what the integrator found, then its own verdict. */
+async function send(owner, kind, lines) {
+  const slice = sliceOf(owner);
+  const others = slices.filter(other => other !== slice).map(other => `\`run/${run}/${other.id}\``);
+  const message =
+    kind === 'conflict'
+      ? [
+          `The integrator applied every slice's work on the base, and yours did not apply over the others' (${others.join(', ')}). It conflicts in:`,
+          '',
+          ...lines.map(file => `  ${file}`),
+          '',
+          ...(conflicts[slice.id]?.length ? ['git said:', ...conflicts[slice.id].map(line => `  ${line}`), ''] : []),
+          `A slice changes src/Contexts/${slice.context}/ and nothing else: undo any change outside it, read the other slices' branches if you need to see what they changed (do not merge them), keep the gate passing with --base ${baseCommit}, and commit.`,
+        ]
+      : [
+          `The integrator applied every slice's work on the base and checked the result: the gate, what the code still owes the storm, and the acceptance test. These failures name files in your context${slice.id === featureOwner ? ", or no slice's file, and the feature is yours" : ''}:`,
+          '',
+          ...lines,
+          '',
+          `Fix what is yours, inside src/Contexts/${slice.context}/, then commit. You may read the other slices' branches to reproduce it (${others.length ? others.join(', ') : 'there are none'}); do not merge them. If what fails is not yours to fix and you cannot fix it inside your folder, say so in your final report. The rest of the contract is unchanged.`,
+        ];
+  slice.outcome = await work(slice, { integration: message });
+}
+
+let integrated;
+try {
+  integrated = await integrate({
+    owners,
+    featureOwner,
+    merge,
+    gate: judge,
+    send,
+    rounds,
+    log: (name, data) => event(name, data),
+  });
+} catch (error) {
+  if (!(error instanceof SliceStopped)) throw error;
+  const stopped = slices.map(slice => slice.outcome);
+  event('finished', {
+    state: stopped.includes('BLOCKED') ? 'BLOCKED' : stopped.includes('CANCELLED') ? 'CANCELLED' : 'FAILED',
+    slices: Object.fromEntries(slices.map(slice => [slice.id, slice.outcome])),
+    integration: latest?.result,
+    attempts: Object.fromEntries(slices.map(slice => [slice.id, slice.attempts])),
+    costUsd: total(),
+  });
+  rmSync(lockFile, { force: true });
+  process.exit(1);
 }
 event('finished', {
-  state: integrated.ok ? 'COMPLETED' : 'BLOCKED',
-  integration: integrated.result,
-  branch: integrated.ok ? `run/${run}/integration-${integrations}` : undefined,
+  state: integrated.pass ? 'COMPLETED' : 'BLOCKED',
+  integration: latest?.result,
+  branch: integrated.pass ? `run/${run}/${latest.id}` : undefined,
+  rounds: integrated.rounds.length,
+  // After the last round, what was left and whose it was (ADR 38).
+  ...(integrated.left && { left: integrated.left }),
+  ...(integrated.conflict && { conflict: integrated.conflict }),
   attempts: Object.fromEntries(slices.map(slice => [slice.id, slice.attempts])),
   costUsd: total(),
 });
 rmSync(lockFile, { force: true });
-process.exit(integrated.ok ? 0 : 1);
+process.exit(integrated.pass ? 0 : 1);

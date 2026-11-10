@@ -21,7 +21,7 @@ The maintainer decided the hot spots on 10 November, before a campaign that runs
 
 - **H1, where it lives:** one module. The routing, the bound and the result are the same in every driver that splits work.
   - The ladder's fan-out by context (`fanOut` in [`run-ladder.mjs`](../../.claude/flow/run-ladder.mjs)) calls it.
-  - The phase-2 driver ([`run-slices.mjs`](../../.claude/flow/run-slices.mjs)) keeps its own single writer until it is ported.
+  - The phase-2 driver ([`run-slices.mjs`](../../.claude/flow/run-slices.mjs)) calls it too; its single writer is gone. The owners are the slices, a merge applies their patches to a new worktree from the base, and its gate is what the single writer held the merged result to: the contract marked carried, the gate, the storm's owing and the acceptance test.
 - **What it does, in each round:**
   - It merges every owner's branch onto the feature's start, the feature's owner last. A conflict goes to the owner whose branch conflicted.
   - It runs the gate on the merged result.
