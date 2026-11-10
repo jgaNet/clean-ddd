@@ -257,17 +257,32 @@ function worktree(id) {
 /** A step's lines, as an agent reads them: its name, then its lines indented. */
 const flatten = steps => steps.flatMap(step => [`${step.name}:`, ...step.lines.map(line => `  ${line}`)]);
 
-/** The gate's verdict; `failing` its failing steps, `{ name, lines }` — a verdict with none to show is one. */
-async function gate(cwd) {
+/**
+ * The steps and the tests only the merged feature can pass: the relationship tests (ADR 33, 38). A test step is left
+ * out of a slice's own verdict when every test it names as failing is a relationship's (`Upstream → Downstream`).
+ */
+const relationshipStep = step => {
+  if (step.name === 'relationships crossed' || step.name === 'relationship tests see the change') return true;
+  const failed = (step.lines ?? []).map(line => String(line).trim()).filter(line => line.startsWith('●'));
+  return failed.length > 0 && failed.every(line => line.includes('→'));
+};
+
+/**
+ * The gate's verdict; `failing` its failing steps, `{ name, lines }` — a verdict with none to show is one. A slice's
+ * own verdict (`slice`) leaves out the relationship tests, which run on the integrated result only (ADR 38, H2).
+ */
+async function gate(cwd, { slice = false } = {}) {
   const started = Date.now();
   const result = await sh(`${tool} gate --base ${baseCommit} --json`, cwd);
   const report = parse(result.stdout);
   const verdict = report?.verdict ?? 'unreadable';
-  let failing = (report?.steps ?? [])
-    .filter(step => step.status === 'fail')
+  const failed = (report?.steps ?? []).filter(step => step.status === 'fail');
+  let failing = failed
+    .filter(step => !(slice && relationshipStep(step)))
     .map(step => ({ name: step.name, lines: (step.lines ?? []).map(String) }));
-  // A gate that failed without a step to show, or printed nothing readable, is not a pass.
-  if (verdict !== 'pass' && !failing.length)
+  // A gate that failed without a step to show, or printed nothing readable, is not a pass (unless what it failed on was
+  // only what a slice is not judged on).
+  if (verdict !== 'pass' && !failing.length && !(slice && failed.length))
     failing = [{ name: 'gate', lines: [`verdict: ${verdict}`, ...tail(result.stdout + result.stderr, 20)] }];
   return {
     verdict,
@@ -491,7 +506,7 @@ async function agent(slice, prompt, again) {
 async function validate(slice) {
   event('slice', { slice: slice.id, state: 'VALIDATING' });
   const { changed, outside, touchedFrozen } = scope(slice, slice.path);
-  const verdict = await gate(slice.path);
+  const verdict = await gate(slice.path, { slice: true });
   event('gate', {
     slice: slice.id,
     verdict: verdict.verdict,
