@@ -11,7 +11,9 @@ import {
   describeExpectation,
   expectedInventory,
   loadExpectedStorm,
+  describeStormDecisions,
   overlayExpectedStorm,
+  stormDecisions,
   validateExpectedStorm,
 } from './storms';
 import type { ExpectedStorm } from './storms';
@@ -197,5 +199,40 @@ describe('the storm against the code', () => {
       'NoteUnpinned',
     ]);
     expect(overlayExpectedStorm(storm, share, actual)).toEqual(storm);
+  });
+});
+
+describe('the decisions the storms hold', () => {
+  it('lists every hot spot of every storm, with the storm that decided it, in the order of the files', () => {
+    const decisions = stormDecisions(root);
+    expect(decisions.length).toBe([pin, remind, share].reduce((sum, storm) => sum + storm.hotSpots.length, 0));
+    expect(decisions[0]).toEqual({
+      feature: 'pin-a-note',
+      source: 'conventions/storms/pin-a-note.yaml',
+      question: pin.hotSpots[0].question,
+      decision: pin.hotSpots[0].decision,
+    });
+  });
+
+  it('keeps only the hot spots that name one of the words asked about, in any case, open ones included', () => {
+    const { dir } = stormFile({
+      ...clone(pin),
+      done: false,
+      hotSpots: [
+        { question: 'Is a donation without a provider refused?', decision: 'Refused, as request 1 says: a 4xx.' },
+        { question: 'Who sees a donation?' },
+        { question: 'Is the receipt numbered?', decision: 'No.' },
+      ],
+    });
+    expect(stormDecisions(dir, ['PROVIDER', 'sees']).map(each => [each.question, each.decision])).toEqual([
+      ['Is a donation without a provider refused?', 'Refused, as request 1 says: a 4xx.'],
+      ['Who sees a donation?', undefined],
+    ]);
+    expect(describeStormDecisions(stormDecisions(dir, ['sees']), ['sees'])).toContain('? Who sees a donation?');
+    expect(describeStormDecisions([], ['nothing'])).toBe('No hot spot names nothing.');
+  });
+
+  it('says what to do with a decision a new request touches', () => {
+    expect(describeStormDecisions(stormDecisions(root))).toMatch(/keeps the decision or changes it.*ADR 37/s);
   });
 });

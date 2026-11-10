@@ -9,7 +9,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, it } from 'node:test';
 
-import { budget, fingerprint, freePort, portHolders, provideDependencies } from './supervision.mjs';
+import {
+  budget,
+  fingerprint,
+  freePort,
+  portHolders,
+  provideDependencies,
+  regressionsAgainstFrom,
+} from './supervision.mjs';
 
 const scratch = mkdtempSync(join(tmpdir(), 'supervision-'));
 after(() => rmSync(scratch, { recursive: true, force: true }));
@@ -90,5 +97,34 @@ describe('the port an agent leaves behind', () => {
     await exited;
     assert.deepEqual(portHolders(port), []);
     assert.deepEqual(freePort(port), [], 'a free port has nothing to stop');
+  });
+});
+
+describe('regressionsAgainstFrom', () => {
+  it('keeps as a regression only what passed on the commit the attempt started from', () => {
+    const onFrom = [
+      { graded: true, failing: ['claims'] },
+      { graded: true, failing: [] },
+    ];
+    assert.deepEqual(regressionsAgainstFrom(['claims', 'payouts'], onFrom), {
+      regression: ['payouts'],
+      unstable: ['claims'],
+    });
+  });
+
+  it('counts a feature unstable if it failed on the start in any of its gradings there', () => {
+    const onFrom = [
+      { graded: true, failing: [] },
+      { graded: true, failing: ['claims'] },
+    ];
+    assert.deepEqual(regressionsAgainstFrom(['claims'], onFrom).unstable, ['claims']);
+  });
+
+  it('learns nothing from a grading that could not be read, or from none', () => {
+    assert.deepEqual(regressionsAgainstFrom(['claims'], [{ graded: false, failing: ['claims'] }]), {
+      regression: ['claims'],
+      unstable: [],
+    });
+    assert.deepEqual(regressionsAgainstFrom(['claims'], []).regression, ['claims']);
   });
 });

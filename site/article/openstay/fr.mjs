@@ -39,7 +39,7 @@ export const body = ctx => {
 <p class="home"><span class="crumbs"><a href="${home}">← CLEAN-DDD</a><span aria-hidden="true">·</span><a href="${list}">${listLabel}</a></span><a class="lang-switch" href="${other.href}" hreflang="${other.lang}" lang="${other.lang}" aria-label="${other.label}">${other.code}</a></p>
 <h1>OpenStay : cinquante fonctionnalités, puis vers cent</h1>
 <p class="dek">Douze fonctionnalités d’une application de notes laissaient la question principale ouverte : la Clean Architecture commence-t-elle à payer quand le code ne tient plus dans la tête d’un agent ? OpenStay est le test plus long : une place de marché de logements, avec de l’argent qui passe par un prestataire de paiement et un changement de base de données non annoncé à l’avance, construite fonctionnalité par fonctionnalité par des agents sur trois arbres nus et trois arbres Clean DDD, chaque fonctionnalité à partir du plus petit modèle.</p>
-<p class="byline">4 novembre 2026, mis à jour le 8 novembre 2026 avec le cinquième jalon, provisoire · Les expériences <a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> · Chaque chiffre ci-dessous est copié des registres des jalons dans le dépôt.</p>
+<p class="byline">4 novembre 2026, mis à jour le 8 novembre 2026 avec le cinquième jalon, et le 10 novembre 2026 pour le clore · Les expériences <a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> · Chaque chiffre ci-dessous est copié des registres des jalons dans le dépôt.</p>
 </header>
 
 <div class="answer">
@@ -76,9 +76,9 @@ ${tables.openstay}
 <li><strong>Des règles énoncées une fois</strong> : pas mieux dans un bras que dans l’autre. Les arbres simples répètent ce qui est encore remboursable et ce qu’un versement doit ; les arbres Clean DDD répètent qui peut agir sur une annonce, une fois par contexte.</li>
 <li><strong>Le coût d’un changement, lu plutôt que fait.</strong> Pour trois demandes de changement, les lecteurs ont nommé chaque fichier qu’un développeur modifierait. Un changement touche 2 à 3 fois plus de fichiers dans un arbre Clean DDD, et demande 2 à 4 fois moins de lignes pour les trouver.</li>
 </ul>
-<p><strong>Ce que cela ajoute à la première réponse.</strong> À cinquante fonctionnalités, sur des demandes précises, avec un seul agent qui écrit tout l’arbre, l’architecture coûte toujours plus et ne livre pas plus. Ce qu’elle apporte se voit maintenant sur une application plus grande : un changement de stockage tenu hors des règles, aucun défaut sur l’argent là où un arbre nu pouvait payer deux fois, et des contextes qui restent séparés. Un cinquième jalon a mené les arbres vers cent fonctionnalités (<a href="#j5">ci-dessous</a>). À côté, huit expériences annexes retirent chacune une condition qui favorise le bras nu : un contexte limité, des demandes vagues, du chaos sur l’argent, un mainteneur neuf, des défauts injectés à déboguer, et des pull requests à relire, plus une répartition par contexte et du code d’amorçage généré pour le bras Clean DDD.</p>
+<p><strong>Ce que cela ajoute à la première réponse.</strong> À cinquante fonctionnalités, sur des demandes précises, avec un seul agent qui écrit tout l’arbre, l’architecture coûte toujours plus et ne livre pas plus. Ce qu’elle apporte se voit maintenant sur une application plus grande : un changement de stockage tenu hors des règles, aucun défaut sur l’argent là où un arbre nu pouvait payer deux fois, et des contextes qui restent séparés. Un cinquième jalon a mené les arbres vers cent fonctionnalités (<a href="#j5">ci-dessous</a>). À côté, huit expériences annexes étaient prévues, chacune retirant une condition qui favorise le bras nu : un contexte limité, des demandes vagues, du chaos sur l’argent, un mainteneur neuf, des défauts injectés à déboguer, et des pull requests à relire, plus une répartition par contexte et du code d’amorçage généré pour le bras Clean DDD. Seule une sonde à deux développeurs sur une demande a tourné avant la clôture de J5.</p>
 
-<h2 id="j5">J5 : vers cent fonctionnalités, chaque arbre s’est arrêté (provisoire)</h2>
+<h2 id="j5">J5 : vers cent fonctionnalités, chaque arbre s’est arrêté</h2>
 <p>${link(O.records.j5, 'J5')} a mené les six arbres vers la demande 100 : messagerie, avis, modération, réclamations après un séjour, preuves d’un paiement direct, support, puis langues, devises et taxes. Un arbre s’arrête désormais à la première fonctionnalité que le modèle le plus fort échoue aussi, une fois qu’${link('docs/evaluations/benchmark/openstay/j5/triage.md', 'une règle de triage')}, écrite avant les échecs qu’elle a jugés, a dit que l’échec est celui de l’arbre et non du kit.</p>
 ${tables.openstayJ5}
 <p class="note"><code>0</code>, <code>1</code> et <code>2</code> sont le plus petit modèle, l’intermédiaire et le plus fort ; <code>F</code> est l’échec trié. Trois fonctionnalités ont échoué à cause du kit ou du harnais, non de la tentative ; elles ont été créditées, et le coût de leurs étapes supplémentaires est mis à part, comme le registre le liste.</p>
@@ -102,9 +102,12 @@ ${tables.openstayJ5}
 <li>le transport refuse d’emblée un appelant manquant.</li>
 </ul>
 ${tables.openstayFullplus}
+<p class="note">Les échelons et les coûts après le 8 novembre étaient dans les journaux perdus ; seules les livraisons et les arrêts sont connus.</p>
 <ul>
 <li><strong>Les deux arbres qui s’étaient arrêtés à 64 l’ont passée.</strong> Ils ont ensuite livré presque chaque demande avec le plus petit modèle, la 73 comprise, là où chaque arbre nu a échoué.</li>
 <li><strong>Le troisième s’est arrêté à 61,</strong> sur la couture suivante.</li>
+<li><strong>clean-1 s’est arrêté à 80,</strong> sur le même refus que l’arbre nu simple-3. Les deux répondaient <code>503</code> à un don sans prestataire, une convention que chacun avait prise à la demande 26 ; la demande 1 dit qu’un refus est un <code>4xx</code> ou une opération qui finit en <code>ERROR</code>.</li>
+<li><strong>clean-3 a atteint 85,</strong> et a été vu en dernier à 86.</li>
 <li><strong>La formulation a compté.</strong> Avec le message de la porte « retrouve-le par l’identifiant que l’amont a répondu », le plus petit modèle a gardé le mauvais identifiant. Avec « l’identifiant que cette demande même a répondu : un signalement d’un message se retrouve par l’identifiant du signalement », il a livré.</li>
 <li><strong>Ce que sont devenues les trois règles.</strong> L’identité née une fois et le test de relation sont maintenant ${link('docs/adr/0033-identity-is-born-once-and-a-relationship-crossed-is-tested.md', 'l’ADR 33')}. Refuser d’emblée un appelant manquant change ce que chaque serveur répond, c’est donc d’abord ${link('docs/rfc/0003-who-reaches-a-command.md', 'une RFC')}.</li>
 </ul>
@@ -112,7 +115,26 @@ ${tables.openstayFullplus}
 <ul>
 <li>Avec les plus petits modèles, cela n’a rien changé : ils l’ont appliquée au code qu’ils écrivaient, et ont laissé en place les lectures qui font expirer.</li>
 <li>Seul le modèle le plus fort l’a portée jusqu’au code déjà là, et l’un des deux arbres a encore laissé derrière lui un de ses tests antérieurs.</li>
-<li>La phrase entre dans le guide de départ du bras nu pour la prochaine campagne. Les deux arbres continuent vers 100 à côté de Full+, comme bras séparé.</li>
+<li>La phrase entre dans le guide de départ du bras nu pour la prochaine campagne.</li>
+</ul>
+<p>Les deux arbres ont ensuite continué comme bras séparé, Simple+ :</p>
+<ul>
+<li><strong>simple-3 a livré de 74 à 79 et s’est arrêté à 80,</strong> sur le même <code>503</code> que clean-1 de Full+.</li>
+<li><strong>simple-1 a de nouveau échoué à 73.</strong> La phrase disait ce qu’une lecture ne doit pas faire, pas qu’une lecture montre quand même ce que le temps a changé.</li>
+<li><strong>simple-2 n’a pas été poursuivi.</strong></li>
+</ul>
+<p><strong>Une réparation par échec trié.</strong> Les deux bras de suite n’avaient pas été traités de la même façon : trois corrections pour Full+, une phrase pour Simple+. À partir du 9 novembre, chaque arbre des deux bras a été réparé une fois après un échec trié (${link('docs/evaluations/benchmark/openstay/j5/repairs.md', 'la règle et ses corrections')}) :</p>
+<ul>
+<li>la demande antérieure dont l’arbre a enfreint la règle est nommée ;</li>
+<li>une section du guide de l’arbre énonce cette règle pour chaque fonctionnalité, jamais la réponse d’un test ;</li>
+<li>l’arbre rejoue la demande qu’il a échouée, et ce rejeu est la sonde de la correction.</li>
+</ul>
+<p>Ce que cela a donné :</p>
+<ul>
+<li><strong>Chaque correction essayée a tenu dès sa première formulation :</strong> le refus dans les deux bras, le temps et les lectures dans le bras nu.</li>
+<li><strong>L’arbre le plus avancé de chaque bras a atteint 85 :</strong> simple-3 après sa réparation, Full+ clean-3 sans en avoir besoin. simple-3 a rejoué 80 avec le plus petit modèle et a atteint 85 ; clean-1 a rejoué 80 et a été vu en dernier sur 84 ; simple-1 a rejoué 73 et attendait un créneau à 77.</li>
+<li><strong>Aucun n’a atteint cent, et deux réparations n’ont jamais tourné,</strong> celles de clean-2 de Full+ et de simple-2.</li>
+<li><strong>Chaque échec réparé était une règle qu’une demande avait tranchée et que l’arbre n’avait pas tenue,</strong> dans les deux bras. Énoncer la règle une fois l’a corrigé, pas un plus grand modèle.</li>
 </ul>
 <p><strong>Deux développeurs sur une demande.</strong> La demande 64 a été partagée entre deux agents, un par propriétaire des contextes qu’elle traverse (${link('docs/evaluations/benchmark/openstay/j5/side/two-developers/results.md', 'les résultats')}). Elle a été livrée :</p>
 <ul>
@@ -121,12 +143,18 @@ ${tables.openstayFullplus}
 <li>${O.j5.twoDevelopers.integrator[0]} sur ${O.j5.twoDevelopers.integrator[1]} avec un intégrateur, qui passe la porte sur le code fusionné et remet chaque échec à son propriétaire.</li>
 </ul>
 <p>La règle a rendu la couture visible à chaque fois. Sans l’intégrateur, la demande qui l’aurait corrigée est arrivée à un agent dont la session était terminée.</p>
-<p><strong>Ce que J5 ajoute.</strong> Sur une application plus grande, la question n’est plus quel bras a besoin d’un plus grand modèle, mais lequel s’arrête, et où. Les deux s’arrêtent là où une règle n’a jamais été écrite, et à deux coutures les règles de l’architecture, lues à la lettre, ont choisi la mauvaise réponse. Écrites, elles ont laissé passer le plus petit modèle. Reste à faire tourner : les deux bras de suite jusqu’à 100, une seconde correction, la lecture, et les expériences annexes.</p>
+<p><strong>Ce que J5 ajoute.</strong> Sur une application plus grande, la question n’est plus quel bras a besoin d’un plus grand modèle, mais lequel s’arrête, et où. Les deux s’arrêtent là où une règle n’a jamais été écrite, et à deux coutures les règles de l’architecture, lues à la lettre, ont choisi la mauvaise réponse. Écrites, elles ont laissé passer le plus petit modèle.</p>
+<p><strong>J5 est clos sur ce que l’on sait.</strong> Le 10 novembre, la machine de la session a été remplacée, et les arbres et leurs journaux sont partis avec elle (${link('docs/evaluations/benchmark/openstay/j5/lost-on-10-november.md', 'ce qui a été perdu')}).</p>
+<ul>
+<li>Les résultats jusqu’au 8 novembre sont lus dans les journaux.</li>
+<li>Ce qui a suivi vient des notes de la session, et ne peut pas être vérifié.</li>
+<li>Les bras de suite n’ont pas atteint 100 ; la seconde correction, la lecture et les autres expériences annexes n’ont pas tourné.</li>
+</ul>
 
 <h2>Ce que cela ne montre toujours pas</h2>
 <ul>
-<li><strong>La vie d’un produit.</strong> Aucun arbre OpenStay n’a atteint cent fonctionnalités sur le kit tel qu’enregistré. Les bras de suite testent, hors échantillon, si les règles que J5 a écrites y mènent les arbres.</li>
-<li><strong>La concurrence et les pannes sous test.</strong> Les tests cachés d’OpenStay tuent maintenant des serveurs, en font tourner deux à la fois et rejouent des webhooks, et ont quand même manqué un double versement qu’un lecteur a trouvé. La suite de chaos du cinquième jalon teste l’argent sous panne sur chaque arbre final.</li>
+<li><strong>La vie d’un produit.</strong> Aucun arbre OpenStay n’a atteint cent fonctionnalités, ni sur le kit tel qu’enregistré ni dans les bras de suite ; les plus avancés ont atteint 85. J5 a été clos sur ce que l’on sait après la perte de la machine et de ses arbres, et ce qui a suivi le 8 novembre vient des notes de la session et ne peut pas être vérifié.</li>
+<li><strong>La concurrence et les pannes sous test.</strong> Les tests cachés d’OpenStay tuent maintenant des serveurs, en font tourner deux à la fois et rejouent des webhooks, et ont quand même manqué un double versement qu’un lecteur a trouvé. La suite de chaos prévue au cinquième jalon, l’argent sous panne sur chaque arbre final, n’a pas tourné.</li>
 <li><strong>Les gens.</strong> Ici, ce sont des agents qui lisent le code, pas des développeurs qui doivent le maintenir pendant des années. Un changement touche plus de fichiers dans un arbre Clean DDD et demande moins de lignes pour les trouver ; ce que cela coûte à un relecteur, nous ne l’avons pas chiffré.</li>
 <li><strong>L’indépendance.</strong> Une seule personne a conçu l’architecture, le benchmark et la grille, et des agents ont noté les arbres.</li>
 <li><strong>La taille de l’échantillon.</strong> Trois arbres par bras.</li>
@@ -136,8 +164,8 @@ ${tables.openstayFullplus}
 <p>Tout est dans le dépôt :</p>
 <ul>
 <li>${link(O.records.protocol, 'le protocole et les kits')}, écrits avant les essais, et ${link('docs/evaluations/benchmark/openstay/j5/triage.md', 'la règle de triage de J5')} ;</li>
-<li>les registres du ${link(O.records.pilot, 'pilote')}, de ${link(O.records.j3, 'J3')}, de ${link(O.records.j4, 'J4')} et de ${link(O.records.j5, 'J5, provisoire')}, et ${link('docs/evaluations/benchmark/openstay/j4/reading.md', 'la grille de la lecture')} ;</li>
-<li>les six arbres, dans leur propre dépôt, une branche par arbre et par jalon.</li>
+<li>les registres du ${link(O.records.pilot, 'pilote')}, de ${link(O.records.j3, 'J3')}, de ${link(O.records.j4, 'J4')} et de ${link(O.records.j5, 'J5')}, et ${link('docs/evaluations/benchmark/openstay/j4/reading.md', 'la grille de la lecture')} ;</li>
+<li>les six arbres jusqu’à J4, dans leur propre dépôt, une branche par arbre et par jalon (les arbres de J5 ont été perdus).</li>
 </ul>
 <p>Les chiffres de cette page sont copiés des tableaux des registres dans ${link('site/openstay.mjs', 'site/openstay.mjs')}, chacun avec le registre dont il vient.</p>
 

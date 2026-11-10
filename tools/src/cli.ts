@@ -27,6 +27,7 @@
  *   yarn architecture context <id>            one bounded context: purpose, language, what it depends on and who depends on it
  *   yarn architecture storm [<context>]       the event storm read from the code (--markdown, --svg for the board, --json)
  *   yarn architecture storm validate <file>   an expected storm (conventions/storms/*.yaml) against the contract, the map and the code
+ *   yarn architecture storm decisions [--about <words>]   every hot spot the storms decided (or left open), to read before deciding again
  *   yarn architecture storm --expect <file>   what the code still owes an expected storm; --markdown, --svg lay its stickies on the board
  *   yarn architecture inventory [<language>]  what the tree says the application is, in words every language shares;
  *                                             with a language, where that language's committed inventory differs
@@ -63,8 +64,10 @@ import { describeMigration } from './migration';
 import {
   checkExpectedStorm,
   describeExpectation,
+  describeStormDecisions,
   loadExpectedStorm,
   overlayExpectedStorm,
+  stormDecisions,
   validateExpectedStorm,
 } from './storms';
 import { createApplication, referenceSource } from './create';
@@ -354,6 +357,21 @@ async function main(): Promise<void> {
       );
     }
     case 'storm': {
+      if (rest[0] === 'decisions') {
+        // The words after --about, up to the next flag: `storm decisions --about refused provider --json`.
+        const from = rest.indexOf('--about');
+        const after = from < 0 ? [] : rest.slice(from + 1);
+        const end = after.findIndex(word => word.startsWith('--'));
+        const about = end < 0 ? after : after.slice(0, end);
+        let decisions;
+        try {
+          decisions = stormDecisions(root, about);
+        } catch (error) {
+          if (error instanceof ContractError) return fail(error.code, error.message);
+          throw error;
+        }
+        return out({ schemaVersion, about, decisions }, () => describeStormDecisions(decisions, about));
+      }
       if (rest[0] === 'validate') {
         const [, file] = rest;
         if (!file) return fail('usage', 'usage: yarn architecture storm validate <file>');

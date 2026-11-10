@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { load } from 'js-yaml';
 
@@ -128,6 +128,60 @@ export function loadExpectedStorm(file: string, root: string): ExpectedStorm {
     })),
     source: file,
   };
+}
+
+/** A hot spot as a later session reads it: the question, how it was decided, and which storm decided it. */
+export interface StormDecision {
+  feature: string;
+  source: string;
+  question: string;
+  /** Absent while the hot spot is open. */
+  decision?: string;
+}
+
+/**
+ * Every hot spot the storms under conventions/storms hold, decided or open, in the order of their files — so that a
+ * session reads what earlier sessions decided before it decides again (ADR 37). With `about`, only the hot spots whose
+ * question or decision names one of those words (any case): `storm decisions --about refused provider`.
+ */
+export function stormDecisions(root: string, about: string[] = []): StormDecision[] {
+  const directory = join(root, STORMS_DIR);
+  if (!existsSync(directory)) return [];
+  const words = about.map(word => word.toLowerCase()).filter(Boolean);
+  const names = (hotSpot: HotSpot) =>
+    !words.length || words.some(word => `${hotSpot.question} ${hotSpot.decision ?? ''}`.toLowerCase().includes(word));
+  return readdirSync(directory)
+    .filter(name => name.endsWith('.yaml'))
+    .sort()
+    .flatMap(name => {
+      const storm = loadExpectedStorm(`${STORMS_DIR}/${name}`, root);
+      return storm.hotSpots.filter(names).map(hotSpot => ({
+        feature: storm.feature,
+        source: storm.source,
+        question: hotSpot.question,
+        ...(hotSpot.decision ? { decision: hotSpot.decision } : {}),
+      }));
+    });
+}
+
+/** The decisions for a terminal: one line per hot spot, ✓ decided or ? open, under the feature that holds it. */
+export function describeStormDecisions(decisions: StormDecision[], about: string[] = []): string {
+  if (!decisions.length)
+    return about.length ? `No hot spot names ${about.join(', ')}.` : 'No storm holds a hot spot yet.';
+  const lines: string[] = [];
+  let feature = '';
+  for (const each of decisions) {
+    if (each.feature !== feature) {
+      feature = each.feature;
+      lines.push(`${feature} (${each.source})`);
+    }
+    lines.push(`  ${each.decision ? '✓' : '?'} ${each.question}${each.decision ? ` — ${each.decision}` : ''}`);
+  }
+  lines.push(
+    '',
+    'A request that touches a decided hot spot keeps the decision or changes it, and says which: a change is a hot spot of the new storm, and the code that carried the old decision is changed with it; a decision that holds for every feature is an ADR (ADR 37).',
+  );
+  return lines.join('\n');
 }
 
 const pascal = /^[A-Z][A-Za-z0-9]*$/;

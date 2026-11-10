@@ -39,3 +39,24 @@ given late is applied to new code; the code it should have shaped is already the
    The clean arms need nothing: their reads are queries, apart from the commands, already (QUERY-READ-MODELS), and Full+
    clean-3 delivered 73 at step 0.
    J5's guides are not changed; the sentence is in the next campaign's simple guide from its first request.
+
+## From request 80 and test 71 (9 November)
+
+Three trees of four failed request 80 on the same line: a donation without a payment provider was answered `503`, where
+request 1 says a refusal is a `4xx` or an `ERROR`. The habit was born at request 26 ("what needs it is refused"), which
+no test asked, and lived fifty-four requests. The verdicts stand (the request decides it). On the tooling side, ADR 37
+of the reference makes a decision for every feature an architecture decision, and `storm decisions --about` reads what
+earlier storms decided before a session decides again. Test 71 was fixed during J5 (see the J5 amendments).
+
+5. **The convention is tested where it is born.** Request 26's test starts a server without a provider and asks it to
+   open a payout account: refused, as request 1 says, and everything else answers. Every convention a request relies on
+   ("refused", "with nobody acting", "at least every `JOBS_INTERVAL_SECONDS`") is listed in the kit's review with the
+   request that sets it and the test that holds it there; a convention with no test where it is born is a finding.
+   *Decided by the maintainer on 9 November; applied to the next campaign's kit, not to J5's.*
+6. **Request 1 says what a `5xx` is.** One sentence: "A `5xx` is never an answer the application chooses: it says the
+   server failed." Requests 26 and 80 say "refused, as request 1 says". *Decided by the maintainer on 9 November;
+   applied to the next campaign's kit, not to J5's.*
+7. **The ladder checks a regression on the start.** The next campaign's plans set `regressionCheck: { from: 2 }`: an
+   earlier test that fails an attempt is graded twice on the commit the attempt started from, and one that fails there
+   too is not counted against the attempt (`.claude/flow/README.md`). J5's running ladders keep the rule they started
+   with.

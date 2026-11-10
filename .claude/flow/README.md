@@ -35,7 +35,7 @@ node .claude/flow/run-slices.mjs --project <dir> --plan <execution-plan.yaml> --
 node .claude/flow/run-slices.mjs --project <dir> --plan <execution-plan.yaml> --cancel    # stop a running driver
 ```
 
-- **Runners** ([`runners.mjs`](runners.mjs)): the same task, the same answer, from Claude Code headless (`claude-cli`) or the Claude Agent SDK (`claude-sdk`, resolved from the project or from `CLAUDE_AGENT_SDK`, the package's directory). Name the model in the execution plan (`agent.model`): the runner's default may be one the account cannot use. A continued conversation reports its running total, so a slice's cost is the latest figure, never a sum.
+- **Runners** ([`runners.mjs`](runners.mjs)): the same task, the same answer, from Claude Code headless (`claude-cli`) or the Claude Agent SDK (`claude-sdk`, resolved from the project or from `CLAUDE_AGENT_SDK`, the package's directory). Name the model in the execution plan (`agent.model`): the runner's default may be one the account cannot use. A continued conversation reports its running total, so a slice's cost is the latest figure, never a sum. When an agent stops, for any reason, the runner kills what it left running in its directory (`reap`): a background command runs in a process group of its own and outlives the group kill.
 - **Leases.** A running slice holds a lease beside its worktree (`<slice>.lease`: the driver, the agent's process group, refreshed every 30 s). A driver that dies leaves it behind.
 - **Resume** folds the log. A slice that passed stays passed. One its driver lost is reclaimed: the agent that outlived the driver is stopped by its process group, and the agent continues the same conversation, told it was interrupted — a gate that passes on half a slice says the code is sound, not that the slice is done, so only a slice whose agent had finished is checked again rather than continued. An interrupted integration is redone in a new worktree. A finished run is left alone.
 - **Cancel** signals the running driver (its pid is in `<run>.lock`): every agent is stopped, the running slices and the run are recorded `CANCELLED`, which is final.
@@ -55,8 +55,43 @@ The SDK's agent process is not in a process group of its own: if the driver is k
 [`machine.mjs`](machine.mjs) holds what a ladder asks of the machine, so that two arms are not compared on two machines: it refuses to start on a Node older than the project's `engines.node` and puts its own Node first on the PATH of every command it runs, and it waits for one of `machine.ladders` slots (3 by default, `FLOW_LADDERS` overrides it) before it starts. OpenStay's J5 found both: trees that declare Node 24 ran on Node 22, where one tree's own test cannot load an ES module, and four ladders at once ran the machine out of memory. [`machine.test.mjs`](machine.test.mjs) tests it.
 
 - **Isolated dependencies.** Every worktree gets a copy of the project's `node_modules`, so an agent that writes into a package changes nothing another tree, or the project, sees. Before, the trees had hard links, and a file written in place was written in all of them. An execution plan may ask for `dependencies: link` when the disk is short. The driver then fingerprints the project's `node_modules` before each agent and after it, and a change fails the feature (`dependencies-changed`). The grader links, since it runs no agent.
-- **A budget reserved before an agent starts.** `run-backlog.mjs` reserves the agent's share before starting it, and starts it with that share as a cap (`--max-budget-usd` on the CLI, `maxBudgetUsd` on the SDK). The share is `agentBudgetUsd`, or all that is left, and agents running at the same time hold their reservations. A run that cannot reserve the minimum starts no more agents. Before, the budget was checked after the fact, and one agent could spend past it.
+- **A budget reserved before an agent starts.** `run-backlog.mjs` reserves the agent's share before starting it, and starts it with that share as a cap (`--max-budget-usd` on the CLI, `maxBudgetUsd` on the SDK). The share is `agentBudgetUsd`, or all that is left, and agents running at the same time hold their reservations. A run that cannot reserve the minimum starts no more agents. Before, the budget was checked after the fact, and one agent could spend past it. The budget is the run's: `run-ladder.mjs`, resumed, counts what its earlier processes spent, read from the log (J5: before, each resume had the whole budget again).
+- **A regression checked on the start.** With `regressionCheck: { from: n }` in a ladder's plan, an earlier feature that still fails an attempt after its replay is graded `n` times on the commit the attempt started from. One that fails there too was unstable before the attempt, and the attempt is not escalated for it: it delivers, with the feature named `unstable` for the triage (`regressions-on-from` keeps the gradings). Only what passed on the start is a regression. OpenStay's J5 escalated an attempt that had passed its own tests because an earlier test asked before a job had run (test 71). The option is off unless the plan says it, so a ladder resumed on a plan written before it keeps its rule. `regressionsAgainstFrom` in [`supervision.mjs`](supervision.mjs) decides, and is tested.
 - **A supervisor.** A runner says why it stopped an agent (`stoppedBy`: `timeout` or `cancel`). After every agent, the driver stops whatever still listens on the agent's port, with its process group (a watcher would start it again), and records what it stopped (`port-freed`). It finds them by the port, through `/proc`, never by name.
+
+## Several agents on one feature, and the integrator
+
+- **The integrator** ([`integrator.mjs`](integrator.mjs), ADR 38 of the reference) is the role every run where several agents write one feature has. Each round, it:
+  - merges every owner's branch onto the feature's start;
+  - runs the gate on the merged result;
+  - sends each failing step to the owner of a file it names, or to the feature's owner when it names none.
+
+  It stops after two rounds. Git, the gate and the agents are passed in, and [`integrator.test.mjs`](integrator.test.mjs) tests the routing and the bound without them.
+- **The ladder's fan-out by context.** With `fanOut: { rounds: 2 }` in a clean arm's plan, a feature whose storm lists several contexts is written by one agent per context, in parallel, each with the step's model.
+  - **Ownership:**
+    - The storm's first context owns the feature. Its agent owns its folder and everything no other agent owns (the composition root, the shared kernel, the conventions, the decisions).
+    - Each other agent owns its context's folder and the integration events it publishes.
+  - **The owners talk** through a channel (`channel say|wait|read`, on their `PATH`), and read each other's branches in the same repository.
+  - **The contract comes first.** For each relationship of the storm between two owners, the brief says who does what:
+    - the upstream owner writes the contract first (the integration event, or what the port reads), commits it and says so in the channel;
+    - the downstream owner builds on it, writes no version of its own, and writes the relationship's test in its own context's end-to-end tests.
+  - **An owner's verdict** is:
+    - its scope (a file another owner owns is refused, unless it is that owner's own version, merged in);
+    - the gate on its branch, without `--fix` and without the relationship tests, which only the merged feature can pass.
+
+    The owners' gates on one attempt take a lock, so their test suites do not run at once.
+  - **The merged result** is held to the clean arm's verdict, checked once more alone if it fails, and graded like any attempt's head.
+  - **The log** says who did what: `agent-finished` carries the `owner`, then come `owner-verdict`, `integrator` (each round) and `integrated`.
+  - **A control before the triage.** A split feature that every step failed is written once more by one agent, with the last model.
+    - If it delivers, the tree goes on. The split failed, not the tree, and the log says so: `control`, and `control: 'one agent'` on the delivery.
+    - If it fails too, the triage follows as usual.
+    - It runs once per feature, across resumes.
+- **A tree that outlives the machine.** With `push: { remote, branch, logBranch }`:
+  - after each delivery, escalation, triage and at the end, the tree's `main` is pushed to `branch`;
+  - the run's log and its gradings are committed to `logBranch` (with git's plumbing, outside any worktree) and pushed.
+
+  A failed push is logged (`publish-failed`) and the run goes on. OpenStay's J5 lost its trees and their logs with a machine.
+- **The time one grading is given** is `gradeTimeoutMinutes` (60 by default): J5's largest tree needed more under load.
 
 ## Rehearsing a kit before its runs
 

@@ -1,8 +1,6 @@
 # RFC 0003 — Who reaches a command is said once, and the transport refuses at once
 
-**Status:** proposed (8 November). Nothing is implemented in the reference. The maintainer decided to keep it out of
-[ADR 33](../adr/0033-identity-is-born-once-and-a-relationship-crossed-is-tested.md): it changes what every server
-answers, so it is decided here first, hot spot by hot spot.
+**Status:** decided (10 November), in [ADR 39](../adr/0039-a-command-whose-outcome-is-read-later-needs-a-caller-at-the-transport.md): `401` everywhere, the routes whose outcome is read later, the email link an administrator's, held by the scenario and the linter. Not yet implemented in the reference. The text below is the proposal as it was.
 
 ## 1. The problem
 
