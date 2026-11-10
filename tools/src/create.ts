@@ -422,6 +422,12 @@ function writeContract(
   const binding = load(bindingText) as Record<string, unknown>;
   binding.root = '.';
   binding.contexts = contexts;
+  // A context's profile (ADR 40) goes with the context: the ones it did not keep are the reference's.
+  if (typeof binding.profiles === 'object' && binding.profiles !== null) {
+    const kept = Object.entries(binding.profiles).filter(([context]) => contexts.includes(context));
+    if (kept.length) binding.profiles = Object.fromEntries(kept);
+    else delete binding.profiles;
+  }
   // What was copied under another name is, here, the application's own file at that name.
   const created = binding.create as { copy?: unknown[] } | undefined;
   if (Array.isArray(created?.copy)) {

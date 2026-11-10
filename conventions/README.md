@@ -4,7 +4,7 @@ The architecture of this repository, written as data so that tooling can hold th
 
 | File | What it holds | Who reads it |
 |---|---|---|
-| [`architecture.yaml`](architecture.yaml) | the contract: the layers and which may import from which, every rule under its stable id, the HTTP verbs, the kinds of thing a feature is made of, the two modes, the wires a migrated application may answer on, and the list of `languages` | every language's import linter and conventions check; `yarn architecture` |
+| [`architecture.yaml`](architecture.yaml) | the contract: the layers and which may import from which, every rule under its stable id, the HTTP verbs, the kinds of thing a feature is made of, the two modes, the wires a migrated application may answer on, the profiles and the floor none of them may drop, and the list of `languages` | every language's import linter and conventions check; `yarn architecture` |
 | [`concepts.yaml`](concepts.yaml) | the vocabulary: every concept the documentation teaches, with its rules and its decisions; plus the words | the root README's map, each language's map |
 | [`domain.yaml`](domain.yaml) | the domain: the subdomains and their kind, each context's purpose and ubiquitous language, the context map (every relationship between two contexts, upstream first, with its patterns, its mechanism and why) and the shared kernel; names no file, and never the contracts a relationship carries, which are read from the code ([ADR 19](../docs/adr/0019-the-domain-is-data.md)) | the root README's strategic view; `yarn architecture domain`, `context <id>`; `yarn check:conventions`, which holds the map to the code both ways |
 | [`typescript.yaml`](typescript.yaml) | the TypeScript binding: the contexts, the trees and their aliases, the wiring file, the libraries, what holds each enforcement word there, the checks, what the modes protect, what a new thing of each kind is made of, the file that shows each concept and each rule, the test styles, where each word is shown | [`eslint.config.js`](../typescript/eslint.config.js), which turns the contract and the binding into import rules; [`tools/src/check.ts`](../tools/src/check.ts), which checks the tree has the shape they describe |
@@ -97,6 +97,16 @@ yarn architecture mode feature --base working   # what is uncommitted right now
 ```
 
 The plan validator reads the same lists, so a plan's `architectureChanges` and the feature mode cannot drift apart. Neither mode is a CI gate — the maintainer changes the architecture on purpose, and a gate they must fight is a gate they will remove.
+
+### Profiles
+
+A **profile** is a way of holding the contract, never a second wording of it ([ADR 40](../docs/adr/0040-architecture-profiles-one-contract-one-engine-profiles-as-data.md)). `architecture.yaml` declares them under `profiles`: each one says, for every rule (the rows of the dependency table included), whether it `holds` it, `waives` it with a reason, or holds it only where a trigger fires (`conditional`, each with one of the triggers the engine can see in the inventory); the rules it holds by review alone are its `gaps`; it names the HTTP `grammar` it answers on and its `checklists`. **Full** is the contract as written, and the default: it `holds: all`, so a rule added later is held without an edit to it. The `floor` lists the guarantees no profile may waive, each with the rules that hold it today, its gap where review or nothing holds it yet, or `held_by: modes`.
+
+A binding may hold a context to a profile (`profiles: { Notes: full }`); a context it does not name is held to the default, and none is named today. `yarn check:conventions` holds the profiles to the validation contract of [RFC 0002](../docs/rfc/0002-architecture-profiles-lite-and-full.md) (§9): every rule held, waived with a reason or held on a trigger, once (P1); no floor rule waived (P2); a rule held by review listed as a gap (P3); a trigger from the engine's closed set (P4); a binding holding a context it declares to a profile the contract declares (P6). A binding is protected from a feature with the rest of `conventions`; in the architecture mode, a context whose profile moved asks for its ADR.
+
+```bash
+yarn architecture profiles        # the floor, each profile, the profile of each context and its subdomain's kind, the triggers; --json for the matrix rule × profile
+```
 
 ### Migration
 

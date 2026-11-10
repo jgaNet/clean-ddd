@@ -44,6 +44,7 @@ The API is the same module the CLI uses: `import { loadArchitectureContract, ins
 ```
 clean-ddd inspect                 what the contract holds, for this language
 clean-ddd rules | concepts | verbs | checklists      the lists
+clean-ddd profiles                the floor, the profiles and the profile of each context (ADR 40); --json for the matrix
 clean-ddd rule <ID>               one rule: statement, why, remediation, references, the file that shows it
 clean-ddd concept <id>            one concept: canonical file, rules, decisions
 clean-ddd verb <intent>           which HTTP verb and path shape a use case takes
@@ -103,7 +104,7 @@ The contract, the concepts, the domain map, the bindings, the plans and the stor
 ```
 package.json          the package: name, bin (clean-ddd → tools/dist/cli.js), scripts, dev dependencies; no runtime dependency
 tools/src/            the modules, one per concern: load, query, render, plan, modes, create, probes, domain, storm,
-                      inventory, storms, check; cli.ts dispatches; index.ts is the API; *.spec.ts beside each
+                      inventory, storms, profiles, check; cli.ts dispatches; index.ts is the API; *.spec.ts beside each
 tools/build.mjs       yarn build: two esbuild bundles (cli.js, index.js), the declarations, the reference for create
 tools/dist/           the build, not committed
 ```

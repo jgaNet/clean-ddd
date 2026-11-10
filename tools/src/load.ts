@@ -8,6 +8,7 @@ import {
   Concept,
   ContractError,
   Enforcement,
+  FloorGuarantee,
   Language,
   Migration,
   MigrationApi,
@@ -15,12 +16,14 @@ import {
   SUPPORTED_SCHEMA_VERSION,
   Mode,
   ModeName,
+  Profile,
   TestRow,
   Tree,
   Verb,
   VocabularyRow,
 } from './types';
 import { validateMigration } from './migration';
+import { validateProfiles } from './profiles';
 
 /**
  * Loads the three YAML files — the contract (architecture.yaml), the concepts (concepts.yaml)
@@ -273,6 +276,41 @@ export function loadArchitectureContract(
       }
     : undefined;
 
+  // The profiles (ADR 40): the floor and the profiles from the contract, the profile of each context
+  // from the binding. A contract that declares none is held as written.
+  const floor: FloorGuarantee[] = (Array.isArray(architecture.floor) ? architecture.floor : [])
+    .filter(isObject)
+    .map(entry => ({
+      guarantee: String(entry.guarantee ?? ''),
+      rules: strings(entry.rules),
+      ...(text(entry.gap) && { gap: text(entry.gap) }),
+      ...(text(entry.held_by) && { heldBy: text(entry.held_by) }),
+    }));
+  const listOrAll = (value: unknown): 'all' | string[] => (value === 'all' ? 'all' : strings(value));
+  const textsOf = (value: unknown): Record<string, string> =>
+    Object.fromEntries(Object.entries(isObject(value) ? value : {}).map(([id, said]) => [id, String(said ?? '')]));
+  const profiles: Profile[] = Object.entries(isObject(architecture.profiles) ? architecture.profiles : {}).map(
+    ([id, entry]) => {
+      const raw = isObject(entry) ? entry : {};
+      return {
+        id,
+        name: String(raw.name ?? id),
+        why: String(raw.why ?? ''),
+        default: raw.default === true,
+        holds: listOrAll(raw.holds),
+        waives: textsOf(raw.waives),
+        conditional: textsOf(raw.conditional),
+        gaps: strings(raw.gaps),
+        grammar: String(raw.grammar ?? ''),
+        checklists: listOrAll(raw.checklists),
+      };
+    },
+  );
+  const contextProfiles = textsOf(binding.profiles);
+  const grammars = Object.entries(architecture)
+    .filter(([, value]) => isObject(value) && Array.isArray(value.verbs))
+    .map(([key]) => key);
+
   const boundVocabulary = isObject(binding.vocabulary) ? binding.vocabulary : {};
   const vocabulary: VocabularyRow[] = (
     (concepts.vocabulary as { word: string; meaning: string }[] | undefined) ?? []
@@ -331,6 +369,10 @@ export function loadArchitectureContract(
     modes,
     migrationApis,
     ...(migration && { migration }),
+    floor,
+    profiles,
+    contextProfiles,
+    grammars,
     tests,
     vocabulary,
     sources,
@@ -477,5 +519,7 @@ export function validateContract(
 
   // A migrated application's wire, and the compatibility routes it declares (ADR 36).
   problems.push(...validateMigration(contract, root, today));
+  // The profiles the contract declares, and the profile the binding names for each context (ADR 40).
+  problems.push(...validateProfiles(contract, root));
   return problems;
 }
