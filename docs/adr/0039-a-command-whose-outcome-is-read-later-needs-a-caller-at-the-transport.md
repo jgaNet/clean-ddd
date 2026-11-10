@@ -57,7 +57,14 @@ The maintainer decided the RFC's four hot spots on 10 November.
     presentation building blocks; every `202` route calls it, and `notAllowedStatus()` beside it gives the queries'
     `401` or `403`.
   - The linter refuses a route that publishes on the bus, or answers `202`, by itself (H4).
-- **Rust, Python and Go report it as a gap** in their bindings and their READMEs' known gaps. Until each carries the
+- **Python holds it.**
+  - The marker is a method on the command handler, `anyone_may_ask(command)`, `False` by default, overridden by
+    signing up and, for the emailed token only, by validating an account, as in TypeScript.
+  - The helper is [`accept()`](../../python/src/architecture/presentation/http.py), in the presentation building
+    blocks; every `202` route calls it, and `status_of()` beside it gives the queries' `401` or `403`.
+  - The conventions check refuses, in a context's Presentation, a call that publishes on the bus or a response that
+    answers `202` by itself (H4).
+- **Rust and Go report it as a gap** in their bindings and their READMEs' known gaps. Until each carries the
   marker and the helper in its idiom, the scenario fails against its server at the steps above. That is the list of
   what each owes.
 - OpenStay J5b's clean-3 applies the rule in its own tree from request 50, as Full+ did, recorded as an ADR of that

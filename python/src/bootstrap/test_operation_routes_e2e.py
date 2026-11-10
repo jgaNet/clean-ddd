@@ -43,6 +43,7 @@ async def test_following_an_operation() -> None:
     await app.sign_up_validated("bob@tracker.fr", "bob")
     bob = await app.agent_as("bob@tracker.fr", "bob")
     assert (await bob.get(f"{api}/tracker/operations")).status_code == 403
+    assert (await app.anonymous().get(f"{api}/tracker/operations")).status_code == 401
     assert (await bob.get(f"{api}/tracker/operations/{operation_id}")).status_code == 404
 
     await app.stop()
@@ -63,6 +64,6 @@ async def test_an_operation_nobody_started_is_shown_to_whoever_holds_its_id() ->
     accepted = await admin.post(f"{api}/notes/00000000-0000-4000-8000-000000000000/share", json={"recipientId": "bob"})
     # One an account started is that account's, and an administrator's: an anonymous caller is asked to sign in.
     stranger = await anonymous.get(f"{api}/tracker/operations/{accepted.json()['operationId']}")
-    assert stranger.status_code == 403
+    assert stranger.status_code == 401  # not signed in: told to sign in, not whether it exists
 
     await app.stop()

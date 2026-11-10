@@ -45,9 +45,17 @@ async def test_notes_as_a_client_sees_them() -> None:
     await app.accepted(admin, await admin.post(f"{api}/notes/{note_id}/restore"))
     assert (await admin.get(f"{api}/notes/{note_id}")).json()["status"] == "ACTIVE"
 
-    # GET /notes/:id: unknown; anonymous: refused
+    # GET /notes/:id: unknown; anonymous: asked to sign in (401), one refusal, one status
     assert (await admin.get(f"{api}/notes/does-not-exist")).status_code == 404
-    assert (await app.anonymous().get(f"{api}/notes")).status_code == 403
+    anonymous = await app.anonymous().get(f"{api}/notes")
+    assert anonymous.status_code == 401 and isinstance(anonymous.json()["message"], str)
+
+    # A command whose outcome is read later needs a caller: an anonymous one is refused at once with
+    # 401, and nothing is published under its trace (API-CALLER-AT-TRANSPORT, ADR 39)
+    refused = await app.anonymous().post(f"{api}/notes", json={"title": "anonymous", "content": "..."})
+    assert (refused.status_code, refused.json()) == (401, {"message": "Authentication required"})
+    traced = await admin.get(f"{api}/tracker/operations", params={"traceId": refused.headers["x-trace-id"]})
+    assert traced.json() == []
 
     await app.stop()
 

@@ -18,8 +18,11 @@ export of the same wiring file, not a slot in the module.
 
 From a controller::
 
-    context.event_bus.publish(CreateNoteCommandEvent(title=..., content=...), context)  # command, async
-    await notes_module.get_query(GetMyNotesQueryHandler).handle(None, context)           # query, sync
+    accept(notes_module, context, CreateNoteCommandEvent(title=..., content=...))  # command, async: 202 or 401
+    await notes_module.get_query(GetMyNotesQueryHandler).handle(None, context)     # query, sync
+
+``accept()`` (the presentation building blocks) asks the handler the module lists for the command
+whether anyone may ask for it before it publishes (API-CALLER-AT-TRANSPORT).
 """
 
 from collections.abc import Sequence

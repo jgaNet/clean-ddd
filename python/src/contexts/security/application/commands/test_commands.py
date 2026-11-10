@@ -82,6 +82,11 @@ def security() -> Fixture:
 
 
 class TestSignUp:
+    def test_may_be_asked_by_anyone_nobody_is_signed_in_yet(self, security: Fixture) -> None:
+        # API-CALLER-AT-TRANSPORT: the transport lets an anonymous sign-up through.
+        handler = SignUpCommandHandler(security.repository, security.registration, security.hasher)
+        assert handler.anyone_may_ask(SignUpCommandEvent(email="user@user.fr", password="secret")) is True
+
     async def test_saves_a_pending_user_account_with_a_hashed_password_and_publishes_account_created(
         self, security: Fixture
     ) -> None:
@@ -171,6 +176,14 @@ class TestLogin:
 
 
 class TestValidateAccount:
+    def test_may_be_asked_by_anyone_with_the_emailed_token_by_id_only_by_a_signed_in_caller(
+        self, security: Fixture
+    ) -> None:
+        # API-CALLER-AT-TRANSPORT: the token is its own proof; validating by id is an administrator's.
+        handler = ValidateAccountCommandHandler(security.repository, security.tokens)
+        assert handler.anyone_may_ask(ValidateAccountCommandEvent(validation_token="token")) is True
+        assert handler.anyone_may_ask(ValidateAccountCommandEvent(account_id="account")) is False
+
     async def test_validates_with_the_validation_token_emailed_at_sign_up_whoever_presents_it(
         self, security: Fixture
     ) -> None:

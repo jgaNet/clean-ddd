@@ -113,6 +113,11 @@ def operation_for(command: Greet, role: str = "user") -> tuple[Operation[Greet],
     return Operation(command, context), unit_of_work, bus
 
 
+def test_a_command_needs_a_signed_in_caller_unless_its_handler_says_otherwise() -> None:
+    # API-CALLER-AT-TRANSPORT: the transport asks this before it publishes.
+    assert GreetHandler().anyone_may_ask(Greet(name="Ada")) is False
+
+
 async def test_runs_the_use_case_inside_a_transaction_and_publishes_the_domain_events_after_the_commit() -> None:
     operation, unit_of_work, bus = operation_for(Greet(name="Alice"))
 

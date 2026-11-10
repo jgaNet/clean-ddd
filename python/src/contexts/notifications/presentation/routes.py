@@ -8,10 +8,11 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 from starlette.responses import JSONResponse, Response
 
+from architecture.application.execution_context import ExecutionContext
 from architecture.application.module import Module
 from architecture.domain.exception import DomainException
 from architecture.domain.result import Failure
-from architecture.presentation.http import accept, context_of, jsonable, refuse, status_of
+from architecture.presentation.http import accept, context_of, jsonable, refuse
 from contexts.notifications.application.commands.mark_as_read import MarkAsReadNotificationCommandEvent
 from contexts.notifications.application.commands.send_notification import SendNotificationCommandEvent
 from contexts.notifications.application.queries.get_notifications import GetNotificationsQueryHandler, InboxQuery
@@ -45,8 +46,8 @@ def list_item_view(n: NotificationListItem) -> dict[str, Any]:
     return {key: value for key, value in view.items() if value is not None}
 
 
-def refuse_notification(error: DomainException) -> JSONResponse:
-    return refuse(error, 404 if isinstance(error, NotificationNotFoundException) else status_of(error))
+def refuse_notification(error: DomainException, context: ExecutionContext) -> JSONResponse:
+    return refuse(error, context, 404 if isinstance(error, NotificationNotFoundException) else None)
 
 
 def notification_routes(module: Module) -> APIRouter:
@@ -64,7 +65,7 @@ def notification_routes(module: Module) -> APIRouter:
         query = InboxQuery(recipient_id, InboxFilters(limit=limit, offset=offset, only_unread=onlyUnread))
         result = await module.get_query(GetNotificationsQueryHandler).handle(query, context)
         if isinstance(result, Failure):
-            return refuse_notification(result.error)
+            return refuse_notification(result.error, context)
         inbox = result.data
         return JSONResponse(
             {
@@ -76,7 +77,7 @@ def notification_routes(module: Module) -> APIRouter:
 
     @router.patch("/{notification_id}/read", status_code=202)
     async def mark_as_read(request: Request, notification_id: str) -> Response:
-        return accept(context_of(request), MarkAsReadNotificationCommandEvent(notification_id=notification_id))
+        return accept(module, context_of(request), MarkAsReadNotificationCommandEvent(notification_id=notification_id))
 
     @router.post("", status_code=202)
     async def send_notification(request: Request, body: SendNotificationBody) -> Response:
@@ -87,6 +88,6 @@ def notification_routes(module: Module) -> APIRouter:
             channels=body.channels,
             metadata=body.metadata,
         )
-        return accept(context_of(request), command)
+        return accept(module, context_of(request), command)
 
     return router

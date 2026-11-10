@@ -31,6 +31,10 @@ linter and the check, generated from the data the way ``typescript/eslint.config
 6. A command has exactly one handler (ARCH-ONE-HANDLER): the Module lists it once, with one
    handler, and every command a route's function or a policy builds is one the Module lists; read
    from the same wiring, routes and policies the inventory is.
+7. A context's Presentation publishes a command and answers ``202`` through ``accept()`` alone
+   (API-CALLER-AT-TRANSPORT): a call to ``….event_bus.publish()``, a response built with
+   ``status_code=202`` or a ``….status_code = 202`` there is refused, so no route skips the ``401``
+   ``accept()`` answers a caller who is not signed in (ADR 39, H4).
 
 Every refusal names its rule id first, so a reader or ``yarn architecture rule <id>`` can look
 it up. Layer names are the contract's (``Domain``); a package is the same word in lowercase.
@@ -1026,6 +1030,66 @@ def check_handlers(here: Path, problems: Problems) -> None:
             problems.add(ONE_HANDLER_RULE, problem)
 
 
+# 7. A route publishes a command through accept() alone
+
+
+CALLER_AT_TRANSPORT_RULE = "API-CALLER-AT-TRANSPORT"
+CALLER_AT_TRANSPORT_FIX = (
+    "answer the route with `accept(module, context_of(request), TheCommand(...))` "
+    "(architecture.presentation.http), which refuses a caller who is not signed in with 401 before anything is "
+    "published; a command anyone may ask for says so on its handler (`anyone_may_ask()`)"
+)
+
+
+def caller_at_transport_problems(path: Path) -> list[tuple[int, str]]:
+    """(line, what) for each place a module publishes a command or answers 202 by itself: a call to
+    ``….event_bus.publish(…)``, a response built with ``status_code=202``, a ``….status_code = 202``.
+    A route's decorator may say ``status_code=202``: it documents the route, it answers nothing."""
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    decorators = {
+        id(decorator)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef)
+        for decorator in node.decorator_list
+    }
+
+    def is_202(node: ast.expr | None) -> bool:
+        return isinstance(node, ast.Constant) and node.value == 202
+
+    found: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and id(node) not in decorators:
+            if (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr == "publish"
+                and name_of(node.func.value) == "event_bus"
+            ):
+                found.append((node.lineno, "publishes on the bus"))
+            elif any(keyword.arg == "status_code" and is_202(keyword.value) for keyword in node.keywords):
+                found.append((node.lineno, "answers 202"))
+        elif (
+            isinstance(node, ast.Assign)
+            and is_202(node.value)
+            and any(isinstance(target, ast.Attribute) and target.attr == "status_code" for target in node.targets)
+        ):
+            found.append((node.lineno, "answers 202"))
+    return found
+
+
+def check_caller_at_transport(modules: list[Module], here: Path, problems: Problems) -> None:
+    """API-CALLER-AT-TRANSPORT, where Python can see it: a context's Presentation publishes a command
+    and answers 202 through ``accept()`` alone, so no route skips the refusal of a caller who is not
+    signed in (ADR 39, H4)."""
+    for module in modules:
+        if module.tree.kind != "context" or module.layer != "Presentation" or module.spec:
+            continue
+        for line, what in caller_at_transport_problems(module.path):
+            problems.add(
+                CALLER_AT_TRANSPORT_RULE,
+                f"{module.path.relative_to(here)}:{line} {what} by itself; {CALLER_AT_TRANSPORT_FIX}",
+            )
+
+
 def write_inventory(here: Path) -> Path:
     root = repository_root(here)
     if root is None:
@@ -1056,12 +1120,13 @@ def run(here: Path) -> tuple[Problems, str]:
             modules.append(module)
     imports = check_imports(modules, binding, contract, here, problems)
     check_files(binding, here, problems)
+    check_caller_at_transport(modules, here, problems)
     check_handlers(here, problems)
     check_inventory(here, problems)
     summary = (
         f"✓ contract v{contract.get('schemaVersion')}, Python binding: {len(modules)} modules and {imports} imports "
         f"are the table, {len(binding['contexts'])} contexts match the tree, every file the binding names exists; "
-        "every command has one handler; the inventory is current."
+        "every command has one handler; every 202 route goes through accept(); the inventory is current."
     )
     return problems, summary
 

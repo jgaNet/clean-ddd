@@ -27,6 +27,10 @@ class SignUpCommandHandler(CommandHandler[SignUpCommandEvent]):
         self._registration = registration
         self._hasher = hasher
 
+    def anyone_may_ask(self, command: SignUpCommandEvent) -> bool:
+        """Anyone may sign up: there is nobody to be signed in as yet (API-CALLER-AT-TRANSPORT)."""
+        return True
+
     async def execute(self, command: SignUpCommandEvent, context: ExecutionContext) -> Result[str]:
         account = await self._registration.register(
             NewAccount(
