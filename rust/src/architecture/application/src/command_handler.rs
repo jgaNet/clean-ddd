@@ -4,6 +4,8 @@
 //! it, publish its events. Everything else that every command needs is done once, in the
 //! provided `handle()`:
 //!
+//! 0. `anyone_may_ask()` — who reaches it: a signed-in caller by default, asked by the transport's
+//!    `accept()` before it publishes (API-CALLER-AT-TRANSPORT, ADR 39)
 //! 1. `guard()`    — authorization: may this caller run this command at all?
 //! 2. logging      — what ran, and whether it failed
 //! 3. transaction  — `execute()` runs inside the context's unit of work when there is one
@@ -38,6 +40,16 @@ pub trait CommandHandler: Send + Sync + 'static {
 
     /// How many times `execute()` runs on a concurrency conflict before the conflict is the answer (ADR 25).
     const CONFLICT_ATTEMPTS: usize = 3;
+
+    /// Who reaches this command (API-CALLER-AT-TRANSPORT, ADR 39): a signed-in caller, unless this
+    /// says anyone may ask for it. Override it, once, for a command anyone may ask for — signing
+    /// up, a link that carries its own proof, a provider's webhook. The transport's `accept()` asks
+    /// it before it publishes, and refuses a caller who is not signed in with `401` otherwise. It
+    /// says who reaches the command, not what the caller may do: that stays `guard()`'s,
+    /// `execute()`'s and the aggregate's.
+    fn anyone_may_ask(&self, _command: &Self::Command) -> bool {
+        false
+    }
 
     /// Authorization hook. Override it to refuse callers who may not run this command. Business
     /// rules about *what* they may do to *which* object belong in the aggregate.
@@ -137,9 +149,16 @@ pub trait CommandHandler: Send + Sync + 'static {
 /// its answer, without knowing which handler, over which adapters, answers it.
 pub trait AnyCommand<C: CommandEvent>: Send + Sync {
     fn run<'a>(&'a self, command: C, context: &'a ExecutionContext) -> BoxFuture<'a, DomainResult<C::Output>>;
+
+    /// What the handler says of who reaches this command ([`CommandHandler::anyone_may_ask`]).
+    fn anyone_may_ask(&self, command: &C) -> bool;
 }
 
 impl<H: CommandHandler> AnyCommand<H::Command> for H {
+    fn anyone_may_ask(&self, command: &H::Command) -> bool {
+        CommandHandler::anyone_may_ask(self, command)
+    }
+
     fn run<'a>(
         &'a self,
         command: H::Command,
@@ -336,6 +355,13 @@ mod tests {
 
     fn log(recorder: &Recorder) -> Vec<String> {
         recorder.log.lock().unwrap().clone()
+    }
+
+    #[test]
+    fn says_a_command_needs_a_signed_in_caller_unless_its_handler_says_otherwise() {
+        // API-CALLER-AT-TRANSPORT: the default every handler inherits.
+        assert!(!CommandHandler::anyone_may_ask(&GreetHandler::default(), &greet("Alice", None)));
+        assert!(!AnyCommand::anyone_may_ask(&GreetHandler::default(), &greet("Alice", None)));
     }
 
     #[test]

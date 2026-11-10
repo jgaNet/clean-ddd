@@ -27,6 +27,10 @@
 //! 6. A command has exactly one handler (ARCH-ONE-HANDLER): the Module lists it once, with one
 //!    handler, and every command a route or a policy builds is one the Module lists; read from
 //!    the same wiring, routes and policies the inventory is.
+//! 7. A route publishes a command and answers `202` only through `accept()`, which refuses a
+//!    caller who is not signed in with `401` first (API-CALLER-AT-TRANSPORT): a context's
+//!    presentation crate that dispatches, publishes, builds an operation or answers `202` by itself
+//!    is named, line by line.
 //!
 //! Layer names are the contract's (`Domain`); a crate directory is the same word in lowercase
 //! (`domain`), which is Rust's convention for a path.
@@ -34,6 +38,7 @@
 // A tool talks on the console: the workspace denies it to everything but the logger and the tools.
 #![allow(clippy::print_stdout, clippy::print_stderr)]
 
+mod caller_at_transport;
 mod inventory;
 #[cfg(test)]
 mod shapes;
@@ -85,7 +90,7 @@ fn main() -> ExitCode {
     }
 }
 
-/// The check: the four proofs above, every command with one handler, and the inventory current.
+/// The check: the four proofs above, every command with one handler, every 202 through `accept()`, and the inventory current.
 fn check(contract: &Yaml, binding: &Yaml, repository_root: &Path, language_root: &Path) -> ExitCode {
     let mut problems: Vec<String> = Vec::new();
     check_binding(contract, binding, repository_root, language_root, &mut problems);
@@ -94,11 +99,12 @@ fn check(contract: &Yaml, binding: &Yaml, repository_root: &Path, language_root:
     let crates = check_graph(contract, binding, &layers, language_root, &mut problems);
     check_files(binding, language_root, &mut problems);
     inventory::check_handlers(binding, language_root, &mut problems);
+    caller_at_transport::check(binding, language_root, &mut problems);
     inventory::check(repository_root, &inventory::inspect(binding, language_root), &mut problems);
 
     if problems.is_empty() {
         println!(
-            "✓ contract v{}, Rust binding: {} crates are the table, {} contexts match the tree, every file the binding names exists; every command has one handler; the inventory is current.",
+            "✓ contract v{}, Rust binding: {} crates are the table, {} contexts match the tree, every file the binding names exists; every command has one handler; every 202 goes through accept(); the inventory is current.",
             contract["schemaVersion"].as_u64().unwrap_or(0),
             crates,
             strings(&binding["contexts"]).len()

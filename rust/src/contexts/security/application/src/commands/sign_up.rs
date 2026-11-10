@@ -52,6 +52,11 @@ where
 {
     type Command = SignUp;
 
+    /// Anyone may sign up: there is nobody to be signed in as yet (API-CALLER-AT-TRANSPORT).
+    fn anyone_may_ask(&self, _command: &SignUp) -> bool {
+        true
+    }
+
     async fn execute(&self, command: SignUp, context: &ExecutionContext) -> DomainResult<String> {
         let account = self
             .registration
