@@ -40,3 +40,20 @@ A second failure after the correction's one rewording stops the tree for good.
   > A field a request says is `null` in one case is `null` in that case only: in every other state the thing reaches,
   > later ones included, it keeps the value the requests give it. A state a later request adds does not make an earlier
   > value disappear.
+
+### simple-3, request 73, the replay under R5 (11 November)
+
+- **The failure.** haiku, sonnet and opus failed the same line again. Just after the contest, `payment` read `null`, and the tree's reader still answered `null` for a lapsed booking at every head.
+- **The verdict:** failed (the maintainer).
+- **The correction: R5 reworded, its one rewording.** Replay: `simple-3-r2.yaml`. A failure after it stops simple-3 for good.
+
+  > ## What null means
+  >
+  > A field a request says is `null` in one case is `null` in that case only. When a later request adds a state the
+  > thing can be in, its fields keep in that state the values the requests give them, unless the request that adds the
+  > state says otherwise. Code that answers `null` for a state no request makes `null` is wrong: change it, with its
+  > tests, as soon as that state appears. Before a field answers `null`, find the request that says so.
+
+## clean-3, request 61, the replay under R3 reworded (11 November)
+
+- **Delivered at step 0 (haiku), split, in the integrator's first round.** The Tracker's projection now answers an operation's `error` as the rule's name.
