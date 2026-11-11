@@ -86,3 +86,48 @@ the maintainer on 11 November; applied to the next campaign's kit, not to J5's o
     reference. A kit that wants `"<NAME>"`, as OpenStay's request 61 does, says so in request 1 and registers it there
     (`departs: operation.error`); kit-check refuses the difference until it is decided there. This replaces correction
     1's wording with a check.
+
+## From J5b's fan-out, to request 68 (11 November)
+
+J5b's clean-3 wrote its split requests (55, 56, 61, 65, 66, 67, 68) with one agent per context and the integrator of
+[ADR 38](../../../../adr/0038-the-integrator-is-one-role-every-multi-agent-run-has.md). The split worked:
+- 4 of the 6 that had finished before 68 were delivered at step 0;
+- the integrator passed the merged result within 1 to 3 rounds;
+- since `routeStep`, each failure it routed went to one owner, the one whose context failed.
+
+It was not faster, nor cheaper:
+
+| | One agent (clean-3) | One agent per context (clean-3, without 61) |
+| --- | --- | --- |
+| Agents' cost per request | $1.07 | $2.12 |
+| Request to delivery | 54 min | 65 min |
+| Writing, to the last owner | ≈ 25–30 min | 10–44 min, mostly 17–25 |
+| Integration (the owners' verdicts, the merge, the gate) | none | 8–22 min |
+| Grading | ≈ 20–25 min | ≈ 20 min |
+
+Three causes:
+- **The contract comes first, so the downstream owner waits for it.** The last owner to finish is almost always the
+  downstream one (Moderation at 44 min on 65, the others near 20).
+- **The owners' verdicts are serial and mostly noise.** They run one at a time under the gate lock. 19 of 30 failed,
+  nearly all because the other side had not written its part yet: an integration event not there (`TS2305`, `TS2724`),
+  a context map or a declared context the feature's owner writes. Each such verdict also sent its owner back for a turn
+  that could not fix it.
+- **The requests are small.** They have 4 to 7 stickies, under the break-even of 7.4 to 9.8 the ladder estimates. The
+  estimate recommended one agent on all seven (`strategy`, `recommended: one-agent`), and the plan split them anyway, as
+  the pilot required. Grading does not depend on the number of agents and weighs as much as the writing.
+
+*Added at the maintainer's request on 11 November, for the next campaign. J5b's ladders run on with the split as
+registered.*
+
+12. **A feature is split only when the estimate recommends it.** The plan's `fanOut` takes the ladder's own advice (the
+    `strategy` event's `recommended`) instead of splitting every feature whose storm lists several contexts. A pilot
+    that must split regardless says so in its plan, and its record compares against the estimate.
+13. **An owner's verdict holds its scope, and nothing that waits on another owner.** While an owner builds on a
+    contract another owner has not yet written, its verdict is the scope check alone. The gate on its branch, and the
+    turn it sends back, are kept for the failures the owner can fix by itself. The integrator's gate on the merged
+    result stays the verdict on the feature. This saves the serial verdicts (8 to 15 minutes a split request in J5b)
+    and the turns spent on failures nobody could fix yet.
+14. **Whether the split is faster is measured above the break-even.** The [three-arms
+    protocol](../../three-arms/README.md) registers features with more stickies than the estimate's break-even (a new
+    context with several consumers, for instance), split and not split, on requests no kit was tuned on. J5b measures
+    only whether the split delivers, on requests below it.
