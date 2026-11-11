@@ -959,6 +959,18 @@ async function attempt(feature, step, from, { single = false } = {}) {
 // A resumed run keeps the commit it started from: its main has moved since, and the grader compares the dependencies,
 // and the gate the changes, with this commit.
 const baseCommit = before.find(each => each.event === 'started')?.baseCommit ?? git(project, 'rev-parse', plan.base);
+// A grading a crash interrupted leaves its worktree, with every hidden test in it, beside the trees the agents work in
+// (J5b: a container restart mid-grading). Each start removes what the grader would have removed.
+const gradings = join(flowDir, 'grade');
+if (existsSync(gradings))
+  for (const name of readdirSync(gradings)) {
+    const left = join(gradings, name);
+    try {
+      git(project, 'worktree', 'remove', '--force', left);
+    } catch {
+      rmSync(left, { recursive: true, force: true });
+    }
+  }
 await takeSlot({
   max: ladderSlots,
   onWait: () => event('waiting-for-slot', { ladders: ladderSlots }),
