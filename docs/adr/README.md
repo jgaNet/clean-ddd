@@ -44,5 +44,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0038](0038-the-integrator-is-one-role-every-multi-agent-run-has.md) | The integrator is one role every multi-agent run has: one module, two rounds, and the relationship tests run on the merged result only |
 | [0039](0039-a-command-whose-outcome-is-read-later-needs-a-caller-at-the-transport.md) | A command whose outcome is read later needs a signed-in caller, and the transport refuses a missing one at once with 401 |
 | [0040](0040-architecture-profiles-one-contract-one-engine-profiles-as-data.md) | Architecture profiles: one contract, one engine, profiles as data; Full is the default, Lite an experiment |
+| [0041](0041-an-operation-read-is-in-the-contract.md) | What an operation answers when it is read is in the contract, so a kit or a product can be checked against it |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

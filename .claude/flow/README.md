@@ -117,4 +117,30 @@ Every campaign so far found defects in its own kit while grading, after the agen
 
 [`dry-run.test.mjs`](dry-run.test.mjs) holds the verdict to the defects the earlier kits had. A kit is rehearsed before its campaign, and its report is committed with the kit. Run on the horizon kit as it was before its runs, it finds all three of that kit's amendments.
 
+## Holding a kit to the standard before its runs
+
+The rehearsal finds a test that is wrong. It does not find a convention that no test holds where it is born: OpenStay's
+J5 and J5b paid three times for one, each found by a late request (a `503` at request 80, an operation's `error` at
+61, a `payment` read `null` at 73). The kit standard (`docs/evaluations/benchmark/kit-standard.md` in the clean-ddd
+reference) closes it, for a kit that opts in with `api/` and `conventions.yaml`:
+
+```bash
+node .claude/flow/kit-check.mjs <kit>     # before the campaign is registered, beside dry-run.mjs
+```
+
+- **[`api-schema.mjs`](api-schema.mjs)** composes the kit's fragments (`api/<n>-<id>.yaml`: JSON Schema for each
+  route's answers and the resources they add or change, the states they add, the fields `null` in one case only) up to
+  a request, and validates an answer against the composition; each problem names the request whose fragment set the
+  shape.
+- **[`kit-check.mjs`](kit-check.mjs)** refuses a request with an API table and no fragment, a convention of the
+  register without `born` or without its `it` in that request's acceptance file, a state added without a test that
+  reads the whole resource in it, and an operation the requests compose that differs from the contract's
+  (`http.operation`) without a decision in request 1. It prints the findings and exits non-zero on any.
+- **`grade.mjs`**, for a kit with `api/`, writes the API composed up to `--upto` beside the hidden tests
+  (`api-schema.json`) and gives its path in `API_SCHEMA`, so the kit's client validates every answer it reads. A kit
+  without `api/` is graded as before.
+
+[`kit-check.test.mjs`](kit-check.test.mjs) builds a kit of three requests in a temp dir, shows each refusal, and the
+composed API catching the three conventions OpenStay's trees broke.
+
 It is a script on purpose. It holds no state but the log (and, while it runs, a lock and the leases); several features at once is a later phase of the RFC, and comes only if the measurements justify it.

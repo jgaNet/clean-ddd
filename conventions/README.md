@@ -44,9 +44,10 @@ Writing the allow-list rather than the deny-list is deliberate: a new layer, con
 
 ## What the contract answers
 
-Beyond the rules and the concepts, the contract holds two tables that used to live only in prose, both asked for by the first agent that worked with it ([record](../docs/evaluations/2026-09-29-bookmarks.md)):
+Beyond the rules and the concepts, the contract holds tables that used to live only in prose, both asked for by the first agent that worked with it ([record](../docs/evaluations/2026-09-29-bookmarks.md)):
 
 - **`http.verbs`** — which verb and path shape a use case takes, by intent (`read`, `create`, `act`, `create-under`, `replace`, `replace-part`, `change-part`, `remove`, and the one exception); the binding names the routes file that shows each: `yarn architecture verb remove`.
+- **`http.operation`** — what a command answered `202` becomes when its caller reads it: where it is read, what each status means, and the record as a JSON Schema (draft-07), `error` the rule's exception `{ type, message }` ([ADR 41](../docs/adr/0041-an-operation-read-is-in-the-contract.md)). Every language answers it, the shared scenario holds them to it, and a benchmark kit's requests are compared with it before any run (`.claude/flow/kit-check.mjs`).
 - **`checklists`** — the kinds of thing a feature is made of, each pointing at the concept that shows it; the binding says, for each kind, where it goes and what it is made of in its language: `yarn architecture checklist aggregate`, or `yarn architecture place domain-service` for the path alone. The check refuses a checklist naming a concept that does not exist, and a binding checklist for a kind the contract does not have.
 
 `can-import` takes several pairs in one call (`can-import <file> <specifier> <file> <specifier> …`), on one ESLint instance, so a planned layout is checked in a single command; it exits non-zero if any pair is refused. A path typed on the command line is read from where it was typed, so `src/…` from `typescript/` and `typescript/src/…` from the root name the same file.

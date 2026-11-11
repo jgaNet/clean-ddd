@@ -60,3 +60,29 @@ earlier storms decided before a session decides again. Test 71 was fixed during 
    earlier test that fails an attempt is graded twice on the commit the attempt started from, and one that fails there
    too is not counted against the attempt (`.claude/flow/README.md`). J5's running ladders keep the rule they started
    with.
+
+## From J5b's two triaged failures (11 November)
+
+J5b's clean-3 failed request 61 on an operation's `error` (`{ type, message }`, where the request says `"<NAME>"`), and
+simple-3 failed request 73 on a `payment` read `null` for a lapsed booking ([J5b's repairs](../j5b/repairs.md)). With
+request 80's `503`, that is three times the pattern correction 5 names: a convention taken early, untested where it was
+born, required by a late request. Corrections 8 to 11 make correction 5 mechanical; each is a part of the
+[kit standard](../../kit-standard.md), held by `.claude/flow/kit-check.mjs` before the campaign is registered. *Decided by
+the maintainer on 11 November; applied to the next campaign's kit, not to J5's or J5b's, whose ladders run on.*
+
+8. **The requests' API is data, and every hidden test holds every answer to it.** Each request with an API table has a
+   fragment, `api/<n>-<id>.yaml`: JSON Schema for its routes' answers by status and for the resources it adds to or
+   changes, the states it adds, and the fields `null` in one case only. The grader writes the API composed up to the
+   request it grades beside the tests, and the kit's client validates every answer it reads; a problem names the
+   request whose fragment set the shape.
+9. **The conventions are registered, each with its test where it is born.** `conventions.yaml` lists every convention a
+   later request relies on: a refusal's status and shape, an operation's `error`, what `null` means for each field, as
+   soon as its time has passed or at the next sweep. Each has the request that sets it and the `it` that holds it
+   there; one without either is refused. This is correction 5, as a file a script reads.
+10. **A state added is read whole where it is added.** A fragment that adds a state names a test of that request that
+    reads the whole resource in it, so every earlier field is held there (request 73's `payment`, at request 30).
+11. **The operation is decided in request 1, against the contract's.** The contract now says what an operation is when
+    read ([ADR 41](../../../../adr/0041-an-operation-read-is-in-the-contract.md)): `error` is `{ type, message }` in the
+    reference. A kit that wants `"<NAME>"`, as OpenStay's request 61 does, says so in request 1 and registers it there
+    (`departs: operation.error`); kit-check refuses the difference until it is decided there. This replaces correction
+    1's wording with a check.
