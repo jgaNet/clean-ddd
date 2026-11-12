@@ -14,6 +14,7 @@ from architecture.application.outbox import OutboxEntry, relay_outbox
 from architecture.domain.common_exceptions import NotFoundException
 from architecture.domain.event import DomainEvent, Event, name_of
 from architecture.domain.result import Failure, Result, Success
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.event_bus import InMemoryEventBus
 from architecture.infrastructure.outbox import InMemoryOutbox
 
@@ -50,7 +51,7 @@ async def let_it_run() -> None:
 
 
 async def test_keeps_an_entry_pending_while_a_reaction_to_it_runs_and_hands_it_out_once_meanwhile() -> None:
-    bus = InMemoryEventBus()
+    bus = InMemoryEventBus(system_clock)
     reaction = TellTheHost()
     await bus.subscribe(name_of(BookingConfirmed), reaction)
     outbox = InMemoryOutbox()
@@ -89,7 +90,7 @@ class OverTheTable:
 
 
 async def test_does_not_hand_out_an_entry_on_its_way_again_through_another_adapter_over_the_same_entries() -> None:
-    bus = InMemoryEventBus()
+    bus = InMemoryEventBus(system_clock)
     reaction = TellTheHost()
     await bus.subscribe(name_of(BookingConfirmed), reaction)
     table = InMemoryOutbox()
@@ -113,7 +114,7 @@ async def test_does_not_hand_out_an_entry_on_its_way_again_through_another_adapt
 async def test_keeps_an_entry_whose_reaction_failed_pending_and_hands_it_again_to_that_subscriber_only(
     refused_first: bool,
 ) -> None:
-    bus = InMemoryEventBus()
+    bus = InMemoryEventBus(system_clock)
     told, refused = TellTheHost(), TellTheHost()
     # Either order: each subscriber's inbox is decided by its own outcome, not by how the last one ended.
     for subscriber in (refused, told) if refused_first else (told, refused):

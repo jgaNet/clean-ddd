@@ -7,6 +7,7 @@ from architecture.application.operation import OperationStatus
 from architecture.domain.common_exceptions import NotFoundException
 from architecture.domain.event import CommandEvent, DomainEvent
 from architecture.domain.result import Failure, Result, Success
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.data_sources import InMemoryDataSource
 from architecture.infrastructure.event_bus import InMemoryEventBus
 from contexts.tracker.application.read_model import OperationError, OperationRecord
@@ -54,7 +55,7 @@ class CompletionRecorder(EventHandler[OperationCompleteIntegrationEvent]):
 class Setup:
     def __init__(self) -> None:
         self.store: InMemoryDataSource[OperationRecord] = InMemoryDataSource()
-        self.bus = TrackedEventBus(InMemoryEventBus(), InMemoryOperationRecords(self.store))
+        self.bus = TrackedEventBus(InMemoryEventBus(system_clock), InMemoryOperationRecords(self.store), system_clock)
         self.completions = CompletionRecorder()
 
     async def subscribed(self) -> "Setup":

@@ -2,19 +2,21 @@
 heuristic standing where a model would stand; an LLM adapter implements the same port and
 nothing else changes. On purpose it does not trim its proposal to NoteTitle's rules: a blank
 first line or a very long one is proposed as such, and the aggregate refuses it, which is the
-point of ADR 7."""
+point of ADR 7. Its provenance is stamped with the application's clock (DOMAIN-ONE-CLOCK)."""
 
-from datetime import UTC, datetime
-
+from architecture.application.clock import Clock
 from contexts.notes.application.suggestions import SuggestionProvenance, TitleSuggestion
 
 
 class FirstLineTitleSuggestions:
     VERSION = "first-line/1"
 
+    def __init__(self, clock: Clock) -> None:
+        self._clock = clock
+
     async def suggest(self, content: str) -> TitleSuggestion:
         first_line = content.split("\n", 1)[0]
         return TitleSuggestion(
             title=first_line.strip(),
-            provenance=SuggestionProvenance(source="heuristic", version=self.VERSION, at=datetime.now(UTC)),
+            provenance=SuggestionProvenance(source="heuristic", version=self.VERSION, at=self._clock()),
         )

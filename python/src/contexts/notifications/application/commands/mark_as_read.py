@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from architecture.application.clock import Clock
 from architecture.application.command_handler import OK, CommandHandler
 from architecture.application.execution_context import ExecutionContext
 from architecture.domain.event import CommandEvent
@@ -15,8 +16,9 @@ class MarkAsReadNotificationCommandEvent(CommandEvent):
 
 
 class MarkAsReadNotificationCommandHandler(CommandHandler[MarkAsReadNotificationCommandEvent]):
-    def __init__(self, notifications: NotificationRepository) -> None:
+    def __init__(self, notifications: NotificationRepository, clock: Clock) -> None:
         self._notifications = notifications
+        self._clock = clock
 
     async def execute(self, command: MarkAsReadNotificationCommandEvent, context: ExecutionContext) -> Result[None]:
         reader = require_signed_in(context, SERVICE)
@@ -27,7 +29,7 @@ class MarkAsReadNotificationCommandHandler(CommandHandler[MarkAsReadNotification
         if notification is None:
             return Failure(NotificationNotFoundException(command.notification_id))
 
-        read = notification.mark_read(reader.data)
+        read = notification.mark_read(reader.data, self._clock())
         if isinstance(read, Failure):
             return read
 

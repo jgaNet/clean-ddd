@@ -10,6 +10,7 @@ from architecture.application.operation import Operation
 from architecture.domain.common_exceptions import UnknownException
 from architecture.domain.event import DomainEvent, Event
 from architecture.domain.result import Failure, Result, Success
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.outbox import InMemoryOutbox
 
 
@@ -40,7 +41,7 @@ class LoggingBus(NoBus):
 
     def publish[E: Event](self, event: E, context: ExecutionContext, message_id: str | None = None) -> Operation[E]:
         self.log.append("publish")
-        return Operation(event, context, id=message_id)
+        return Operation(event, context, clock=system_clock, id=message_id)
 
 
 class FakeUnitOfWork:

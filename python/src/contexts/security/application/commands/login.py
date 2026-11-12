@@ -4,6 +4,7 @@ Tracker never sees it."""
 
 from dataclasses import dataclass
 
+from architecture.application.clock import Clock
 from architecture.application.command_handler import CommandHandler
 from architecture.application.execution_context import ExecutionContext
 from architecture.domain.event import CommandEvent
@@ -21,10 +22,11 @@ class LoginCommandEvent(CommandEvent):
 
 
 class LoginCommandHandler(CommandHandler[LoginCommandEvent]):
-    def __init__(self, accounts: AccountRepository, hasher: PasswordHasher, tokens: SignedTokens) -> None:
+    def __init__(self, accounts: AccountRepository, hasher: PasswordHasher, tokens: SignedTokens, clock: Clock) -> None:
         self._accounts = accounts
         self._hasher = hasher
         self._tokens = tokens
+        self._clock = clock
 
     async def execute(self, command: LoginCommandEvent, context: ExecutionContext) -> Result[str]:
         """The session token, for an active account with the right password."""
@@ -34,7 +36,7 @@ class LoginCommandHandler(CommandHandler[LoginCommandEvent]):
         if not await self._hasher.compare(command.password, account.credentials.hash):
             return Failure(InvalidCredentialsException())
 
-        authenticated = account.authenticate()
+        authenticated = account.authenticate(self._clock())
         if isinstance(authenticated, Failure):
             return authenticated
 

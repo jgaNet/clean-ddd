@@ -3,6 +3,7 @@ root wraps the application's bus with, and the module of its two queries."""
 
 from architecture.application.event_bus import EventBus
 from architecture.application.module import Module
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.data_sources import InMemoryDataSource
 from contexts.tracker.application.queries.get_operation import GetOperationQueryHandler
 from contexts.tracker.application.queries.get_operations import GetOperationsQueryHandler
@@ -23,7 +24,7 @@ def operation_records(store: OperationStore) -> InMemoryOperationRecords:
 
 def tracked_event_bus(bus: EventBus, records: InMemoryOperationRecords) -> TrackedEventBus:
     """The application's event bus: any bus, decorated so that every operation is recorded."""
-    return TrackedEventBus(bus, records)
+    return TrackedEventBus(bus, records, system_clock)
 
 
 def local_tracker_module(records: InMemoryOperationRecords) -> Module:

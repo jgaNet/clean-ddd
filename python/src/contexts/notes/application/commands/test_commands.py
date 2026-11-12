@@ -10,6 +10,7 @@ from architecture.application.execution_context import Auth, ExecutionContext
 from architecture.application.operation import Operation
 from architecture.domain.event import Event
 from architecture.domain.result import Failure, Success
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.data_sources import InMemoryDataSource
 from contexts.notes.application.commands.archive_note import ArchiveNoteCommandEvent, ArchiveNoteCommandHandler
 from contexts.notes.application.commands.create_note import CreateNoteCommandEvent, CreateNoteCommandHandler
@@ -34,7 +35,7 @@ class RecordingBus:
 
     def publish[E: Event](self, event: E, context: ExecutionContext, message_id: str | None = None) -> Operation[E]:
         self.published.append(event)
-        return Operation(event, context)
+        return Operation(event, context, clock=system_clock)
 
     async def dispatch(self, operation: Operation[Any]) -> Operation[Any]:
         return operation

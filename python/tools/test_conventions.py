@@ -461,3 +461,43 @@ def test_a_route_decorator_may_document_202_and_a_test_may_publish(copy: Path) -
         "def test_x(context: object) -> None:\n    context.event_bus.publish(object(), context)\n"
     )
     assert caller_at_transport_refusals(copy) == []
+
+
+def one_clock_refusals(here: Path) -> list[str]:
+    return [problem for problem in refusals(here) if problem.startswith("DOMAIN-ONE-CLOCK:")]
+
+
+def test_refuses_a_read_of_the_machines_time_outside_the_system_clock_naming_the_rule_and_the_fix(copy: Path) -> None:
+    (copy / "src/contexts/notes/application/stray.py").write_text(
+        "import datetime as dt\n"
+        "import time\n"
+        "from datetime import UTC, date, datetime\n"
+        "from time import time as seconds\n"
+        "\n"
+        "def stamps() -> list[object]:\n"
+        "    return [\n"
+        "        datetime.now(UTC),\n"
+        "        dt.datetime.utcnow(),\n"
+        "        date.today(),\n"
+        "        time.time(),\n"
+        "        seconds(),\n"
+        '        datetime.fromisoformat("2026-01-01T00:00:00+00:00"),\n'
+        "    ]\n"
+    )
+
+    found = one_clock_refusals(copy)
+
+    assert [problem.split(" reads ")[0] for problem in found] == [
+        f"DOMAIN-ONE-CLOCK: src/contexts/notes/application/stray.py:{line}" for line in (8, 9, 10, 11, 12)
+    ]
+    assert all("system_clock" in problem for problem in found)
+    assert all("yarn --cwd .. architecture rule DOMAIN-ONE-CLOCK" in problem for problem in found)
+
+
+def test_the_system_clock_and_the_tests_may_read_the_machines_time(copy: Path) -> None:
+    # The tree's system clock reads it; a test builds the time it needs as it likes.
+    (copy / "src/contexts/notes/application/test_stray.py").write_text(
+        "from datetime import UTC, datetime\n\ndef test_x() -> None:\n    assert datetime.now(UTC)\n"
+    )
+    (copy / "src/contexts/notes/application/conftest.py").write_text("import time\n\nSTARTED = time.time()\n")
+    assert one_clock_refusals(copy) == []

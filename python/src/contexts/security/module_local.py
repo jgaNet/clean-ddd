@@ -11,6 +11,7 @@ from architecture.application.execution_context import Auth, ExecutionContext
 from architecture.application.module import Module, Subscription
 from architecture.domain.id import Id
 from architecture.domain.result import Result
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.data_sources import InMemoryDataSource
 from contexts.security.application.commands.login import LoginCommandEvent, LoginCommandHandler
 from contexts.security.application.commands.register_admin import RegisterAdminCommandEvent, RegisterAdminCommandHandler
@@ -52,7 +53,9 @@ class SecurityWiring:
     def __init__(self, store: AccountStore, settings: SecuritySettings) -> None:
         repository = InMemoryAccountRepository(store)
         self.account_queries = InMemoryAccountQueries(store)
-        self.signed_tokens = JwtSignedTokens(secret=settings.jwt_secret, expires_in=settings.jwt_expires_in)
+        self.signed_tokens = JwtSignedTokens(
+            secret=settings.jwt_secret, expires_in=settings.jwt_expires_in, clock=system_clock
+        )
         self.authentication = Authentication(self.account_queries, self.signed_tokens)
         registration = AccountRegistration(repository)
         hasher = BcryptPasswordHasher(settings.bcrypt_cost)
@@ -62,7 +65,9 @@ class SecurityWiring:
             name="Security",
             commands=[
                 Subscription(SignUpCommandEvent, [SignUpCommandHandler(repository, registration, hasher)]),
-                Subscription(LoginCommandEvent, [LoginCommandHandler(repository, hasher, self.signed_tokens)]),
+                Subscription(
+                    LoginCommandEvent, [LoginCommandHandler(repository, hasher, self.signed_tokens, system_clock)]
+                ),
                 Subscription(
                     ValidateAccountCommandEvent, [ValidateAccountCommandHandler(repository, self.signed_tokens)]
                 ),

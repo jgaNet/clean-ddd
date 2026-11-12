@@ -8,6 +8,7 @@ from architecture.application.operation import Operation
 from architecture.domain.common_exceptions import UnknownException
 from architecture.domain.event import Event
 from architecture.domain.result import Failure, Result, Success
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.data_sources import InMemoryDataSource
 from contexts.notifications.application.delivery import NotificationDelivery
 from contexts.notifications.domain.notification.channel import Channel
@@ -41,7 +42,7 @@ class RecordingBus:
 
     def publish[E: Event](self, event: E, context: ExecutionContext, message_id: str | None = None) -> Operation[E]:
         self.published.append(event)
-        return Operation(event, context)
+        return Operation(event, context, clock=system_clock)
 
     async def dispatch(self, operation: Operation[Any]) -> Operation[Any]:
         return operation
@@ -53,7 +54,7 @@ class Fixture:
     def __init__(self, *channels: FakeChannel) -> None:
         self.store: InMemoryDataSource[NotificationSnapshot] = InMemoryDataSource()
         self.bus = RecordingBus()
-        self.delivery = NotificationDelivery(InMemoryNotificationRepository(self.store), channels)
+        self.delivery = NotificationDelivery(InMemoryNotificationRepository(self.store), channels, system_clock)
         self.context = ExecutionContext(trace_id="trace", event_bus=self.bus)
 
     def saved(self, notification_id: str) -> NotificationSnapshot:

@@ -8,6 +8,7 @@ from architecture.application.execution_context import Auth, ExecutionContext
 from architecture.application.operation import OperationStatus
 from architecture.domain.common_exceptions import NotAllowedException, NotFoundException
 from architecture.domain.result import Failure, Success
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.data_sources import InMemoryDataSource
 from architecture.infrastructure.event_bus import InMemoryEventBus
 from contexts.tracker.application.queries.get_operation import GetOperationQueryHandler
@@ -17,7 +18,9 @@ from shared_kernel.domain.role import Role
 
 
 def as_(role: Role, subject_id: str | None = None) -> ExecutionContext:
-    return ExecutionContext(trace_id="trace", event_bus=InMemoryEventBus(), auth=Auth(subject_id, role.value))
+    return ExecutionContext(
+        trace_id="trace", event_bus=InMemoryEventBus(system_clock), auth=Auth(subject_id, role.value)
+    )
 
 
 ANONYMOUS = as_(Role.GUEST)

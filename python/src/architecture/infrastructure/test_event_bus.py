@@ -7,6 +7,7 @@ from architecture.application.operation import Operation, OperationStatus
 from architecture.domain.common_exceptions import UnknownException
 from architecture.domain.event import DomainEvent, name_of
 from architecture.domain.result import Failure, Result, Success
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.event_bus import InMemoryEventBus
 
 
@@ -50,7 +51,7 @@ def status_of(operation: Operation[Any]) -> OperationStatus:
 
 
 async def test_answers_with_the_operation_before_the_handling_and_routes_by_name() -> None:
-    bus = InMemoryEventBus()
+    bus = InMemoryEventBus(system_clock)
     recorder = Recorder()
     await bus.subscribe("Greeted", recorder)
     context = ExecutionContext(trace_id="trace", event_bus=bus)
@@ -65,7 +66,7 @@ async def test_answers_with_the_operation_before_the_handling_and_routes_by_name
 
 
 async def test_an_event_nobody_listens_to_is_dispatched_to_no_one() -> None:
-    bus = InMemoryEventBus()
+    bus = InMemoryEventBus(system_clock)
     operation = bus.publish(Waved(), ExecutionContext(trace_id="trace", event_bus=bus))
     await bus.settle()
     assert operation.status is OperationStatus.PENDING
@@ -75,7 +76,7 @@ async def test_an_event_nobody_listens_to_is_dispatched_to_no_one() -> None:
 
 
 async def test_delivers_a_message_once_per_subscriber_by_its_id_however_many_times_it_is_published() -> None:
-    bus = InMemoryEventBus()
+    bus = InMemoryEventBus(system_clock)
     counter = Counter()
     await bus.subscribe("Greeted", counter)
     context = ExecutionContext(trace_id="trace", event_bus=bus)
@@ -90,7 +91,7 @@ async def test_delivers_a_message_once_per_subscriber_by_its_id_however_many_tim
 
 
 async def test_delivers_two_messages_with_two_ids_and_the_same_event_without_an_id_as_often_as_published() -> None:
-    bus = InMemoryEventBus()
+    bus = InMemoryEventBus(system_clock)
     counter = Counter()
     await bus.subscribe("Greeted", counter)
     context = ExecutionContext(trace_id="trace", event_bus=bus)
@@ -105,7 +106,7 @@ async def test_delivers_two_messages_with_two_ids_and_the_same_event_without_an_
 
 
 async def test_hands_a_message_again_to_a_subscriber_whose_reaction_failed_at_least_once_is_the_promise() -> None:
-    bus = InMemoryEventBus()
+    bus = InMemoryEventBus(system_clock)
     counter = Counter()
     await bus.subscribe("Greeted", counter)
     context = ExecutionContext(trace_id="trace", event_bus=bus)

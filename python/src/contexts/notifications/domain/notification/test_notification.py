@@ -39,15 +39,15 @@ class TestCreating:
 
     def test_refuses_a_blank_title_and_an_empty_strategy(self) -> None:
         blank = Notification.create(
-            NewNotification(recipient_id="bob", title=" ", content="x", channels=[Channel.EMAIL])
+            NewNotification(recipient_id="bob", title=" ", content="x", channels=[Channel.EMAIL]), at
         )
-        empty = Notification.create(NewNotification(recipient_id="bob", title="x", content="x", channels=[]))
+        empty = Notification.create(NewNotification(recipient_id="bob", title="x", content="x", channels=[]), at)
         assert isinstance(blank, Failure) and blank.error.type == "BlankNotificationTitle"
         assert isinstance(empty, Failure) and empty.error.type == "EmptyDeliveryStrategy"
 
     def test_refuses_a_channel_it_does_not_know_by_name(self) -> None:
         refused = Notification.create(
-            NewNotification(recipient_id="bob", title="x", content="x", channels=["EMAIL", "FAX"])
+            NewNotification(recipient_id="bob", title="x", content="x", channels=["EMAIL", "FAX"]), at
         )
         assert isinstance(refused, Failure) and refused.error.type == "UnknownChannel"
 
@@ -114,18 +114,18 @@ class TestReading:
     def test_is_reserved_to_the_recipient(self) -> None:
         notification = a_notification()
         notification.record_attempt(Channel.WEBSOCKET, True, at)
-        refused = notification.mark_read(carol)
+        refused = notification.mark_read(carol, at)
         assert isinstance(refused, Failure) and refused.error.type == "NotNotificationRecipient"
 
     def test_cannot_be_read_before_delivery_nor_twice(self) -> None:
         pending = a_notification()
-        early = pending.mark_read(bob)
+        early = pending.mark_read(bob, at)
         assert isinstance(early, Failure) and early.error.type == "NotificationNotDelivered"
 
         read = a_notification()
         read.record_attempt(Channel.WEBSOCKET, True, at)
-        read.mark_read(bob)
-        again = read.mark_read(bob)
+        read.mark_read(bob, at)
+        again = read.mark_read(bob, at)
         assert isinstance(again, Failure) and again.error.type == "NotificationAlreadyRead"
 
 

@@ -13,6 +13,7 @@ context's bus, which is this one, and are recorded on their own.
 import asyncio
 from typing import Any
 
+from architecture.application.clock import Clock
 from architecture.application.event_bus import EventBus, Subscriber
 from architecture.application.execution_context import ExecutionContext
 from architecture.application.operation import Operation, OperationStatus
@@ -26,8 +27,9 @@ from shared_kernel.application.integration_events.tracker_integration_events imp
 
 
 class TrackedEventBus:
-    def __init__(self, bus: EventBus, records: OperationRecords) -> None:
+    def __init__(self, bus: EventBus, records: OperationRecords, clock: Clock) -> None:
         self._bus = bus
+        self._clock = clock
         self._records = records
         self._pending: set[asyncio.Task[Operation[Any]]] = set()
 
@@ -36,7 +38,7 @@ class TrackedEventBus:
 
     def publish[E: Event](self, event: E, context: ExecutionContext, message_id: str | None = None) -> Operation[E]:
         loop = asyncio.get_running_loop()
-        operation = Operation(event, context, id=message_id)
+        operation = Operation(event, context, clock=self._clock, id=message_id)
         # The inner bus settles it once its subscribers are through (ADR 24); a dispatch that broke
         # off before reaching them (a record that could not be saved) settles it as not delivered.
         operation.delivered = loop.create_future()
