@@ -84,3 +84,9 @@ A second failure after the correction's one rewording stops the tree for good.
   > answered. Nothing there reads `new Date()` or `Date.now()`, and a domain method's time parameter is always given,
   > never left to its default. When a request makes a rule depend on the date, every earlier place that reads the time
   > is moved to the clock, with its tests.
+
+## clean-3, request 73, the replay under R6 (12 November)
+
+- **Delivered at step 2 (opus), split, in the integrator's second round.** haiku and sonnet failed the same line again,
+  with the lapse sweep still reading the machine's time. opus moved it to the clock (`this.clock()`, passed from the
+  wiring); seven files of the Application layer still read `new Date()`.
