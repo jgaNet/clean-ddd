@@ -1,0 +1,21 @@
+# J5b, clean-3, repaired twice (repairs.md beside this file): requests 51 to 100 from the tree prepared at 50 (README.md beside this file). The tree is the project
+# given with --project; run from the reference's root with node .claude/flow/run-ladder.mjs.
+run: j5b-clean-3-r2
+arm: clean
+kit: ../j5
+base: main
+of: 100
+ladder: [claude-haiku-5-5, claude-sonnet-5-5, claude-opus-5-5]
+agent: { runner: claude-cli, timeoutMinutes: 90 }
+retry: { perFeature: 1 }
+budgetUsd: 86
+agentBudgetUsd: 12
+dependencies: copy
+ports: { base: 20800 }
+machine: { ladders: 2 }
+gradeTimeoutMinutes: 120
+regressionCheck: { from: 2 }
+triage: { judge: claude-sonnet-5-5 }
+push: { remote: https://github.com/jgaNet/openstay, branch: j5b/clean-3, logBranch: j5b-logs/clean-3 }
+fanOut: { rounds: 2 }
+features: [transfer-proof, support, notice-preferences, email-verification, two-factor, trader-information, registration-numbers, donations, donations-never-rank, transparency, payment-costs, countries, listing-languages, user-language, currencies, indicative-prices, payouts-per-currency, card-fees-passed-on, city-tourist-tax, tax-rates-by-date, night-cap, hosts-report, calendar-export, calendar-import, import-conflicts, terms-versions, operations-dashboard, pausing-payouts]

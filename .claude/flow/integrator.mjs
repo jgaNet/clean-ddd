@@ -31,14 +31,19 @@ export function ownerOf(file, owners) {
  * Each failing step, to the owners of the files it names, or to the feature's owner when it names none of theirs. A
  * step that names files of two owners goes to both: each fixes what is its own, and they settle the rest between them.
  */
-export function routeFailures(steps, owners, featureOwner) {
+export function routeFailures(steps, owners, featureOwner, routeStep = () => []) {
   const routed = Object.fromEntries(owners.map(owner => [owner.name, []]));
   for (const step of steps) {
     const lines = [`${step.name}:`, ...(step.lines ?? []).slice(-60).map(line => `  ${line}`)];
+    // A driver may know whose a step is better than the files it names (a relationship's test is its downstream
+    // owner's, ADR 33); otherwise the files decide.
+    const known = (routeStep(step) ?? []).filter(name => routed[name]);
     const named = new Set(
-      filesNamed([step.name, ...(step.lines ?? [])].join('\n'))
-        .map(file => ownerOf(file, owners))
-        .filter(Boolean),
+      known.length
+        ? known
+        : filesNamed([step.name, ...(step.lines ?? [])].join('\n'))
+            .map(file => ownerOf(file, owners))
+            .filter(Boolean),
     );
     if (named.size === 0) named.add(featureOwner);
     for (const name of named) routed[name].push(...lines);
@@ -50,9 +55,10 @@ export function routeFailures(steps, owners, featureOwner) {
  * The rounds. `merge()` answers `{ conflict?: { owner, files } }` (the first branch that did not merge, the merge
  * left undone); `gate()` answers `{ pass, steps: [{ name, lines }] }` on the merged result; `send(owner, kind, lines)`
  * continues that owner's conversation (`kind` is `conflict` or `failures`) and resolves once the owner has stopped.
+ * `routeStep(step)`, optional, names the owners of a step the driver knows better than its files do.
  * Answers `{ pass, rounds, left?, conflict? }`.
  */
-export async function integrate({ owners, featureOwner, merge, gate, send, rounds = 2, log = () => {} }) {
+export async function integrate({ owners, featureOwner, merge, gate, send, rounds = 2, log = () => {}, routeStep }) {
   if (!owners.some(owner => owner.name === featureOwner))
     throw new Error(`the feature's owner ${featureOwner} owns nothing`);
   const history = [];
@@ -72,7 +78,7 @@ export async function integrate({ owners, featureOwner, merge, gate, send, round
       log('integrator', { round, pass: true });
       return { pass: true, rounds: history };
     }
-    const routed = routeFailures(gated.steps ?? [], owners, featureOwner);
+    const routed = routeFailures(gated.steps ?? [], owners, featureOwner, routeStep);
     const sent = Object.fromEntries(Object.entries(routed).map(([name, lines]) => [name, lines.length]));
     history.push({ round, pass: false, routed: sent });
     log('integrator', { round, pass: false, routed: sent, ...(last && { left: true }) });

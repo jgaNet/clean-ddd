@@ -56,6 +56,7 @@
     "@jest/globals": "^30.5.2",
     "@types/jest": "^30.0.0",
     "@types/node": "^24",
+    "ajv": "^6.14.0",
     "cross-env": "^10.1.0",
     "esbuild": "^0.28.2",
     "eslint": "^10.11.0",

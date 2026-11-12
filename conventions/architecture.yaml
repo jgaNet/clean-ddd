@@ -170,6 +170,45 @@ relative_imports:
 # same application is written in every language, so the routes are too.
 http:
   rule: ARCH-PRESENTATION
+  # What a command answered 202 becomes when its caller reads it (ADR 41): the record the Tracker
+  # projects, as every language answers it. `record` is a JSON Schema (draft-07), so that a kit's
+  # requests or a product's API can be checked against it before anything is written; a kit that
+  # wants another shape decides it in its first request, and the check names the conflict.
+  operation:
+    read: GET /tracker/operations/:id
+    statuses:
+      PENDING: The command is accepted and not yet decided.
+      SUCCESS: The command's handler decided it; `result` is what it answered, when it answered something.
+      ERROR: The command was refused, or failed; `error` names the rule that refused it.
+      SENT: A fact delivered to its subscribers, which answer nothing. A command's operation never ends here.
+    record:
+      type: object
+      required: [id, name, status, traceId, createdAt]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        name: { type: string, description: 'The public name: the intent or the fact without the suffix of its kind (API-ONE-SURFACE).' }
+        status: { enum: [PENDING, SUCCESS, ERROR, SENT] }
+        traceId: { type: string }
+        subjectId: { type: string, description: 'The account that asked, when the request was authenticated.' }
+        result: { description: 'What the handler answered on success: any JSON value.' }
+        error:
+          type: object
+          description: The refusal, in the client's words — the rule's exception (`type`) and its message.
+          required: [type, message]
+          additionalProperties: false
+          properties:
+            type: { type: string }
+            message: { type: string }
+        createdAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time, description: 'Once the command is decided: SUCCESS or ERROR.' }
+      allOf:
+        - if: { properties: { status: { const: ERROR } }, required: [status] }
+          then: { required: [error, finishedAt] }
+          else: { not: { required: [error] } }
+        - if: { properties: { status: { const: SUCCESS } }, required: [status] }
+          then: { required: [finishedAt] }
+          else: { not: { required: [result] } }
   verbs:
     - intent: read
       verb: GET
@@ -598,7 +637,7 @@ rules:
     why: A reference in several languages teaches one application, not three; a client, a front end or a test that works against one server must work against the others, and the API is where that is visible.
     remediation: Fix the server that differs, never the scenario; a name that leaks a class suffix is stripped where the record is projected, not renamed on the bus.
     enforcement: tests
-    references: [docs/adr/0016-one-api-for-every-language.md]
+    references: [docs/adr/0016-one-api-for-every-language.md, docs/adr/0041-an-operation-read-is-in-the-contract.md]
 
   - id: API-BODY-SHAPE
     name: a-command-body-is-refused-for-its-shape-only

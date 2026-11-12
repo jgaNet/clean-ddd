@@ -1,6 +1,6 @@
 # Simple, Lite and Full at the same time, on requests no kit was tuned on (draft protocol)
 
-**Status:** a draft. It is registered (committed with its kit and its criteria) before any run, and it waits on [RFC 0002](../../../rfc/0002-architecture-profiles-lite-and-full.md)'s implementation plan up to its step 5 (`create --profile lite`).
+**Status:** a draft. It is registered (committed with its kit and its criteria, the kit passing `kit-check.mjs`) before any run, and it waits on [RFC 0002](../../../rfc/0002-architecture-profiles-lite-and-full.md)'s implementation plan up to its step 5 (`create --profile lite`).
 
 **Decided by the maintainer on 8 November.** RFC 0002 had decided to compare Lite alone against the records of J2–J4, and kept three arms run at the same time as the stronger design if that comparison were inconclusive. The review of J5 (8 November) showed why it would be. The records were made on another machine, another harness and another kit, and Lite's rules were designed from the very requests they would be evaluated on. The maintainer chose the stronger design from the start:
 - three arms run at the same time;
@@ -29,6 +29,7 @@ The kits of J5's follow-on arms and Lite's design both read OpenStay's requests 
 
 - **A new application, written before any run.** It has a domain of its own, so that no arm's rules were drawn from it. It has two to four contexts, at least two relationships between them, money or another invariant under concurrent writers, and one change not announced in advance.
 - **About forty requests,** in checkpoints of ten, the hidden tests written and reviewed before the first run, as OpenStay's were.
+- **A kit held to the [kit standard](../kit-standard.md) before registration.** Every request with an API table has its fragment (`api/<n>-<id>.yaml`), every convention a later request relies on is registered with the request that sets it and the test that holds it there (`conventions.yaml`), every state added is read whole where it is added, and the operation is decided in request 1 against the contract's ([ADR 41](../../../adr/0041-an-operation-read-is-in-the-contract.md)). The kit must pass [`kit-check.mjs`](../../../../.claude/flow/kit-check.mjs) with no finding, then its rehearsal ([`dry-run.mjs`](../../../../.claude/flow/dry-run.mjs)), before the campaign is registered; both reports are committed with the kit. J5 and J5b paid three times for a convention untested where it was born (requests 61, 73 and 80); this campaign's kit does not.
 - **OpenStay's requests 1 to 10 as the calibration.** All three arms run them first, on the same machine, at the same time. The calibration is not counted. It shows that the machine, the harness and the budgets treat the three arms alike before anything is compared.
 
 ## The machine and the harness

@@ -48,6 +48,17 @@ describe('routing a failure', () => {
     assert.ok(routed.Moderation.includes('lint:'));
     assert.ok(routed.Moderation.includes('e2e:'));
   });
+
+  it('sends a step to the owners the driver names, before the files it names', () => {
+    const step = {
+      name: 'relationships crossed',
+      lines: ['Messaging → Moderation is crossed; see src/Contexts/Messaging/a.ts'],
+    };
+    const byPair = s => (s.name === 'relationships crossed' ? ['Moderation'] : []);
+    assert.deepEqual(Object.keys(routeFailures([step], owners, 'Messaging', byPair)), ['Moderation']);
+    assert.deepEqual(Object.keys(routeFailures([step], owners, 'Messaging')), ['Messaging']);
+    assert.deepEqual(Object.keys(routeFailures([step], owners, 'Messaging', () => ['Nobody'])), ['Messaging']);
+  });
 });
 
 /** A scripted run: what each merge and gate answers, in order, and what was sent. */

@@ -391,7 +391,8 @@ async function hidden(feature, cwd, only, ref) {
   const graded = await sh(
     [
       `node ${grader} --project ${project} --ref ${ref ?? git(cwd, 'rev-parse', 'HEAD')} --base ${baseCommit}`,
-      `--kit ${kit} --upto ${feature.n} --keep false --out ${out}`,
+      // M1 is the gate the attempt's verdict has just run; the ladder decides on M2 alone (grade.mjs, --gate false).
+      `--kit ${kit} --upto ${feature.n} --keep false --gate false --out ${out}`,
       only ? `--only ${only.join(',')}` : '',
       clean ? (tooling ? `--tooling ${tooling}` : '') : '--control plain',
     ].join(' '),
@@ -801,9 +802,22 @@ async function writtenByOwners(feature, step, from, cwd, id, owners) {
       else if (result.stoppedBy) ceiling = result.stoppedBy;
       commitAll(team.cwd, `${feature.id}: ${team.name}'s work left uncommitted`);
     };
+    // A relationship's step names no file of its own; its test is the downstream owner's (ADR 33): the pairs it names
+    // (`Upstream → Downstream`) say whose. J5b's 56 sent it to the feature's owner three rounds running.
+    const routeStep = step =>
+      /^relationship/.test(step.name)
+        ? [
+            ...new Set(
+              (step.lines ?? []).flatMap(line =>
+                [...String(line).matchAll(/(\w+) → (\w+)/g)].map(([, , downstream]) => downstream),
+              ),
+            ),
+          ]
+        : [];
     const integrated = await integrate({
       owners: teams,
       featureOwner,
+      routeStep,
       merge,
       gate,
       send,
@@ -945,6 +959,18 @@ async function attempt(feature, step, from, { single = false } = {}) {
 // A resumed run keeps the commit it started from: its main has moved since, and the grader compares the dependencies,
 // and the gate the changes, with this commit.
 const baseCommit = before.find(each => each.event === 'started')?.baseCommit ?? git(project, 'rev-parse', plan.base);
+// A grading a crash interrupted leaves its worktree, with every hidden test in it, beside the trees the agents work in
+// (J5b: a container restart mid-grading). Each start removes what the grader would have removed.
+const gradings = join(flowDir, 'grade');
+if (existsSync(gradings))
+  for (const name of readdirSync(gradings)) {
+    const left = join(gradings, name);
+    try {
+      git(project, 'worktree', 'remove', '--force', left);
+    } catch {
+      rmSync(left, { recursive: true, force: true });
+    }
+  }
 await takeSlot({
   max: ladderSlots,
   onWait: () => event('waiting-for-slot', { ladders: ladderSlots }),

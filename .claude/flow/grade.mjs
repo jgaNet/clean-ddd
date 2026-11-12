@@ -4,12 +4,14 @@
  * run's final tree, whatever the arm:
  *
  *   node .claude/flow/grade.mjs --project <dir> --ref <ref> --base <created commit> --kit <dir> [--tooling <clean-ddd.tgz>] [--out <file.json>]
- *                               [--control plain|prose] [--upto <n>] [--only <id,id>] [--keep false]
+ *                               [--control plain|prose] [--upto <n>] [--only <id,id>] [--keep false] [--gate false]
  *
  * `--upto <n>` grades the features numbered up to n only: the feature an attempt wrote and the
  * ones before it, for regressions (OpenStay's ladder, run-ladder.mjs). `--only <ids>` grades
  * those features alone, as the ladder replays a failure before it escalates. `--keep false` removes the
- * graded worktree afterwards, so that no agent working beside it can read the hidden tests.
+ * graded worktree afterwards, so that no agent working beside it can read the hidden tests. `--gate false` skips M1
+ * (reported `skipped`): the ladder decides on M2 alone and has just run the same gate as its verdict, so M1 there
+ * is the same work twice (OpenStay J5b: eight to ten minutes an attempt on the larger tree).
  *
  * In a worktree of its own at `ref`, it copies the kit's acceptance tests beside their support
  * into `src/Bootstrap/Fastify/Acceptance/`, then runs:
@@ -17,6 +19,9 @@
  *   M2  each feature's acceptance test, on its own;
  *   M3  each feature's storm, from the kit, against the code: what it still owes.
  * The read half (R) is the grader's, with evidence; this script prints what it is to read.
+ *
+ * A kit that carries its requests' API (`api/`) also gets the API composed up to `--upto`, as
+ * `api-schema.json` beside the tests, and its path in `API_SCHEMA` when they run (api-schema.mjs).
  *
  * A control arm (docs/evaluations/benchmark/control) has no gate and no storm: M1 is the project's
  * own `yarn verify`, M3 is not graded, and M2 is the same acceptance tests — beside a support that
@@ -94,7 +99,8 @@ if (tooling) {
 
 const control = option('control');
 // A control arm's own checks, on the tree as the run left it, before the hidden tests are added.
-const checks = control ? sh('yarn -s verify', tree, 900_000) : undefined;
+const withGate = option('gate') !== 'false';
+const checks = control && withGate ? sh('yarn -s verify', tree, 900_000) : undefined;
 const acceptanceDir = join(tree, control === 'plain' ? 'src/acceptance' : 'src/Bootstrap/Fastify/Acceptance');
 mkdirSync(acceptanceDir, { recursive: true });
 for (const file of readdirSync(join(kit, 'acceptance')))
@@ -112,15 +118,31 @@ if (control === 'plain' && existsSync(support)) {
       .replace(/^import \{ createApplication \} from .*\n/m, "import { createApplication } from '../app';\n"),
   );
 }
+// A kit that carries its requests' API (api/, docs/evaluations/benchmark/kit-standard.md): the API up to
+// --upto, beside the tests, which validate every answer they read against it (API_SCHEMA). A kit
+// without api/ writes nothing and runs as before.
+let apiSchema;
+if (existsSync(join(kit, 'api'))) {
+  const { writeComposed } = await import('./api-schema.mjs');
+  apiSchema = writeComposed(kit, upto, join(acceptanceDir, 'api-schema.json'));
+  // In the tree's own format, so that its format check reads it as it reads the tests.
+  sh(`npx --no-install prettier --write ${apiSchema}`, tree);
+}
 const started = Date.now();
-const gate = control
-  ? {
-      verdict: checks.code === 0 ? 'pass' : 'fail',
-      steps: [
-        { name: 'yarn verify', status: checks.code === 0 ? 'pass' : 'fail', lines: checks.out.split('\n').slice(-30) },
-      ],
-    }
-  : parse(sh(`yarn -s architecture gate --base ${base} --mode architecture --json`, tree).out);
+const gate = !withGate
+  ? { verdict: 'skipped', steps: [] }
+  : control
+    ? {
+        verdict: checks.code === 0 ? 'pass' : 'fail',
+        steps: [
+          {
+            name: 'yarn verify',
+            status: checks.code === 0 ? 'pass' : 'fail',
+            lines: checks.out.split('\n').slice(-30),
+          },
+        ],
+      }
+    : parse(sh(`yarn -s architecture gate --base ${base} --mode architecture --json`, tree).out);
 // The kit's storms, held as done: then whatever the code does not carry is a difference.
 const stormsDir = join(`${project}.flow`, 'grade', `${commit.slice(0, 12)}.storms`);
 mkdirSync(stormsDir, { recursive: true });
@@ -154,7 +176,7 @@ const features = backlog.map(f => {
   awayFromMidnight();
   const run = sh(
     // A test that starts the server as a process of its own (the persistence experiment) is told its entry point.
-    `ACCEPTANCE_ENTRY=${control === 'plain' ? 'src/server.ts' : 'src/Bootstrap/Fastify/application.ts'} yarn -s test --testMatch '**/${control === 'plain' ? 'acceptance' : 'Acceptance'}/${file}'`,
+    `${apiSchema ? `API_SCHEMA=${apiSchema} ` : ''}ACCEPTANCE_ENTRY=${control === 'plain' ? 'src/server.ts' : 'src/Bootstrap/Fastify/application.ts'} yarn -s test --testMatch '**/${control === 'plain' ? 'acceptance' : 'Acceptance'}/${file}'`,
     tree,
     300_000,
   );

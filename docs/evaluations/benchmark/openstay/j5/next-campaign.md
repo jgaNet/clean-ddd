@@ -60,3 +60,74 @@ earlier storms decided before a session decides again. Test 71 was fixed during 
    earlier test that fails an attempt is graded twice on the commit the attempt started from, and one that fails there
    too is not counted against the attempt (`.claude/flow/README.md`). J5's running ladders keep the rule they started
    with.
+
+## From J5b's two triaged failures (11 November)
+
+J5b's clean-3 failed request 61 on an operation's `error` (`{ type, message }`, where the request says `"<NAME>"`), and
+simple-3 failed request 73 on a `payment` read `null` for a lapsed booking ([J5b's repairs](../j5b/repairs.md)). With
+request 80's `503`, that is three times the pattern correction 5 names: a convention taken early, untested where it was
+born, required by a late request. Corrections 8 to 11 make correction 5 mechanical; each is a part of the
+[kit standard](../../kit-standard.md), held by `.claude/flow/kit-check.mjs` before the campaign is registered. *Decided by
+the maintainer on 11 November; applied to the next campaign's kit, not to J5's or J5b's, whose ladders run on.*
+
+8. **The requests' API is data, and every hidden test holds every answer to it.** Each request with an API table has a
+   fragment, `api/<n>-<id>.yaml`: JSON Schema for its routes' answers by status and for the resources it adds to or
+   changes, the states it adds, and the fields `null` in one case only. The grader writes the API composed up to the
+   request it grades beside the tests, and the kit's client validates every answer it reads; a problem names the
+   request whose fragment set the shape.
+9. **The conventions are registered, each with its test where it is born.** `conventions.yaml` lists every convention a
+   later request relies on: a refusal's status and shape, an operation's `error`, what `null` means for each field, as
+   soon as its time has passed or at the next sweep. Each has the request that sets it and the `it` that holds it
+   there; one without either is refused. This is correction 5, as a file a script reads.
+10. **A state added is read whole where it is added.** A fragment that adds a state names a test of that request that
+    reads the whole resource in it, so every earlier field is held there (request 73's `payment`, at request 30).
+11. **The operation is decided in request 1, against the contract's.** The contract now says what an operation is when
+    read ([ADR 41](../../../../adr/0041-an-operation-read-is-in-the-contract.md)): `error` is `{ type, message }` in the
+    reference. A kit that wants `"<NAME>"`, as OpenStay's request 61 does, says so in request 1 and registers it there
+    (`departs: operation.error`); kit-check refuses the difference until it is decided there. This replaces correction
+    1's wording with a check.
+
+## From J5b's fan-out, to request 68 (11 November)
+
+J5b's clean-3 wrote its split requests (55, 56, 61, 65, 66, 67, 68) with one agent per context and the integrator of
+[ADR 38](../../../../adr/0038-the-integrator-is-one-role-every-multi-agent-run-has.md). The split worked:
+- 4 of the 6 that had finished before 68 were delivered at step 0;
+- the integrator passed the merged result within 1 to 3 rounds;
+- since `routeStep`, each failure it routed went to one owner, the one whose context failed.
+
+It was not faster, nor cheaper:
+
+| | One agent (clean-3) | One agent per context (clean-3, without 61) |
+| --- | --- | --- |
+| Agents' cost per request | $1.07 | $2.12 |
+| Request to delivery | 54 min | 65 min |
+| Writing, to the last owner | ≈ 25–30 min | 10–44 min, mostly 17–25 |
+| Integration (the owners' verdicts, the merge, the gate) | none | 8–22 min |
+| Grading | ≈ 20–25 min | ≈ 20 min |
+
+Three causes:
+- **The contract comes first, so the downstream owner waits for it.** The last owner to finish is almost always the
+  downstream one (Moderation at 44 min on 65, the others near 20).
+- **The owners' verdicts are serial and mostly noise.** They run one at a time under the gate lock. 19 of 30 failed,
+  nearly all because the other side had not written its part yet: an integration event not there (`TS2305`, `TS2724`),
+  a context map or a declared context the feature's owner writes. Each such verdict also sent its owner back for a turn
+  that could not fix it.
+- **The requests are small.** They have 4 to 7 stickies, under the break-even of 7.4 to 9.8 the ladder estimates. The
+  estimate recommended one agent on all seven (`strategy`, `recommended: one-agent`), and the plan split them anyway, as
+  the pilot required. Grading does not depend on the number of agents and weighs as much as the writing.
+
+*Added at the maintainer's request on 11 November, for the next campaign. J5b's ladders run on with the split as
+registered.*
+
+12. **A feature is split only when the estimate recommends it.** The plan's `fanOut` takes the ladder's own advice (the
+    `strategy` event's `recommended`) instead of splitting every feature whose storm lists several contexts. A pilot
+    that must split regardless says so in its plan, and its record compares against the estimate.
+13. **An owner's verdict holds its scope, and nothing that waits on another owner.** While an owner builds on a
+    contract another owner has not yet written, its verdict is the scope check alone. The gate on its branch, and the
+    turn it sends back, are kept for the failures the owner can fix by itself. The integrator's gate on the merged
+    result stays the verdict on the feature. This saves the serial verdicts (8 to 15 minutes a split request in J5b)
+    and the turns spent on failures nobody could fix yet.
+14. **Whether the split is faster is measured above the break-even.** The [three-arms
+    protocol](../../three-arms/README.md) registers features with more stickies than the estimate's break-even (a new
+    context with several consumers, for instance), split and not split, on requests no kit was tuned on. J5b measures
+    only whether the split delivers, on requests below it.
