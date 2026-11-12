@@ -5,6 +5,7 @@
  *
  *   node .claude/flow/grade.mjs --project <dir> --ref <ref> --base <created commit> --kit <dir> [--tooling <clean-ddd.tgz>] [--out <file.json>]
  *                               [--control plain|prose] [--upto <n>] [--only <id,id>] [--keep false] [--gate false]
+ *                               [--workers <n>]
  *
  * `--upto <n>` grades the features numbered up to n only: the feature an attempt wrote and the
  * ones before it, for regressions (OpenStay's ladder, run-ladder.mjs). `--only <ids>` grades
@@ -19,6 +20,13 @@
  *   M2  each feature's acceptance test, on its own;
  *   M3  each feature's storm, from the kit, against the code: what it still owes.
  * The read half (R) is the grader's, with evidence; this script prints what it is to read.
+ *
+ * With `--workers <n>` (more than one), M2 runs every feature's acceptance test in one jest, n files at a time, instead
+ * of one jest per file (the test files are apart: each takes a free port and databases of its own). A file that fails
+ * there is run again alone, as without `--workers`, and that run is its verdict; the first is kept as `M2.together`.
+ * So the grades are the sequential grader's, and only the time changes: one jest started once, rather than once per
+ * feature, with up to n files at once. A tree's own `--detectOpenHandles`, which would run them one at a time, is left
+ * out of that one run, and `--forceExit` ends it.
  *
  * A kit that carries its requests' API (`api/`) also gets the API composed up to `--upto`, as
  * `api-schema.json` beside the tests, and its path in `API_SCHEMA` when they run (api-schema.mjs).
@@ -163,44 +171,119 @@ const m1 = {
 
 /**
  * The hidden tests compute dates from today, and a file with crashes in it runs for minutes: a file
- * never starts in the last ten minutes of a UTC day, it waits for the next one.
+ * never starts in the last ten minutes of a UTC day, it waits for the next one. A run of every file
+ * at once (`--workers`) keeps `margin` of the day instead.
  */
-const awayFromMidnight = () => {
+const awayFromMidnight = (margin = 600_000) => {
   const now = new Date();
   const left = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1) - now.getTime();
-  if (left < 600_000) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, left + 5000);
+  if (left < margin) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, left + 5000);
 };
 
-const features = backlog.map(f => {
-  const file = `${f.n}-${f.id}.acceptance.ts`;
+const workers = Number(option('workers') ?? 1);
+if (!Number.isInteger(workers) || workers < 1) {
+  process.stderr.write('--workers is a whole number, 1 or more\n');
+  process.exit(2);
+}
+const testsDir = control === 'plain' ? 'acceptance' : 'Acceptance';
+const fileOf = f => `${f.n}-${f.id}.acceptance.ts`;
+// A test that starts the server as a process of its own (the persistence experiment) is told its entry point.
+const testEnv = `${apiSchema ? `API_SCHEMA=${apiSchema} ` : ''}ACCEPTANCE_ENTRY=${control === 'plain' ? 'src/server.ts' : 'src/Bootstrap/Fastify/application.ts'}`;
+// What a failure said, kept with the verdict: an assertion and a timeout under load read alike
+// in a list of names, and an escalation is checked against the kit before it is counted.
+const SAID = /●|Expected|Received|Exceeded timeout|thrown|Error:|did not exit|Tests:/;
+
+/** One feature's acceptance test, alone, in a jest of its own. */
+const alone = file => {
   awayFromMidnight();
-  const run = sh(
-    // A test that starts the server as a process of its own (the persistence experiment) is told its entry point.
-    `${apiSchema ? `API_SCHEMA=${apiSchema} ` : ''}ACCEPTANCE_ENTRY=${control === 'plain' ? 'src/server.ts' : 'src/Bootstrap/Fastify/application.ts'} yarn -s test --testMatch '**/${control === 'plain' ? 'acceptance' : 'Acceptance'}/${file}'`,
-    tree,
-    300_000,
-  );
-  const tests = run.out.match(/Tests:\s+(.*)/)?.[1] ?? 'did not report';
+  const run = sh(`${testEnv} yarn -s test --testMatch '**/${testsDir}/${file}'`, tree, 300_000);
   const failed = [...run.out.matchAll(/^\s+● (.+)$/gm)]
     .map(match => match[1])
     .filter(name => name !== 'Test suite failed to run');
+  return {
+    pass: run.code === 0,
+    tests: run.out.match(/Tests:\s+(.*)/)?.[1] ?? 'did not report',
+    failed,
+    ...(run.code !== 0 && {
+      exitCode: run.code,
+      said: run.out
+        .split('\n')
+        .filter(line => SAID.test(line))
+        .slice(0, 60),
+    }),
+  };
+};
+
+/**
+ * Every feature's acceptance test in one jest, `workers` files at a time (`--workers`): a map from each file to its
+ * result, as `alone` answers it. A file the run did not report is absent, and is run alone.
+ */
+const together = files => {
+  const script = parse(readFileSync(join(tree, 'package.json'), 'utf8'))?.scripts?.test ?? '';
+  if (!/\bjest\b/.test(script)) return new Map();
+  const jest = script.replace(/\s--detectOpenHandles\b/g, '').replace(/\s(--runInBand|-i)\b/g, '');
+  const out = join(`${project}.flow`, 'grade', `${commit.slice(0, 12)}.together.json`);
+  rmSync(out, { force: true });
+  awayFromMidnight(Math.max(600_000, (files.length * 60_000) / workers));
+  sh(
+    `PATH="$PWD/node_modules/.bin:$PATH" ${testEnv} ${jest} --testMatch ${files.map(file => `'**/${testsDir}/${file}'`).join(' ')} --maxWorkers=${workers} --forceExit --json --outputFile=${out}`,
+    tree,
+    300_000 * Math.ceil(files.length / workers) + 120_000,
+  );
+  const report = existsSync(out) ? parse(readFileSync(out, 'utf8')) : undefined;
+  rmSync(out, { force: true });
+  const plain = text => String(text ?? '').replace(/\u001b\[[0-9;]*m/g, '');
+  return new Map(
+    (report?.testResults ?? []).map(result => {
+      const assertions = result.assertionResults ?? [];
+      const failed = assertions
+        .filter(each => each.status === 'failed')
+        .map(each => [...(each.ancestorTitles ?? []), each.title].join(' › '));
+      const passed = assertions.filter(each => each.status === 'passed').length;
+      const pass = result.status === 'passed';
+      return [
+        result.name.split('/').pop(),
+        {
+          pass,
+          tests: assertions.length
+            ? [failed.length && `${failed.length} failed`, passed && `${passed} passed`, `${assertions.length} total`]
+                .filter(Boolean)
+                .join(', ')
+            : 'did not report',
+          failed,
+          ...(!pass && {
+            said: plain(result.message)
+              .split('\n')
+              .filter(line => SAID.test(line))
+              .slice(0, 60),
+          }),
+        },
+      ];
+    }),
+  );
+};
+
+const first = workers > 1 && backlog.length > 1 ? together(backlog.map(fileOf)) : new Map();
+const features = backlog.map(f => {
+  const file = fileOf(f);
+  const once = first.get(file);
+  // A file that failed beside the others is run again alone: that run is its verdict, as without --workers.
+  const run = once?.pass ? once : alone(file);
+  const { pass, tests, failed, exitCode, said } = run;
   const storm =
     control || !stormed(f)
       ? { problems: [] }
       : parse(sh(`node ${cli} storm --expect ${join(stormsDir, `${f.id}.yaml`)} --json`, tree, 300_000).out);
   const owed = storm?.problems ?? ['the storm could not be read'];
-  // What a failure said, kept with the verdict: an assertion and a timeout under load read alike
-  // in a list of names, and an escalation is checked against the kit before it is counted.
-  const said =
-    run.code === 0
-      ? undefined
-      : run.out
-          .split('\n')
-          .filter(line => /●|Expected|Received|Exceeded timeout|thrown|Error:|did not exit|Tests:/.test(line))
-          .slice(0, 60);
   return {
     feature: f.id,
-    M2: { pass: run.code === 0, tests, failed, ...(said && { exitCode: run.code, said }) },
+    M2: {
+      pass,
+      tests,
+      failed,
+      ...(!pass && { exitCode, said }),
+      ...(once && !once.pass && { together: { failed: once.failed, tests: once.tests } }),
+    },
     M3: { pass: owed.length === 0, owed },
   };
 });
@@ -268,6 +351,7 @@ const report = {
     mechanical: m1.verdict === 'pass' && each.M2.pass && (control ? true : each.M3.pass),
   })),
   gradedInMs: Date.now() - started,
+  workers,
 };
 const out = option('out');
 if (out) writeFileSync(resolve(out), `${JSON.stringify(report, null, 2)}\n`);

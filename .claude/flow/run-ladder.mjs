@@ -20,6 +20,8 @@
  *   features: [accounts, …]     # optional: only these, in the backlog's order
  *   machine: { ladders: 3 }     # optional: how many ladders run at once on the machine (FLOW_LADDERS overrides it)
  *   gradeTimeoutMinutes: 60     # optional: the time one grading is given
+ *   gradeWorkers: 1             # optional: how many acceptance files a grading runs at once (grade.mjs --workers); a
+ *                               # file that fails beside the others is run again alone, and that run is its verdict
  *   fanOut: { rounds: 2 }       # clean only, optional: a feature whose storm lists several contexts may be written by
  *                               # one agent per context, and integrated by integrator.mjs (ADR 38); its other fields:
  *                               #   split: recommended (default) splits where `clean-ddd strategy` recommends it, with
@@ -148,6 +150,9 @@ const dependencies = plan.dependencies ?? 'copy';
 if (!DEPENDENCY_MODES.includes(dependencies)) fail(`${planFile}: dependencies is ${DEPENDENCY_MODES.join(' or ')}`);
 const port = plan.ports?.base ?? 19100;
 const gradeTimeoutMs = (plan.gradeTimeoutMinutes ?? 60) * 60_000;
+const gradeWorkers = plan.gradeWorkers ?? 1;
+if (!(Number.isInteger(gradeWorkers) && gradeWorkers >= 1))
+  fail(`${planFile}: gradeWorkers is a whole number, 1 or more`);
 const fanOut = plan.fanOut;
 if (fanOut !== undefined && !clean) fail(`${planFile}: fanOut is for the clean arm`);
 if (fanOut !== undefined && !(Number.isInteger(fanOut?.rounds ?? 2) && (fanOut?.rounds ?? 2) >= 0))
@@ -408,7 +413,7 @@ async function hidden(feature, cwd, only, ref) {
       `node ${grader} --project ${project} --ref ${ref ?? git(cwd, 'rev-parse', 'HEAD')} --base ${baseCommit}`,
       // M1 is the gate the attempt's verdict has just run; the ladder decides on M2 alone (grade.mjs, --gate false).
       `--kit ${kit} --upto ${feature.n} --keep false --gate false --out ${out}`,
-      only ? `--only ${only.join(',')}` : '',
+      only ? `--only ${only.join(',')}` : `--workers ${gradeWorkers}`,
       clean ? (tooling ? `--tooling ${tooling}` : '') : '--control plain',
     ].join(' '),
     project,

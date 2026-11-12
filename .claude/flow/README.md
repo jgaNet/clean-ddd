@@ -108,6 +108,7 @@ The SDK's agent process is not in a process group of its own: if the driver is k
 
   A failed push is logged (`publish-failed`) and the run goes on. OpenStay's J5 lost its trees and their logs with a machine.
 - **The time one grading is given** is `gradeTimeoutMinutes` (60 by default): J5's largest tree needed more under load.
+- **How many acceptance files a grading runs at once** is `gradeWorkers` (1 by default, one jest per file, as J5 and J5b graded). With more, `grade.mjs --workers` runs every file in one jest, that many at a time. A file that fails beside the others is run again alone, and that run is its verdict, so the grades are the sequential grader's and only the time changes. J5b's gradings grew with the backlog, to 25–40 minutes by request 80, as long as the writing.
 
 ## Rehearsing a kit before its runs
 
