@@ -16,6 +16,7 @@ from typing import Any
 from architecture.application.execution_context import Logger
 from architecture.application.outbox import relay_outbox
 from architecture.domain.result import Failure
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.console_logger import ConsoleLogger
 from architecture.infrastructure.event_bus import InMemoryEventBus
 from architecture.infrastructure.outbox import InMemoryOutbox
@@ -50,7 +51,7 @@ async def create_application(settings: Settings | None = None, logger: Logger | 
 
     # The application's bus: the in-memory bus, decorated so that every operation is recorded.
     records = operation_records(operations)
-    event_bus = tracked_event_bus(InMemoryEventBus(), records)
+    event_bus = tracked_event_bus(InMemoryEventBus(system_clock), records)
 
     # The modules, from each context's wiring. Notes asks Security's read model through its own
     # port: the adapter is built here, where the two contexts meet.

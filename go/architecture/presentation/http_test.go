@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"clean-ddd/architecture/application"
 	"clean-ddd/architecture/domain"
@@ -16,7 +17,7 @@ type recordingBus struct{ published []domain.Event }
 func (*recordingBus) Connect() error { return nil }
 func (b *recordingBus) Publish(event domain.Event, context *application.ExecutionContext) *application.Operation {
 	b.published = append(b.published, event)
-	return application.NewOperation(event, context)
+	return application.NewOperation(event, context, time.Now)
 }
 
 func (b *recordingBus) PublishWithID(event domain.Event, context *application.ExecutionContext, _ string) *application.Operation {

@@ -1,5 +1,5 @@
 import { IResult, Result } from '@Architecture/Domain';
-import { ExecutionContext, publishDomainEvents } from '@Architecture/Application';
+import { Clock, ExecutionContext, publishDomainEvents } from '@Architecture/Application';
 
 import { Notification } from '@Contexts/Notifications/Domain/Notification/Notification';
 import { INewNotification } from '@Contexts/Notifications/Domain/Notification/DTOs';
@@ -21,12 +21,13 @@ export class NotificationDelivery {
   constructor(
     private notifications: INotificationRepository,
     channels: INotificationChannel[],
+    private clock: Clock,
   ) {
     this.#channels = new Map(channels.map(channel => [channel.channel, channel]));
   }
 
   async deliver(props: INewNotification, context: ExecutionContext): Promise<IResult<string>> {
-    const created = Notification.create(props);
+    const created = Notification.create(props, this.clock());
     if (created.isFailure()) return created;
     const notification = created.data;
 
@@ -49,7 +50,7 @@ export class NotificationDelivery {
         });
       }
 
-      notification.recordAttempt(channel, outcome.isSuccess());
+      notification.recordAttempt(channel, outcome.isSuccess(), this.clock());
       if (outcome.isSuccess()) break;
     }
 

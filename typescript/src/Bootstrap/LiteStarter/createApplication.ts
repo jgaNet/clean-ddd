@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 
 import { Logger, relayOutbox } from '@Architecture/Application';
 import { InMemoryEventBus } from '@Architecture/Infrastructure/EventBus/InMemoryEventBus';
+import { systemClock } from '@Architecture/Infrastructure/Clock/SystemClock';
 import { ConsoleLogger } from '@Architecture/Infrastructure/Logging/ConsoleLogger';
 import { InMemoryOutbox } from '@Architecture/Infrastructure/Outbox/InMemoryOutbox';
 
@@ -31,7 +32,7 @@ export async function createApplication({
     .filter(Boolean),
 }: { logger?: Logger; apiPrefix?: string; port?: number; webOrigins?: string[] } = {}): Promise<FastifyApplication> {
   const app = new FastifyApplication({ logger, apiPrefix, port, webOrigins }).setEventBus(
-    new InMemoryEventBus({ eventEmitter: new EventEmitter() }),
+    new InMemoryEventBus({ eventEmitter: new EventEmitter(), clock: systemClock }),
   );
 
   await app.startModules();

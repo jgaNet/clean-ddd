@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { Event, Result } from '@Architecture/Domain';
 import {
+  Clock,
   CommandHandler,
   EventBus,
   EventHandler,
@@ -30,9 +31,12 @@ export class InMemoryEventBus implements EventBus {
   /** While a message is emitted, the reactions it starts: what its `delivered` waits for. */
   #reactions = new Map<IOperation<Event<unknown>>, Promise<boolean>[]>();
   #subscriptions = 0;
+  /** When an operation was created and finished: the application's clock (DOMAIN-ONE-CLOCK). */
+  #clock: Clock;
 
-  constructor({ eventEmitter }: { eventEmitter: IEventEmitter }) {
+  constructor({ eventEmitter, clock }: { eventEmitter: IEventEmitter; clock: Clock }) {
     this.#eventEmitter = eventEmitter;
+    this.#clock = clock;
   }
 
   /** Nothing to connect to: the emitter is in this process. */
@@ -44,17 +48,17 @@ export class InMemoryEventBus implements EventBus {
       status: OperationStatus.PENDING,
       event,
       context,
-      createdAt: new Date(),
+      createdAt: this.#clock(),
       failed: error => {
         operation.status = OperationStatus.ERROR;
         operation.result = Result.fail(error);
-        operation.finishedAt = new Date();
+        operation.finishedAt = this.#clock();
         return operation;
       },
       success: value => {
         operation.status = OperationStatus.SUCCESS;
         operation.result = Result.ok(value);
-        operation.finishedAt = new Date();
+        operation.finishedAt = this.#clock();
         return operation;
       },
       sent: () => {

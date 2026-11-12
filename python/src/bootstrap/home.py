@@ -3,11 +3,11 @@ for the HTMX front end, which then loads the account. The one controller the com
 owns, with its presenters beside it; and the health check."""
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
 from starlette.responses import JSONResponse, Response
 
+from architecture.infrastructure.clock import system_clock
 from architecture.presentation.format import ByFormat, format_of, html
 
 
@@ -48,6 +48,6 @@ def home_routes(home: HomeViewModel) -> APIRouter:
 
     @router.get("/health")
     async def health() -> Response:
-        return JSONResponse({"status": "ok", "timestamp": datetime.now(UTC).isoformat()})
+        return JSONResponse({"status": "ok", "timestamp": system_clock().isoformat()})
 
     return router

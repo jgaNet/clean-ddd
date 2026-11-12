@@ -96,7 +96,7 @@ pub fn accept<C: CommandEvent + Send + Sync + 'static>(
         return Err(NotSignedIn);
     }
     let event: Arc<dyn AnyEvent> = Arc::new(command);
-    let operation = Operation::new(event, context.clone());
+    let operation = Operation::new(event, context.clone(), &context.event_bus().clock());
     let operation_id = operation.id().to_string();
     let bus = context.event_bus().clone();
     tokio::spawn(async move {
@@ -142,9 +142,11 @@ pub fn refused(status: StatusCode, error: &Exception) -> Response {
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};
+    use std::time::SystemTime;
 
     use architecture_application::{
-        AnyHandler, Auth, BoxFuture, CommandHandler, EventBus, ExecutionContextOptions, ModuleDefinition, Subscription,
+        AnyHandler, Auth, BoxFuture, Clock, CommandHandler, EventBus, ExecutionContextOptions, ModuleDefinition,
+        Subscription, fixed_clock,
     };
     use architecture_domain::{DomainResult, Event, EventKind};
     use axum::body::to_bytes;
@@ -211,6 +213,9 @@ mod tests {
     impl EventBus for Dispatched {
         fn connect(&self) -> BoxFuture<'_, ()> {
             Box::pin(async {})
+        }
+        fn clock(&self) -> Clock {
+            fixed_clock(SystemTime::UNIX_EPOCH)
         }
         fn dispatch(&self, operation: Operation) -> BoxFuture<'_, Operation> {
             self.0.lock().unwrap().push(operation.id().to_string());

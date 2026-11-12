@@ -7,9 +7,9 @@ pub mod send_notification;
 mod tests {
     use std::sync::Arc;
 
-    use architecture_application::{Auth, CommandHandler, ExecutionContext, ExecutionContextOptions};
+    use architecture_application::{Auth, CommandHandler, ExecutionContext, ExecutionContextOptions, fixed_clock};
     use architecture_domain::common_exceptions::NOT_ALLOWED;
-    use architecture_infrastructure::{InMemoryDataSource, InMemoryEventBus};
+    use architecture_infrastructure::{InMemoryDataSource, InMemoryEventBus, system_clock};
     use notifications_domain::notification::notification_exceptions::{
         NOTIFICATION_ALREADY_READ, NOTIFICATION_NOT_FOUND,
     };
@@ -19,13 +19,13 @@ mod tests {
     use super::mark_as_read::{MarkAsRead, MarkAsReadCommandHandler};
     use super::send_notification::{SendNotification, SendNotificationCommandHandler};
     use crate::delivery::NotificationDelivery;
-    use crate::delivery::tests::FakeChannel;
+    use crate::delivery::tests::{AT, FakeChannel};
 
     fn context_for(subject_id: &str, role: &str) -> ExecutionContext {
         ExecutionContext::new(ExecutionContextOptions {
             trace_id: "trace".into(),
             auth: Auth::of(subject_id, role),
-            event_bus: Arc::new(InMemoryEventBus::new()),
+            event_bus: Arc::new(InMemoryEventBus::new(system_clock())),
             unit_of_work: None,
             logger: None,
         })
@@ -45,10 +45,13 @@ mod tests {
     fn an_administrator_sends_a_notification_by_hand_and_its_recipient_marks_it_read_once() {
         let store = Arc::new(InMemoryDataSource::new());
         let repository = Arc::new(InMemoryNotificationRepository::new(store.clone()));
-        let delivery =
-            Arc::new(NotificationDelivery::new(repository.clone(), vec![FakeChannel::new(Channel::WebSocket)]));
+        let delivery = Arc::new(NotificationDelivery::new(
+            repository.clone(),
+            vec![FakeChannel::new(Channel::WebSocket)],
+            fixed_clock(AT),
+        ));
         let sender = SendNotificationCommandHandler::new(delivery);
-        let reader = MarkAsReadCommandHandler::new(repository);
+        let reader = MarkAsReadCommandHandler::new(repository, fixed_clock(AT));
 
         let refused = pollster::block_on(sender.run(send("bob"), &context_for("bob", "USER")));
         assert!(refused.expect_err("users may not").is(NOT_ALLOWED));
@@ -58,7 +61,8 @@ mod tests {
 
         pollster::block_on(reader.run(MarkAsRead { notification_id: id.clone() }, &context_for("bob", "USER")))
             .expect("read");
-        assert_eq!(store.get(&id).expect("stored").status, NotificationStatus::Read);
+        let read = store.get(&id).expect("stored");
+        assert_eq!((read.status, read.read_at), (NotificationStatus::Read, Some(AT))); // the handler's clock
         let again = pollster::block_on(reader.run(MarkAsRead { notification_id: id }, &context_for("bob", "USER")));
         assert!(again.expect_err("twice").is(NOTIFICATION_ALREADY_READ));
         let unknown =

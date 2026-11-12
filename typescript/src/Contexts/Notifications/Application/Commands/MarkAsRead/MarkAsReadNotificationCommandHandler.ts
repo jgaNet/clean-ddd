@@ -1,5 +1,5 @@
 import { IResult, Result } from '@Architecture/Domain';
-import { CommandHandler, ExecutionContext } from '@Architecture/Application';
+import { Clock, CommandHandler, ExecutionContext } from '@Architecture/Application';
 import { requireSignedIn } from '@SharedKernel/Application/Guards';
 
 import { INotificationRepository } from '@Contexts/Notifications/Domain/Notification/Ports/INotificationRepository';
@@ -7,7 +7,10 @@ import { NotificationNotFoundException } from '@Contexts/Notifications/Domain/No
 import { MarkAsReadNotificationCommandEvent } from './MarkAsReadNotificationCommandEvent';
 
 export class MarkAsReadNotificationCommandHandler extends CommandHandler<MarkAsReadNotificationCommandEvent> {
-  constructor(private notifications: INotificationRepository) {
+  constructor(
+    private notifications: INotificationRepository,
+    private clock: Clock,
+  ) {
     super();
   }
 
@@ -18,7 +21,7 @@ export class MarkAsReadNotificationCommandHandler extends CommandHandler<MarkAsR
     const notification = await this.notifications.findById(payload.notificationId);
     if (!notification) return Result.fail(new NotificationNotFoundException(payload.notificationId));
 
-    const read = notification.markRead(reader.data);
+    const read = notification.markRead(reader.data, this.clock());
     if (read.isFailure()) return read;
 
     await this.notifications.save(notification);

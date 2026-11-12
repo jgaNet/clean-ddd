@@ -30,8 +30,8 @@ All five checks must pass before a change is done; CI runs them on every PR, fro
 ```
 architecture/<layer>/             the building blocks, one package per layer: domain (Entity, AggregateRoot, ID, the three
                                   kinds of Event, Exception, the (T, error) result), application (Run, Query, Command,
-                                  Reaction, OpenToAnyone, ExecutionContext, Operation, the EventBus port, Module),
-                                  infrastructure (the in-memory pieces), presentation (Accept, Refuse, StatusOf,
+                                  Reaction, OpenToAnyone, ExecutionContext, Operation, the EventBus port, Module, Clock),
+                                  infrastructure (the in-memory pieces, SystemClock), presentation (Accept, Refuse, StatusOf,
                                   ContextOf, ByFormat)
 sharedkernel/<layer>/             domain (Email, Role), application (RequireSignedIn, integrationevents/)
 contexts/<context>/               one package directory per layer (domain/, application/, infrastructure/, presentation/)

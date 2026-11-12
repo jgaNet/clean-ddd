@@ -28,6 +28,46 @@ export function ownerOf(file, owners) {
 }
 
 /**
+ * The files a failure's lines name, by path or by an import's alias (`'@SharedKernel/…/MessagingIntegrationEvents'`
+ * is `src/SharedKernel/…/MessagingIntegrationEvents` with the alias `{ '@SharedKernel': 'src/SharedKernel' }`); an
+ * alias names a module, with no extension.
+ */
+export function filesAndModulesNamed(text, aliases = {}) {
+  const modules = [...String(text).matchAll(/["'](@[\w-]+)(\/[^"'\s]+)["']/g)]
+    .filter(([, alias]) => aliases[alias])
+    .map(([, alias, rest]) => `${aliases[alias]}${rest}`);
+  return [...new Set([...filesNamed(text), ...modules])];
+}
+
+/**
+ * An owner's failures, apart from those that wait on another owner (next campaign, correction 13). A line that names a
+ * file or a module another owner owns (a member that owner's integration events do not export yet, its context's
+ * declaration) waits on that owner: the owner cannot fix it alone, and only the merged result can say whether it
+ * holds. A step whose every line that names a file waits is waiting; a step with a line of the owner's own, or that
+ * names no file at all, is the owner's, without its waiting lines. Answers `{ own, waiting }`, each a list of steps.
+ */
+export function splitWaiting(steps, ownerName, owners, aliases = {}) {
+  const own = [];
+  const waiting = [];
+  for (const step of steps) {
+    const lines = step.lines ?? [];
+    const waits = line =>
+      filesAndModulesNamed(line, aliases).some(file => {
+        const owner = ownerOf(file, owners);
+        return owner !== undefined && owner !== ownerName;
+      });
+    const naming = lines.filter(line => filesAndModulesNamed(line, aliases).length > 0);
+    const waited = lines.filter(waits);
+    if (naming.length > 0 && waited.length === naming.length) waiting.push(step);
+    else {
+      own.push({ ...step, lines: lines.filter(line => !waits(line)) });
+      if (waited.length) waiting.push({ ...step, lines: waited });
+    }
+  }
+  return { own, waiting };
+}
+
+/**
  * Each failing step, to the owners of the files it names, or to the feature's owner when it names none of theirs. A
  * step that names files of two owners goes to both: each fixes what is its own, and they settle the rest between them.
  */

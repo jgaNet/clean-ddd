@@ -31,6 +31,9 @@
 //!    caller who is not signed in with `401` first (API-CALLER-AT-TRANSPORT): a context's
 //!    presentation crate that dispatches, publishes, builds an operation or answers `202` by itself
 //!    is named, line by line.
+//! 8. Nothing but the building blocks' system clock reads the machine's time (DOMAIN-ONE-CLOCK):
+//!    a `Utc::now`, a `SystemTime::now` in any other file of the tree, its tests left out, is
+//!    named, line by line; the compiler holds the rest, since a domain time has no default.
 //!
 //! Layer names are the contract's (`Domain`); a crate directory is the same word in lowercase
 //! (`domain`), which is Rust's convention for a path.
@@ -40,6 +43,7 @@
 
 mod caller_at_transport;
 mod inventory;
+mod one_clock;
 #[cfg(test)]
 mod shapes;
 
@@ -90,7 +94,7 @@ fn main() -> ExitCode {
     }
 }
 
-/// The check: the four proofs above, every command with one handler, every 202 through `accept()`, and the inventory current.
+/// The check: the four proofs above, every command with one handler, every 202 through `accept()`, one clock, and the inventory current.
 fn check(contract: &Yaml, binding: &Yaml, repository_root: &Path, language_root: &Path) -> ExitCode {
     let mut problems: Vec<String> = Vec::new();
     check_binding(contract, binding, repository_root, language_root, &mut problems);
@@ -100,11 +104,12 @@ fn check(contract: &Yaml, binding: &Yaml, repository_root: &Path, language_root:
     check_files(binding, language_root, &mut problems);
     inventory::check_handlers(binding, language_root, &mut problems);
     caller_at_transport::check(binding, language_root, &mut problems);
+    one_clock::check(binding, language_root, &mut problems);
     inventory::check(repository_root, &inventory::inspect(binding, language_root), &mut problems);
 
     if problems.is_empty() {
         println!(
-            "✓ contract v{}, Rust binding: {} crates are the table, {} contexts match the tree, every file the binding names exists; every command has one handler; every 202 goes through accept(); the inventory is current.",
+            "✓ contract v{}, Rust binding: {} crates are the table, {} contexts match the tree, every file the binding names exists; every command has one handler; every 202 goes through accept(); only the system clock reads the machine's time; the inventory is current.",
             contract["schemaVersion"].as_u64().unwrap_or(0),
             crates,
             strings(&binding["contexts"]).len()

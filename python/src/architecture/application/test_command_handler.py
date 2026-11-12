@@ -13,6 +13,7 @@ from architecture.domain.common_exceptions import ConcurrencyConflictException, 
 from architecture.domain.event import CommandEvent, DomainEvent, Event
 from architecture.domain.id import Id
 from architecture.domain.result import Failure, Result, Success
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.outbox import InMemoryOutbox
 
 
@@ -96,7 +97,7 @@ class RecordingBus:
         self.log.append("publish")
         self.published.append(event)
         self.message_ids.append(message_id)
-        return Operation(event, context, id=message_id)
+        return Operation(event, context, clock=system_clock, id=message_id)
 
     async def dispatch(self, operation: Operation[Any]) -> Operation[Any]:
         return operation
@@ -110,7 +111,7 @@ def operation_for(command: Greet, role: str = "user") -> tuple[Operation[Greet],
     context = ExecutionContext(
         trace_id="trace", event_bus=bus, unit_of_work=unit_of_work, auth=Auth(subject_id="alice", role=role)
     )
-    return Operation(command, context), unit_of_work, bus
+    return Operation(command, context, clock=system_clock), unit_of_work, bus
 
 
 def test_a_command_needs_a_signed_in_caller_unless_its_handler_says_otherwise() -> None:

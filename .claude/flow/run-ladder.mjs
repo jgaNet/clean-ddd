@@ -20,8 +20,15 @@
  *   features: [accounts, …]     # optional: only these, in the backlog's order
  *   machine: { ladders: 3 }     # optional: how many ladders run at once on the machine (FLOW_LADDERS overrides it)
  *   gradeTimeoutMinutes: 60     # optional: the time one grading is given
- *   fanOut: { rounds: 2 }       # clean only, optional: a feature whose storm lists several contexts is written by one
- *                               # agent per context, and integrated by integrator.mjs (ADR 38)
+ *   gradeWorkers: 1             # optional: how many acceptance files a grading runs at once (grade.mjs --workers); a
+ *                               # file that fails beside the others is run again alone, and that run is its verdict
+ *   fanOut: { rounds: 2 }       # clean only, optional: a feature whose storm lists several contexts may be written by
+ *                               # one agent per context, and integrated by integrator.mjs (ADR 38); its other fields:
+ *                               #   split: recommended (default) splits where `clean-ddd strategy` recommends it, with
+ *                               #     `priority` (time, the default; cost never recommends a split); always splits every
+ *                               #     such feature, as J5b did (next campaign, correction 12)
+ *                               #   ownerGate: true (default) judges an owner by its scope and the gate's failures it
+ *                               #     can fix alone; false by its scope alone (correction 13)
  *   push: { remote: <url|name>, branch: trees/<x>, logBranch: logs/<x> }   # optional: after each delivery, the tree's
  *                               # main is pushed, and the log and the gradings are committed to logBranch and pushed
  *
@@ -53,9 +60,11 @@
  * each with the step's model, on a branch of its own, in parallel. The storm's first context owns the feature: its
  * agent owns its context's folder and everything no other context's agent owns (the composition root, the conventions,
  * the decisions); each other agent owns its context's folder and the integration events it publishes. Each is told
- * what it owns, and talks to the others through a channel (`channel say|wait|read`). Each owner's verdict is the gate
- * on its branch without --fix, and its scope (a file another owner owns is refused); the relationship tests are left
- * out of it, since only the merged feature can pass them (ADR 38). Then the integrator merges the branches, runs the
+ * what it owns, and talks to the others through a channel (`channel say|wait|read`). Each owner's verdict is its scope
+ * (a file another owner owns is refused) and the gate on its branch without --fix, less what it cannot fix alone: the
+ * relationship tests, which only the merged feature can pass (ADR 38), and every failure that names a file or a module
+ * another owner owns, which waits on that owner (`waiting` in the `owner-verdict` event; correction 13). With
+ * `ownerGate: false` the gate is not run on an owner's branch at all. Then the integrator merges the branches, runs the
  * clean arm's verdict on the merged result, routes each failure to its owner, two rounds at most; the merged result is
  * graded as any attempt's head is.
  *
@@ -82,7 +91,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
-import { integrate, ownerOf } from './integrator.mjs';
+import { integrate, ownerOf, splitWaiting } from './integrator.mjs';
 import { nodeMismatch, pathWithThisNode, takeSlot } from './machine.mjs';
 import { runners } from './runners.mjs';
 import { budget, DEPENDENCY_MODES, freePort, provideDependencies, regressionsAgainstFrom } from './supervision.mjs';
@@ -141,10 +150,21 @@ const dependencies = plan.dependencies ?? 'copy';
 if (!DEPENDENCY_MODES.includes(dependencies)) fail(`${planFile}: dependencies is ${DEPENDENCY_MODES.join(' or ')}`);
 const port = plan.ports?.base ?? 19100;
 const gradeTimeoutMs = (plan.gradeTimeoutMinutes ?? 60) * 60_000;
+const gradeWorkers = plan.gradeWorkers ?? 1;
+if (!(Number.isInteger(gradeWorkers) && gradeWorkers >= 1))
+  fail(`${planFile}: gradeWorkers is a whole number, 1 or more`);
 const fanOut = plan.fanOut;
 if (fanOut !== undefined && !clean) fail(`${planFile}: fanOut is for the clean arm`);
 if (fanOut !== undefined && !(Number.isInteger(fanOut?.rounds ?? 2) && (fanOut?.rounds ?? 2) >= 0))
   fail(`${planFile}: fanOut is { rounds: <how many rounds the integrator sends failures back> }`);
+const split = fanOut?.split ?? 'recommended';
+if (fanOut !== undefined && !['recommended', 'always'].includes(split))
+  fail(`${planFile}: fanOut.split is recommended or always`);
+const splitPriority = fanOut?.priority ?? 'time';
+if (fanOut !== undefined && !['time', 'cost'].includes(splitPriority))
+  fail(`${planFile}: fanOut.priority is time or cost`);
+const ownerGate = fanOut?.ownerGate ?? true;
+if (fanOut !== undefined && typeof ownerGate !== 'boolean') fail(`${planFile}: fanOut.ownerGate is true or false`);
 const publishTo = plan.push;
 if (publishTo !== undefined && !(publishTo.remote && publishTo.branch))
   fail(`${planFile}: push is { remote, branch, logBranch? }`);
@@ -393,7 +413,7 @@ async function hidden(feature, cwd, only, ref) {
       `node ${grader} --project ${project} --ref ${ref ?? git(cwd, 'rev-parse', 'HEAD')} --base ${baseCommit}`,
       // M1 is the gate the attempt's verdict has just run; the ladder decides on M2 alone (grade.mjs, --gate false).
       `--kit ${kit} --upto ${feature.n} --keep false --gate false --out ${out}`,
-      only ? `--only ${only.join(',')}` : '',
+      only ? `--only ${only.join(',')}` : `--workers ${gradeWorkers}`,
       clean ? (tooling ? `--tooling ${tooling}` : '') : '--control plain',
     ].join(' '),
     project,
@@ -499,6 +519,20 @@ async function writtenAlone(feature, step, from, cwd) {
 }
 
 const contextsTree = 'src/Contexts/';
+// The aliases an import names a module by, from the project's binding: a failure that names another owner's module
+// through one waits on that owner (correction 13).
+const aliases = (() => {
+  try {
+    const binding = yaml.load(readFileSync(join(project, 'conventions/typescript.yaml'), 'utf8'));
+    return Object.fromEntries(
+      [binding.contexts_tree, binding.architecture, binding.kernel]
+        .filter(tree => tree?.alias && tree?.path)
+        .map(tree => [tree.alias, tree.path]),
+    );
+  } catch {
+    return {};
+  }
+})();
 // What every owner may write: the documents the tooling renders. The decisions (`docs/adr/`) are the feature owner's.
 const generated = /^(README\.md|CLAUDE\.md|docs\/(?!adr\/).*)$/;
 // The steps and the tests only the merged feature can pass: the relationship tests (ADR 33, 38). A test step is left
@@ -680,21 +714,28 @@ async function writtenByOwners(feature, step, from, cwd, id, owners) {
           const owner = teams.find(each => each.name === ownerOf(file, teams));
           return owner !== team && blob('HEAD', file) !== blob(owner.branch, file);
         });
-      const steps = await cleanSteps(feature, team.cwd, from, {
-        lock: gateLock,
-        fix: false,
-        storm: false,
-        without: relationshipStep,
-      });
-      return [
-        ...(outside.length
-          ? [
-              'Files another owner owns (undo your change to them, or ask their owner in the channel):',
-              ...outside.map(file => `  ${file}`),
-            ]
-          : []),
-        ...flatten(steps),
-      ];
+      const steps = ownerGate
+        ? await cleanSteps(feature, team.cwd, from, {
+            lock: gateLock,
+            fix: false,
+            storm: false,
+            without: relationshipStep,
+          })
+        : [];
+      // What waits on another owner is not this owner's to fix: it is logged, and left to the merged result.
+      const { own, waiting } = splitWaiting(steps, team.name, teams, aliases);
+      return {
+        problems: [
+          ...(outside.length
+            ? [
+                'Files another owner owns (undo your change to them, or ask their owner in the channel):',
+                ...outside.map(file => `  ${file}`),
+              ]
+            : []),
+          ...flatten(own),
+        ],
+        waiting: flatten(waiting),
+      };
     };
     const work = async team => {
       let result = await agent(
@@ -706,12 +747,13 @@ async function writtenByOwners(feature, step, from, cwd, id, owners) {
         options(team),
       );
       if (!result) return { budget: true };
-      let problems = result.stoppedBy ? [] : await ownerVerdict(team);
-      for (let turn = 0; !result.stoppedBy && problems.length && turn < retries; turn++) {
-        result = await agent(feature, step, team.cwd, feedback(problems), true, options(team));
+      let verdict = result.stoppedBy ? { problems: [], waiting: [] } : await ownerVerdict(team);
+      for (let turn = 0; !result.stoppedBy && verdict.problems.length && turn < retries; turn++) {
+        result = await agent(feature, step, team.cwd, feedback(verdict.problems), true, options(team));
         if (!result) return { budget: true };
-        if (!result.stoppedBy) problems = await ownerVerdict(team);
+        if (!result.stoppedBy) verdict = await ownerVerdict(team);
       }
+      const { problems, waiting } = verdict;
       commitAll(team.cwd, `${feature.id}: ${team.name}'s work left uncommitted`);
       event('owner-verdict', {
         feature: feature.id,
@@ -719,6 +761,8 @@ async function writtenByOwners(feature, step, from, cwd, id, owners) {
         owner: team.name,
         pass: problems.length === 0,
         lines: problems.slice(0, 40),
+        ...(waiting.length && { waiting: waiting.slice(0, 40) }),
+        ...(!ownerGate && { gate: false }),
         ...(result.stoppedBy && { stoppedBy: result.stoppedBy }),
       });
       return { result };
@@ -874,7 +918,23 @@ async function attempt(feature, step, from, { single = false } = {}) {
     commitAll(cwd, `storm: ${feature.id}, decided before the run`);
   }
   const begun = Date.now();
-  const owners = fanOut && !single ? ownersOf(feature) : [];
+  // What `clean-ddd strategy` recommends for this feature (RFC 0001, phase 6). With `split: recommended` it decides
+  // whether the feature is split (correction 12); either way it is logged beside what this attempt does, so that the
+  // split's results calibrate the rule. Tooling older than the command answers nothing: the feature is not split.
+  const advice =
+    fanOut && hasStorm(feature)
+      ? parse(
+          (
+            await sh(
+              `yarn -s architecture strategy --storm conventions/storms/${feature.id}.yaml --priority ${splitPriority} --json`,
+              cwd,
+              120_000,
+            )
+          ).out,
+        )
+      : undefined;
+  const splits = split === 'always' || advice?.strategy === 'fan-out-by-context';
+  const owners = fanOut && !single && splits ? ownersOf(feature) : [];
   event('attempt', {
     feature: feature.id,
     step,
@@ -884,28 +944,17 @@ async function attempt(feature, step, from, { single = false } = {}) {
     ...(owners.length && { owners: owners.map(owner => owner.name) }),
     ...(single && { control: 'one agent' }),
   });
-  // What `clean-ddd strategy` recommends for this feature, logged beside what this attempt does (RFC 0001, phase 6),
-  // so that the split's results calibrate the rule; tooling older than the command logs nothing.
-  if (fanOut && hasStorm(feature)) {
-    const advice = parse(
-      (
-        await sh(
-          `yarn -s architecture strategy --storm conventions/storms/${feature.id}.yaml --priority cost --json`,
-          cwd,
-          120_000,
-        )
-      ).out,
-    );
-    if (advice?.strategy)
-      event('strategy', {
-        feature: feature.id,
-        step,
-        ran: owners.length ? 'fan-out-by-context' : 'one agent',
-        recommended: advice.strategy,
-        estimate: advice.estimate,
-        inputs: advice.inputs,
-      });
-  }
+  if (advice?.strategy)
+    event('strategy', {
+      feature: feature.id,
+      step,
+      ran: owners.length ? 'fan-out-by-context' : 'one agent',
+      recommended: advice.strategy,
+      priority: splitPriority,
+      split,
+      estimate: advice.estimate,
+      inputs: advice.inputs,
+    });
   const written = owners.length
     ? await writtenByOwners(feature, step, from, cwd, id, owners)
     : await writtenAlone(feature, step, from, cwd);

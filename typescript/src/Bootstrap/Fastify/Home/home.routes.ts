@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { HomeController } from '@Bootstrap/Fastify/Home/HomeController';
+import { systemClock } from '@Architecture/Infrastructure/Clock/SystemClock';
 
 export const GetHomeResSchema = {
   200: {
@@ -30,7 +31,7 @@ export const homeRoutes = function (
   );
 
   fastify.get('/health', _ => {
-    return { status: 'ok', timestamp: new Date().toISOString() };
+    return { status: 'ok', timestamp: systemClock().toISOString() };
   });
 
   done();

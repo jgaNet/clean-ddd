@@ -20,7 +20,7 @@ const fakeHasher: IPasswordHasher = {
 };
 
 // The rule is in guard(), which only handle() runs: the spec goes through an operation, as the bus would.
-const eventBus = new InMemoryEventBus({ eventEmitter: new EventEmitter() });
+const eventBus = new InMemoryEventBus({ eventEmitter: new EventEmitter(), clock: () => new Date() });
 const register = (handler: RegisterAdminCommandHandler, role: Role) => {
   const context = new ExecutionContext({ traceId: 'trace', eventBus, auth: { subjectId: 'caller', role } });
   const command = RegisterAdminCommandEvent.set({ email: 'root@example.com', password: 'secret' });

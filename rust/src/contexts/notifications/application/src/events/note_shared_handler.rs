@@ -48,11 +48,12 @@ impl<R: NotificationRepository + Send + Sync + 'static> EventHandler for NoteSha
 
 #[cfg(test)]
 mod tests {
+    use architecture_application::fixed_clock;
     use architecture_infrastructure::InMemoryDataSource;
     use notifications_infrastructure::InMemoryNotificationRepository;
 
     use super::*;
-    use crate::delivery::tests::{FakeChannel, context};
+    use crate::delivery::tests::{AT, FakeChannel, context};
 
     #[test]
     fn turns_the_notes_fact_into_a_live_notification_for_the_recipient_in_notifications_terms() {
@@ -61,6 +62,7 @@ mod tests {
         let delivery = Arc::new(NotificationDelivery::new(
             Arc::new(InMemoryNotificationRepository::new(store.clone())),
             vec![websocket.clone()],
+            fixed_clock(AT),
         ));
 
         pollster::block_on(NoteSharedHandler::new(delivery).execute(

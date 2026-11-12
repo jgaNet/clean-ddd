@@ -292,7 +292,7 @@ mod tests {
         publish_integration_event, relay_outbox,
     };
     use architecture_domain::{DomainEvent, DomainResult, Event, EventKind, IntegrationEvent};
-    use architecture_infrastructure::{ConsoleLogger, InMemoryEventBus, InMemoryOutbox};
+    use architecture_infrastructure::{ConsoleLogger, InMemoryEventBus, InMemoryOutbox, system_clock};
 
     use super::*;
 
@@ -377,7 +377,7 @@ mod tests {
     #[tokio::test]
     async fn the_relay_at_start_delivers_in_a_context_with_a_unit_of_work_so_what_a_reaction_tells_goes_through_the_outbox()
      {
-        let bus = Arc::new(InMemoryEventBus::new());
+        let bus = Arc::new(InMemoryEventBus::new(system_clock()));
         bus.subscribe("NoteArchived", Arc::new(EventSubscriber(TellTheArchiving))).await;
         let told = Arc::new(Told::default());
         bus.subscribe("ArchivingTold", told.clone()).await;

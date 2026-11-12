@@ -189,6 +189,16 @@ rules:
       - architecture/application/command_handler.go
       - tools/conventions/caller.go
       - ../api/scenario.mjs
+  # Held by the conventions check (a file of the tree, the tests aside, that names time.Now,
+  # time.Since or time.Until outside the system clock is refused, clock.go); the compiler refuses
+  # a domain call that forgets its time, since the parameter has no default.
+  DOMAIN-ONE-CLOCK:
+    references:
+      - architecture/application/clock.go
+      - architecture/infrastructure/system_clock.go
+      - contexts/security/application/commands/login.go
+      - contexts/security/module.go
+      - tools/conventions/clock.go
   ARCH-MAP-IS-REAL:
     references: [tools/conventions/main.go]
   ARCH-ONE-APPLICATION:
@@ -230,6 +240,7 @@ checklists:
     parts:
       - 'The command: a struct embedding `domain.CommandEvent`, named `<UseCase>CommandEvent`, its exported fields the payload and nothing more.'
       - 'The handler in the same file: a struct named `<UseCase>Handler` taking its ports in `New<UseCase>Handler()`, with `Execute(command, ctx) (R, error)` — the signed-in guard (`kernel.RequireSignedIn`) at the top, load, ask the aggregate or the domain service, save (return the error as is), `application.PublishDomainEvents`; `R` is `application.Nothing` when there is nothing to answer. A command anyone may send (a sign-up) has no signed-in guard; its caller follows it by the operation id it was answered, signed in or not (ADR 27).'
+      - 'A behaviour that decides or records a time takes it as a parameter with no default; the handler takes an `application.Clock` in `New<UseCase>Handler()`, gives it `h.clock()`, and `module.go` passes `infrastructure.SystemClock` (DOMAIN-ONE-CLOCK).'
       - 'A `Guard(ctx) error` method only for a rule that needs no caller id, such as administrators only.'
       - 'A test with at least a happy path and one refusal, in `commands_test.go` beside the commands; through `application.Run` when the rule is in `Guard`.'
       - 'A route in the context''s `presentation/routes.go`: a handler func on the mux, `presentation.Accept(w, r, module, TheCommand{...})`, answering `202 { operationId }`, or `401` at once to a caller who is not signed in (API-CALLER-AT-TRANSPORT) — a command anyone may ask for (a sign-up, a link carrying its own proof) says so on its handler, `AnyoneMayAsk(command) bool` (`application.OpenToAnyone`), and no other does; the handler listed in `module.go` with `application.Command()`. A create never answers its new id: the handler returns it (`R` is a `string`), and the client reads it as the operation''s `result` at `GET /v1/tracker/operations/{id}`.'

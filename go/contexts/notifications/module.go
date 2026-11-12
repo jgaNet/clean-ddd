@@ -47,7 +47,7 @@ func LocalModule(store *NotificationStore, settings Settings, logger application
 	htmx := presentation.NotificationHTMXPresenter{}
 	webSocket := channels.NewWebSocketChannel(logger, htmx.Present)
 	email := channels.NewEmailChannel(logger, settings.FromEmail)
-	delivery := notifapp.NewNotificationDelivery(repository, []notification.NotificationChannel{webSocket, email})
+	delivery := notifapp.NewNotificationDelivery(repository, []notification.NotificationChannel{webSocket, email}, archinfra.SystemClock)
 
 	return &Wiring{
 		WebSocket: webSocket,
@@ -55,7 +55,7 @@ func LocalModule(store *NotificationStore, settings Settings, logger application
 			Name: "Notifications",
 			Commands: []application.Subscription{
 				application.Command(commands.NewSendNotificationHandler(delivery)),
-				application.Command(commands.NewMarkAsReadNotificationHandler(repository)),
+				application.Command(commands.NewMarkAsReadNotificationHandler(repository, archinfra.SystemClock)),
 			},
 			Queries: []any{
 				queries.NewGetNotificationsHandler(notificationQueries),

@@ -2,6 +2,7 @@ package application
 
 import (
 	"testing"
+	"time"
 
 	"clean-ddd/architecture/domain"
 )
@@ -25,7 +26,7 @@ func (h *onWaved) Execute(event WavedEvent, _ *ExecutionContext) error {
 }
 
 func reactionFor(event WavedEvent, handler *onWaved) *Operation {
-	operation := NewOperation(event, NewExecutionContext(Options{TraceID: "trace", EventBus: noBus{}}))
+	operation := NewOperation(event, NewExecutionContext(Options{TraceID: "trace", EventBus: noBus{}}), time.Now)
 	Reaction[WavedEvent](handler).Handlers[0].Handle(operation)
 	return operation
 }
@@ -73,7 +74,7 @@ func TestTheReactionIsListedUnderTheEventsNameAndExposesTheHandler(t *testing.T)
 }
 
 func TestAnEventOfAnotherTypeOnTheChannelIsAFailedReaction(t *testing.T) {
-	operation := NewOperation(GreetedEvent{Name: "wrong"}, NewExecutionContext(Options{TraceID: "trace", EventBus: noBus{}}))
+	operation := NewOperation(GreetedEvent{Name: "wrong"}, NewExecutionContext(Options{TraceID: "trace", EventBus: noBus{}}), time.Now)
 	Reaction[WavedEvent](&onWaved{}).Handlers[0].Handle(operation)
 	if operation.Status != StatusError || operation.Error == nil || operation.Error.Type != domain.TypeUnknown {
 		t.Errorf("got %s %+v, want an Unknown failure", operation.Status, operation.Error)

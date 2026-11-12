@@ -27,7 +27,7 @@ describe('awaitOperation', () => {
   let context: ExecutionContext;
 
   beforeEach(async () => {
-    bus = new InMemoryEventBus({ eventEmitter: new EventEmitter() });
+    bus = new InMemoryEventBus({ eventEmitter: new EventEmitter(), clock: () => new Date() });
     handler = new GreetHandler();
     context = new ExecutionContext({ traceId: 'trace', eventBus: bus, auth: {} });
     await bus.subscribe(Greet.name, handler);

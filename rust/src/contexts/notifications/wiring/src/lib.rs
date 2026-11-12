@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use architecture_application::{Logger, Module, ModuleDefinition, Subscription, query};
-use architecture_infrastructure::InMemoryDataSource;
+use architecture_infrastructure::{InMemoryDataSource, system_clock};
 use notifications_application::commands::mark_as_read::MarkAsReadCommandHandler;
 use notifications_application::commands::send_notification::SendNotificationCommandHandler;
 use notifications_application::delivery::NotificationDelivery;
@@ -51,16 +51,19 @@ pub fn local_notifications_module(
 ) -> LocalNotifications {
     let repository = Arc::new(InMemoryNotificationRepository::new(store.clone()));
     let queries = Arc::new(InMemoryNotificationQueries::new(store.clone()));
+    // When a notification is written, tried and read: the application's one now (DOMAIN-ONE-CLOCK).
+    let clock = system_clock();
 
     let websocket = Arc::new(WebSocketChannel::new(logger.clone(), render));
     let email = Arc::new(EmailChannel::new(logger, &settings.from_email));
-    let delivery = Arc::new(NotificationDelivery::new(repository.clone(), vec![websocket.clone(), email]));
+    let delivery =
+        Arc::new(NotificationDelivery::new(repository.clone(), vec![websocket.clone(), email], clock.clone()));
 
     let module = Module::new(ModuleDefinition {
         name: "Notifications",
         commands: vec![
             Subscription::command(SendNotificationCommandHandler::new(delivery.clone())),
-            Subscription::command(MarkAsReadCommandHandler::new(repository)),
+            Subscription::command(MarkAsReadCommandHandler::new(repository, clock)),
         ],
         queries: vec![query(GetNotificationsQueryHandler::new(queries))],
         domain_events: vec![],

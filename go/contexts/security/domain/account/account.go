@@ -95,13 +95,10 @@ func (a *Account) Validate() error {
 }
 
 // Authenticate records a successful sign-in. The caller has already verified the credentials.
-// Time is a parameter with a default: a zero `at` means now.
+// Time is a parameter, always given (DOMAIN-ONE-CLOCK): the caller passes its clock's now.
 func (a *Account) Authenticate(at time.Time) error {
 	if a.status != StatusActive {
 		return InactiveAccount(a.ID().Value())
-	}
-	if at.IsZero() {
-		at = time.Now().UTC()
 	}
 	a.lastAuthenticatedAt = &at
 	a.Record(AccountAuthenticatedEvent{AccountID: a.ID().Value(), At: at})

@@ -16,6 +16,7 @@ from architecture.application.operation import Operation
 from architecture.application.outbox import OutboxEntry, relay_outbox
 from architecture.domain.event import DomainEvent, Event, IntegrationEvent, name_of
 from architecture.domain.result import Result, Success
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.event_bus import InMemoryEventBus
 from architecture.infrastructure.outbox import InMemoryOutbox
 from bootstrap.fastapi_application import FastApiApplication
@@ -54,7 +55,7 @@ async def test_the_relay_at_start_runs_a_reaction_in_a_unit_of_work_so_what_it_t
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     outbox = InMemoryOutbox.shared
-    bus = InMemoryEventBus()
+    bus = InMemoryEventBus(system_clock)
     app = FastApiApplication(bus, stores=[outbox.store], api_prefix="v1")
     await bus.subscribe(name_of(NoteArchived), TellTheArchiving())
     listener = Listener()

@@ -42,15 +42,18 @@ describe('Notification', () => {
 
     it('refuses a blank title and an empty strategy', () => {
       expect(
-        Notification.create({ recipientId: 'bob', title: ' ', content: 'x', channels: [Channel.EMAIL] }).error,
+        Notification.create({ recipientId: 'bob', title: ' ', content: 'x', channels: [Channel.EMAIL] }, at).error,
       ).toBeInstanceOf(BlankNotificationTitleException);
-      expect(Notification.create({ recipientId: 'bob', title: 'x', content: 'x', channels: [] }).error).toBeInstanceOf(
-        EmptyDeliveryStrategyException,
-      );
+      expect(
+        Notification.create({ recipientId: 'bob', title: 'x', content: 'x', channels: [] }, at).error,
+      ).toBeInstanceOf(EmptyDeliveryStrategyException);
     });
 
     it('refuses a channel it does not know, by name: the domain decides, not the request schema', () => {
-      const refused = Notification.create({ recipientId: 'bob', title: 'x', content: 'x', channels: ['EMAIL', 'FAX'] });
+      const refused = Notification.create(
+        { recipientId: 'bob', title: 'x', content: 'x', channels: ['EMAIL', 'FAX'] },
+        at,
+      );
       expect(refused.error).toBeInstanceOf(UnknownChannelException);
       expect(refused.error?.type).toBe('UnknownChannel');
     });
@@ -136,17 +139,17 @@ describe('Notification', () => {
       const notification = aNotification();
       notification.recordAttempt(Channel.WEBSOCKET, true, at);
 
-      expect(notification.markRead(carol).error).toBeInstanceOf(NotNotificationRecipientException);
+      expect(notification.markRead(carol, at).error).toBeInstanceOf(NotNotificationRecipientException);
     });
 
     it('cannot be read before delivery, nor twice', () => {
       const pending = aNotification();
-      expect(pending.markRead(bob).error).toBeInstanceOf(NotificationNotDeliveredException);
+      expect(pending.markRead(bob, at).error).toBeInstanceOf(NotificationNotDeliveredException);
 
       const read = aNotification();
       read.recordAttempt(Channel.WEBSOCKET, true, at);
-      read.markRead(bob);
-      expect(read.markRead(bob).error).toBeInstanceOf(NotificationAlreadyReadException);
+      read.markRead(bob, at);
+      expect(read.markRead(bob, at).error).toBeInstanceOf(NotificationAlreadyReadException);
     });
   });
 

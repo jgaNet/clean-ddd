@@ -161,11 +161,13 @@ fn short_name<T>() -> &'static str {
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
+    use std::time::SystemTime;
 
     use architecture_domain::{DomainResult, Event, EventKind};
 
     use super::*;
     use crate::BoxFuture;
+    use crate::clock::{Clock, fixed_clock};
     use crate::execution_context::ExecutionContext;
     use crate::operation::Operation;
 
@@ -245,6 +247,9 @@ mod tests {
     impl EventBus for SubscribingBus {
         fn connect(&self) -> BoxFuture<'_, ()> {
             Box::pin(async {})
+        }
+        fn clock(&self) -> Clock {
+            fixed_clock(SystemTime::UNIX_EPOCH)
         }
         fn dispatch(&self, _: Operation) -> BoxFuture<'_, Operation> {
             unreachable!("not used")

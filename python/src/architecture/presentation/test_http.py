@@ -4,6 +4,7 @@ with 401 and publishes nothing, unless the command's handler says anyone may ask
 
 import json
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -17,6 +18,8 @@ from architecture.domain.common_exceptions import NotAllowedException, NotFoundE
 from architecture.domain.event import CommandEvent, Event
 from architecture.domain.result import Result
 from architecture.presentation.http import AUTHENTICATION_REQUIRED, accept, not_allowed_status, status_of
+
+AT = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 @dataclass(frozen=True)
@@ -63,7 +66,7 @@ class RecordingBus:
 
     def publish[E: Event](self, event: E, context: ExecutionContext, message_id: str | None = None) -> Operation[E]:
         self.published.append(event)
-        return Operation(event, context, id="operation-1")
+        return Operation(event, context, clock=lambda: AT, id="operation-1")
 
     async def dispatch(self, operation: Operation[Any]) -> Operation[Any]:
         return operation

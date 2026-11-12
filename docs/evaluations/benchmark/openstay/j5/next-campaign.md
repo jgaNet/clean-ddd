@@ -131,3 +131,15 @@ registered.*
     protocol](../../three-arms/README.md) registers features with more stickies than the estimate's break-even (a new
     context with several consumers, for instance), split and not split, on requests no kit was tuned on. J5b measures
     only whether the split delivers, on requests below it.
+
+*Corrections 12 and 13 are in the ladder (12 November), with their measures in its events
+([`.claude/flow/README.md`](../../../../../.claude/flow/README.md)):*
+- **12.** `fanOut.split` is `recommended` by default. The ladder asks `clean-ddd strategy` with `fanOut.priority`
+  before it decides, and splits only where it recommends a split. The priority is `time` by default: asked with `cost`,
+  as J5b logged it, the estimate never recommends a split. J5b's plans say `split: always, priority: cost`, as
+  registered.
+- **13.** An owner's verdict leaves out every failure that names a file or a module another owner owns, read through the
+  binding's aliases (`TS2305` on another owner's integration events, for instance). Those failures are logged as
+  `waiting` and never sent back; the integrator's gate on the merged result judges them. `fanOut.ownerGate: false` drops
+  the gate on an owner's branch altogether. The gate still runs under the lock by default: whether skipping it saves
+  more than it lets through is for the next campaign's `waiting` lines to say.

@@ -11,6 +11,7 @@ from architecture.application.execution_context import Auth, ExecutionContext
 from architecture.application.operation import Operation, OperationStatus
 from architecture.domain.event import Event
 from architecture.domain.result import Failure, Success
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.data_sources import InMemoryDataSource
 from contexts.security.application.commands.login import LoginCommandEvent, LoginCommandHandler
 from contexts.security.application.commands.register_admin import RegisterAdminCommandEvent, RegisterAdminCommandHandler
@@ -47,7 +48,7 @@ class RecordingBus:
 
     def publish[E: Event](self, event: E, context: ExecutionContext, message_id: str | None = None) -> Operation[E]:
         self.published.append(event)
-        return Operation(event, context)
+        return Operation(event, context, clock=system_clock)
 
     async def dispatch(self, operation: Operation[Any]) -> Operation[Any]:
         return operation
@@ -61,7 +62,9 @@ class Fixture:
         self.repository = InMemoryAccountRepository(self.store)
         self.registration = AccountRegistration(self.repository)
         self.hasher = FakeHasher()
-        self.tokens = JwtSignedTokens(secret="test-secret-of-at-least-thirty-two-bytes", expires_in=timedelta(hours=1))
+        self.tokens = JwtSignedTokens(
+            secret="test-secret-of-at-least-thirty-two-bytes", expires_in=timedelta(hours=1), clock=system_clock
+        )
         self.bus = RecordingBus()
 
     def context_for(self, role: Role, subject_id: str | None = None) -> ExecutionContext:
@@ -137,7 +140,7 @@ class TestLogin:
         self, security: Fixture
     ) -> None:
         alice_id = await security.an_account("alice@example.com", activated=True)
-        handler = LoginCommandHandler(security.repository, security.hasher, security.tokens)
+        handler = LoginCommandHandler(security.repository, security.hasher, security.tokens, system_clock)
 
         result = await handler.execute(
             LoginCommandEvent(identifier="alice@example.com", password="secret"), security.context_for(Role.GUEST)
@@ -152,7 +155,7 @@ class TestLogin:
         self, security: Fixture
     ) -> None:
         await security.an_account("alice@example.com", activated=True)
-        handler = LoginCommandHandler(security.repository, security.hasher, security.tokens)
+        handler = LoginCommandHandler(security.repository, security.hasher, security.tokens, system_clock)
 
         unknown = await handler.execute(
             LoginCommandEvent(identifier="nobody@example.com", password="secret"), security.context_for(Role.GUEST)
@@ -167,7 +170,7 @@ class TestLogin:
 
     async def test_refuses_a_pending_account_even_with_the_right_password(self, security: Fixture) -> None:
         await security.an_account("pending@example.com", activated=False)
-        handler = LoginCommandHandler(security.repository, security.hasher, security.tokens)
+        handler = LoginCommandHandler(security.repository, security.hasher, security.tokens, system_clock)
 
         result = await handler.execute(
             LoginCommandEvent(identifier="pending@example.com", password="secret"), security.context_for(Role.GUEST)
@@ -234,7 +237,7 @@ class TestRegisterAdmin:
     async def register(self, security: Fixture, role: Role) -> Operation[RegisterAdminCommandEvent]:
         handler = RegisterAdminCommandHandler(security.repository, security.registration, security.hasher)
         command = RegisterAdminCommandEvent(email="root@example.com", password="secret")
-        return await handler.handle(Operation(command, security.context_for(role, "caller")))
+        return await handler.handle(Operation(command, security.context_for(role, "caller"), clock=system_clock))
 
     async def test_lets_an_administrator_open_an_account_that_is_active_at_once(self, security: Fixture) -> None:
         operation = await self.register(security, Role.ADMIN)

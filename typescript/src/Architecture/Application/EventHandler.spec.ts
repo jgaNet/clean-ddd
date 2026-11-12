@@ -28,7 +28,7 @@ class OnGreeted extends EventHandler<Greeted> {
 
 const eventBus = { connect: jest.fn(), publish: jest.fn(), subscribe: jest.fn() } as EventBus;
 const operationFor = (payload: Greeted['payload']) =>
-  new InMemoryEventBus({ eventEmitter: new EventEmitter() }).publish(
+  new InMemoryEventBus({ eventEmitter: new EventEmitter(), clock: () => new Date() }).publish(
     Greeted.set(payload),
     new ExecutionContext({ traceId: 'trace', eventBus, auth: {} }),
   );
@@ -88,7 +88,7 @@ describe('a reaction', () => {
     const published = jest.fn();
     const bus = { connect: jest.fn(), publish: published, subscribe: jest.fn() } as unknown as EventBus;
     const operation = (payload: Greeted['payload']) =>
-      new InMemoryEventBus({ eventEmitter: new EventEmitter() }).publish(
+      new InMemoryEventBus({ eventEmitter: new EventEmitter(), clock: () => new Date() }).publish(
         Greeted.set(payload),
         new ExecutionContext({ traceId: 'trace', eventBus: bus, auth: {}, unitOfWork }),
       );

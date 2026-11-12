@@ -85,7 +85,7 @@ class TestAuthenticating:
 
     def test_refuses_a_pending_account(self) -> None:
         account = a_pending_account()
-        refused = account.authenticate()
+        refused = account.authenticate(datetime(2026, 1, 1, 10, tzinfo=UTC))
         assert isinstance(refused, Failure) and refused.error.type == "InactiveAccount"
         assert account.last_authenticated_at is None
 

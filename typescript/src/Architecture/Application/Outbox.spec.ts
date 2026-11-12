@@ -41,7 +41,7 @@ const settle = () => new Promise(resolve => setTimeout(resolve, 10));
  */
 describe('relayOutbox', () => {
   it('keeps an entry pending while a reaction to it runs, and hands it out once meanwhile', async () => {
-    const bus = new InMemoryEventBus({ eventEmitter: new EventEmitter() });
+    const bus = new InMemoryEventBus({ eventEmitter: new EventEmitter(), clock: () => new Date() });
     const reaction = new TellTheHost();
     await bus.subscribe(BookingConfirmed.name, reaction);
     const outbox = new InMemoryOutbox();
@@ -64,7 +64,7 @@ describe('relayOutbox', () => {
   });
 
   it('does not hand out an entry on its way again through another adapter over the same entries', async () => {
-    const bus = new InMemoryEventBus({ eventEmitter: new EventEmitter() });
+    const bus = new InMemoryEventBus({ eventEmitter: new EventEmitter(), clock: () => new Date() });
     const reaction = new TellTheHost();
     await bus.subscribe(BookingConfirmed.name, reaction);
     // A durable outbox is a table; each unit of work builds its own adapter over it.
@@ -91,7 +91,7 @@ describe('relayOutbox', () => {
   });
 
   it('keeps an entry whose reaction failed pending, and hands it again to that subscriber only', async () => {
-    const bus = new InMemoryEventBus({ eventEmitter: new EventEmitter() });
+    const bus = new InMemoryEventBus({ eventEmitter: new EventEmitter(), clock: () => new Date() });
     const told = new TellTheHost();
     const refused = new TellTheHost();
     await bus.subscribe(BookingConfirmed.name, told);

@@ -35,6 +35,11 @@ linter and the check, generated from the data the way ``typescript/eslint.config
    (API-CALLER-AT-TRANSPORT): a call to ``….event_bus.publish()``, a response built with
    ``status_code=202`` or a ``….status_code = 202`` there is refused, so no route skips the ``401``
    ``accept()`` answers a caller who is not signed in (ADR 39, H4).
+8. An application has one clock (DOMAIN-ONE-CLOCK): nothing reads the machine's time —
+   ``datetime.now()``, ``datetime.utcnow()``, ``datetime.today()``, ``date.today()``,
+   ``time.time()`` — but the building blocks' system clock and the tests (``test_*.py``,
+   ``conftest.py``); everything else is passed a ``Clock`` from the wiring (ADR 42). The names are
+   resolved through the module's imports, so ``import datetime as dt`` does not hide a read.
 
 Every refusal names its rule id first, so a reader or ``yarn architecture rule <id>`` can look
 it up. Layer names are the contract's (``Domain``); a package is the same word in lowercase.
@@ -1090,6 +1095,81 @@ def check_caller_at_transport(modules: list[Module], here: Path, problems: Probl
             )
 
 
+# 8. Nothing but the system clock reads the machine's time
+
+
+ONE_CLOCK_RULE = "DOMAIN-ONE-CLOCK"
+#: The one module that may read the machine's time, under the building blocks' tree.
+SYSTEM_CLOCK = "infrastructure/clock.py"
+#: What reads the machine's time, by the fully qualified name of the function called.
+MACHINE_TIME = {
+    "datetime.datetime.now": "datetime.now()",
+    "datetime.datetime.utcnow": "datetime.utcnow()",
+    "datetime.datetime.today": "datetime.today()",
+    "datetime.date.today": "date.today()",
+    "time.time": "time.time()",
+    "time.time_ns": "time.time_ns()",
+}
+ONE_CLOCK_FIX = (
+    "an application has one now: take a `Clock` (architecture.application.clock) in the constructor, pass "
+    "`system_clock` (architecture.infrastructure.clock) from the wiring file, and give `self._clock()` to the "
+    "behaviour, whose time parameter has no default (`yarn --cwd .. architecture rule DOMAIN-ONE-CLOCK`)"
+)
+
+
+def machine_time_reads(path: Path) -> list[tuple[int, str]]:
+    """(line, what) for each call in a module that reads the machine's time. A name is resolved through
+    the module's imports (``from datetime import datetime``, ``import datetime as dt``,
+    ``from time import time``), and a name imported from nowhere is taken as written, so
+    ``datetime.now()`` is a read whatever brought ``datetime`` in."""
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    bound: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                # `import a.b` binds `a`; `import a.b as c` binds `c` to `a.b`.
+                if alias.asname:
+                    bound[alias.asname] = alias.name
+                else:
+                    top = alias.name.split(".")[0]
+                    bound[top] = top
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            for alias in node.names:
+                bound[alias.asname or alias.name] = f"{node.module}.{alias.name}"
+
+    def qualified(node: ast.expr) -> str | None:
+        if isinstance(node, ast.Name):
+            return bound.get(node.id, node.id)
+        if isinstance(node, ast.Attribute):
+            owner = qualified(node.value)
+            return f"{owner}.{node.attr}" if owner else None
+        return None
+
+    found: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            name = qualified(node.func)
+            # A name taken as written: `datetime.now` and `date.today` with no import that says what they are.
+            name = {"datetime.now": "datetime.datetime.now", "date.today": "datetime.date.today"}.get(name or "", name)
+            if name in MACHINE_TIME:
+                found.append((node.lineno, MACHINE_TIME[name]))
+    return found
+
+
+def check_one_clock(modules: list[Module], binding: dict[str, Any], here: Path, problems: Problems) -> None:
+    """DOMAIN-ONE-CLOCK: every module of the source tree but the system clock and the tests is passed
+    its now; none reads the machine's time (ADR 42)."""
+    system_clock = here / binding["architecture"]["path"] / SYSTEM_CLOCK
+    for module in modules:
+        if module.spec or module.path.name == "conftest.py" or module.path == system_clock:
+            continue
+        for line, what in machine_time_reads(module.path):
+            problems.add(
+                ONE_CLOCK_RULE,
+                f"{module.path.relative_to(here)}:{line} reads the machine's time with `{what}`; {ONE_CLOCK_FIX}",
+            )
+
+
 def write_inventory(here: Path) -> Path:
     root = repository_root(here)
     if root is None:
@@ -1121,12 +1201,14 @@ def run(here: Path) -> tuple[Problems, str]:
     imports = check_imports(modules, binding, contract, here, problems)
     check_files(binding, here, problems)
     check_caller_at_transport(modules, here, problems)
+    check_one_clock(modules, binding, here, problems)
     check_handlers(here, problems)
     check_inventory(here, problems)
     summary = (
         f"✓ contract v{contract.get('schemaVersion')}, Python binding: {len(modules)} modules and {imports} imports "
         f"are the table, {len(binding['contexts'])} contexts match the tree, every file the binding names exists; "
-        "every command has one handler; every 202 route goes through accept(); the inventory is current."
+        "every command has one handler; every 202 route goes through accept(); nothing but the system clock reads "
+        "the machine's time; the inventory is current."
     )
     return problems, summary
 

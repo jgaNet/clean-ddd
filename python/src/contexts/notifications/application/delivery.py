@@ -9,6 +9,7 @@ handlers reacting to other contexts.
 
 from collections.abc import Iterable
 
+from architecture.application.clock import Clock
 from architecture.application.domain_events import publish_domain_events
 from architecture.application.execution_context import ExecutionContext
 from architecture.domain.common_exceptions import UnknownException
@@ -20,12 +21,15 @@ from contexts.notifications.domain.notification.ports.notification_repository im
 
 
 class NotificationDelivery:
-    def __init__(self, notifications: NotificationRepository, channels: Iterable[NotificationChannel]) -> None:
+    def __init__(
+        self, notifications: NotificationRepository, channels: Iterable[NotificationChannel], clock: Clock
+    ) -> None:
         self._notifications = notifications
+        self._clock = clock
         self._channels = {adapter.channel: adapter for adapter in channels}
 
     async def deliver(self, props: NewNotification, context: ExecutionContext) -> Result[str]:
-        created = Notification.create(props)
+        created = Notification.create(props, self._clock())
         if isinstance(created, Failure):
             return created
         notification = created.data
@@ -52,7 +56,7 @@ class NotificationDelivery:
                     {"traceId": context.trace_id},
                 )
 
-            notification.record_attempt(channel, isinstance(outcome, Success))
+            notification.record_attempt(channel, isinstance(outcome, Success), self._clock())
             if isinstance(outcome, Success):
                 break
 

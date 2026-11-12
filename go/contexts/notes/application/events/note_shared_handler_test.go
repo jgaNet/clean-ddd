@@ -3,6 +3,7 @@ package events
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"clean-ddd/architecture/application"
 	"clean-ddd/architecture/domain"
@@ -16,7 +17,7 @@ func (*recordingBus) Connect() error { return nil }
 
 func (b *recordingBus) Publish(event domain.Event, context *application.ExecutionContext) *application.Operation {
 	b.published = append(b.published, event)
-	return application.NewOperation(event, context)
+	return application.NewOperation(event, context, time.Now)
 }
 
 func (b *recordingBus) PublishWithID(event domain.Event, context *application.ExecutionContext, _ string) *application.Operation {
@@ -45,7 +46,7 @@ func TestTheReactionIsSubscribedUnderNoteSharedEventAndMarksTheOperationSent(t *
 	bus := &recordingBus{}
 	context := application.NewExecutionContext(application.Options{TraceID: "trace", EventBus: bus})
 	subscription := application.Reaction[note.NoteSharedEvent](NoteSharedHandler{})
-	operation := application.NewOperation(note.NoteSharedEvent{NoteID: "note-1", Title: "Groceries", OwnerID: "alice", RecipientID: "bob"}, context)
+	operation := application.NewOperation(note.NoteSharedEvent{NoteID: "note-1", Title: "Groceries", OwnerID: "alice", RecipientID: "bob"}, context, time.Now)
 
 	subscription.Handlers[0].Handle(operation)
 

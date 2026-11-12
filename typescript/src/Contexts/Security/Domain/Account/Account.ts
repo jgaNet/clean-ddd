@@ -97,7 +97,7 @@ export class Account extends AggregateRoot {
   }
 
   /** Records a successful sign-in. The caller has already verified the credentials. */
-  authenticate(now: Date = new Date()): IResult {
+  authenticate(now: Date): IResult {
     if (this.#status !== AccountStatus.ACTIVE) {
       return Result.fail(new InactiveAccountException(this._id.value));
     }

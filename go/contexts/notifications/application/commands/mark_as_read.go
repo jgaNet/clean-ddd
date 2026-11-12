@@ -18,10 +18,11 @@ type MarkAsReadNotificationCommandEvent struct {
 
 type MarkAsReadNotificationHandler struct {
 	notifications notification.Repository
+	clock         application.Clock
 }
 
-func NewMarkAsReadNotificationHandler(notifications notification.Repository) *MarkAsReadNotificationHandler {
-	return &MarkAsReadNotificationHandler{notifications: notifications}
+func NewMarkAsReadNotificationHandler(notifications notification.Repository, clock application.Clock) *MarkAsReadNotificationHandler {
+	return &MarkAsReadNotificationHandler{notifications: notifications, clock: clock}
 }
 
 func (h *MarkAsReadNotificationHandler) Execute(command MarkAsReadNotificationCommandEvent, ctx *application.ExecutionContext) (application.Nothing, error) {
@@ -36,7 +37,7 @@ func (h *MarkAsReadNotificationHandler) Execute(command MarkAsReadNotificationCo
 	if n == nil {
 		return application.Nothing{}, notification.NotificationNotFound(command.NotificationID)
 	}
-	if err := n.MarkRead(reader); err != nil {
+	if err := n.MarkRead(reader, h.clock()); err != nil {
 		return application.Nothing{}, err
 	}
 	if err := h.notifications.Save(n); err != nil {

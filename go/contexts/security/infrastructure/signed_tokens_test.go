@@ -14,7 +14,7 @@ import (
 const secret = "test-secret-of-at-least-thirty-two-bytes"
 
 var (
-	service = infrastructure.NewJwtSignedTokens(secret, time.Hour)
+	service = infrastructure.NewJwtSignedTokens(secret, time.Hour, time.Now)
 	alice   = auth.Claims{SubjectID: "account-1", SubjectType: "USER"}
 )
 
@@ -35,7 +35,7 @@ func TestIssuesATokenAndVerifiesItBack(t *testing.T) {
 }
 
 func TestRejectsATokenSignedWithAnotherSecret(t *testing.T) {
-	other := infrastructure.NewJwtSignedTokens("other-secret-of-at-least-thirty-two-bytes", time.Hour)
+	other := infrastructure.NewJwtSignedTokens("other-secret-of-at-least-thirty-two-bytes", time.Hour, time.Now)
 	if claims, ok := service.Verify(sign(t, other, alice)); ok {
 		t.Errorf("verified a token of another secret: %v", claims)
 	}
@@ -51,7 +51,7 @@ func TestRejectsATamperedToken(t *testing.T) {
 }
 
 func TestRejectsAnExpiredToken(t *testing.T) {
-	expired := infrastructure.NewJwtSignedTokens(secret, -time.Second)
+	expired := infrastructure.NewJwtSignedTokens(secret, -time.Second, time.Now)
 	if claims, ok := service.Verify(sign(t, expired, alice)); ok {
 		t.Errorf("verified an expired token: %v", claims)
 	}

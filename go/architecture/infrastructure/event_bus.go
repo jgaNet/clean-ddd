@@ -20,25 +20,28 @@ import (
 // reaction that failed is handed the message again, which is what at-least-once is for. The
 // operation's Delivery settles once its dispatch is done, and says whether every subscriber
 // handled it: the outbox's relay acknowledges an entry on it, and on nothing sooner.
+//
+// The operations it builds are stamped by the clock the wiring passes (DOMAIN-ONE-CLOCK).
 type InMemoryEventBus struct {
 	mu       sync.RWMutex
 	handlers map[string][]application.Subscriber
 	pending  sync.WaitGroup
+	clock    application.Clock
 }
 
-func NewInMemoryEventBus() *InMemoryEventBus {
-	return &InMemoryEventBus{handlers: map[string][]application.Subscriber{}}
+func NewInMemoryEventBus(clock application.Clock) *InMemoryEventBus {
+	return &InMemoryEventBus{handlers: map[string][]application.Subscriber{}, clock: clock}
 }
 
 // Connect has nothing to connect to: the handlers are in this process.
 func (b *InMemoryEventBus) Connect() error { return nil }
 
 func (b *InMemoryEventBus) Publish(event domain.Event, context *application.ExecutionContext) *application.Operation {
-	return b.start(application.NewOperation(event, context))
+	return b.start(application.NewOperation(event, context, b.clock))
 }
 
 func (b *InMemoryEventBus) PublishWithID(event domain.Event, context *application.ExecutionContext, messageID string) *application.Operation {
-	return b.start(application.NewOperationWithID(messageID, event, context))
+	return b.start(application.NewOperationWithID(messageID, event, context, b.clock))
 }
 
 func (b *InMemoryEventBus) start(operation *application.Operation) *application.Operation {

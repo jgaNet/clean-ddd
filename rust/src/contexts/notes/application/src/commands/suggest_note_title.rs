@@ -81,7 +81,7 @@ mod tests {
     use std::sync::Mutex;
 
     use architecture_application::{Auth, ExecutionContextOptions};
-    use architecture_infrastructure::{InMemoryDataSource, InMemoryEventBus};
+    use architecture_infrastructure::{InMemoryDataSource, InMemoryEventBus, system_clock};
     use notes_domain::note::NoteTitle;
     use notes_domain::note::note_exceptions::{NOT_NOTE_OWNER, NOTE_TITLE_TOO_LONG};
     use notes_infrastructure::repositories::InMemoryNoteRepository;
@@ -118,7 +118,7 @@ mod tests {
         ExecutionContext::new(ExecutionContextOptions {
             trace_id: "trace".into(),
             auth: Auth::of(subject_id, "USER"),
-            event_bus: Arc::new(InMemoryEventBus::new()),
+            event_bus: Arc::new(InMemoryEventBus::new(system_clock())),
             unit_of_work: None,
             logger: None,
         })

@@ -119,7 +119,7 @@ describe('Account', () => {
     it('refuses a pending account', () => {
       const account = aPendingAccount();
 
-      expect(account.authenticate().error).toBeInstanceOf(InactiveAccountException);
+      expect(account.authenticate(new Date()).error).toBeInstanceOf(InactiveAccountException);
       expect(account.lastAuthenticatedAt).toBeUndefined();
     });
   });

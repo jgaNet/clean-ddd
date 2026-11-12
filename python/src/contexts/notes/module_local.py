@@ -8,6 +8,7 @@ Security; the directory comes in as a parameter, which is where the two contexts
 """
 
 from architecture.application.module import Module, Subscription
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.data_sources import InMemoryDataSource
 from contexts.notes.application.commands.archive_note import ArchiveNoteCommandEvent, ArchiveNoteCommandHandler
 from contexts.notes.application.commands.create_note import CreateNoteCommandEvent, CreateNoteCommandHandler
@@ -55,7 +56,8 @@ def local_notes_module(store: NoteStore, accounts: AccountDirectory) -> Module:
             Subscription(ShareNoteCommandEvent, [ShareNoteCommandHandler(repository, NoteSharing(accounts))]),
             # The one non-deterministic source of the context, behind a port (ADR 7); a model would go here.
             Subscription(
-                SuggestNoteTitleCommandEvent, [SuggestNoteTitleCommandHandler(repository, FirstLineTitleSuggestions())]
+                SuggestNoteTitleCommandEvent,
+                [SuggestNoteTitleCommandHandler(repository, FirstLineTitleSuggestions(system_clock))],
             ),
         ],
         queries=[

@@ -11,6 +11,7 @@ from architecture.application.operation import Operation, OperationStatus
 from architecture.domain.common_exceptions import NotFoundException
 from architecture.domain.event import DomainEvent, Event, IntegrationEvent
 from architecture.domain.result import Failure, Result, Success
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.data_sources import InMemoryDataSource
 from architecture.infrastructure.outbox import InMemoryOutbox
 from architecture.infrastructure.unit_of_work import InMemoryUnitOfWork
@@ -47,7 +48,7 @@ class NoBus:
 
 
 def operation_for(event: Greeted) -> Operation[Greeted]:
-    return Operation(event, ExecutionContext(trace_id="trace", event_bus=NoBus()))
+    return Operation(event, ExecutionContext(trace_id="trace", event_bus=NoBus()), clock=system_clock)
 
 
 async def test_marks_the_operation_sent_once_it_reacted() -> None:
@@ -98,7 +99,7 @@ class RecordingBus(NoBus):
 
     def publish[E: Event](self, event: E, context: ExecutionContext, message_id: str | None = None) -> Operation[E]:
         self.published.append((event, message_id))
-        return Operation(event, context, id=message_id)
+        return Operation(event, context, clock=system_clock, id=message_id)
 
 
 @dataclass
@@ -110,7 +111,7 @@ class Reaction:
 
     def operation(self, event: Greeted) -> Operation[Greeted]:
         context = ExecutionContext(trace_id="trace", event_bus=self.bus, unit_of_work=self.unit_of_work)
-        return Operation(event, context)
+        return Operation(event, context, clock=system_clock)
 
 
 @pytest.fixture

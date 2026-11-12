@@ -5,6 +5,7 @@ from architecture.application.execution_context import Auth, ExecutionContext
 from architecture.application.operation import Operation, OperationStatus
 from architecture.domain.common_exceptions import NotFoundException
 from architecture.domain.event import CommandEvent, Event
+from architecture.infrastructure.clock import system_clock
 from contexts.tracker.application.projection import to_operation_record
 from contexts.tracker.application.read_model import OperationError
 
@@ -28,7 +29,7 @@ class NoBus:
 
 def an_operation(subject_id: str | None = None) -> Operation[DoSomething]:
     context = ExecutionContext(trace_id="trace-1", event_bus=NoBus(), auth=Auth(subject_id=subject_id, role="USER"))
-    return Operation(DoSomething(what="this"), context)
+    return Operation(DoSomething(what="this"), context, clock=system_clock)
 
 
 def test_keeps_what_a_client_needs_and_drops_the_execution_context() -> None:

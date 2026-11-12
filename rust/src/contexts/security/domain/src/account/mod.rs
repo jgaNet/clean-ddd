@@ -111,13 +111,9 @@ impl Account {
         Ok(())
     }
 
-    /// Records a successful sign-in, now. The caller has already verified the credentials.
-    pub fn authenticate(&mut self) -> DomainResult {
-        self.authenticate_at(SystemTime::now())
-    }
-
-    /// Records a successful sign-in at a given time: time is a parameter, with `authenticate()` as its default.
-    pub fn authenticate_at(&mut self, now: SystemTime) -> DomainResult {
+    /// Records a successful sign-in at `now`, the caller's clock (DOMAIN-ONE-CLOCK). The caller has
+    /// already verified the credentials.
+    pub fn authenticate(&mut self, now: SystemTime) -> DomainResult {
         if self.status != AccountStatus::Active {
             return Err(inactive_account(self.id().value()));
         }
@@ -216,10 +212,10 @@ mod tests {
         let mut account = Account::register(a_new_account(false)).expect("registered");
         account.pull_domain_events();
 
-        assert!(account.authenticate().expect_err("pending").is(INACTIVE_ACCOUNT));
+        assert!(account.authenticate(SystemTime::UNIX_EPOCH).expect_err("pending").is(INACTIVE_ACCOUNT));
         account.validate().expect("validated");
         assert!(account.validate().expect_err("twice").is(ACCOUNT_ALREADY_ACTIVE));
-        account.authenticate_at(SystemTime::UNIX_EPOCH).expect("authenticated");
+        account.authenticate(SystemTime::UNIX_EPOCH).expect("authenticated");
 
         assert_eq!(account.last_authenticated_at(), Some(SystemTime::UNIX_EPOCH));
         assert_eq!(

@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 
 	"clean-ddd/architecture/application"
 	"clean-ddd/architecture/domain"
@@ -69,7 +70,7 @@ type fixture struct {
 
 func newFixture(channels ...notification.NotificationChannel) *fixture {
 	store := archinfra.NewInMemoryDataSource[notification.Snapshot]()
-	bus := archinfra.NewInMemoryEventBus()
+	bus := archinfra.NewInMemoryEventBus(time.Now)
 	recorded := &recorder{}
 	bus.Subscribe(domain.NameOfType[notification.NotificationSentEvent](), recorded)
 	bus.Subscribe(domain.NameOfType[notification.NotificationFailedEvent](), recorded)
@@ -77,7 +78,7 @@ func newFixture(channels ...notification.NotificationChannel) *fixture {
 		store:    store,
 		bus:      bus,
 		recorded: recorded,
-		delivery: notifapp.NewNotificationDelivery(infrastructure.NewInMemoryNotificationRepository(store), channels),
+		delivery: notifapp.NewNotificationDelivery(infrastructure.NewInMemoryNotificationRepository(store), channels, time.Now),
 		context:  application.NewExecutionContext(application.Options{TraceID: "trace", EventBus: bus}),
 	}
 }

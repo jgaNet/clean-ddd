@@ -105,7 +105,10 @@ describe('CommandHandler.handle()', () => {
       unitOfWork,
       auth: { subjectId: 'alice', role },
     });
-    return new InMemoryEventBus({ eventEmitter: new EventEmitter() }).publish(Greet.set(payload), context);
+    return new InMemoryEventBus({ eventEmitter: new EventEmitter(), clock: () => new Date() }).publish(
+      Greet.set(payload),
+      context,
+    );
   };
 
   it('runs the use case inside a transaction and publishes the domain events after the commit', async () => {

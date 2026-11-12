@@ -15,11 +15,14 @@ operation is that subscriber's own outcome when its inbox is decided, whoever ru
 An operation's ``delivered`` settles once the dispatch has been through every subscriber, and says
 whether all of them succeeded: the outbox's relay acknowledges an entry on it, and on nothing
 sooner. A dispatch that breaks off settles it as not delivered.
+
+The bus stamps its operations with the clock the wiring passes it (DOMAIN-ONE-CLOCK).
 """
 
 import asyncio
 from typing import Any
 
+from architecture.application.clock import Clock
 from architecture.application.event_bus import Subscriber
 from architecture.application.execution_context import ExecutionContext
 from architecture.application.operation import Operation, OperationStatus
@@ -37,7 +40,8 @@ class _Subscription:
 
 
 class InMemoryEventBus:
-    def __init__(self) -> None:
+    def __init__(self, clock: Clock) -> None:
+        self._clock = clock
         self._subscriptions: dict[str, list[_Subscription]] = {}
         self._pending: set[asyncio.Task[Operation[Any]]] = set()
 
@@ -46,7 +50,7 @@ class InMemoryEventBus:
 
     def publish[E: Event](self, event: E, context: ExecutionContext, message_id: str | None = None) -> Operation[E]:
         loop = asyncio.get_running_loop()
-        operation = Operation(event, context, id=message_id)
+        operation = Operation(event, context, clock=self._clock, id=message_id)
         operation.delivered = loop.create_future()
         task = loop.create_task(self.dispatch(operation))
         self._pending.add(task)

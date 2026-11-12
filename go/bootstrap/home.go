@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"clean-ddd/architecture/infrastructure"
 	"clean-ddd/architecture/presentation"
 )
 
@@ -48,6 +49,6 @@ func homeRoutes(mux *http.ServeMux, prefix string, home HomeViewModel) {
 	mux.HandleFunc("GET "+prefix, answer)
 	mux.HandleFunc("GET "+prefix+"/{$}", answer)
 	mux.HandleFunc("GET "+prefix+"/health", func(w http.ResponseWriter, _ *http.Request) {
-		presentation.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok", "timestamp": time.Now().UTC().Format(time.RFC3339Nano)})
+		presentation.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok", "timestamp": infrastructure.SystemClock().Format(time.RFC3339Nano)})
 	})
 }

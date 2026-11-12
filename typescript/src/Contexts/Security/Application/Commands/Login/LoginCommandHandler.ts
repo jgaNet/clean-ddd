@@ -1,5 +1,5 @@
 import { IResult, Result } from '@Architecture/Domain';
-import { CommandHandler, ExecutionContext } from '@Architecture/Application';
+import { Clock, CommandHandler, ExecutionContext } from '@Architecture/Application';
 
 import { IAccountRepository } from '@Contexts/Security/Domain/Account/Ports/IAccountRepository';
 import { ISignedTokens } from '@Contexts/Security/Domain/Auth/Ports/ISignedTokens';
@@ -16,6 +16,7 @@ export class LoginCommandHandler extends CommandHandler<LoginCommandEvent> {
     private accountRepository: IAccountRepository,
     private passwordHasher: IPasswordHasher,
     private signedTokens: ISignedTokens,
+    private clock: Clock,
   ) {
     super();
   }
@@ -31,7 +32,7 @@ export class LoginCommandHandler extends CommandHandler<LoginCommandEvent> {
       return Result.fail(new InvalidCredentialsException());
     }
 
-    const authenticated = account.authenticate();
+    const authenticated = account.authenticate(this.clock());
     if (authenticated.isFailure()) return authenticated;
 
     await this.accountRepository.save(account);

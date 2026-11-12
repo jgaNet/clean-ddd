@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from architecture.application.execution_context import Logger
 from architecture.application.module import Module, Subscription
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.data_sources import InMemoryDataSource
 from contexts.notifications.application.commands.mark_as_read import (
     MarkAsReadNotificationCommandEvent,
@@ -65,13 +66,15 @@ class NotificationsWiring:
         htmx = NotificationHtmxPresenter()
         self.websocket = WebSocketChannel(logger, htmx.present)
         email = EmailChannel(logger, settings.from_email)
-        delivery = NotificationDelivery(repository, [self.websocket, email])
+        delivery = NotificationDelivery(repository, [self.websocket, email], system_clock)
 
         self.module = Module(
             name="Notifications",
             commands=[
                 Subscription(SendNotificationCommandEvent, [SendNotificationCommandHandler(delivery)]),
-                Subscription(MarkAsReadNotificationCommandEvent, [MarkAsReadNotificationCommandHandler(repository)]),
+                Subscription(
+                    MarkAsReadNotificationCommandEvent, [MarkAsReadNotificationCommandHandler(repository, system_clock)]
+                ),
             ],
             queries=[GetNotificationsQueryHandler(queries)],
             integration_events=[

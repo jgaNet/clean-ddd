@@ -10,7 +10,7 @@ Talking to a channel is not the aggregate's job (see the NotificationChannel por
 NotificationDelivery application service); recording what happened is.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from architecture.domain.aggregate_root import AggregateRoot
@@ -84,7 +84,7 @@ class Notification(AggregateRoot):
         self._delivered_via = delivered_via
 
     @staticmethod
-    def create(props: NewNotification, now: datetime | None = None) -> Result["Notification"]:
+    def create(props: NewNotification, now: datetime) -> Result["Notification"]:
         title = props.title.strip()
         if not title:
             return Failure(BlankNotificationTitleException())
@@ -102,7 +102,7 @@ class Notification(AggregateRoot):
                 content,
                 strategy.data,
                 NotificationStatus.PENDING,
-                now or datetime.now(UTC),
+                now,
                 props.metadata,
                 [],
             )
@@ -136,16 +136,15 @@ class Notification(AggregateRoot):
         tried = {attempt.channel for attempt in self._attempts}
         return [channel for channel in self._strategy.channels if channel not in tried]
 
-    def record_attempt(self, channel: Channel, succeeded: bool, at: datetime | None = None) -> Result[None]:
+    def record_attempt(self, channel: Channel, succeeded: bool, at: datetime) -> Result[None]:
         """Records what a channel answered. A success delivers the notification; the last failure fails it."""
         if any(attempt.channel is channel for attempt in self._attempts):
             return Failure(ChannelAlreadyTriedException(self.id.value, channel.value))
-        when = at or datetime.now(UTC)
-        self._attempts.append(DeliveryAttempt.create(channel, succeeded, when))
+        self._attempts.append(DeliveryAttempt.create(channel, succeeded, at))
 
         if succeeded:
             self._status = NotificationStatus.SENT
-            self._sent_at = when
+            self._sent_at = at
             self._delivered_via = channel
             self._record(
                 NotificationSentEvent(notification_id=self.id.value, recipient_id=self._recipient_id.value, via=channel)
@@ -155,7 +154,7 @@ class Notification(AggregateRoot):
             self._record(NotificationFailedEvent(notification_id=self.id.value, recipient_id=self._recipient_id.value))
         return OK
 
-    def mark_read(self, actor_id: Id, at: datetime | None = None) -> Result[None]:
+    def mark_read(self, actor_id: Id, at: datetime) -> Result[None]:
         if self._recipient_id != actor_id:
             return Failure(NotNotificationRecipientException(self.id.value, actor_id.value))
         if self._status is NotificationStatus.READ:
@@ -164,7 +163,7 @@ class Notification(AggregateRoot):
             return Failure(NotificationNotDeliveredException(self.id.value))
 
         self._status = NotificationStatus.READ
-        self._read_at = at or datetime.now(UTC)
+        self._read_at = at
         self._record(NotificationReadEvent(notification_id=self.id.value, recipient_id=self._recipient_id.value))
         return OK
 

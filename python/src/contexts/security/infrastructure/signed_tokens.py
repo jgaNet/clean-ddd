@@ -1,22 +1,26 @@
 """The SignedTokens port as HS256 JSON Web Tokens signed with a shared secret (PyJWT). ``verify``
-answers nothing for a bad signature, a tampered payload or an expired token."""
+answers nothing for a bad signature, a tampered payload or an expired token. A token is issued at
+the application's now (DOMAIN-ONE-CLOCK); its expiry is checked by PyJWT, which decides no
+business time."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import jwt
 
+from architecture.application.clock import Clock
 from contexts.security.domain.auth.ports.signed_tokens import TokenPayload
 
 ALGORITHM = "HS256"
 
 
 class JwtSignedTokens:
-    def __init__(self, *, secret: str, expires_in: timedelta) -> None:
+    def __init__(self, *, secret: str, expires_in: timedelta, clock: Clock) -> None:
         self._secret = secret
         self._expires_in = expires_in
+        self._clock = clock
 
     async def issue(self, payload: TokenPayload) -> str:
-        now = datetime.now(UTC)
+        now = self._clock()
         claims = {
             "subjectId": payload.subject_id,
             "subjectType": payload.subject_type,

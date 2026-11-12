@@ -5,6 +5,7 @@ import (
 	"sort"
 	"sync"
 	"testing"
+	"time"
 
 	"clean-ddd/architecture/application"
 	"clean-ddd/architecture/domain"
@@ -68,7 +69,7 @@ func subscribed(t *testing.T) *setup {
 	store := infrastructure.NewInMemoryDataSource[trackerapp.Record]()
 	s := &setup{
 		store:       store,
-		bus:         trackerinfra.NewTrackedEventBus(infrastructure.NewInMemoryEventBus(), trackerinfra.NewInMemoryOperationRecords(store)),
+		bus:         trackerinfra.NewTrackedEventBus(infrastructure.NewInMemoryEventBus(time.Now), trackerinfra.NewInMemoryOperationRecords(store), time.Now),
 		completions: &completionRecorder{},
 	}
 	module := &application.Module{

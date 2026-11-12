@@ -346,7 +346,10 @@ pub fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::time::SystemTime;
+
     use super::*;
+    use crate::clock::{Clock, fixed_clock};
     use crate::event_bus::AnyHandler;
     use crate::outbox::testing::FakeOutbox;
     use architecture_domain::EventKind;
@@ -419,6 +422,9 @@ mod tests {
     impl EventBus for RecordingBus {
         fn connect(&self) -> BoxFuture<'_, ()> {
             Box::pin(async {})
+        }
+        fn clock(&self) -> Clock {
+            fixed_clock(SystemTime::UNIX_EPOCH)
         }
         fn dispatch(&self, operation: Operation) -> BoxFuture<'_, Operation> {
             self.0.lock().unwrap().push("publish");

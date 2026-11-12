@@ -3,6 +3,7 @@ package events_test
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"clean-ddd/architecture/application"
 	archinfra "clean-ddd/architecture/infrastructure"
@@ -29,8 +30,8 @@ func (c *fakeChannel) Deliver(d notification.Delivery) error {
 func TestTurnsTheNotesFactIntoALiveNotificationForTheRecipientInNotificationsTerms(t *testing.T) {
 	webSocket := &fakeChannel{channel: notification.ChannelWebSocket}
 	store := archinfra.NewInMemoryDataSource[notification.Snapshot]()
-	delivery := notifapp.NewNotificationDelivery(infrastructure.NewInMemoryNotificationRepository(store), []notification.NotificationChannel{webSocket})
-	bus := archinfra.NewInMemoryEventBus()
+	delivery := notifapp.NewNotificationDelivery(infrastructure.NewInMemoryNotificationRepository(store), []notification.NotificationChannel{webSocket}, time.Now)
+	bus := archinfra.NewInMemoryEventBus(time.Now)
 	ctx := application.NewExecutionContext(application.Options{TraceID: "trace", EventBus: bus})
 
 	err := events.NewNoteSharedHandler(delivery).Execute(

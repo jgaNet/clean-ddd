@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 architecture-domain = { path = "../../../architecture/domain" }
+architecture-application = { path = "../../../architecture/application" }
 architecture-infrastructure = { path = "../../../architecture/infrastructure" }
 security-domain = { path = "../domain" }
 bcrypt.workspace = true

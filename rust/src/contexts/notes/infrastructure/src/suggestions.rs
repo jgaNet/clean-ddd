@@ -2,14 +2,22 @@
 //! heuristic standing where a model would stand; an LLM adapter implements the same port and
 //! nothing else changes. On purpose it does not trim its proposal to `NoteTitle`'s rules: a blank
 //! first line or a very long one is proposed as such, and the aggregate refuses it, which is the
-//! point of ADR 7.
+//! point of ADR 7. The time of its provenance is the application's clock (DOMAIN-ONE-CLOCK).
 
+use architecture_application::Clock;
+use chrono::{DateTime, Utc};
 use notes_application::suggestions::{NoteTitleSuggestions, SuggestionProvenance, TitleSuggestion};
 
-pub struct FirstLineTitleSuggestions;
+pub struct FirstLineTitleSuggestions {
+    clock: Clock,
+}
 
 impl FirstLineTitleSuggestions {
     pub const VERSION: &'static str = "first-line/1";
+
+    pub fn new(clock: Clock) -> Self {
+        Self { clock }
+    }
 }
 
 impl NoteTitleSuggestions for FirstLineTitleSuggestions {
@@ -19,7 +27,7 @@ impl NoteTitleSuggestions for FirstLineTitleSuggestions {
             provenance: SuggestionProvenance {
                 source: "heuristic".into(),
                 version: Self::VERSION.into(),
-                at: chrono::Utc::now(),
+                at: DateTime::<Utc>::from((self.clock)()),
             },
         }
     }

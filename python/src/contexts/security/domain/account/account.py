@@ -9,7 +9,7 @@ Checking a password against the stored hash is not business: the application lay
 PasswordHasher port, then calls ``authenticate()`` to record the fact.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 from architecture.domain.aggregate_root import AggregateRoot
 from architecture.domain.id import Id
@@ -96,13 +96,12 @@ class Account(AggregateRoot):
         self._record(AccountValidatedEvent(account_id=self.id.value, email=self._email.value))
         return OK
 
-    def authenticate(self, now: datetime | None = None) -> Result[None]:
+    def authenticate(self, now: datetime) -> Result[None]:
         """Records a successful sign-in. The caller has already verified the credentials."""
         if self._status is not AccountStatus.ACTIVE:
             return Failure(InactiveAccountException(self.id.value))
-        at = now or datetime.now(UTC)
-        self._last_authenticated_at = at
-        self._record(AccountAuthenticatedEvent(account_id=self.id.value, at=at))
+        self._last_authenticated_at = now
+        self._record(AccountAuthenticatedEvent(account_id=self.id.value, at=now))
         return OK
 
     def to_snapshot(self) -> AccountSnapshot:

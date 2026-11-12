@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use architecture_application::{Application, Auth, Logger, relay_outbox};
 use architecture_infrastructure::data_sources::Snapshottable;
-use architecture_infrastructure::{InMemoryEventBus, InMemoryOutbox};
+use architecture_infrastructure::{InMemoryEventBus, InMemoryOutbox, system_clock};
 use bootstrap_transport::{AxumApplication, AxumApplicationOptions, TransportSettings};
 use tracker_presentation::operation_routes;
 use tracker_wiring::{local_tracker_module, operation_records, operation_store, tracked_event_bus};
@@ -28,9 +28,10 @@ pub async fn create_application(settings: TransportSettings, logger: Arc<dyn Log
     let outbox = Arc::new(InMemoryOutbox::new());
     let stores: Vec<Arc<dyn Snapshottable>> = vec![Arc::new(operations.clone()), outbox.store()];
 
-    // The application's bus: the in-memory bus, decorated so that every operation is recorded.
+    // The application's bus: the in-memory bus, on the system clock, decorated so that every
+    // operation is recorded.
     let records = operation_records(&operations);
-    let event_bus = tracked_event_bus(Arc::new(InMemoryEventBus::new()), records.clone());
+    let event_bus = tracked_event_bus(Arc::new(InMemoryEventBus::new(system_clock())), records.clone());
 
     let tracker = Arc::new(local_tracker_module(records));
     let application = Application::new(event_bus).register_module(tracker.clone());

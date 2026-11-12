@@ -4,6 +4,10 @@
 //! net caught). The Tracker records one for every message, events included, and shows a client
 //! the value as JSON: that is why a command's answer is [`AnyValue`], a value that can be both
 //! downcast by the code that knows its type and serialized by the code that does not.
+//!
+//! An operation is stamped by the clock of the bus that publishes it (DOMAIN-ONE-CLOCK): it is
+//! created at that clock's now, and carries the clock so that it is finished on the same one,
+//! whichever handler marks it.
 
 use std::any::Any;
 use std::fmt;
@@ -13,6 +17,7 @@ use std::time::SystemTime;
 use architecture_domain::{Exception, Id};
 use serde::Serialize;
 
+use crate::clock::Clock;
 use crate::event_bus::AnyEvent;
 use crate::execution_context::ExecutionContext;
 
@@ -65,26 +70,29 @@ pub struct Operation {
     finished_at: Option<SystemTime>,
     result: Option<Result<OperationValue, Exception>>,
     delivered: Option<bool>,
+    clock: Clock,
 }
 
 impl Operation {
-    /// A pending operation for an event just published; the bus is the usual caller.
-    pub fn new(event: Arc<dyn AnyEvent>, context: ExecutionContext) -> Self {
-        Self::with_id(Id::generate().value().to_string(), event, context)
+    /// A pending operation for an event just published, at the clock's now; the bus is the
+    /// usual caller, with its own clock.
+    pub fn new(event: Arc<dyn AnyEvent>, context: ExecutionContext, clock: &Clock) -> Self {
+        Self::with_id(Id::generate().value().to_string(), event, context, clock)
     }
 
     /// A pending operation under a given id: a message relayed from the outbox carries its
     /// entry's id, so that a subscriber that already handled it is not handed it again (ADR 24).
-    pub fn with_id(id: String, event: Arc<dyn AnyEvent>, context: ExecutionContext) -> Self {
+    pub fn with_id(id: String, event: Arc<dyn AnyEvent>, context: ExecutionContext, clock: &Clock) -> Self {
         Self {
             id,
             status: OperationStatus::Pending,
             event,
             context,
-            created_at: SystemTime::now(),
+            created_at: clock(),
             finished_at: None,
             result: None,
             delivered: None,
+            clock: clock.clone(),
         }
     }
 
@@ -158,14 +166,14 @@ impl Operation {
     pub fn failed(mut self, error: Exception) -> Self {
         self.status = OperationStatus::Error;
         self.result = Some(Err(error));
-        self.finished_at = Some(SystemTime::now());
+        self.finished_at = Some((self.clock)());
         self
     }
 
     pub fn success(mut self, value: OperationValue) -> Self {
         self.status = OperationStatus::Success;
         self.result = Some(Ok(value));
-        self.finished_at = Some(SystemTime::now());
+        self.finished_at = Some((self.clock)());
         self
     }
 

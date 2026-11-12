@@ -14,24 +14,26 @@ import (
 // its own (the aggregate decides which channel is next and when it is sent or failed).
 //
 // Called by the SendNotification command (manual, administrators) and by the anti-corruption
-// handlers reacting to other contexts.
+// handlers reacting to other contexts. When a notification was created and each channel tried
+// is the application's clock (DOMAIN-ONE-CLOCK).
 type NotificationDelivery struct {
 	notifications notification.Repository
 	channels      map[notification.Channel]notification.NotificationChannel
+	clock         archapp.Clock
 }
 
-func NewNotificationDelivery(notifications notification.Repository, channels []notification.NotificationChannel) *NotificationDelivery {
+func NewNotificationDelivery(notifications notification.Repository, channels []notification.NotificationChannel, clock archapp.Clock) *NotificationDelivery {
 	adapters := make(map[notification.Channel]notification.NotificationChannel, len(channels))
 	for _, adapter := range channels {
 		adapters[adapter.Channel()] = adapter
 	}
-	return &NotificationDelivery{notifications: notifications, channels: adapters}
+	return &NotificationDelivery{notifications: notifications, channels: adapters, clock: clock}
 }
 
 // Deliver answers with the id of the notification it created and tried to deliver; a
 // notification no channel accepted is saved FAILED, which is an outcome, not a refusal.
 func (d *NotificationDelivery) Deliver(props notification.NewNotification, ctx *archapp.ExecutionContext) (string, error) {
-	n, err := notification.Create(props)
+	n, err := notification.Create(props, d.clock())
 	if err != nil {
 		return "", err
 	}
@@ -50,7 +52,7 @@ func (d *NotificationDelivery) Deliver(props notification.NewNotification, ctx *
 			ctx.Log().Debug(fmt.Sprintf("Notification %s: %s failed (%s)", delivery.NotificationID, channel, outcome.Error()),
 				archapp.Meta{"traceId": ctx.TraceID()})
 		}
-		if err := n.RecordAttempt(channel, outcome == nil); err != nil {
+		if err := n.RecordAttempt(channel, outcome == nil, d.clock()); err != nil {
 			return "", err
 		}
 		if outcome == nil {

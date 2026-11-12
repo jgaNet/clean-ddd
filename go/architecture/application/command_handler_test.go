@@ -3,6 +3,7 @@ package application
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"clean-ddd/architecture/domain"
 )
@@ -83,7 +84,7 @@ func (b *recordingBus) PublishWithID(event domain.Event, context *ExecutionConte
 	}
 	b.published = append(b.published, event)
 	b.messageIDs = append(b.messageIDs, messageID)
-	return NewOperationWithID(messageID, event, context)
+	return NewOperationWithID(messageID, event, context, time.Now)
 }
 
 func (*recordingBus) Dispatch(*Operation)          {}
@@ -95,7 +96,7 @@ func operationFor(command GreetCommandEvent, role string) (*Operation, *fakeUnit
 	context := NewExecutionContext(Options{
 		TraceID: "trace", EventBus: bus, UnitOfWork: unitOfWork, Auth: Auth{SubjectID: "alice", Role: role},
 	})
-	return NewOperation(command, context), unitOfWork, bus
+	return NewOperation(command, context, time.Now), unitOfWork, bus
 }
 
 func handleWith(handler *greetHandler, operation *Operation) *Operation {

@@ -9,6 +9,7 @@
 //! what is deferred until the commit can still publish on the same bus with the same context.
 
 pub mod application;
+pub mod clock;
 pub mod command_handler;
 pub mod domain_events;
 pub mod event_bus;
@@ -26,6 +27,7 @@ use std::pin::Pin;
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 pub use application::Application;
+pub use clock::{Clock, fixed_clock};
 pub use command_handler::{AnyCommand, CommandHandler, CommandSubscriber};
 pub use domain_events::{publish_domain_events, publish_integration_event};
 pub use event_bus::{AnyEvent, AnyHandler, EventBus};

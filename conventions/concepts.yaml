@@ -282,8 +282,10 @@ concepts:
       [ADR 7](docs/adr/0007-non-determinism-enters-the-domain-as-a-value.md)
     rules:
       - DOMAIN-NON-DETERMINISM
+      - DOMAIN-ONE-CLOCK
     references:
       - docs/adr/0007-non-determinism-enters-the-domain-as-a-value.md
+      - docs/adr/0042-an-application-has-one-clock.md
   - id: module
     name: Module (wiring)
     layer: application

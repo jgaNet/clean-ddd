@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use architecture_application::{Application, Auth, Logger, relay_outbox};
 use architecture_infrastructure::data_sources::Snapshottable;
-use architecture_infrastructure::{InMemoryEventBus, InMemoryOutbox};
+use architecture_infrastructure::{InMemoryEventBus, InMemoryOutbox, system_clock};
 use axum::middleware;
 use bootstrap_transport::{AxumApplication, AxumApplicationOptions};
 use notes_infrastructure::directories::SecurityAccountDirectory;
@@ -45,9 +45,10 @@ pub async fn create_application(settings: Settings, logger: Arc<dyn Logger>) -> 
         outbox.store(),
     ];
 
-    // The application's bus: the in-memory bus, decorated so that every operation is recorded.
+    // The application's bus: the in-memory bus, on the system clock, decorated so that every
+    // operation is recorded.
     let records = operation_records(&operations);
-    let event_bus = tracked_event_bus(Arc::new(InMemoryEventBus::new()), records.clone());
+    let event_bus = tracked_event_bus(Arc::new(InMemoryEventBus::new(system_clock())), records.clone());
 
     // The modules, from each context's wiring. Notes asks Security's read model through its own
     // port: the adapter is built here, where the two contexts meet.

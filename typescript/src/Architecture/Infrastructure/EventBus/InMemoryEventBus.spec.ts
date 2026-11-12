@@ -30,7 +30,7 @@ describe('InMemoryEventBus', () => {
   let context: ExecutionContext;
 
   beforeEach(async () => {
-    bus = new InMemoryEventBus({ eventEmitter: new EventEmitter() });
+    bus = new InMemoryEventBus({ eventEmitter: new EventEmitter(), clock: () => new Date() });
     counter = new Counter();
     context = new ExecutionContext({ traceId: 'trace', eventBus: bus, auth: {} });
     await bus.subscribe(Greeted.name, counter);

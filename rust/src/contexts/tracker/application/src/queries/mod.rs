@@ -12,7 +12,7 @@ mod tests {
     use architecture_application::{Auth, ExecutionContext, ExecutionContextOptions, QueryHandler};
     use architecture_domain::DomainResult;
     use architecture_domain::common_exceptions::{NOT_ALLOWED, NOT_FOUND};
-    use architecture_infrastructure::InMemoryEventBus;
+    use architecture_infrastructure::{InMemoryEventBus, system_clock};
     use chrono::Utc;
     use shared_kernel_domain::Role;
 
@@ -42,7 +42,7 @@ mod tests {
         ExecutionContext::new(ExecutionContextOptions {
             trace_id: "trace".into(),
             auth,
-            event_bus: Arc::new(InMemoryEventBus::new()),
+            event_bus: Arc::new(InMemoryEventBus::new(system_clock())),
             unit_of_work: None,
             logger: None,
         })

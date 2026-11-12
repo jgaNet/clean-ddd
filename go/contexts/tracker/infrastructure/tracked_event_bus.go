@@ -21,10 +21,12 @@ import (
 // handler publishes meanwhile go through the context's bus, which is this one, and are
 // recorded on their own. Publish is this bus's, not the inner one's: it is what starts the
 // dispatch in the background, so that the record is written before the handling and the
-// operation is answered at once.
+// operation is answered at once; the operations it builds are stamped by the clock the wiring
+// passes (DOMAIN-ONE-CLOCK).
 type TrackedEventBus struct {
 	bus     application.EventBus
 	records trackerapp.Records
+	clock   application.Clock
 	pending sync.WaitGroup
 }
 
@@ -35,19 +37,19 @@ type settler interface {
 
 var completionNotice = domain.NameOfType[integrationevents.OperationCompleteIntegrationEvent]()
 
-func NewTrackedEventBus(bus application.EventBus, records trackerapp.Records) *TrackedEventBus {
-	return &TrackedEventBus{bus: bus, records: records}
+func NewTrackedEventBus(bus application.EventBus, records trackerapp.Records, clock application.Clock) *TrackedEventBus {
+	return &TrackedEventBus{bus: bus, records: records, clock: clock}
 }
 
 func (b *TrackedEventBus) Connect() error { return b.bus.Connect() }
 
 func (b *TrackedEventBus) Publish(event domain.Event, context *application.ExecutionContext) *application.Operation {
-	return b.start(application.NewOperation(event, context))
+	return b.start(application.NewOperation(event, context, b.clock))
 }
 
 // PublishWithID keeps the message's id (an outbox entry's, ADR 24): the record is under it, and so is the inner bus's inbox.
 func (b *TrackedEventBus) PublishWithID(event domain.Event, context *application.ExecutionContext, messageID string) *application.Operation {
-	return b.start(application.NewOperationWithID(messageID, event, context))
+	return b.start(application.NewOperationWithID(messageID, event, context, b.clock))
 }
 
 func (b *TrackedEventBus) start(operation *application.Operation) *application.Operation {

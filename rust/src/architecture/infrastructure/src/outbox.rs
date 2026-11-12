@@ -63,6 +63,7 @@ mod tests {
     use futures::channel::oneshot;
 
     use super::*;
+    use crate::clock::system_clock;
     use crate::event_bus::InMemoryEventBus;
     use crate::unit_of_work::InMemoryUnitOfWork;
 
@@ -172,7 +173,7 @@ mod tests {
 
     /// A bus with the reactions subscribed in order, and a context on it to relay with.
     fn relaying_to(reactions: &[&Arc<EventSubscriber<TellTheHost>>]) -> ExecutionContext {
-        let bus = Arc::new(InMemoryEventBus::new());
+        let bus = Arc::new(InMemoryEventBus::new(system_clock()));
         for reaction in reactions {
             pollster::block_on(bus.subscribe("BookingConfirmed", (*reaction).clone()));
         }

@@ -3,6 +3,7 @@ package application
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"clean-ddd/architecture/application"
 	"clean-ddd/architecture/domain"
@@ -15,7 +16,7 @@ type DoSomethingCommandEvent struct {
 
 func anOperation(subjectID string) *application.Operation {
 	ctx := application.NewExecutionContext(application.Options{TraceID: "trace-1", Auth: application.Auth{SubjectID: subjectID, Role: "USER"}})
-	return application.NewOperation(DoSomethingCommandEvent{What: "this"}, ctx)
+	return application.NewOperation(DoSomethingCommandEvent{What: "this"}, ctx, time.Now)
 }
 
 func TestKeepsWhatAClientNeedsAndDropsTheExecutionContext(t *testing.T) {

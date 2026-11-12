@@ -29,7 +29,8 @@ All five checks must pass before a change is done; CI runs them on every PR, fro
 ```
 src/architecture/<layer>/         the building blocks, one package per layer: domain (Entity, AggregateRoot, ValueObject, Id,
                                   the three kinds of Event, DomainException, Result), application (the base handlers,
-                                  ExecutionContext, Operation, the EventBus port, Module), infrastructure (the in-memory pieces),
+                                  ExecutionContext, Operation, the EventBus port, Module, Clock), infrastructure (the in-memory pieces,
+                                  system_clock: the one reader of the machine's time, DOMAIN-ONE-CLOCK),
                                   presentation (accept(): a 202 route's one way to publish, 401 at once without a caller;
                                   refuse(), status_of(), context_of(), the formats)
 src/shared_kernel/<layer>/        domain (Email, Role), application (require_signed_in, integration_events/)

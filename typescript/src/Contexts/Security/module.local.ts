@@ -1,6 +1,7 @@
 import { Role } from '@SharedKernel/Domain';
 import { EventBus, ExecutionContext, Module } from '@Architecture/Application';
 import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
+import { systemClock } from '@Architecture/Infrastructure/Clock/SystemClock';
 import { SETTINGS } from '@Bootstrap/Fastify/application.settings';
 import { v4 } from 'uuid';
 
@@ -45,7 +46,10 @@ export const localSecurityModule = new Module({
       event: SignUpCommandEvent,
       handlers: [new SignUpCommandHandler(accountRepository, accountRegistration, passwordHasher)],
     },
-    { event: LoginCommandEvent, handlers: [new LoginCommandHandler(accountRepository, passwordHasher, signedTokens)] },
+    {
+      event: LoginCommandEvent,
+      handlers: [new LoginCommandHandler(accountRepository, passwordHasher, signedTokens, systemClock)],
+    },
     {
       event: ValidateAccountCommandEvent,
       handlers: [new ValidateAccountCommandHandler(accountRepository, signedTokens)],

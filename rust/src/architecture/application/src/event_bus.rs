@@ -21,6 +21,7 @@ use std::sync::Arc;
 use architecture_domain::{Event, EventKind};
 
 use crate::BoxFuture;
+use crate::clock::Clock;
 use crate::execution_context::ExecutionContext;
 use crate::operation::Operation;
 
@@ -55,6 +56,10 @@ pub trait EventBus: Send + Sync {
     /// Connects to the event infrastructure, if there is one to connect to.
     fn connect(&self) -> BoxFuture<'_, ()>;
 
+    /// The clock the bus stamps its operations with, when they are created and finished: the
+    /// application's, passed from the wiring (DOMAIN-ONE-CLOCK).
+    fn clock(&self) -> Clock;
+
     /// Hands a pending operation to the handlers of its event's name and answers with the
     /// operation as they left it. What an implementation writes; what a transport that has
     /// already answered with the operation's id spawns.
@@ -63,7 +68,7 @@ pub trait EventBus: Send + Sync {
     /// Publishes an event, carrying the caller's context to the handlers, and answers with the
     /// operation tracking it: a new pending operation, dispatched. What a handler calls.
     fn publish(&self, event: Arc<dyn AnyEvent>, context: ExecutionContext) -> BoxFuture<'_, Operation> {
-        self.dispatch(Operation::new(event, context))
+        self.dispatch(Operation::new(event, context, &self.clock()))
     }
 
     /// Publishes a message under a given id: what the outbox relay calls, with the entry's id,
@@ -75,7 +80,7 @@ pub trait EventBus: Send + Sync {
         event: Arc<dyn AnyEvent>,
         context: ExecutionContext,
     ) -> BoxFuture<'_, Operation> {
-        self.dispatch(Operation::with_id(message_id, event, context))
+        self.dispatch(Operation::with_id(message_id, event, context, &self.clock()))
     }
 
     /// Subscribes a handler to a channel: the name of the event it reacts to.

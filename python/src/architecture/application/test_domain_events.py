@@ -13,6 +13,7 @@ from architecture.domain.common_exceptions import NotAllowedException
 from architecture.domain.event import DomainEvent, Event
 from architecture.domain.id import Id
 from architecture.domain.result import Failure, Result, Success
+from architecture.infrastructure.clock import system_clock
 from architecture.infrastructure.outbox import InMemoryOutbox
 from architecture.infrastructure.unit_of_work import InMemoryUnitOfWork
 
@@ -43,7 +44,7 @@ class RecordingBus:
             raise RuntimeError("the bus is down")
         self.published.append(event)
         self.message_ids.append(message_id)
-        return Operation(event, context, id=message_id)
+        return Operation(event, context, clock=system_clock, id=message_id)
 
     async def dispatch(self, operation: Operation[Any]) -> Operation[Any]:
         return operation

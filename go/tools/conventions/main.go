@@ -32,6 +32,9 @@
 //     which refuses a caller who is not signed in with 401 first: a Presentation file that
 //     calls Publish or answers 202 by itself is refused, by file and line (API-CALLER-AT-TRANSPORT,
 //     caller.go).
+//  8. Nothing but the building blocks' system clock reads the machine's time: a file of the tree
+//     (the tests aside) that names time.Now, time.Since or time.Until is refused, by file and
+//     line (DOMAIN-ONE-CLOCK, clock.go).
 //
 // `can-import <file> <import-path> …` answers whether an import would be allowed, naming the
 // rule that refuses it. `inventory` prints the inventory as canonical JSON; `inventory --write`
@@ -112,6 +115,7 @@ func check(root string, contract *Contract) []string {
 	problems = append(problems, checkNamedFiles(root, contract)...)
 	problems = append(problems, checkOneHandler(root, contract)...)
 	problems = append(problems, checkCallerAtTransport(root, contract)...)
+	problems = append(problems, checkOneClock(root, contract)...)
 	return withInventory(problems, checkInventory(root, contract))
 }
 
@@ -134,7 +138,7 @@ func summary(root string, contract *Contract) string {
 	for _, file := range files {
 		imports += len(file.imports)
 	}
-	return fmt.Sprintf("✓ contract v%d, Go binding: %d files and %d imports are the table, %d contexts match the tree, every file the binding names exists, every command has one handler, every route publishes through Accept; the inventory is current.",
+	return fmt.Sprintf("✓ contract v%d, Go binding: %d files and %d imports are the table, %d contexts match the tree, every file the binding names exists, every command has one handler, every route publishes through Accept, only the system clock reads the time; the inventory is current.",
 		contract.SchemaVersion, len(files), imports, len(contract.Contexts))
 }
 
