@@ -114,7 +114,7 @@ func TestAuthenticating(t *testing.T) {
 
 	t.Run("refuses a pending account", func(t *testing.T) {
 		a := aPendingAccount(t)
-		if typ := refusalType(t, a.Authenticate(time.Time{})); typ != "InactiveAccount" {
+		if typ := refusalType(t, a.Authenticate(time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC))); typ != "InactiveAccount" {
 			t.Errorf("type = %q", typ)
 		}
 		if a.LastAuthenticatedAt() != nil {

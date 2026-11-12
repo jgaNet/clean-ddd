@@ -64,8 +64,8 @@ func TestCreatingStartsPendingWithEveryChannelOfTheStrategyStillToTry(t *testing
 }
 
 func TestCreatingRefusesABlankTitleAndAnEmptyStrategy(t *testing.T) {
-	_, blank := Create(NewNotification{RecipientID: "bob", Title: " ", Content: "x", Channels: []Channel{ChannelEmail}})
-	_, empty := Create(NewNotification{RecipientID: "bob", Title: "x", Content: "x", Channels: []Channel{}})
+	_, blank := Create(NewNotification{RecipientID: "bob", Title: " ", Content: "x", Channels: []Channel{ChannelEmail}}, at)
+	_, empty := Create(NewNotification{RecipientID: "bob", Title: "x", Content: "x", Channels: []Channel{}}, at)
 	if refusalType(t, blank) != "BlankNotificationTitle" {
 		t.Fatalf("blank title: %v", blank)
 	}
@@ -173,23 +173,23 @@ func TestIsMarkedReadByItsRecipientOnceDeliveredAndRecordsNotificationRead(t *te
 func TestReadingIsReservedToTheRecipient(t *testing.T) {
 	n := aNotification(t)
 	mustRecord(t, n, ChannelWebSocket, true)
-	if refused := n.MarkRead(carol); refusalType(t, refused) != "NotNotificationRecipient" {
+	if refused := n.MarkRead(carol, at); refusalType(t, refused) != "NotNotificationRecipient" {
 		t.Fatalf("refused: %v", refused)
 	}
 }
 
 func TestCannotBeReadBeforeDeliveryNorTwice(t *testing.T) {
 	pending := aNotification(t)
-	if early := pending.MarkRead(bob); refusalType(t, early) != "NotificationNotDelivered" {
+	if early := pending.MarkRead(bob, at); refusalType(t, early) != "NotificationNotDelivered" {
 		t.Fatalf("early: %v", early)
 	}
 
 	read := aNotification(t)
 	mustRecord(t, read, ChannelWebSocket, true)
-	if err := read.MarkRead(bob); err != nil {
+	if err := read.MarkRead(bob, at); err != nil {
 		t.Fatalf("unexpected refusal: %v", err)
 	}
-	if again := read.MarkRead(bob); refusalType(t, again) != "NotificationAlreadyRead" {
+	if again := read.MarkRead(bob, at); refusalType(t, again) != "NotificationAlreadyRead" {
 		t.Fatalf("again: %v", again)
 	}
 }

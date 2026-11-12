@@ -23,9 +23,10 @@ func NewOperationRecords(store *OperationStore) *trackerinfra.InMemoryOperationR
 	return trackerinfra.NewInMemoryOperationRecords(store)
 }
 
-// NewTrackedEventBus is the application's event bus: any bus, decorated so that every operation is recorded.
+// NewTrackedEventBus is the application's event bus: any bus, decorated so that every operation
+// is recorded, its times read from the system clock (DOMAIN-ONE-CLOCK).
 func NewTrackedEventBus(bus application.EventBus, records trackerapp.Records) *trackerinfra.TrackedEventBus {
-	return trackerinfra.NewTrackedEventBus(bus, records)
+	return trackerinfra.NewTrackedEventBus(bus, records, infrastructure.SystemClock)
 }
 
 // LocalModule is the Tracker module for the local environment: two queries over the records, no command.

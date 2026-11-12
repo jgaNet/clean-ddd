@@ -33,7 +33,7 @@ func Compose(settings Settings, logger application.Logger) (*transport.Server, e
 
 	// The application's bus: the in-memory bus, decorated so that every operation is recorded.
 	records := tracker.NewOperationRecords(operationStore)
-	eventBus := tracker.NewTrackedEventBus(infrastructure.NewInMemoryEventBus(), records)
+	eventBus := tracker.NewTrackedEventBus(infrastructure.NewInMemoryEventBus(infrastructure.SystemClock), records)
 
 	// The modules, from each context's wiring. Notes asks Security's read model through its own
 	// port: the adapter is built here, where the two contexts meet.

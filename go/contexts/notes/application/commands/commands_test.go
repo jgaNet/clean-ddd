@@ -7,6 +7,7 @@ package commands
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"clean-ddd/architecture/application"
 	"clean-ddd/architecture/domain"
@@ -22,7 +23,7 @@ func (*recordingBus) Connect() error { return nil }
 
 func (b *recordingBus) Publish(event domain.Event, context *application.ExecutionContext) *application.Operation {
 	b.published = append(b.published, event)
-	return application.NewOperation(event, context)
+	return application.NewOperation(event, context, time.Now)
 }
 
 func (b *recordingBus) PublishWithID(event domain.Event, context *application.ExecutionContext, _ string) *application.Operation {
@@ -162,7 +163,7 @@ func TestCreateNoteRefusesAnAnonymousCaller(t *testing.T) {
 
 func TestCreateNotePublishedOnTheBusEndsAsASucceededOperationCarryingTheID(t *testing.T) {
 	notes := newFixture(t)
-	operation := application.NewOperation(CreateNoteCommandEvent{Title: "Groceries", Content: "Milk"}, notes.contextFor("alice"))
+	operation := application.NewOperation(CreateNoteCommandEvent{Title: "Groceries", Content: "Milk"}, notes.contextFor("alice"), time.Now)
 
 	subscription := application.Command[CreateNoteCommandEvent, string](NewCreateNoteHandler(notes.repository))
 	subscription.Handlers[0].Handle(operation)

@@ -36,7 +36,7 @@ type recordingBus struct {
 func (b *recordingBus) Connect() error { return nil }
 func (b *recordingBus) Publish(event domain.Event, ctx *application.ExecutionContext) *application.Operation {
 	b.published = append(b.published, event)
-	return application.NewOperation(event, ctx)
+	return application.NewOperation(event, ctx, time.Now)
 }
 
 func (b *recordingBus) PublishWithID(event domain.Event, ctx *application.ExecutionContext, _ string) *application.Operation {
@@ -61,7 +61,7 @@ func newFixture() *fixture {
 		store:        store,
 		repository:   repository,
 		registration: account.NewRegistration(repository),
-		tokens:       infrastructure.NewJwtSignedTokens("test-secret-of-at-least-thirty-two-bytes", time.Hour),
+		tokens:       infrastructure.NewJwtSignedTokens("test-secret-of-at-least-thirty-two-bytes", time.Hour, time.Now),
 		bus:          &recordingBus{},
 	}
 }
@@ -162,7 +162,7 @@ func TestLogin(t *testing.T) {
 	t.Run("signs in an active account with the right password and publishes AccountAuthenticated", func(t *testing.T) {
 		f := newFixture()
 		aliceID := f.anAccount(t, "alice@example.com", true)
-		handler := commands.NewLoginHandler(f.repository, f.hasher, f.tokens)
+		handler := commands.NewLoginHandler(f.repository, f.hasher, f.tokens, time.Now)
 
 		result, err := handler.Execute(commands.LoginCommandEvent{Identifier: "alice@example.com", Password: "secret"}, f.contextFor(kernel.RoleGuest, ""))
 		if err != nil {
@@ -186,7 +186,7 @@ func TestLogin(t *testing.T) {
 	t.Run("refuses an unknown email and a wrong password with the same vague answer", func(t *testing.T) {
 		f := newFixture()
 		f.anAccount(t, "alice@example.com", true)
-		handler := commands.NewLoginHandler(f.repository, f.hasher, f.tokens)
+		handler := commands.NewLoginHandler(f.repository, f.hasher, f.tokens, time.Now)
 
 		_, unknown := handler.Execute(commands.LoginCommandEvent{Identifier: "nobody@example.com", Password: "secret"}, f.contextFor(kernel.RoleGuest, ""))
 		_, wrong := handler.Execute(commands.LoginCommandEvent{Identifier: "alice@example.com", Password: "nope"}, f.contextFor(kernel.RoleGuest, ""))
@@ -205,7 +205,7 @@ func TestLogin(t *testing.T) {
 	t.Run("refuses a pending account even with the right password", func(t *testing.T) {
 		f := newFixture()
 		f.anAccount(t, "pending@example.com", false)
-		handler := commands.NewLoginHandler(f.repository, f.hasher, f.tokens)
+		handler := commands.NewLoginHandler(f.repository, f.hasher, f.tokens, time.Now)
 
 		_, err := handler.Execute(commands.LoginCommandEvent{Identifier: "pending@example.com", Password: "secret"}, f.contextFor(kernel.RoleGuest, ""))
 		if typ := refusalType(t, err); typ != "InactiveAccount" {
@@ -317,7 +317,7 @@ func TestWhoReachesTheCommandsOfAccounts(t *testing.T) {
 func registerAdmin(f *fixture, role kernel.Role) *application.Operation {
 	handler := commands.NewRegisterAdminHandler(f.repository, f.registration, f.hasher)
 	command := commands.RegisterAdminCommandEvent{Email: "root@example.com", Password: "secret"}
-	operation := application.NewOperation(command, f.contextFor(role, "caller"))
+	operation := application.NewOperation(command, f.contextFor(role, "caller"), time.Now)
 	application.Command(handler).Handlers[0].Handle(operation)
 	return operation
 }

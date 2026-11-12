@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 
 	"clean-ddd/architecture/application"
 	"clean-ddd/architecture/domain"
@@ -73,7 +74,7 @@ func TestIsRolledBackWithTheTransactionThatAppendedToItAndKeptByOneThatCommits(t
 
 func TestTheRealPiecesStoreAtCommitAndPublishAfterItUnderTheEntrysID(t *testing.T) {
 	outbox := NewInMemoryOutbox()
-	bus := NewInMemoryEventBus()
+	bus := NewInMemoryEventBus(time.Now)
 	var delivered []string
 	bus.Subscribe("GreetedEvent", subscriber(func(operation *application.Operation) {
 		delivered = append(delivered, operation.ID)
@@ -155,7 +156,7 @@ func (r *tellTheHost) fail(failing bool) {
 }
 
 func TestTheRelayKeepsAnEntryPendingWhileAReactionToItRunsAndHandsItOutOnceMeanwhile(t *testing.T) {
-	bus := NewInMemoryEventBus()
+	bus := NewInMemoryEventBus(time.Now)
 	reaction := &tellTheHost{started: make(chan struct{}), release: make(chan struct{})}
 	subscribe(bus, application.Reaction[BookingConfirmedEvent](reaction))
 	outbox := NewInMemoryOutbox()
@@ -189,7 +190,7 @@ func TestTheRelayKeepsAnEntryWhoseReactionFailedPendingAndHandsItAgainToThatSubs
 	for _, refusedFirst := range []bool{false, true} {
 		name := map[bool]string{false: "told, then refused", true: "refused, then told"}[refusedFirst]
 		t.Run(name, func(t *testing.T) {
-			bus := NewInMemoryEventBus()
+			bus := NewInMemoryEventBus(time.Now)
 			told, refused := &tellTheHost{}, &tellTheHost{}
 			order := []*tellTheHost{told, refused}
 			if refusedFirst {

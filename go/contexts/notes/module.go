@@ -39,7 +39,7 @@ func LocalModule(store *NoteStore, accounts note.AccountDirectory) *application.
 			application.Command(commands.NewRestoreNoteHandler(repository)),
 			application.Command(commands.NewShareNoteHandler(repository, note.NewSharing(accounts))),
 			// The one non-deterministic source of the context, behind a port (ADR 7); a model would go here.
-			application.Command(commands.NewSuggestNoteTitleHandler(repository, notesinfra.FirstLineTitleSuggestions{})),
+			application.Command(commands.NewSuggestNoteTitleHandler(repository, notesinfra.NewFirstLineTitleSuggestions(infrastructure.SystemClock))),
 		},
 		Queries: []any{
 			queries.NewGetMyNotesHandler(noteQueries),

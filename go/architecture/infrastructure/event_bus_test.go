@@ -5,6 +5,7 @@ import (
 	"sort"
 	"sync"
 	"testing"
+	"time"
 
 	"clean-ddd/architecture/application"
 	"clean-ddd/architecture/domain"
@@ -48,7 +49,7 @@ func contextOn(bus *InMemoryEventBus) *application.ExecutionContext {
 }
 
 func TestAnswersWithTheOperationBeforeTheHandlingAndRoutesByName(t *testing.T) {
-	bus := NewInMemoryEventBus()
+	bus := NewInMemoryEventBus(time.Now)
 	handler := &recorder{release: make(chan struct{})}
 	subscribe(bus, application.Reaction[GreetedEvent](handler))
 
@@ -71,7 +72,7 @@ func TestAnswersWithTheOperationBeforeTheHandlingAndRoutesByName(t *testing.T) {
 }
 
 func TestAnEventNobodyListensToIsDispatchedToNoOne(t *testing.T) {
-	bus := NewInMemoryEventBus()
+	bus := NewInMemoryEventBus(time.Now)
 	handler := &recorder{}
 	subscribe(bus, application.Reaction[GreetedEvent](handler))
 
@@ -87,7 +88,7 @@ func TestAnEventNobodyListensToIsDispatchedToNoOne(t *testing.T) {
 }
 
 func TestDispatchesToEveryHandlerOfTheChannelInTheOrderTheySubscribed(t *testing.T) {
-	bus := NewInMemoryEventBus()
+	bus := NewInMemoryEventBus(time.Now)
 	var order []string
 	bus.Subscribe("GreetedEvent", subscriber(func(*application.Operation) { order = append(order, "first") }))
 	bus.Subscribe("GreetedEvent", subscriber(func(*application.Operation) { order = append(order, "second") }))
@@ -102,14 +103,14 @@ func TestDispatchesToEveryHandlerOfTheChannelInTheOrderTheySubscribed(t *testing
 }
 
 func TestDispatchRunsTheHandlersInTheCallingGoroutine(t *testing.T) {
-	bus := NewInMemoryEventBus()
+	bus := NewInMemoryEventBus(time.Now)
 	var seen []domain.Event
 	bus.Subscribe("GreetedEvent", subscriber(func(operation *application.Operation) {
 		seen = append(seen, operation.Event)
 		operation.Sent()
 	}))
 
-	operation := application.NewOperation(GreetedEvent{Name: "bob"}, contextOn(bus))
+	operation := application.NewOperation(GreetedEvent{Name: "bob"}, contextOn(bus), time.Now)
 	bus.Dispatch(operation)
 
 	if want := []domain.Event{GreetedEvent{Name: "bob"}}; !reflect.DeepEqual(seen, want) {
@@ -121,7 +122,7 @@ func TestDispatchRunsTheHandlersInTheCallingGoroutine(t *testing.T) {
 }
 
 func TestSettleWaitsForTheEventsADispatchPublishes(t *testing.T) {
-	bus := NewInMemoryEventBus()
+	bus := NewInMemoryEventBus(time.Now)
 	var order []string
 	bus.Subscribe("GreetedEvent", subscriber(func(operation *application.Operation) {
 		order = append(order, "greeted")
@@ -138,7 +139,7 @@ func TestSettleWaitsForTheEventsADispatchPublishes(t *testing.T) {
 }
 
 func TestConnectHasNothingToConnectTo(t *testing.T) {
-	if err := NewInMemoryEventBus().Connect(); err != nil {
+	if err := NewInMemoryEventBus(time.Now).Connect(); err != nil {
 		t.Errorf("Connect: %v", err)
 	}
 }
@@ -173,7 +174,7 @@ func (c *counter) sorted() []string {
 // Idempotent delivery (ADR 24): a message relayed twice from the outbox reaches a subscriber once.
 
 func TestDeliversAMessageOncePerSubscriberByItsIDHoweverManyTimesItIsPublished(t *testing.T) {
-	bus := NewInMemoryEventBus()
+	bus := NewInMemoryEventBus(time.Now)
 	handler := &counter{}
 	subscribe(bus, application.Reaction[GreetedEvent](handler))
 
@@ -191,7 +192,7 @@ func TestDeliversAMessageOncePerSubscriberByItsIDHoweverManyTimesItIsPublished(t
 }
 
 func TestDeliversTwoMessagesWithTwoIDsAndTheSameEventWithoutAnIDAsManyTimesAsItIsPublished(t *testing.T) {
-	bus := NewInMemoryEventBus()
+	bus := NewInMemoryEventBus(time.Now)
 	handler := &counter{}
 	subscribe(bus, application.Reaction[GreetedEvent](handler))
 
@@ -207,7 +208,7 @@ func TestDeliversTwoMessagesWithTwoIDsAndTheSameEventWithoutAnIDAsManyTimesAsItI
 }
 
 func TestHandsAMessageAgainToASubscriberWhoseReactionFailedAtLeastOnceIsThePromise(t *testing.T) {
-	bus := NewInMemoryEventBus()
+	bus := NewInMemoryEventBus(time.Now)
 	handler := &counter{failNext: true}
 	subscribe(bus, application.Reaction[GreetedEvent](handler))
 

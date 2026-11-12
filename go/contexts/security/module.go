@@ -49,7 +49,7 @@ type Wiring struct {
 func LocalModule(store *AccountStore, settings Settings) *Wiring {
 	repository := securityinfra.NewInMemoryAccountRepository(store)
 	accountQueries := securityinfra.NewInMemoryAccountQueries(store)
-	signedTokens := securityinfra.NewJwtSignedTokens(settings.JWTSecret, settings.JWTExpiresIn)
+	signedTokens := securityinfra.NewJwtSignedTokens(settings.JWTSecret, settings.JWTExpiresIn, infrastructure.SystemClock)
 	registration := account.NewRegistration(repository)
 	hasher := securityinfra.NewBcryptPasswordHasher(settings.BcryptCost)
 
@@ -58,7 +58,7 @@ func LocalModule(store *AccountStore, settings Settings) *Wiring {
 			Name: "Security",
 			Commands: []application.Subscription{
 				application.Command(commands.NewSignUpHandler(repository, registration, hasher)),
-				application.Command(commands.NewLoginHandler(repository, hasher, signedTokens)),
+				application.Command(commands.NewLoginHandler(repository, hasher, signedTokens, infrastructure.SystemClock)),
 				application.Command(commands.NewValidateAccountHandler(repository, signedTokens)),
 			},
 			Queries: []any{

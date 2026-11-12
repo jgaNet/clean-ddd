@@ -4,6 +4,7 @@ import (
 	"slices"
 	"sync"
 	"testing"
+	"time"
 
 	"clean-ddd/architecture/application"
 	"clean-ddd/architecture/domain"
@@ -70,7 +71,7 @@ func (b *recordingBus) PublishWithID(event domain.Event, context *application.Ex
 		}
 	}
 	b.published = append(b.published, published{who: event.(toldIntegrationEvent).Who, id: id, saved: saved})
-	return application.NewOperationWithID(id, event, context)
+	return application.NewOperationWithID(id, event, context, time.Now)
 }
 
 func (*recordingBus) Dispatch(*application.Operation)          {}
@@ -95,7 +96,7 @@ func setupReaction() reactionSetup {
 }
 
 func (s reactionSetup) react(then string) *application.Operation {
-	operation := application.NewOperation(greetedEvent{Then: then}, s.context)
+	operation := application.NewOperation(greetedEvent{Then: then}, s.context, time.Now)
 	application.Reaction[greetedEvent](onGreetedSaveAndTell{store: s.store}).Handlers[0].Handle(operation)
 	return operation
 }

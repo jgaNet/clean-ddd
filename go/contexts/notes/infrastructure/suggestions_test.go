@@ -6,8 +6,8 @@ import (
 )
 
 func TestTheFirstLineIsProposedAsItIsForTheAggregateToJudge(t *testing.T) {
-	source := FirstLineTitleSuggestions{}
-	before := time.Now().UTC()
+	at := time.Date(2026, 3, 1, 9, 30, 0, 0, time.UTC)
+	source := NewFirstLineTitleSuggestions(func() time.Time { return at })
 
 	suggestion, err := source.Suggest("  Groceries  \nMilk\nBread")
 	if err != nil {
@@ -19,7 +19,7 @@ func TestTheFirstLineIsProposedAsItIsForTheAggregateToJudge(t *testing.T) {
 	if suggestion.Provenance.Source != "heuristic" || suggestion.Provenance.Version != FirstLineVersion {
 		t.Errorf("provenance: got %+v", suggestion.Provenance)
 	}
-	if suggestion.Provenance.At.Before(before) || suggestion.Provenance.At.Location() != time.UTC {
+	if !suggestion.Provenance.At.Equal(at) || suggestion.Provenance.At.Location() != time.UTC {
 		t.Errorf("at: got %v", suggestion.Provenance.At)
 	}
 

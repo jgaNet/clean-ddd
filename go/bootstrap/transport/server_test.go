@@ -4,6 +4,7 @@ import (
 	"slices"
 	"sync"
 	"testing"
+	"time"
 
 	"clean-ddd/architecture/application"
 	"clean-ddd/architecture/domain"
@@ -63,7 +64,7 @@ func (t *told) Handle(operation *application.Operation) {
 }
 
 func TestTheRelayAtStartDeliversInAContextWithAUnitOfWork(t *testing.T) {
-	bus := &relayingBus{InMemoryEventBus: infrastructure.NewInMemoryEventBus()}
+	bus := &relayingBus{InMemoryEventBus: infrastructure.NewInMemoryEventBus(time.Now)}
 	server := transport.New(bus, transport.Options{})
 	reaction := application.Reaction[noteArchivedEvent](tellTheArchiving{})
 	bus.Subscribe(reaction.Channel, reaction.Handlers[0])

@@ -1,8 +1,6 @@
 package commands
 
 import (
-	"time"
-
 	"clean-ddd/architecture/application"
 	"clean-ddd/architecture/domain"
 	"clean-ddd/contexts/security/domain/account"
@@ -11,7 +9,8 @@ import (
 
 // Login answers synchronously (the caller needs the token), so the route runs the handler
 // through the module (application.Run) instead of publishing the command on the bus: the
-// token is answered, and the Tracker never sees it.
+// token is answered, and the Tracker never sees it. When the account signed in is the
+// application's clock, which the handler takes like a port (DOMAIN-ONE-CLOCK).
 
 type LoginCommandEvent struct {
 	domain.CommandEvent
@@ -29,10 +28,11 @@ type LoginHandler struct {
 	accounts account.Repository
 	hasher   auth.PasswordHasher
 	tokens   auth.SignedTokens
+	clock    application.Clock
 }
 
-func NewLoginHandler(accounts account.Repository, hasher auth.PasswordHasher, tokens auth.SignedTokens) *LoginHandler {
-	return &LoginHandler{accounts: accounts, hasher: hasher, tokens: tokens}
+func NewLoginHandler(accounts account.Repository, hasher auth.PasswordHasher, tokens auth.SignedTokens, clock application.Clock) *LoginHandler {
+	return &LoginHandler{accounts: accounts, hasher: hasher, tokens: tokens, clock: clock}
 }
 
 func (h *LoginHandler) Execute(command LoginCommandEvent, ctx *application.ExecutionContext) (LoginResult, error) {
@@ -50,7 +50,7 @@ func (h *LoginHandler) Execute(command LoginCommandEvent, ctx *application.Execu
 	if !matches {
 		return LoginResult{}, account.InvalidCredentials()
 	}
-	if err := a.Authenticate(time.Time{}); err != nil {
+	if err := a.Authenticate(h.clock()); err != nil {
 		return LoginResult{}, err
 	}
 	if err := h.accounts.Save(a); err != nil {

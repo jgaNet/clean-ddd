@@ -22,8 +22,8 @@ import (
 // NotificationDelivery application service); recording what happened is. The only ways in are
 // Create and FromSnapshot; the state stays in unexported fields.
 //
-// Time is a parameter with a default (DOMAIN-NON-DETERMINISM): Create, RecordAttempt and
-// MarkRead take an optional instant, and use the clock when given none.
+// Time is a parameter, always given (DOMAIN-ONE-CLOCK): Create, RecordAttempt and MarkRead take
+// the instant they decide on from the application's clock, through their caller.
 type Notification struct {
 	domain.AggregateRoot
 	recipientID  domain.ID
@@ -41,7 +41,7 @@ type Notification struct {
 
 // Create writes a brand new notification, PENDING, with nothing tried yet. This is the only
 // way to bring a Notification into existence; the aggregate picks its own identity.
-func Create(props NewNotification, now ...time.Time) (*Notification, error) {
+func Create(props NewNotification, now time.Time) (*Notification, error) {
 	title := strings.TrimSpace(props.Title)
 	if title == "" {
 		return nil, BlankNotificationTitle()
@@ -61,7 +61,7 @@ func Create(props NewNotification, now ...time.Time) (*Notification, error) {
 		content:       content,
 		strategy:      strategy,
 		status:        StatusPending,
-		createdAt:     timeOr(now),
+		createdAt:     now,
 		metadata:      cloneMetadata(props.Metadata),
 		attempts:      []DeliveryAttempt{},
 	}, nil
@@ -118,17 +118,16 @@ func (n *Notification) ChannelsToTry() []Channel {
 
 // RecordAttempt records what a channel answered. A success delivers the notification; the last
 // failure fails it.
-func (n *Notification) RecordAttempt(channel Channel, succeeded bool, at ...time.Time) error {
+func (n *Notification) RecordAttempt(channel Channel, succeeded bool, at time.Time) error {
 	if n.tried(channel) {
 		return ChannelAlreadyTried(n.ID().Value(), channel)
 	}
-	when := timeOr(at)
-	n.attempts = append(n.attempts, newDeliveryAttempt(channel, succeeded, when))
+	n.attempts = append(n.attempts, newDeliveryAttempt(channel, succeeded, at))
 
 	switch {
 	case succeeded:
 		n.status = StatusSent
-		n.sentAt = &when
+		n.sentAt = &at
 		n.deliveredVia = channel
 		n.Record(NotificationSentEvent{NotificationID: n.ID().Value(), RecipientID: n.recipientID.Value(), Via: channel})
 	case len(n.ChannelsToTry()) == 0:
@@ -139,7 +138,7 @@ func (n *Notification) RecordAttempt(channel Channel, succeeded bool, at ...time
 }
 
 // MarkRead is the recipient's, once the notification was delivered, and once only.
-func (n *Notification) MarkRead(actorID domain.ID, at ...time.Time) error {
+func (n *Notification) MarkRead(actorID domain.ID, at time.Time) error {
 	if n.recipientID != actorID {
 		return NotNotificationRecipient(n.ID().Value(), actorID.Value())
 	}
@@ -149,9 +148,8 @@ func (n *Notification) MarkRead(actorID domain.ID, at ...time.Time) error {
 	if n.status != StatusSent {
 		return NotificationNotDelivered(n.ID().Value())
 	}
-	when := timeOr(at)
 	n.status = StatusRead
-	n.readAt = &when
+	n.readAt = &at
 	n.Record(NotificationReadEvent{NotificationID: n.ID().Value(), RecipientID: n.recipientID.Value()})
 	return nil
 }
@@ -190,14 +188,6 @@ func (n *Notification) Status() Status              { return n.status }
 func (n *Notification) DeliveredVia() Channel       { return n.deliveredVia }
 func (n *Notification) Metadata() map[string]any    { return cloneMetadata(n.metadata) }
 func (n *Notification) Attempts() []DeliveryAttempt { return slices.Clone(n.attempts) }
-
-// timeOr is the optional instant a behaviour was given, or now.
-func timeOr(at []time.Time) time.Time {
-	if len(at) > 0 {
-		return at[0]
-	}
-	return time.Now().UTC()
-}
 
 func cloneTime(t *time.Time) *time.Time {
 	if t == nil {

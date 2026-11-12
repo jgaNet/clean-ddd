@@ -36,28 +36,32 @@ type Operation struct {
 	// delivery is the bus's word on when every subscriber has finished with the message; nil
 	// when the bus cannot tell.
 	delivery *Delivery
+	// clock is the bus's, which stamps when the operation was created and when it finished
+	// (DOMAIN-ONE-CLOCK).
+	clock Clock
 }
 
-func NewOperation(event domain.Event, context *ExecutionContext) *Operation {
-	return NewOperationWithID(uuid.NewString(), event, context)
+// NewOperation is the operation the bus builds when it is handed an event, on the bus's clock.
+func NewOperation(event domain.Event, context *ExecutionContext, clock Clock) *Operation {
+	return NewOperationWithID(uuid.NewString(), event, context, clock)
 }
 
 // NewOperationWithID is the operation of a message whose id exists before the bus sees it: an
 // outbox entry relayed after the commit (ADR 24), recognised by its id wherever it is delivered.
-func NewOperationWithID(id string, event domain.Event, context *ExecutionContext) *Operation {
-	return &Operation{ID: id, Status: StatusPending, Event: event, Context: context, CreatedAt: time.Now().UTC()}
+func NewOperationWithID(id string, event domain.Event, context *ExecutionContext, clock Clock) *Operation {
+	return &Operation{ID: id, Status: StatusPending, Event: event, Context: context, CreatedAt: clock().UTC(), clock: clock}
 }
 
 // Failed marks a command refused or a reaction that failed: the error is the operation's outcome.
 func (o *Operation) Failed(err *domain.Exception) *Operation {
-	now := time.Now().UTC()
+	now := o.clock().UTC()
 	o.Status, o.Error, o.FinishedAt = StatusError, err, &now
 	return o
 }
 
 // Succeeded marks a command that ran: its answer is the operation's result.
 func (o *Operation) Succeeded(value any) *Operation {
-	now := time.Now().UTC()
+	now := o.clock().UTC()
 	o.Status, o.Result, o.FinishedAt = StatusSuccess, value, &now
 	return o
 }
