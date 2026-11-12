@@ -74,7 +74,12 @@ The SDK's agent process is not in a process group of its own: if the driver is k
   It stops after two rounds. Git, the gate and the agents are passed in, and [`integrator.test.mjs`](integrator.test.mjs) tests the routing and the bound without them. Two drivers call it:
   - **the phase-2 fan-out** ([`run-slices.mjs`](run-slices.mjs)): the owners are the slices, a merge applies their patches to a new worktree from the base, and the gate is the contract marked carried, the gate, the storm's owing and the acceptance test (*Phase 2* above);
   - **the ladder's fan-out by context**, below.
-- **The ladder's fan-out by context.** With `fanOut: { rounds: 2 }` in a clean arm's plan, a feature whose storm lists several contexts is written by one agent per context, in parallel, each with the step's model.
+- **The ladder's fan-out by context.** With `fanOut: { rounds: 2 }` in a clean arm's plan, a feature whose storm lists several contexts may be written by one agent per context, in parallel, each with the step's model.
+  - **Whether it is split** ([next campaign](../../docs/evaluations/benchmark/openstay/j5/next-campaign.md), correction 12):
+    - with `split: recommended`, the default, only where `clean-ddd strategy` recommends it, asked with `priority` (`time` by default; with `cost` it never recommends a split, the fan-out costing more in every measured run);
+    - with `split: always`, every such feature, as J5b registered it.
+
+    The `strategy` event logs the recommendation, the priority and what the attempt ran.
   - **Ownership:**
     - The storm's first context owns the feature. Its agent owns its folder and everything no other agent owns (the composition root, the shared kernel, the conventions, the decisions).
     - Each other agent owns its context's folder and the integration events it publishes.
@@ -84,7 +89,11 @@ The SDK's agent process is not in a process group of its own: if the driver is k
     - the downstream owner builds on it, writes no version of its own, and writes the relationship's test in its own context's end-to-end tests.
   - **An owner's verdict** is:
     - its scope (a file another owner owns is refused, unless it is that owner's own version, merged in);
-    - the gate on its branch, without `--fix` and without the relationship tests, which only the merged feature can pass.
+    - the gate on its branch, without `--fix`, less what the owner cannot fix alone (correction 13):
+      - the relationship tests, which only the merged feature can pass;
+      - every failure that names a file or a module another owner owns (a member its integration events do not export yet, read through the binding's aliases). It waits on that owner: it is logged as `waiting` in the `owner-verdict` event, never sent back, and left to the integrator's gate on the merged result.
+
+    With `ownerGate: false`, the gate is not run on an owner's branch at all: the verdict is the scope, and the integrator's gate is the only one.
 
     The owners' gates on one attempt take a lock, so their test suites do not run at once.
   - **The merged result** is held to the clean arm's verdict, checked once more alone if it fails, and graded like any attempt's head.

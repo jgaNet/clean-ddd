@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { filesNamed, integrate, ownerOf, routeFailures } from './integrator.mjs';
+import { filesAndModulesNamed, filesNamed, integrate, ownerOf, routeFailures, splitWaiting } from './integrator.mjs';
 
 const owners = [
   { name: 'Messaging', owns: ['^src/Contexts/Messaging/', '^src/SharedKernel/.*/MessagingIntegrationEvents'] },
@@ -58,6 +58,58 @@ describe('routing a failure', () => {
     assert.deepEqual(Object.keys(routeFailures([step], owners, 'Messaging', byPair)), ['Moderation']);
     assert.deepEqual(Object.keys(routeFailures([step], owners, 'Messaging')), ['Messaging']);
     assert.deepEqual(Object.keys(routeFailures([step], owners, 'Messaging', () => ['Nobody'])), ['Messaging']);
+  });
+});
+
+describe('what an owner can fix alone (correction 13)', () => {
+  const aliases = { '@SharedKernel': 'src/SharedKernel', '@Contexts': 'src/Contexts' };
+
+  it('reads a module an import names through its alias', () => {
+    assert.deepEqual(
+      filesAndModulesNamed(
+        `src/Contexts/Moderation/a.ts(3,10): error TS2305: Module '"@SharedKernel/Application/IntegrationEvents/MessagingIntegrationEvents"' has no exported member 'X'.`,
+        aliases,
+      ),
+      ['src/Contexts/Moderation/a.ts', 'src/SharedKernel/Application/IntegrationEvents/MessagingIntegrationEvents'],
+    );
+    assert.deepEqual(filesAndModulesNamed(`import '@Unknown/x'`, aliases), []);
+  });
+
+  it("sets apart a step that waits on another owner's contract", () => {
+    const typecheck = {
+      name: 'typecheck',
+      lines: [
+        `src/Contexts/Moderation/a.ts(3,10): error TS2305: Module '"@SharedKernel/Application/IntegrationEvents/MessagingIntegrationEvents"' has no exported member 'X'.`,
+      ],
+    };
+    const { own, waiting } = splitWaiting([typecheck], 'Moderation', owners, aliases);
+    assert.deepEqual(own, []);
+    assert.deepEqual(waiting, [typecheck]);
+  });
+
+  it("keeps the owner's own lines, and a step that names no file, as the owner's", () => {
+    const steps = [
+      {
+        name: 'typecheck',
+        lines: [
+          'src/Contexts/Moderation/b.ts(1,1): error TS2322: wrong type',
+          `src/Contexts/Moderation/a.ts(3,10): error TS2724: '"@SharedKernel/x/MessagingIntegrationEvents"' has no member.`,
+        ],
+      },
+      { name: 'lint', lines: ['something broke'] },
+    ];
+    const { own, waiting } = splitWaiting(steps, 'Moderation', owners, aliases);
+    assert.deepEqual(own, [
+      { name: 'typecheck', lines: ['src/Contexts/Moderation/b.ts(1,1): error TS2322: wrong type'] },
+      { name: 'lint', lines: ['something broke'] },
+    ]);
+    assert.equal(waiting.length, 1);
+    assert.equal(waiting[0].lines.length, 1);
+  });
+
+  it("does not set apart the owner's own files, nor files nobody owns", () => {
+    const step = { name: 'test', lines: ['FAIL src/Contexts/Messaging/x.spec.ts', 'see src/Contexts/Reviews/y.ts'] };
+    assert.deepEqual(splitWaiting([step], 'Messaging', owners, aliases).own, [step]);
   });
 });
 
