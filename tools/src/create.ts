@@ -728,7 +728,7 @@ function claude(
     'it is `null`, a status — that is the shape, even where the code already answers otherwise: change the code that',
     "projects the answer (the read model, its projection, the route's schema) and the tests that read the old shape,",
     'never the specification. A field is `null` only where a specification says so; a state added later keeps the',
-    'values the earlier ones gave. What an operation answers when it is read is the contract\'s (`http.operation`); a',
+    "values the earlier ones gave. What an operation answers when it is read is the contract's (`http.operation`); a",
     'specification that wants another shape says so where it is first decided.',
     '',
     '## Things to avoid',

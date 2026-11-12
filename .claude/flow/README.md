@@ -75,7 +75,7 @@ The SDK's agent process is not in a process group of its own: if the driver is k
   - **the phase-2 fan-out** ([`run-slices.mjs`](run-slices.mjs)): the owners are the slices, a merge applies their patches to a new worktree from the base, and the gate is the contract marked carried, the gate, the storm's owing and the acceptance test (*Phase 2* above);
   - **the ladder's fan-out by context**, below.
 - **The ladder's fan-out by context.** With `fanOut: { rounds: 2 }` in a clean arm's plan, a feature whose storm lists several contexts may be written by one agent per context, in parallel, each with the step's model.
-  - **Whether it is split** ([next campaign](../../docs/evaluations/benchmark/openstay/j5/next-campaign.md), correction 12):
+  - **Whether it is split** (the next campaign's correction 12, in the reference's `docs/evaluations/benchmark/openstay/j5/next-campaign.md`):
     - with `split: recommended`, the default, only where `clean-ddd strategy` recommends it, asked with `priority` (`time` by default; with `cost` it never recommends a split, the fan-out costing more in every measured run);
     - with `split: always`, every such feature, as J5b registered it.
 
