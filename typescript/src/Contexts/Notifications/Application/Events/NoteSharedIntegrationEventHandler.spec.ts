@@ -17,7 +17,7 @@ describe('NoteSharedIntegrationEventHandler (anti-corruption layer)', () => {
   it('turns the Notes fact into a live notification for the recipient, in Notifications terms', async () => {
     const websocket = new FakeChannel(Channel.WEBSOCKET);
     const store = new InMemoryDataSource<INotification>();
-    const delivery = new NotificationDelivery(new InMemoryNotificationRepository(store), [websocket]);
+    const delivery = new NotificationDelivery(new InMemoryNotificationRepository(store), [websocket], () => new Date());
 
     await new NoteSharedIntegrationEventHandler(delivery).execute(
       NoteSharedIntegrationEvent.set({ noteId: 'note-1', title: 'Groceries', ownerId: 'alice', recipientId: 'bob' }),

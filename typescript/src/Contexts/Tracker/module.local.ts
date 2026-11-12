@@ -1,6 +1,7 @@
 import { Module } from '@Architecture/Application';
 import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
 import { InMemoryEventBus } from '@Architecture/Infrastructure/EventBus/InMemoryEventBus';
+import { systemClock } from '@Architecture/Infrastructure/Clock/SystemClock';
 import { EventEmitter } from 'events';
 
 import { OperationRecord } from '@Contexts/Tracker/Application/ReadModel/OperationRecord';
@@ -12,7 +13,7 @@ const operationRecords = new InMemoryOperationRecords(new InMemoryDataSource<Ope
 
 // The application's event bus: the in-memory bus, decorated so that every operation is recorded.
 export const trackedEventBus = new TrackedEventBus(
-  new InMemoryEventBus({ eventEmitter: new EventEmitter() }),
+  new InMemoryEventBus({ eventEmitter: new EventEmitter(), clock: systemClock }),
   operationRecords,
 );
 

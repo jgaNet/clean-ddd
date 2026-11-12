@@ -35,7 +35,12 @@ beforeEach(() => {
   jest.resetAllMocks();
   store = new InMemoryDataSource<IAccount>();
   repository = new InMemoryAccountRepository(store);
-  handler = new LoginCommandHandler(repository, fakeHasher, new JoseSignedTokens({ secret: 'test', expiresIn: '1h' }));
+  handler = new LoginCommandHandler(
+    repository,
+    fakeHasher,
+    new JoseSignedTokens({ secret: 'test', expiresIn: '1h' }),
+    () => new Date(),
+  );
 });
 
 async function anAccount(email: string, activated: boolean): Promise<string> {

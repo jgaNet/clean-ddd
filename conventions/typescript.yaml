@@ -142,6 +142,15 @@ rules:
     references: [src/Contexts/Notes/Domain/Note/Note.spec.ts]
   DOMAIN-NON-DETERMINISM:
     references: [src/Contexts/Notes/Application/Commands/SuggestNoteTitle/SuggestNoteTitleCommandHandler.ts]
+  # Held by ESLint (`new Date()` and `Date.now()` outside the system clock and the tests); the type checker refuses a
+  # domain call that forgets its time, since the parameter has no default.
+  DOMAIN-ONE-CLOCK:
+    references:
+      - src/Architecture/Application/Clock.ts
+      - src/Architecture/Infrastructure/Clock/SystemClock.ts
+      - src/Contexts/Security/Application/Commands/Login/LoginCommandHandler.ts
+      - src/Contexts/Security/module.local.ts
+      - eslint.config.js
   EVENT-AFTER-COMMIT:
     references: [src/Architecture/Application/DomainEvents.spec.ts, src/Architecture/Infrastructure/EventBus/InMemoryEventBus.spec.ts]
   CONC-OPTIMISTIC:
@@ -209,6 +218,7 @@ checklists:
       - '`<UseCase>CommandEvent.ts`: a named payload, nothing more.'
       - '`<UseCase>CommandHandler.ts`: `requireSignedIn` at the top of `execute()`, load, ask the aggregate or the domain service, save (check the `IResult`), `publishDomainEvents`. A command anyone may send (a sign-up) has no `requireSignedIn`; its caller follows it by the operation id it was answered, signed in or not (ADR 27).'
       - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
+      - 'A behaviour that decides or records a time takes it as a parameter with no default; the handler takes a `Clock` in its constructor, gives it `this.clock()`, and the wiring passes `systemClock` (DOMAIN-ONE-CLOCK).'
       - 'Two lines in `Application/Commands/index.ts`, each through the alias (`@Contexts/<Context>/Application/Commands/<UseCase>/<UseCase>CommandHandler`), never a relative path; no barrel in the use-case folder.'
       - 'A spec with at least a happy path and one refusal; through `handle()` when the rule is in `guard()`.'
       - 'A route answering `202 { operationId }`, its JSON schema, and the handler registered in `module.local.ts`. A create never answers its new id: the handler returns it, and the client reads it as the operation''s `result` at `GET /v1/tracker/operations/:id`.'

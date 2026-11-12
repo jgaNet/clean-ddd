@@ -43,7 +43,7 @@ describe('TrackedEventBus', () => {
     store = new InMemoryDataSource<OperationRecord>();
     completions = [];
     bus = new TrackedEventBus(
-      new InMemoryEventBus({ eventEmitter: new EventEmitter() }),
+      new InMemoryEventBus({ eventEmitter: new EventEmitter(), clock: () => new Date() }),
       new InMemoryOperationRecords(store),
     );
     await bus.subscribe(Greet.name, new GreetHandler());

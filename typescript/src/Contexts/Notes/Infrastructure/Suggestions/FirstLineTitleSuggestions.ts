@@ -1,3 +1,4 @@
+import { Clock } from '@Architecture/Application';
 import { INoteTitleSuggestions, TitleSuggestion } from '@Contexts/Notes/Application/Suggestions/INoteTitleSuggestions';
 
 /**
@@ -10,11 +11,13 @@ import { INoteTitleSuggestions, TitleSuggestion } from '@Contexts/Notes/Applicat
 export class FirstLineTitleSuggestions implements INoteTitleSuggestions {
   static readonly VERSION = 'first-line/1';
 
+  constructor(private readonly clock: Clock) {}
+
   async suggest({ content }: { content: string }): Promise<TitleSuggestion> {
     const [firstLine = ''] = content.split('\n');
     return {
       title: firstLine.trim(),
-      provenance: { source: 'heuristic', version: FirstLineTitleSuggestions.VERSION, at: new Date() },
+      provenance: { source: 'heuristic', version: FirstLineTitleSuggestions.VERSION, at: this.clock() },
     };
   }
 }

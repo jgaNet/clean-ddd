@@ -1,5 +1,6 @@
 import { Module } from '@Architecture/Application';
 import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
+import { systemClock } from '@Architecture/Infrastructure/Clock/SystemClock';
 
 import { INote } from '@Contexts/Notes/Domain/Note/DTOs';
 import { NoteCreatedEvent, NoteSharedEvent } from '@Contexts/Notes/Domain/Note/Events/NoteEvents';
@@ -51,7 +52,7 @@ export const localNotesModule = new Module({
     // The one non-deterministic source of the context, behind a port (ADR 7); a model would go here.
     {
       event: SuggestNoteTitleCommandEvent,
-      handlers: [new SuggestNoteTitleCommandHandler(noteRepository, new FirstLineTitleSuggestions())],
+      handlers: [new SuggestNoteTitleCommandHandler(noteRepository, new FirstLineTitleSuggestions(systemClock))],
     },
   ],
   queries: [

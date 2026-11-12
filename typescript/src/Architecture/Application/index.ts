@@ -5,6 +5,7 @@
  */
 export * from './Application';
 export * from './AwaitOperation';
+export * from './Clock';
 export * from './CommandHandler';
 export * from './DomainEvents';
 export * from './EventBus';

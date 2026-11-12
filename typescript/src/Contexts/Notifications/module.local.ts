@@ -7,6 +7,7 @@ import { NoteSharedIntegrationEvent } from '@SharedKernel/Application/Integratio
 import { OperationCompleteIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents';
 import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
 import { ConsoleLogger } from '@Architecture/Infrastructure/Logging/ConsoleLogger';
+import { systemClock } from '@Architecture/Infrastructure/Clock/SystemClock';
 import { SETTINGS } from '@Bootstrap/Fastify/application.settings';
 
 import { INotification } from '@Contexts/Notifications/Domain/Notification/DTOs';
@@ -36,7 +37,7 @@ const htmx = new NotificationHTMXPresenter();
 export const webSocketChannel = new WebSocketChannel(logger, delivery => htmx.present(delivery));
 const emailChannel = new EmailChannel(logger, { fromEmail: process.env.FROM_EMAIL || 'noreply@example.com' });
 
-const delivery = new NotificationDelivery(notificationRepository, [webSocketChannel, emailChannel]);
+const delivery = new NotificationDelivery(notificationRepository, [webSocketChannel, emailChannel], systemClock);
 
 export const localNotificationsModule = new Module({
   name: 'Notifications',
@@ -44,7 +45,7 @@ export const localNotificationsModule = new Module({
     { event: SendNotificationCommandEvent, handlers: [new SendNotificationCommandHandler(delivery)] },
     {
       event: MarkAsReadNotificationCommandEvent,
-      handlers: [new MarkAsReadNotificationCommandHandler(notificationRepository)],
+      handlers: [new MarkAsReadNotificationCommandHandler(notificationRepository, systemClock)],
     },
   ],
   queries: [new GetNotificationsQueryHandler(notificationQueries)],

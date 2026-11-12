@@ -26,7 +26,7 @@ beforeEach(() => {
 });
 
 const deliveryWith = (...channels: FakeChannel[]) =>
-  new NotificationDelivery(new InMemoryNotificationRepository(store), channels);
+  new NotificationDelivery(new InMemoryNotificationRepository(store), channels, () => new Date());
 
 describe('NotificationDelivery', () => {
   it('delivers through the first available channel and stops there', async () => {

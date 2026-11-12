@@ -73,7 +73,7 @@ export class Notification extends AggregateRoot {
     this.#deliveredVia = deliveredVia;
   }
 
-  static create(props: INewNotification, now: Date = new Date()): IResult<Notification> {
+  static create(props: INewNotification, now: Date): IResult<Notification> {
     const title = props.title.trim();
     if (!title) return Result.fail(new BlankNotificationTitleException());
 
@@ -128,7 +128,7 @@ export class Notification extends AggregateRoot {
   }
 
   /** Records what a channel answered. A success delivers the notification; the last failure fails it. */
-  recordAttempt(channel: Channel, succeeded: boolean, at: Date = new Date()): IResult {
+  recordAttempt(channel: Channel, succeeded: boolean, at: Date): IResult {
     if (this.#attempts.some(attempt => attempt.channel === channel)) {
       return Result.fail(new ChannelAlreadyTriedException(this._id.value, channel));
     }
@@ -156,7 +156,7 @@ export class Notification extends AggregateRoot {
     return Result.ok();
   }
 
-  markRead(actorId: Id, at: Date = new Date()): IResult {
+  markRead(actorId: Id, at: Date): IResult {
     if (!this.#recipientId.equals(actorId)) {
       return Result.fail(new NotNotificationRecipientException(this._id.value, actorId.value));
     }

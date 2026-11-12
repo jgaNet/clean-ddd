@@ -44,7 +44,7 @@ describe('the relay at start', () => {
   it('delivers in a context with a unit of work: what a reaction tells goes through the outbox', async () => {
     const eventEmitter = new EventEmitter();
     const app = new FastifyApplication({ logger: new ConsoleLogger({ debug: false }), apiPrefix: 'v1' }).setEventBus(
-      new InMemoryEventBus({ eventEmitter }),
+      new InMemoryEventBus({ eventEmitter, clock: () => new Date() }),
     );
     await app.getEventBus().subscribe(NoteArchived.name, new TellTheArchiving());
     const told: string[] = [];

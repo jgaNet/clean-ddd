@@ -6,10 +6,11 @@
  * file, the libraries. Both sit in the repository's `conventions/`, found by walking up from this
  * file (one level up here; the same directory in an application `yarn architecture create` made).
  * This file translates them into `no-restricted-imports` rules, one block per context and
- * per layer, so that every context is held to the same standard. One more block holds two rules of
- * the contract that are not about imports: a command's body is refused for its shape only
- * (API-BODY-SHAPE), so a request schema's `body` declares types and required fields and no value
- * rule; and a command whose outcome is read later needs a caller at the transport
+ * per layer, so that every context is held to the same standard. Two more blocks hold three rules
+ * of the contract that are not about imports: an application has one clock (DOMAIN-ONE-CLOCK), so
+ * nothing but the system clock and the tests reads the machine's time with `new Date()` or
+ * `Date.now()`; a command's body is refused for its shape only (API-BODY-SHAPE), so a request
+ * schema's `body` declares types and required fields and no value rule; and a command whose outcome is read later needs a caller at the transport
  * (API-CALLER-AT-TRANSPORT), so a route publishes a command and answers `202` only through
  * `acceptCommand()`, which refuses a caller who is not signed in with `401` first.
  *
@@ -175,6 +176,20 @@ const CALLER_AT_TRANSPORT =
 const CONTEXTS = binding.contexts;
 const ARCHITECTURE = binding.architecture;
 const KERNEL = binding.kernel;
+/** DOMAIN-ONE-CLOCK: the machine's time is read by the system clock alone; everything else is passed a clock. */
+const ONE_CLOCK_MESSAGE =
+  "DOMAIN-ONE-CLOCK: an application has one now. Take a `Clock` (@Architecture/Application) in the constructor, pass `systemClock` from the wiring file, and give `clock()` to the behaviour; a domain method's time parameter has no default (`yarn architecture rule DOMAIN-ONE-CLOCK`).";
+const ONE_CLOCK = [
+  { selector: "NewExpression[callee.name='Date'][arguments.length=0]", message: ONE_CLOCK_MESSAGE },
+  { selector: "CallExpression[callee.object.name='Date'][callee.property.name='now']", message: ONE_CLOCK_MESSAGE },
+];
+/** The files that may read the machine's time: the system clock, and the tests, which build the time they need. */
+const ONE_CLOCK_EXCEPT = [
+  `${ARCHITECTURE.path}/Infrastructure/Clock/SystemClock.ts`,
+  '**/*.spec.ts',
+  '**/*.spec-helper.ts',
+  '**/*.acceptance.ts',
+];
 
 export default tseslint.config(
   // `.claude/` is the flow a created application carries (scripts of its own, not of this tree).
@@ -188,6 +203,12 @@ export default tseslint.config(
       '@typescript-eslint/no-useless-constructor': ['error'],
       '@typescript-eslint/no-inferrable-types': ['off'],
     },
+  },
+  // DOMAIN-ONE-CLOCK, everywhere in src but the system clock and the tests (ADR 42).
+  {
+    files: ['src/**/*.ts'],
+    ignores: ONE_CLOCK_EXCEPT,
+    rules: { 'no-restricted-syntax': ['error', ...ONE_CLOCK] },
   },
   // Two rules of the contract held on a context's Presentation files, in one block: ESLint keeps the
   // last `no-restricted-syntax` a file matches, so a second block would silence the first.
@@ -214,6 +235,8 @@ export default tseslint.config(
           selector: `CallExpression[callee.property.name=/^(code|status)$/][arguments.0.value=202]`,
           message: CALLER_AT_TRANSPORT,
         },
+        // Repeated here, since this block replaces the one above on these files.
+        ...ONE_CLOCK,
       ],
     },
   },
