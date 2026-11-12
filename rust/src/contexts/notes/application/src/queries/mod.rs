@@ -11,7 +11,7 @@ mod tests {
 
     use architecture_application::{Auth, ExecutionContext, ExecutionContextOptions, QueryHandler};
     use architecture_domain::{Entity, Id};
-    use architecture_infrastructure::{InMemoryDataSource, InMemoryEventBus};
+    use architecture_infrastructure::{InMemoryDataSource, InMemoryEventBus, system_clock};
     use notes_domain::note::note_exceptions::NOTE_NOT_FOUND;
     use notes_domain::note::ports::note_repository::NoteRepository;
     use notes_domain::note::{NewNote, Note};
@@ -24,7 +24,7 @@ mod tests {
         ExecutionContext::new(ExecutionContextOptions {
             trace_id: "trace".into(),
             auth: Auth::of(subject_id, "USER"),
-            event_bus: Arc::new(InMemoryEventBus::new()),
+            event_bus: Arc::new(InMemoryEventBus::new(system_clock())),
             unit_of_work: None,
             logger: None,
         })

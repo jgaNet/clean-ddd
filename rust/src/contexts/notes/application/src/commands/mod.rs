@@ -17,7 +17,7 @@ mod tests {
         Auth, CommandHandler, EventBus, EventHandler, EventSubscriber, ExecutionContext, ExecutionContextOptions,
     };
     use architecture_domain::{DomainResult, common_exceptions::NOT_ALLOWED};
-    use architecture_infrastructure::{InMemoryDataSource, InMemoryEventBus};
+    use architecture_infrastructure::{InMemoryDataSource, InMemoryEventBus, system_clock};
     use notes_domain::note::note_exceptions::{
         BLANK_NOTE_TITLE, NOT_NOTE_OWNER, NOTE_ARCHIVED, NOTE_NOT_ARCHIVED, NOTE_NOT_FOUND,
     };
@@ -59,7 +59,7 @@ mod tests {
 
     fn fixture() -> Fixture {
         let store = Arc::new(InMemoryDataSource::new());
-        let bus = Arc::new(InMemoryEventBus::new());
+        let bus = Arc::new(InMemoryEventBus::new(system_clock()));
         // Subscribed per channel: a new fact's name goes in this list, or `published()` stays
         // empty whatever the handler did, and an `is_empty()` assertion passes for nothing.
         let published = Arc::new(EventSubscriber(Published::default()));

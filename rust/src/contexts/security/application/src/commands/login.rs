@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use architecture_application::{CommandHandler, ExecutionContext, publish_domain_events};
+use architecture_application::{Clock, CommandHandler, ExecutionContext, publish_domain_events};
 use architecture_domain::{CommandEvent, DomainResult, Entity, Event, EventKind};
 use security_domain::account::account_exceptions::invalid_credentials;
 use security_domain::account::ports::account_repository::AccountRepository;
@@ -45,11 +45,13 @@ pub struct LoginCommandHandler<R, H, T> {
     repository: Arc<R>,
     hasher: Arc<H>,
     tokens: Arc<T>,
+    /// When the account signed in: the application's clock, passed from the wiring (DOMAIN-ONE-CLOCK).
+    clock: Clock,
 }
 
 impl<R, H, T> LoginCommandHandler<R, H, T> {
-    pub fn new(repository: Arc<R>, hasher: Arc<H>, tokens: Arc<T>) -> Self {
-        Self { repository, hasher, tokens }
+    pub fn new(repository: Arc<R>, hasher: Arc<H>, tokens: Arc<T>, clock: Clock) -> Self {
+        Self { repository, hasher, tokens, clock }
     }
 }
 
@@ -69,7 +71,7 @@ where
             return Err(invalid_credentials());
         }
 
-        account.authenticate()?;
+        account.authenticate((self.clock)())?;
 
         self.repository.save(&account).await?;
         let token = self

@@ -20,7 +20,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, RwLock};
 
-use architecture_application::{AnyHandler, BoxFuture, EventBus, Operation, OperationStatus};
+use architecture_application::{AnyHandler, BoxFuture, Clock, EventBus, Operation, OperationStatus};
 
 /// A handler on a channel, with the ids of the messages it handled: its inbox.
 struct Subscription {
@@ -40,14 +40,15 @@ impl Subscription {
     }
 }
 
-#[derive(Default)]
 pub struct InMemoryEventBus {
     handlers: RwLock<HashMap<&'static str, Vec<Arc<Subscription>>>>,
+    /// When an operation is created and finished: the application's clock (DOMAIN-ONE-CLOCK).
+    clock: Clock,
 }
 
 impl InMemoryEventBus {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(clock: Clock) -> Self {
+        Self { handlers: RwLock::default(), clock }
     }
 
     fn handlers_of(&self, channel: &str) -> Vec<Arc<Subscription>> {
@@ -59,6 +60,10 @@ impl EventBus for InMemoryEventBus {
     /// Nothing to connect to: the bus is in this process.
     fn connect(&self) -> BoxFuture<'_, ()> {
         Box::pin(async {})
+    }
+
+    fn clock(&self) -> Clock {
+        self.clock.clone()
     }
 
     fn dispatch(&self, mut operation: Operation) -> BoxFuture<'_, Operation> {
@@ -95,9 +100,10 @@ impl EventBus for InMemoryEventBus {
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
+    use std::time::SystemTime;
 
     use architecture_application::{
-        Auth, EventHandler, EventSubscriber, ExecutionContext, ExecutionContextOptions, OperationStatus,
+        Auth, EventHandler, EventSubscriber, ExecutionContext, ExecutionContextOptions, OperationStatus, fixed_clock,
     };
     use architecture_domain::{DomainEvent, DomainResult, Event, EventKind, Exception};
 
@@ -147,6 +153,9 @@ mod tests {
         Greeting::Greeted { name: name.into() }
     }
 
+    /// The bus's now in these tests: not the machine's, so that a stamp from anywhere else shows.
+    const AT: SystemTime = SystemTime::UNIX_EPOCH;
+
     struct Setup {
         bus: Arc<InMemoryEventBus>,
         recorder: Arc<EventSubscriber<Recorder>>,
@@ -154,7 +163,7 @@ mod tests {
     }
 
     fn setup() -> Setup {
-        let bus = Arc::new(InMemoryEventBus::new());
+        let bus = Arc::new(InMemoryEventBus::new(fixed_clock(AT)));
         let recorder = Arc::new(EventSubscriber(Recorder::default()));
         pollster::block_on(bus.subscribe("Greeted", recorder.clone()));
         let context = ExecutionContext::new(ExecutionContextOptions {
@@ -218,6 +227,18 @@ mod tests {
 
         publish_as(&context, "message-1", greeted("alice"));
         assert_eq!(recorder.0.seen(), [greeted("alice")]);
+    }
+
+    /// DOMAIN-ONE-CLOCK: an operation is created and finished on the bus's clock, not the machine's.
+    #[test]
+    fn stamps_its_operations_with_its_own_clock_when_created_and_when_finished() {
+        let Setup { recorder, context, .. } = setup();
+        *recorder.0.fail_next.lock().unwrap() = true;
+
+        let failed = pollster::block_on(context.publish(greeted("alice")));
+
+        assert_eq!(failed.created_at(), AT);
+        assert_eq!(failed.finished_at(), Some(AT));
     }
 
     #[test]

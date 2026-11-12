@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use architecture_application::{CommandHandler, ExecutionContext, publish_domain_events};
+use architecture_application::{Clock, CommandHandler, ExecutionContext, publish_domain_events};
 use architecture_domain::{CommandEvent, DomainResult, Event, EventKind};
 use notifications_domain::notification::notification_exceptions::notification_not_found;
 use notifications_domain::notification::ports::notification_repository::NotificationRepository;
@@ -32,11 +32,13 @@ impl CommandEvent for MarkAsRead {
 
 pub struct MarkAsReadCommandHandler<R> {
     notifications: Arc<R>,
+    /// When the notification is read (DOMAIN-ONE-CLOCK).
+    clock: Clock,
 }
 
 impl<R> MarkAsReadCommandHandler<R> {
-    pub fn new(notifications: Arc<R>) -> Self {
-        Self { notifications }
+    pub fn new(notifications: Arc<R>, clock: Clock) -> Self {
+        Self { notifications, clock }
     }
 }
 
@@ -49,7 +51,7 @@ impl<R: NotificationRepository + Send + Sync + 'static> CommandHandler for MarkA
         let Some(mut notification) = self.notifications.find_by_id(&command.notification_id).await else {
             return Err(notification_not_found(&command.notification_id));
         };
-        notification.mark_read(&reader)?;
+        notification.mark_read(&reader, (self.clock)())?;
 
         self.notifications.save(&notification).await?;
         publish_domain_events(notification, context).await;

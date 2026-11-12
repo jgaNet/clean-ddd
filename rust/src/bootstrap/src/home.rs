@@ -4,13 +4,14 @@
 
 use std::sync::Arc;
 
+use architecture_infrastructure::system_clock;
 use architecture_presentation::{ByFormat, Presenter, format_of};
 use axum::Router;
 use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::response::{Html, IntoResponse, Json, Response};
 use axum::routing::get;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 
 pub struct HomeViewModel {
     pub name: String,
@@ -51,6 +52,8 @@ async fn get_home(State(home): State<Arc<HomeViewModel>>, headers: HeaderMap) ->
     HOME.present(format_of(&headers), &home)
 }
 
+/// The time the health check answers is the system clock's, like every other now (DOMAIN-ONE-CLOCK).
 async fn health() -> Response {
-    Json(serde_json::json!({ "status": "ok", "timestamp": Utc::now().to_rfc3339() })).into_response()
+    let now = DateTime::<Utc>::from(system_clock()());
+    Json(serde_json::json!({ "status": "ok", "timestamp": now.to_rfc3339() })).into_response()
 }

@@ -97,10 +97,11 @@ impl UnitOfWork for InMemoryUnitOfWork {
 mod tests {
     use std::future::poll_fn;
     use std::task::Poll;
+    use std::time::SystemTime;
 
     use architecture_application::{
-        AnyHandler, Auth, EventBus, EventHandler, ExecutionContext, ExecutionContextOptions, Operation,
-        OperationStatus, publish_integration_event,
+        AnyHandler, Auth, Clock, EventBus, EventHandler, ExecutionContext, ExecutionContextOptions, Operation,
+        OperationStatus, fixed_clock, publish_integration_event,
     };
     use architecture_domain::{DomainEvent, DomainResult, Event, EventKind, Exception, IntegrationEvent};
 
@@ -263,6 +264,9 @@ mod tests {
         fn connect(&self) -> BoxFuture<'_, ()> {
             Box::pin(async {})
         }
+        fn clock(&self) -> Clock {
+            fixed_clock(SystemTime::UNIX_EPOCH)
+        }
         fn dispatch(&self, operation: Operation) -> BoxFuture<'_, Operation> {
             Box::pin(async move {
                 let durable = self.outbox.pending().await.iter().any(|entry| entry.id == operation.id());
@@ -302,7 +306,7 @@ mod tests {
                 unit_of_work: Some(self.publisher.clone()),
                 logger: None,
             });
-            Operation::new(Arc::new(Greeted { fail }), context)
+            Operation::new(Arc::new(Greeted { fail }), context, &fixed_clock(SystemTime::UNIX_EPOCH))
         }
 
         fn handler(&self) -> OnGreetedSaveAndTell {

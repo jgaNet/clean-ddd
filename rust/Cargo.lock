@@ -1272,6 +1272,7 @@ dependencies = [
 name = "security-infrastructure"
 version = "4.0.0"
 dependencies = [
+ "architecture-application",
  "architecture-domain",
  "architecture-infrastructure",
  "bcrypt",

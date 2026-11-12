@@ -11,7 +11,7 @@ use architecture_application::{
     query,
 };
 use architecture_domain::{DomainResult, Id};
-use architecture_infrastructure::InMemoryDataSource;
+use architecture_infrastructure::{InMemoryDataSource, system_clock};
 use security_application::commands::login::LoginCommandHandler;
 use security_application::commands::register_admin::{RegisterAdmin, RegisterAdminCommandHandler};
 use security_application::commands::sign_up::SignUpCommandHandler;
@@ -54,14 +54,16 @@ pub fn local_security_module(store: &AccountStore, settings: &SecuritySettings) 
     let repository = Arc::new(InMemoryAccountRepository::new(store.clone()));
     let account_queries = Arc::new(InMemoryAccountQueries::new(store.clone()));
     let hasher = Arc::new(BcryptPasswordHasher::new(settings.bcrypt_cost));
-    let tokens = Arc::new(JwtSignedTokens::new(&settings.jwt_secret, settings.jwt_expires_in));
+    // When an account signs in and when its token expires: the application's one now (DOMAIN-ONE-CLOCK).
+    let clock = system_clock();
+    let tokens = Arc::new(JwtSignedTokens::new(&settings.jwt_secret, settings.jwt_expires_in, clock.clone()));
     let registration = || AccountRegistration::new(repository.clone());
 
     let module = Module::new(ModuleDefinition {
         name: "Security",
         commands: vec![
             Subscription::command(SignUpCommandHandler::new(repository.clone(), registration(), hasher.clone())),
-            Subscription::command(LoginCommandHandler::new(repository.clone(), hasher.clone(), tokens.clone())),
+            Subscription::command(LoginCommandHandler::new(repository.clone(), hasher.clone(), tokens.clone(), clock)),
             Subscription::command(ValidateAccountCommandHandler::new(repository.clone(), tokens.clone())),
         ],
         queries: vec![query(GetAccountQueryHandler::new(account_queries.clone()))],

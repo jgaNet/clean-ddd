@@ -91,10 +91,12 @@ impl<H: EventHandler> AnyHandler for EventSubscriber<H> {
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};
+    use std::time::SystemTime;
 
     use architecture_domain::{DomainEvent, EventKind};
 
     use super::*;
+    use crate::clock::{Clock, fixed_clock};
     use crate::event_bus::EventBus;
     use crate::execution_context::{Auth, ExecutionContextOptions};
     use crate::operation::OperationStatus;
@@ -136,6 +138,9 @@ mod tests {
         fn connect(&self) -> BoxFuture<'_, ()> {
             Box::pin(async {})
         }
+        fn clock(&self) -> Clock {
+            fixed_clock(SystemTime::UNIX_EPOCH)
+        }
         fn dispatch(&self, _operation: Operation) -> BoxFuture<'_, Operation> {
             unreachable!("not used")
         }
@@ -152,7 +157,7 @@ mod tests {
             unit_of_work: None,
             logger: None,
         });
-        Operation::new(Arc::new(Greeted { then }), context)
+        Operation::new(Arc::new(Greeted { then }), context, &fixed_clock(SystemTime::UNIX_EPOCH))
     }
 
     #[test]
@@ -220,7 +225,7 @@ mod tests {
             unit_of_work: Some(Arc::new(Named::new("publisher", log.clone()))),
             logger: None,
         });
-        Operation::new(Arc::new(Greeted { then }), context)
+        Operation::new(Arc::new(Greeted { then }), context, &fixed_clock(SystemTime::UNIX_EPOCH))
     }
 
     #[test]

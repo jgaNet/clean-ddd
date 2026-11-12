@@ -1,13 +1,16 @@
 //! The building blocks' Infrastructure: the in-memory adapters of the Application's ports — a
-//! store, a bus, a unit of work, an outbox — and the console logger. They are what a real database, a real
-//! broker and a real log sink would stand in for, behind the same ports.
+//! store, a bus, a unit of work, an outbox — the console logger, and the system clock. They are
+//! what a real database, a real broker and a real log sink would stand in for, behind the same
+//! ports; the system clock is the one place the machine's time is read (DOMAIN-ONE-CLOCK).
 
+pub mod clock;
 pub mod data_sources;
 pub mod event_bus;
 pub mod logging;
 pub mod outbox;
 pub mod unit_of_work;
 
+pub use clock::system_clock;
 pub use data_sources::InMemoryDataSource;
 pub use event_bus::InMemoryEventBus;
 pub use logging::ConsoleLogger;

@@ -34,7 +34,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     use architecture_application::{Auth, EventBus, EventSubscriber, ExecutionContextOptions};
-    use architecture_infrastructure::InMemoryEventBus;
+    use architecture_infrastructure::{InMemoryEventBus, system_clock};
 
     use super::*;
 
@@ -50,7 +50,7 @@ mod tests {
 
     #[test]
     fn republishes_the_domain_event_as_the_integration_event_other_contexts_subscribe_to() {
-        let bus = Arc::new(InMemoryEventBus::new());
+        let bus = Arc::new(InMemoryEventBus::new(system_clock()));
         let published = Arc::new(EventSubscriber(Published::default()));
         pollster::block_on(bus.subscribe(NoteIntegrationEvent::SHARED, published.clone()));
         let context = ExecutionContext::new(ExecutionContextOptions {

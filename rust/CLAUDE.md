@@ -29,7 +29,8 @@ All four `cargo` checks must pass before a change is done; CI runs them on every
 ```
 src/architecture/<layer>/         the building blocks, one crate per layer: domain (Entity, Aggregate, ValueObject, Id,
                                   Event, Exception, DomainResult), application (the handler traits, ExecutionContext,
-                                  EventBus, Operation, Module), infrastructure (the in-memory adapters, ConsoleLogger),
+                                  EventBus, Operation, Module, Clock), infrastructure (the in-memory adapters,
+                                  ConsoleLogger, system_clock(): the one read of the machine's time),
                                   presentation (accept(): the 202, or the 401 without a caller; the refusals)
 src/shared_kernel/<layer>/        domain (Email, Role), application (require_signed_in, integration_events/)
 src/contexts/<context>/           one crate per layer (domain/, application/, infrastructure/, presentation/) and wiring/

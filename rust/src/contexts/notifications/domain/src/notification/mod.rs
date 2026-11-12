@@ -69,13 +69,9 @@ impl Aggregate for Notification {
 }
 
 impl Notification {
-    /// Writes a brand new notification, now. Nothing is recorded yet: the fact is its delivery.
-    pub fn create(props: NewNotification) -> DomainResult<Notification> {
-        Self::create_at(props, SystemTime::now())
-    }
-
-    /// Time is a parameter, with `create()` as its default.
-    pub fn create_at(props: NewNotification, now: SystemTime) -> DomainResult<Notification> {
+    /// Writes a brand new notification at `now`, the caller's clock (DOMAIN-ONE-CLOCK). Nothing is
+    /// recorded yet: the fact is its delivery.
+    pub fn create(props: NewNotification, now: SystemTime) -> DomainResult<Notification> {
         let title = props.title.trim();
         if title.is_empty() {
             return Err(blank_notification_title());
@@ -144,12 +140,8 @@ impl Notification {
             .collect()
     }
 
-    /// Records what a channel answered, now. A success delivers the notification; the last failure fails it.
-    pub fn record_attempt(&mut self, channel: Channel, succeeded: bool) -> DomainResult {
-        self.record_attempt_at(channel, succeeded, SystemTime::now())
-    }
-
-    pub fn record_attempt_at(&mut self, channel: Channel, succeeded: bool, at: SystemTime) -> DomainResult {
+    /// Records what a channel answered, at `at`. A success delivers the notification; the last failure fails it.
+    pub fn record_attempt(&mut self, channel: Channel, succeeded: bool, at: SystemTime) -> DomainResult {
         if self.attempts.iter().any(|attempt| attempt.channel() == channel) {
             return Err(channel_already_tried(self.id().value(), channel));
         }
@@ -175,11 +167,8 @@ impl Notification {
         Ok(())
     }
 
-    pub fn mark_read(&mut self, actor_id: &Id) -> DomainResult {
-        self.mark_read_at(actor_id, SystemTime::now())
-    }
-
-    pub fn mark_read_at(&mut self, actor_id: &Id, at: SystemTime) -> DomainResult {
+    /// The recipient opens the notification, at `at`.
+    pub fn mark_read(&mut self, actor_id: &Id, at: SystemTime) -> DomainResult {
         if &self.recipient_id != actor_id {
             return Err(not_notification_recipient(self.id().value(), actor_id.value()));
         }
@@ -262,7 +251,7 @@ mod tests {
     const AT: SystemTime = SystemTime::UNIX_EPOCH;
 
     fn a_notification(channels: Vec<Channel>) -> Notification {
-        Notification::create_at(
+        Notification::create(
             NewNotification {
                 recipient_id: "bob".into(),
                 title: "Hello".into(),
@@ -291,20 +280,26 @@ mod tests {
 
     #[test]
     fn refuses_a_blank_title_and_an_empty_strategy() {
-        let blank = Notification::create(NewNotification {
-            recipient_id: "bob".into(),
-            title: " ".into(),
-            content: "x".into(),
-            channels: vec![Channel::Email],
-            metadata: Metadata::new(),
-        });
-        let none = Notification::create(NewNotification {
-            recipient_id: "bob".into(),
-            title: "x".into(),
-            content: "x".into(),
-            channels: vec![],
-            metadata: Metadata::new(),
-        });
+        let blank = Notification::create(
+            NewNotification {
+                recipient_id: "bob".into(),
+                title: " ".into(),
+                content: "x".into(),
+                channels: vec![Channel::Email],
+                metadata: Metadata::new(),
+            },
+            AT,
+        );
+        let none = Notification::create(
+            NewNotification {
+                recipient_id: "bob".into(),
+                title: "x".into(),
+                content: "x".into(),
+                channels: vec![],
+                metadata: Metadata::new(),
+            },
+            AT,
+        );
 
         assert!(blank.expect_err("blank").is(BLANK_NOTIFICATION_TITLE));
         assert!(none.expect_err("no channel").is(EMPTY_DELIVERY_STRATEGY));
@@ -314,7 +309,7 @@ mod tests {
     fn is_sent_by_the_first_channel_that_accepts_it_and_records_the_fact() {
         let mut notification = both();
 
-        notification.record_attempt_at(Channel::WebSocket, true, AT).expect("recorded");
+        notification.record_attempt(Channel::WebSocket, true, AT).expect("recorded");
 
         assert_eq!(notification.status(), NotificationStatus::Sent);
         assert_eq!(notification.delivered_via(), Some(Channel::WebSocket));
@@ -337,11 +332,11 @@ mod tests {
     fn falls_back_to_the_next_channel_after_a_failure_and_fails_when_none_is_left() {
         let mut notification = both();
 
-        notification.record_attempt_at(Channel::WebSocket, false, AT).expect("recorded");
+        notification.record_attempt(Channel::WebSocket, false, AT).expect("recorded");
         assert_eq!(notification.status(), NotificationStatus::Pending);
         assert_eq!(notification.channels_to_try(), [Channel::Email]);
 
-        notification.record_attempt_at(Channel::Email, false, AT).expect("recorded");
+        notification.record_attempt(Channel::Email, false, AT).expect("recorded");
         assert_eq!(notification.status(), NotificationStatus::Failed);
         assert!(notification.channels_to_try().is_empty());
         assert_eq!(
@@ -356,9 +351,9 @@ mod tests {
     #[test]
     fn tries_each_channel_at_most_once() {
         let mut notification = both();
-        notification.record_attempt_at(Channel::WebSocket, false, AT).expect("recorded");
+        notification.record_attempt(Channel::WebSocket, false, AT).expect("recorded");
 
-        let again = notification.record_attempt_at(Channel::WebSocket, true, AT);
+        let again = notification.record_attempt(Channel::WebSocket, true, AT);
 
         assert!(again.expect_err("twice").is(CHANNEL_ALREADY_TRIED));
     }
@@ -368,11 +363,11 @@ mod tests {
         let mut notification = both();
         let (bob, carol) = (Id::new("bob"), Id::new("carol"));
 
-        assert!(notification.mark_read_at(&bob, AT).expect_err("not delivered").is(NOTIFICATION_NOT_DELIVERED));
-        notification.record_attempt_at(Channel::Email, true, AT).expect("sent");
-        assert!(notification.mark_read_at(&carol, AT).expect_err("not hers").is(NOT_NOTIFICATION_RECIPIENT));
-        notification.mark_read_at(&bob, AT).expect("read");
-        assert!(notification.mark_read_at(&bob, AT).expect_err("again").is(NOTIFICATION_ALREADY_READ));
+        assert!(notification.mark_read(&bob, AT).expect_err("not delivered").is(NOTIFICATION_NOT_DELIVERED));
+        notification.record_attempt(Channel::Email, true, AT).expect("sent");
+        assert!(notification.mark_read(&carol, AT).expect_err("not hers").is(NOT_NOTIFICATION_RECIPIENT));
+        notification.mark_read(&bob, AT).expect("read");
+        assert!(notification.mark_read(&bob, AT).expect_err("again").is(NOTIFICATION_ALREADY_READ));
 
         assert_eq!(notification.status(), NotificationStatus::Read);
         assert_eq!(notification.pull_domain_events().len(), 2); // sent, then read
@@ -381,7 +376,7 @@ mod tests {
     #[test]
     fn rebuilds_from_its_snapshot_attempts_included_without_recording_anything() {
         let mut notification = both();
-        notification.record_attempt_at(Channel::WebSocket, false, AT).expect("recorded");
+        notification.record_attempt(Channel::WebSocket, false, AT).expect("recorded");
         notification.pull_domain_events();
         let snapshot = notification.to_snapshot();
 

@@ -11,7 +11,7 @@
 
 use std::sync::Arc;
 
-use architecture_application::{AnyHandler, BoxFuture, EventBus, Operation, OperationStatus};
+use architecture_application::{AnyHandler, BoxFuture, Clock, EventBus, Operation, OperationStatus};
 use architecture_domain::{EventKind, public_name};
 use shared_kernel_application::integration_events::tracker_integration_events::OperationCompleteIntegrationEvent;
 use tracker_application::ports::OperationRecords;
@@ -43,6 +43,11 @@ impl<R: OperationRecords + Send + Sync + 'static> TrackedEventBus<R> {
 impl<R: OperationRecords + Send + Sync + 'static> EventBus for TrackedEventBus<R> {
     fn connect(&self) -> BoxFuture<'_, ()> {
         self.bus.connect()
+    }
+
+    /// The inner bus's clock: the decorator records the times it stamps.
+    fn clock(&self) -> Clock {
+        self.bus.clock()
     }
 
     fn dispatch(&self, operation: Operation) -> BoxFuture<'_, Operation> {
@@ -83,7 +88,7 @@ mod tests {
         ExecutionContextOptions,
     };
     use architecture_domain::{CommandEvent, DomainEvent, DomainResult, Event, Exception};
-    use architecture_infrastructure::{InMemoryDataSource, InMemoryEventBus};
+    use architecture_infrastructure::{InMemoryDataSource, InMemoryEventBus, system_clock};
 
     use super::*;
     use crate::records::InMemoryOperationRecords;
@@ -155,7 +160,7 @@ mod tests {
 
     fn setup() -> Setup {
         let records = Arc::new(InMemoryOperationRecords::new(Arc::new(InMemoryDataSource::new())));
-        let bus = Arc::new(TrackedEventBus::new(Arc::new(InMemoryEventBus::new()), records.clone()));
+        let bus = Arc::new(TrackedEventBus::new(Arc::new(InMemoryEventBus::new(system_clock())), records.clone()));
         let notices = Arc::new(EventSubscriber(Notices::default()));
         pollster::block_on(bus.subscribe("Greet", Arc::new(CommandSubscriber(Arc::new(GreetHandler)))));
         pollster::block_on(bus.subscribe("Greeted", Arc::new(EventSubscriber(OnGreeted))));

@@ -9,9 +9,11 @@ pub mod validate_account;
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};
+    use std::time::SystemTime;
 
     use architecture_application::{
         Auth, CommandHandler, EventBus, EventHandler, EventSubscriber, ExecutionContext, ExecutionContextOptions,
+        fixed_clock,
     };
     use architecture_domain::DomainResult;
     use architecture_domain::common_exceptions::NOT_ALLOWED;
@@ -66,6 +68,9 @@ mod tests {
         }
     }
 
+    /// The now of every test of this file: the handlers are given a fixed clock.
+    const NOW: SystemTime = SystemTime::UNIX_EPOCH;
+
     struct Fixture {
         repository: Arc<InMemoryAccountRepository>,
         bus: Arc<InMemoryEventBus>,
@@ -75,7 +80,7 @@ mod tests {
     impl Fixture {
         fn new() -> Self {
             let repository = Arc::new(InMemoryAccountRepository::new(Arc::new(InMemoryDataSource::new())));
-            let bus = Arc::new(InMemoryEventBus::new());
+            let bus = Arc::new(InMemoryEventBus::new(fixed_clock(NOW)));
             let published = Arc::new(EventSubscriber(Published::default()));
             // The reactions of the context, so that a command's consequences are visible here.
             pollster::block_on(bus.subscribe(
@@ -110,7 +115,7 @@ mod tests {
         }
 
         fn login(&self) -> LoginCommandHandler<InMemoryAccountRepository, Legible, Unsigned> {
-            LoginCommandHandler::new(self.repository.clone(), Arc::new(Legible), Arc::new(Unsigned))
+            LoginCommandHandler::new(self.repository.clone(), Arc::new(Legible), Arc::new(Unsigned), fixed_clock(NOW))
         }
 
         fn validate(&self) -> ValidateAccountCommandHandler<InMemoryAccountRepository, Unsigned> {
@@ -205,6 +210,8 @@ mod tests {
         .expect("validated");
 
         assert_eq!(login("s3cret").expect("logged in").token, format!("{account_id}|USER"));
+        let signed_in = pollster::block_on(fixture.repository.find_by_id(&account_id)).expect("saved");
+        assert_eq!(signed_in.last_authenticated_at(), Some(NOW)); // the handler's clock, not the machine's
         assert!(login("wrong").expect_err("wrong password").is(INVALID_CREDENTIALS));
         let unknown = pollster::block_on(fixture.login().execute(
             Login { identifier: "nobody@example.com".into(), password: "s3cret".into() },

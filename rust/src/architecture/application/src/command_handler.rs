@@ -190,10 +190,12 @@ impl<H: CommandHandler> AnyHandler for CommandSubscriber<H> {
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
+    use std::time::SystemTime;
 
     use architecture_domain::{Aggregate, AggregateRoot, DomainEvent, Entity, Event, EventKind, Exception, Id};
 
     use super::*;
+    use crate::clock::{Clock, fixed_clock};
     use crate::domain_events::publish_domain_events;
     use crate::event_bus::EventBus;
     use crate::execution_context::{Auth, ExecutionContextOptions, UnitOfWork};
@@ -303,6 +305,9 @@ mod tests {
         fn connect(&self) -> BoxFuture<'_, ()> {
             Box::pin(async {})
         }
+        fn clock(&self) -> Clock {
+            fixed_clock(SystemTime::UNIX_EPOCH)
+        }
         fn dispatch(&self, operation: Operation) -> BoxFuture<'_, Operation> {
             self.log.lock().unwrap().push(format!("publish {:?}", operation.event()));
             Box::pin(async move { operation })
@@ -350,7 +355,7 @@ mod tests {
             unit_of_work: Some(recorder.clone()),
             logger: None,
         });
-        Operation::new(Arc::new(command), context)
+        Operation::new(Arc::new(command), context, &fixed_clock(SystemTime::UNIX_EPOCH))
     }
 
     fn log(recorder: &Recorder) -> Vec<String> {

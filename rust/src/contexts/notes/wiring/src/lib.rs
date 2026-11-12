@@ -9,7 +9,7 @@
 use std::sync::Arc;
 
 use architecture_application::{Module, ModuleDefinition, Subscription, query};
-use architecture_infrastructure::InMemoryDataSource;
+use architecture_infrastructure::{InMemoryDataSource, system_clock};
 use notes_application::commands::archive_note::ArchiveNoteCommandHandler;
 use notes_application::commands::create_note::CreateNoteCommandHandler;
 use notes_application::commands::edit_note::EditNoteCommandHandler;
@@ -47,8 +47,12 @@ pub fn local_notes_module<D: AccountDirectory + Send + Sync + 'static>(store: &N
             Subscription::command(ArchiveNoteCommandHandler::new(repository.clone())),
             Subscription::command(RestoreNoteCommandHandler::new(repository.clone())),
             Subscription::command(ShareNoteCommandHandler::new(repository.clone(), NoteSharing::new(accounts))),
-            // The one non-deterministic source of the context, behind a port (ADR 7); a model would go here.
-            Subscription::command(SuggestNoteTitleCommandHandler::new(repository, FirstLineTitleSuggestions)),
+            // The one non-deterministic source of the context, behind a port (ADR 7); a model would go
+            // here. Its provenance is stamped by the system clock (DOMAIN-ONE-CLOCK).
+            Subscription::command(SuggestNoteTitleCommandHandler::new(
+                repository,
+                FirstLineTitleSuggestions::new(system_clock()),
+            )),
         ],
         queries: vec![
             query(GetMyNotesQueryHandler::new(queries.clone())),

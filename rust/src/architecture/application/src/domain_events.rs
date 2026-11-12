@@ -74,6 +74,7 @@ where
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};
+    use std::time::SystemTime;
 
     use architecture_domain::{
         AggregateRoot, DomainEvent, DomainResult, Entity, Event, EventKind, Exception, Id, IntegrationEvent,
@@ -81,6 +82,7 @@ mod tests {
 
     use super::*;
     use crate::BoxFuture;
+    use crate::clock::{Clock, fixed_clock};
     use crate::event_bus::{AnyHandler, EventBus};
     use crate::execution_context::{Auth, ExecutionContextOptions, UnitOfWork};
     use crate::operation::Operation;
@@ -151,6 +153,9 @@ mod tests {
     impl EventBus for Recorder {
         fn connect(&self) -> BoxFuture<'_, ()> {
             Box::pin(async {})
+        }
+        fn clock(&self) -> Clock {
+            fixed_clock(SystemTime::UNIX_EPOCH)
         }
         fn dispatch(&self, operation: Operation) -> BoxFuture<'_, Operation> {
             if std::mem::take(&mut *self.down_once.lock().unwrap()) {

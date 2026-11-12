@@ -63,6 +63,19 @@ the clock.
   - ESLint holds it in `eslint.config.js`, in every file of `src` but the system clock and the tests.
 - **Rust, Python and Go** hold it the same way: a clock in the building blocks, the defaults removed, the wiring passing
   the system clock, and a scan in each conventions tool.
+  - Rust: `rust/tools/conventions/src/one_clock.rs`.
+  - Python: `check_one_clock` in `python/tools/conventions.py`.
+  - Go: `go/tools/conventions/clock.go`.
+  The shared scenario passes against each server, and no inventory changed.
+- **An operation keeps the clock of the bus that made it**, so that the base handlers, which have the operation and
+  not the clock, stamp `finishedAt` on the same now as `createdAt`.
+- **Where the languages differ, to settle together:**
+  - **A token's expiry.** All four issue a token on the clock. TypeScript (`jose`) and Python (PyJWT) let the library
+    check the expiry against the machine; Rust and Go check it on the clock. With the system clock the four answer
+    alike. With a moved clock they do not, and the scenario cannot see it.
+  - **Moving the time for the whole application.** Each wiring file names the system clock itself, as TypeScript's
+    do, so moving the time means editing each one. One clock built by the composition root and passed to every
+    wiring would make it a single change, in every language at once.
 
 ## Consequences
 

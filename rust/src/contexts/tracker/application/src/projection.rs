@@ -28,8 +28,9 @@ pub fn to_operation_record(operation: &Operation) -> OperationRecord {
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
+    use std::time::SystemTime;
 
-    use architecture_application::{Auth, ExecutionContext, ExecutionContextOptions};
+    use architecture_application::{Auth, ExecutionContext, ExecutionContextOptions, fixed_clock};
     use architecture_domain::{Event, EventKind, Exception};
     use architecture_infrastructure::InMemoryEventBus;
 
@@ -48,16 +49,19 @@ mod tests {
         }
     }
 
+    /// The bus's now in these tests.
+    const AT: SystemTime = SystemTime::UNIX_EPOCH;
+
     fn an_operation(subject: Option<&str>) -> Operation {
         let auth = subject.map(|id| Auth::of(id, "USER")).unwrap_or_default();
         let context = ExecutionContext::new(ExecutionContextOptions {
             trace_id: "trace-1".into(),
             auth,
-            event_bus: Arc::new(InMemoryEventBus::new()),
+            event_bus: Arc::new(InMemoryEventBus::new(fixed_clock(AT))),
             unit_of_work: None,
             logger: None,
         });
-        Operation::new(Arc::new(Greet { secret: "hunter2".into() }), context)
+        Operation::new(Arc::new(Greet { secret: "hunter2".into() }), context, &fixed_clock(AT))
     }
 
     #[test]
@@ -80,7 +84,10 @@ mod tests {
 
         assert_eq!(success.status, "SUCCESS");
         assert_eq!(success.result, Some(serde_json::json!("note-1")));
-        assert!(success.finished_at.is_some());
+        assert_eq!(
+            (success.created_at, success.finished_at),
+            (DateTime::<Utc>::from(AT), Some(DateTime::<Utc>::from(AT)))
+        );
         assert_eq!(success.subject_id, None);
         assert_eq!(failed.status, "ERROR");
         assert_eq!(failed.error, Some(OperationError { kind: "NotFound".into(), message: "Note not found".into() }));

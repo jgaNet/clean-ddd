@@ -34,7 +34,7 @@ libraries: [axum, hyper, tower, tower-http, tokio, reqwest, sqlx, rusqlite, json
 
 # What stands behind each enforcement word of architecture.yaml, in this language.
 enforcers:
-  linter: the crate graph — each layer is a crate whose `[dependencies]` are its row of the table, held by the compiler and compared to the contract by `cargo run -p conventions`
+  linter: the crate graph — each layer is a crate whose `[dependencies]` are its row of the table, held by the compiler and compared to the contract by `cargo run -p conventions` — and, for what is not an import (a read of the machine's time), a scan of the tree by `cargo run -p conventions`
   check: '`cargo run -p conventions`'
   types: the compiler
   tests: a `#[test]`
@@ -158,6 +158,16 @@ rules:
       - src/architecture/application/src/command_handler.rs
       - tools/conventions/src/caller_at_transport.rs
       - ../api/scenario.mjs
+  # Held by the conventions check (a `Utc::now`, a `SystemTime::now` outside the system clock and the
+  # tests is refused, line by line); the compiler refuses a domain call that forgets its time, since
+  # the parameter has no default.
+  DOMAIN-ONE-CLOCK:
+    references:
+      - src/architecture/application/src/clock.rs
+      - src/architecture/infrastructure/src/clock.rs
+      - src/contexts/security/application/src/commands/login.rs
+      - src/contexts/security/wiring/src/lib.rs
+      - tools/conventions/src/one_clock.rs
   ARCH-MAP-IS-REAL:
     references: [tools/conventions/src/main.rs]
   ARCH-ONE-APPLICATION:
@@ -212,6 +222,7 @@ checklists:
       - 'The command: a struct with a named payload and nothing more, `impl Event` and `impl CommandEvent` with its `NAME`.'
       - 'The handler in the same file: a struct generic over the ports it takes in `new()`, `impl CommandHandler` with `execute()` — the signed-in guard (`require_signed_in`) at the top, load, ask the aggregate or the domain service, save (`?` on the `DomainResult`), `publish_domain_events`. A command anyone may send (a sign-up, a link that carries its own proof) has no `require_signed_in` and says so once, by overriding `anyone_may_ask()` to answer `true` (API-CALLER-AT-TRANSPORT); its caller follows it by the operation id it was answered, signed in or not (ADR 27).'
       - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
+      - 'A behaviour that decides or records a time takes it as a parameter with no default; the handler takes a `Clock` in `new()`, gives it `(self.clock)()`, and the wiring passes `system_clock()` (DOMAIN-ONE-CLOCK); its tests pass `fixed_clock(at)`.'
       - 'One `pub mod` line in `commands/mod.rs`, and a `pub use` of what the wiring lists; the handlers of one aggregate share the tests at the bottom of that file.'
       - 'At least a happy path and one refusal in the tests; through `handle()` when the rule is in `guard()`.'
       - 'A route in the context''s `presentation` crate: a function taking the module from `State` and the request''s `Extension<ExecutionContext>` and answering `accept(&context, &module, Command { … })`: `202 { operationId }`, or `401` at once, nothing published, to a caller who is not signed in unless the handler says anyone may ask (API-CALLER-AT-TRANSPORT); the handler listed in the wiring crate with `Subscription::command`. A create never answers its new id: the handler returns it (its `Output`), and the client reads it as the operation''s `result` at `GET /v1/tracker/operations/{id}`.'

@@ -9,7 +9,7 @@
 
 use std::sync::Arc;
 
-use architecture_application::{BoxFuture, ExecutionContext, publish_domain_events};
+use architecture_application::{BoxFuture, Clock, ExecutionContext, publish_domain_events};
 use architecture_domain::{DomainResult, Entity};
 use notifications_domain::notification::ports::notification_channel::{Delivery, NotificationChannel};
 use notifications_domain::notification::ports::notification_repository::NotificationRepository;
@@ -37,16 +37,18 @@ impl<C: NotificationChannel + Send + Sync> AnyChannel for C {
 pub struct NotificationDelivery<R> {
     notifications: Arc<R>,
     channels: Vec<Arc<dyn AnyChannel>>,
+    /// When a notification is written and each channel answered (DOMAIN-ONE-CLOCK).
+    clock: Clock,
 }
 
 impl<R: NotificationRepository + Send + Sync> NotificationDelivery<R> {
-    pub fn new(notifications: Arc<R>, channels: Vec<Arc<dyn AnyChannel>>) -> Self {
-        Self { notifications, channels }
+    pub fn new(notifications: Arc<R>, channels: Vec<Arc<dyn AnyChannel>>, clock: Clock) -> Self {
+        Self { notifications, channels, clock }
     }
 
     /// The id of the notification, whatever its outcome: the story is kept either way.
     pub async fn deliver(&self, props: NewNotification, context: &ExecutionContext) -> DomainResult<String> {
-        let mut notification = Notification::create(props)?;
+        let mut notification = Notification::create(props, (self.clock)())?;
         let delivery = Delivery {
             notification_id: notification.id().value().to_string(),
             recipient_id: notification.recipient_id().value().to_string(),
@@ -70,7 +72,7 @@ impl<R: NotificationRepository + Send + Sync> NotificationDelivery<R> {
                 );
             }
             let succeeded = outcome.is_ok();
-            notification.record_attempt(channel, succeeded)?;
+            notification.record_attempt(channel, succeeded, (self.clock)())?;
             if succeeded {
                 break;
             }
@@ -85,9 +87,10 @@ impl<R: NotificationRepository + Send + Sync> NotificationDelivery<R> {
 #[cfg(test)]
 pub(crate) mod tests {
     use std::sync::Mutex;
+    use std::time::SystemTime;
 
-    use architecture_application::{Auth, ExecutionContextOptions};
-    use architecture_infrastructure::{InMemoryDataSource, InMemoryEventBus};
+    use architecture_application::{Auth, ExecutionContextOptions, fixed_clock};
+    use architecture_infrastructure::{InMemoryDataSource, InMemoryEventBus, system_clock};
     use notifications_domain::notification::{Metadata, NotificationStatus};
     use notifications_infrastructure::InMemoryNotificationRepository;
 
@@ -127,11 +130,14 @@ pub(crate) mod tests {
         }
     }
 
+    /// The now the delivery is given in these tests: not the machine's, so that a stamp from anywhere else shows.
+    pub(crate) const AT: SystemTime = SystemTime::UNIX_EPOCH;
+
     pub(crate) fn context() -> ExecutionContext {
         ExecutionContext::new(ExecutionContextOptions {
             trace_id: "trace".into(),
             auth: Auth::anonymous(),
-            event_bus: Arc::new(InMemoryEventBus::new()),
+            event_bus: Arc::new(InMemoryEventBus::new(system_clock())),
             unit_of_work: None,
             logger: None,
         })
@@ -154,7 +160,10 @@ pub(crate) mod tests {
         NotificationDelivery<InMemoryNotificationRepository>,
     ) {
         let store = Arc::new(InMemoryDataSource::new());
-        (store.clone(), NotificationDelivery::new(Arc::new(InMemoryNotificationRepository::new(store)), channels))
+        (
+            store.clone(),
+            NotificationDelivery::new(Arc::new(InMemoryNotificationRepository::new(store)), channels, fixed_clock(AT)),
+        )
     }
 
     #[test]
@@ -171,6 +180,7 @@ pub(crate) mod tests {
         let stored = store.get(&id).expect("stored");
         assert_eq!(stored.status, NotificationStatus::Sent);
         assert_eq!(stored.delivered_via, Some(Channel::Email));
+        assert_eq!((stored.created_at, stored.sent_at), (AT, Some(AT))); // the delivery's clock
         assert_eq!(
             stored.attempts.iter().map(|a| (a.channel, a.succeeded)).collect::<Vec<_>>(),
             [(Channel::WebSocket, false), (Channel::Email, true)]
