@@ -57,3 +57,30 @@ A second failure after the correction's one rewording stops the tree for good.
 ## clean-3, request 61, the replay under R3 reworded (11 November)
 
 - **Delivered at step 0 (haiku), split, in the integrator's first round.** The Tracker's projection now answers an operation's `error` as the rule's name.
+
+## clean-3, request 73 `transfer-proof` (12 November)
+
+- **The failure.** Every step failed one of 73's seven hidden tests, also on the replay:
+  - haiku, sonnet and opus, each split between Payments and Booking and integrated;
+  - then the control, one opus agent.
+
+  After the host side contests a proof past its `dueBy`, the booking should lapse at the next sweep, and it read
+  `confirmed`. The test moves the days with `CLOCK_OFFSET_DAYS` (request 57). Payments takes now from the tree's clock
+  (`openStayClock`), so the transfer read `unconfirmed` on time. The lapse sweep, written at request 30, takes now from
+  the machine (`new Date()`), so for it the deadline had not passed. Seventeen other files of the Application layer
+  read the machine's time the same way; the tree's own ADR 59 says a handler takes its clock as a parameter, and was
+  applied in part.
+- **The verdict:** failed. Request 73 says the booking "lapses at the next sweep, as request 30 says", and that "days
+  follow `CLOCK_OFFSET_DAYS` (request 57)". simple-3 passed this line. The maintainer delegated the verdict and the
+  repair of clean-3 to Claude on 11 November, for the night.
+- **The correction: R6, new.** Replay: `clean-3-r2.yaml`, from 73 with the budget left ($86 of $160). It is not a
+  failure the two arms share, so it reaches clean-3 alone, and goes to the next campaign's clean guide.
+
+  > ## OpenStay's now
+  >
+  > OpenStay has one now: the clock request 57 gives, the machine's time plus `CLOCK_OFFSET_DAYS` days. Everything that
+  > decides or records a time a request speaks of takes it from that clock, passed in from the wiring: a command
+  > handler, an event handler, a sweep or a job, a query that derives a state from time, a time that is stored or
+  > answered. Nothing there reads `new Date()` or `Date.now()`, and a domain method's time parameter is always given,
+  > never left to its default. When a request makes a rule depend on the date, every earlier place that reads the time
+  > is moved to the clock, with its tests.
