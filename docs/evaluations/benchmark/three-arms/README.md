@@ -7,6 +7,11 @@
 - on requests none of the three was tuned on;
 - with a calibration all three share.
 
+**Before registration:** [RFC 0005](../../../rfc/0005-what-the-literature-and-j5b-say-before-j6.md) proposes what J6
+carries and measures, from the literature and J5b: Lite's decisions as pure functions, the API's specification as data,
+guides as checks, and the cost of change as the first score. Its decisions D1 to D5 are taken before the kit and Lite's
+profile data are hashed.
+
 ## The question
 
 For a given kind of application, at a given size, with a given risk and number of agents, which architecture costs least while keeping the guarantees the application needs?
