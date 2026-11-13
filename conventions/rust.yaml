@@ -176,6 +176,13 @@ rules:
     references: [tools/conventions/src/main.rs]
   ARCH-ONE-APPLICATION:
     references: [tools/conventions/src/inventory.rs]
+  # Held by the check at the root, over the payloads this tool writes into the inventory (ADR 44).
+  CTX-PUBLISHED-LANGUAGE:
+    references:
+      - ../conventions/integration-events.yaml
+      - src/shared_kernel/application/src/integration_events/note_integration_events.rs
+      - src/shared_kernel/application/src/integration_events/tracker_integration_events.rs
+      - tools/conventions/src/inventory.rs
 
 # The file that shows each verb of the HTTP grammar: the Notes routes for the grammar, the auth
 # routes for the one exception.
@@ -246,6 +253,7 @@ checklists:
       - 'A payload carrying everything a consumer needs, so it never queries back.'
       - 'A domain event handler in the publishing context that translates the domain event into it and calls `publish_integration_event(event, context).await` — that is where a fact leaves its context, through the outbox, never straight to the bus.'
       - 'An anti-corruption handler in each consuming context (`events/<name>_handler.rs`, like [`notifications/.../note_shared_handler.rs`](src/contexts/notifications/application/src/events/note_shared_handler.rs)), listed in its wiring crate under `integration_events`, on the contract''s published name.'
+      - 'Declared first in `conventions/integration-events.yaml`, by its published name: its publisher and its payload as version 1, each field by its public name in lowerCamel (`note_id` is `noteId`) as `string`, `number`, `boolean`, `object`, `array` or `any`, `?` for an `Option`; the inventory carries the payload and the check holds it to the last version field for field, and a field removed, renamed or retyped later is a new version appended (CTX-PUBLISHED-LANGUAGE).'
       - 'Adding one is not an architecture change: the module is where a context publishes, and a feature may publish.'
   event-handler:
     place: src/contexts/<context>/application/src/events/<name>_handler.rs

@@ -182,6 +182,13 @@ rules:
     references: [tools/conventions.py]
   ARCH-ONE-APPLICATION:
     references: [tools/conventions.py]
+  # Held by the check at the root, over the payloads this tool writes into the inventory (ADR 44).
+  CTX-PUBLISHED-LANGUAGE:
+    references:
+      - ../conventions/integration-events.yaml
+      - src/shared_kernel/application/integration_events/note_integration_events.py
+      - src/shared_kernel/application/integration_events/tracker_integration_events.py
+      - tools/conventions.py
 
 # What a new thing of each kind is made of in Python, and where each part goes. The kinds are
 # architecture.yaml's. Lowercase placeholders (`<context>`, `<aggregate>`) are filled in
@@ -237,6 +244,7 @@ checklists:
       - 'A payload carrying everything a consumer needs, so it never queries back.'
       - 'A domain event handler in the publishing context that translates the domain event into it and calls `publish_integration_event()` — that is where a fact leaves its context, through the outbox, never straight to the bus.'
       - 'An anti-corruption handler in each consuming context, registered in its `module_local.py`.'
+      - 'Declared first in `conventions/integration-events.yaml`, by its published name: its publisher and its payload as version 1, each field by its public name in lowerCamel (`note_id` is `noteId`) as `string`, `number`, `boolean`, `object`, `array` or `any`, `?` for a field `| None = None`; the inventory carries the payload and the check holds it to the last version field for field, and a field removed, renamed or retyped later is a new version appended (CTX-PUBLISHED-LANGUAGE).'
       - 'Adding one is not an architecture change: the package is where a context publishes, and a feature may publish.'
   event-handler:
     place: src/contexts/<context>/application/events/<name>_handler.py

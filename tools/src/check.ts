@@ -35,6 +35,9 @@
  * 13. A migrated application answers on the wire its binding says (ADR 36): every compatibility route
  *    stands for a command or a query the inventory lists, and nothing outside the transport waits for an
  *    operation (ARCH-COMPAT-ROUTE).
+ * 14. The published language (ADR 44), when the repository has one, is sound against the domain map, and
+ *    every inventory carries the last version of each event it declares, field for field: this
+ *    language's, read from the tree, and every other language's committed one (CTX-PUBLISHED-LANGUAGE).
  *
  * A client of the contract API, like the CLI; it parses no YAML itself. One root: the
  * repository's, where the contract and the shared documents live; the language's directory is
@@ -91,6 +94,9 @@ import {
   checkMigrationAgainstInventory,
   waitsOutsideTransport,
   profileOf,
+  loadPublishedLanguage,
+  validatePublishedLanguage,
+  checkInventoryAgainstPublishedLanguage,
 } from './index';
 import type { ArchitectureContract, ContextLink, Inventory, Mechanism } from './index';
 
@@ -303,6 +309,30 @@ export async function checkConventions(
   }
   if (readsTree) problems.push(...waitsOutsideTransport(contract, root));
 
+  // 14. The published language: sound against the map, and carried by every inventory, field for field
+
+  let publishedLanguage;
+  try {
+    publishedLanguage = loadPublishedLanguage(root);
+  } catch (error) {
+    problem(`CTX-PUBLISHED-LANGUAGE: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (publishedLanguage) {
+    problems.push(
+      ...validatePublishedLanguage(
+        publishedLanguage,
+        domainMap ? domainMap.contexts.map(context => context.id) : contract.contexts,
+      ),
+    );
+    // This language's inventory as its tree says it, or as its own tool committed it; then every other one.
+    const held: Inventory[] = [];
+    const own = readsTree ? inspectInventory(contract, root) : committedInventory();
+    if (own) held.push(own);
+    if (readsTree) for (const [language, other] of inventories) if (language !== contract.language.id) held.push(other);
+    for (const inventory of held)
+      problems.push(...checkInventoryAgainstPublishedLanguage(publishedLanguage, inventory));
+  }
+
   // 4. Every relative link in the documentation resolves
 
   const linksIn = (text: string) =>
@@ -430,7 +460,7 @@ export async function checkConventions(
 
   return {
     problems,
-    summary: `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts${readsTree ? ' match the tree' : ''}; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; ${readsTree ? `no eslint-disable; ${probes.length} import probes behave and name their rule` : `the tree is held by ${contract.language.name}'s own tool`}${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}${storm ? `; the event storm is read from the code (${storm.contexts.reduce((sum, each) => sum + each.commands.length, 0)} commands, ${storm.contexts.reduce((sum, each) => sum + each.policies.length, 0)} policies)` : ''}${multi ? `; one application in ${inventories.size} inventor${inventories.size === 1 ? 'y' : 'ies'}` : ''}${contract.profiles.length ? `; ${contract.profiles.length} profile(s) held to the floor (${contract.contexts.filter(context => profileOf(contract, context) !== contract.profiles.find(profile => profile.default)?.id).length} context(s) off the default)` : ''}${contract.migration ? `; the wire is ${contract.migration.api} (${contract.migration.routes.length} compatibility route(s))` : ''}.`,
+    summary: `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts${readsTree ? ' match the tree' : ''}; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; ${readsTree ? `no eslint-disable; ${probes.length} import probes behave and name their rule` : `the tree is held by ${contract.language.name}'s own tool`}${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}${storm ? `; the event storm is read from the code (${storm.contexts.reduce((sum, each) => sum + each.commands.length, 0)} commands, ${storm.contexts.reduce((sum, each) => sum + each.policies.length, 0)} policies)` : ''}${multi ? `; one application in ${inventories.size} inventor${inventories.size === 1 ? 'y' : 'ies'}` : ''}${contract.profiles.length ? `; ${contract.profiles.length} profile(s) held to the floor (${contract.contexts.filter(context => profileOf(contract, context) !== contract.profiles.find(profile => profile.default)?.id).length} context(s) off the default)` : ''}${contract.migration ? `; the wire is ${contract.migration.api} (${contract.migration.routes.length} compatibility route(s))` : ''}${publishedLanguage ? `; ${publishedLanguage.events.length} integration event(s) in the published language` : ''}.`,
   };
 }
 

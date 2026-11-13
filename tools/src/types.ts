@@ -287,3 +287,35 @@ export class ContractError extends Error {
     super(message);
   }
 }
+
+/** The six words a payload field's type is said in, in every language (ADR 44). */
+export const PAYLOAD_TYPES = ['string', 'number', 'boolean', 'object', 'array', 'any'] as const;
+export type PayloadKind = (typeof PAYLOAD_TYPES)[number];
+/** A field's type in the published language: one of the six, with `?` when the field may be absent. */
+export type PayloadType = PayloadKind | `${PayloadKind}?`;
+/** A payload: each field by its public name (lowerCamel), to its type. */
+export type Payload = Record<string, PayloadType>;
+
+/** One version of an integration event's payload, numbered from 1. */
+export interface PublishedVersion {
+  version: number;
+  payload: Payload;
+}
+
+/** An integration event, declared once for every language (ADR 44, CTX-PUBLISHED-LANGUAGE). */
+export interface PublishedEvent {
+  /** Its public name, without the suffix of its kind (`NoteShared`). */
+  name: string;
+  /** The context that publishes it, a context of the domain map. */
+  publisher: string;
+  /** For an event that announces a thing's birth: the thing, and the payload field that carries its id. */
+  announces?: { thing: string; id: string };
+  /** Its history, oldest first; the last is the one every language's code carries. */
+  versions: PublishedVersion[];
+}
+
+/** The published language: conventions/integration-events.yaml, loaded. */
+export interface PublishedLanguage {
+  events: PublishedEvent[];
+  source: string;
+}

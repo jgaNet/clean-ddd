@@ -15,6 +15,7 @@ export * from './probes';
 export * from './domain';
 export * from './storm';
 export * from './inventory';
+export * from './published-language';
 export * from './storms';
 export * from './migration';
 export * from './profiles';

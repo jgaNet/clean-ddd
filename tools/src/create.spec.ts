@@ -5,6 +5,8 @@ import { join } from 'path';
 import {
   checkConventions,
   checkExpectedStorm,
+  checkInventoryAgainstPublishedLanguage,
+  loadPublishedLanguage,
   contractUnder,
   createApplication,
   describeInventory,
@@ -174,6 +176,49 @@ describe('yarn architecture create', () => {
     expect(existsSync(join(directory, '.claude/skills/storm/SKILL.md'))).toBe(true);
   });
 
+  it('starts with the published language of the Tracker, which its tree carries field for field (ADR 44)', () => {
+    const published = loadPublishedLanguage(directory)!;
+    expect(read('conventions/integration-events.yaml')).toMatch(/^# The published language \(ADR 44 of the reference,/);
+    expect(published.events.map(event => [event.name, event.publisher])).toEqual([['OperationComplete', 'Tracker']]);
+    const inventory = inspectInventory(generated, directory);
+    expect(inventory.integrationEvents).toEqual([
+      {
+        name: 'OperationComplete',
+        publisher: 'Tracker',
+        payload: {
+          error: 'string?',
+          operationId: 'string',
+          result: 'any?',
+          status: 'string',
+          type: 'string',
+          userId: 'string',
+        },
+      },
+    ]);
+    expect(checkInventoryAgainstPublishedLanguage(published, inventory)).toEqual([]);
+  });
+
+  it('refuses a payload field changed in the tree and not in the published language: the probe of CTX-PUBLISHED-LANGUAGE', () => {
+    const path = 'src/SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents.ts';
+    const text = read(path);
+    try {
+      writeFileSync(
+        join(directory, path),
+        text.replace('  error?: string;', '  reason?: string;').replace('  userId: string;', '  userId: number;'),
+      );
+      expect(
+        checkInventoryAgainstPublishedLanguage(
+          loadPublishedLanguage(directory)!,
+          inspectInventory(generated, directory),
+        ),
+      ).toEqual([
+        "CTX-PUBLISHED-LANGUAGE: typescript: OperationComplete's payload is not version 1 of conventions/integration-events.yaml: error (string?) is missing; userId is number, declared string; reason (string?) is not declared",
+      ]);
+    } finally {
+      writeFileSync(join(directory, path), text);
+    }
+  });
+
   it('keeps every concept, shows only those a copied file still shows, and their canonical files exist', () => {
     expect(generated.concepts.map(concept => concept.id)).toEqual(reference.concepts.map(concept => concept.id));
     const displayed = generated.concepts.filter(shown);
@@ -297,6 +342,24 @@ describe('yarn architecture create --language python', () => {
       writeFileSync(join(directory, 'conventions/python.yaml'), binding);
       writeFileSync(join(directory, 'conventions/domain.yaml'), map);
       writeFileSync(join(directory, 'README.md'), readme);
+    }
+  });
+
+  it('holds the payloads its own tool writes in the inventory to the published language: CTX-PUBLISHED-LANGUAGE outside TypeScript', async () => {
+    expect(read('conventions/integration-events.yaml')).toContain('OperationComplete:');
+    const inventory = read('docs/inventory/python.json');
+    try {
+      const changed = JSON.parse(inventory);
+      changed.integrationEvents[0].payload.kind = changed.integrationEvents[0].payload.type;
+      delete changed.integrationEvents[0].payload.type;
+      writeFileSync(join(directory, 'docs/inventory/python.json'), `${JSON.stringify(changed, null, 2)}\n`);
+      expect(
+        (await checkConventions(directory)).problems.filter(problem => problem.startsWith('CTX-PUBLISHED-LANGUAGE')),
+      ).toEqual([
+        "CTX-PUBLISHED-LANGUAGE: python: OperationComplete's payload is not version 1 of conventions/integration-events.yaml: type (string) is missing; kind (string) is not declared",
+      ]);
+    } finally {
+      writeFileSync(join(directory, 'docs/inventory/python.json'), inventory);
     }
   });
 
@@ -486,6 +549,7 @@ describe('yarn architecture create --profile lite', () => {
     // No operation to follow: no Tracker, no contract of its own, no starter of the reference's.
     expect(readdirSync(join(directory, 'src/Contexts'))).toEqual(['README.md']);
     expect(readdirSync(join(directory, 'src/SharedKernel/Application/IntegrationEvents'))).toEqual(['README.md']);
+    expect(read('conventions/integration-events.yaml')).toMatch(/\nevents: \{\}\n$/);
     expect(existsSync(join(directory, 'src/Bootstrap/LiteStarter'))).toBe(false);
     expect(read('conventions/typescript.yaml')).not.toMatch(/LiteStarter|src\/Contexts\/Notes/);
     expect(
@@ -519,6 +583,14 @@ describe('yarn architecture create --profile lite', () => {
       expect(profileOf(contract, 'Tasks')).toBe('lite');
       expect(validateContract(contract, directory)).toEqual([]);
       expect(validateDomainMap(loadDomainMap(directory)!, [contract], directory)).toEqual([]);
+    });
+
+    it('declares the fact it tells in the published language, which started empty, and carries it field for field', () => {
+      const inventory = inspectInventory(generated(), directory);
+      expect(inventory.integrationEvents).toEqual([
+        { name: 'TaskCompleted', publisher: 'Tasks', payload: { ownerId: 'string', taskId: 'string' } },
+      ]);
+      expect(checkInventoryAgainstPublishedLanguage(loadPublishedLanguage(directory)!, inventory)).toEqual([]);
     });
 
     it('reads its use cases: commands answered at once with their route, their caller and what they publish; its query', () => {

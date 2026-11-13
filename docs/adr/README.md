@@ -47,5 +47,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0041](0041-an-operation-read-is-in-the-contract.md) | What an operation answers when it is read is in the contract, so a kit or a product can be checked against it |
 | [0042](0042-an-application-has-one-clock.md) | An application has one clock, passed from the wiring, and nothing else reads the machine's time |
 | [0043](0043-a-lite-use-case-calls-a-pure-decision-and-says-who-may-call-it.md) | A Lite use case calls a pure decision, and says once who may call it, which the transport holds |
+| [0044](0044-integration-events-are-a-published-language-declared-once.md) | Integration events are a published language, declared once, versioned, and held in every language |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

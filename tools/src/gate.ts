@@ -7,6 +7,12 @@ import { inspectInventory } from './inventory';
 import { DEFAULT_LANGUAGE, loadArchitectureContract } from './load';
 import { changedFiles, checkMode } from './modes';
 import { contextProfileChangesSince } from './profiles';
+import {
+  frozenVersionChanges,
+  loadPublishedLanguage,
+  PUBLISHED_LANGUAGE_FILE,
+  publishedLanguageAt,
+} from './published-language';
 import { checkRelationshipTests, crossedRelationshipTests, relationshipTestsThatMissTheChange } from './relationships';
 import { carriedButOpen, loadExpectedStorm, STORMS_DIR } from './storms';
 import { ModeName } from './types';
@@ -26,6 +32,9 @@ import { ModeName } from './types';
  * has no person beside them to do it (RFC 0001, phase 4: one agent taking a whole backlog) — is
  * held to the architecture mode instead (`--mode architecture`): it may touch the architecture,
  * and must record the decision.
+ *
+ * A change to the published language is held to its history first (ADR 44): a version the base merged is
+ * frozen, and changing it in place is refused, unless the change is an added optional field.
  *
  * The gate decides nothing new: every step is a command that already exists. What it adds is the
  * verdict as data, so that whoever starts an agent — a person, a script — reads the result from
@@ -195,6 +204,28 @@ export async function runGate({
     checkMode(held, [...changed], contract, base, contextProfileChangesSince(base, [...changed], contract, root)),
   );
   record({ name: `mode ${held}`, stage: 'architecture', ok: mode.ok, durationMs: modeMs, lines: mode.problems });
+
+  // 1a. The published language, when the change touches it: a version merged at the base is frozen, but for an
+  //     added optional field (ADR 44); an event removed whole goes with its publishers and consumers.
+  if (changed.has(PUBLISHED_LANGUAGE_FILE)) {
+    const [frozen, frozenMs] = timed(() => {
+      const before = publishedLanguageAt(base, root);
+      if (!before) return [];
+      try {
+        const after = loadPublishedLanguage(root);
+        return after ? frozenVersionChanges(before, after) : [];
+      } catch (error) {
+        return [`CTX-PUBLISHED-LANGUAGE: ${error instanceof Error ? error.message : String(error)}`];
+      }
+    });
+    record({
+      name: 'published language',
+      stage: 'architecture',
+      ok: frozen.length === 0,
+      durationMs: frozenMs,
+      lines: frozen,
+    });
+  }
 
   // 1b. When the binding asks for it: each relationship between two contexts the change crosses, with a
   //     test of its own (experimental).

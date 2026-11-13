@@ -14,12 +14,15 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // The inventory: what the Go tree says the application is, in words every language shares — the
 // commands of each context with who may call them, their route, the aggregate they reach and the
 // events it records; the queries; the domain events; the policies, what they react to and what
-// they publish or reach; the links between contexts. Nothing Go owns is in it: no file, no
+// they publish or reach; the links between contexts; the payload of each integration event the
+// tree publishes, held by the TypeScript check to the published language (CTX-PUBLISHED-LANGUAGE,
+// conventions/integration-events.yaml). Nothing Go owns is in it: no file, no
 // package, no idiom. `go run ./tools/conventions inventory` prints it as canonical JSON,
 // `--write` writes it to docs/inventory/go.json, and the plain check holds the committed file
 // to what the tree renders (ARCH-ONE-APPLICATION); the TypeScript check holds the inventories
@@ -53,6 +56,8 @@ type Inventory struct {
 	Language      string             `json:"language"`
 	Contexts      []InventoryContext `json:"contexts"`
 	Links         []InventoryLink    `json:"links"`
+	// IntegrationEvents is every integration event the tree publishes, by name.
+	IntegrationEvents []InventoryIntegrationEvent `json:"integrationEvents"`
 }
 
 type InventoryContext struct {
@@ -90,6 +95,16 @@ type InventoryLink struct {
 	Upstream   string   `json:"upstream"`
 	Downstream string   `json:"downstream"`
 	Contracts  []string `json:"contracts"`
+}
+
+// InventoryIntegrationEvent is one integration event in the published language's words: its
+// public name, the context that publishes it, and its payload, each field's public name (lowerCamel)
+// mapped to string, number, boolean, object, array or any, with `?` when it may be absent. The
+// encoder writes a map's keys sorted, as every language's tool does.
+type InventoryIntegrationEvent struct {
+	Name      string            `json:"name"`
+	Publisher string            `json:"publisher"`
+	Payload   map[string]string `json:"payload"`
 }
 
 // serializeInventory is the canonical JSON: two-space indentation, the keys in the order of the
@@ -201,7 +216,9 @@ func inventoryDifferences(before, after *Inventory) []string {
 			found = append(found, fmt.Sprintf("%s: %s: the tree says the context, the committed inventory does not", inventoryRule, is.ID))
 		}
 	}
-	return append(found, entryDifferences("context map", "link", linkEntries(before.Links), linkEntries(after.Links))...)
+	found = append(found, entryDifferences("context map", "link", linkEntries(before.Links), linkEntries(after.Links))...)
+	return append(found, entryDifferences("published language", "integration event",
+		integrationEventEntries(before.IntegrationEvents), integrationEventEntries(after.IntegrationEvents))...)
 }
 
 // inventoryEntry is one thing of the inventory compared across the two sides: its key, and its
@@ -330,6 +347,29 @@ func linkEntries(links []InventoryLink) []inventoryEntry {
 		})
 	}
 	return found
+}
+
+func integrationEventEntries(events []InventoryIntegrationEvent) []inventoryEntry {
+	found := []inventoryEntry{}
+	for _, each := range events {
+		var fields []string
+		for _, name := range sortedKeys(each.Payload) {
+			fields = append(fields, name+": "+each.Payload[name])
+		}
+		found = append(found, inventoryEntry{key: each.Name, fields: []inventoryField{
+			{"publisher", quoted(each.Publisher)}, {"payload", "{" + strings.Join(fields, ", ") + "}"},
+		}})
+	}
+	return found
+}
+
+func sortedKeys(values map[string]string) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1832,5 +1872,166 @@ func inspectInventory(root string, contract *Contract) (*Inventory, error) {
 		// Canonical JSON says `[]`, as every language's tool does: an application with no link yet is not `null`.
 		inventory.Links = []InventoryLink{}
 	}
+	inventory.IntegrationEvents = tree.integrationEventsOf(inventory.Contexts)
 	return inventory, nil
+}
+
+// ---------------------------------------------------------------------------------------------
+// The published language as the tree carries it (ADR 44, CTX-PUBLISHED-LANGUAGE): every struct of
+// the shared kernel embedding domain.IntegrationEvent that a context publishes, with its payload
+// read from its exported fields.
+
+// integrationEventsOf is every integration event the tree publishes, sorted by name: its publisher
+// is the context whose policy publishes it, or failing one, the context that builds it.
+func (t *sourceTree) integrationEventsOf(contexts []InventoryContext) []InventoryIntegrationEvent {
+	found := []InventoryIntegrationEvent{}
+	for _, s := range t.files {
+		if s.file.tree != "kernel" {
+			continue
+		}
+		for _, each := range typesOf(s) {
+			st, ok := each.spec.(*ast.StructType)
+			if !ok || !t.embeds(s, st, "IntegrationEvent") {
+				continue
+			}
+			name := publicName(each.name)
+			publisher := publisherOf(contexts, name)
+			for _, context := range t.contract.Contexts {
+				if publisher != "" {
+					break
+				}
+				if t.builds(context, s.pkg, each.name) {
+					publisher = context
+				}
+			}
+			if publisher == "" {
+				continue // declared and published by none: not part of what the tree says
+			}
+			found = append(found, InventoryIntegrationEvent{Name: name, Publisher: publisher, Payload: t.payloadOf(s, st)})
+		}
+	}
+	sort.Slice(found, func(i, j int) bool { return found[i].Name < found[j].Name })
+	return found
+}
+
+// publisherOf is the first context, by id, one of whose policies publishes the event.
+func publisherOf(contexts []InventoryContext, event string) string {
+	for _, context := range contexts {
+		for _, policy := range context.Policies {
+			for _, published := range policy.Publishes {
+				if published == event {
+					return context.ID
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// payloadOf is a contract struct's payload: each exported field by its public name, mapped to its
+// type's word; the embedded marker of the building blocks is no field.
+func (t *sourceTree) payloadOf(s *source, st *ast.StructType) map[string]string {
+	architecture := t.contract.ModulePath + "/" + t.contract.Architecture + "/"
+	payload := map[string]string{}
+	for _, field := range st.Fields.List {
+		names := []string{}
+		for _, ident := range field.Names {
+			names = append(names, ident.Name)
+		}
+		if len(field.Names) == 0 {
+			local, name := typeRef(field.Type)
+			if name == "IntegrationEvent" && strings.HasPrefix(s.packageOf(local), architecture) {
+				continue
+			}
+			names = append(names, name)
+		}
+		for _, name := range names {
+			if !ast.IsExported(name) {
+				continue
+			}
+			payload[fieldPublicName(name)] = t.payloadType(s, field.Type, 0)
+		}
+	}
+	return payload
+}
+
+// payloadType is the published language's word for a Go type: a string is `string`, an integer
+// or a float `number`, a bool `boolean`, a slice or an array `array`, a map or a struct `object`,
+// `any` (or any interface) `any?` since it can be nil, and a pointer its target's word with `?`.
+// A named type is read where the tree declares it; one the tree does not declare (time.Time) is
+// an `object`.
+func (t *sourceTree) payloadType(s *source, expr ast.Expr, depth int) string {
+	switch e := expr.(type) {
+	case *ast.StarExpr:
+		return strings.TrimSuffix(t.payloadType(s, e.X, depth), "?") + "?"
+	case *ast.ParenExpr:
+		return t.payloadType(s, e.X, depth)
+	case *ast.ArrayType:
+		return "array"
+	case *ast.MapType, *ast.StructType:
+		return "object"
+	case *ast.InterfaceType:
+		return "any?"
+	case *ast.Ident:
+		switch e.Name {
+		case "string":
+			return "string"
+		case "bool":
+			return "boolean"
+		case "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "uintptr",
+			"float32", "float64", "byte", "rune":
+			return "number"
+		case "any", "error":
+			return "any?"
+		}
+		return t.namedPayloadType(s.pkg, e.Name, depth)
+	case *ast.SelectorExpr:
+		if x, ok := e.X.(*ast.Ident); ok {
+			return t.namedPayloadType(s.packageOf(x.Name), e.Sel.Name, depth)
+		}
+	}
+	return "object"
+}
+
+// namedPayloadType reads a named type where the tree declares it, its underlying type's word.
+func (t *sourceTree) namedPayloadType(pkg, typeName string, depth int) string {
+	declaring := t.declaring(pkg, typeName)
+	if declaring == nil || depth > 8 {
+		return "object"
+	}
+	for _, each := range typesOf(declaring) {
+		if each.name == typeName {
+			return t.payloadType(declaring, each.spec, depth+1)
+		}
+	}
+	return "object"
+}
+
+// fieldPublicName is a Go field's public name: its words, a run of capitals being one word
+// (OperationID → Operation ID; HTTPStatus → HTTP Status; RecipientIDs → Recipient IDs), joined
+// in lowerCamel (operationId, httpStatus, recipientIds).
+func fieldPublicName(name string) string {
+	var words []string
+	runes := []rune(name)
+	start := 0
+	for i := 1; i < len(runes); i++ {
+		upper, wasUpper := unicode.IsUpper(runes[i]), unicode.IsUpper(runes[i-1])
+		nextLower := i+1 < len(runes) && unicode.IsLower(runes[i+1])
+		// A plural initialism keeps its s: RecipientIDs is Recipient IDs, not Recipient I Ds.
+		plural := nextLower && runes[i+1] == 's' && (i+2 == len(runes) || !unicode.IsLower(runes[i+2]))
+		if upper && (!wasUpper || (nextLower && !plural)) {
+			words = append(words, string(runes[start:i]))
+			start = i
+		}
+	}
+	words = append(words, string(runes[start:]))
+	var out strings.Builder
+	for i, word := range words {
+		lower := []rune(strings.ToLower(word))
+		if i > 0 && len(lower) > 0 {
+			lower[0] = unicode.ToUpper(lower[0])
+		}
+		out.WriteString(string(lower))
+	}
+	return out.String()
 }

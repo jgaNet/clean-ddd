@@ -4,9 +4,12 @@
 since:
 - D1, with the Lite audit's access decision: [ADR 43](../adr/0043-a-lite-use-case-calls-a-pure-decision-and-says-who-may-call-it.md);
 - D4: the created guide's budget;
-- I6: the gate's fixes.
+- I6: the gate's fixes;
+- I2: [ADR 44](../adr/0044-integration-events-are-a-published-language-declared-once.md), the published language
+  (`conventions/integration-events.yaml`), each language's payloads in its inventory, held by the check and frozen by
+  the gate (CTX-PUBLISHED-LANGUAGE).
 
-Still to come: D2 and I2. D3 and D5 are the protocol's.
+Still to come: D2. D3 and D5 are the protocol's.
 
 **Decided (the maintainer, 13 November):**
 

@@ -1,11 +1,13 @@
 """The conventions check, tried against the tree as it is and against violations written into a
 copy of it: a refusal must name its rule, as the ESLint probes do in TypeScript."""
 
+import ast
 import json
 import shutil
 from pathlib import Path
 
 import pytest
+import yaml
 
 from tools.conventions import (
     INVENTORY,
@@ -13,6 +15,7 @@ from tools.conventions import (
     can_import,
     inspect_inventory,
     inventory_changes,
+    payload_of,
     run,
     serialize_inventory,
     write_inventory,
@@ -167,6 +170,92 @@ def test_the_inventory_says_the_same_application_as_the_typescript_tree() -> Non
     # Canonical bytes: what is written is what is read back, the keys in the order they were inserted.
     assert json.loads(serialize_inventory(inventory)) == inventory
     assert serialize_inventory(inventory).endswith("}\n")
+
+
+def test_the_inventory_carries_the_last_version_of_the_published_language() -> None:
+    """ADR 44: each integration event the tree publishes, with its publisher and the payload of the last
+    version ``conventions/integration-events.yaml`` declares, field for field, in its words."""
+    declared = yaml.safe_load((HERE.parent / "conventions" / "integration-events.yaml").read_text(encoding="utf-8"))
+    expected = {
+        name: {"publisher": event["publisher"], "payload": dict(event["versions"][-1]["payload"])}
+        for name, event in declared["events"].items()
+    }
+    events = inspect_inventory(HERE)["integrationEvents"]
+    assert [event["name"] for event in events] == sorted(expected, key=lambda name: (name.casefold(), name))
+    assert {
+        event["name"]: {"publisher": event["publisher"], "payload": event["payload"]} for event in events
+    } == expected
+    assert all(list(event) == ["name", "publisher", "payload"] for event in events)
+    assert all(list(event["payload"]) == sorted(event["payload"], key=str.casefold) for event in events)
+
+
+def test_a_payload_is_read_from_the_dataclass_in_the_six_words_by_public_name() -> None:
+    source = ast.parse(
+        "from dataclasses import dataclass, field\n"
+        "from typing import Any, Optional, Sequence, Mapping\n"
+        "@dataclass(frozen=True)\n"
+        "class Address:\n"
+        "    city: str\n"
+        "@dataclass(frozen=True)\n"
+        "class Base(IntegrationEvent):\n"
+        "    thing_id: str\n"
+        "@dataclass(frozen=True)\n"
+        "class ThingHappenedIntegrationEvent(Base):\n"
+        "    KIND: ClassVar[str] = 'x'\n"
+        "    count: int\n"
+        "    ratio: float\n"
+        "    urgent: bool\n"
+        "    details: Any\n"
+        "    raw: object\n"
+        "    tags: list[str]\n"
+        "    pair: tuple[int, int]\n"
+        "    lines: Sequence[str]\n"
+        "    extra: dict[str, Any]\n"
+        "    labels: Mapping[str, str]\n"
+        "    address: Address\n"
+        "    note: str | None\n"
+        "    owner: Optional[str]\n"
+        "    result: Any = None\n"
+        "    reason: str = field(default=None)\n"
+        "    level: int = 0\n"
+        "    since: 'datetime'\n"
+    )
+    classes = {node.name: node for node in source.body if isinstance(node, ast.ClassDef)}
+    assert payload_of(classes["ThingHappenedIntegrationEvent"], classes, {"Address", "Base"}) == {
+        "address": "object",
+        "count": "number",
+        "details": "any",
+        "extra": "object",
+        "labels": "object",
+        "level": "number",
+        "lines": "array",
+        "note": "string?",
+        "owner": "string?",
+        "pair": "array",
+        "ratio": "number",
+        "raw": "any",
+        "reason": "string?",
+        "result": "any?",
+        "since": "datetime",  # no word for it: written as Python spells it, so the check names the difference
+        "tags": "array",
+        "thingId": "string",
+        "urgent": "boolean",
+    }
+
+
+def test_an_integration_event_that_drifts_from_the_published_language_is_caught_by_the_inventory(copy: Path) -> None:
+    kernel = copy / "src/shared_kernel/application/integration_events/note_integration_events.py"
+    kernel.write_text(
+        kernel.read_text(encoding="utf-8").replace("    recipient_id: str\n", "    recipient_id: str | None = None\n"),
+        encoding="utf-8",
+    )
+    stale = [problem for problem in refusals(copy) if problem.startswith("ARCH-ONE-APPLICATION:")]
+    assert stale == [
+        STALE_INVENTORY,
+        "ARCH-ONE-APPLICATION: published language: the integration event NoteShared differs: payload "
+        "{noteId: string, ownerId: string, recipientId: string, title: string} → "
+        "{noteId: string, ownerId: string, recipientId: string?, title: string}",
+    ]
 
 
 def test_refuses_a_stale_or_missing_inventory_naming_the_command_that_writes_it(copy: Path) -> None:

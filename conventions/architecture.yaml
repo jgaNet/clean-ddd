@@ -118,8 +118,10 @@ modes:
       architecture change with its own reasoning.
     # The tooling at the root holds every language to this file; a feature does not change it.
     protected: [conventions, docs/adr, tools]
-    # A feature may bring its plan, and the storm the session decided it would be.
-    allowed: [conventions/plans, conventions/storms]
+    # A feature may bring its plan, and the storm the session decided it would be; and, since a feature
+    # may publish, the integration event it declares in the published language (ADR 44), where the gate
+    # refuses a merged version changed in place.
+    allowed: [conventions/plans, conventions/storms, conventions/integration-events.yaml]
   architecture:
     why: >-
       The architecture may change; it may not change silently. A change to the building blocks,
@@ -341,6 +343,8 @@ floor:
     rules: [CTX-CONTRACTS, ARCH-CONTEXT-DECLARED]
   - guarantee: Every relationship between two contexts is declared
     rules: [CTX-MAP-DECLARED]
+  - guarantee: What a context publishes to the others is declared once
+    rules: [CTX-PUBLISHED-LANGUAGE]
   - guarantee: The domain imports no framework
     rules: [ARCH-DOMAIN]
   - guarantee: An invariant is enforced where its state lives, and a refusal is a value
@@ -413,6 +417,7 @@ profiles:
       # missing one with 401 before it runs (ADR 43); a role the rule refuses is the use case's 403.
       - API-CALLER-AT-TRANSPORT
       - CTX-MAP-DECLARED
+      - CTX-PUBLISHED-LANGUAGE
       - ARCH-ONE-APPLICATION
       - ARCH-COMPAT-ROUTE
     waives: {}
@@ -694,6 +699,14 @@ rules:
     remediation: Add the relationship to `relationships` in the domain map with its pattern and its reason — declared `planned` when it is decided before the code that carries it — or remove the link in the code, if the coupling was not meant; never widen the check.
     enforcement: check
     references: [docs/adr/0019-the-domain-is-data.md, docs/adr/0028-a-relationship-is-decided-before-its-code.md, conventions/README.md]
+
+  - id: CTX-PUBLISHED-LANGUAGE
+    name: integration-events-are-a-published-language
+    statement: Every integration event is declared once in the published language, with the context that publishes it, the thing it announces when it announces one, and the payload of each version it was published in; every language's code carries the last version, field for field, and the check holds each inventory to it; a version once merged is changed only by an added optional field — a field removed, renamed or retyped is a new version, and the gate refuses the change in place; an event that announces a thing carries the id it was born with.
+    why: An integration event is the one promise a context makes to the others, and a promise kept in four hand-written copies drifts unseen — a field another language names differently, an id a consumer needs and the event forgot, a change that breaks a consumer made in place. Declared once and held by the check, the payload is one thing in every language, and a breaking change says so with a new version.
+    remediation: Declare the event, its publisher and its payload in the published language before the code publishes it, and make each language's event carry the last version field for field; to remove, rename or retype a field, append a version rather than edit one; give an event that announces a thing the id field it names.
+    enforcement: check
+    references: [docs/adr/0044-integration-events-are-a-published-language-declared-once.md, conventions/README.md]
 
   - id: ARCH-ONE-APPLICATION
     name: every-language-is-the-same-application

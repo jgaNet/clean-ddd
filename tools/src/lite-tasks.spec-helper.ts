@@ -295,8 +295,8 @@ export class TaskCompletedIntegrationEvent extends IntegrationEvent<{ taskId: st
 
 /**
  * Writes the Tasks context into an application created Lite: its files, its declaration in the binding
- * (held to Lite by the binding's `default_profile`), its description in the domain map, and its module and
- * routes in the composition root.
+ * (held to Lite by the binding's `default_profile`), its description in the domain map, the fact it publishes
+ * in the published language, and its module and routes in the composition root.
  */
 export function addLiteTasks(directory: string): void {
   for (const [path, text] of Object.entries(LITE_TASKS)) {
@@ -316,6 +316,22 @@ export function addLiteTasks(directory: string): void {
         /\ncontexts: \[\]\n/,
         '\ncontexts:\n  - { id: Tasks, purpose: what each person has to do, language: [] }\n',
       ),
+  );
+  // The fact it tells other contexts, declared in the published language before the code publishes it (ADR 44).
+  edit('conventions/integration-events.yaml', text =>
+    text.replace(
+      /\nevents: \{\}\n/,
+      [
+        '',
+        'events:',
+        '  TaskCompleted:',
+        '    publisher: Tasks',
+        '    versions:',
+        '      - version: 1',
+        '        payload: { taskId: string, ownerId: string }',
+        '',
+      ].join('\n'),
+    ),
   );
   edit('src/Bootstrap/Fastify/createApplication.ts', text =>
     text

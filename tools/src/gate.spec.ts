@@ -114,6 +114,35 @@ describe('the gate', () => {
     }
   });
 
+  it('refuses a merged version of the published language changed in place, and lets an optional field be added (ADR 44)', async () => {
+    const file = join(directory, 'conventions/integration-events.yaml');
+    const text = readFileSync(file, 'utf8');
+    try {
+      writeFileSync(file, text.replace('          error: string?\n', '          error: string\n'));
+      const { ran, exec } = recorder();
+      const refused = await runGate({ root: directory, base, exec });
+      expect(refused.verdict).toBe('fail');
+      expect(ran).toEqual([]);
+      expect(refused.steps[1]).toMatchObject({
+        name: 'published language',
+        stage: 'architecture',
+        status: 'fail',
+        lines: [
+          'CTX-PUBLISHED-LANGUAGE: conventions/integration-events.yaml: OperationComplete version 1 was changed in place: error string? → string; append version 2 instead (only an added optional field may change a merged version)',
+        ],
+      });
+
+      writeFileSync(
+        file,
+        text.replace('          error: string?\n', '          error: string?\n          retriedAt: string?\n'),
+      );
+      const allowed = await runGate({ root: directory, base, exec: recorder().exec });
+      expect(allowed.steps.find(step => step.name === 'published language')).toMatchObject({ status: 'pass' });
+    } finally {
+      writeFileSync(file, text);
+    }
+  });
+
   it('holds an architecture task to the architecture mode: it may touch the architecture if it records why', async () => {
     writeFileSync(
       join(directory, 'src/architecture/domain/added.py'),

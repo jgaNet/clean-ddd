@@ -74,6 +74,7 @@ describe('the profiles of the reference', () => {
       'CTX-CONTRACTS',
       'ARCH-CONTEXT-DECLARED',
       'CTX-MAP-DECLARED',
+      'CTX-PUBLISHED-LANGUAGE',
       'ARCH-DOMAIN',
       'DOMAIN-RESULT',
       'CONC-OPTIMISTIC',

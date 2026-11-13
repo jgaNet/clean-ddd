@@ -256,11 +256,15 @@ concepts:
     layer: application
     description: >-
       the only thing one context may know about another — [ADR
-      6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md)
+      6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md); declared once,
+      with its publisher and each version of its payload, in the published language — [ADR
+      44](docs/adr/0044-integration-events-are-a-published-language-declared-once.md)
     rules:
       - CTX-CONTRACTS
+      - CTX-PUBLISHED-LANGUAGE
     references:
       - docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md
+      - docs/adr/0044-integration-events-are-a-published-language-declared-once.md
   - id: anti-corruption-layer
     name: '**Anti-corruption layer**'
     layer: application
@@ -426,9 +430,12 @@ strategic:
     name: Published language
     description: >-
       the upstream publishes its facts in a contract written in its public words, for any consumer; here an
-      integration event in the shared kernel, named for the fact (`NoteShared`)
-    where: the integration-event relationships of the map; [ADR 6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md)
-    references: [docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md]
+      integration event in the shared kernel, named for the fact (`NoteShared`), declared once with each version
+      of its payload, and every language's code held to the last
+    where: the integration-event relationships of the map; [`integration-events.yaml`](conventions/integration-events.yaml); [ADR 6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md), [ADR 44](docs/adr/0044-integration-events-are-a-published-language-declared-once.md)
+    references:
+      - docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md
+      - docs/adr/0044-integration-events-are-a-published-language-declared-once.md
   - id: customer-supplier
     name: Customer–supplier
     description: >-

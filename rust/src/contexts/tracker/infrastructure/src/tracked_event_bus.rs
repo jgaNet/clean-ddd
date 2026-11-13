@@ -32,7 +32,7 @@ impl<R: OperationRecords + Send + Sync + 'static> TrackedEventBus<R> {
             operation_id: operation.id().to_string(),
             user_id,
             status: operation.status().as_str().to_string(),
-            kind: public_name(operation.event().name()).to_string(),
+            r#type: public_name(operation.event().name()).to_string(),
             result: operation.value_as_json(),
             error: operation.error().map(|error| error.message().to_string()),
         };
@@ -201,7 +201,7 @@ mod tests {
         pollster::block_on(context(&bus, Auth::anonymous()).publish(Greet { then: None }));
 
         let announced: Vec<(String, String)> =
-            notices.0.0.lock().unwrap().iter().map(|n| (n.kind.clone(), n.status.clone())).collect();
+            notices.0.0.lock().unwrap().iter().map(|n| (n.r#type.clone(), n.status.clone())).collect();
         assert_eq!(announced, [("Greet".into(), "SUCCESS".into()), ("Greet".into(), "ERROR".into())]);
         // The notice itself is not recorded; the three commands and their reactions are.
         let names: Vec<String> = pollster::block_on(records.find_all()).into_iter().map(|r| r.name).collect();

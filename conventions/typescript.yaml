@@ -171,6 +171,14 @@ rules:
     references: [../tools/src/check.ts]
   CTX-MAP-DECLARED:
     references: [../tools/src/domain.ts]
+  # Held by the conventions check: each language's inventory carries the payloads of the integration events its
+  # tree publishes, held to the last version of the published language; the gate refuses a merged version changed.
+  CTX-PUBLISHED-LANGUAGE:
+    references:
+      - ../conventions/integration-events.yaml
+      - src/SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts
+      - src/SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents.ts
+      - ../tools/src/published-language.ts
   ARCH-ONE-APPLICATION:
     references: [../tools/src/inventory.ts]
 
@@ -242,6 +250,7 @@ checklists:
       - 'A payload carrying everything a consumer needs, so it never queries back.'
       - 'A domain event handler in the publishing context that translates the domain event into it and calls `publishIntegrationEvent()` — that is where a fact leaves its context, through the outbox, never straight to the bus.'
       - 'An anti-corruption handler in each consuming context, registered in its `module.local.ts`.'
+      - 'Declared first in `conventions/integration-events.yaml`, by its public name (`NoteShared`): its publisher and its payload as version 1, each field in lowerCamel as `string`, `number`, `boolean`, `object`, `array` or `any`, `?` for an optional property; the check holds the class to the last version field for field, and a field removed, renamed or retyped later is a new version appended (CTX-PUBLISHED-LANGUAGE).'
       - 'Adding one is not an architecture change: the folder is where a context publishes, and a feature may publish.'
   event-handler:
     place: src/Contexts/<Context>/Application/Events/<Name>Handler.ts

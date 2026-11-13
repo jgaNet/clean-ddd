@@ -1,0 +1,50 @@
+# The published language (ADR 44, CTX-PUBLISHED-LANGUAGE): every integration event a context publishes, declared
+# once for every language — its public name, the context that publishes it, the thing it announces when it announces
+# one, and the payload of each version it has been published in. Names no file.
+#
+# - `publisher` is a context of the domain map (domain.yaml).
+# - `announces` names the thing an event announces the birth of and the payload field that carries the id it was
+#   born with (DOMAIN-IDENTITY): a context that takes it up builds its object on that id.
+# - `versions` is the event's history, oldest first, numbered from 1; the last is the one every language's code
+#   carries, field for field (each language's inventory records its payload, and the check holds it to the last
+#   version). A version once merged is never changed, except by an added optional field: a field removed, renamed
+#   or retyped is a new version, and the gate refuses the change in place.
+# - A payload maps each field, by its public name (lowerCamel), to its type: `string`, `number`, `boolean`,
+#   `object`, `array` or `any`, with `?` when the field may be absent.
+events:
+  AccountCreated:
+    publisher: Security
+    announces: { thing: Account, id: accountId }
+    versions:
+      - version: 1
+        payload:
+          accountId: string
+          email: string
+          validationToken: string
+  AccountValidated:
+    publisher: Security
+    versions:
+      - version: 1
+        payload:
+          accountId: string
+          email: string
+  NoteShared:
+    publisher: Notes
+    versions:
+      - version: 1
+        payload:
+          noteId: string
+          title: string
+          ownerId: string
+          recipientId: string
+  OperationComplete:
+    publisher: Tracker
+    versions:
+      - version: 1
+        payload:
+          operationId: string
+          userId: string
+          status: string
+          type: string
+          result: any?
+          error: string?

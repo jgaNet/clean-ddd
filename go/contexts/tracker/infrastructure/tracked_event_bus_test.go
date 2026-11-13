@@ -160,11 +160,11 @@ func TestAnnouncesTheOutcomeOfAnAuthenticatedCallersCommandOnceAndNothingElse(t 
 	for _, notice := range s.completions.all() {
 		switch notice.Status {
 		case "SUCCESS":
-			if notice.Result != "Hello Alice" || notice.Error != "" {
+			if notice.Result != "Hello Alice" || notice.Error != nil {
 				t.Fatalf("unexpected success notice: %+v", notice)
 			}
 		case "ERROR":
-			if notice.Error != "Nobody to greet" || notice.Result != nil {
+			if notice.Error == nil || *notice.Error != "Nobody to greet" || notice.Result != nil {
 				t.Fatalf("unexpected error notice: %+v", notice)
 			}
 		}

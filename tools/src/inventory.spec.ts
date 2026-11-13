@@ -3,6 +3,7 @@ import {
   canonicalRoute,
   compareInventories,
   inspectInventory,
+  integrationEventPayloads,
   inventoryChanges,
   loadInventories,
   serializeInventory,
@@ -67,6 +68,128 @@ describe('the inventory', () => {
     expect(text.endsWith('}\n')).toBe(true);
     expect(text).toContain('"publishes": [],');
     expect(loadInventories(root).get('typescript')).toEqual(inventory);
+  });
+
+  it('carries the payload of every integration event the tree publishes, in the published language’s words, last', () => {
+    expect(inventory.integrationEvents).toEqual([
+      {
+        name: 'AccountCreated',
+        publisher: 'Security',
+        payload: { accountId: 'string', email: 'string', validationToken: 'string' },
+      },
+      { name: 'AccountValidated', publisher: 'Security', payload: { accountId: 'string', email: 'string' } },
+      {
+        name: 'NoteShared',
+        publisher: 'Notes',
+        payload: { noteId: 'string', ownerId: 'string', recipientId: 'string', title: 'string' },
+      },
+      {
+        name: 'OperationComplete',
+        publisher: 'Tracker',
+        // OperationStatus is a string enum; `result?: unknown` may be absent and is any.
+        payload: {
+          error: 'string?',
+          operationId: 'string',
+          result: 'any?',
+          status: 'string',
+          type: 'string',
+          userId: 'string',
+        },
+      },
+    ]);
+    expect(Object.keys(inventory).at(-1)).toBe('integrationEvents');
+  });
+
+  it('reads a payload from the class in the shared kernel: an object literal, or an interface, an alias, an enum beside it', () => {
+    const kernel = 'src/SharedKernel';
+    const payloads = integrationEventPayloads(
+      [
+        {
+          path: `${kernel}/Application/IntegrationEvents/Things.ts`,
+          text: [
+            "import { IntegrationEvent } from '@Architecture/Domain';",
+            "import { Colour, Size } from '@SharedKernel/Domain/Kinds';",
+            '',
+            '/** A thing was made. */',
+            'export class ThingMadeIntegrationEvent extends IntegrationEvent<{',
+            '  thingId: string; // the id it was born with',
+            '  count: number;',
+            '  readonly done: boolean;',
+            '  tags: string[];',
+            '  pairs: Array<[string, number]>;',
+            '  meta: Record<string, unknown>;',
+            '  owner: { id: string; name?: string };',
+            "  kind: 'a' | 'b';",
+            '  colour: Colour;',
+            '  size: Size;',
+            '  at: Date;',
+            '  note?: string;',
+            '  reason: string | undefined;',
+            '  parent: string | null;',
+            '  mixed: string | number;',
+            '  anything: unknown;',
+            '  made_by: string;',
+            '}> {}',
+            '',
+            'export interface ThingMovedPayload extends Located {',
+            '  thingId: string;',
+            '  shape: Shape;',
+            '}',
+            'interface Located { from: string; to?: string }',
+            "type Shape = 'round' | 'square';",
+            'export class ThingMovedIntegrationEvent extends IntegrationEvent<ThingMovedPayload> {}',
+          ].join('\n'),
+        },
+        {
+          path: `${kernel}/Domain/Kinds.ts`,
+          text: "export enum Colour { RED = 'red', BLUE = 'blue' }\nexport enum Size { SMALL, LARGE }\n",
+        },
+      ],
+      kernel,
+    );
+    expect(payloads).toEqual({
+      ThingMade: {
+        thingId: 'string',
+        count: 'number',
+        done: 'boolean',
+        tags: 'array',
+        pairs: 'array',
+        meta: 'object',
+        owner: 'object',
+        kind: 'string',
+        colour: 'string',
+        size: 'number',
+        at: 'string',
+        note: 'string?',
+        reason: 'string?',
+        parent: 'string?',
+        mixed: 'any',
+        anything: 'any',
+        madeBy: 'string',
+      },
+      ThingMoved: { from: 'string', to: 'string?', thingId: 'string', shape: 'string' },
+    });
+  });
+
+  it('names an integration event another language carries with another payload', () => {
+    const other = clone();
+    other.language = 'go';
+    other.integrationEvents![3].payload = { ...other.integrationEvents![3].payload, error: 'string' };
+    expect(compareInventories(inventory, other)).toEqual([
+      'published language: go lacks the integration event typescript has: OperationComplete (published by Tracker; { error: string?, operationId: string, result: any?, status: string, type: string, userId: string })',
+      'published language: go has an integration event typescript does not: OperationComplete (published by Tracker; { error: string, operationId: string, result: any?, status: string, type: string, userId: string })',
+    ]);
+    delete other.integrationEvents;
+    expect(compareInventories(inventory, other)).toEqual([
+      "published language: go's inventory records no integrationEvents, typescript's does",
+    ]);
+    const stale = clone();
+    stale.integrationEvents = stale.integrationEvents!.filter(event => event.name !== 'NoteShared');
+    stale.integrationEvents[0].publisher = 'Notes';
+    expect(inventoryChanges(stale, inventory)).toEqual([
+      'published language: the integration event AccountCreated differs: publisher "Notes" → "Security"',
+      'published language: the tree says the integration event NoteShared, the committed inventory does not',
+    ]);
   });
 
   it('names what another language lacks, has in excess, or reaches differently', () => {

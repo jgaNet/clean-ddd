@@ -27,9 +27,9 @@ func (h *OperationCompleteHandler) Execute(event integrationevents.OperationComp
 		title = fmt.Sprintf("Operation complete: %s", event.Type)
 		content = fmt.Sprintf("Your operation %s succeeded.", event.OperationID)
 	case application.StatusError:
-		reason := event.Error
-		if reason == "" {
-			reason = "unknown error"
+		reason := "unknown error"
+		if event.Error != nil && *event.Error != "" {
+			reason = *event.Error
 		}
 		title = fmt.Sprintf("Operation failed: %s", event.Type)
 		content = fmt.Sprintf("Your operation %s failed: %s", event.OperationID, reason)
@@ -41,8 +41,8 @@ func (h *OperationCompleteHandler) Execute(event integrationevents.OperationComp
 	if event.Result != nil {
 		metadata["result"] = event.Result
 	}
-	if event.Error != "" {
-		metadata["error"] = event.Error
+	if event.Error != nil {
+		metadata["error"] = *event.Error
 	}
 	_, err := h.delivery.Deliver(notification.NewNotification{
 		RecipientID: event.UserID,

@@ -6,6 +6,7 @@ import { dump, load } from 'js-yaml';
 import { ArchitectureContract, Concept, ContractError, CreateSpec, Rule } from './types';
 import { loadArchitectureContract, repositoryRoot, typedFrom } from './load';
 import { Inventory, serializeInventory } from './inventory';
+import { PUBLISHED_LANGUAGE_FILE } from './published-language';
 import {
   END_MARKER,
   RULES_MARKER,
@@ -333,6 +334,9 @@ export function createApplication(
   // (RFC 0001): an empty context map, so that CTX-MAP-DECLARED holds the first relationship between
   // two contexts, and the directory the storms a session decides are written to.
   writeFileSync(join(directory, 'conventions/domain.yaml'), domainMap(name, source, contexts));
+  // The published language (ADR 44): the events of the contexts it starts with, as the reference declares
+  // them, so that CTX-PUBLISHED-LANGUAGE holds the first event a context of its own publishes.
+  writeFileSync(join(directory, PUBLISHED_LANGUAGE_FILE), publishedLanguage(source, contexts));
   mkdirSync(join(directory, 'conventions/storms'), { recursive: true });
   writeFileSync(join(directory, 'conventions/storms/README.md'), stormsReadme());
   writeFileSync(join(directory, local(spec.manifest)), manifest(spec, source, languageDir, name));
@@ -783,6 +787,31 @@ function domainMap(name: string, source: string, contexts: string[]): string {
 }
 
 /**
+ * The published language of a new application: the reference's header, and the events the contexts it
+ * starts with publish (the Tracker's), as the reference declares them; `events: {}` when it starts with none.
+ */
+function publishedLanguage(source: string, contexts: string[]): string {
+  const file = join(source, PUBLISHED_LANGUAGE_FILE);
+  const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
+  const header =
+    text.slice(0, Math.max(0, text.search(/^events:/m))).replace(/\(ADR (\d+),/, '(ADR $1 of the reference,') ||
+    PUBLISHED_LANGUAGE_HEADER;
+  const reference = text ? (load(text) as { events?: Record<string, { publisher?: string }> | null }) : {};
+  const events = Object.fromEntries(
+    Object.entries(reference?.events ?? {}).filter(([, event]) => contexts.includes(event?.publisher ?? '')),
+  );
+  return `${header}${Object.keys(events).length ? dump({ events }, { lineWidth: 110, noRefs: true }) : 'events: {}\n'}`;
+}
+
+const PUBLISHED_LANGUAGE_HEADER = [
+  '# The published language (ADR 44 of the reference, CTX-PUBLISHED-LANGUAGE): every integration event a context',
+  '# publishes, declared once — its public name, the context that publishes it, the thing it announces when it',
+  '# announces one, and the payload of each version it has been published in, oldest first. A version once merged is',
+  '# changed only by an added optional field. `clean-ddd rule CTX-PUBLISHED-LANGUAGE` explains the rule.',
+  '',
+].join('\n');
+
+/**
  * The inventory a language's own tool would write for the contexts a new application starts
  * with: the reference's, narrowed to them and to the links between them. The check of the new
  * application then holds it to its tree like any other.
@@ -796,6 +825,9 @@ function startingInventory(source: string, language: string, contexts: string[])
     ...reference,
     contexts: reference.contexts.filter(context => contexts.includes(context.id)),
     links: reference.links.filter(link => contexts.includes(link.upstream) && contexts.includes(link.downstream)),
+    ...(reference.integrationEvents && {
+      integrationEvents: reference.integrationEvents.filter(event => contexts.includes(event.publisher)),
+    }),
   };
 }
 
