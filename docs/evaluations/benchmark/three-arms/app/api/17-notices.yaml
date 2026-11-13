@@ -1,0 +1,16 @@
+# Request 17: a notice to each member of an expense's split but its payer; a person's notices, the most recent first.
+resources:
+  notice:
+    schema:
+      type: object
+      required: [id, kind, groupId, expenseId, amount, at]
+      properties:
+        id: { type: string }
+        kind: { enum: [expense] }
+        groupId: { type: string }
+        expenseId: { type: string }
+        amount: { type: integer }
+        at: { type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)$' }
+routes:
+  GET /v1/notices:
+    200: { type: array, items: { $resource: notice } }

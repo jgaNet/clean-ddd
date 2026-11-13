@@ -1,4 +1,4 @@
-# Tally's storms, checkpoint 1: what the session decided
+# Tally's storms: what the sessions decided
 
 The Lite and Full arms get a storm with each request; the simple arm never sees any of this. This file is the
 session's preparation for requests 1 to 10: every hot spot they raise, with the operator's decision and what the
@@ -65,3 +65,65 @@ The relationships these decisions give, to declare in the domain map of the Lite
    `planned` (above).
 3. Before registration: the maintainer's decisions, then the Lite and Full starting trees committed with the same
    declarations, and the storms validated again there.
+
+## Checkpoint 2: the session before request 11
+
+The session of checkpoint 2 (requests 11 to 20), held before request 11 as the maintainer decided (T2). As for
+checkpoint 1, every decision below is the operator's, **for the maintainer to accept or change before the kit is
+registered**.
+
+### How they were validated
+
+As checkpoint 1's: from a tree `create` made (13 November, in the operator's scratch space), with the contexts
+Groups, Ledger, Settlements and Notifications declared in the binding and the domain map, and the relationships
+below declared `planned`. All twenty storms answer *legal against the contract and the map; not in the code yet*.
+With the map of the session alone (without T10's relationship), the nineteen storms of requests 1 to 19 are legal and
+request 20's is refused, as it should be: *link Settlements → Groups: a relationship the context map does not
+declare*.
+
+### The strategic session
+
+| # | Question | Decision | The alternative, and what it costs |
+| --- | --- | --- | --- |
+| T6 | Which contexts does checkpoint 2 add? | **Settlements** (core: settling up, the provider, payout accounts) **and Notifications** (generic: notices and reminders), declared at this session, before request 11, empty, as the maintainer decided (T2). Notifications is a context from its first request (17), not a module of Ledger. | **Notices in Ledger, reminders in Settlements:** no fourth context, but two contexts that each learn to tell people, and a fifth reason for Ledger to change. The brief's fourth context is kept. |
+| T7 | What keeps "no overpayment" when two settlements are decided at once? | **A `SettlementBook` per group,** the aggregate every settlement of the group is decided in, cash and provider alike, with their statuses. It reads the balances through `GroupBalances` (Ledger's, which count the paid settlements through T8's port) and takes off the payments it holds pending; its optimistic check (CONC-OPTIMISTIC) makes the second of two writers re-read the balances, the first one's settlement in them, and meet the rule. Only settlements and webhooks contend for it, never expenses. | **One `Settlement` aggregate per settlement** and the rule in a domain service: two settlements at once never conflict, and both are kept (the hidden test sends them). **A `GroupLedger` in Ledger** holding expenses and settlements: every expense a write to one hot row, which T4 refused for checkpoint 1. **Known gap:** an expense deleted at the very moment a settlement is decided can leave the settlement above what is then owed; no test sends the two at once, and the brief's invariant is "at the moment it is decided". |
+| T8 | How does a landed payment reach Ledger's balances? | **Ledger reads it:** a port Ledger owns, `SettledAmounts`, answered over Settlements' read model, read when Ledger reads a balance. A balance never misses a settlement that is paid, so the decisions that read a balance (a settlement, leaving, the suggestions) never decide on a copy that lags. The brief's "it tells Ledger a payment landed" becomes "Ledger asks". | **An integration event `SettlementPaid`** and a copy of the settled amounts in Ledger: Tally's most natural pivot, but the balances become eventual. A settlement decided right after another, or a leave (request 20) decided right after a payment landed, would read a balance that has not heard of it, and the zero sum would hold only eventually. Worth it if Ledger later reacts to a payment (an audit, request 28). |
+| T9 | Where do notices come from? | **An expense's notice from a fact Ledger publishes** (`ExpenseRecorded`, Tally's first integration event), which Notifications turns into one notice per member, through the outbox (EVENT-AFTER-COMMIT); **a reminder from Notifications' own background job,** which asks Settlements what each member still owes (`OutstandingDebts`, an owned port) and keeps a `DebtWatch` per member and group. | **Reminders from facts** (every expense and settlement published to Notifications, which keeps its own balances): a second copy of the balances to keep exact. **Notifications reading Ledger's expenses** through a port, at a sweep: notices would wait for the job, and the request says "soon". |
+| T10 | Request 20, unannounced: what does the session declare of it? | **Nothing.** The session declares what requests 11 to 19 need; request 20's storm brings the one relationship it adds, Settlements → Groups (`WaitingPayments`: a member does not leave while a payment of theirs waits), and the arm declares it with that storm. Declared at the session, it would be in the Lite and Full starting trees of checkpoint 2, and would announce request 20. T5's gap is closed in request 20's storm: the leave reads the balance in its own write transaction, the expense reads the membership in its own, and the one database serialises them. | **A saga** between Groups and Ledger, or **leaving as a Ledger command:** out of proportion for one rule, and the request says "in one step". |
+| T11 | Where is the payment provider in the model? | **Behind a port Settlements owns** (`PaymentProvider`: a payment link, a refund, whether it knows a payout account), its answers plain values the `SettlementBook` and the `PayoutAccount` take or refuse (DOMAIN-NON-DETERMINISM). Its webhook is a command anyone may send (`ReceivePaymentWebhook`), its signature the proof, checked at the transport before anything is decided (API-CALLER-AT-TRANSPORT). | **A Payments context** of its own, generic, downstream of Settlements: a fifth context for one port and one webhook. |
+
+The relationships, to declare in the domain map of the Lite and Full starting trees of checkpoint 2, beside
+checkpoint 1's two (`planned` until the code carries them):
+
+| Relationship | Pattern | Mechanism | Contracts (read from the code) | Declared |
+| --- | --- | --- | --- | --- |
+| Ledger → Settlements | customer–supplier | owned port | `GroupBalances` (requests 11, 12, 13) | at the session |
+| Groups → Settlements | customer–supplier | owned port | `SettlementMembers` (requests 11, 12, 13, 15, 19) | at the session |
+| Settlements → Ledger | customer–supplier | owned port | `SettledAmounts` (requests 12, 13, 15) | at the session |
+| Ledger → Notifications | published language, anti-corruption layer | integration event | `ExpenseRecorded` (request 17) | at the session |
+| Settlements → Notifications | customer–supplier | owned port | `OutstandingDebts` (request 18) | at the session |
+| Settlements → Groups | customer–supplier | owned port | `WaitingPayments` (request 20) | by request 20's storm |
+
+Request 20 also uses checkpoint 1's two: `MemberBalances` (Ledger → Groups) for what passes, and `GroupMembers`
+(Groups → Ledger), through which Ledger reads what passed to the owner.
+
+### The hot spots of each feature
+
+| Feature | Hot spot | Decision |
+| --- | --- | --- |
+| 11 Suggested settlements | Which context answers it? | Settlements, from `GroupBalances` and `SettlementMembers`; a query, nothing kept. |
+| 11 | "The fewest transfers"? | The stated greedy algorithm: the exact minimum is a hard problem two trees would answer differently. |
+| 12 Settle in cash | No overpayment at once | The `SettlementBook` (T7). |
+| 12 | Who records a cash settlement? | Its payee, who received the money. |
+| 12 | The statement | Stays the expenses' (request 8); the request says so. |
+| 13 Through the provider | The provider | A port (T11); asked after the rules are checked, the book deciding again with the link in hand. |
+| 13 | A pending payment | Counts as paid for what is still owed; the balances count it once paid (T8). |
+| 14 Webhooks | What counts a payment once? | Its status, forward only; no table of webhook ids. Two servers: the book's optimistic check. |
+| 15 Refunds | A refund | A status of the same settlement (refunding, refunded), counted until the provider says refunded. |
+| 16 Payout accounts | Where? | A `PayoutAccount` per person in Settlements; "required" decided by the book before the provider is asked. |
+| 17 Notices | How Notifications learns of an expense | `ExpenseRecorded`, an integration event (T9); edits and deletions are not told. |
+| 18 Reminders | Who notices a lasting debt? | Notifications' background job and its `DebtWatch` (T9); a storm has no sticky for a timer, so the sweep is named in its hot spot, its facts in Notifications' events. |
+| 19 Settlement history | Where does a history come from? | From the book's own facts, one line each; a webhook that records nothing adds nothing. |
+| 20 Leave with a balance (unannounced) | Who decides what passes? | The `Group`, reading `MemberBalances` in the leave's transaction (`BalancePassed`); Ledger counts it through `GroupMembers` (T10). |
+| 20 | An expense at the same moment | Serialised on the one database: counted in what passes, or refused (T5's gap, closed). |
+| 20 | Not an upgrade | Every member who left before it left at 0. |

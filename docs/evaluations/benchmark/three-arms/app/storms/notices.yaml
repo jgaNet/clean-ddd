@@ -1,0 +1,48 @@
+# Feature 17 of Tally (../backlog/17-notices.md), as the session decided it. The first request of Notifications,
+# declared at checkpoint 2's session (README, T2).
+schemaVersion: 1
+
+feature: notices
+intent: >-
+  Each member of an expense's split but its payer receives one notice with their share, soon after it is recorded; a person lists their notices, the most recent first.
+
+done: false
+
+hotSpots:
+  - question: How does Notifications learn of an expense?
+    decision: From an integration event Ledger publishes (ExpenseRecorded, with the group, the payer and the shares), relayed from the outbox after the commit (EVENT-AFTER-COMMIT); Ledger knows nothing of who is told.
+  - question: One notice per member, across crashes and redeliveries?
+    decision: The outbox and the bus's idempotent delivery carry the fact once to the reaction (a reaction is never made idempotent by hand); the reaction makes one Notice per member in its own transaction.
+  - question: Are edits and deletions told?
+    decision: No — the request says recording only; ExpenseEdited and ExpenseDeleted stay Ledger's own facts.
+  - question: Is a notice tied to membership?
+    decision: No — a notice is the person's; it stays after they leave, and reading one's notices asks no other context.
+
+contexts:
+  - id: Ledger
+    commands: []
+    queries: []
+    events: [ExpenseRecorded]
+    policies:
+      - on: ExpenseRecorded
+        kind: domain-event
+        publishes: [ExpenseRecorded]
+        events: []
+  - id: Notifications
+    commands: []
+    queries:
+      - name: GetMyNotices
+        actor: a signed-in account
+        route: GET /notices
+    events: [NoticeIssued]
+    policies:
+      - on: ExpenseRecorded
+        kind: integration-event
+        publishes: []
+        events: [NoticeIssued]
+
+links:
+  - mechanism: integration-event
+    upstream: Ledger
+    downstream: Notifications
+    contracts: [ExpenseRecorded]

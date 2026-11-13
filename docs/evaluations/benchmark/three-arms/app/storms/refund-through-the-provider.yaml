@@ -1,0 +1,45 @@
+# Feature 15 of Tally (../backlog/15-refund-through-the-provider.md), as the session decided it.
+schemaVersion: 1
+
+feature: refund-through-the-provider
+intent: >-
+  The payee of a settlement paid through the provider refunds it whole; once the provider says it is refunded, the balances no longer count it.
+
+done: false
+
+hotSpots:
+  - question: Is a refund a settlement of its own, the other way?
+    decision: No — a status of the same settlement (refunding, then refunded), so that one payment has one history and one effect; a refunded settlement is simply no longer counted.
+  - question: When do the balances go back?
+    decision: When the provider says refunded, not when Tally asks; while refunding, the money is still with the payee, and the settlement still counts.
+  - question: A refund for a settlement whose payer or payee has left?
+    decision: Refused, as an expense that concerns a former member is not changed (request 9) — the SettlementBook asks SettlementMembers whether both are still members.
+  - question: A refunded that overtakes the success of the same payment?
+    decision: The forward-only rule of request 14, with refunded last — the settlement ends refunded and is never counted.
+
+contexts:
+  - id: Settlements
+    commands:
+      - name: RefundSettlement
+        actor: a signed-in account
+        route: POST /settlements/{param}/refund
+        aggregate: SettlementBook
+        events: [RefundRequested]
+      - name: ReceivePaymentWebhook
+        actor: anyone
+        route: POST /provider/webhooks
+        aggregate: SettlementBook
+        events: [SettlementFailed, SettlementPaid, SettlementRefunded]
+    queries: []
+    events: [RefundRequested, SettlementFailed, SettlementPaid, SettlementRefunded]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Settlements
+    contracts: [SettlementMembers]
+  - mechanism: owned-port
+    upstream: Settlements
+    downstream: Ledger
+    contracts: [SettledAmounts]

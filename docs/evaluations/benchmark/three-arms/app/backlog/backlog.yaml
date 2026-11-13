@@ -1,6 +1,6 @@
-# J6's application, Tally (brief.md): checkpoint 1, requests 1 to 10, taken in order, each from the
-# smallest model up. `contexts` is the brief's candidate model until the storms decide it (storms/README.md);
-# the simple arm never reads it.
+# J6's application, Tally (brief.md): checkpoint 1, requests 1 to 10, and checkpoint 2, requests 11 to 20, taken
+# in order, each from the smallest model up. `contexts` is the brief's candidate model until the storms decide it
+# (storms/README.md); the simple arm never reads it.
 schemaVersion: 1
 features:
   - { id: accounts, n: 1, contexts: [Groups], needs: [] }
@@ -13,7 +13,20 @@ features:
   - { id: history-and-statement, n: 8, contexts: [Ledger, Groups], needs: [edit-and-delete-an-expense] }
   - { id: leave-a-group, n: 9, contexts: [Groups, Ledger], needs: [balances] }
   - { id: remainder-to-the-first, n: 10, contexts: [Ledger], needs: [unequal-splits], upgrade: true }
+  # Checkpoint 2: settling up. Settlements and Notifications are declared at its session (storms/README.md, T2).
+  - { id: suggested-settlements, n: 11, contexts: [Settlements, Ledger, Groups], needs: [balances] }
+  - { id: settle-in-cash, n: 12, contexts: [Settlements, Ledger, Groups], needs: [suggested-settlements] }
+  - { id: pay-through-the-provider, n: 13, contexts: [Settlements, Ledger, Groups], needs: [settle-in-cash] }
+  - { id: webhooks-late-twice-out-of-order, n: 14, contexts: [Settlements], needs: [pay-through-the-provider] }
+  - { id: refund-through-the-provider, n: 15, contexts: [Settlements, Ledger, Groups], needs: [webhooks-late-twice-out-of-order] }
+  - { id: payout-accounts, n: 16, contexts: [Settlements], needs: [pay-through-the-provider] }
+  - { id: notices, n: 17, contexts: [Notifications, Ledger], needs: [record-an-expense] }
+  - { id: reminders, n: 18, contexts: [Notifications, Settlements], needs: [notices, pay-through-the-provider] }
+  - { id: settlement-history, n: 19, contexts: [Settlements, Groups], needs: [refund-through-the-provider] }
+  - { id: leave-with-a-balance, n: 20, contexts: [Groups, Ledger, Settlements], needs: [leave-a-group, pay-through-the-provider] }
 # `upgrade: true`: a change to what a tree already stored; its test records through the tree before it and reads
-# through the tree graded, on one database (grade.mjs --previous).
+# through the tree graded, on one database (grade.mjs --previous). Request 20 is not one: it changes leaving from
+# now on, and every member who left before it left at a balance of 0, so nothing stored reads differently
+# (README, "Decided by the operator for checkpoint 2").
 # For feature <n>-<id>: backlog/<n>-<id>.md, storms/<id>.yaml, api/<n>-<id>.yaml (when it has an API
 # table), acceptance/<n>-<id>.acceptance.ts.

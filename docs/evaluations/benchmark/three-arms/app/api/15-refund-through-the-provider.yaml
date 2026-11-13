@@ -1,0 +1,13 @@
+# Request 15: a refund of a settlement paid through the provider; the balances go back once the provider says so.
+resources:
+  settlement:
+    states:
+      - field: status
+        add: [refunding]
+        test: refunds a paid settlement through the provider, and the balances go back once the provider says it is refunded
+      - field: status
+        add: [refunded]
+        test: refunds a paid settlement through the provider, and the balances go back once the provider says it is refunded
+routes:
+  POST /v1/settlements/{id}/refund:
+    2xx: {}

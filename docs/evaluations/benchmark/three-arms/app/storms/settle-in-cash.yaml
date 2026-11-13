@@ -1,0 +1,47 @@
+# Feature 12 of Tally (../backlog/12-settle-in-cash.md), as the session decided it.
+schemaVersion: 1
+
+feature: settle-in-cash
+intent: >-
+  The payee of a payment in cash records it; it never pays more than is owed, two at once are decided one after the other, and the balances count it at once.
+
+done: false
+
+hotSpots:
+  - question: What keeps "no overpayment" when two settlements are recorded at once?
+    decision: A SettlementBook per group, the aggregate every settlement of the group is decided in; it reads the balances through GroupBalances (Ledger's, which count what is settled through SettledAmounts), and its optimistic check (CONC-OPTIMISTIC) makes the second of two writers re-read them, the first one's settlement in them, and meet the rule (T7). Only settlements contend for it, never expenses.
+  - question: How do the balances come to count a settlement?
+    decision: Ledger asks Settlements, when it reads a balance, what has been settled (SettledAmounts, a port Ledger owns over Settlements' read model) — the balances count a settlement as soon as it is recorded, with no copy to lag behind (T8).
+  - question: Who records a settlement in cash?
+    decision: Its payee — the one who received the money confirms it; the payer could claim a payment the payee never had.
+  - question: Is a settlement an entry of a member's statement?
+    decision: No — a statement stays the expenses' (request 8); the request says so, and that its balance then differs from the group's by the settlements.
+
+contexts:
+  - id: Settlements
+    commands:
+      - name: RecordCashSettlement
+        actor: a signed-in account
+        route: POST /groups/{param}/settlements/cash
+        aggregate: SettlementBook
+        events: [SettlementRecorded]
+    queries:
+      - name: GetSettlement
+        actor: a signed-in account
+        route: GET /settlements/{param}
+    events: [SettlementRecorded]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Ledger
+    downstream: Settlements
+    contracts: [GroupBalances]
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Settlements
+    contracts: [SettlementMembers]
+  - mechanism: owned-port
+    upstream: Settlements
+    downstream: Ledger
+    contracts: [SettledAmounts]

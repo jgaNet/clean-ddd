@@ -1,6 +1,8 @@
 import Ajv from 'ajv';
 import { ChildProcess, spawn } from 'child_process';
+import { createHmac, randomBytes, randomUUID } from 'crypto';
 import { mkdtempSync, readFileSync, rmSync } from 'fs';
+import { createServer as createHttpServer, Server } from 'http';
 import { createServer } from 'net';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -363,6 +365,16 @@ export function client(port: number) {
       sum: each.reduce((total, one) => total + one.balance, 0),
     };
   };
+  /** A settlement in cash, recorded by its payee (request 12). */
+  const cash = (payee: Person, groupId: string, from: Person, amount: number) =>
+    create(`/groups/${groupId}/settlements/cash`, payee.token, { from: from.id, amount });
+  /** A settlement through the provider, asked for by its payer (request 13). */
+  const payThrough = (payer: Person, groupId: string, to: Person, amount: number) =>
+    create(`/groups/${groupId}/settlements/provider`, payer.token, { to: to.id, amount });
+  /** A settlement, as `GET /v1/settlements/{id}` reads it (requests 12, 13, 15 and 19). */
+  const settlement = (id: string, token: string) => read(`/settlements/${id}`, token);
+  /** A person's notices, the most recent first (requests 17 and 18). */
+  const notices = (token: string) => list('/notices', token);
   return {
     call,
     act,
@@ -381,6 +393,10 @@ export function client(port: number) {
     expense,
     shares,
     balances,
+    cash,
+    payThrough,
+    settlement,
+    notices,
   };
 }
 
@@ -404,3 +420,114 @@ export function keepsTheSplit(shares: Share[], amount: number, members: string[]
   expect(over.filter(each => each !== 0).length).toBeLessThanOrEqual(1);
   expect(over.every(each => each === 0 || each === remainder)).toBe(true);
 }
+
+/** A payment the provider made for Tally (request 13): what Tally asked, and what the provider answered. */
+export interface ProviderPayment {
+  id: string;
+  payUrl: string;
+  body: Json;
+}
+
+/**
+ * The payment provider (requests 13 to 16), an outside system the tests play: an HTTP server of its own that makes
+ * payments (`POST /payments`), refunds them (`POST /payments/{id}/refunds`) and knows payout accounts
+ * (`GET /accounts/{id}`), and the webhooks it sends Tally, signed with the secret the server is started with
+ * (`environment()`). A test sends each webhook itself, when it chooses: late, twice, out of order. While `refusing`,
+ * it answers every request with 503, as a provider that is down.
+ */
+export function paymentProvider() {
+  const secret = `whsec-${randomBytes(16).toString('hex')}`;
+  const payments: ProviderPayment[] = [];
+  const refunds: { paymentId: string; body: Json }[] = [];
+  const accountsAsked: string[] = [];
+  const accounts = new Set<string>();
+  const state = { refusing: false };
+  const server: Server = createHttpServer((request, response) => {
+    let raw = '';
+    request.on('data', chunk => (raw += chunk));
+    request.on('end', () => {
+      let body: Json = {};
+      try {
+        body = raw ? (JSON.parse(raw) as Json) : {};
+      } catch {
+        // a body the provider cannot read is kept empty
+      }
+      const answer = (status: number, json?: unknown) =>
+        response
+          .writeHead(status, json === undefined ? {} : { 'content-type': 'application/json' })
+          .end(json === undefined ? undefined : JSON.stringify(json));
+      const path = (request.url ?? '').split('?')[0];
+      if (request.method === 'GET' && path.startsWith('/accounts/')) {
+        const id = decodeURIComponent(path.slice('/accounts/'.length));
+        accountsAsked.push(id);
+        if (state.refusing) return answer(503);
+        return accounts.has(id) ? answer(200, { id }) : answer(404);
+      }
+      if (state.refusing) return answer(503);
+      if (request.method === 'POST' && path === '/payments') {
+        const id = `pay_${randomBytes(8).toString('hex')}`;
+        const payment = { id, payUrl: `https://provider.test/pay/${id}`, body };
+        payments.push(payment);
+        return answer(201, { id: payment.id, payUrl: payment.payUrl });
+      }
+      const refund = /^\/payments\/([^/]+)\/refunds$/.exec(path);
+      if (request.method === 'POST' && refund) {
+        const paymentId = decodeURIComponent(refund[1]);
+        if (!payments.some(payment => payment.id === paymentId)) return answer(404);
+        refunds.push({ paymentId, body });
+        return answer(201, { id: `re_${randomBytes(8).toString('hex')}` });
+      }
+      return answer(404);
+    });
+  });
+  const listening = new Promise<string>(resolve =>
+    server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${(server.address() as { port: number }).port}`)),
+  );
+  /** The signature of a body, as the provider signs it: HMAC-SHA256, the secret as the key, in lowercase hex. */
+  const sign = (text: string, key = secret) => createHmac('sha256', key).update(text).digest('hex');
+  return {
+    secret,
+    payments,
+    refunds,
+    accounts,
+    accountsAsked,
+    state,
+    sign,
+    /** What a server is started with to use this provider (request 13). */
+    environment: async () => ({ PROVIDER_URL: await listening, PROVIDER_WEBHOOK_SECRET: secret }),
+    /** The payment Tally asked for a settlement: its `reference` is the settlement's id. */
+    paymentFor: (settlementId: string) => {
+      const payment = payments.find(each => each.body.reference === settlementId);
+      if (!payment) throw new Error(`the provider was never asked to pay settlement ${settlementId}`);
+      return payment;
+    },
+    /**
+     * A webhook about a payment, signed, sent to the server `api` talks to and followed to its outcome (request 13):
+     * `status` is the payment's, `id` the webhook's own (a new one unless given, to send the same webhook again).
+     */
+    webhook: (api: Client, paymentId: string, status: string, id: string = randomUUID()) => {
+      const body = { id, paymentId, status, at: new Date().toISOString() };
+      return api.act('POST', '/provider/webhooks', undefined, body, {
+        'provider-signature': sign(JSON.stringify(body)),
+      });
+    },
+    close: () => new Promise<void>(resolve => server.close(() => resolve())),
+  };
+}
+
+export type PaymentProvider = ReturnType<typeof paymentProvider>;
+
+/**
+ * Makes `person` payable through the provider, once request 16 requires a payout account to be paid through it: the
+ * provider knows an account of theirs, and they set it. Before request 16 nothing is needed, and the route does not
+ * exist yet, so nothing is done (the README's superseded cases).
+ */
+export async function payable(api: Client, person: Person, provider: PaymentProvider) {
+  if (!reached(16)) return;
+  const accountId = `acct_${person.id}`;
+  provider.accounts.add(accountId);
+  await api.done('PUT', '/accounts/me/payout-account', person.token, { accountId });
+}
+
+/** An ISO time in milliseconds, for the tests that compare two of them. */
+export const ms = (time: unknown) => new Date(String(time)).getTime();

@@ -1,0 +1,33 @@
+# Feature 16 of Tally (../backlog/16-payout-accounts.md), as the session decided it.
+schemaVersion: 1
+
+feature: payout-accounts
+intent: >-
+  A person sets the payout account the provider pays them on, which the provider must know; from now on a member is paid through the provider only with one.
+
+done: false
+
+hotSpots:
+  - question: Where does a payout account live — on the account, in Groups, or in Settlements?
+    decision: In Settlements, an aggregate of its own per person (PayoutAccount) — it is the provider's word, and only paying through it needs it; the route sits under the account (/accounts/me) only because the client reads it there.
+  - question: Who knows whether the provider knows the account?
+    decision: The provider, through the PaymentProvider port (a payout account for an id, or none); the PayoutAccount takes the answer or refuses it (UnknownPayoutAccount).
+  - question: Where is "required to be paid" decided?
+    decision: In the SettlementBook, when a payment is asked for, from the payee's PayoutAccount read through its repository — refused by name (PayeeHasNoPayoutAccount) before the provider is asked.
+
+contexts:
+  - id: Settlements
+    commands:
+      - name: SetPayoutAccount
+        actor: a signed-in account
+        route: PUT /accounts/me/payout-account
+        aggregate: PayoutAccount
+        events: [PayoutAccountSet]
+    queries:
+      - name: GetPayoutAccount
+        actor: a signed-in account
+        route: GET /accounts/me/payout-account
+    events: [PayoutAccountSet]
+    policies: []
+
+links: []

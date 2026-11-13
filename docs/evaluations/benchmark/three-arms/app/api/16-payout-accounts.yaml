@@ -1,0 +1,13 @@
+# Request 16: a member's payout account at the provider, required to be paid through it.
+resources:
+  payoutAccount:
+    schema:
+      type: object
+      required: [accountId]
+      properties:
+        accountId: { type: string }
+routes:
+  PUT /v1/accounts/me/payout-account:
+    2xx: {}
+  GET /v1/accounts/me/payout-account:
+    200: payoutAccount

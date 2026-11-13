@@ -1,0 +1,46 @@
+# Feature 20 of Tally (../backlog/20-leave-with-a-balance.md), the change not announced in advance, as the session
+# decided it. It brings one relationship the session did not declare (Settlements to Groups): the arm declares it
+# in its domain map with this storm, so that the starting trees say nothing of request 20 (README, T10).
+schemaVersion: 1
+
+feature: leave-with-a-balance
+intent: >-
+  A member leaves whatever their balance, which passes to the group's owner in the same step; not while a payment of theirs waits at the provider; an expense or a settlement sent at the same moment is either counted in what passes or refused.
+
+done: false
+
+hotSpots:
+  - question: Who decides what passes, and where is it kept?
+    decision: The Group, when the member leaves — it reads the member's balance through MemberBalances in the leave's own transaction and records it with the leave (BalancePassed beside MemberLeft); Ledger counts what passed to the owner when it reads the balances, through GroupMembers, as it already reads who is a member. One write, so no moment where the members' balances do not add up to 0.
+  - question: What closes T5's gap (an expense recorded at the very moment its member leaves)?
+    decision: The two decisions are serialised on the one database — the leave reads the balance, and the expense reads the membership, each in its own write transaction; either the expense commits first and its share is in what passes, or it reads a former member and is refused. The hidden test sends the two at once, through one server and two.
+  - question: A payment of theirs waiting at the provider?
+    decision: Refused — a payment that lands after they left would change a former member's balance. The Group asks Settlements through a port it owns (WaitingPayments), a new relationship this storm declares.
+  - question: Does it change what is stored?
+    decision: No — every member who left before it left at 0, so nothing passes for them; request 20 is not an upgrade.
+
+contexts:
+  - id: Groups
+    commands:
+      - name: LeaveGroup
+        actor: a signed-in account
+        route: POST /groups/{param}/leave
+        aggregate: Group
+        events: [BalancePassed, MemberLeft]
+    queries: []
+    events: [BalancePassed, MemberLeft]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Ledger
+    downstream: Groups
+    contracts: [MemberBalances]
+  - mechanism: owned-port
+    upstream: Settlements
+    downstream: Groups
+    contracts: [WaitingPayments]
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupMembers]

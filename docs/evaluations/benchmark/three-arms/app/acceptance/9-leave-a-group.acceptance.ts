@@ -1,4 +1,4 @@
-import { client, Client, database, day, Running, sleep, start, stop } from './tally';
+import { client, Client, database, day, reached, Running, sleep, start, stop } from './tally';
 
 /** Request 9: leaving a group once one's balance is 0; the owner stays; what concerns a former member is kept. */
 const db = database('leave');
@@ -29,8 +29,12 @@ describe('leave a group', () => {
   it('refuses to let a member leave while their balance is not zero, and lets them leave once it is', async () => {
     const { ann, bob, cy, groupId } = await flat('even');
     await api.expense(ann, groupId, { amount: 900, splitBetween: [ann.id, bob.id, cy.id] });
-    expect(await api.refused('POST', `/groups/${groupId}/leave`, bob.token)).toBe(true);
-    expect(await api.refused('POST', `/groups/${groupId}/leave`, cy.token)).toBe(true);
+    // Request 20 lets a member leave with a balance, which passes to the owner: from then on, these two leaves are
+    // not refused (the README's superseded cases), and nothing else here changes.
+    if (!reached(20)) {
+      expect(await api.refused('POST', `/groups/${groupId}/leave`, bob.token)).toBe(true);
+      expect(await api.refused('POST', `/groups/${groupId}/leave`, cy.token)).toBe(true);
+    }
 
     // Bob evens it out: he pays Ann back what he owes, as an expense that is all hers.
     await api.expense(bob, groupId, {

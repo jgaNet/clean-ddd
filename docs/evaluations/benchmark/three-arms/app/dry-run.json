@@ -16,14 +16,24 @@
         "unequal-splits": false,
         "history-and-statement": false,
         "leave-a-group": false,
-        "remainder-to-the-first": false
+        "remainder-to-the-first": false,
+        "suggested-settlements": false,
+        "settle-in-cash": false,
+        "pay-through-the-provider": false,
+        "webhooks-late-twice-out-of-order": false,
+        "refund-through-the-provider": false,
+        "payout-accounts": false,
+        "notices": false,
+        "reminders": false,
+        "settlement-history": false,
+        "leave-with-a-balance": false
       },
       "hygiene": []
     },
     {
       "tree": "tally-w",
       "role": "solved",
-      "ref": "2778fc9",
+      "ref": "bb0c3e9",
       "features": {
         "accounts": true,
         "create-a-group": true,
@@ -34,7 +44,17 @@
         "unequal-splits": true,
         "history-and-statement": true,
         "leave-a-group": true,
-        "remainder-to-the-first": true
+        "remainder-to-the-first": true,
+        "suggested-settlements": true,
+        "settle-in-cash": true,
+        "pay-through-the-provider": true,
+        "webhooks-late-twice-out-of-order": true,
+        "refund-through-the-provider": true,
+        "payout-accounts": true,
+        "notices": true,
+        "reminders": true,
+        "settlement-history": true,
+        "leave-with-a-balance": true
       },
       "hygiene": []
     }

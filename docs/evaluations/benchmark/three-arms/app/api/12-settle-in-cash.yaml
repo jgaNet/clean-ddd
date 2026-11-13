@@ -1,0 +1,20 @@
+# Request 12: a settlement in cash, recorded by its payee, never more than is owed, counted by the balances at once.
+resources:
+  settlement:
+    schema:
+      type: object
+      required: [id, groupId, from, to, amount, method, status, at]
+      properties:
+        id: { type: string }
+        groupId: { type: string }
+        from: { type: string }
+        to: { type: string }
+        amount: { type: integer, minimum: 1 }
+        method: { enum: [cash] }
+        status: { enum: [paid] }
+        at: { type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)$' }
+routes:
+  POST /v1/groups/{id}/settlements/cash:
+    2xx: { type: object, required: [id], properties: { id: { type: string } } }
+  GET /v1/settlements/{id}:
+    200: settlement

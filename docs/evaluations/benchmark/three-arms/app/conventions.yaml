@@ -1,4 +1,4 @@
-# J6's application, Tally, checkpoint 1 (requests 1-10): every convention a later request relies on, with
+# J6's application, Tally, checkpoints 1 and 2 (requests 1-20): every convention a later request relies on, with
 # the request that sets it (`born`) and the test, in that request's acceptance file, that holds it there
 # (docs/evaluations/benchmark/kit-standard.md). kit-check refuses an entry without either.
 #
@@ -79,7 +79,8 @@ conventions:
       What changes with time changes at the next run of the background job, every JOBS_INTERVAL_SECONDS (60 when not
       set; 1 on the tests' servers), never because someone read it: a read answers what is kept. No request of
       checkpoint 1 changes anything with time; request 1's test holds the half that exists (a read changes nothing,
-      the job running), and the first request whose state changes with time holds the rest where it is born.
+      the job running), and the first request whose state changes with time holds the rest where it is born (request
+      18, reminder-sweep).
     born: 1
     test: changes nothing by a read while its background job runs
 
@@ -224,7 +225,8 @@ conventions:
     says: >-
       A member's statement lists the expenses they paid or are in the split of, the earliest date first, then the
       earliest recorded first, each with what they paid, their share and their balance once it is counted, from 0;
-      its `balance` is the last entry's, or 0, and the one the group's balances give them.
+      its `balance` is the last entry's, or 0, and the one the group's balances give them until request 12, whose
+      settlements the group's balances count and a statement does not (statement-expenses).
     born: 8
     test: "gives a member's statement, the earliest first, with their balance after each entry"
 
@@ -234,6 +236,8 @@ conventions:
       A member leaves only with a balance of 0; the owner never leaves. Once gone they are in no list of the group
       and the group is 404 to them, but their expenses stay as they were and cannot be edited or deleted while they
       are not a member, and their statement is read by the members. Joining again makes them a member again, last.
+      Request 20 supersedes the first half, unannounced: a member then leaves whatever their balance
+      (leave-passes-to-owner); test 9's two refusals of a member with a balance hold only before request 20 (`reached`).
     born: 9
     test: refuses to let a member leave while their balance is not zero, and lets them leave once it is
   - id: former-member-frozen
@@ -260,3 +264,228 @@ conventions:
       recorded before the change are the README's open point for the maintainer.
     born: 10
     test: keeps the shares an expense was given until it is edited, across a restart
+
+  # Checkpoint 2: settling up (requests 11 to 20).
+
+  # Request 11: the suggestion.
+  - id: order-suggestions
+    says: >-
+      The suggested transfers are made by the stated algorithm from the balances (from request 13, what is still
+      owed): the most owing pays the most owed the smaller of the two, ties to the member who joined first, until every
+      balance is 0; they are listed in the order made, never more than one fewer than the members not even.
+    born: 11
+    test: suggests the transfers of the stated algorithm, in the order made, ties to whoever joined first
+  - id: suggestion-read-only
+    says: >-
+      Reading the suggestion changes nothing and records nothing; with every balance at 0 it is an empty list.
+    born: 11
+    test: suggests nothing when every balance is zero, and changes nothing by being read
+
+  # Request 12: a settlement, and what is owed.
+  - id: no-overpayment
+    says: >-
+      A settlement's amount is a whole number, at least 1, never more than what its payer owes nor more than what its
+      payee is owed when it is decided (from request 13, what is still owed); its payer and payee are two members of
+      the group. Otherwise it is refused, and nothing changes.
+    born: 12
+    test: refuses a settlement of more than is owed, or between the wrong members, and changes nothing
+  - id: settled-at-once
+    says: >-
+      The balances count a settlement as soon as it is recorded (in cash) or acknowledged paid (through the provider,
+      request 13): the payer's balance up by its amount, the payee's down. A read right after the command, or after
+      the webhook's acknowledgement, sees it; the tests do not wait.
+    born: 12
+    test: records a settlement in cash by its payee, read whole, and counts it in the balances at once
+  - id: one-settlement-wins
+    says: >-
+      Two settlements sent at once, to one server or two on one database, that together would pay more than is owed:
+      one is kept, the other refused; the balances still add up to 0 (the brief's zero sum after settlements, held
+      again by requests 13 to 15 and 20 after each change they make).
+    born: 12
+    test: keeps one of two settlements sent at once that together would pay more than is owed
+  - id: statement-expenses
+    says: >-
+      A member's statement (request 8) lists expenses only, its balance the expenses'; from request 12 it differs from
+      the member's balance in the group by the settlements they paid or received (and, from request 20, by what passed
+      to the owner).
+    born: 12
+    test: "keeps a member's statement to their expenses, while the balances count the settlements"
+
+  # Request 13: the provider.
+  - id: provider
+    says: >-
+      The provider is an outside system the tests play, named to the server by PROVIDER_URL (the base of its API) and
+      PROVIDER_WEBHOOK_SECRET. Tally asks it POST /payments { reference, amount, currency } and reads 201 { id, payUrl }
+      (request 16 adds `payee`; request 15 POST /payments/{id}/refunds { reference }; request 16 GET /accounts/{id});
+      `reference` is the settlement's id.
+    born: 13
+    test: asks the provider for a payment link, and keeps the settlement pending, not counted, until the provider says it succeeded
+  - id: provider-unavailable
+    says: >-
+      A provider that answers anything but what the request says, or nothing within 5 seconds, or a server started
+      without PROVIDER_URL, makes the command refused (a 4xx or an ERROR, never a 5xx) and nothing kept.
+    born: 13
+    test: refuses to pay when the provider fails or is not there, and keeps nothing
+  - id: webhook-signed
+    says: >-
+      The provider's webhook is POST /v1/provider/webhooks { id, paymentId, status, at }, its header Provider-Signature
+      the lowercase hex HMAC-SHA256 of the body as sent, keyed by PROVIDER_WEBHOOK_SECRET. Unsigned or wrongly
+      signed: 401, nothing changes. Signed: acknowledged with a 2xx (or a 202 whose operation succeeds), whatever it
+      says, a payment Tally does not know included.
+    born: 13
+    test: refuses an unsigned or wrongly signed webhook with 401, and acknowledges a signed one about an unknown payment
+  - id: still-owed
+    says: >-
+      A payment waiting at the provider (pending) counts as paid for what a member still owes or is still owed: for
+      the rule of a settlement, in cash or through the provider, for the suggestions, and (request 18) for reminders.
+      The balances count it only once it is paid.
+    born: 13
+    test: counts a payment waiting at the provider as paid, for what is still owed and for the suggestions
+  - id: payment-failed
+    says: >-
+      A payment the provider says failed is `failed`: never counted, no longer waiting.
+    born: 13
+    test: never counts a payment the provider says failed, and frees what it held
+  - id: settlement-fields
+    says: >-
+      A settlement reads { id, groupId, from, to, amount, method, status, at }; one through the provider also has
+      `payUrl`, the provider's link, in every status. No field of requests 11 to 20 is null: a field a request gives
+      in some cases only (payUrl here, expenseId of a notice at request 18) is absent in the others.
+    born: 13
+    test: asks the provider for a payment link, and keeps the settlement pending, not counted, until the provider says it succeeded
+
+  # Request 14: the provider's webhooks.
+  - id: one-payment-one-effect
+    says: >-
+      A payment counts in the balances once, however many webhooks, under however many ids, say it succeeded.
+    born: 14
+    test: counts a payment once, however many times and under however many ids the provider says it succeeded
+  - id: payment-forward-only
+    says: >-
+      A payment moves forward only: pending, then succeeded (paid) or failed, then (request 15) refunded; a webhook
+      that says a status the settlement had or passed changes nothing, and is acknowledged.
+    born: 14
+    test: "moves a payment only forward: a pending after its success leaves it paid, and a failed payment never becomes paid"
+  - id: webhook-late
+    says: >-
+      A webhook that arrives late, after the server was killed and started again, changes what it would have changed
+      on time; the provider sends again a webhook nobody acknowledged.
+    born: 14
+    test: changes, late and after a restart, what a webhook would have changed on time
+  - id: webhook-at-once
+    says: >-
+      The same webhook sent at once to two servers on one database counts once.
+    born: 14
+    test: counts once the same webhook sent at once to two servers on one database
+
+  # Request 15: refunds.
+  - id: refund-when-told
+    says: >-
+      A refund makes a paid settlement through the provider `refunding` (still counted), then `refunded` once the
+      provider says so (no longer counted: the balances as before it was paid).
+    born: 15
+    test: refunds a paid settlement through the provider, and the balances go back once the provider says it is refunded
+  - id: refund-by-payee
+    says: >-
+      Only the payee refunds, only a paid settlement through the provider, and only while the provider accepts the
+      refund; anything else is refused and changes nothing.
+    born: 15
+    test: refuses a refund by anyone but the payee, of a settlement not paid through the provider, or when the provider refuses
+  - id: former-party-frozen
+    says: >-
+      A settlement whose payer or payee is no longer a member is not refunded, as an expense that concerns a former
+      member is not changed (former-member-frozen).
+    born: 15
+    test: refuses to refund a settlement whose payer or payee has left the group
+
+  # Request 16: payout accounts.
+  - id: payout-account
+    says: >-
+      A person sets their payout account, an id the provider must know (asked at GET {PROVIDER_URL}/accounts/{id});
+      setting another replaces it; they read their own (404 when none), nobody else's.
+    born: 16
+    test: sets a payout account the provider knows, and reads it to its owner only
+  - id: payout-required
+    says: >-
+      From request 16, a member is paid through the provider only with a payout account: otherwise refused by the
+      rule's name, before the provider is asked; Tally's payment request names the payee's account as it is then. The
+      cases of tests 13 to 15, 18 to 20 that pay through the provider make the payee payable once request 16 is
+      reached (`payable`, the README's superseded cases).
+    born: 16
+    test: refuses by name to pay through the provider someone with no payout account, and asks nothing of the provider
+
+  # Request 17: notices.
+  - id: notice-soon
+    says: >-
+      A notice appears within seconds of the expense being recorded, without anyone acting and without waiting for the
+      background job: the tests read until it shows, for 15 seconds at most.
+    born: 17
+    test: tells each member of a split but its payer, soon, with their share
+  - id: order-notices
+    says: >-
+      A person's notices are listed the most recent first, to them alone; an edit or a deletion of an expense makes no
+      notice; a notice stays theirs after they leave the group.
+    born: 17
+    test: "lists a person's notices, the most recent first, to them alone, and makes none for an edit or a deletion"
+  - id: one-notice
+    says: >-
+      An expense makes one notice for each member of its split but its payer, never two, across a server killed and
+      started again.
+    born: 17
+    test: makes one notice per member and expense, even when the server is killed and started again
+
+  # Request 18: reminders, the first state that changes with time.
+  - id: reminder-sweep
+    says: >-
+      Reminders are made by the background job (every JOBS_INTERVAL_SECONDS), never by a read: a server whose job
+      runs once an hour makes none, however often the debt is read. The rest of `sweep`, born here.
+    born: 18
+    test: never reminds because someone read, only at a run of the background job
+  - id: reminder-period
+    says: >-
+      A member who still owes more than 2000 in a group is noted by the first run that sees it, reminded by the first
+      run a period (REMINDER_PERIOD_SECONDS, a week when not set; 3 on the tests' servers) after, and again each
+      period while it lasts; owing 2000 or less clears it, and a debt that comes back waits a period from the run that
+      sees it. A reminder is a notice of kind `reminder`, with what is still owed, and no expenseId.
+    born: 18
+    test: reminds a member who has owed more than 2000 for a period, at the sweep, and again each period while it lasts
+  - id: reminder-once-per-period
+    says: >-
+      However many servers run on one database, a member is reminded at most once a period for a group.
+    born: 18
+    test: reminds at most once a period, however many servers run on the database
+
+  # Request 19: a group's settlements.
+  - id: order-settlements
+    says: >-
+      A group's settlements are listed the most recently recorded or asked for first, each as it reads on its own,
+      with its `history`: every status it has had in Tally, the earliest first, each with when Tally learned it.
+    born: 19
+    test: "lists the group's settlements, the most recent first, each with every status it has had"
+  - id: history-quiet
+    says: >-
+      A webhook that changes nothing adds nothing to a settlement's history; one that jumps past a status adds only
+      the status it reaches.
+    born: 19
+    test: adds nothing to a history for a webhook that changes nothing, and only the status a jump reaches
+
+  # Request 20, the change not announced in advance.
+  - id: leave-passes-to-owner
+    says: >-
+      From request 20 on, a member leaves whatever their balance, which passes to the owner in the same step: the
+      owner's balance moves by it, and the members' balances still add up to 0 at every moment. It supersedes the
+      first half of leave-at-zero. The owner never leaves; someone who joins again is at 0.
+    born: 20
+    test: lets a member leave with a balance, which passes to the owner in the same step
+  - id: leave-not-while-waiting
+    says: >-
+      A member does not leave while a settlement they pay or receive through the provider is pending or refunding.
+    born: 20
+    test: refuses to let a member leave while a payment of theirs waits at the provider
+  - id: leave-and-expense-at-once
+    says: >-
+      An expense or a settlement sent at the moment one of its members leaves, to one server or two on one database,
+      is either counted in what passes to the owner or refused; either way the members' balances add up to 0 (the
+      maintainer's T5 gap, closed here).
+    born: 20
+    test: keeps the zero sum when an expense or a settlement and a leave are sent at once, through one server or two
