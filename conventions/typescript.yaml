@@ -181,6 +181,13 @@ rules:
       - src/SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts
       - src/SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents.ts
       - ../tools/src/published-language.ts
+  # Held by the conventions check, where the repository has a rule register: every exception a context's Domain or
+  # Application returns is named there, every rule there has its exception and a spec of its context that names it.
+  DOMAIN-RULE-NAMED:
+    references:
+      - ../conventions/rules.yaml
+      - src/Contexts/Notes/Domain/Note/NoteExceptions.ts
+      - ../tools/src/rule-register.ts
   ARCH-ONE-APPLICATION:
     references: [../tools/src/inventory.ts]
 
@@ -230,6 +237,7 @@ checklists:
     place: src/Contexts/<Context>/Application/Commands/<UseCase>/
     parts:
       - 'First, in an application with an `api/` (a created one has it; ADR 45): its answers as a fragment, `api/<n>-<name>.yaml` after the last one, the route by status and the resources it answers (its `202` is already in `all_routes`, and what it answers is the operation''s `result`); the end-to-end client (`apiClient()` in `src/Bootstrap/Fastify/api.spec-helper.ts`) holds every answer a test reads to it, and `yarn check:conventions` refuses a fragment that does not compose.'
+      - 'A refusal it adds is named first in `conventions/rules.yaml` (ADR 46): its public name (the exception without `Exception`), its context, the rule in one sentence, its origin; the check holds it to the exception the context returns and to a spec of that context that names it (DOMAIN-RULE-NAMED).'
       - '`<UseCase>CommandEvent.ts`: a named payload, nothing more.'
       - '`<UseCase>CommandHandler.ts`: `requireSignedIn` at the top of `execute()`, load, ask the aggregate or the domain service, save (check the `IResult`), `publishDomainEvents`. A command anyone may send (a sign-up) has no `requireSignedIn`; its caller follows it by the operation id it was answered, signed in or not (ADR 27).'
       - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
@@ -288,6 +296,7 @@ profiles_held:
         place: src/Contexts/<Context>/Application/<Things>.ts
         parts:
           - 'First, in an application with an `api/` (a created one has it; ADR 45): its answers as a fragment, `api/<n>-<name>.yaml` after the last one, the route by status and the resources it answers (`201: created` for a create); the end-to-end client (`apiClient()` in `src/Bootstrap/Fastify/api.spec-helper.ts`) holds every answer a test reads to it, and `yarn check:conventions` refuses a fragment that does not compose.'
+          - 'A refusal it adds is named first in `conventions/rules.yaml` (ADR 46): its public name (the exception without `Exception`), its context, the rule in one sentence, its origin; the check holds it to the exception the context returns and to a spec of that context that names it (DOMAIN-RULE-NAMED).'
           - 'A use case in the file of its thing''s use cases, one export each: `export const <intent> = command(''<Intent>'', (<ports>, clock: Clock) => async (input, context) => …)` ([`UseCase.ts`](src/Architecture/Application/Lite/UseCase.ts)); the name is the public one, without a suffix.'
           - 'Who may call it, said once: a signed-in caller unless the definition ends with `{ caller: ''anyone'' }` (signing up, a link that carries its own proof); the route''s `answerAtOnce()` refuses a missing caller with `401` before it runs, so no `requireSignedIn()` here — `callerOf(context)` gives the caller''s id where the decision needs it; "administrators only" is asked through the shared kernel''s `Role` and refused with a `NotAllowedException` (`403`).'
           - 'Its rules in a decision, `decide<Intent>` in `Domain/<Thing>/<Thing>.decision.ts`: a pure function `Decision<State, Command, Fact>` of the state, the command and `now` ([`Decision.ts`](src/Architecture/Domain/Lite/Decision.ts)) that answers `decided(newState, ...facts)` or the rule''s failed `Result`, refusing a value through the value objects and generating a new thing''s id with `Id.generate()`; no port, no `async`, no clock — the linter refuses them there.'

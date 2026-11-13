@@ -253,6 +253,12 @@ export interface ArchitectureContract {
   bindingProfile?: string;
   /** The profiles other than the default this binding holds, and how (`profiles_held`); empty: the default alone. */
   profilesHeld: Record<string, ProfileBinding>;
+  /**
+   * Present when the repository has a rule register (`conventions/rules.yaml`, ADR 46): the reference, or an
+   * application created with `--rules`. Without one, DOMAIN-RULE-NAMED holds nothing, and an application's documents
+   * do not state it.
+   */
+  ruleRegister?: true;
   sources: { architecture: string; concepts: string; binding: string };
 }
 
@@ -286,6 +292,30 @@ export class ContractError extends Error {
   ) {
     super(message);
   }
+}
+
+/** The rule register (ADR 46, DOMAIN-RULE-NAMED): every refusal by its public name, its context, its rule, its origin. */
+export const RULE_REGISTER_FILE = 'conventions/rules.yaml';
+
+/** Where a rule was decided (ADR 46): a decision, a storm, or the request that asked for it. */
+export type RuleOrigin = { adr: number } | { storm: string } | { request: string };
+
+/** A rule, declared once by the public name of its refusal (ADR 46). */
+export interface NamedRule {
+  /** The refusal's public name, the operation's `error.type`, without the suffix of its kind (`NoteNotFound`). */
+  name: string;
+  /** The context whose domain decides it, a context of the domain map. */
+  context: string;
+  /** The rule in the business's words, one sentence. */
+  statement: string;
+  /** Where it was decided; undefined when the file says none, or more than one, which validation refuses. */
+  origin?: RuleOrigin;
+}
+
+/** The rule register: conventions/rules.yaml, loaded. */
+export interface RuleRegister {
+  rules: NamedRule[];
+  source: string;
 }
 
 /** The six words a payload field's type is said in, in every language (ADR 44). */

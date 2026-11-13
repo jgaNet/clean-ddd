@@ -1,7 +1,8 @@
 # RFC 0006 — Software knowledge as a projection: rules as named units, with their origin and their evidence
 
-**Status:** proposed (13 November), a research direction. Nothing is implemented, and no rule, binding or ADR changes
-by it. Its decisions are listed in §9. **K1 decided (the maintainer, 13 November): yes,** measured beside J6's
+**Status:** proposed (13 November), a research direction. Nothing was implemented, and no rule, binding or ADR
+changed, by the proposal itself; **K2 is implemented in TypeScript by
+[ADR 46](../adr/0046-a-rule-is-a-named-unit-with-its-origin-and-its-evidence.md)** (below). Its decisions are listed in §9. **K1 decided (the maintainer, 13 November): yes,** measured beside J6's
 preparation, without holding it up. **K1 measured the same day (§9b):** exploring is three quarters or more of
 what the tools bring into an agent's context, so the direction stands. **K2–K4 decided (the maintainer, 13
 November): yes, before J6.** Their design is the operator's next proposal, for the maintainer's review before any
@@ -12,6 +13,11 @@ code. With them (the maintainer, 13 November):
   with §8's rejection criteria; it is extended only if the pilot is undecided.
 - **K2 in TypeScript first** (the reference and created applications); Rust, Python and Go after J6.
 - **K4 runs while J6 is prepared,** on the free machine, and is read before J6 starts.
+- **K2 implemented in TypeScript (ADR 46, 13 November):** the rule register `conventions/rules.yaml` names the
+  reference's 24 refusals with their context, their statement and their origin; `yarn check:conventions` holds it to
+  the TypeScript tree under DOMAIN-RULE-NAMED (a refusal no rule names, a rule no exception returns, a rule no test
+  names); `create --rules` gives an application one, and an application created without it, as J6's arms are, is
+  unchanged. Rust, Python and Go bind the rule as a gap until after J6.
 
 ## 1. The question
 

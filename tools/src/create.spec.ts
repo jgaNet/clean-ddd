@@ -9,6 +9,11 @@ import {
   checkConventions,
   checkExpectedStorm,
   checkInventoryAgainstPublishedLanguage,
+  checkRuleRegister,
+  inspectRuleEvidence,
+  loadRuleRegister,
+  RULE_REGISTER_FILE,
+  validateRuleRegister,
   loadPublishedLanguage,
   contractUnder,
   createApplication,
@@ -795,5 +800,115 @@ describe('yarn architecture create --profile, where a language does not hold the
     // Naming the default is the default.
     expect(createApplication(empty, 'my-app', root, undefined, 'full').profile).toBeUndefined();
     rmSync(empty, { recursive: true, force: true });
+  });
+});
+
+describe('yarn architecture create --rules', () => {
+  const plain = mkdtempSync(join(tmpdir(), 'created-plain-'));
+  const named = mkdtempSync(join(tmpdir(), 'created-rules-'));
+  const createdPlain = createApplication(plain, 'my-app', root);
+  const created = createApplication(named, 'my-app', root, undefined, undefined, { rules: true });
+  const readIn = (directory: string, path: string) => readFileSync(join(directory, path), 'utf8');
+  /** Every part of every checklist, the profiles' own included, as the binding says them. */
+  const checklistParts = (directory: string) => {
+    const contract = loadArchitectureContract(directory);
+    return profilesHeldBy(contract).flatMap(profile =>
+      contractUnder(contract, profile).checklists.flatMap(checklist =>
+        checklist.parts.map(part => `${profile} ${checklist.kind}: ${part}`),
+      ),
+    );
+  };
+  const step = (part: string) => part.includes('`conventions/rules.yaml`');
+
+  afterAll(() => {
+    rmSync(plain, { recursive: true, force: true });
+    rmSync(named, { recursive: true, force: true });
+  });
+
+  it('writes a rule register with the rules of the contexts it keeps: none of the Tracker’s', () => {
+    expect(created.namedRules).toBe(0);
+    expect(createdPlain.namedRules).toBeUndefined();
+    expect(readIn(named, RULE_REGISTER_FILE)).toMatch(/^# The rule register \(ADR 46 of the reference,/);
+    expect(readIn(named, RULE_REGISTER_FILE)).toMatch(/\nrules: \{\}\n$/);
+    expect(readIn(named, RULE_REGISTER_FILE)).not.toMatch(/ADR 19|share-a-note/);
+    expect(loadRuleRegister(named)).toEqual({ source: RULE_REGISTER_FILE, rules: [] });
+    const contract = loadArchitectureContract(named);
+    expect(contract.ruleRegister).toBe(true);
+    expect(validateContract(contract, named)).toEqual([]);
+    expect(validateRuleRegister(loadRuleRegister(named)!, ['Tracker'], named)).toEqual([]);
+    expect(checkRuleRegister(loadRuleRegister(named)!, inspectRuleEvidence(contract, named))).toEqual([]);
+  });
+
+  it('says in its guide, within its budget, and in its command checklists that a new refusal is named there first', () => {
+    const guide = readIn(named, 'CLAUDE.md');
+    expect(Buffer.byteLength(guide)).toBeLessThanOrEqual(GUIDE_BUDGET_BYTES);
+    expect(guide).toContain('(DOMAIN-RULE-NAMED; check)*');
+    expect(guide).toContain('A new refusal is named first in `conventions/rules.yaml`');
+    const steps = checklistParts(named).filter(step);
+    expect(steps.map(part => part.split(':')[0])).toEqual(['full command', 'lite command']);
+  });
+
+  it('without --rules, writes no register and says nothing of it: the guide and the checklists are as before ADR 46', () => {
+    expect(existsSync(join(plain, RULE_REGISTER_FILE))).toBe(false);
+    expect(loadArchitectureContract(plain).ruleRegister).toBeUndefined();
+    const guide = readIn(plain, 'CLAUDE.md');
+    expect(guide).not.toContain('DOMAIN-RULE-NAMED');
+    expect(guide).not.toContain('rules.yaml');
+    expect(readIn(plain, 'README.md')).not.toContain('DOMAIN-RULE-NAMED');
+    // Byte for byte what the application with the register says, less the rule and the line about the register.
+    const withRegister = readIn(named, 'CLAUDE.md')
+      .split('\n')
+      .filter(line => !line.includes('DOMAIN-RULE-NAMED'))
+      .join('\n')
+      .replace('\n\n\n', '\n\n');
+    expect(guide).toBe(withRegister);
+    expect(checklistParts(plain)).toEqual(checklistParts(named).filter(part => !step(part)));
+    expect(readIn(plain, 'conventions/typescript.yaml')).not.toContain('rules.yaml');
+  });
+
+  describe('held Lite, with a context of its own', () => {
+    const lite = mkdtempSync(join(tmpdir(), 'created-lite-rules-'));
+    createApplication(lite, 'my-lite-app', root, undefined, 'lite', { rules: true });
+    afterAll(() => rmSync(lite, { recursive: true, force: true }));
+
+    it('names each refusal its decisions return, until the register names it and a spec of the context does', () => {
+      addLiteTasks(lite);
+      const contract = loadArchitectureContract(lite);
+      const findings = () => checkRuleRegister(loadRuleRegister(lite)!, inspectRuleEvidence(contract, lite));
+      expect(findings().map(finding => finding.split(' (')[0])).toEqual([
+        'DOMAIN-RULE-NAMED: Tasks returns TaskNotFound',
+        'DOMAIN-RULE-NAMED: Tasks returns NotYourTask',
+        'DOMAIN-RULE-NAMED: Tasks returns TaskAlreadyCompleted',
+        'DOMAIN-RULE-NAMED: Tasks returns BlankTaskTitle',
+        'DOMAIN-RULE-NAMED: Tasks returns TaskTitleTooLong',
+      ]);
+      const rule = (name: string, statement: string) =>
+        `  ${name}:\n    context: Tasks\n    statement: ${statement}\n    origin: { request: R1 }\n`;
+      writeFileSync(
+        join(lite, RULE_REGISTER_FILE),
+        readIn(lite, RULE_REGISTER_FILE).replace(
+          /\nrules: \{\}\n$/,
+          `\nrules:\n${[
+            rule('BlankTaskTitle', 'A task has a title.'),
+            rule('TaskTitleTooLong', 'A task title is short.'),
+            rule('TaskNotFound', 'Only a task that exists is completed.'),
+            rule('NotYourTask', 'Only its owner completes a task.'),
+            rule('TaskAlreadyCompleted', 'A task is completed once.'),
+          ].join('')}`,
+        ),
+      );
+      expect(validateRuleRegister(loadRuleRegister(lite)!, ['Tasks'], lite)).toEqual([]);
+      // What remains is evidence: the rules whose refusal no spec of Tasks names.
+      expect(findings()).toEqual([
+        'DOMAIN-RULE-NAMED: conventions/rules.yaml rule TaskTitleTooLong (Tasks): no test of Tasks names it — TaskTitleTooLong or TaskTitleTooLongException in a *.spec.ts under src/Contexts/Tasks',
+        'DOMAIN-RULE-NAMED: conventions/rules.yaml rule TaskNotFound (Tasks): no test of Tasks names it — TaskNotFound or TaskNotFoundException in a *.spec.ts under src/Contexts/Tasks',
+      ]);
+      // A spec that names them, and the register holds.
+      writeFileSync(
+        join(lite, 'src/Contexts/Tasks/Domain/Task/TaskExceptions.spec.ts'),
+        "import { TaskNotFoundException } from '@Contexts/Tasks/Domain/Task/TaskExceptions';\nimport { TaskTitleTooLongException } from '@Contexts/Tasks/Domain/Task/TaskTitle';\n\nit('names them', () => expect([TaskNotFoundException, TaskTitleTooLongException]).toHaveLength(2));\n",
+      );
+      expect(findings()).toEqual([]);
+    });
   });
 });

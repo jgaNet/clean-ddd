@@ -10,6 +10,7 @@ import {
   NotificationSentEvent,
 } from '@Contexts/Notifications/Domain/Notification/Events/NotificationEvents';
 import {
+  BlankNotificationContentException,
   BlankNotificationTitleException,
   ChannelAlreadyTriedException,
   EmptyDeliveryStrategyException,
@@ -40,10 +41,13 @@ describe('Notification', () => {
       expect(notification.pullDomainEvents()).toEqual([]);
     });
 
-    it('refuses a blank title and an empty strategy', () => {
+    it('refuses a blank title, a blank content and an empty strategy', () => {
       expect(
         Notification.create({ recipientId: 'bob', title: ' ', content: 'x', channels: [Channel.EMAIL] }, at).error,
       ).toBeInstanceOf(BlankNotificationTitleException);
+      expect(
+        Notification.create({ recipientId: 'bob', title: 'x', content: ' ', channels: [Channel.EMAIL] }, at).error,
+      ).toBeInstanceOf(BlankNotificationContentException);
       expect(
         Notification.create({ recipientId: 'bob', title: 'x', content: 'x', channels: [] }, at).error,
       ).toBeInstanceOf(EmptyDeliveryStrategyException);

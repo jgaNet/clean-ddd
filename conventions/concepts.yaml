@@ -89,11 +89,15 @@ concepts:
     layer: domain
     description: >-
       a broken rule in business words, carried by `Result.fail()`, never thrown — [ADR
-      1](docs/adr/0001-result-instead-of-exceptions.md)
+      1](docs/adr/0001-result-instead-of-exceptions.md); its public name declared once in the rule register, with its
+      context, its statement and its origin, and held to a test that names it — [ADR
+      46](docs/adr/0046-a-rule-is-a-named-unit-with-its-origin-and-its-evidence.md)
     rules:
       - DOMAIN-RESULT
+      - DOMAIN-RULE-NAMED
     references:
       - docs/adr/0001-result-instead-of-exceptions.md
+      - docs/adr/0046-a-rule-is-a-named-unit-with-its-origin-and-its-evidence.md
   - id: result
     name: '`Result`'
     layer: domain

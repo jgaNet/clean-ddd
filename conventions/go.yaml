@@ -207,6 +207,9 @@ rules:
     references: [tools/conventions/main.go]
   ARCH-ONE-APPLICATION:
     references: [tools/conventions/inventory.go]
+  # DOMAIN-RULE-NAMED is a gap here (ADR 46): the rule register is held in TypeScript first, and in this language
+  # after J6; until then its refusals are named in conventions/rules.yaml by review, and no file shows it yet, so none
+  # is named.
   # Held by the check at the root, over the payloads this tool writes into the inventory (ADR 44).
   CTX-PUBLISHED-LANGUAGE:
     references:

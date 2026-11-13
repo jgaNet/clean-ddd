@@ -3,7 +3,7 @@ import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { dump, load } from 'js-yaml';
 
-import { ArchitectureContract, Concept, ContractError, CreateSpec, Rule } from './types';
+import { ArchitectureContract, Concept, ContractError, CreateSpec, Rule, RULE_REGISTER_FILE } from './types';
 import { loadArchitectureContract, repositoryRoot, typedFrom } from './load';
 import { Inventory, serializeInventory } from './inventory';
 import { PUBLISHED_LANGUAGE_FILE } from './published-language';
@@ -176,6 +176,8 @@ export interface CreatedApplication {
   language: string;
   /** The profile its contexts are held to when it is not the default (`create --profile lite`; ADR 40). */
   profile?: string;
+  /** The rules its register starts with, when it was created with one (`create --rules`; ADR 46). */
+  namedRules?: number;
   /** The contexts it starts with: plumbing every application needs, never the reference's business (ADR 27). */
   contexts: string[];
   /** The commands to run first, in the language's words. */
@@ -193,6 +195,11 @@ export function createApplication(
   language?: string,
   /** The profile its contexts are held to (ADR 40); the contract's default when none is named. */
   profile?: string,
+  /**
+   * `rules`: a rule register (ADR 46), with the rules of the contexts it keeps; its guide and its checklists then say
+   * that a new refusal is named there first. Without it, nothing of the register is written or said.
+   */
+  options: { rules?: boolean } = {},
 ): CreatedApplication {
   if (existsSync(directory) && readdirSync(directory).length) {
     throw new Error(`${directory} is not empty; a new application is created in an empty directory`);
@@ -316,7 +323,7 @@ export function createApplication(
   const concepts = contract.concepts
     .map(concept => surviving(concept, directory, local))
     .filter((concept): concept is Concept => concept !== undefined);
-  writeContract(directory, source, contract, concepts, name, contexts, held?.id);
+  writeContract(directory, source, contract, concepts, name, contexts, held?.id, options.rules === true);
 
   // 4. The documents, rendered from that contract exactly as this repository renders its own,
   //    the manifest, and — where the language's own tool holds its inventory — an empty one.
@@ -327,6 +334,9 @@ export function createApplication(
     contexts,
     language: { ...contract.language, root: '.' },
   };
+  // The register is the application's only when it was created with one: the reference's says nothing about it.
+  if (options.rules) lean.ruleRegister = true;
+  else delete lean.ruleRegister;
   writeFileSync(join(directory, 'README.md'), readme(lean, name, local, held?.name));
   writeFileSync(join(directory, 'CLAUDE.md'), claude(lean, name, local, held?.name));
   mkdirSync(join(directory, 'docs/adr'), { recursive: true });
@@ -338,6 +348,10 @@ export function createApplication(
   // The published language (ADR 44): the events of the contexts it starts with, as the reference declares
   // them, so that CTX-PUBLISHED-LANGUAGE holds the first event a context of its own publishes.
   writeFileSync(join(directory, PUBLISHED_LANGUAGE_FILE), publishedLanguage(source, contexts));
+  // The rule register (ADR 46), when asked for: the rules of the contexts it starts with (none of the Tracker's),
+  // so that DOMAIN-RULE-NAMED holds the first refusal a context of its own returns.
+  const register = options.rules ? ruleRegister(source, contexts) : undefined;
+  if (register) writeFileSync(join(directory, RULE_REGISTER_FILE), register.text);
   mkdirSync(join(directory, 'conventions/storms'), { recursive: true });
   writeFileSync(join(directory, 'conventions/storms/README.md'), stormsReadme());
   // The API as data (ADR 45): its first fragment, the operation generated from the contract's
@@ -369,6 +383,7 @@ export function createApplication(
     name,
     language: contract.language.id,
     ...(held && { profile: held.id }),
+    ...(register && { namedRules: register.rules }),
     contexts,
     next: [
       `cd ${directory} && ${spec.install}`,
@@ -401,6 +416,8 @@ function writeContract(
   contexts: string[],
   /** The profile its contexts are held to, when it is not the default: the binding's `default_profile`. */
   profile?: string,
+  /** Whether it has a rule register (ADR 46): without one, no checklist names it. */
+  register: boolean = false,
 ): void {
   mkdirSync(join(directory, 'conventions/plans'), { recursive: true });
   const yaml = { lineWidth: 110, noRefs: true };
@@ -476,6 +493,15 @@ function writeContract(
   // reference's business. An application created under one of them holds its contexts to it, and its
   // `create` is the one that made it.
   const profilesHeld = (binding.profiles_held ?? {}) as Record<string, Record<string, unknown>>;
+  // A checklist's step that names the rule register (ADR 46) is the application's only when it has one.
+  if (!register) {
+    for (const checklists of [binding.checklists, ...Object.values(profilesHeld).map(entry => entry.checklists)]) {
+      for (const checklist of Object.values((checklists ?? {}) as Record<string, { parts?: unknown[] }>)) {
+        if (Array.isArray(checklist?.parts))
+          checklist.parts = checklist.parts.filter(part => !String(part).includes(RULE_REGISTER_FILE));
+      }
+    }
+  }
   if (profile && typeof profilesHeld[profile]?.create === 'object') {
     binding.create = { ...(binding.create as object), ...(profilesHeld[profile].create as object) };
   }
@@ -741,6 +767,12 @@ function claude(
           `the route, then the wiring in \`${contract.wiring}\`. A rule that spans aggregates or needs a port is a`,
           'domain service. Expected failures are `Result` values, never thrown.',
         ]),
+    ...(contract.ruleRegister
+      ? [
+          '',
+          `A new refusal is named first in \`${RULE_REGISTER_FILE}\` (its public name, context, statement, origin), and a spec of its context names it. *(DOMAIN-RULE-NAMED; check)*`,
+        ]
+      : []),
     '',
     "## The API's shape",
     '',
@@ -822,6 +854,36 @@ function publishedLanguage(source: string, contexts: string[]): string {
   );
   return `${header}${Object.keys(events).length ? dump({ events }, { lineWidth: 110, noRefs: true }) : 'events: {}\n'}`;
 }
+
+/**
+ * The rule register of a new application (ADR 46): the reference's header, without what it says of the reference's
+ * own history, and the rules of the contexts it starts with; `rules: {}` when they have none (the Tracker refuses
+ * nothing of its own).
+ */
+function ruleRegister(source: string, contexts: string[]): { text: string; rules: number } {
+  const file = join(source, RULE_REGISTER_FILE);
+  const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
+  const header =
+    text
+      .slice(0, Math.max(0, text.search(/^(# The rules the reference|rules:)/m)))
+      .replace(/#\n$/, '')
+      .replace(/\(ADR (\d+),/, '(ADR $1 of the reference,') || RULE_REGISTER_HEADER;
+  const reference = text ? (load(text) as { rules?: Record<string, { context?: string }> | null }) : {};
+  const rules = Object.fromEntries(
+    Object.entries(reference?.rules ?? {}).filter(([, rule]) => contexts.includes(rule?.context ?? '')),
+  );
+  return {
+    text: `${header}${Object.keys(rules).length ? dump({ rules }, { lineWidth: 110, noRefs: true }) : 'rules: {}\n'}`,
+    rules: Object.keys(rules).length,
+  };
+}
+
+const RULE_REGISTER_HEADER = [
+  '# The rule register (ADR 46 of the reference, DOMAIN-RULE-NAMED): every refusal a context can return, declared once',
+  "# by its public name, with its context, the rule in the business's words and its origin ({ adr: <n> },",
+  '# { storm: <feature> } or { request: <id> }). `clean-ddd rule DOMAIN-RULE-NAMED` explains the rule.',
+  '',
+].join('\n');
 
 const PUBLISHED_LANGUAGE_HEADER = [
   '# The published language (ADR 44 of the reference, CTX-PUBLISHED-LANGUAGE): every integration event a context',

@@ -11,7 +11,7 @@
  *   yarn architecture verb <intent>           which HTTP verb and path shape a use case takes
  *   yarn architecture checklist <kind>        what a new aggregate, value object, command … is made of
  *   yarn architecture place <kind>            where it goes, path only
- *   yarn architecture create <dir> [--name x] [--language <id>] [--profile lite]   a new application on this architecture, in that language, with none of its business
+ *   yarn architecture create <dir> [--name x] [--language <id>] [--profile lite] [--rules]   a new application on this architecture, in that language, with none of its business (--rules: with a rule register, ADR 46)
  *   (--profile <id> on any question: the contract as a context held to that profile reads it — its grammar, its checklists)
  *   yarn architecture mode feature [--base <ref>]     did this change leave the architecture alone
  *   yarn architecture mode architecture [--base <ref>] does it record the decision it makes
@@ -93,7 +93,7 @@ const languageFlag = args.includes('--language') ? args[args.indexOf('--language
 const valued = ['--language', '--expect', '--profile'];
 const expectFlag = args.includes('--expect') ? args[args.indexOf('--expect') + 1] : undefined;
 const profileFlag = args.includes('--profile') ? args[args.indexOf('--profile') + 1] : undefined;
-const flagged = ['--json', '--language', '--markdown', '--svg', '--expect', '--write', '--profile'];
+const flagged = ['--json', '--language', '--markdown', '--svg', '--expect', '--write', '--profile', '--rules'];
 const [command, ...rest] = args.filter((arg, index) => !flagged.includes(arg) && !valued.includes(args[index - 1]));
 
 const here = typedFrom();
@@ -125,7 +125,10 @@ let root = '';
 function create(): void {
   const [directory] = rest;
   if (!directory)
-    return fail('usage', 'usage: yarn architecture create <dir> [--name <name>] [--language <id>] [--profile <id>]');
+    return fail(
+      'usage',
+      'usage: yarn architecture create <dir> [--name <name>] [--language <id>] [--profile <id>] [--rules]',
+    );
   const name = rest.includes('--name') ? rest[rest.indexOf('--name') + 1] : directory.split('/').filter(Boolean).pop();
   let created;
   try {
@@ -135,6 +138,7 @@ function create(): void {
       referenceSource(here),
       languageFlag,
       profileFlag,
+      { rules: args.includes('--rules') },
     );
   } catch (error) {
     return fail('cannot-create', error instanceof Error ? error.message : String(error));
@@ -144,7 +148,7 @@ function create(): void {
       `${created.name}: ${created.files} files in ${created.directory}`,
       '',
       `The building blocks, the shared kernel, the tooling and the contract — ${created.rules} rules,`,
-      `${created.concepts} concepts — and no business: ${created.contexts.length ? `${created.contexts.join(', ')} to follow every command, and ` : ''}the contexts are yours to write${created.profile ? `, held to the ${created.profile} profile` : ''}.`,
+      `${created.concepts} concepts — and no business: ${created.contexts.length ? `${created.contexts.join(', ')} to follow every command, and ` : ''}the contexts are yours to write${created.profile ? `, held to the ${created.profile} profile` : ''}${created.namedRules !== undefined ? `; a rule register with ${created.namedRules} rule(s), where a new refusal is named first` : ''}.`,
       '',
       'Next:',
       ...created.next.map(line => `  ${line}`),

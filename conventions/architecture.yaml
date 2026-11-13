@@ -120,8 +120,9 @@ modes:
     protected: [conventions, docs/adr, tools]
     # A feature may bring its plan, and the storm the session decided it would be; and, since a feature
     # may publish, the integration event it declares in the published language (ADR 44), where the gate
-    # refuses a merged version changed in place.
-    allowed: [conventions/plans, conventions/storms, conventions/integration-events.yaml]
+    # refuses a merged version changed in place; and, since a feature may refuse, the rule it names in the
+    # rule register (ADR 46).
+    allowed: [conventions/plans, conventions/storms, conventions/integration-events.yaml, conventions/rules.yaml]
   architecture:
     why: >-
       The architecture may change; it may not change silently. A change to the building blocks,
@@ -418,6 +419,8 @@ profiles:
       - API-CALLER-AT-TRANSPORT
       - CTX-MAP-DECLARED
       - CTX-PUBLISHED-LANGUAGE
+      # A decision's refusal is a context's exception like any other: named in the register where there is one.
+      - DOMAIN-RULE-NAMED
       - ARCH-ONE-APPLICATION
       - ARCH-COMPAT-ROUTE
     waives: {}
@@ -707,6 +710,14 @@ rules:
     remediation: Declare the event, its publisher and its payload in the published language before the code publishes it, and make each language's event carry the last version field for field; to remove, rename or retype a field, append a version rather than edit one; give an event that announces a thing the id field it names.
     enforcement: check
     references: [docs/adr/0044-integration-events-are-a-published-language-declared-once.md, conventions/README.md]
+
+  - id: DOMAIN-RULE-NAMED
+    name: a-rule-is-named-with-its-origin-and-its-evidence
+    statement: Every refusal a context's domain can return is declared once in the rule register, by its public name, with the context that decides it, the rule in the business's words and where it was decided; the code returns it as that context's exception and at least one test of that context names it; the check refuses a refusal no rule names, a rule no code returns and a rule no test names, and holds nothing where there is no register.
+    why: A rule that lives as an exception in the domain, a sentence in a storm and a test is three things nothing ties together — a refusal returned that no rule names, a rule named that no test holds — and a later request that relies on it finds it by accident or not at all. Declared once with its origin and held to its evidence, a rule is one unit a person or an agent can read.
+    remediation: Name a new refusal in the register before the code returns it — its public name (the exception without the suffix of its kind), its context, one sentence, its origin — and write a test of that context that names it; remove the entry with the last code that returns it.
+    enforcement: check
+    references: [docs/adr/0046-a-rule-is-a-named-unit-with-its-origin-and-its-evidence.md, conventions/README.md]
 
   - id: ARCH-ONE-APPLICATION
     name: every-language-is-the-same-application

@@ -109,6 +109,7 @@ export const renderRulesTable = (contract: ArchitectureContract, at = '.', langu
     ['Rule', 'Enforced by'],
     contract.rules
       .filter(listed)
+      .filter(rule => !isApplication(contract) || heldByTheApplication(contract)(rule))
       .map(rule => [
         `**${rule.id}** — ${rule.statement}`,
         [
@@ -132,8 +133,16 @@ export const isApplication = (contract: ArchitectureContract): boolean => contra
  * migration is declared.
  */
 const ABOUT_THE_REFERENCE = new Set(['ARCH-ONE-CONTRACT', 'ARCH-ONE-APPLICATION', 'ARCH-LEARNABLE']);
+/**
+ * A rule held only where the application has the file it is held to: the rule register (ADR 46), which `create
+ * --rules` writes. Without it the rule holds nothing there, and its documents do not state it.
+ */
+const heldByTheApplication = (contract: ArchitectureContract) => (rule: Rule) =>
+  rule.id !== 'DOMAIN-RULE-NAMED' || contract.ruleRegister === true;
 const appliesToApplication = (contract: ArchitectureContract) => (rule: Rule) =>
-  !ABOUT_THE_REFERENCE.has(rule.id) && (rule.id !== 'ARCH-COMPAT-ROUTE' || contract.migration !== undefined);
+  !ABOUT_THE_REFERENCE.has(rule.id) &&
+  (rule.id !== 'ARCH-COMPAT-ROUTE' || contract.migration !== undefined) &&
+  heldByTheApplication(contract)(rule);
 
 /**
  * CLAUDE.md's rules list. The reference's: statement, why, remediation, in one bullet each. An application's: the

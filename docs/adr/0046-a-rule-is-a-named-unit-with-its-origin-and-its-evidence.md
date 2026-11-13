@@ -42,4 +42,10 @@ nothing changes: J6's arms are created without it.
 - A new refusal costs one entry in the file. That is the ceremony J6 does not pay; K4 says whether it is worth paying.
 - The evidence is a test that names the refusal, not one that proves it holds: a test can name a refusal and assert
   nothing. Mutation testing would be the stronger evidence and is left for later.
-- The rule list is `enforcement: check` in TypeScript and `review` in the three other bindings until they hold it.
+- The rule is `enforcement: check` in the contract. A binding cannot lower one rule's enforcement, so Rust, Python and
+  Go report it as a gap (their README's known gaps: held by review) until their checks hold it.
+- A created application's contract lists the rule whether or not it has the register; without the file, its check
+  holds nothing of it and its guide and checklists do not mention it.
+- A generic refusal built from the building blocks (`NotFound`, `NotAllowed` with a message) and the shared kernel's
+  are not a context's, and the register does not cover them yet.
+- The feature mode allows the register: a feature that adds a refusal names it there first.

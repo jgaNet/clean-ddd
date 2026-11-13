@@ -62,6 +62,7 @@ for (const path of [
   'conventions/concepts.yaml',
   'conventions/domain.yaml',
   'conventions/integration-events.yaml',
+  'conventions/rules.yaml',
   '.claude',
   '.editorconfig',
   'package.json',
