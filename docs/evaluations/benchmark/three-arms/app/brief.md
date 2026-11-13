@@ -1,4 +1,8 @@
-# Tally: the brief of J6's application (draft, for the maintainer's review)
+# Tally: the brief of J6's application
+
+**Approved by the maintainer on 13 November, as drafted:** the domain, the four checkpoints, the four changes not
+announced in advance (storage kept at 30), the four requests meant above the split's break-even, and Notifications as a
+fourth context from checkpoint 2.
 
 *Drafted by the operator on 13 November, for the maintainer's review before any request is written. Like OpenStay's
 brief, it is never given to an agent of any arm: the arms receive the requests, one at a time, and the API fragments of
