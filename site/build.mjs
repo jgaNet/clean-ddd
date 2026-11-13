@@ -16,6 +16,7 @@ import { articles } from './articles.mjs';
 import * as control from './article/control/index.mjs';
 import * as extensions from './article/extensions/index.mjs';
 import * as openstay from './article/openstay/index.mjs';
+import * as j5b from './article/j5b/index.mjs';
 import { ARMS, bars, dotRange, groupedColumns, legend, setLanguage, table } from './charts.mjs';
 import { figures, mean, quotes, span as spanIn, verifyQuotes } from './figures.mjs';
 import { openstay as O } from './openstay.mjs';
@@ -337,6 +338,22 @@ function render(language) {
         })),
       ),
     }),
+    j5bCost: bars({
+      id: 'chart-j5b-cost',
+      title: t(
+        "OpenStay's J5b: agents' cost from request 51 to 100, per tree, its three runs together",
+        'J5b d’OpenStay : coût des agents de la demande 51 à 100, par arbre, ses trois essais ensemble',
+      ),
+      unit: '',
+      prefix: '$',
+      digits: 2,
+      items: O.j5b.trees.map(tree => ({
+        arm: tree.tree.startsWith('simple') ? 'P' : 'A',
+        label: tree.tree,
+        value: tree.totalUsd,
+        note: `${tree.atStep[0]} ${t('of 50 at the first step', 'sur 50 au premier échelon')}`,
+      })),
+    }),
     openstayCost: dotRange({
       id: 'chart-openstay-cost',
       title: t(
@@ -600,6 +617,76 @@ function render(language) {
     ]),
   );
 
+  tables.j5bTrees = table(
+    t("OpenStay's J5b: each tree from 51 to 100", 'J5b d’OpenStay : chaque arbre de 51 à 100'),
+    t(
+      ['Tree', 'Steps from 51', 'At step 0 / 1 / 2', 'Repaired', 'Cost of its three runs', 'Mean minutes a request'],
+      [
+        'Arbre',
+        'Échelons depuis 51',
+        'À l’échelon 0 / 1 / 2',
+        'Réparées',
+        'Coût de ses trois essais',
+        'Minutes par demande, en moyenne',
+      ],
+    ),
+    O.j5b.trees.map(tree => [
+      tree.tree,
+      tree.steps,
+      tree.atStep.join(' / '),
+      tree.repairs,
+      `${usd(tree.totalUsd)} (${tree.usd.map(v => usd(v)).join(' + ')})`,
+      tree.meanMinutes,
+    ]),
+  );
+  tables.j5bSplit = table(
+    t(
+      'clean-3: the requests written by one agent per context, and by one agent',
+      'clean-3 : les demandes écrites par un agent par contexte, et par un seul agent',
+    ),
+    t(['', 'One agent per context', 'One agent'], ['', 'Un agent par contexte', 'Un seul agent']),
+    [
+      [t('Requests', 'Demandes'), O.j5b.split.requests, 50 - O.j5b.split.requests],
+      [
+        t('Delivered at the first step', 'Livrées au premier échelon'),
+        O.j5b.split.firstTry[0],
+        O.j5b.split.firstTry[1],
+      ],
+      [
+        t("Mean agents' cost a request", 'Coût moyen des agents par demande'),
+        usd(O.j5b.split.usd[0]),
+        usd(O.j5b.split.usd[1]),
+      ],
+      [
+        t('… without its three costliest (61, 68, 73)', '… sans ses trois plus chères (61, 68, 73)'),
+        usd(O.j5b.split.usdWithoutCostliest),
+        '',
+      ],
+      [
+        t('Mean minutes from a request to its delivery', 'Minutes moyennes d’une demande à sa livraison'),
+        O.j5b.split.minutes[0],
+        O.j5b.split.minutes[1],
+      ],
+      [t('… without its three costliest', '… sans ses trois plus chères'), O.j5b.split.minutesWithoutCostliest, ''],
+    ],
+  );
+  tables.j5bGrading = table(
+    t(
+      'The parallel grader, validated before it was used: the same verdict on every file',
+      'La notation parallèle, validée avant d’être utilisée : le même verdict sur chaque fichier',
+    ),
+    t(
+      ['Tree graded', 'Files', 'Minutes, one file at a time', 'Minutes, two at a time'],
+      ['Arbre noté', 'Fichiers', 'Minutes, un fichier à la fois', 'Minutes, deux à la fois'],
+    ),
+    O.j5b.grading.map(g => [
+      t(g.tree, g.tree.replace(' at ', ' à ')),
+      g.files,
+      fix(g.sequential, 1),
+      fix(g.parallel, 1),
+    ]),
+  );
+
   const readingRows = reading.rows
     .map(
       ([arm, run, lenient, strict]) =>
@@ -613,6 +700,7 @@ function render(language) {
     'architecture-and-ai-agents': control,
     'where-the-architecture-should-pay': extensions,
     openstay,
+    'openstay-to-a-hundred': j5b,
   };
   const other =
     language === 'en'
@@ -628,6 +716,7 @@ function render(language) {
       ['control', 'architecture-and-ai-agents'],
       ['extensions', 'where-the-architecture-should-pay'],
       ['openstay', 'openstay'],
+      ['j5b', 'openstay-to-a-hundred'],
     ].map(([name, slug]) => [name, articles.find(article => article.slug === slug)[language].file]),
   );
   const shared = {

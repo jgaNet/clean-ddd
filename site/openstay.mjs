@@ -6,6 +6,7 @@
  *   docs/evaluations/2026-11-02-openstay-j3.md      features 11–25
  *   docs/evaluations/2026-11-03-openstay-j4.md      the defect report 25.1 and features 26–50
  *   docs/evaluations/2026-11-08-openstay-j5.md      features 51–100 (closed on what is known, 10 November)
+ *   docs/evaluations/2026-11-13-openstay-j5b.md     features 51–100 again, one tree per arm, to a hundred
  */
 export const openstay = {
   records: {
@@ -13,6 +14,10 @@ export const openstay = {
     j3: 'docs/evaluations/2026-11-02-openstay-j3.md',
     j4: 'docs/evaluations/2026-11-03-openstay-j4.md',
     j5: 'docs/evaluations/2026-11-08-openstay-j5.md',
+    j5b: 'docs/evaluations/2026-11-13-openstay-j5b.md',
+    j5bProtocol: 'docs/evaluations/benchmark/openstay/j5b/README.md',
+    j5bRepairs: 'docs/evaluations/benchmark/openstay/j5b/repairs.md',
+    j5bIncidents: 'docs/evaluations/benchmark/openstay/j5b/incidents.md',
     protocol: 'docs/evaluations/benchmark/openstay/README.md',
     brief: 'docs/evaluations/benchmark/openstay/brief.md',
   },
@@ -109,5 +114,65 @@ export const openstay = {
     ],
     // Two developers on request 64, delivered of two runs per arm.
     twoDevelopers: { old: [0, 2], fullplus: [0, 2], integrator: [2, 2] },
+  },
+
+  // J5b, from its record: requests 51–100 again on one tree per arm, with J5's rules from the first request. The step
+  // of each request ('R' a triaged failure, repaired once and then delivered), each run's agents' cost, and the rest.
+  j5b: {
+    trees: [
+      {
+        tree: 'simple-3',
+        steps: '0000000000000001000000R000000000000000000000020000',
+        atStep: [47, 1, 2],
+        repairs: '73 transfer proof (R5, reworded once)',
+        usd: [14.57, 4.24, 23.56],
+        // The record's total, from each agent's unrounded cost.
+        totalUsd: 42.37,
+        meanMinutes: 60,
+        hours: 50,
+        source: 18458,
+        tests: 45379,
+        commits: 115,
+      },
+      {
+        tree: 'clean-3',
+        steps: '1010010000R00000021000R000000000000020010000020011',
+        atStep: [39, 7, 4],
+        repairs: '61 review rules (R3, reworded); 73 transfer proof (R6)',
+        usd: [29.88, 43.25, 82.91],
+        totalUsd: 156.03,
+        meanMinutes: 87,
+        hours: 73,
+        source: 56834,
+        tests: 42378,
+        commits: 388,
+        contexts: 14,
+        adrFiles: 99,
+      },
+    ],
+    // clean-3's requests written by one agent per context (14) and by one agent (36).
+    split: {
+      requests: 14,
+      firstTry: [10, 28],
+      usd: [6.19, 1.93],
+      usdWithoutCostliest: 2.45,
+      minutes: [148, 63],
+      minutesWithoutCostliest: 72,
+      integrated: [24, 25],
+      rounds: 46,
+      ownerVerdicts: [28, 56],
+      controls: [0, 2],
+      estimate: { asked: 80, oneAgent: 80 },
+      ownersUsd: 78.64,
+    },
+    // The first attempt, the smallest model, one agent (at the time of the review, 12 November).
+    firstAttempt: { simple: { turns: 44, outputK: 65, usd: 0.49 }, clean: { turns: 35, outputK: 90, usd: 0.66 } },
+    // The parallel grader, validated before clean-3 used it from request 86.
+    grading: [
+      { tree: 'simple-3 at 100', files: 101, sequential: 24.8, parallel: 8.7 },
+      { tree: 'clean-3 at 84', files: 85, sequential: 26.1, parallel: 10.9 },
+    ],
+    restarts: 3,
+    staleSlotHours: 2,
   },
 };
