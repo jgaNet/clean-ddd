@@ -1,5 +1,7 @@
 # OpenStay's J5b: requests 51 to 100 again, on one tree per arm, with everything J5 taught (written before any run)
 
+**Done on 13 November: both trees reached a hundred ([the record](../../../2026-11-13-openstay-j5b.md)).**
+
 J5 closed on 10 November without a tree at a hundred ([its record](../../../2026-11-08-openstay-j5.md)). J5b asks
 whether the rules written during J5 carry one tree of each arm there, with the Clean DDD tree written by one agent per
 context.
