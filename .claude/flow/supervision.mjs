@@ -157,6 +157,18 @@ export function freePort(port) {
  * only what passed on the start, every time it was graded there, is a `regression`. A grading that could not be read
  * proves nothing either way, and leaves the feature a regression.
  */
+/**
+ * The `--previous` a grading passes (grade.mjs): for each `upgrade` feature it grades (up to `upto`, or those in
+ * `only`), the commit that feature's attempts started from, as the run logged it at `feature-start`. A feature the run
+ * never started (a tree that came with it delivered) has no such commit and is left out; the grader then says so.
+ */
+export function previousArgument(backlog, { upto, only, startedFrom }) {
+  return backlog
+    .filter(f => f.upgrade && f.n <= upto && (only === undefined || only.includes(f.id)) && startedFrom.has(f.id))
+    .map(f => `${f.id}=${startedFrom.get(f.id)}`)
+    .join(',');
+}
+
 export function regressionsAgainstFrom(earlier, gradingsOnFrom) {
   const failedOnFrom = new Set(gradingsOnFrom.filter(grading => grading.graded).flatMap(grading => grading.failing));
   return {

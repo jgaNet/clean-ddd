@@ -5,7 +5,7 @@
  *
  *   node .claude/flow/grade.mjs --project <dir> --ref <ref> --base <created commit> --kit <dir> [--tooling <clean-ddd.tgz>] [--out <file.json>]
  *                               [--control plain|prose] [--upto <n>] [--only <id,id>] [--keep false] [--gate false]
- *                               [--workers <n>]
+ *                               [--workers <n>] [--previous <id>=<ref>,…]
  *
  * `--upto <n>` grades the features numbered up to n only: the feature an attempt wrote and the
  * ones before it, for regressions (OpenStay's ladder, run-ladder.mjs). `--only <ids>` grades
@@ -27,6 +27,14 @@
  * So the grades are the sequential grader's, and only the time changes: one jest started once, rather than once per
  * feature, with up to n files at once. A tree's own `--detectOpenHandles`, which would run them one at a time, is left
  * out of that one run, and `--forceExit` ends it.
+ *
+ * A feature marked `upgrade: true` in the kit's backlog is a change to what a tree already stored: its test records
+ * through the tree as it stood before that feature, then reads through the tree graded, on the same database.
+ * `--previous <id>=<ref>` names that earlier tree for each such feature (the ladder passes the commit its
+ * feature started from). The grader checks each one out beside the graded tree and tells the tests where, in
+ * `ACCEPTANCE_PREVIOUS` (a JSON map from the feature's id to the directory); a feature with no `--previous` is
+ * graded with the graded tree in both places, and its report says so (`previous: null`), since that half of its test
+ * then holds nothing.
  *
  * A kit that carries its requests' API (`api/`) also gets the API composed up to `--upto`, as
  * `api-schema.json` beside the tests, and its path in `API_SCHEMA` when they run (api-schema.mjs).
@@ -61,6 +69,14 @@ const backlog = yaml
   .features.filter(f => upto === undefined || f.n <= Number(upto))
   .filter(f => only === undefined || only.includes(f.id));
 
+// `--previous a=<ref>,b=<ref>`: the tree before each `upgrade` feature (above).
+const previousRefs = new Map(
+  (option('previous') ?? '')
+    .split(',')
+    .filter(Boolean)
+    .map(pair => [pair.slice(0, pair.indexOf('=')), pair.slice(pair.indexOf('=') + 1)]),
+);
+
 const cli = resolve(new URL('../../tools/dist/cli.js', import.meta.url).pathname);
 const git = (cwd, ...gitArgs) => execFileSync('git', gitArgs, { cwd, encoding: 'utf8' }).trim();
 const env = { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1', CI: '1' };
@@ -94,6 +110,25 @@ else {
   provideDependencies(project, tree, 'copy');
   const installed = sh('yarn install --silent', tree, 600_000);
   if (installed.code !== 0) process.stderr.write(`yarn install failed in ${tree}:\n${installed.out.slice(-2000)}\n`);
+}
+
+// The tree before each `upgrade` feature, checked out beside the graded one, with its dependencies: the graded
+// tree's when the manifests are the same, the created ones when they are the created ones, its own otherwise.
+const previousTrees = new Map();
+for (const f of backlog.filter(each => each.upgrade && previousRefs.has(each.id))) {
+  const before = git(project, 'rev-parse', previousRefs.get(f.id));
+  const dir = join(`${project}.flow`, 'grade', `${commit.slice(0, 12)}.before-${f.n}`);
+  if (existsSync(dir)) git(project, 'worktree', 'remove', '--force', dir);
+  git(project, 'worktree', 'add', '-q', '--detach', dir, before);
+  const same = from => manifests.every(file => sh(`git diff --quiet ${from} ${before} -- ${file}`, project).code === 0);
+  if (same(commit)) provideDependencies(tree, dir, 'link');
+  else if (same(base)) provideDependencies(project, dir, 'link');
+  else {
+    provideDependencies(project, dir, 'copy');
+    const installed = sh('yarn install --silent', dir, 600_000);
+    if (installed.code !== 0) process.stderr.write(`yarn install failed in ${dir}:\n${installed.out.slice(-2000)}\n`);
+  }
+  previousTrees.set(f.id, { ref: before, dir });
 }
 
 // Every arm graded by the same tooling: the package given, in place of whichever the tree installed.
@@ -188,7 +223,10 @@ if (!Number.isInteger(workers) || workers < 1) {
 const testsDir = control === 'plain' ? 'acceptance' : 'Acceptance';
 const fileOf = f => `${f.n}-${f.id}.acceptance.ts`;
 // A test that starts the server as a process of its own (the persistence experiment) is told its entry point.
-const testEnv = `${apiSchema ? `API_SCHEMA=${apiSchema} ` : ''}ACCEPTANCE_ENTRY=${control === 'plain' ? 'src/server.ts' : 'src/Bootstrap/Fastify/application.ts'}`;
+const previousEnv = previousTrees.size
+  ? `ACCEPTANCE_PREVIOUS='${JSON.stringify(Object.fromEntries([...previousTrees].map(([id, each]) => [id, each.dir])))}' `
+  : '';
+const testEnv = `${apiSchema ? `API_SCHEMA=${apiSchema} ` : ''}${previousEnv}ACCEPTANCE_ENTRY=${control === 'plain' ? 'src/server.ts' : 'src/Bootstrap/Fastify/application.ts'}`;
 // What a failure said, kept with the verdict: an assertion and a timeout under load read alike
 // in a list of names, and an escalation is checked against the kit before it is counted.
 const SAID = /●|Expected|Received|Exceeded timeout|thrown|Error:|did not exit|Tests:/;
@@ -285,6 +323,7 @@ const features = backlog.map(f => {
       ...(once && !once.pass && { together: { failed: once.failed, tests: once.tests } }),
     },
     M3: { pass: owed.length === 0, owed },
+    ...(f.upgrade && { previous: previousTrees.get(f.id)?.ref ?? null }),
   };
 });
 
@@ -364,5 +403,6 @@ for (const each of report.features) {
   );
 }
 rmSync(stormsDir, { recursive: true, force: true });
+for (const { dir } of previousTrees.values()) git(project, 'worktree', 'remove', '--force', dir);
 if (option('keep') === 'false') git(project, 'worktree', 'remove', '--force', tree);
 else process.stdout.write(`\nThe tree graded: ${tree} — read it for the rubric's R items.\n`);

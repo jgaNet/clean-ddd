@@ -17,7 +17,7 @@ Lite and Full arms also the feature's storm. The hidden tests, the brief and thi
 | [`backlog/`](backlog) | The ten requests of checkpoint 1 and `backlog.yaml`. Request 1 fixes how the API works, as the calibration's request 1 does; request 10 is the change not announced in advance (below). |
 | [`api/`](api) | One fragment per request with an API table (1 to 9; request 10 changes no route): its resources, the routes that answer them by status, and, from request 1, what any route may answer (`202 { operationId }`, a `4xx`; never a `5xx`). |
 | [`conventions.yaml`](conventions.yaml) | Every convention a later request relies on (36), with the request that sets it and the test that holds it there. |
-| [`acceptance/`](acceptance) | The hidden tests, one file per request (50 tests), and their client [`tally.ts`](acceptance/tally.ts): the calibration's harness (`start`, `stop`, `kill`, `database`, `eventually`, `bySweep`, `client`, `hidden`, `holdToApi`) with Tally's resources (`person`, `group`, `invite`, `join`, `groupOf`, `expense`, `shares`, `balances`) and two additions, `reached` and `keepsTheSplit` (below). |
+| [`acceptance/`](acceptance) | The hidden tests, one file per request (51 tests), and their client [`tally.ts`](acceptance/tally.ts): the calibration's harness (`start`, `stop`, `kill`, `database`, `eventually`, `bySweep`, `client`, `hidden`, `holdToApi`) with Tally's resources (`person`, `group`, `invite`, `join`, `groupOf`, `expense`, `shares`, `balances`) and two additions, `reached` and `keepsTheSplit` (below). |
 | [`storms/`](storms) | One storm per request, in the inventory's words, and the session's [hot spots](storms/README.md), decided by the operator for the maintainer. |
 | [`dry-run.json`](dry-run.json) | The rehearsal's report, on a plain witness tree (below). |
 
@@ -126,28 +126,32 @@ ones to read first:
   supersedes" ([J5's probes](../../openstay/j5/side/probes/README.md#the-earlier-cases-p2-supersedes)), made
   mechanical: two cases, in two tests, named in the register (`remainder-to-the-payer`).
 - **What one tree cannot show.** "Earlier expenses are not computed again" is about expenses recorded by the tree
-  before request 10 was written. A hidden test graded on one commit has no such expenses: its database is made by
-  the tree under test. Test 10 holds what it can (shares kept across reads, other expenses and a restart; an edited
-  expense split by the new rule), and a tree that computes the shares at every read, from the rule in force, passes
-  it. The rest is the maintainer's to decide (below).
+  before request 10 was written: a hidden test graded on one commit has no such expenses, since its database is made
+  by the tree under test. Test 10 holds it with the tree before it (the upgrade step, below). Graded without that
+  tree (`previous: null` in the grader's report), the case runs the graded tree in both places and holds nothing.
 - **Durations.** A test that requires an order by time sleeps 1.1 s between the two events it orders, as the
   calibration's do, for a tree that keeps times to the second.
 
-## Before checkpoint 2: for the maintainer to decide
+## Decided by the maintainer before checkpoint 2 (13 November)
 
-1. **The not-recomputed half of request 10.** Either accept it as unheld by a hidden test (read by the
-   maintainability review, and counted in the cost of change), or add an upgrade step to the flow: at request 10,
-   `grade.mjs` starts the tree's commit of request 9 on a database, records expenses through the kit's client, then
-   starts the request-10 commit on the same file and runs a test against it. That is a change to `grade.mjs` (and
-   the ladder), not to this kit; the operator has not made it. Requests 20, 30 and 40 raise the same question
-   (leaving with a balance, storage, precision "for every earlier amount read"), so it is better decided once now.
-2. **T1: accounts** stay in Groups, or become a fifth context before checkpoint 4 (suspension, deletion).
-3. **T2: declare Settlements and Notifications** at checkpoint 2's session, before request 11.
-4. **T5's gap:** whether request 20 closes it, and whether a hidden test sends an expense and a leave at once.
-5. **The [X] mark of request 3,** moved to request 4 by T3: whether the protocol counts cross-context requests by
-   the brief's marks or by the storms' links.
-6. **`reached`,** the superseded cases' mechanism: accept it, or list the superseded cases outside the tests as J5
-   did and leave them failing from request 10 on.
+The maintainer accepted checkpoint 1 as written, the operator's decisions above with it, and the operator's
+recommendation on each question:
+
+1. **The not-recomputed half of request 10 is held, by an upgrade step.** A request marked `upgrade: true` in
+   `backlog.yaml` changes what a tree already stored; its test records through the tree as it stood before it and
+   reads through the tree graded, on one database. `grade.mjs --previous <id>=<ref>` checks that earlier tree out
+   beside the graded one and names it to the tests (`ACCEPTANCE_PREVIOUS`, read by `previous(id)` in
+   [`tally.ts`](acceptance/tally.ts)); the ladder passes the commit the feature's attempts started from, as it
+   logged it at `feature-start`, at every grading up to the end of the run; `kit-check` refuses an `upgrade` whose
+   test never starts the tree before it. Test 10 gained the case (*keeps the shares of the expenses recorded before
+   the change, on the same database*). Requests 20, 30 and 40 are marked the same way when they are written.
+2. **T1:** accounts stay in Groups.
+3. **T2:** Settlements and Notifications are declared at checkpoint 2's session, before request 11.
+4. **T5's gap is closed at request 20,** which reopens leaving, with a hidden test that sends an expense and a leave
+   at once.
+5. **A request crosses contexts when its storm says so** (the links it uses): the storms are what the code is held to;
+   the brief's marks are the outline's. Request 3's mark moves to request 4.
+6. **`reached`** is accepted as the superseded cases' mechanism.
 
 ## The rehearsal
 

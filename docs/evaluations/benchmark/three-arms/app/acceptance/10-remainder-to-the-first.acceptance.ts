@@ -1,4 +1,4 @@
-import { client, Client, database, day, kill, keepsTheSplit, pairs, Running, start, stop } from './tally';
+import { client, Client, database, day, kill, keepsTheSplit, pairs, previous, Running, start, stop } from './tally';
 
 /** Request 10: from now on, the remainder goes whole to the member listed first in the split, whoever paid. */
 const db = database('remainder');
@@ -145,8 +145,7 @@ describe('the remainder goes to the first member of the split', () => {
 
   it('keeps the shares an expense was given until it is edited, across a restart', async () => {
     // Request 10: an expense keeps the shares it was given; the rule in force splits an expense when it is recorded
-    // or edited, never when it is read. (The expenses recorded before the change are not in this tree's database:
-    // the README says how that half is held.)
+    // or edited, never when it is read. (The expenses recorded before the change: the next test.)
     const { ann, bob, cy, groupId } = await flat('kept');
     const id = await api.expense(bob, groupId, { amount: 2000, splitBetween: [cy.id, bob.id, ann.id] });
     const recorded = await api.read(`/expenses/${id}`, ann.token);
@@ -163,4 +162,50 @@ describe('the remainder goes to the first member of the split', () => {
     expect(await api.read(`/expenses/${id}`, token)).toEqual(recorded);
     expect((await api.balances(groupId, token)).sum).toBe(0);
   }, 90000);
+
+  it('keeps the shares of the expenses recorded before the change, on the same database', async () => {
+    // Recorded through the tree as it stood at request 9 (`previous`), then read through this one: "earlier expenses
+    // are not computed again". The payer is never listed first, so a tree that splits again at a read, by the rule in
+    // force, gives the remainder to someone else than the earlier tree did.
+    const upgraded = database('upgraded');
+    let running = await start(upgraded.path, {}, previous('remainder-to-the-first'));
+    try {
+      let through = client(running.port);
+      const ann = await through.person('ann@upgraded.remainder.test');
+      const bob = await through.person('bob@upgraded.remainder.test');
+      const cy = await through.person('cy@upgraded.remainder.test');
+      const groupId = await through.groupOf(ann, [bob, cy]);
+      const equal = await through.expense(bob, groupId, { amount: 1000, splitBetween: [ann.id, bob.id, cy.id] });
+      const byShares = await through.expense(cy, groupId, {
+        amount: 1001,
+        splitByShares: [
+          { memberId: bob.id, shares: 1 },
+          { memberId: cy.id, shares: 1 },
+        ],
+      });
+      const recorded = [await through.read(`/expenses/${equal}`, ann.token), await through.read(`/expenses/${byShares}`, ann.token)];
+      const balances = await through.balances(groupId, ann.token);
+      await stop(running);
+      running = await start(upgraded.path);
+      through = client(running.port);
+      const token = await through.login(ann.email);
+      expect(pairs((await through.read(`/expenses/${equal}`, token)).shares as never)).toEqual(
+        pairs(recorded[0].shares as never),
+      );
+      expect(pairs((await through.read(`/expenses/${byShares}`, token)).shares as never)).toEqual(
+        pairs(recorded[1].shares as never),
+      );
+      expect(await through.balances(groupId, token)).toEqual(balances);
+      // And from now on, the new rule, in the same group.
+      const later = await through.expense(bob, groupId, { amount: 1000, splitBetween: [ann.id, bob.id, cy.id] });
+      expect(pairs(await through.shares(later, token))).toEqual([
+        [ann.id, 334],
+        [bob.id, 333],
+        [cy.id, 333],
+      ]);
+    } finally {
+      await stop(running);
+      upgraded.remove();
+    }
+  }, 120000);
 });

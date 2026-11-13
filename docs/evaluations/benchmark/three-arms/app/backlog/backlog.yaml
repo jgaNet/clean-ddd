@@ -12,6 +12,8 @@ features:
   - { id: unequal-splits, n: 7, contexts: [Ledger], needs: [record-an-expense] }
   - { id: history-and-statement, n: 8, contexts: [Ledger, Groups], needs: [edit-and-delete-an-expense] }
   - { id: leave-a-group, n: 9, contexts: [Groups, Ledger], needs: [balances] }
-  - { id: remainder-to-the-first, n: 10, contexts: [Ledger], needs: [unequal-splits] }
+  - { id: remainder-to-the-first, n: 10, contexts: [Ledger], needs: [unequal-splits], upgrade: true }
+# `upgrade: true`: a change to what a tree already stored; its test records through the tree before it and reads
+# through the tree graded, on one database (grade.mjs --previous).
 # For feature <n>-<id>: backlog/<n>-<id>.md, storms/<id>.yaml, api/<n>-<id>.yaml (when it has an API
 # table), acceptance/<n>-<id>.acceptance.ts.

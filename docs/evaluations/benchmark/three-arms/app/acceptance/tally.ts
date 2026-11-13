@@ -112,13 +112,28 @@ async function awayFromMidnight() {
 }
 
 /**
- * Starts a server on `path`, with `JOBS_INTERVAL_SECONDS` and `environment` added, and waits until it answers
- * anything.
+ * The tree as it stood before a request marked `upgrade` in the backlog (a change to what a tree already stored), for
+ * that request's test to record through before it reads through the tree graded, on the same database. The grader
+ * checks it out and names it (ACCEPTANCE_PREVIOUS, a JSON map from the feature's id to the directory). Graded
+ * without it, the answer is undefined, and `start` runs the tree graded in its place: that half of the test then
+ * holds nothing, and the grader's report says so.
  */
-export async function start(path: string, environment: Record<string, string> = {}): Promise<Running> {
+export const previous = (feature: string): string | undefined =>
+  (JSON.parse(process.env.ACCEPTANCE_PREVIOUS ?? '{}') as Record<string, string>)[feature];
+
+/**
+ * Starts a server on `path`, with `JOBS_INTERVAL_SECONDS` and `environment` added, and waits until it answers
+ * anything; from the tree in `directory`, when it is given (`previous`), else from the tree graded.
+ */
+export async function start(
+  path: string,
+  environment: Record<string, string> = {},
+  directory?: string,
+): Promise<Running> {
   await awayFromMidnight();
   const port = await freePort();
   const child = spawn('npx', ['tsx', '--tsconfig', './tsconfig.json', entry], {
+    ...(directory && { cwd: directory }),
     env: {
       ...process.env,
       PORT: String(port),

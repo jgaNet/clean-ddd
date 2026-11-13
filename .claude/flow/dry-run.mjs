@@ -12,11 +12,13 @@
  *   trees:
  *     - { name: a3, arm: A, project: /runs/a3/app, before: 0aa7932, solved: main }
  *     - { name: p2, arm: P, project: /runs/p2/app, before: d23bdd0 }      # no solved tree yet
+ *     - { name: w, arm: P, project: /w, before: d85, solved: 277, previous: { remainder: 13c } }
  *   tooling: /path/to/clean-ddd.tgz                  # optional, for arm A, as the grader takes it
  *
  * A tree's `before` is the commit the runs would start from; `solved`, when there is one, a commit
  * where the kit's features are written (by an earlier run, or by hand). Each is graded by
- * grade.mjs, one after the other (grading in parallel timed tests out before). Then:
+ * grade.mjs, one after the other (grading in parallel timed tests out before). A tree's `previous` names, for a
+ * feature marked `upgrade`, the tree before it, given to the solved tree's grading (grade.mjs --previous). Then:
  *
  * - **hygiene**: the kit's files in the tree, held to the tree's own formatter, linter and type
  *   checker, which the agent's verdict runs over them;
@@ -116,7 +118,7 @@ function main() {
   const ids = dir => yaml.load(readFileSync(join(dir, 'backlog/backlog.yaml'), 'utf8')).features.map(f => f.id);
   const scratch = mkdtempSync(join(tmpdir(), 'dry-run-'));
 
-  const grade = (tree, ref, kitDir) => {
+  const grade = (tree, ref, kitDir, previous = {}) => {
     const out = join(scratch, `${tree.name}-${ref}-${relative(dirname(kitDir), kitDir).replace(/\W/g, '_')}.json`);
     const run = spawnSync(
       process.execPath,
@@ -125,6 +127,14 @@ function main() {
         ...['--project', tree.project, '--ref', ref, '--base', tree.before, '--kit', kitDir, '--out', out],
         ...ARMS[tree.arm],
         ...(tree.arm === 'A' && plan.tooling ? ['--tooling', plan.tooling] : []),
+        ...(Object.keys(previous).length
+          ? [
+              '--previous',
+              Object.entries(previous)
+                .map(([id, each]) => `${id}=${each}`)
+                .join(','),
+            ]
+          : []),
       ],
       { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
     );
@@ -161,7 +171,7 @@ function main() {
       const ref = tree[role];
       if (!ref) continue;
       process.stdout.write(`${tree.name} ${role} (${ref}) …\n`);
-      const graded = grade(tree, ref, kit);
+      const graded = grade(tree, ref, kit, role === 'solved' ? tree.previous : undefined);
       const entry = {
         tree: tree.name,
         role,

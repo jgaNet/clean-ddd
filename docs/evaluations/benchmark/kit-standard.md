@@ -104,6 +104,16 @@ compared with it, field by field. A kit that wants another shape (OpenStay's `"<
 says so in a convention born there with `departs`, and kit-check prints the difference as decided. Undecided, or
 decided at a later request, it is refused: the conflict is the kit's to settle before any run.
 
+## A change to what a tree already stored: `upgrade`
+
+A request that changes a rule for what is already stored ("earlier expenses are not computed again", a new storage,
+a new precision "for every amount read") cannot be tested on one commit: the database a hidden test reads was made by
+the tree under test, which already has the new code. Such a request is marked `upgrade: true` in `backlog.yaml`. Its
+test starts the tree before it with `previous('<id>')` from the kit's client, records through it, stops it, and reads
+through the tree graded on the same database. `grade.mjs --previous <id>=<ref>` checks that tree out and names it to
+the tests (`ACCEPTANCE_PREVIOUS`); the ladder passes the commit the feature's attempts started from. Graded without
+it, the report says `previous: null`, and the case holds nothing. (Tally's request 10, J6.)
+
 ## Before registration: kit-check
 
 ```bash
@@ -112,7 +122,7 @@ node .claude/flow/kit-check.mjs <kit>
 
 It refuses a request with an API table and no fragment (and a route of the table no fragment declares), a convention
 without `born` or whose `it` is not in that request's acceptance file, a state added without its whole-resource test,
-and an operation that differs from the contract's undecided. It exits non-zero on any finding. The kit is then
+an `upgrade` whose test never starts the tree before it, and an operation that differs from the contract's undecided. It exits non-zero on any finding. The kit is then
 rehearsed with `dry-run.mjs` ([the flow](../../../.claude/flow/README.md)), and both reports are committed with it.
 
 ## In the hidden tests: the lines a client needs
