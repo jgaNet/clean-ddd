@@ -89,7 +89,7 @@ describe("the host's calendar", () => {
   it("hides a draft's calendar from anyone but its host", async () => {
     const hal = await api.host('hal4@calendar.test');
     const id = await api.listing(hal.token, { city: 'Brest' }, false);
-    expect(await api.hidden(`/listings/${id}/calendar?from=${day(1)}&to=${day(3)}`)).toBe(true);
+    expect(await api.hidden(`/listings/${id}/calendar?from=${day(1)}&to=${day(3)}`)).toBe(404);
     expect(await api.list(`/listings/${id}/calendar?from=${day(1)}&to=${day(3)}`, hal.token)).toHaveLength(2);
   }, 60000);
 });

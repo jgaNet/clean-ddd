@@ -1,4 +1,4 @@
-import { client, Client, database, day, Running, sleep, start, stop } from './openstay';
+import { bySweep, client, Client, database, day, eventually, Running, sleep, start, stop } from './openstay';
 
 /** Request 7: a request holds its nights until the host decides, or until it expires. Invariant 3. */
 const db = database('request');
@@ -75,7 +75,9 @@ describe('request to book', () => {
     expect((await api.read(`/bookings/${instant}`, una.token)).status).toBe('confirmed');
   }, 60000);
 
-  it('expires a request the host did not decide in time, which frees its nights without anyone acting', async () => {
+  it('expires a request the host did not decide in time at the next sweep, never at a read, which frees its nights without anyone acting', async () => {
+    // The tests' servers run their job every JOBS_INTERVAL_SECONDS (1, openstay.ts): the request reads as expired
+    // once its second has passed, at the next sweep, and the test reads until then.
     const expiring = database('request-ttl');
     const short = await start(expiring.path, { BOOKING_REQUEST_TTL_SECONDS: '1' });
     try {
@@ -85,10 +87,16 @@ describe('request to book', () => {
       const una = await quick.traveller('una3@request.test');
       const id = await quick.listing(hal.token, { city: 'Megève' });
       await quick.done('PUT', `/listings/${id}/booking-mode`, hal.token, { mode: 'request' });
+      const asked = Date.now();
       const bookingId = await quick.book(tom.token, await quick.quote(tom.token, id, day(20), day(22)));
-      await sleep(2500);
+      const expired = await eventually(
+        () => quick.read(`/bookings/${bookingId}`, tom.token),
+        booking => booking.status === 'expired',
+        bySweep(1),
+      );
 
-      expect((await quick.read(`/bookings/${bookingId}`, tom.token)).status).toBe('expired');
+      expect(expired.status).toBe('expired');
+      expect(Date.now() - asked).toBeGreaterThanOrEqual(1000);
       expect(await quick.refused('POST', `/bookings/${bookingId}/accept`, hal.token)).toBe(true);
       expect(await quick.refused('POST', `/bookings/${bookingId}/decline`, hal.token)).toBe(true);
       expect(await quick.quote(una.token, id, day(20), day(22))).toEqual(expect.any(String));
@@ -96,5 +104,24 @@ describe('request to book', () => {
       await stop(short);
       expiring.remove();
     }
-  }, 90000);
+
+    // A job every hour: past its time, the request is read, and still reads as requested until the sweep.
+    const later = database('request-sweep');
+    const slow = await start(later.path, { BOOKING_REQUEST_TTL_SECONDS: '1', JOBS_INTERVAL_SECONDS: '3600' });
+    try {
+      const quick = client(slow.port);
+      const hal = await quick.host('hal4@request.test');
+      const tom = await quick.traveller('tom4@request.test');
+      const id = await quick.listing(hal.token, { city: 'Megève' });
+      await quick.done('PUT', `/listings/${id}/booking-mode`, hal.token, { mode: 'request' });
+      const bookingId = await quick.book(tom.token, await quick.quote(tom.token, id, day(20), day(22)));
+      await sleep(2500);
+
+      expect((await quick.read(`/bookings/${bookingId}`, tom.token)).status).toBe('requested');
+      expect((await quick.read(`/bookings/${bookingId}`, hal.token)).status).toBe('requested');
+    } finally {
+      await stop(slow);
+      later.remove();
+    }
+  }, 120000);
 });

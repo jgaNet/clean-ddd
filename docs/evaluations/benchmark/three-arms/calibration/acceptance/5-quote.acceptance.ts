@@ -103,9 +103,9 @@ describe('a quote', () => {
     const id = await api.listing(hal.token, { city: 'Bordeaux' });
 
     const quoteId = await api.quote(tom.token, id, day(5), day(6));
-    expect(await api.hidden(`/quotes/${quoteId}`, una.token)).toBe(true);
-    expect(await api.hidden(`/quotes/${quoteId}`, hal.token)).toBe(true);
-    expect(await api.hidden(`/quotes/${quoteId}`)).toBe(true);
+    expect(await api.hidden(`/quotes/${quoteId}`, una.token)).toBe(404);
+    expect(await api.hidden(`/quotes/${quoteId}`, hal.token)).toBe(404);
+    expect(await api.hidden(`/quotes/${quoteId}`)).toBe(401);
     expect(await api.refused('PUT', `/listings/${id}/tourist-tax`, hal.token, { perGuestPerNight: -1 })).toBe(true);
   }, 60000);
 });

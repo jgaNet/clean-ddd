@@ -15,7 +15,7 @@ resources:
         test: frees the nights of a declined request, and keeps a request a request when the mode changes
       - field: status
         add: [expired]
-        test: expires a request the host did not decide in time, which frees its nights without anyone acting
+        test: expires a request the host did not decide in time at the next sweep, never at a read, which frees its nights without anyone acting
   # The booking as GET /v1/bookings/{id} reads it: what this request's table says that route gains
   # (`expiresAt`, for a waiting request only, which `gains` could not say: it requires a field in every state).
   bookingRead:

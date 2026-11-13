@@ -43,6 +43,18 @@ export const PASSWORD = 'secret-password';
 
 export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+/**
+ * How often every server the tests start runs its background job (request 7's `JOBS_INTERVAL_SECONDS`): what
+ * changes with time is changed there, at the next sweep, never by a read.
+ */
+export const JOBS_INTERVAL_SECONDS = 1;
+
+/**
+ * How long a test waits for what the next sweep does once `seconds` have passed: three runs of the job, and three
+ * seconds more for a loaded machine. A test reads with `eventually` until then; it never sleeps a fixed time.
+ */
+export const bySweep = (seconds: number) => (seconds + 3 * JOBS_INTERVAL_SECONDS) * 1000 + 3000;
+
 /** A date `days` from today, in UTC, as the API writes dates. */
 export const day = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
 
@@ -92,12 +104,22 @@ async function awayFromMidnight() {
   if (left < 180_000) await sleep(left + 5000);
 }
 
-/** Starts a server on `path`, with `environment` added, and waits until it answers anything. */
+/**
+ * Starts a server on `path`, with `JOBS_INTERVAL_SECONDS` and `environment` added, and waits until it answers
+ * anything.
+ */
 export async function start(path: string, environment: Record<string, string> = {}): Promise<Running> {
   await awayFromMidnight();
   const port = await freePort();
   const child = spawn('npx', ['tsx', '--tsconfig', './tsconfig.json', entry], {
-    env: { ...process.env, PORT: String(port), DATABASE_PATH: path, NODE_ENV: 'production', ...environment },
+    env: {
+      ...process.env,
+      PORT: String(port),
+      DATABASE_PATH: path,
+      NODE_ENV: 'production',
+      JOBS_INTERVAL_SECONDS: String(JOBS_INTERVAL_SECONDS),
+      ...environment,
+    },
     stdio: 'ignore',
     detached: true,
   });
@@ -244,11 +266,12 @@ export function client(port: number) {
     return answer.body;
   };
   const list = async (path: string, token?: string) => (await read(path, token)) as unknown as Json[];
-  /** Whether a read is refused as something that does not exist, or that the caller may not see. */
-  const hidden = async (path: string, token?: string) => {
-    const { status } = await call('GET', path, token);
-    return status === 401 || status === 403 || status === 404;
-  };
+  /**
+   * The status of a read the caller may not have, for the test to require its one (request 1, ADR 39): `404` for
+   * something that does not exist or that the caller may not see, signed in or not; `401` for a read that needs a
+   * signed-in caller and has none. Never `403` for a read.
+   */
+  const hidden = async (path: string, token?: string) => (await call('GET', path, token)).status;
 
   const login = async (email: string, password = PASSWORD) => {
     const answer = await call('POST', '/accounts/login', undefined, { email, password });

@@ -130,9 +130,9 @@ describe('book instantly', () => {
     expect((await api.list('/bookings/mine', tom.token)).map(each => each.id)).toEqual([second, first]);
     expect((await api.list(`/listings/${id}/bookings`, hal.token)).map(each => each.id)).toEqual([second, first]);
     expect(await api.list('/bookings/mine', una.token)).toEqual([]);
-    expect(await api.hidden(`/bookings/${first}`, una.token)).toBe(true);
-    expect(await api.hidden(`/bookings/${first}`, ian.token)).toBe(true);
-    expect(await api.hidden(`/listings/${id}/bookings`, ian.token)).toBe(true);
+    expect(await api.hidden(`/bookings/${first}`, una.token)).toBe(404);
+    expect(await api.hidden(`/bookings/${first}`, ian.token)).toBe(404);
+    expect(await api.hidden(`/listings/${id}/bookings`, ian.token)).toBe(404);
   }, 60000);
 
   it('confirms exactly one of twenty bookings of the same nights sent at once to one server', async () => {

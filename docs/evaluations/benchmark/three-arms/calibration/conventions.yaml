@@ -10,9 +10,15 @@ conventions:
   - id: refusal
     says: >-
       A refusal is a 4xx at once, or a 202 whose operation ends in ERROR; a 5xx is never an answer the application
-      chooses: it says the server failed. 400 is for a body missing a field or with a field of the wrong type.
+      chooses: it says the server failed.
     born: 1
-    test: refuses what it cannot do with a 4xx, or an operation that ends in ERROR, never a 5xx
+    test: refuses a body of the wrong shape at once with 400, and anything else it cannot do with a 4xx or an ERROR, never a 5xx
+  - id: body-shape
+    says: >-
+      A body missing a field, or with a field of the wrong type, is refused at once with 400, even by an application
+      that answers that request later otherwise (the contract's API-BODY-SHAPE; the maintainer, 13 November).
+    born: 1
+    test: refuses a body of the wrong shape at once with 400, and anything else it cannot do with a 4xx or an ERROR, never a 5xx
   - id: operation-error
     says: >-
       An operation that ends in ERROR has `error: { type, message }`, the contract's record: `type` the name of the
@@ -29,21 +35,31 @@ conventions:
   - id: value-refusal
     says: >-
       Whether a value is allowed (a format, a length, a range, one of a list) is a refusal like any other: a 4xx at
-      once or ERROR later, decided by the application, not a shape the transport refuses.
+      once or ERROR later, decided by the application, not a shape the transport refuses. The tests accept either.
     born: 1
     test: refuses an email used twice, whatever its case, and what is not allowed
   - id: signed-in
     says: >-
-      A request that needs a signed-in caller and has no token, or one that proves nothing, is refused with 401.
+      A request that needs a signed-in caller and has no token, or one that proves nothing, is refused with 401, a
+      read included (the later tests' `hidden` requires it, never 403 or 404; ADR 39, the maintainer, 13 November).
     born: 1
     test: refuses a wrong password and an unknown email alike, and a request without a valid token
   - id: not-found
     says: >-
       A read answers 200 with what it reads, or 404 for something that does not exist or that the caller may not
-      see; what the caller may not see is answered as if it did not exist (the later tests' `hidden` accepts 401,
-      403 or 404 there, never a 200).
+      see, signed in or not: what the caller may not see is answered as if it did not exist (the later tests'
+      `hidden` requires 404 there, never 401 or 403; the maintainer, 13 November).
     born: 1
     test: answers 404 for something that does not exist
+  # Request 1 says it; creating a listing (request 2) is the first request a signed-in caller makes, so the
+  # first operation such a caller can start is there, and the convention is held there.
+  - id: operation-reader
+    says: >-
+      An operation is read with the token of the request that started it, or with none when that request had none;
+      read without a token when it had one, it is refused with 401, and with another caller's token it answers 404
+      (ADR 39, the maintainer, 13 November).
+    born: 2
+    test: "reads a host's operation with the host's token only: 401 without a token, 404 with another's"
   - id: formats
     says: >-
       Ids are strings; dates are YYYY-MM-DD; times are ISO 8601 in UTC; amounts are integers, in euro cents. Every
@@ -57,7 +73,8 @@ conventions:
     born: 1
     test: keeps every account when the server is killed and started again on the same file
 
-  # Time: what changes with it, and whether it shows as soon as its time has passed or at a sweep.
+  # Time: what changes with it, and whether it shows as soon as its time has passed or at the next sweep (the
+  # background job that runs every JOBS_INTERVAL_SECONDS, request 7; the tests' servers run it every second).
   - id: quote-validity
     says: >-
       A quote is valid for QUOTE_TTL_SECONDS (request 5); a booking from it is refused as soon as that time has
@@ -66,10 +83,12 @@ conventions:
     test: refuses a quote that is no longer valid
   - id: request-expiry
     says: >-
-      A request its host has not decided within BOOKING_REQUEST_TTL_SECONDS reads as expired as soon as its time
-      has passed, without anyone acting on it first: its nights are free, accepting or declining it is refused.
+      A request its host has not decided within BOOKING_REQUEST_TTL_SECONDS is expired at the next sweep after its
+      time has passed, the background job that runs every JOBS_INTERVAL_SECONDS (60 when not set), with nobody
+      acting: never before its time, and never because someone read it (a read answers what is kept). Then it reads
+      as expired, its nights are free, and accepting or declining it is refused. The maintainer, 13 November.
     born: 7
-    test: expires a request the host did not decide in time, which frees its nights without anyone acting
+    test: expires a request the host did not decide in time at the next sweep, never at a read, which frees its nights without anyone acting
   - id: refund-days
     says: >-
       Days before check-in count from today's date to the check-in date, in UTC, when the cancellation is made; a
@@ -78,8 +97,8 @@ conventions:
     test: makes refundable what the policy gives by days before check-in, and the tourist tax in full
   - id: history-expiry
     says: >-
-      An expired request's history has its `expired` entry, made by nobody, as soon as its time has passed: nobody
-      has to act on it first.
+      An expired request's history has its `expired` entry, made by nobody, from the next sweep after its time has
+      passed (request 7): nobody has to act on it, and a read does not make it. The maintainer, 13 November.
     born: 9
     test: records an expired request as changed by nobody, and never shows its contact
   - id: notice-retry
@@ -100,15 +119,16 @@ conventions:
   - id: refund-owed
     says: >-
       A cancelled booking read at GET /v1/bookings/{id} has `cancellation: { by, at, refundable }` and
-      `refund: { amount, status }`; the refund's
-      status is `owed`, never `refunded`, since nothing was paid, and its amount is what is owed back.
+      `refund: { amount, status }`; the refund's status is `owed`, never `refunded`, since nothing was paid, and its
+      amount is what is owed back. The lists of bookings are not said to have them (the maintainer, 13 November).
     born: 8
     test: says who cancelled and when, keeps the refund owed and never refunded, and frees the nights
   - id: contact-null
     says: >-
       A booking read at GET /v1/bookings/{id} has `contact`, the other party's `{ email }`, once it has been
       confirmed, and still once a confirmed booking is cancelled; while it is requested, and when declined or
-      expired, `contact` is absent or null. The lists of bookings are not said to have it.
+      expired, `contact` is absent or null. The lists of bookings are not said to have it: they keep the fields of
+      requests 6 and 7 (the maintainer, 13 November).
     born: 9
     test: shows each party the other one's email once the booking is confirmed, and not before
   - id: history-by-null

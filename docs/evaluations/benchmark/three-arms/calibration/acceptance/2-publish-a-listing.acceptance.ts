@@ -35,8 +35,8 @@ describe('publish a listing', () => {
       ...description,
       status: 'draft',
     });
-    expect(await api.hidden(`/listings/${id}`)).toBe(true);
-    expect(await api.hidden(`/listings/${id}`, ian.token)).toBe(true);
+    expect(await api.hidden(`/listings/${id}`)).toBe(404);
+    expect(await api.hidden(`/listings/${id}`, ian.token)).toBe(404);
     expect(await api.refused('POST', '/listings', tom.token, description)).toBe(true);
     expect(await api.refused('POST', '/listings', undefined, description)).toBe(true);
   }, 60000);
@@ -71,8 +71,8 @@ describe('publish a listing', () => {
     expect(await api.refused('POST', `/listings/${id}/suspend`, ian.token)).toBe(true);
     await api.done('POST', `/listings/${id}/suspend`, hal.token);
     expect((await api.read(`/listings/${id}`, hal.token)).status).toBe('suspended');
-    expect(await api.hidden(`/listings/${id}`)).toBe(true);
-    expect(await api.hidden(`/listings/${id}`, ian.token)).toBe(true);
+    expect(await api.hidden(`/listings/${id}`)).toBe(404);
+    expect(await api.hidden(`/listings/${id}`, ian.token)).toBe(404);
 
     await api.done('POST', `/listings/${id}/publish`, hal.token);
     expect((await api.read(`/listings/${id}`)).status).toBe('published');
@@ -80,7 +80,7 @@ describe('publish a listing', () => {
     expect(await api.refused('POST', `/listings/${id}/archive`, ian.token)).toBe(true);
     await api.done('POST', `/listings/${id}/archive`, hal.token);
     expect((await api.read(`/listings/${id}`, hal.token)).status).toBe('archived');
-    expect(await api.hidden(`/listings/${id}`)).toBe(true);
+    expect(await api.hidden(`/listings/${id}`)).toBe(404);
     expect(await api.refused('POST', `/listings/${id}/publish`, hal.token)).toBe(true);
     expect(await api.refused('PUT', `/listings/${id}`, hal.token, { ...description, title: 'Again' })).toBe(true);
   }, 60000);
@@ -98,6 +98,21 @@ describe('publish a listing', () => {
 
     await api.done('POST', `/listings/${id}/archive`, hal.token);
     expect((await api.read(`/listings/${id}`, hal.token)).status).toBe('archived');
+  }, 60000);
+
+  it("reads a host's operation with the host's token only: 401 without a token, 404 with another's", async () => {
+    // Request 1: an operation is read with the token of the request that started it. Creating a listing is the
+    // first request a signed-in caller makes; an application that answers it at once has no operation to read
+    // here, and the test checks the answer only.
+    const hal = await api.host('hal6@listings.test');
+    const ian = await api.host('ian6@listings.test');
+    const answer = await api.call('POST', '/listings', hal.token, description);
+    if (answer.status === 202 && typeof answer.body?.operationId === 'string') {
+      const operation = `/operations/${answer.body.operationId}`;
+      expect(await api.hidden(operation)).toBe(401);
+      expect(await api.hidden(operation, ian.token)).toBe(404);
+      expect((await api.read(operation, hal.token)).status).toMatch(/^(PENDING|SUCCESS)$/);
+    } else expect(answer.status >= 200 && answer.status < 300).toBe(true);
   }, 60000);
 
   it("lists a host's own listings, whatever their state, the most recently created first", async () => {

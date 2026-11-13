@@ -13,11 +13,50 @@ kit is the record of an earlier campaign and stays as it ran; what this kit chan
 
 | Path | What it is |
 | --- | --- |
-| [`backlog/`](backlog) | The ten requests and `backlog.yaml`, the pilot's, with request 1 changed (below). |
+| [`backlog/`](backlog) | The ten requests and `backlog.yaml`, the pilot's, with requests 1, 7 and 9 changed (below). |
 | [`api/`](api) | One fragment per request with an API table (1 to 9; request 10 changes no route): its resources, the routes that answer them by status, and, from request 1 on, what any route may answer (`202 { operationId }`, a `4xx`; never a `5xx`). |
 | [`conventions.yaml`](conventions.yaml) | Every convention a later request relies on, with the request that sets it and the test that holds it there. |
 | [`acceptance/`](acceptance) | The hidden tests, one file per request, and their client [`openstay.ts`](acceptance/openstay.ts), which holds every answer it reads to the API composed up to the request graded. No arm ever sees them. |
-| [`storms/`](storms) | The pilot's storms, unchanged. |
+| [`storms/`](storms) | The pilot's storms, with the hot spot of request 7's expiry (S9) changed on 13 November (below). |
+
+## Decided by the maintainer (13 November)
+
+1. **A request expires at the next sweep, not at a read.** A booking request the host has not decided in time is
+   expired by a background job, which the server runs every `JOBS_INTERVAL_SECONDS` seconds (60 when that is not set;
+   request 7 introduces it): at most that long after its time has passed, never before it, and never because someone
+   read it. The pilot said "as soon as its time has passed", and its tests slept 2.5 s after a 1 s time-to-live
+   (`BOOKING_REQUEST_TTL_SECONDS`). Now:
+   - request 7 says it, and request 9's `expired` entry, made by nobody, is the sweep's;
+   - every server the tests start runs its job every second (`JOBS_INTERVAL_SECONDS` 1, in `openstay.ts`'s `start`);
+   - tests 7 and 9 read with `eventually` until the sweep has done it (`bySweep`: the time-to-live, three runs of the
+     job, and three seconds more), never a fixed sleep;
+   - test 7 also starts a server whose job runs every hour: past its time, its request still reads `requested`;
+   - the register's `request-expiry` and `history-expiry`, and the storms' hot spot S9, say "at the next sweep".
+
+   The simple arm's guide says that a read never changes what is stored
+   ([correction 4](../../openstay/j5/next-campaign.md)); the kit now agrees with it.
+2. **A body's shape is refused at once, with `400`.** A field missing, or of the wrong type, is answered `400` at
+   once, even by an application that answers that request later otherwise: the shape is the transport's, whether a
+   value is allowed is the domain's (the contract's API-BODY-SHAPE). Request 1 says it in one sentence. Its test
+   requires exactly `400` for the six bodies of the wrong shape it sends, and still accepts a `4xx` at once or an
+   `ERROR` later for a value not allowed (a password too short, a role that does not exist, an email already used).
+   Registered as `body-shape`.
+3. **The lists of bookings carry no per-state fields.** `expiresAt`, `cancellation`, `refund` and `contact` are the
+   read of one booking's (`GET /v1/bookings/{id}`, the fragments' `bookingRead`); the lists keep the fields requests 6
+   and 7 give, the new states included. The requests' tables already said so, and no text changed; `refund-owed` and
+   `contact-null` say it. The tests require none of these fields in a list, and refuse none either.
+4. **`401` and `404`, as [ADR 39](../../../../adr/0039-a-command-whose-outcome-is-read-later-needs-a-caller-at-the-transport.md)
+   says.** A request that needs a signed-in caller and has none, or a token that proves nothing, is refused `401`; a
+   signed-in caller who asks for something that does not exist, or that they may not see, gets `404`. Reading an
+   operation too: without a token, when a signed-in caller started it, `401`; with another caller's token, `404`.
+   - Request 1 says the operation's half, and that a read is `404` signed in or not.
+   - The client's `hidden` returns the status, and each test requires its one: `404` for a listing (or its calendar)
+     that only its host sees, read by anyone else, signed in or not, since reading a listing needs no caller; `404` for
+     another caller's quote, booking, listing's bookings or history; `401` for a quote or a history read with no
+     token. It accepted `401`, `403` or `404` alike before.
+   - Request 1 has no command a signed-in caller makes, so the operation's half is held in request 2, where creating
+     a listing is the first: a new test reads the host's operation without a token (`401`) and with another host's
+     (`404`), when the application answers later. Registered as `operation-reader`, born at 2.
 
 ## What changed from the pilot kit, and why
 
@@ -41,9 +80,9 @@ kit is the record of an earlier campaign and stays as it ran; what this kit chan
   client's `act`, which follows an operation to its end, fails a test whose operation ends in `ERROR` without
   `error: { type, message }`, and returns the error with the outcome.
 - **Request 1's file has three tests more,** for conventions it sets that no test held there:
-  - *refuses what it cannot do with a `4xx`, or an operation that ends in `ERROR`, never a `5xx`* (correction 6):
-    sign-ups and sign-ins with a value not allowed, a field missing or of the wrong type, and a token that proves
-    nothing;
+  - *refuses a body of the wrong shape at once with `400`, and anything else it cannot do with a `4xx` or an `ERROR`,
+    never a `5xx`* (correction 6, and the maintainer's decision 2 above): sign-ups and sign-ins with a field missing
+    or of the wrong type (`400`), with a value not allowed, and a token that proves nothing;
   - *names the refused rule in the operation's error* (correction 11). Request 1 lets an application answer a
     sign-up at once or later, so the test checks the `error` of the refusals answered later only; an application that
     answers all of them at once has nothing to check there, which the test says in a comment;
@@ -54,7 +93,9 @@ kit is the record of an earlier campaign and stays as it ran; what this kit chan
   field there: the expired booking of request 7, read at `GET /v1/bookings/{id}`, is held to request 9's `contact`.
 - **Not carried:** the pilot's starting trees, its guide for the simple arm, its review and its rehearsal. The arms'
   starting trees are the protocol's; correction 4's sentence belongs to the Simple arm's guide, not to the kit.
-- **The storms' README** links to OpenStay's `j0.md` from its new place; its text is the pilot's.
+- **The storms' README** links to OpenStay's `j0.md` from its new place; its text is the pilot's, but for S9 (above).
+- **The maintainer's four decisions of 13 November** (above), applied to requests 1, 7 and 9, the register, the storms
+  and the tests of requests 1, 2, 4, 5, 6, 7 and 9.
 
 ## How the fragments read the requests
 
@@ -94,6 +135,23 @@ kit is the record of an earlier campaign and stays as it ran; what this kit chan
     `PasswordTooShort`, `UnknownRole`), so the new test is exercised there; `simple-w` answers every command at once,
     so it has nothing to check there.
   - **Hygiene:** the kit's files raise nothing in either tree.
+- **Rehearsed again after the maintainer's four decisions** (13 November), on the same trees and commits, with 44
+  tests (request 2's new one). The trees were written before the decisions, and fail where they differ from them,
+  as they should; no test was loosened for them.
+  - **Discrimination:** every test fails on both starting trees. **Hygiene:** nothing, in either tree.
+  - **Request 7, on both solved trees** (decision 1): *expires a request … at the next sweep, never at a read* fails
+    on its second server, whose job runs every hour: past its time, the request reads `expired` at once, where it
+    must still read `requested`. Both trees compute the expiry at the read (`simple-w` from the stored `expires_at`;
+    `clean-w`'s read side, as the pilot's storm S9 said, beside its sweep). The first half, on a server whose job
+    runs every second, passes on both. The dry run calls a test that fails on every solved tree a defect; this one is
+    the decision, not the kit.
+  - **Request 2, on `clean-w`** (decision 4): the new test reads the host's operation without a token and gets `403`
+    where `401` is now required (with another host's token, `404`, as required). `simple-w` answers creating a
+    listing at once, so it has no operation to read there.
+  - **Request 6, on `simple-w`** (decision 4): another host reading a listing's bookings gets `403` where `404` is now
+    required. `clean-w` answers `404`.
+  - **Everything else passes on both:** request 1's bodies of the wrong shape are answered `400` by both trees, the
+    reads of request 5's quote and request 9's history with no token `401`, and every other read `404`.
 - **Before registration,** the rehearsal on the arms' own starting trees and on trees solved to this kit, and both
   reports committed with it, as the [standard](../../kit-standard.md#before-registration-kit-check) asks. The pilot's
   trees were written before request 1 said what an operation's `error` is; one that answered a refusal later without

@@ -11,10 +11,11 @@ Some hosts want to say yes or no before a stay is confirmed.
   - The host accepts the request, and the booking is confirmed.
   - Or the host declines it, and its nights are free again.
   - Only the listing's host decides, and only while the request is waiting.
-- **A request expires.** A request the host has not decided within `BOOKING_REQUEST_TTL_SECONDS` seconds (86400 when that is not set) is expired:
+- **A request expires.** A request the host has not decided within `BOOKING_REQUEST_TTL_SECONDS` seconds (86400 when that is not set) is expired at the next sweep after its time has passed:
   - its nights are free again;
   - accepting or declining it is refused;
-  - it reads as expired as soon as its time has passed, without anyone having to act on it first.
+  - it reads as expired, without anyone having to act on it, never before its time, and never because someone read it: a read answers what is kept.
+- **The sweep.** The server runs a background job every `JOBS_INTERVAL_SECONDS` seconds (60 when that is not set). Each run expires the requests whose time has passed, so a request reads as expired at most `JOBS_INTERVAL_SECONDS` seconds after its time.
 - **Changes to the listing.** The mode can change at any time. A request already made stays a request.
 
 The API works as request 1 says.

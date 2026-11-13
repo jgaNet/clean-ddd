@@ -57,18 +57,28 @@ describe('accounts', () => {
     expect((await api.call('GET', '/accounts/me', 'not-a-token')).status).toBe(401);
   }, 60000);
 
-  it('refuses what it cannot do with a 4xx, or an operation that ends in ERROR, never a 5xx', async () => {
+  it('refuses a body of the wrong shape at once with 400, and anything else it cannot do with a 4xx or an ERROR, never a 5xx', async () => {
     await api.account('fay@openstay.test');
+    // A field missing, or of the wrong type: the transport's, answered at once with 400, even by an application
+    // that answers these requests later otherwise (request 1).
+    const shapes: [string, unknown][] = [
+      ['/accounts', { email: 'fay4@openstay.test', roles: ['traveller'] }],
+      ['/accounts', { email: 42, password: PASSWORD, roles: ['traveller'] }],
+      ['/accounts', { email: 'fay5@openstay.test', password: PASSWORD, roles: 'traveller' }],
+      ['/accounts', {}],
+      ['/accounts/login', { email: 'fay@openstay.test' }],
+      ['/accounts/login', { email: 'fay@openstay.test', password: 42 }],
+    ];
+    const shaped: string[] = [];
+    for (const [path, body] of shapes)
+      shaped.push(`POST ${path} ${JSON.stringify(body)}: ${(await api.call('POST', path, undefined, body)).status}`);
+    expect(shaped.filter(line => !/: 400$/.test(line))).toEqual([]);
+
+    // A value not allowed, or a token that proves nothing: a 4xx at once, or an operation that ends in ERROR.
     const refusals: [string, string, string | undefined, unknown][] = [
       ['POST', '/accounts', undefined, { email: 'FAY@openstay.test', password: PASSWORD, roles: ['traveller'] }],
       ['POST', '/accounts', undefined, { email: 'fay2@openstay.test', password: 'seven77', roles: ['traveller'] }],
       ['POST', '/accounts', undefined, { email: 'fay3@openstay.test', password: PASSWORD, roles: ['admin'] }],
-      ['POST', '/accounts', undefined, { email: 'fay4@openstay.test', roles: ['traveller'] }],
-      ['POST', '/accounts', undefined, { email: 42, password: PASSWORD, roles: ['traveller'] }],
-      ['POST', '/accounts', undefined, { email: 'fay5@openstay.test', password: PASSWORD, roles: 'traveller' }],
-      ['POST', '/accounts', undefined, {}],
-      ['POST', '/accounts/login', undefined, { email: 'fay@openstay.test' }],
-      ['POST', '/accounts/login', undefined, { email: 'fay@openstay.test', password: 42 }],
       ['GET', '/accounts/me', 'not-a-token', undefined],
     ];
     const answered: string[] = [];

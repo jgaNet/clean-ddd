@@ -13,7 +13,7 @@ hotSpots:
   - question: Is accepting a request the same fact as a booking confirmed at once?
     decision: No — BookingRequestAccepted is a fact of its own; only a booking confirmed at once and a new request will notify the host.
   - question: How does a request expire when nobody acts?
-    decision: Both ways — a request past its time reads as expired at once, and a scheduled sweep records BookingRequestExpired by nobody, which releases its nights and writes its history. Time is a parameter. (A storm has no sticky for a timer, so the sweep is named here, and its fact below.)
+    decision: At the next sweep — a scheduled sweep, every JOBS_INTERVAL_SECONDS, records BookingRequestExpired by nobody for each request past its time, which releases its nights and writes its history; until then a read answers what is kept, never expired by a read (changed by the maintainer on 13 November; the pilot's storm said both ways). Time is a parameter. (A storm has no sticky for a timer, so the sweep is named here, and its fact below.)
   - question: Declining a request?
     decision: BookingDeclined, and its nights released in the same transaction, as booking takes them.
 
