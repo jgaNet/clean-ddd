@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "kit": "docs/evaluations/benchmark/three-arms/app",
+  "gradings": [
+    {
+      "tree": "tally-w",
+      "role": "before",
+      "ref": "d859700",
+      "features": {
+        "accounts": false,
+        "create-a-group": false,
+        "invite-and-join": false,
+        "record-an-expense": false,
+        "balances": false,
+        "edit-and-delete-an-expense": false,
+        "unequal-splits": false,
+        "history-and-statement": false,
+        "leave-a-group": false,
+        "remainder-to-the-first": false
+      },
+      "hygiene": []
+    },
+    {
+      "tree": "tally-w",
+      "role": "solved",
+      "ref": "2778fc9",
+      "features": {
+        "accounts": true,
+        "create-a-group": true,
+        "invite-and-join": true,
+        "record-an-expense": true,
+        "balances": true,
+        "edit-and-delete-an-expense": true,
+        "unequal-splits": true,
+        "history-and-statement": true,
+        "leave-a-group": true,
+        "remainder-to-the-first": true
+      },
+      "hygiene": []
+    }
+  ],
+  "verdict": "clean",
+  "findings": []
+}

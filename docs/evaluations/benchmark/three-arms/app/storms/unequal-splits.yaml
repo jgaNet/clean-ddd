@@ -1,0 +1,25 @@
+# Feature 7 of Tally (../backlog/7-unequal-splits.md), as the session decided it.
+schemaVersion: 1
+
+feature: unequal-splits
+intent: >-
+  An expense is split equally, by exact amounts that add up, or by whole shares, the remainder to the payer; reading it says which.
+
+done: false
+
+hotSpots:
+  - question: A command per kind of split, or one?
+    decision: One — RecordExpense and EditExpense take a Split of one of three kinds; the facts stay ExpenseRecorded and ExpenseEdited, which carry the kind.
+  - question: Whose is "exactly one of the three"?
+    decision: The transport's, as the body's shape (400); whether exact amounts add up and shares are at least 1 is the Split's, refused by name.
+  - question: The remainder of a split by shares?
+    decision: As an equal split's, whole to the payer, decided in the same Split value.
+
+contexts:
+  - id: Ledger
+    commands: []
+    queries: []
+    events: []
+    policies: []
+
+links: []

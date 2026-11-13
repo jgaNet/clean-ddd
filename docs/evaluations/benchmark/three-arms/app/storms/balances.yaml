@@ -1,0 +1,32 @@
+# Feature 5 of Tally (../backlog/5-balances.md), as the session decided it.
+schemaVersion: 1
+
+feature: balances
+intent: >-
+  A member reads every member's balance, in the order they joined; the balances add up to zero, whatever is recorded at once.
+
+done: false
+
+hotSpots:
+  - question: Where do the balances live?
+    decision: In a read model of Ledger's own facts, each expense's shares counted against its payer's amount; no aggregate holds a running balance, so twenty expenses at once on two servers never contend for one row.
+  - question: What keeps the zero sum?
+    decision: Each Expense, whose shares add up to its amount; the read model is written in the transaction of the expense it counts, so a sum is never read half-written.
+  - question: The order of the members?
+    decision: Groups' order, the one they joined, read through GroupMembers; a member with nothing recorded is 0.
+
+contexts:
+  - id: Ledger
+    commands: []
+    queries:
+      - name: GetGroupBalances
+        actor: a signed-in account
+        route: GET /groups/{param}/balances
+    events: []
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupMembers]

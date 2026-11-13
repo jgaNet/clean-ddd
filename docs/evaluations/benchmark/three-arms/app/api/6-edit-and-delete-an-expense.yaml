@@ -1,0 +1,10 @@
+# Request 6: an expense edited from the version its author read, or deleted, by its payer or the owner.
+resources:
+  expense:
+    gains:
+      version: { type: integer, minimum: 1 }
+routes:
+  PUT /v1/expenses/{id}:
+    2xx: {}
+  DELETE /v1/expenses/{id}:
+    2xx: {}

@@ -1,0 +1,24 @@
+# Feature 10 of Tally (../backlog/10-remainder-to-the-first.md), the change not announced in advance, as the
+# session decided it. It adds no sticky: a rule inside the Split changes.
+schemaVersion: 1
+
+feature: remainder-to-the-first
+intent: >-
+  From now on the remainder of an equal split or a split by shares goes whole to the member listed first; earlier expenses keep their shares, and an edited one is split again by the new rule.
+
+done: false
+
+hotSpots:
+  - question: Where does the change land?
+    decision: In the Split value alone — the remainder's owner is the first member of the split instead of the payer; the commands, the facts and the read models do not change.
+  - question: What keeps earlier expenses from being computed again?
+    decision: The shares are kept with each expense as they were decided (feature 4's hot spot), so nothing reads them through the new rule; an edit decides them again, with the rule in force.
+
+contexts:
+  - id: Ledger
+    commands: []
+    queries: []
+    events: []
+    policies: []
+
+links: []

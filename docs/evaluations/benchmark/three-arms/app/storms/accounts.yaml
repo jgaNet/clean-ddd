@@ -1,0 +1,33 @@
+# Feature 1 of Tally (../backlog/1-accounts.md), as the session decided it.
+schemaVersion: 1
+
+feature: accounts
+intent: >-
+  Anyone signs up with an email, a password and a name; a signed-in person reads their own account.
+
+done: false
+
+hotSpots:
+  - question: Where do accounts live, when the brief's candidate model has no context for them?
+    decision: In Groups — an account is who a member is, and its name is what the members list shows; no fifth context for sign-up and sign-in (T1 in the README, for the maintainer to confirm).
+  - question: Is signing in a fact of the domain?
+    decision: No — it checks the credentials and answers a token; nothing changes, nothing is recorded.
+  - question: Is the name part of the account, or of each membership?
+    decision: Of the account, one name in every group; a name per group is not asked for.
+
+contexts:
+  - id: Groups
+    commands:
+      - name: SignUp
+        actor: anyone
+        route: POST /accounts
+        aggregate: Account
+        events: [AccountRegistered]
+    queries:
+      - name: GetMyAccount
+        actor: a signed-in account
+        route: GET /accounts/me
+    events: [AccountRegistered]
+    policies: []
+
+links: []

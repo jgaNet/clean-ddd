@@ -1,0 +1,262 @@
+# J6's application, Tally, checkpoint 1 (requests 1-10): every convention a later request relies on, with
+# the request that sets it (`born`) and the test, in that request's acceptance file, that holds it there
+# (docs/evaluations/benchmark/kit-standard.md). kit-check refuses an entry without either.
+#
+# No entry `departs` from the contract: request 1 gives an operation's `error` as the contract's
+# `{ type, message }` (http.operation in conventions/architecture.yaml, ADR 41), as the maintainer decided
+# on 13 November for J6 (the protocol's README), the same as the calibration's request 1.
+conventions:
+  # Request 1: how the API works, for every request after it ("The API works as request 1 says").
+  - id: refusal
+    says: >-
+      A refusal is a 4xx at once, or a 202 whose operation ends in ERROR; a 5xx is never an answer the application
+      chooses: it says the server failed.
+    born: 1
+    test: refuses a body of the wrong shape at once with 400, and anything else it cannot do with a 4xx or an ERROR, never a 5xx
+  - id: body-shape
+    says: >-
+      A body missing a field, or with a field of the wrong type, is refused at once with 400, even by an application
+      that answers that request later otherwise (the contract's API-BODY-SHAPE). Requests 2, 4, 6 and 7 hold it again
+      for their own bodies; request 7 says that a body with none or more than one of the three splits is of the wrong
+      shape.
+    born: 1
+    test: refuses a body of the wrong shape at once with 400, and anything else it cannot do with a 4xx or an ERROR, never a 5xx
+  - id: operation-error
+    says: >-
+      An operation that ends in ERROR has `error: { type, message }`, the contract's record: `type` the name of the
+      rule that refused it, in PascalCase, and `message` a sentence. Two rules have two names. A refusal answered at
+      once is a 4xx whose body no request fixes.
+    born: 1
+    test: names the refused rule in the operation's error
+  - id: operation-result
+    says: >-
+      A request that creates something answers `{ id }` at once, or has the new thing's id as its operation's
+      `result`; `status` is PENDING until it ends, then SUCCESS or ERROR.
+    born: 1
+    test: signs up people with a name, and lets each read their own account
+  - id: value-refusal
+    says: >-
+      Whether a value is allowed (a format, a length, a range, one of a list, a rule between fields) is a refusal like
+      any other: a 4xx at once or ERROR later, decided by the application, not a shape the transport refuses. The
+      tests accept either.
+    born: 1
+    test: refuses an email used twice, whatever its case, and what is not allowed
+  - id: signed-in
+    says: >-
+      A request that needs a signed-in caller and has no token, or one that proves nothing, is refused with 401, a
+      read included, and a command too, at once (the later tests' `hidden` requires it for reads, never 403 or 404;
+      requests 2, 4 and 9 require it for a command; ADR 39).
+    born: 1
+    test: refuses a wrong password and an unknown email alike, and a request without a valid token
+  - id: not-found
+    says: >-
+      A read answers 200 with what it reads, or 404 for something that does not exist or that the caller may not
+      see, signed in or not: what the caller may not see is answered as if it did not exist.
+    born: 1
+    test: answers 404 for something that does not exist
+  - id: formats
+    says: >-
+      Ids are strings; dates are YYYY-MM-DD; times are ISO 8601 in UTC; amounts are integers. Every fragment's schema
+      holds them in each answer the tests read.
+    born: 1
+    test: signs up people with a name, and lets each read their own account
+  - id: no-null
+    says: >-
+      No field requests 1 to 10 name is null, nor absent where its table gives it: each fragment's schema requires
+      every field it gives, with a type that is not null. A later request that lets a field be null says in which
+      states (a `conditions` entry in its fragment).
+    born: 1
+    test: signs up people with a name, and lets each read their own account
+  - id: durable
+    says: >-
+      What the application knows is in the SQLite file DATABASE_PATH names: a server stopped, even killed, and
+      started again on the same file finds everything every request brought. Several servers may run on the same
+      file at the same time (requests 5 and 6 start two).
+    born: 1
+    test: keeps every account when the server is killed and started again on the same file
+  - id: sweep
+    says: >-
+      What changes with time changes at the next run of the background job, every JOBS_INTERVAL_SECONDS (60 when not
+      set; 1 on the tests' servers), never because someone read it: a read answers what is kept. No request of
+      checkpoint 1 changes anything with time; request 1's test holds the half that exists (a read changes nothing,
+      the job running), and the first request whose state changes with time holds the rest where it is born.
+    born: 1
+    test: changes nothing by a read while its background job runs
+
+  # Request 2: the first command a signed-in caller makes, the group, and who sees it.
+  - id: operation-reader
+    says: >-
+      An operation is read with the token of the request that started it, or with none when that request had none;
+      read without a token when it had one, it is refused with 401, and with another caller's token it answers 404
+      (ADR 39). Creating a group is the first request a signed-in caller makes, so it is held there.
+    born: 2
+    test: "reads a member's operation with the member's token only: 401 without a token, 404 with another's"
+  - id: group-members-only
+    says: >-
+      A group, and everything in it (its members, invitations to create, expenses, balances, statements, leaving),
+      is seen by its current members only: to anyone else, signed in, it does not exist (404 on a read, a refusal on
+      a command); without a token, 401. Requests 3, 4, 5, 6, 8 and 9 hold it again for what each adds; request 9
+      for a member who has left.
+    born: 2
+    test: creates a group its creator owns, seen by its members only
+  - id: currency-minor-unit
+    says: >-
+      A group's currency is one of EUR, USD, GBP, CHF, CAD and AUD, fixed when it is created; every amount of the
+      group is an integer number of that currency's hundredths (1250 in EUR is 12.50 euros).
+    born: 2
+    test: refuses a name or a currency that is not allowed, and keeps the currency it was created with
+  - id: order-my-groups
+    says: >-
+      A person's groups are the groups they are a member of now, the most recently created first, a group they
+      joined included (request 3), at its place by its creation.
+    born: 2
+    test: "lists a person's groups, the most recently created first"
+
+  # Request 3: members and the order they joined.
+  - id: order-members
+    says: >-
+      A group's members are listed in the order they joined, the earliest first: the owner first; a member who left
+      and joined again is last (request 9). Request 5's balances follow the same order.
+    born: 3
+    test: lets anyone signed in with the link read the invitation and join, and lists the members in the order they joined
+  - id: invitation-link
+    says: >-
+      An invitation's id is the link: long (16 characters or more) and impossible to guess, usable by any signed-in
+      person, any number of times, read without being a member; joining a group one is a member of is refused.
+    born: 3
+    test: lets anyone signed in with the link read the invitation and join, and lists the members in the order they joined
+
+  # Request 4: the expense and its split.
+  - id: split-adds-up
+    says: >-
+      An expense's shares add up to its amount, exactly, whatever the split (equal at 4, exact and by shares at 7,
+      and after request 10's change). The remainder of a division is never lost.
+    born: 4
+    test: gives the remainder of an equal split whole to the payer, and the shares add up to the amount
+  - id: remainder-to-the-payer
+    says: >-
+      Until request 10: each share of an equal split (and, from request 7, of a split by shares) is rounded down, and
+      the remainder goes whole to the payer's share. Request 10 changes it, unannounced; the cases that assert it
+      hold only while the request graded is before 10 (the README's superseded cases).
+    born: 4
+    test: gives the remainder of an equal split whole to the payer, and the shares add up to the amount
+  - id: payer-in-split
+    says: >-
+      The payer of an expense is the member who records it, and is always one of the members of its split, whatever
+      its kind (request 7 lets their exact amount be 0); every member of a split is a current member, listed once.
+    born: 4
+    test: refuses an expense whose values or split are not allowed
+  - id: order-shares
+    says: >-
+      An expense's shares are read in the order its split was given, whatever its kind.
+    born: 4
+    test: records an expense split equally, its shares in the order given, read whole by the members only
+  - id: expense-date
+    says: >-
+      An expense's date is a real day of the calendar, not after today in UTC; earlier days are allowed.
+    born: 4
+    test: refuses an expense whose values or split are not allowed
+
+  # Request 5: balances and the zero sum.
+  - id: balance-sign
+    says: >-
+      A member's balance is what they paid minus their shares, over every expense of the group not deleted: positive
+      when the group owes them, negative when they owe, 0 for a member with nothing.
+    born: 5
+    test: gives each member what they paid minus their shares, in the order they joined, adding up to zero
+  - id: zero-sum
+    says: >-
+      A group's balances add up to 0 after any sequence of changes, held from request 5 on after each change the tests
+      make (expenses, edits, deletions, leaving, the change of request 10), with many expenses sent at once to two
+      servers on one database, each counted once.
+    born: 5
+    test: counts once each of twenty expenses sent at once to two servers on one database, and keeps the zero sum
+  - id: order-balances
+    says: >-
+      A group's balances list every current member, in the order they joined, the earliest first.
+    born: 5
+    test: gives each member what they paid minus their shares, in the order they joined, adding up to zero
+
+  # Request 6: who changes an expense, and its version.
+  - id: payer-or-owner
+    says: >-
+      Only an expense's payer or the group's owner edits or deletes it; another member is refused, someone outside
+      the group sees no expense. An edit keeps the payer.
+    born: 6
+    test: lets the payer or the owner edit an expense whole, one version at a time
+  - id: expense-version
+    says: >-
+      An expense's version is 1 when it is recorded and one more at each edit; an edit gives the version it was made
+      from, and one from a version that is no longer the expense's is refused (the expense changed since it was read).
+    born: 6
+    test: lets the payer or the owner edit an expense whole, one version at a time
+  - id: one-edit-wins
+    says: >-
+      Two edits of one expense from the same version, sent at once to one server or to two on one database: exactly
+      one is kept, the other is refused, at once or as an ERROR named by the same rule as any edit from a stale
+      version, and nothing of it is kept; the balances add up to 0.
+    born: 6
+    test: "keeps exactly one of two edits of one expense sent at once, and refuses the other by its rule's name"
+  - id: deleted-is-gone
+    says: >-
+      A deleted expense no longer exists: read, edited or deleted again, it is 404 or refused; it counts in no balance,
+      no list and no statement (request 8).
+    born: 6
+    test: deletes an expense, by its payer or the owner, which then counts in no balance
+
+  # Request 7: the three splits.
+  - id: split-kinds
+    says: >-
+      An expense gives exactly one of splitBetween, splitExactly and splitByShares (none or two is a body of the
+      wrong shape, 400); exact amounts are 0 or more and add up to the amount; shares are whole numbers, at least 1;
+      `splitKind` says which, and earlier expenses read `equal`.
+    born: 7
+    test: splits by exact amounts that add up, and refuses ones that do not
+
+  # Request 8: the two lists of the ledger.
+  - id: order-expenses
+    says: >-
+      A group's expenses are listed the latest date first, then, on the same date, the most recently recorded first;
+      an edit does not change when an expense was recorded; each is listed as it reads on its own.
+    born: 8
+    test: "lists the group's expenses, the latest date first, then the most recently recorded first"
+  - id: order-statement
+    says: >-
+      A member's statement lists the expenses they paid or are in the split of, the earliest date first, then the
+      earliest recorded first, each with what they paid, their share and their balance once it is counted, from 0;
+      its `balance` is the last entry's, or 0, and the one the group's balances give them.
+    born: 8
+    test: "gives a member's statement, the earliest first, with their balance after each entry"
+
+  # Request 9: leaving.
+  - id: leave-at-zero
+    says: >-
+      A member leaves only with a balance of 0; the owner never leaves. Once gone they are in no list of the group
+      and the group is 404 to them, but their expenses stay as they were and cannot be edited or deleted while they
+      are not a member, and their statement is read by the members. Joining again makes them a member again, last.
+    born: 9
+    test: refuses to let a member leave while their balance is not zero, and lets them leave once it is
+  - id: former-member-frozen
+    says: >-
+      An expense that concerns someone who is no longer a member, as payer or in its split, is neither edited nor
+      deleted, so that the balances still add up to 0 among the current members.
+    born: 9
+    test: keeps the expenses of a member who left as they were, unchangeable, and their statement readable
+
+  # Request 10, the change not announced in advance.
+  - id: remainder-to-the-first
+    says: >-
+      From request 10 on, the remainder of an equal split or a split by shares goes whole to the member listed first
+      in the split, whoever paid; the payer is still one of the members of the split. It supersedes
+      remainder-to-the-payer.
+    born: 10
+    test: gives the remainder of an equal split whole to the member listed first, whoever paid
+  - id: remainder-not-recomputed
+    says: >-
+      An expense keeps the shares it was given when it was recorded or last edited: the rule in force splits it then,
+      never when it is read, so the expenses recorded before request 10 keep the remainder their payer took, and an
+      expense edited after it is split by the new rule. The hidden test holds what a single tree's database can
+      show (shares kept across reads, other expenses and a restart; an edit split by the new rule); the expenses
+      recorded before the change are the README's open point for the maintainer.
+    born: 10
+    test: keeps the shares an expense was given until it is edited, across a restart

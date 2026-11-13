@@ -1,0 +1,17 @@
+# J6's application, Tally (brief.md): checkpoint 1, requests 1 to 10, taken in order, each from the
+# smallest model up. `contexts` is the brief's candidate model until the storms decide it (storms/README.md);
+# the simple arm never reads it.
+schemaVersion: 1
+features:
+  - { id: accounts, n: 1, contexts: [Groups], needs: [] }
+  - { id: create-a-group, n: 2, contexts: [Groups], needs: [accounts] }
+  - { id: invite-and-join, n: 3, contexts: [Groups], needs: [create-a-group] }
+  - { id: record-an-expense, n: 4, contexts: [Ledger, Groups], needs: [invite-and-join] }
+  - { id: balances, n: 5, contexts: [Ledger, Groups], needs: [record-an-expense] }
+  - { id: edit-and-delete-an-expense, n: 6, contexts: [Ledger, Groups], needs: [balances] }
+  - { id: unequal-splits, n: 7, contexts: [Ledger], needs: [record-an-expense] }
+  - { id: history-and-statement, n: 8, contexts: [Ledger, Groups], needs: [edit-and-delete-an-expense] }
+  - { id: leave-a-group, n: 9, contexts: [Groups, Ledger], needs: [balances] }
+  - { id: remainder-to-the-first, n: 10, contexts: [Ledger], needs: [unequal-splits] }
+# For feature <n>-<id>: backlog/<n>-<id>.md, storms/<id>.yaml, api/<n>-<id>.yaml (when it has an API
+# table), acceptance/<n>-<id>.acceptance.ts.

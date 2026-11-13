@@ -1,0 +1,12 @@
+# Request 5: every member's balance, in the order they joined; they add up to 0.
+resources:
+  balance:
+    schema:
+      type: object
+      required: [memberId, balance]
+      properties:
+        memberId: { type: string }
+        balance: { type: integer }
+routes:
+  GET /v1/groups/{id}/balances:
+    200: { type: array, items: { $resource: balance } }
