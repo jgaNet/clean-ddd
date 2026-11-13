@@ -1,7 +1,12 @@
 # RFC 0005 — What the literature and J5b say before J6: a lighter inside, the specification as data, the change as the score
 
-**Status:** decided (13 November), every decision of §6 taken by the maintainer as the table below says. Nothing is
-implemented yet; the work is listed under "Decided".
+**Status:** decided (13 November), every decision of §6 taken by the maintainer as the table below says. Implemented
+since:
+- D1, with the Lite audit's access decision: [ADR 43](../adr/0043-a-lite-use-case-calls-a-pure-decision-and-says-who-may-call-it.md);
+- D4: the created guide's budget;
+- I6: the gate's fixes.
+
+Still to come: D2 and I2. D3 and D5 are the protocol's.
 
 **Decided (the maintainer, 13 November):**
 

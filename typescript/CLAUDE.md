@@ -36,14 +36,18 @@ src/Bootstrap/Starter/            the composition root `create` gives a new appl
 src/Bootstrap/LiteStarter/        the one `create --profile lite` gives: no context, no Tracker (ADR 40)
 src/Architecture/                 the building blocks: mechanics, no vocabulary (they do not even know the roles)
   Domain/                         Entity, AggregateRoot, ValueObject, Id, Event(+kinds), Exception, Result — depends on nothing
+    Lite/                         Decision (the Lite profile's: a command's rules as a pure function of the state, the command
+                                  and the time; ADR 43)
   Application/                    CommandHandler, QueryHandler, EventHandler, ExecutionContext, EventBus, Outbox, Module, Application,
                                   AwaitOperation (a caller in one exchange waits for a command's outcome; ADR 36)
     Lite/                         the Lite profile's (ADR 40): UseCase (command(), query(): a use case as a function of its
-                                  ports), LiteModule (the use cases as data); no context of this repository uses them
+                                  ports, signed-in unless it says `{ caller: 'anyone' }`; ADR 43), LiteModule (the use cases
+                                  as data); no context of this repository uses them
   Infrastructure/                 InMemoryDataSource, InMemoryEventBus (the inbox), InMemoryUnitOfWork, InMemoryOutbox, ConsoleLogger
   Presentation/                   Presenter, Format (json | htmx per request), the html tag,
                                   AcceptCommand (a 202 route's one way to publish: 401 at once without a caller; ADR 39)
-    Lite/                         AnswerAtOnce (the Lite profile's transport: the use case's result at once, no 202)
+    Lite/                         AnswerAtOnce (the Lite profile's transport: the use case's result at once, no 202; 401 at
+                                  once to a missing caller of a signed-in use case)
 src/SharedKernel/                 the shared kernel, in the DDD sense: what every context agrees on
   Domain/                         Email, Role
   Application/                    Guards (requireSignedIn), IntegrationEvents/ (the contracts between contexts)

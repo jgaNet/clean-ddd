@@ -46,5 +46,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0040](0040-architecture-profiles-one-contract-one-engine-profiles-as-data.md) | Architecture profiles: one contract, one engine, profiles as data; Full is the default, Lite an experiment |
 | [0041](0041-an-operation-read-is-in-the-contract.md) | What an operation answers when it is read is in the contract, so a kit or a product can be checked against it |
 | [0042](0042-an-application-has-one-clock.md) | An application has one clock, passed from the wiring, and nothing else reads the machine's time |
+| [0043](0043-a-lite-use-case-calls-a-pure-decision-and-says-who-may-call-it.md) | A Lite use case calls a pure decision, and says once who may call it, which the transport holds |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

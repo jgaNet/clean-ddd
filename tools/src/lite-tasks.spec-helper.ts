@@ -9,7 +9,10 @@ import { dirname, join } from 'path';
  * (the claim checked by hand, with an install) — and nobody's business: a list of tasks.
  *
  * - `AddTask` creates a task (`201 { id }`), `CompleteTask` completes one and tells other contexts
- *   (`TaskCompleted`, through the outbox), `ListMyTasks` reads them; all three answered at once.
+ *   (`TaskCompleted`, through the outbox), `ListMyTasks` reads them; all three answered at once, and all
+ *   three for a signed-in caller, which the transport holds (ADR 43).
+ * - Each command decides in a pure decision (`Task.decision.ts`, ADR 43): the use case loads the task,
+ *   calls the decision with the clock's time, saves the state it answers and publishes its facts.
  */
 export const LITE_TASKS: Record<string, string> = {
   'src/Contexts/Tasks/Domain/Task/TaskTitle.ts': `import { Exception, IResult, Result, ValueObject } from '@Architecture/Domain';
@@ -34,7 +37,11 @@ export class BlankTaskTitleException extends Exception {
 
 export class TaskTitleTooLongException extends Exception {
   constructor() {
-    super({ service: 'Tasks', type: 'TaskTitleTooLong', message: \`A title is at most \${TaskTitle.MAX_LENGTH} characters\` });
+    super({
+      service: 'Tasks',
+      type: 'TaskTitleTooLong',
+      message: \`A title is at most \${TaskTitle.MAX_LENGTH} characters\`,
+    });
   }
 }
 `,
@@ -58,13 +65,74 @@ export class TaskAlreadyCompletedException extends Exception {
   }
 }
 `,
-  'src/Contexts/Tasks/Application/ITaskStore.ts': `/** A task as the store keeps it. */
-export interface TaskRecord {
-  id: string;
-  owner: string;
-  title: string;
-  completed: boolean;
+  'src/Contexts/Tasks/Domain/Task/Task.ts': `/** A task, as its decisions read and answer it, and as its store keeps it. */
+export interface Task {
+  readonly id: string;
+  readonly owner: string;
+  readonly title: string;
+  /** When its owner completed it; absent while it is open. */
+  readonly completedAt?: Date;
 }
+
+/** What a task's decisions record: a fact another context reacts to (\`TaskCompletedIntegrationEvent\`). */
+export interface TaskCompleted {
+  readonly type: 'TaskCompleted';
+  readonly taskId: string;
+  readonly ownerId: string;
+}
+`,
+  'src/Contexts/Tasks/Domain/Task/Task.decision.ts': `import { Id, Result } from '@Architecture/Domain';
+import { decided, Decision } from '@Architecture/Domain/Lite/Decision';
+
+import { Task, TaskCompleted } from '@Contexts/Tasks/Domain/Task/Task';
+import { TaskTitle } from '@Contexts/Tasks/Domain/Task/TaskTitle';
+import { NotYourTaskException, TaskAlreadyCompletedException } from '@Contexts/Tasks/Domain/Task/TaskExceptions';
+
+/** A task is added by a signed-in owner, under a title that is not blank: from nothing, with its own id. */
+export const decideAddTask: Decision<Task, { owner: string; title: string }, never, undefined> = (
+  _,
+  { owner, title },
+) => {
+  const checked = TaskTitle.create(title);
+  if (checked.isFailure()) return checked;
+  return decided({ id: Id.generate().value, owner, title: checked.data.value });
+};
+
+/** A task is completed by its owner, once, at the time it is given; other contexts are told. */
+export const decideCompleteTask: Decision<Task, { by: string }, TaskCompleted> = (task, { by }, now) => {
+  if (task.owner !== by) return Result.fail(new NotYourTaskException());
+  if (task.completedAt) return Result.fail(new TaskAlreadyCompletedException());
+  return decided({ ...task, completedAt: now }, { type: 'TaskCompleted', taskId: task.id, ownerId: task.owner });
+};
+`,
+  'src/Contexts/Tasks/Domain/Task/Task.decision.spec.ts': `import { decideAddTask, decideCompleteTask } from '@Contexts/Tasks/Domain/Task/Task.decision';
+import { BlankTaskTitleException } from '@Contexts/Tasks/Domain/Task/TaskTitle';
+import { NotYourTaskException, TaskAlreadyCompletedException } from '@Contexts/Tasks/Domain/Task/TaskExceptions';
+
+const now = new Date('2026-11-13T09:00:00Z');
+const task = { id: 't1', owner: 'alice', title: 'Write the spec' };
+
+describe('the decisions on a task: a state, a command, a time, an answer', () => {
+  it('adds a task under a checked title, with an id of its own', () => {
+    const answer = decideAddTask(undefined, { owner: 'alice', title: '  Write the spec ' }, now);
+    expect(answer.isSuccess() && answer.data).toEqual({ state: { ...task, id: expect.any(String) }, facts: [] });
+    expect(decideAddTask(undefined, { owner: 'alice', title: ' ' }, now).error).toBeInstanceOf(BlankTaskTitleException);
+  });
+
+  it('completes a task for its owner, once, and records the fact', () => {
+    const answer = decideCompleteTask(task, { by: 'alice' }, now);
+    expect(answer.isSuccess() && answer.data).toEqual({
+      state: { ...task, completedAt: now },
+      facts: [{ type: 'TaskCompleted', taskId: 't1', ownerId: 'alice' }],
+    });
+    expect(decideCompleteTask(task, { by: 'bob' }, now).error).toBeInstanceOf(NotYourTaskException);
+    expect(decideCompleteTask({ ...task, completedAt: now }, { by: 'alice' }, now).error).toBeInstanceOf(
+      TaskAlreadyCompletedException,
+    );
+  });
+});
+`,
+  'src/Contexts/Tasks/Application/ITaskStore.ts': `import { Task } from '@Contexts/Tasks/Domain/Task/Task';
 
 /** A task as a list shows it. */
 export interface TaskListItem {
@@ -75,77 +143,78 @@ export interface TaskListItem {
 
 /** Where the tasks are kept: the one port the use cases take, at the edge. */
 export interface ITaskStore {
-  get(id: string): Promise<TaskRecord | undefined>;
-  put(task: TaskRecord): Promise<void>;
+  get(id: string): Promise<Task | undefined>;
+  put(task: Task): Promise<void>;
   /** The tasks of an owner, oldest first; none for an owner with none. */
   listByOwner(owner: string): Promise<TaskListItem[]>;
 }
 `,
-  'src/Contexts/Tasks/Application/Tasks.ts': `import { Id, IResult, Result } from '@Architecture/Domain';
-import { command, query } from '@Architecture/Application/Lite/UseCase';
+  'src/Contexts/Tasks/Application/Tasks.ts': `import { IResult, Result } from '@Architecture/Domain';
+import { Clock } from '@Architecture/Application';
+import { callerOf, command, query } from '@Architecture/Application/Lite/UseCase';
 import { publishIntegrationEvent } from '@Architecture/Application/DomainEvents';
-import { requireSignedIn } from '@SharedKernel/Application/Guards';
 import { TaskCompletedIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/TaskIntegrationEvents';
 
-import { TaskTitle } from '@Contexts/Tasks/Domain/Task/TaskTitle';
-import {
-  NotYourTaskException,
-  TaskAlreadyCompletedException,
-  TaskNotFoundException,
-} from '@Contexts/Tasks/Domain/Task/TaskExceptions';
+import { decideAddTask, decideCompleteTask } from '@Contexts/Tasks/Domain/Task/Task.decision';
+import { TaskNotFoundException } from '@Contexts/Tasks/Domain/Task/TaskExceptions';
 import { ITaskStore, TaskListItem } from '@Contexts/Tasks/Application/ITaskStore';
 
-export const addTask = command('AddTask', (tasks: ITaskStore) => async ({ title }: { title: string }, context) => {
-  const caller = requireSignedIn(context, 'Tasks');
-  if (caller.isFailure()) return caller;
-  const checked = TaskTitle.create(title);
-  if (checked.isFailure()) return checked;
-  const id = Id.generate().value;
-  await tasks.put({ id, owner: caller.data.value, title: checked.data.value, completed: false });
-  return Result.ok(id);
-});
+// Every use case here needs a signed-in caller, which the transport holds (no \`caller: 'anyone'\`).
 
-export const completeTask = command('CompleteTask', (tasks: ITaskStore) => async ({ id }: { id: string }, context) => {
-  const caller = requireSignedIn(context, 'Tasks');
-  if (caller.isFailure()) return caller;
-  const task = await tasks.get(id);
-  if (!task) return Result.fail(new TaskNotFoundException(id));
-  if (task.owner !== caller.data.value) return Result.fail(new NotYourTaskException());
-  if (task.completed) return Result.fail(new TaskAlreadyCompletedException());
-  await tasks.put({ ...task, completed: true });
-  await publishIntegrationEvent(TaskCompletedIntegrationEvent.set({ taskId: id, ownerId: task.owner }), context);
-  return Result.ok(undefined);
-});
+export const addTask = command(
+  'AddTask',
+  (tasks: ITaskStore, clock: Clock) =>
+    async ({ title }: { title: string }, context) => {
+      const decision = decideAddTask(undefined, { owner: callerOf(context), title }, clock());
+      if (decision.isFailure()) return decision;
+      await tasks.put(decision.data.state);
+      return Result.ok(decision.data.state.id);
+    },
+);
+
+export const completeTask = command(
+  'CompleteTask',
+  (tasks: ITaskStore, clock: Clock) =>
+    async ({ id }: { id: string }, context) => {
+      const task = await tasks.get(id);
+      if (!task) return Result.fail(new TaskNotFoundException(id));
+      const decision = decideCompleteTask(task, { by: callerOf(context) }, clock());
+      if (decision.isFailure()) return decision;
+      await tasks.put(decision.data.state);
+      for (const { taskId, ownerId } of decision.data.facts) {
+        await publishIntegrationEvent(TaskCompletedIntegrationEvent.set({ taskId, ownerId }), context);
+      }
+      return Result.ok(undefined);
+    },
+);
 
 export const listMyTasks = query(
   'ListMyTasks',
   (tasks: ITaskStore) =>
-    async (_: undefined, context): Promise<IResult<TaskListItem[]>> => {
-      const caller = requireSignedIn(context, 'Tasks');
-      if (caller.isFailure()) return caller;
-      return Result.ok(await tasks.listByOwner(caller.data.value));
-    },
+    async (_: undefined, context): Promise<IResult<TaskListItem[]>> =>
+      Result.ok(await tasks.listByOwner(callerOf(context))),
 );
 `,
   'src/Contexts/Tasks/Infrastructure/InMemoryTaskStore.ts': `import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
 
-import { ITaskStore, TaskListItem, TaskRecord } from '@Contexts/Tasks/Application/ITaskStore';
+import { Task } from '@Contexts/Tasks/Domain/Task/Task';
+import { ITaskStore, TaskListItem } from '@Contexts/Tasks/Application/ITaskStore';
 
 export class InMemoryTaskStore implements ITaskStore {
-  constructor(private readonly dataSource: InMemoryDataSource<TaskRecord>) {}
+  constructor(private readonly dataSource: InMemoryDataSource<Task>) {}
 
-  async get(id: string): Promise<TaskRecord | undefined> {
+  async get(id: string): Promise<Task | undefined> {
     return this.dataSource.collection.get(id);
   }
 
-  async put(task: TaskRecord): Promise<void> {
+  async put(task: Task): Promise<void> {
     this.dataSource.collection.set(task.id, task);
   }
 
   async listByOwner(owner: string): Promise<TaskListItem[]> {
     return [...this.dataSource.collection.values()]
       .filter(task => task.owner === owner)
-      .map(({ id, title, completed }) => ({ id, title, completed }));
+      .map(({ id, title, completedAt }) => ({ id, title, completed: completedAt !== undefined }));
   }
 }
 `,
@@ -203,17 +272,18 @@ describe('the tasks, answered at once', () => {
 });
 `,
   'src/Contexts/Tasks/module.local.ts': `import { LiteModule } from '@Architecture/Application/Lite/LiteModule';
+import { systemClock } from '@Architecture/Infrastructure/Clock/SystemClock';
 import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
 
-import { TaskRecord } from '@Contexts/Tasks/Application/ITaskStore';
+import { Task } from '@Contexts/Tasks/Domain/Task/Task';
 import { addTask, completeTask, listMyTasks } from '@Contexts/Tasks/Application/Tasks';
 import { InMemoryTaskStore } from '@Contexts/Tasks/Infrastructure/InMemoryTaskStore';
 
-const taskStore = new InMemoryTaskStore(new InMemoryDataSource<TaskRecord>());
+const taskStore = new InMemoryTaskStore(new InMemoryDataSource<Task>());
 
 export const localTasksModule = new LiteModule({
   name: 'Tasks',
-  useCases: [addTask(taskStore), completeTask(taskStore), listMyTasks(taskStore)],
+  useCases: [addTask(taskStore, systemClock), completeTask(taskStore, systemClock), listMyTasks(taskStore)],
 });
 `,
   'src/SharedKernel/Application/IntegrationEvents/TaskIntegrationEvents.ts': `import { IntegrationEvent } from '@Architecture/Domain';
@@ -254,8 +324,8 @@ export function addLiteTasks(directory: string): void {
         "import { localTasksModule } from '@Contexts/Tasks/module.local';\nimport { taskRoutes } from '@Contexts/Tasks/Presentation/task.routes';\n\nimport { FastifyApplication } from '@Bootstrap/Fastify/FastifyApplication';",
       )
       .replace(
-        '    new InMemoryEventBus({ eventEmitter: new EventEmitter() }),\n  );',
-        "    new InMemoryEventBus({ eventEmitter: new EventEmitter() }),\n  )\n    .registerModule(localTasksModule)\n    .registerRoutes('/tasks', taskRoutes, { module: localTasksModule });",
+        /(\n {4}new InMemoryEventBus\(\{[^\n]*\}\),\n {2}\))/,
+        "$1\n    .registerModule(localTasksModule)\n    .registerRoutes('/tasks', taskRoutes, { module: localTasksModule })",
       ),
   );
 }

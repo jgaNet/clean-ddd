@@ -12,7 +12,10 @@
  * `Date.now()`; a command's body is refused for its shape only (API-BODY-SHAPE), so a request
  * schema's `body` declares types and required fields and no value rule; and a command whose outcome is read later needs a caller at the transport
  * (API-CALLER-AT-TRANSPORT), so a route publishes a command and answers `202` only through
- * `acceptCommand()`, which refuses a caller who is not signed in with `401` first.
+ * `acceptCommand()`, which refuses a caller who is not signed in with `401` first. A last pair holds the
+ * decisions of a Lite context (ADR 43): a `*.decision.ts` file is a pure function of the state, the
+ * command and the time, so it lives in the Domain layer, imports no port, is not `async`, awaits
+ * nothing and reads neither the machine's time nor its randomness.
  *
  * The translation: the YAML says what a layer MAY import; ESLint wants what it may NOT. So we
  * enumerate every "unit" a file could import (each layer of its own context, of the building
@@ -143,6 +146,27 @@ function rulesFor(root, alias, others, trees) {
     }
   }
 
+  // A Lite decision (ADR 43) is held to its layer's row and refuses a port besides, in one group with one
+  // message: a refused import is reported once, by the rule a decision breaks.
+  blocks.push({
+    files: [`${root}/${DECISION_LAYER}/**/*${DECISION_SUFFIX}`],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [...forbidden(units, architecture.layers[DECISION_LAYER].may_import), ...PORTS],
+              message: DECISION_IMPORTS,
+              caseSensitive: true,
+            },
+            { group: RELATIVE_ACROSS_DIRECTORIES, message: message(architecture.relative_imports) },
+          ],
+        },
+      ],
+    },
+  });
+
   blocks.push({ files: [`${root}/**/*.e2e.spec.ts`], rules: restrict(units, architecture.e2e_specs) });
   blocks.push({
     files: [`${root}/${binding.wiring}`],
@@ -191,6 +215,30 @@ const ONE_CLOCK_EXCEPT = [
   '**/*.acceptance.ts',
 ];
 
+/**
+ * A Lite decision (ADR 43): where a command's rules live, as a pure function of the state, the command
+ * and the time (`Decision`, @Architecture/Domain/Lite/Decision). The use case is the shell that loads,
+ * saves and publishes; the decision does none of it.
+ */
+const DECISION_SUFFIX = '.decision.ts';
+const DECISION_LAYER = 'Domain';
+/** A port, wherever it is declared: a `Ports/` directory (Full's owned ports) or an `I<Thing>` file. */
+const PORTS = ['**/Ports', '**/Ports/**', '**/I[A-Z][a-z]*'];
+const DECISION_HELP =
+  'Let the use case load through its ports, hand the decision what it read and `clock()`, then save and publish what it answers (`yarn architecture checklist command --profile lite`; ADR 43).';
+const DECISION_IMPORTS = `A Lite decision is a pure function of the state, the command and the time: it imports its own Domain, the building blocks' Domain and the shared kernel's Domain, and nothing else — no port, no Application, Infrastructure or Presentation layer, no library (ARCH-DOMAIN). ${DECISION_HELP}`;
+const DECISION_PURE = `A Lite decision is a pure function of the state, the command and the time: it is not async, awaits nothing, and reads neither the machine's time nor its randomness — the time is its \`now\` parameter. ${DECISION_HELP}`;
+const DECISION_SYNTAX = [
+  { selector: ':function[async=true]', message: DECISION_PURE },
+  { selector: 'AwaitExpression', message: DECISION_PURE },
+  { selector: 'ForOfStatement[await=true]', message: DECISION_PURE },
+  { selector: "CallExpression[callee.object.name='Math'][callee.property.name='random']", message: DECISION_PURE },
+  ...ONE_CLOCK,
+];
+const DECISION_ELSEWHERE = LAYERS.filter(name => name !== DECISION_LAYER).map(
+  name => `src/**/${name}/**/*${DECISION_SUFFIX}`,
+);
+
 export default tseslint.config(
   // `.claude/` is the flow a created application carries (scripts of its own, not of this tree).
   { ignores: ['dist/', 'coverage/', '.claude/', '**/*.d.ts', '**/*.min.js'] },
@@ -237,6 +285,26 @@ export default tseslint.config(
         },
         // Repeated here, since this block replaces the one above on these files.
         ...ONE_CLOCK,
+      ],
+    },
+  },
+  // A Lite decision (ADR 43): pure, so no async, no await, no machine time or randomness; and in the
+  // Domain layer, where the rules live — one put elsewhere is refused whole. Last of the syntax blocks,
+  // since ESLint keeps the last `no-restricted-syntax` a file matches (DOMAIN-ONE-CLOCK is repeated).
+  {
+    files: [`src/**/*${DECISION_SUFFIX}`],
+    rules: { 'no-restricted-syntax': ['error', ...DECISION_SYNTAX] },
+  },
+  {
+    files: DECISION_ELSEWHERE,
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Program',
+          message: `A Lite decision lives in the ${DECISION_LAYER} layer, beside the thing it decides (\`${DECISION_LAYER}/<Thing>/<Thing>${DECISION_SUFFIX}\`). ${DECISION_HELP}`,
+        },
+        ...DECISION_SYNTAX,
       ],
     },
   },

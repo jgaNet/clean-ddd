@@ -551,6 +551,18 @@ describe('yarn architecture create --profile lite', () => {
       expect(describeInventory(inventory)).toMatch(/CompleteTask .*publishes TaskCompleted; answered at once/);
     });
 
+    it('reads who may call a use case from where it is defined: anyone only where it says so (ADR 43)', () => {
+      const file = join(directory, 'src/Contexts/Tasks/Application/Tasks.ts');
+      const text = read('src/Contexts/Tasks/Application/Tasks.ts');
+      try {
+        writeFileSync(file, text.replace(/\n\);\n$/, "\n  { caller: 'anyone' },\n);\n"));
+        const queries = inspectInventory(generated(), directory).contexts[0].queries;
+        expect(queries).toEqual([{ name: 'ListMyTasks', actor: 'anyone', route: 'GET /tasks' }]);
+      } finally {
+        writeFileSync(file, text);
+      }
+    });
+
     it('fires the triggers its code meets, and no other: the outbox for what it tells, no bus for what it answers at once', () => {
       const contract = generated();
       expect(profileTriggers(contract, inspectInventory(contract, directory))).toEqual([
@@ -572,8 +584,11 @@ describe('yarn architecture create --profile lite', () => {
         writeFileSync(
           join(directory, 'src/Contexts/Tasks/module.local.ts'),
           wiring
-            .replace('completeTask(taskStore), ', '')
-            .replace('addTask(taskStore)', 'addTask(taskStore), addTask(taskStore)'),
+            .replace('completeTask(taskStore, systemClock), ', '')
+            .replace(
+              'addTask(taskStore, systemClock)',
+              'addTask(taskStore, systemClock), addTask(taskStore, systemClock)',
+            ),
         );
         expect(oneHandlerProblems(inspectEventStorm(contract, directory))).toEqual([
           'ARCH-ONE-HANDLER: Tasks: command AddTask has 2 handlers (addTask, addTask); a command has exactly one',

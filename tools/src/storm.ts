@@ -15,8 +15,9 @@ import { ContextLink, SourceFile, inspectContextLinks, readContextFiles } from '
  * commands, queries and subscriptions as data (ARCH-MODULES-DATA); an aggregate whose behaviours
  * `record()` their events (DOMAIN-RECORDS-EVENTS); a handler that guards with `requireSignedIn()`
  * or a `guard()` on a role, asks a behaviour, and publishes or dispatches; a controller that
- * builds the command a route carries. A shape it does not recognise is a shape the guides do not
- * teach; the remedy is the canonical shape, not a looser reading.
+ * builds the command a route carries; a Lite use case that says who may call it where it is
+ * defined. A shape it does not recognise is a shape the guides do not teach; the remedy is the
+ * canonical shape, not a looser reading.
  *
  * Nothing here is declared twice: the names are the public names the API and the Tracker use
  * (API-ONE-SURFACE), the contexts are the bindings', the pivots are the context map's links.
@@ -239,6 +240,17 @@ const actorOf = (text: string): Actor => {
   return 'anyone';
 };
 
+/**
+ * Who may call a Lite use case (ADR 43): said once where it is defined and held by the transport —
+ * `{ caller: 'anyone' }` says anyone, nothing says a signed-in account; a use case that admits the
+ * administrator role alone, asked through the shared kernel, says an administrator.
+ */
+const useCaseActorOf = (text: string): Actor => {
+  if (/\bcaller:\s*'anyone'/.test(text)) return 'anyone';
+  if (/Role\.ADMIN/.test(text) && !/Role\.USER/.test(text)) return 'an administrator';
+  return 'a signed-in account';
+};
+
 interface ServiceMethod {
   service: string;
   method: string;
@@ -442,7 +454,7 @@ function inspectContext(
       handler: factory,
       handlers: [factory],
       file: definition.file,
-      actor: actorOf(definition.text),
+      actor: useCaseActorOf(definition.text),
       ...(routeOf.has(definition.name) && { route: routeOf.get(definition.name) }),
       ...(aggregate && { aggregate }),
       ...found,
@@ -513,7 +525,7 @@ function inspectContext(
       name: definition.name,
       handler: factory,
       model: definition.text.match(/IResult<([^>]+)>/)?.[1]?.trim() ?? '',
-      actor: actorOf(definition.text),
+      actor: useCaseActorOf(definition.text),
       ...(routeOf.has(definition.name) && { route: routeOf.get(definition.name) }),
     });
   }
