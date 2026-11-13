@@ -254,24 +254,22 @@ decisions above (T2, T5's gap, the storms' crossings, `reached`, `upgrade`). Eac
   kept, the owner and the remaining member's balances are known in advance, so a tree that passes what it read
   before the expense was counted fails there.
 
-## Before checkpoint 3: for the maintainer to decide
+## Decided by the maintainer before checkpoint 3 (13 November)
 
-1. **T8:** Ledger reading what is settled, or an integration event and a copy. Checkpoint 3's audit of money changes
-   (28) and budgets (24) may want facts Ledger reacts to.
-2. **T7's known gap:** an expense deleted at the moment a settlement is decided may leave the settlement above what is
-   then owed. Accept it ("at the moment it is decided"), or hold it with a test in checkpoint 3.
-3. **The statement and settlements:** request 29 exports a statement as CSV. With settlements outside it, the export
-   says the expenses only; the maintainer may prefer request 29 (or an earlier one) to bring settlements into it.
-4. **T10's precedent:** a storm of an unannounced request may declare a relationship the session did not. Requests 30
-   and 40 change no relationship, but the rule should be one for the protocol.
-5. **The reminder threshold:** fixed at 2000 here. Request 24's budgets bring a per-category threshold; whether the
-   reminder's becomes a setting then is a decision for that request's text.
-6. **Request 30's upgrade** moves storage to PostgreSQL while payments wait at the provider: its upgrade test could
-   ask a payment link through the tree before it and land the webhook through the tree after (one payment, one effect
-   across the change). The operator proposes it.
-7. **Still not rehearsed:** a tree that answers commands later (`202`), for both checkpoints. The webhook, the
-   notices and the race of request 20 are where it matters most; a Lite or Full witness before registration would
-   run them.
+The maintainer accepted checkpoint 2 as written, and the operator's recommendation on each question:
+
+1. **T8:** Ledger keeps reading the settled amounts through the port it owns; an integration event is reconsidered
+   only if requests 24 or 28 need a fact to react to.
+2. **T7's gap** (an expense deleted at the moment a settlement is decided) is accepted and documented, not tested.
+3. **Settlements enter a member's statement at request 29,** with the CSV export, so the export is not expenses
+   alone.
+4. **An unannounced request's storm may declare a new relationship** between contexts (T10): it is part of what the
+   change costs, and what J6 measures.
+5. **The reminder threshold stays fixed** (2000 hundredths); request 24's budgets are another rule.
+6. **Request 30's upgrade test** asks for a payment link through the tree before the change and lands its webhook
+   through the tree after, on the same data: a payment in flight crosses the change of storage and counts once.
+7. **A witness that answers later (`202`)** is rehearsed before registration, on the Lite and Full starting trees,
+   once the four checkpoints are written.
 
 ## The rehearsal
 

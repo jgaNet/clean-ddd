@@ -72,6 +72,9 @@ holds it**, as ADR 39 does for Full; CONC-OPTIMISTIC stays conditional on severa
 
 ## Status of the implementation
 
+- **Confirmed by the maintainer (13 November):** a decision that creates a thing generates its id itself
+  (`Id.generate()`, DOMAIN-IDENTITY), and the linter tells a port by its name (`I[A-Z][a-z]*`) as well as by a
+  `Ports/` directory.
 - **The building blocks.** `Decision.ts` and its spec (a state, a command, a time, an answer; the same answer twice;
   a refusal that leaves the given state as it was). `UseCase.ts`: `command()` and `query()` take `{ caller }`, a
   built use case carries it, `callerOf()` reads the caller's id. `AnswerAtOnce.ts`: the `401` before the use case

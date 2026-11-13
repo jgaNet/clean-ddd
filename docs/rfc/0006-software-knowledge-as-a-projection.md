@@ -3,7 +3,9 @@
 **Status:** proposed (13 November), a research direction. Nothing is implemented, and no rule, binding or ADR changes
 by it. Its decisions are listed in §9. **K1 decided (the maintainer, 13 November): yes,** measured beside J6's
 preparation, without holding it up. **K1 measured the same day (§9b):** exploring is three quarters or more of
-what the tools bring into an agent's context, so the direction stands. K2–K4 are the maintainer's next decisions.
+what the tools bring into an agent's context, so the direction stands. **K2–K4 decided (the maintainer, 13
+November): yes, before J6.** Their design is the operator's next proposal, for the maintainer's review before any
+code; whatever of it an arm receives is in place before the arms' profiles and kit are hashed for registration.
 
 ## 1. The question
 
