@@ -7,6 +7,14 @@
 - on requests none of the three was tuned on;
 - with a calibration all three share.
 
+**Decided by the maintainer on 13 November** ([RFC 0005](../../../rfc/0005-what-the-literature-and-j5b-say-before-j6.md),
+"Decided"):
+- three trees per arm;
+- every arm's agents receive the kit's API fragments;
+- the cost of change is the first score, with one unannounced change per ten requests;
+- the split by context only where the estimate recommends it;
+- Lite with its decisions as pure functions, and its use cases declaring who may call them.
+
 **Before registration:** [RFC 0005](../../../rfc/0005-what-the-literature-and-j5b-say-before-j6.md) proposes what J6
 carries and measures, from the literature and J5b: Lite's decisions as pure functions, the API's specification as data,
 guides as checks, and the cost of change as the first score. Its decisions D1 to D5 are taken before the kit and Lite's

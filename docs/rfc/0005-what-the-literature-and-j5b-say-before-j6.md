@@ -1,7 +1,33 @@
 # RFC 0005 — What the literature and J5b say before J6: a lighter inside, the specification as data, the change as the score
 
-**Status:** proposed (12 November), for the maintainer's decision before J6 is registered. It changes no rule and no
-running campaign. Each proposal below is a decision of its own (§6); none is taken by accepting another.
+**Status:** decided (13 November), every decision of §6 taken by the maintainer as the table below says. Nothing is
+implemented yet; the work is listed under "Decided".
+
+**Decided (the maintainer, 13 November):**
+
+| | Decision | Taken |
+| --- | --- | --- |
+| D1 | Lite's use cases call a pure decision | **Yes,** in Lite for J6. J6 measures H1 |
+| D2 | The API's specification is data in a created application | **Yes, in TypeScript before J6.** Rust, Python and Go after J6 |
+| D3 | The arms' agents receive the kit's API fragments | **Yes, in all three arms alike** |
+| D4 | The created guide has a budget, and each rule in it is a check or marked `review` | **Yes,** the budget and the marking |
+| D5 | Change is J6's first score, with one unannounced change per ten requests and the slope reported | **Yes** |
+
+Taken with them, for J6:
+- **Lite, from the earlier audit:**
+  - CONC-OPTIMISTIC stays conditional on several writers, as Lite's profile has it;
+  - a Lite use case declares once who may call it, and the transport holds it, as ADR 39 does for Full.
+- **From the architecture review's P0, before J6:**
+  - I2, integration events as versioned schemas with their payloads in the inventory;
+  - I6, no agent turn on bookkeeping.
+
+  I3 (relationship tests in every language) waits until after J6, since J6 is in TypeScript.
+- **J6's shape:**
+  - three trees per arm;
+  - the split by context where the estimate recommends it, with features registered above the break-even to measure it
+    (next campaign, corrections 12 and 14);
+  - the new application's brief, requests and hidden tests drafted by the operator and reviewed by the maintainer, ten
+    requests at a time.
 
 ## 1. The question
 

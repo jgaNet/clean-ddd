@@ -1,7 +1,8 @@
 # RFC 0006 — Software knowledge as a projection: rules as named units, with their origin and their evidence
 
-**Status:** proposed (13 November), a research direction for the maintainer's decision. Nothing is implemented, and no
-rule, binding or ADR changes by it. Its decisions are listed in §9.
+**Status:** proposed (13 November), a research direction. Nothing is implemented, and no rule, binding or ADR changes
+by it. Its decisions are listed in §9. **K1 decided (the maintainer, 13 November): yes,** measured beside J6's
+preparation, without holding it up. K2–K4 wait on K1's result.
 
 ## 1. The question
 
