@@ -123,7 +123,8 @@ rewording, a second failure after it stops the tree):
 
   simple-3: haiku 55 attempts, $26.92; sonnet 6, $4.90; opus 4, $10.55.
 
-**What it says:** below the break-even, the split delivered as often as one agent did, cost about twice as much, and
+**What it says:** below the break-even, the split delivered at the first step about as often as one agent did (10 of
+14, against 28 of 36), cost more ($6.19 a request against $1.93, and $2.45 without its three costliest), and
 took longer. The integrator made it safe. Nothing here measures the split above its break-even (next campaign,
 correction 14).
 

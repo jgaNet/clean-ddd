@@ -150,10 +150,11 @@ ${tables.openstayFullplus}
 <li>Ce qui a suivi vient des notes de la session, et ne peut pas être vérifié.</li>
 <li>Les bras de suite n’ont pas atteint 100 ; la seconde correction, la lecture et les autres expériences annexes n’ont pas tourné.</li>
 </ul>
+<p><strong>J5b a mené un arbre de chaque bras jusqu’à cent,</strong> avec chaque règle trouvée par J5 écrite dès la première demande : <a href="${hrefs.j5b}">l’article suivant</a>.</p>
 
 <h2>Ce que cela ne montre toujours pas</h2>
 <ul>
-<li><strong>La vie d’un produit.</strong> Aucun arbre OpenStay n’a atteint cent fonctionnalités, ni sur le kit tel qu’enregistré ni dans les bras de suite ; les plus avancés ont atteint 85. J5 a été clos sur ce que l’on sait après la perte de la machine et de ses arbres, et ce qui a suivi le 8 novembre vient des notes de la session et ne peut pas être vérifié.</li>
+<li><strong>La vie d’un produit.</strong> Aucun arbre OpenStay n’a atteint cent fonctionnalités dans J5, ni sur le kit tel qu’enregistré ni dans les bras de suite ; les plus avancés ont atteint 85. J5b y a mené un arbre par bras, dans l’échantillon (<a href="${hrefs.j5b}">son article</a>). J5 a été clos sur ce que l’on sait après la perte de la machine et de ses arbres, et ce qui a suivi le 8 novembre vient des notes de la session et ne peut pas être vérifié.</li>
 <li><strong>La concurrence et les pannes sous test.</strong> Les tests cachés d’OpenStay tuent maintenant des serveurs, en font tourner deux à la fois et rejouent des webhooks, et ont quand même manqué un double versement qu’un lecteur a trouvé. La suite de chaos prévue au cinquième jalon, l’argent sous panne sur chaque arbre final, n’a pas tourné.</li>
 <li><strong>Les gens.</strong> Ici, ce sont des agents qui lisent le code, pas des développeurs qui doivent le maintenir pendant des années. Un changement touche plus de fichiers dans un arbre Clean DDD et demande moins de lignes pour les trouver ; ce que cela coûte à un relecteur, nous ne l’avons pas chiffré.</li>
 <li><strong>L’indépendance.</strong> Une seule personne a conçu l’architecture, le benchmark et la grille, et des agents ont noté les arbres.</li>

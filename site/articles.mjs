@@ -67,7 +67,7 @@ export const articles = [
     slug: 'openstay',
     author: { name: 'Jérémy Gay', url: 'https://exostic.com/' },
     published: '2026-11-04',
-    updated: '2026-11-08',
+    updated: '2026-11-13',
     en: {
       file: 'openstay.html',
       title: 'OpenStay: fifty features, then toward a hundred',
@@ -89,6 +89,33 @@ export const articles = [
       found:
         'À cinquante, chaque arbre a livré et les arbres nus sont restés moins chers ; les arbres Clean DDD l’ont emporté sur ce que les tests ne voient pas : l’argent, les contextes séparés, un changement de base tenu hors des règles. Vers cent, chaque arbre s’est arrêté sur une règle que personne n’avait écrite, et l’énoncer a laissé passer les arbres Clean DDD.',
       left: 'Les bras de suite jusqu’à cent, une seconde correction, la lecture, et les expériences annexes.',
+    },
+  },
+  {
+    slug: 'openstay-to-a-hundred',
+    author: { name: 'Jérémy Gay', url: 'https://exostic.com/' },
+    published: '2026-11-13',
+    en: {
+      file: 'openstay-to-a-hundred.html',
+      title: 'OpenStay: to a hundred, and what it took',
+      description:
+        'Requests 51 to 100 again, on one plain tree and one Clean DDD tree, with every rule J5 had found written down from the first request and the Clean DDD tree split between one agent per context: both trees reached a hundred; what it cost, where they failed, and what the split bought.',
+      step: 'The hundred',
+      question: 'With every rule written down from the start, does each arm reach a hundred, and at what cost?',
+      found:
+        'Both did. The plain tree was 3.7 times cheaper and delivered more at the first step. The three failures left were at the specification (a shape, a null, the time), none at a boundary; one agent per context was safe and bought nothing measurable.',
+      left: 'The same question out of sample, with a lighter Clean DDD profile, and the cost of a change no request announced.',
+    },
+    fr: {
+      file: 'openstay-to-a-hundred.fr.html',
+      title: 'OpenStay : jusqu’à cent, et ce qu’il a fallu',
+      description:
+        'Les demandes 51 à 100 rejouées, sur un arbre nu et un arbre Clean DDD, avec chaque règle trouvée par J5 écrite dès la première demande et l’arbre Clean DDD réparti entre un agent par contexte : les deux arbres ont atteint cent ; ce que ça a coûté, où ils ont échoué, et ce que la répartition a apporté.',
+      step: 'La centaine',
+      question: 'Avec chaque règle écrite dès le départ, chaque bras atteint-il cent, et à quel coût ?',
+      found:
+        'Les deux l’ont fait. L’arbre nu a été 3,7 fois moins cher et a livré plus au premier échelon. Les trois échecs restants étaient dans la spécification (une forme, un null, l’heure), aucun sur une frontière ; un agent par contexte a été sûr et n’a rien apporté de mesurable.',
+      left: 'La même question hors échantillon, avec un profil Clean DDD allégé, et le coût d’un changement qu’aucune demande n’annonce.',
     },
   },
 ];

@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenStay: to a hundred, and what it took</title>
+<meta name="description" content="Requests 51 to 100 again, on one plain tree and one Clean DDD tree, with every rule J5 had found written down from the first request and the Clean DDD tree split between one agent per context: both trees reached a hundred; what it cost, where they failed, and what the split bought.">
+<meta property="og:title" content="OpenStay: to a hundred, and what it took">
+<meta property="og:description" content="Requests 51 to 100 again, on one plain tree and one Clean DDD tree, with every rule J5 had found written down from the first request and the Clean DDD tree split between one agent per context: both trees reached a hundred; what it cost, where they failed, and what the split bought.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://jganet.github.io/clean-ddd/openstay-to-a-hundred.html">
+<link rel="alternate" hreflang="en" href="https://jganet.github.io/clean-ddd/openstay-to-a-hundred.html">
+<link rel="alternate" hreflang="fr" href="https://jganet.github.io/clean-ddd/openstay-to-a-hundred.fr.html">
+<meta property="og:image" content="https://jganet.github.io/clean-ddd/assets/img/open-graph.en.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('assets/fonts/inter-latin-wght-normal.woff2') format('woff2-variations');
+}
+:root {
+  color-scheme: dark;
+  --page: #0b012e;
+  --surface-1: rgba(51, 51, 51, 0.2);
+  --text-primary: rgb(229 236 246);
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --grid: rgba(255, 255, 255, 0.08);
+  --axis: #475569;
+  --border: rgba(255, 255, 255, 0.1);
+  --link: #f472b6;
+  --series-1: #3987e5;
+  --series-2: #ff5211;
+  --series-3: #199e70;
+  --series-4: #eda100;
+  --good: #34d399;
+  --critical: #fb7185;
+  --gradient-text: linear-gradient(to right, #ff5211, #e43b7d, #b08ae6);
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font: 17px/1.6 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+main { max-width: 760px; margin: 0 auto; padding: 48px 16px 96px; }
+header.title { margin-bottom: 40px; }
+.home { margin: 0 0 24px; font-size: 1rem; display: flex; justify-content: space-between; align-items: center; }
+.lang-switch { display: inline-flex; align-items: center; padding: 0.375rem 0.5rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; line-height: 1; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 0.25rem; color: #fff; text-decoration: none; }
+.lang-switch:hover { border-color: #fff; }
+.home a { font-weight: 800; letter-spacing: -0.04em; text-decoration: none; background: var(--gradient-text); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.home a:hover { opacity: 0.85; }
+.crumbs { display: inline-flex; align-items: center; gap: 0.5rem; }
+.crumbs span { color: var(--text-muted); }
+.crumbs a + span + a { font-weight: 500; letter-spacing: -0.01em; background: none; color: var(--text-secondary); }
+.crumbs a + span + a:hover { color: var(--text-primary); opacity: 1; }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.05em; }
+.dek { color: var(--text-secondary); font-size: 1.15rem; margin: 0 0 16px; }
+.byline { color: var(--text-muted); font-size: 0.9rem; }
+h2 { font-size: 1.4rem; margin: 56px 0 12px; line-height: 1.3; }
+h3 { font-size: 1.1rem; margin: 32px 0 8px; }
+p, li { color: var(--text-primary); }
+a { color: var(--link); }
+code { font: 0.88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--surface-1); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+blockquote { margin: 24px 0; padding: 4px 0 4px 16px; border-left: 3px solid var(--axis); color: var(--text-secondary); }
+.answer { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; margin: 24px 0; }
+.answer p { margin: 8px 0; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 24px 0; }
+.stat { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.stat .figure { font-size: 1.7rem; font-weight: 600; line-height: 1.2; }
+.stat .what { color: var(--text-secondary); font-size: 0.85rem; }
+figure.chart { margin: 28px 0 8px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 16px 8px; }
+figure.chart figcaption { font-weight: 600; margin-bottom: 8px; }
+figure.chart .plot { overflow-x: auto; }
+figure.chart .swipe { display: none; color: var(--text-muted); font-size: 0.8rem; margin: 0 0 6px; }
+@media (max-width: 640px) { figure.chart .swipe { display: block; } }
+figure.chart .plot svg { width: 100%; min-width: 600px; height: auto; display: block; overflow: visible; }
+.legend svg { flex: none; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 4px; }
+.legend .key { display: inline-flex; align-items: center; gap: 6px; }
+svg .grid { stroke: var(--grid); stroke-width: 1; }
+svg .axis { stroke: var(--axis); stroke-width: 1; }
+svg .tick { fill: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+svg .label { fill: var(--text-secondary); font-size: 13px; }
+svg .value { fill: var(--text-primary); font-size: 13px; font-variant-numeric: tabular-nums; }
+svg .dot { stroke: var(--page); stroke-width: 2; cursor: default; }
+svg .bar { cursor: default; }
+svg .dot:hover, svg .dot:focus, svg .bar:hover, svg .bar:focus { opacity: 0.8; outline: none; }
+.note { color: var(--text-muted); font-size: 0.85rem; margin: 4px 0 24px; }
+details.table-view { margin: 4px 0 24px; font-size: 0.9rem; }
+details.table-view summary { color: var(--text-muted); cursor: pointer; }
+table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 0.9rem; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+th { color: var(--text-secondary); font-weight: 600; }
+.scroll { overflow-x: auto; }
+.pass { color: var(--good); }
+.fail { color: var(--critical); }
+#tip { position: fixed; pointer-events: none; background: #1a1040; color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 0.85rem; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12); display: none; max-width: 320px; z-index: 10; }
+footer { margin-top: 64px; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--grid); padding-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+
+<header class="title">
+<p class="home"><span class="crumbs"><a href="en/">← CLEAN-DDD</a><span aria-hidden="true">·</span><a href="en/articles.html">The articles</a></span><a class="lang-switch" href="openstay-to-a-hundred.fr.html" hreflang="fr" lang="fr" aria-label="Version française">FR</a></p>
+<h1>OpenStay: to a hundred, and what it took</h1>
+<p class="dek">No OpenStay tree had reached a hundred features: J5 stopped every one, each where a rule was implicit. J5b ran requests 51 to 100 again on one tree per arm, with every rule J5 had found written down from the first request, the Clean DDD tree split between one agent per context. Both trees reached a hundred. What that took, and what it cost, says more about where AI-written software breaks than about which architecture wins.</p>
+<p class="byline">13 November 2026 · The <a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> experiments · Every number below is copied from <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/2026-11-13-openstay-j5b.md">J5b's record</a> and its logs.</p>
+</header>
+
+<div class="answer">
+<p><strong>The short answer.</strong> Both trees reached a hundred.</p>
+<ul>
+<li><strong>The plain tree was 3.7 times cheaper:</strong> $42.37 against $156.03.</li>
+<li><strong>It also delivered more requests at the first step:</strong> 47 of 50 against 39.</li>
+<li><strong>Three requests failed at every step, and none failed on a boundary between contexts.</strong> Each failed where a request had set a rule that nothing executable held:
+<ul>
+<li>the shape of an error;</li>
+<li><code>null</code> in a later state;</li>
+<li>the time.</li>
+</ul>
+Stating the rule once, in the tree's guide, let each through.</li>
+<li><strong>Splitting the Clean DDD tree's requests between one agent per context was safe, and bought nothing</strong> we could measure.</li>
+</ul>
+<p>Where the trees stood before is <a href="openstay.html#j5">the OpenStay article</a>; the first benchmarks are <a href="article.html">the control</a> and <a href="four-more-experiments.html">four more experiments</a>.</p>
+</div>
+
+<h2>Where J5 left it</h2>
+<p><a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/2026-11-08-openstay-j5.md">J5</a> took six trees, three per arm, toward request 100. Every tree stopped, at 51 to 73, each on a seam where a rule the application needed was implicit:</p>
+<ul>
+<li>an id given again in the next context;</li>
+<li>an anonymous command answered <code>202</code>;</li>
+<li>a read that lapsed what it read;</li>
+<li>a refusal answered <code>503</code>.</li>
+</ul>
+<p>Stating each rule let the trees through; the furthest of each arm reached 85, and none a hundred. Then the machine and its trees were lost.</p>
+
+<h2>The protocol</h2>
+<p><a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/openstay/j5b/README.md">J5b's protocol</a> was written before any run.</p>
+<ul>
+<li><strong>One tree per arm,</strong> the two that went furthest: simple-3 (a plain TypeScript project) and clean-3 (a project our tool created, held to its gate). Both started from their heads at request 50.</li>
+<li><strong>Every rule J5 found, from the first request,</strong> as sections of each tree's guide. The Clean DDD tree also had the kit J5 ended with: identity born once, a relationship between two contexts tested end to end, and the caller refused at once.</li>
+<li><strong>The ladder:</strong> each request starts with the smallest model and goes one step up when its hidden tests or its checks fail. A failure is replayed alone before it counts.</li>
+<li><strong>One repair per failure.</strong> When a request fails at every step, its failure is judged against the requests. The tree's guide then gains one section stating the rule it broke, never a test's answer, and the request is replayed. The section can be reworded once; a second failure after that stops the tree.</li>
+<li><strong>The Clean DDD tree's 14 requests that cross contexts were split:</strong> one agent per context, the upstream one writing the contract first, and an integrator that merges, runs the gate on the result and hands each failure to its owner.</li>
+</ul>
+<p><strong>What it cannot show:</strong></p>
+<ul>
+<li>It is in sample: every rule was written after seeing failures on these same requests.</li>
+<li>It has one tree per arm.</li>
+<li>The Clean DDD tree is both the architecture and the split.</li>
+</ul>
+
+<h2 id="hundred">Both trees at a hundred</h2>
+<figure class="chart" id="chart-j5b-cost"><figcaption>OpenStay&#39;s J5b: agents&#39; cost from request 51 to 100, per tree, its three runs together</figcaption><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 84" role="img" aria-label="OpenStay&#39;s J5b: agents&#39; cost from request 51 to 100, per tree, its three runs together"><line x1="190" x2="190" y1="8" y2="76" class="axis"/><text x="176" y="29" class="label" text-anchor="end">simple-3</text><path d="M190,14 H279.214 Q283.214,14 283.214,18 V30 Q283.214,34 279.214,34 H190 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="simple-3: $42.37 — 47 of 50 at the first step"/><text x="291.214" y="29" class="value">$42.37</text><text x="176" y="63" class="label" text-anchor="end">clean-3</text><path d="M190,48 H529.2660000000001 Q533.2660000000001,48 533.2660000000001,52 V64 Q533.2660000000001,68 529.2660000000001,68 H190 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="clean-3: $156.03 — 39 of 50 at the first step"/><text x="541.2660000000001" y="63" class="value">$156.03</text></svg></div></figure>
+<details class="table-view"><summary>OpenStay&#39;s J5b: each tree from 51 to 100 — table</summary><table><thead><tr><th>Tree</th><th>Steps from 51</th><th>At step 0 / 1 / 2</th><th>Repaired</th><th>Cost of its three runs</th><th>Mean minutes a request</th></tr></thead><tbody><tr><td>simple-3</td><td>0000000000000001000000R000000000000000000000020000</td><td>47 / 1 / 2</td><td>73 transfer proof (R5, reworded once)</td><td>$42.37 ($14.57 + $4.24 + $23.56)</td><td>60</td></tr><tr><td>clean-3</td><td>1010010000R00000021000R000000000000020010000020011</td><td>39 / 7 / 4</td><td>61 review rules (R3, reworded); 73 transfer proof (R6)</td><td>$156.03 ($29.88 + $43.25 + $82.91)</td><td>87</td></tr></tbody></table></details>
+<p class="note"><code>0</code>, <code>1</code> and <code>2</code> are the step a request was delivered at: the smallest, intermediate and strongest model. <code>R</code> is a request that failed at every step, was repaired once and then delivered. Each tree ran three times: once, then once after each repair.</p>
+<ul>
+<li><strong>The plain tree finished first and cheaper:</strong>
+<ul>
+<li>on 12 November, 50 hours after it started, at $42.37;</li>
+<li>a request took 60 minutes on average, from the moment it was given to its delivery.</li>
+</ul></li>
+<li><strong>The Clean DDD tree finished a day later:</strong>
+<ul>
+<li>at $156.03, 87 minutes a request;</li>
+<li>at a hundred, 56,834 source lines against 18,458;</li>
+<li>14 contexts kept apart, and 99 decision records written along the way.</li>
+</ul></li>
+<li><strong>The gap is mostly the cost of failing, not of writing.</strong> On a first attempt with the smallest model and one agent, the Clean DDD tree cost $0.66 against $0.49, about 35% more. The rest of the gap comes from what follows a failure: an escalation to a larger model, a split, a request failed at every step.</li>
+<li><strong>One request took both trees to the strongest model,</strong> on the same hidden test: a calendar import must leave the host's own blocks apart and take nothing from a booking.</li>
+</ul>
+
+<h2 id="seams">Three failures, three seams</h2>
+<p>As <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/openstay/j5b/repairs.md">J5b's repairs</a> record them:</p>
+<ul>
+<li><strong>clean-3, request 61.</strong>
+<ul>
+<li><em>The failure:</em> an operation's error read <code>{ type, message }</code>, the shape the reference architecture gives it. The request says <code>"&lt;NAME&gt;"</code>, the rule's name alone.</li>
+<li><em>The repair:</em> a section saying that the shape a request gives wins over the code's habit. It held once reworded.</li>
+</ul></li>
+<li><strong>simple-3, request 73.</strong>
+<ul>
+<li><em>The failure:</em> a lapsed booking's payment read <code>null</code>, where an earlier request makes it <code>null</code> only for a booking still waiting.</li>
+<li><em>The repair:</em> a section on what <code>null</code> means. The first wording failed; the second held.</li>
+</ul></li>
+<li><strong>clean-3, request 73.</strong>
+<ul>
+<li><em>The failure:</em> the sweep that lapses unpaid bookings took the machine's time. The rest of the tree took the clock the tests move, so the sweep saw no deadline passed.</li>
+<li><em>The repair:</em> a section saying the application has one now. It held at the first wording.</li>
+</ul></li>
+</ul>
+<p><strong>None of the three is a boundary crossed.</strong> In both arms, a request set a rule early; nothing executable held it where it was born; a late request needed it. That is J5's pattern again, at the seams J5's rules had not named.</p>
+<p>The architecture took two of them in:</p>
+<ul>
+<li>an operation's shape when read is now in its contract (<a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/adr/0041-an-operation-read-is-in-the-contract.md">ADR 41</a>);</li>
+<li>one clock, passed from the wiring, is a rule its linter holds in four languages (<a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/adr/0042-an-application-has-one-clock.md">ADR 42</a>).</li>
+</ul>
+
+<h2 id="split">One agent per context: safe, and no faster</h2>
+<p>clean-3's 14 requests that cross contexts were written by one agent per context, with an integrator.</p>
+<details class="table-view"><summary>clean-3: the requests written by one agent per context, and by one agent — table</summary><table><thead><tr><th></th><th>One agent per context</th><th>One agent</th></tr></thead><tbody><tr><td>Requests</td><td>14</td><td>36</td></tr><tr><td>Delivered at the first step</td><td>10</td><td>28</td></tr><tr><td>Mean agents&#39; cost a request</td><td>$6.19</td><td>$1.93</td></tr><tr><td>… without its three costliest (61, 68, 73)</td><td>$2.45</td><td></td></tr><tr><td>Mean minutes from a request to its delivery</td><td>148</td><td>63</td></tr><tr><td>… without its three costliest</td><td>72</td><td></td></tr></tbody></table></details>
+<ul>
+<li><strong>It was safe.</strong> The integrator passed 24 merged results of 25, in 46 rounds.</li>
+<li><strong>Where the split failed at every step, one agent with the strongest model failed too,</strong> on the same rule (0 of 2 delivered).</li>
+<li><strong>It cost more and took longer:</strong> $6.19 a request against $1.93, and still $2.45 without its three costliest requests. The owners' agents cost $78.64, half the tree's total, for 14 requests of 50.</li>
+<li><strong>Half the owners' own verdicts failed</strong> (28 of 56), most of them because the other owner had not yet written its part. Each sent an agent back for a turn that could not fix it.</li>
+<li><strong>The ladder's own estimate recommended one agent</strong> on all 80 requests it was asked about. These requests were small, under the size where writing in parallel saves more than the contract and the integration cost.</li>
+</ul>
+<p>Nothing here measures the split on a feature large enough to pay. The ladder now splits only where its estimate recommends it.</p>
+
+<h2 id="bench">The bench</h2>
+<p><strong>Grading had grown as long as writing.</strong> Each request's hidden tests and every earlier request's ran one file at a time, 25 to 40 minutes by request 80. A parallel grader runs them in one process, two at a time, and runs a file that fails there again alone. It was validated on both trees before it was used:</p>
+<details class="table-view"><summary>The parallel grader, validated before it was used: the same verdict on every file — table</summary><table><thead><tr><th>Tree graded</th><th>Files</th><th>Minutes, one file at a time</th><th>Minutes, two at a time</th></tr></thead><tbody><tr><td>simple-3 at 100</td><td>101</td><td>24.8</td><td>8.7</td></tr><tr><td>clean-3 at 84</td><td>85</td><td>26.1</td><td>10.9</td></tr></tbody></table></details>
+<p>clean-3 was graded that way from request 86 on: 10 to 11 minutes a grading, no file run again alone. The plan records the change, and the record reports clean-3's times in two parts.</p>
+<p><strong>The machine intervened, and changed no verdict</strong> (<a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/openstay/j5b/incidents.md">the incident log</a>):</p>
+<ul>
+<li>3 container restarts, each costing one attempt;</li>
+<li>a resumed run that waited 2 hours for a machine slot its own reused process id held, now fixed in the harness;</li>
+<li>a disk down to 1.4 GB;</li>
+<li>one escalation on formatting alone, the kind of bookkeeping a tool should do instead of an agent.</li>
+</ul>
+
+<h2>What J5b adds</h2>
+<ul>
+<li><strong>With the rules written down from the start, both arms reach a hundred.</strong> What stopped J5's trees was not the size of the code. It was rules no one had written, and those can be.</li>
+<li><strong>The failures that remain are at the specification, in both arms.</strong> A shape, a meaning, a time: things a request decides, that tests and contracts could hold where they are born. More layers would not have held them.</li>
+<li><strong>The architecture's cost is mostly the cost of its failures,</strong> not of its first attempts. A first attempt costs about a third more; escalations and splits make the rest.</li>
+<li><strong>The architecture's benefits did not show here, because nothing tested them.</strong> Its contexts stayed apart, and no change came unannounced. That is the measure the next campaign makes its first.</li>
+</ul>
+
+<h2>What this still does not show</h2>
+<ul>
+<li><strong>Out of sample.</strong> Every rule was written after seeing these requests fail. The next campaign runs three arms (plain, a lighter Clean DDD profile, and the full one) on an application written before any run, which no rule was tuned on (<a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/README.md">its protocol</a>).</li>
+<li><strong>Variance.</strong> One tree per arm; in J5, trees of one arm stopped 13 requests apart.</li>
+<li><strong>Whether the structure pays on change.</strong> No change was unannounced in requests 51 to 100.</li>
+<li><strong>Independence.</strong> One person designed the architecture, the benchmark and the repairs, with an AI assistant that also ran the bench and, for one night, judged clean-3's second failure as the maintainer had delegated it.</li>
+</ul>
+
+<h2>Reproduce it</h2>
+<ul>
+<li><a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/openstay/j5b/README.md">The protocol</a>, <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/openstay/j5/triage.md">the triage rule</a> and <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/openstay/j5b/repairs.md">the repairs</a>;</li>
+<li><a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/2026-11-13-openstay-j5b.md">the record</a> and <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/openstay/j5b/incidents.md">the incident log</a>;</li>
+<li>both trees at a hundred, in OpenStay's own repository (<code>j5b/simple-3</code>, <code>j5b/clean-3</code>), with their logs and gradings (<code>j5b-logs/…</code>).</li>
+</ul>
+<p>The figures on this page are copied from the record into <a href="https://github.com/jgaNet/clean-ddd/blob/main/site/openstay.mjs">site/openstay.mjs</a>.</p>
+
+<footer>clean-ddd · experiments run and written up with an AI assistant. Corrections welcome as issues on the repository.</footer>
+
+</main>
+<div id="tip" role="tooltip"></div>
+<script>
+// One tooltip for every mark: the value first, from the mark's data-tip, set as text (never as HTML).
+const tip = document.getElementById('tip');
+const show = (mark, x, y) => {
+  tip.textContent = mark.getAttribute('data-tip');
+  tip.style.display = 'block';
+  const width = tip.offsetWidth;
+  tip.style.left = Math.min(x + 12, window.innerWidth - width - 8) + 'px';
+  tip.style.top = (y + 14) + 'px';
+};
+const hide = () => { tip.style.display = 'none'; };
+document.querySelectorAll('[data-tip]').forEach(mark => {
+  mark.addEventListener('pointermove', event => show(mark, event.clientX, event.clientY));
+  mark.addEventListener('pointerleave', hide);
+  mark.addEventListener('focus', () => { const box = mark.getBoundingClientRect(); show(mark, box.right, box.top); });
+  mark.addEventListener('blur', hide);
+});
+</script>
+</body>
+</html>
