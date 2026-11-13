@@ -183,7 +183,10 @@ describe('the remainder goes to the first member of the split', () => {
           { memberId: cy.id, shares: 1 },
         ],
       });
-      const recorded = [await through.read(`/expenses/${equal}`, ann.token), await through.read(`/expenses/${byShares}`, ann.token)];
+      const recorded = [
+        await through.read(`/expenses/${equal}`, ann.token),
+        await through.read(`/expenses/${byShares}`, ann.token),
+      ];
       const balances = await through.balances(groupId, ann.token);
       await stop(running);
       running = await start(upgraded.path);
