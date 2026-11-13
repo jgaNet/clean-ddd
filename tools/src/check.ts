@@ -38,6 +38,9 @@
  * 14. The published language (ADR 44), when the repository has one, is sound against the domain map, and
  *    every inventory carries the last version of each event it declares, field for field: this
  *    language's, read from the tree, and every other language's committed one (CTX-PUBLISHED-LANGUAGE).
+ * 15. The API as data (ADR 45), when the language's directory has an `api/` (a created application does):
+ *    its fragments compose — each parses, is a fragment, and names no resource none defines
+ *    (API-ONE-SURFACE).
  *
  * A client of the contract API, like the CLI; it parses no YAML itself. One root: the
  * repository's, where the contract and the shared documents live; the language's directory is
@@ -97,6 +100,8 @@ import {
   loadPublishedLanguage,
   validatePublishedLanguage,
   checkInventoryAgainstPublishedLanguage,
+  API_DIR,
+  applicationApiProblems,
 } from './index';
 import type { ArchitectureContract, ContextLink, Inventory, Mechanism } from './index';
 
@@ -435,6 +440,13 @@ export async function checkConventions(
     }
   }
 
+  // 15. The API as data composes (ADR 45): what the end-to-end client holds every answer to
+
+  const apiAt = join(root, at);
+  const hasApi = existsSync(join(apiAt, API_DIR));
+  for (const wrong of applicationApiProblems(apiAt))
+    problem(`API-ONE-SURFACE: ${at === '.' || !wrong.startsWith(API_DIR) ? wrong : `${at}/${wrong}`}`);
+
   // 7. The generated import rules refuse and allow what the table says
 
   const probes = readsTree ? generateProbes(contract) : [];
@@ -460,7 +472,7 @@ export async function checkConventions(
 
   return {
     problems,
-    summary: `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts${readsTree ? ' match the tree' : ''}; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; ${readsTree ? `no eslint-disable; ${probes.length} import probes behave and name their rule` : `the tree is held by ${contract.language.name}'s own tool`}${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}${storm ? `; the event storm is read from the code (${storm.contexts.reduce((sum, each) => sum + each.commands.length, 0)} commands, ${storm.contexts.reduce((sum, each) => sum + each.policies.length, 0)} policies)` : ''}${multi ? `; one application in ${inventories.size} inventor${inventories.size === 1 ? 'y' : 'ies'}` : ''}${contract.profiles.length ? `; ${contract.profiles.length} profile(s) held to the floor (${contract.contexts.filter(context => profileOf(contract, context) !== contract.profiles.find(profile => profile.default)?.id).length} context(s) off the default)` : ''}${contract.migration ? `; the wire is ${contract.migration.api} (${contract.migration.routes.length} compatibility route(s))` : ''}${publishedLanguage ? `; ${publishedLanguage.events.length} integration event(s) in the published language` : ''}.`,
+    summary: `✓ contract v${contract.schemaVersion}, ${contract.language.name} binding: ${contract.rules.length} rules, ${contract.concepts.length} concepts, ${contract.contexts.length} contexts${readsTree ? ' match the tree' : ''}; ${contracts.length} language(s) in the map; the documents are rendered from it; every documentation link resolves; ${readsTree ? `no eslint-disable; ${probes.length} import probes behave and name their rule` : `the tree is held by ${contract.language.name}'s own tool`}${domainMap ? `; the context map is true to the code (${links.length} links)` : ''}${storm ? `; the event storm is read from the code (${storm.contexts.reduce((sum, each) => sum + each.commands.length, 0)} commands, ${storm.contexts.reduce((sum, each) => sum + each.policies.length, 0)} policies)` : ''}${multi ? `; one application in ${inventories.size} inventor${inventories.size === 1 ? 'y' : 'ies'}` : ''}${contract.profiles.length ? `; ${contract.profiles.length} profile(s) held to the floor (${contract.contexts.filter(context => profileOf(contract, context) !== contract.profiles.find(profile => profile.default)?.id).length} context(s) off the default)` : ''}${contract.migration ? `; the wire is ${contract.migration.api} (${contract.migration.routes.length} compatibility route(s))` : ''}${publishedLanguage ? `; ${publishedLanguage.events.length} integration event(s) in the published language` : ''}${hasApi ? '; api/ composes' : ''}.`,
   };
 }
 

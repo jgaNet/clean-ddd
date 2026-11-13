@@ -7,9 +7,11 @@ since:
 - I6: the gate's fixes;
 - I2: [ADR 44](../adr/0044-integration-events-are-a-published-language-declared-once.md), the published language
   (`conventions/integration-events.yaml`), each language's payloads in its inventory, held by the check and frozen by
-  the gate (CTX-PUBLISHED-LANGUAGE).
+  the gate (CTX-PUBLISHED-LANGUAGE);
+- D2, in TypeScript: [ADR 45](../adr/0045-a-created-application-holds-its-api-as-data.md), a created application's
+  `api/`, composed by the tooling, held by its end-to-end client and its check. Rust, Python and Go after J6.
 
-Still to come: D2. D3 and D5 are the protocol's.
+D3 and D5 are the protocol's.
 
 **Decided (the maintainer, 13 November):**
 

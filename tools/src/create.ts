@@ -7,6 +7,7 @@ import { ArchitectureContract, Concept, ContractError, CreateSpec, Rule } from '
 import { loadArchitectureContract, repositoryRoot, typedFrom } from './load';
 import { Inventory, serializeInventory } from './inventory';
 import { PUBLISHED_LANGUAGE_FILE } from './published-language';
+import { API_DIR } from './api';
 import {
   END_MARKER,
   RULES_MARKER,
@@ -339,6 +340,18 @@ export function createApplication(
   writeFileSync(join(directory, PUBLISHED_LANGUAGE_FILE), publishedLanguage(source, contexts));
   mkdirSync(join(directory, 'conventions/storms'), { recursive: true });
   writeFileSync(join(directory, 'conventions/storms/README.md'), stormsReadme());
+  // The API as data (ADR 45): its first fragment, the operation generated from the contract's
+  // `http.operation`, what any route may answer, and the routes it ships with; where the binding
+  // copies the end-to-end client that holds every answer to it (a TypeScript application).
+  if (spec.copy.some(({ to }) => local(to) === API_CLIENT)) {
+    const answersAtOnce = (held ?? contract.profiles.find(each => each.default))?.grammar !== 'http';
+    mkdirSync(join(directory, API_DIR), { recursive: true });
+    writeFileSync(
+      join(directory, API_DIR, '1-the-api.yaml'),
+      firstApiFragment(source, contract, contexts, answersAtOnce),
+    );
+    writeFileSync(join(directory, API_DIR, 'README.md'), apiReadme());
+  }
   writeFileSync(join(directory, local(spec.manifest)), manifest(spec, source, languageDir, name));
   if (!existsSync(join(directory, '.gitignore'))) {
     writeFileSync(join(directory, '.gitignore'), 'node_modules\ndist\ncoverage\n*.tsbuildinfo\n');
@@ -731,6 +744,13 @@ function claude(
     '',
     "## The API's shape",
     '',
+    ...(contract.create?.copy.some(({ to }) => local(to) === API_CLIENT)
+      ? [
+          "A request's API goes into `api/` as a fragment first, before the code (`api/README.md`); the end-to-end",
+          'tests hold every answer to it, through `apiClient()`. *(API-ONE-SURFACE; tests)*',
+          '',
+        ]
+      : []),
     'When a specification (a request, a ticket, an API document) says what the API answers — a field, its type, when',
     'it is `null`, a status — that is the shape, even where the code already answers otherwise: change the code that',
     "projects the answer (the read model, its projection, the route's schema) and the tests that read the old shape,",
@@ -830,6 +850,107 @@ function startingInventory(source: string, language: string, contexts: string[])
     }),
   };
 }
+
+/** The end-to-end client every created TypeScript application's suites speak through (ADR 45). */
+const API_CLIENT = 'src/Bootstrap/Fastify/api.spec-helper.ts';
+/** The prefix the composition root serves under unless `API_PREFIX` says otherwise. */
+const API_PREFIX = 'v1';
+
+/**
+ * The first fragment of a new application's API (ADR 45): what every route may answer, and the routes
+ * it ships with. Its `operation` is the contract's `http.operation` record, read here rather than copied
+ * by hand, so that what the Tracker answers and what the application's tests hold it to are one record
+ * (ADR 41). An application that answers at once (Lite) has no operation and no `202`.
+ */
+function firstApiFragment(
+  source: string,
+  contract: ArchitectureContract,
+  contexts: string[],
+  answersAtOnce: boolean,
+): string {
+  const table = load(readFileSync(join(source, contract.sources.architecture), 'utf8')) as {
+    http?: { operation?: { read?: string; record?: Record<string, unknown> } };
+  };
+  const operation = table.http?.operation;
+  const tracked = !answersAtOnce && contexts.includes('Tracker') && operation?.record && operation.read;
+  const refusal = {
+    type: 'object',
+    required: ['message'],
+    properties: {
+      message: { type: 'string' },
+      ...(answersAtOnce && { type: { type: 'string', description: "The rule's exception, when a rule refused." } }),
+    },
+  };
+  const resources: Record<string, { schema: unknown }> = {
+    refusal: { schema: refusal },
+    ...(answersAtOnce
+      ? { created: { schema: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } } } }
+      : {
+          accepted: {
+            schema: { type: 'object', required: ['operationId'], properties: { operationId: { type: 'string' } } },
+          },
+        }),
+    ...(tracked && { operation: { schema: operation.record } }),
+  };
+  const [, readPath = ''] = String(tracked ? operation.read : '').split(' ');
+  const read = `/${API_PREFIX}${readPath.replace(/:(\w+)/g, '{$1}')}`;
+  const fragment = {
+    resources,
+    all_routes: answersAtOnce ? { '4xx': 'refusal' } : { 202: 'accepted', '4xx': 'refusal' },
+    routes: tracked
+      ? {
+          [`GET ${read.replace(/\/\{\w+\}$/, '')}`]: { 200: { type: 'array', items: { $resource: 'operation' } } },
+          [`GET ${read}`]: { 200: 'operation' },
+        }
+      : {},
+  };
+  const header = [
+    "# The first fragment of this application's API (ADR 45 of the reference), written by `clean-ddd create`.",
+    answersAtOnce
+      ? '# It answers every command at once (the Lite profile): a create `201 { id }` (`created`), any other `200` or `204`,'
+      : '# A command is answered `202 { operationId }` (`accepted`) and its outcome read at the Tracker (`operation`, the',
+    answersAtOnce
+      ? "# a refusal a `4xx` with the rule's exception; there is no operation to follow."
+      : "# contract's `http.operation`); a refusal is a `4xx`. A `5xx` is never an answer a route gives.",
+    '# Each change adds its fragment after this one (`api/2-<name>.yaml`) before its code: api/README.md says how.',
+    '',
+  ].join('\n');
+  return `${header}${dump(fragment, { lineWidth: 110, noRefs: true })}`;
+}
+
+const apiReadme = () =>
+  [
+    '# The API',
+    '',
+    'What this application answers, as data: one fragment per change, `<n>-<name>.yaml`, composed in their order.',
+    'A change that adds or changes an answer writes its fragment first, before its code; the end-to-end client',
+    '(`src/Bootstrap/Fastify/api.spec-helper.ts`) holds every answer a test reads to the composition, and a',
+    'test fails on an answer of another shape, a status its route and `all_routes` do not name, or a route no',
+    'fragment declares, naming the fragment whose shape it breaks. `yarn check:conventions` refuses an `api/`',
+    'that does not compose (API-ONE-SURFACE).',
+    '',
+    '```yaml',
+    '# api/2-tasks.yaml',
+    'resources:',
+    '  task:',
+    '    schema:                      # a JSON Schema (draft-07): the resource, new or replaced whole',
+    '      type: object',
+    '      required: [id, title, status]',
+    '      properties: { id: { type: string }, title: { type: string }, status: { enum: [open, done] } }',
+    '    # gains: { dueOn: { … } }    # properties it has from this change on, required from now on',
+    '    # states: [{ field: status, add: [archived] }]          # values an enum now takes',
+    '    # conditions: [{ field: doneAt, null_only_when: { status: [open] } }]',
+    'routes:',
+    '  GET /v1/tasks/{id}:',
+    "    200: task                    # a resource's name, or a JSON Schema",
+    '  GET /v1/tasks:',
+    '    200: { type: array, items: { $resource: task } }      # a resource anywhere inside a schema',
+    '```',
+    '',
+    'A status is exact (`404`) or a class (`4xx`); `all_routes`, in the first fragment, says what any route may',
+    'answer besides its own. A route is the whole path, the prefix included.',
+    '',
+  ].join('\n');
 
 const stormsReadme = () =>
   [

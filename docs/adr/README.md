@@ -48,5 +48,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0042](0042-an-application-has-one-clock.md) | An application has one clock, passed from the wiring, and nothing else reads the machine's time |
 | [0043](0043-a-lite-use-case-calls-a-pure-decision-and-says-who-may-call-it.md) | A Lite use case calls a pure decision, and says once who may call it, which the transport holds |
 | [0044](0044-integration-events-are-a-published-language-declared-once.md) | Integration events are a published language, declared once, versioned, and held in every language |
+| [0045](0045-a-created-application-holds-its-api-as-data.md) | A created application holds its API as data, and its end-to-end tests hold every answer to it |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

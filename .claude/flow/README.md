@@ -144,7 +144,8 @@ node .claude/flow/kit-check.mjs <kit>     # before the campaign is registered, b
 - **[`api-schema.mjs`](api-schema.mjs)** composes the kit's fragments (`api/<n>-<id>.yaml`: JSON Schema for each
   route's answers and the resources they add or change, the states they add, the fields `null` in one case only) up to
   a request, and validates an answer against the composition; each problem names the request whose fragment set the
-  shape.
+  shape. The composer is the tooling's (`tools/src/api.ts`, `clean-ddd/api`), the one a created
+  application's end-to-end client holds its own `api/` with (ADR 45 of the reference).
 - **[`kit-check.mjs`](kit-check.mjs)** refuses a request with an API table and no fragment, a convention of the
   register without `born` or without its `it` in that request's acceptance file, a state added without a test that
   reads the whole resource in it, and an operation the requests compose that differs from the contract's

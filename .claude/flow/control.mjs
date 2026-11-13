@@ -46,8 +46,10 @@ if (kind === 'plain') {
   }
 } else {
   run(process.execPath, [join(repository, 'tools/dist/cli.js'), 'create', dir, '--name', name], dirname(dir));
-  // The tooling out: the contract, the CLI and its scripts, the import rules generated from the contract.
-  for (const path of ['conventions', '.claude', 'README.md']) rmSync(join(dir, path), { recursive: true, force: true });
+  // The tooling out: the contract, the CLI and its scripts, the import rules generated from the contract, and
+  // the API as data the tooling composes (ADR 45): with no api/, the end-to-end client holds nothing.
+  for (const path of ['conventions', '.claude', 'README.md', 'api'])
+    rmSync(join(dir, path), { recursive: true, force: true });
   const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
   for (const script of ['check:conventions', 'conventions:write', 'architecture']) delete manifest.scripts[script];
   delete manifest.devDependencies['clean-ddd'];

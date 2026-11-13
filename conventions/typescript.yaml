@@ -98,6 +98,8 @@ create:
     - src/Bootstrap/Fastify/FastifyApplication.ts
     - src/Bootstrap/Fastify/fastify.d.ts
     - src/Bootstrap/Fastify/application.ts
+    # The end-to-end client, which holds every answer to the application's api/ (ADR 45).
+    - src/Bootstrap/Fastify/api.spec-helper.ts
     - { from: src/Bootstrap/Starter/createApplication.ts, to: src/Bootstrap/Fastify/createApplication.ts }
     - { from: src/Bootstrap/Starter/createApplication.e2e.spec.ts, to: src/Bootstrap/Fastify/createApplication.e2e.spec.ts }
     - tsconfig.json
@@ -227,6 +229,7 @@ checklists:
   command:
     place: src/Contexts/<Context>/Application/Commands/<UseCase>/
     parts:
+      - 'First, in an application with an `api/` (a created one has it; ADR 45): its answers as a fragment, `api/<n>-<name>.yaml` after the last one, the route by status and the resources it answers (its `202` is already in `all_routes`, and what it answers is the operation''s `result`); the end-to-end client (`apiClient()` in `src/Bootstrap/Fastify/api.spec-helper.ts`) holds every answer a test reads to it, and `yarn check:conventions` refuses a fragment that does not compose.'
       - '`<UseCase>CommandEvent.ts`: a named payload, nothing more.'
       - '`<UseCase>CommandHandler.ts`: `requireSignedIn` at the top of `execute()`, load, ask the aggregate or the domain service, save (check the `IResult`), `publishDomainEvents`. A command anyone may send (a sign-up) has no `requireSignedIn`; its caller follows it by the operation id it was answered, signed in or not (ADR 27).'
       - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
@@ -238,6 +241,7 @@ checklists:
   query:
     place: src/Contexts/<Context>/Application/Queries/<UseCase>/
     parts:
+      - 'First, in an application with an `api/` (a created one has it; ADR 45): its answers as a fragment, `api/<n>-<name>.yaml` after the last one, the route by status and the resources it answers (its read model as a resource, `200: <thing>`); the end-to-end client (`apiClient()` in `src/Bootstrap/Fastify/api.spec-helper.ts`) holds every answer a test reads to it, and `yarn check:conventions` refuses a fragment that does not compose.'
       - 'A read model and a method on the queries port, with the order and the unknown-id answer in its JSDoc.'
       - 'The handler reads the port and nothing else: no sorting, no second port, no aggregate.'
       - 'One line in `Application/Queries/index.ts`.'
@@ -283,6 +287,7 @@ profiles_held:
       command:
         place: src/Contexts/<Context>/Application/<Things>.ts
         parts:
+          - 'First, in an application with an `api/` (a created one has it; ADR 45): its answers as a fragment, `api/<n>-<name>.yaml` after the last one, the route by status and the resources it answers (`201: created` for a create); the end-to-end client (`apiClient()` in `src/Bootstrap/Fastify/api.spec-helper.ts`) holds every answer a test reads to it, and `yarn check:conventions` refuses a fragment that does not compose.'
           - 'A use case in the file of its thing''s use cases, one export each: `export const <intent> = command(''<Intent>'', (<ports>, clock: Clock) => async (input, context) => …)` ([`UseCase.ts`](src/Architecture/Application/Lite/UseCase.ts)); the name is the public one, without a suffix.'
           - 'Who may call it, said once: a signed-in caller unless the definition ends with `{ caller: ''anyone'' }` (signing up, a link that carries its own proof); the route''s `answerAtOnce()` refuses a missing caller with `401` before it runs, so no `requireSignedIn()` here — `callerOf(context)` gives the caller''s id where the decision needs it; "administrators only" is asked through the shared kernel''s `Role` and refused with a `NotAllowedException` (`403`).'
           - 'Its rules in a decision, `decide<Intent>` in `Domain/<Thing>/<Thing>.decision.ts`: a pure function `Decision<State, Command, Fact>` of the state, the command and `now` ([`Decision.ts`](src/Architecture/Domain/Lite/Decision.ts)) that answers `decided(newState, ...facts)` or the rule''s failed `Result`, refusing a value through the value objects and generating a new thing''s id with `Id.generate()`; no port, no `async`, no clock — the linter refuses them there.'
@@ -294,6 +299,7 @@ profiles_held:
       query:
         place: src/Contexts/<Context>/Application/<Things>.ts
         parts:
+          - 'First, in an application with an `api/` (a created one has it; ADR 45): its answers as a fragment, `api/<n>-<name>.yaml` after the last one, the route by status and the resources it answers (its read model as a resource, `200: <thing>`); the end-to-end client (`apiClient()` in `src/Bootstrap/Fastify/api.spec-helper.ts`) holds every answer a test reads to it, and `yarn check:conventions` refuses a fragment that does not compose.'
           - '`export const <question> = query(''<Question>'', (<store>) => async (input, context) => …)` in the file of its thing''s use cases, returning a read model, never an aggregate (QUERY-READ-MODELS); for a signed-in caller unless it ends with `{ caller: ''anyone'' }`, as a command.'
           - 'The read model and the store''s method that answers it are declared in the store port, with the order and the answer to an unknown id in its JSDoc; the query never sorts.'
           - 'Listed in the Module''s `useCases`, answered by `answerAtOnce()` on `GET` (`200` with the read model, a refusal with its status).'
@@ -328,6 +334,7 @@ profiles_held:
         - src/Bootstrap/Fastify/FastifyApplication.ts
         - src/Bootstrap/Fastify/fastify.d.ts
         - src/Bootstrap/Fastify/application.ts
+        - src/Bootstrap/Fastify/api.spec-helper.ts
         - { from: src/Bootstrap/LiteStarter/createApplication.ts, to: src/Bootstrap/Fastify/createApplication.ts }
         - { from: src/Bootstrap/LiteStarter/createApplication.e2e.spec.ts, to: src/Bootstrap/Fastify/createApplication.e2e.spec.ts }
         - tsconfig.json

@@ -2,7 +2,10 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'os';
 import { join } from 'path';
 
+import { load } from 'js-yaml';
+
 import {
+  applicationApiProblems,
   checkConventions,
   checkExpectedStorm,
   checkInventoryAgainstPublishedLanguage,
@@ -14,6 +17,7 @@ import {
   inspectInventory,
   loadArchitectureContract,
   loadDomainMap,
+  loadApplicationApi,
   loadExpectedStorm,
   oneHandlerProblems,
   profileOf,
@@ -146,6 +150,34 @@ describe('yarn architecture create', () => {
 
   it('is sound on its own terms: nothing it says points at a file it does not have', () => {
     expect(validateContract(generated, directory)).toEqual([]);
+  });
+
+  it("starts its API as data: the contract's operation, what any route answers, the Tracker's routes (ADR 45)", () => {
+    const fragment = load(read('api/1-the-api.yaml')) as {
+      resources: Record<string, { schema: unknown }>;
+      all_routes: Record<string, unknown>;
+      routes: Record<string, unknown>;
+    };
+    const contractText = readFileSync(join(root, 'conventions/architecture.yaml'), 'utf8');
+    const record = (load(contractText) as { http: { operation: { record: unknown } } }).http.operation.record;
+    // Generated from the contract's record, not a copy of it: the two are one record (ADR 41).
+    expect(fragment.resources.operation.schema).toEqual(record);
+    expect(fragment.all_routes).toEqual({ 202: 'accepted', '4xx': 'refusal' });
+    expect(Object.keys(fragment.routes)).toEqual(['GET /v1/tracker/operations', 'GET /v1/tracker/operations/{id}']);
+    expect(applicationApiProblems(directory)).toEqual([]);
+    expect(loadApplicationApi(directory).anyRoute).toHaveProperty('202');
+    expect(read('api/README.md')).toContain('`all_routes`');
+    // The end-to-end client that holds every answer to it, and the composition root's suite speaking through it.
+    expect(read('src/Bootstrap/Fastify/api.spec-helper.ts')).toBe(
+      readFileSync(join(root, 'typescript/src/Bootstrap/Fastify/api.spec-helper.ts'), 'utf8'),
+    );
+    expect(read('src/Bootstrap/Fastify/createApplication.e2e.spec.ts')).toContain('apiClient(app.address)');
+    // The guide says it in one line; the checklist of a command and of a query starts with it.
+    expect(read('CLAUDE.md')).toContain("A request's API goes into `api/` as a fragment first, before the code");
+    for (const kind of ['command', 'query'])
+      expect(generated.checklists.find(each => each.kind === kind)!.parts[0]).toMatch(
+        /^First, .*`api\/<n>-<name>\.yaml`/,
+      );
   });
 
   it('writes a guide within its budget, every rule it states held or marked review (RFC 0005, D4)', () => {
@@ -291,6 +323,26 @@ describe('yarn architecture create --language python', () => {
     expect(inventory.links).toEqual([]);
     expect(generated.contexts).toEqual(['Tracker']);
     expect(existsSync(join(directory, 'src/contexts/notes'))).toBe(false);
+  });
+
+  it('refuses an api/ that does not compose, under API-ONE-SURFACE, in whichever language has one', async () => {
+    expect(existsSync(join(directory, 'api'))).toBe(false);
+    try {
+      mkdirSync(join(directory, 'api'));
+      writeFileSync(join(directory, 'api/1-the-api.yaml'), 'routes:\n  GET /v1/things/{id}:\n    200: thing\n');
+      writeFileSync(join(directory, 'api/2-broken.yaml'), 'routes: [unclosed\n');
+      expect(
+        (await checkConventions(directory)).problems.filter(problem => problem.startsWith('API-ONE-SURFACE')),
+      ).toEqual([expect.stringMatching(/^API-ONE-SURFACE: api\/2-broken\.yaml does not parse: /)]);
+      rmSync(join(directory, 'api/2-broken.yaml'));
+      expect(
+        (await checkConventions(directory)).problems.filter(problem => problem.startsWith('API-ONE-SURFACE')),
+      ).toEqual([
+        'API-ONE-SURFACE: api/1-the-api.yaml: GET /v1/things/{id} answers 200 with the resource thing, which no fragment of api/ defines',
+      ]);
+    } finally {
+      rmSync(join(directory, 'api'), { recursive: true, force: true });
+    }
   });
 
   it('holds its context map to the links its own tool writes in the inventory: CTX-MAP-DECLARED outside TypeScript', async () => {
@@ -560,6 +612,21 @@ describe('yarn architecture create --profile lite', () => {
     expect(read('CLAUDE.md')).toMatch(/held to the Lite profile/);
     expect(read('CLAUDE.md')).toMatch(/answerAtOnce\(\)/);
     expect(read('README.md')).toMatch(/\*\*Lite\*\* profile/);
+  });
+
+  it('starts its API as data answered at once: no operation, no 202, a refusal on any route (ADR 45)', () => {
+    const fragment = load(read('api/1-the-api.yaml')) as {
+      resources: Record<string, unknown>;
+      all_routes: Record<string, unknown>;
+      routes: Record<string, unknown>;
+    };
+    expect(Object.keys(fragment.resources)).toEqual(['refusal', 'created']);
+    expect(fragment.all_routes).toEqual({ '4xx': 'refusal' });
+    expect(fragment.routes).toEqual({});
+    expect(read('api/1-the-api.yaml')).toMatch(/answers every command at once/);
+    expect(applicationApiProblems(directory)).toEqual([]);
+    expect(read('src/Bootstrap/Fastify/createApplication.e2e.spec.ts')).toContain('apiClient(app.address)');
+    expect(read('CLAUDE.md')).toContain("A request's API goes into `api/` as a fragment first, before the code");
   });
 
   it('is sound on its own terms, and answers for Lite: its checklists, its grammar with no noun of the reference', () => {

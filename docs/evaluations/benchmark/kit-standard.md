@@ -147,4 +147,6 @@ function holdToApi(method: string, path: string, status: number, body: unknown) 
 ```
 
 `path` is the whole path, `/v1` included. Without `API_SCHEMA` (a kit graded without `api/`), nothing is held. The same
-lookup is [`schemaFor`](../../../.claude/flow/api-schema.mjs) in the flow, and its spec runs these lines.
+lookup is [`schemaFor`](../../../.claude/flow/api-schema.mjs) in the flow, and its spec runs these lines. The composer
+is the tooling's ([`tools/src/api.ts`](../../../tools/src/api.ts)), the one a created application holds its own `api/`
+with ([ADR 45](../../adr/0045-a-created-application-holds-its-api-as-data.md)).
