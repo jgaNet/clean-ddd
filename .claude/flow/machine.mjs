@@ -51,9 +51,12 @@ const alive = pid => {
 
 /**
  * Takes one of `max` slots in `dir` (a directory per slot, made atomically, holding the owner's pid); a slot whose
- * owner is gone is taken over. Waits, polling every `pollMs`, while every slot is held, and calls `onWait` once.
+ * owner is gone, or is this very process (a pid reused after a restart), is taken over. Waits, polling every `pollMs`, while every slot is held, and calls `onWait` once.
  * Returns the function that frees the slot; the slot is also freed when the process exits.
  */
+/** The slots this process took: one that names this pid and is not among them was left before a restart. */
+const held = new Set();
+
 export async function takeSlot({
   max,
   dir = join(tmpdir(), 'clean-ddd-ladder-slots'),
@@ -74,7 +77,9 @@ export async function takeSlot({
         } catch {
           owner = NaN; // being written, or left half-made by a crash
         }
-        if (Number.isFinite(owner) && alive(owner)) continue;
+        // A slot that names this process was left by a ladder killed with its machine: after a restart, the resumed
+        // ladder can get the same pid, and would wait for itself (J5b, 13 November: two hours).
+        if (Number.isFinite(owner) && (owner === process.pid ? held.has(slot) : alive(owner))) continue;
         // Just made by another ladder, which writes its pid next; left empty for a minute, it was a crash.
         if (!Number.isFinite(owner) && readdirSync(slot).length === 0 && Date.now() - statSync(slot).mtimeMs < 60_000)
           continue;
@@ -82,7 +87,11 @@ export async function takeSlot({
         continue;
       }
       writeFileSync(join(slot, 'pid'), String(process.pid));
-      const free = () => rmSync(slot, { recursive: true, force: true });
+      held.add(slot);
+      const free = () => {
+        held.delete(slot);
+        rmSync(slot, { recursive: true, force: true });
+      };
       process.once('exit', free);
       return free;
     }

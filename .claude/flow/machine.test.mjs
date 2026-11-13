@@ -72,4 +72,15 @@ describe('the slots ladders share', () => {
     await takeSlot({ max: 1, dir: crashed, pollMs: 20 });
     assert.ok(existsSync(join(crashed, 'slot-0', 'pid')));
   });
+
+  it('takes over a slot that names its own pid, left before a restart that gave the same pid again', async () => {
+    const dir = join(scratch, 'reused');
+    mkdirSync(join(dir, 'slot-0'), { recursive: true });
+    writeFileSync(join(dir, 'slot-0', 'pid'), String(process.pid));
+    const taken = await Promise.race([
+      takeSlot({ max: 1, dir, pollMs: 20 }).then(() => true),
+      new Promise(done => setTimeout(() => done(false), 500)),
+    ]);
+    assert.equal(taken, true);
+  });
 });
