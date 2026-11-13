@@ -5,7 +5,13 @@ by it. Its decisions are listed in §9. **K1 decided (the maintainer, 13 Novembe
 preparation, without holding it up. **K1 measured the same day (§9b):** exploring is three quarters or more of
 what the tools bring into an agent's context, so the direction stands. **K2–K4 decided (the maintainer, 13
 November): yes, before J6.** Their design is the operator's next proposal, for the maintainer's review before any
-code; whatever of it an arm receives is in place before the arms' profiles and kit are hashed for registration.
+code. With them (the maintainer, 13 November):
+- **J6 is unchanged:** its arms receive neither the register (K2) nor the query (K3); K4 measures them, on the
+  frozen J5b trees, and J6 measures what RFC 0005 registered.
+- **K4 is a pilot first:** 6 tasks, the three arms of §8, 3 runs each (about 54 runs, an estimated $80 to $150),
+  with §8's rejection criteria; it is extended only if the pilot is undecided.
+- **K2 in TypeScript first** (the reference and created applications); Rust, Python and Go after J6.
+- **K4 runs while J6 is prepared,** on the free machine, and is read before J6 starts.
 
 ## 1. The question
 
