@@ -2,7 +2,8 @@
 
 **Status:** proposed (13 November), a research direction. Nothing is implemented, and no rule, binding or ADR changes
 by it. Its decisions are listed in §9. **K1 decided (the maintainer, 13 November): yes,** measured beside J6's
-preparation, without holding it up. K2–K4 wait on K1's result.
+preparation, without holding it up. **K1 measured the same day (§9b):** exploring is three quarters or more of
+what the tools bring into an agent's context, so the direction stands. K2–K4 are the maintainer's next decisions.
 
 ## 1. The question
 
@@ -253,6 +254,41 @@ kits. A task's text names no file.
 | K4 | Register and run the experiment of §8 | The tasks, the ground truth and the criteria committed before any run |
 
 K1 comes first, and may end the direction. K2 is worth doing on its own evidence (J5, J5b). K3 and K4 wait on K1.
+
+## 9b. K1, measured (13 November)
+
+From J5b's own agents' transcripts (172 sessions, kept by the agents' runner beside each attempt's worktree), each tool
+call is classed:
+- **explore:** reading files, `grep`, listing, the architecture command line;
+- **edit:** an edit, a write, a script that writes a file;
+- **verify:** a test, the linter, the type checker, the gate;
+- **coordinate:** the channel between owners, waiting, the runner's notices;
+- **other.**
+
+The context each class brings in is measured as the size of its results. Bytes stand in for tokens (about four bytes
+to a token).
+
+| | simple-3 (62 sessions) | clean-3 (110 sessions) |
+| --- | --- | --- |
+| Tool calls a session (median) | 45 | 66 |
+| Share of calls: explore / edit / verify / coordinate / other | 43% / 31% / 11% / 6% / 9% | 38% / 26% / 14% / 16% / 7% |
+| Share of the context the tools bring in, from exploring | 82% of 9.3 MB | 73% of 17.8 MB |
+| Reads before the first edit (median) | 13 | 12 |
+| Of the exploring: reading files / text search / the architecture command line | 66% / 32% / 0% | 65% / 22% / 8% |
+
+**What it says:**
+- **Exploring is most of what an agent reads.** Its results are three quarters or more of the context the tools bring
+  in, and every later turn reads that context again. The direction is not ended by K1: the gain the projection
+  aims at is the largest share of an attempt's input.
+- **Agents explore by reading files and searching text, not through the architecture's own commands.** Those are 8% of
+  clean-3's exploring. A projection only helps if an agent reaches for it, so the experiment (§8) must measure whether
+  arm C calls the query, not only whether it could.
+- **Coordinating is 16% of clean-3's calls,** mostly the split's channel and waits, beside the split's cost J5b
+  measured.
+- **It does not say a projection would shorten the exploring.** That is K3 and K4's question.
+
+The measuring scripts are kept in the operator's notes, not in the repository. They read transcripts that live outside
+it.
 
 ## 10. Not proposed
 
