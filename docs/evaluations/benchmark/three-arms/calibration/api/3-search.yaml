@@ -1,0 +1,20 @@
+# Request 3: search. The fields of a result are the ones this request names; a result is a
+# published listing (a draft, a suspended or an archived one is never found).
+routes:
+  GET /v1/listings:
+    200:
+      type: array
+      items:
+        type: object
+        required: [id, hostId, title, city, capacity, nightlyPrice, cleaningFee, cancellationPolicy, status]
+        properties:
+          id: { type: string }
+          hostId: { type: string }
+          title: { type: string }
+          city: { type: string }
+          capacity: { type: integer }
+          nightlyPrice: { type: integer }
+          cleaningFee: { type: integer }
+          cancellationPolicy: { enum: [flexible, moderate, strict] }
+          status: { enum: [published] }
+    400: {}

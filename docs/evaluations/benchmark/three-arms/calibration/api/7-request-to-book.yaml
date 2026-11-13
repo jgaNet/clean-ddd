@@ -1,0 +1,39 @@
+# Request 7: a request to book, which its host accepts or declines, or which expires.
+resources:
+  listing:
+    gains:
+      bookingMode: { enum: [instant, request] }
+  # A booking in any of the new states, wherever one is answered (its lists included), read whole by the
+  # test named for each.
+  booking:
+    states:
+      - field: status
+        add: [requested]
+        test: makes a request on a listing in request mode, which holds its nights until the host accepts it
+      - field: status
+        add: [declined]
+        test: frees the nights of a declined request, and keeps a request a request when the mode changes
+      - field: status
+        add: [expired]
+        test: expires a request the host did not decide in time, which frees its nights without anyone acting
+  # The booking as GET /v1/bookings/{id} reads it: what this request's table says that route gains
+  # (`expiresAt`, for a waiting request only, which `gains` could not say: it requires a field in every state).
+  bookingRead:
+    schema:
+      type: object
+      properties:
+        expiresAt: { $comment: request 7, type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)$' }
+      allOf:
+        - { $resource: booking }
+        - $comment: 'request 7: a waiting request also has expiresAt'
+          if: { $comment: request 7, required: [status], properties: { status: { $comment: request 7, const: requested } } }
+          then: { $comment: 'request 7: a waiting request also has expiresAt', required: [expiresAt] }
+routes:
+  PUT /v1/listings/{id}/booking-mode:
+    2xx: {}
+  POST /v1/bookings/{id}/accept:
+    2xx: {}
+  POST /v1/bookings/{id}/decline:
+    2xx: {}
+  GET /v1/bookings/{id}:
+    200: bookingRead

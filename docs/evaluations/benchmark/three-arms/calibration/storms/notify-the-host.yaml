@@ -1,0 +1,50 @@
+# Feature 10 of OpenStay's pilot (../backlog/10-notify-the-host.md), as the session decided it.
+schemaVersion: 1
+
+feature: notify-the-host
+intent: >-
+  Each new booking and each new request owes its host one notice, delivered to an outside service until it is accepted, whatever crashes in between.
+
+done: false
+
+hotSpots:
+  - question: Who notifies the host?
+    decision: Notifications, a context of its own, from integration events Booking publishes; Booking knows nothing of the outside service.
+  - question: What is owed, and when is it done?
+    decision: A Delivery per notice, its body fixed when it is made (NoticeOwed), done when the service answers 2xx (NoticeAccepted), retried by a scheduled sender. The outbox and the reactions' own transactions carry the fact from Booking across a crash.
+  - question: Does accepting a request notify the host again?
+    decision: No — the host already knows of it; only BookingConfirmed and BookingRequested are published.
+
+contexts:
+  - id: Booking
+    commands: []
+    queries: []
+    events: [BookingConfirmed, BookingRequested]
+    policies:
+      - on: BookingConfirmed
+        kind: domain-event
+        publishes: [BookingConfirmed]
+        events: []
+      - on: BookingRequested
+        kind: domain-event
+        publishes: [BookingRequested]
+        events: []
+  - id: Notifications
+    commands: []
+    queries: []
+    events: [NoticeAccepted, NoticeOwed]
+    policies:
+      - on: BookingConfirmed
+        kind: integration-event
+        publishes: []
+        events: [NoticeOwed]
+      - on: BookingRequested
+        kind: integration-event
+        publishes: []
+        events: [NoticeOwed]
+
+links:
+  - mechanism: integration-event
+    upstream: Booking
+    downstream: Notifications
+    contracts: [BookingConfirmed, BookingRequested]

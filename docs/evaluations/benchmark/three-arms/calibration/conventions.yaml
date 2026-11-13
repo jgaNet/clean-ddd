@@ -1,0 +1,119 @@
+# J6's calibration (OpenStay 1-10): every convention a later request relies on, with the request that
+# sets it (`born`) and the test, in that request's acceptance file, that holds it there
+# (docs/evaluations/benchmark/kit-standard.md). kit-check refuses an entry without either.
+#
+# No entry `departs` from the contract: request 1 gives an operation's `error` as the contract's
+# `{ type, message }` (http.operation in conventions/architecture.yaml, ADR 41), as the maintainer
+# decided on 13 November for this calibration.
+conventions:
+  # Request 1: how the API works, for every request after it ("The API works as request 1 says").
+  - id: refusal
+    says: >-
+      A refusal is a 4xx at once, or a 202 whose operation ends in ERROR; a 5xx is never an answer the application
+      chooses: it says the server failed. 400 is for a body missing a field or with a field of the wrong type.
+    born: 1
+    test: refuses what it cannot do with a 4xx, or an operation that ends in ERROR, never a 5xx
+  - id: operation-error
+    says: >-
+      An operation that ends in ERROR has `error: { type, message }`, the contract's record: `type` the name of the
+      rule that refused it, in PascalCase, and `message` a sentence. A refusal answered at once is a 4xx whose body
+      no request fixes.
+    born: 1
+    test: names the refused rule in the operation's error
+  - id: operation-result
+    says: >-
+      A request that creates something answers `{ id }` at once, or has the new thing's id as its operation's
+      `result`; `status` is PENDING until it ends, then SUCCESS or ERROR.
+    born: 1
+    test: signs up a traveller, a host, or both, and lets each read their own account
+  - id: value-refusal
+    says: >-
+      Whether a value is allowed (a format, a length, a range, one of a list) is a refusal like any other: a 4xx at
+      once or ERROR later, decided by the application, not a shape the transport refuses.
+    born: 1
+    test: refuses an email used twice, whatever its case, and what is not allowed
+  - id: signed-in
+    says: >-
+      A request that needs a signed-in caller and has no token, or one that proves nothing, is refused with 401.
+    born: 1
+    test: refuses a wrong password and an unknown email alike, and a request without a valid token
+  - id: not-found
+    says: >-
+      A read answers 200 with what it reads, or 404 for something that does not exist or that the caller may not
+      see; what the caller may not see is answered as if it did not exist (the later tests' `hidden` accepts 401,
+      403 or 404 there, never a 200).
+    born: 1
+    test: answers 404 for something that does not exist
+  - id: formats
+    says: >-
+      Ids are strings; dates are YYYY-MM-DD; times are ISO 8601 in UTC; amounts are integers, in euro cents. Every
+      fragment's schema holds them in each answer the tests read.
+    born: 1
+    test: signs up a traveller, a host, or both, and lets each read their own account
+  - id: durable
+    says: >-
+      What the application knows is in the SQLite file DATABASE_PATH names: a server stopped, even killed, and
+      started again on the same file finds everything every request brought.
+    born: 1
+    test: keeps every account when the server is killed and started again on the same file
+
+  # Time: what changes with it, and whether it shows as soon as its time has passed or at a sweep.
+  - id: quote-validity
+    says: >-
+      A quote is valid for QUOTE_TTL_SECONDS (request 5); a booking from it is refused as soon as that time has
+      passed, with nobody acting on the quote first.
+    born: 6
+    test: refuses a quote that is no longer valid
+  - id: request-expiry
+    says: >-
+      A request its host has not decided within BOOKING_REQUEST_TTL_SECONDS reads as expired as soon as its time
+      has passed, without anyone acting on it first: its nights are free, accepting or declining it is refused.
+    born: 7
+    test: expires a request the host did not decide in time, which frees its nights without anyone acting
+  - id: refund-days
+    says: >-
+      Days before check-in count from today's date to the check-in date, in UTC, when the cancellation is made; a
+      half is rounded down to the cent.
+    born: 8
+    test: makes refundable what the policy gives by days before check-in, and the tourist tax in full
+  - id: history-expiry
+    says: >-
+      An expired request's history has its `expired` entry, made by nobody, as soon as its time has passed: nobody
+      has to act on it first.
+    born: 9
+    test: records an expired request as changed by nobody, and never shows its contact
+  - id: notice-retry
+    says: >-
+      A notice the outside service has not accepted with a 2xx is sent again, the same body, with nobody acting:
+      the first retry within a second of the failure, each later one at most five seconds after the previous
+      attempt ended; one it accepted is never sent again.
+    born: 10
+    test: sends each new booking and request until the service accepts it, the same body each time, then never again
+  - id: notice-at-least-once
+    says: >-
+      A crash loses nothing: every booking recorded has its notice accepted in the end, under one id, and a
+      booking not recorded has none.
+    born: 10
+    test: after kills at random moments, gives every recorded booking one notice, and an unrecorded one none
+
+  # What a field means when it is null, absent, or there in some states only.
+  - id: refund-owed
+    says: >-
+      A cancelled booking read at GET /v1/bookings/{id} has `cancellation: { by, at, refundable }` and
+      `refund: { amount, status }`; the refund's
+      status is `owed`, never `refunded`, since nothing was paid, and its amount is what is owed back.
+    born: 8
+    test: says who cancelled and when, keeps the refund owed and never refunded, and frees the nights
+  - id: contact-null
+    says: >-
+      A booking read at GET /v1/bookings/{id} has `contact`, the other party's `{ email }`, once it has been
+      confirmed, and still once a confirmed booking is cancelled; while it is requested, and when declined or
+      expired, `contact` is absent or null. The lists of bookings are not said to have it.
+    born: 9
+    test: shows each party the other one's email once the booking is confirmed, and not before
+  - id: history-by-null
+    says: >-
+      A history entry's `by` is the account that acted, or null when nobody did: a booking confirmed at once by
+      the application, or an expired request. A request starts with `requested`, made by its traveller.
+    born: 9
+    test: records a booking confirmed at once by nobody, and a request accepted then cancelled by whoever acted

@@ -1,0 +1,51 @@
+# Request 1: accounts, signing in, and how the API works for every request after it.
+# A command answers at once (`2xx`, a refusal `4xx`) or later (`202 { operationId }`, read at
+# /v1/operations/{operationId}); any route may answer either, and nothing else: a `5xx` never.
+resources:
+  accepted:
+    schema:
+      type: object
+      required: [operationId]
+      properties:
+        operationId: { type: string }
+  # The operation, as request 1 reads it: the contract's record (http.operation in
+  # conventions/architecture.yaml, ADR 41), its `error` as `{ type, message }`. No departure.
+  operation:
+    schema:
+      type: object
+      required: [status]
+      properties:
+        status: { enum: [PENDING, SUCCESS, ERROR] }
+        result: {}
+        error:
+          type: object
+          required: [type, message]
+          properties:
+            type: { type: string, pattern: '^[A-Z][A-Za-z0-9]*$', $comment: 'request 1: the name of the rule that refused it, in PascalCase' }
+            message: { type: string, minLength: 1 }
+      allOf:
+        - $comment: 'request 1: an operation that ends in ERROR has error { type, message }'
+          if: { required: [status], properties: { status: { const: ERROR } } }
+          then: { required: [error] }
+  account:
+    schema:
+      type: object
+      required: [id, email, roles]
+      properties:
+        id: { type: string }
+        email: { type: string }
+        roles:
+          type: array
+          items: { enum: [traveller, host] }
+all_routes:
+  202: accepted
+  4xx: {}
+routes:
+  POST /v1/accounts:
+    2xx: { type: object, required: [id], properties: { id: { type: string } } }
+  POST /v1/accounts/login:
+    200: { type: object, required: [token], properties: { token: { type: string } } }
+  GET /v1/accounts/me:
+    200: account
+  GET /v1/operations/{operationId}:
+    200: operation
