@@ -217,7 +217,7 @@ function section(text: string, key: string): string {
 }
 
 /** A class's methods, by the two-space indentation prettier gives them: name and body up to the next one. */
-function methodsOf(text: string): { name: string; body: string }[] {
+export function methodsOf(text: string): { name: string; body: string }[] {
   const header = /^  (?:(?:static|async|private|protected|public|readonly) )*(\w+)\s*\(/gm;
   const starts = [...text.matchAll(header)].map(match => ({ name: match[1], at: match.index! }));
   return starts

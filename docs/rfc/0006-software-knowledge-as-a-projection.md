@@ -2,7 +2,8 @@
 
 **Status:** proposed (13 November), a research direction. Nothing was implemented, and no rule, binding or ADR
 changed, by the proposal itself; **K2 is implemented in TypeScript by
-[ADR 46](../adr/0046-a-rule-is-a-named-unit-with-its-origin-and-its-evidence.md)** (below). Its decisions are listed in §9. **K1 decided (the maintainer, 13 November): yes,** measured beside J6's
+[ADR 46](../adr/0046-a-rule-is-a-named-unit-with-its-origin-and-its-evidence.md), and K3, the query, is built**
+(below). Its decisions are listed in §9. **K1 decided (the maintainer, 13 November): yes,** measured beside J6's
 preparation, without holding it up. **K1 measured the same day (§9b):** exploring is three quarters or more of
 what the tools bring into an agent's context, so the direction stands. **K2–K4 decided (the maintainer, 13
 November): yes, before J6.** Their design is the operator's next proposal, for the maintainer's review before any
@@ -18,6 +19,16 @@ code. With them (the maintainer, 13 November):
   the TypeScript tree under DOMAIN-RULE-NAMED (a refusal no rule names, a rule no exception returns, a rule no test
   names); `create --rules` gives an application one, and an application created without it, as J6's arms are, is
   unchanged. Rust, Python and Go bind the rule as a gap until after J6.
+- **K3 built (13 November), tooling only:** the read-only query `clean-ddd knowledge <name>`
+  ([`tools/src/knowledge.ts`](../../tools/src/knowledge.ts), [the tooling's README](../../tools/README.md#the-knowledge-query))
+  answers for a command, a query, a domain event, an integration event, a rule, an aggregate or a context, in Markdown
+  and JSON, every edge tagged `derived` (read from the code) or `declared` (written under `conventions/`), citations from
+  the ADRs, storms, plans and `api/` found by search and said to be so; an unknown name answers the nearest known names,
+  and what a tree does not hold is said. No rule, binding or check changed. It runs as the package's subcommand and as a
+  bundle of its own (`tools/dist/knowledge.js <name> --root <tree>`), so that arm C of §8 can be given arm B's tree with
+  the query beside it; it answers on the reference and on OpenStay's frozen J5b tree clean-3, which has no rule register
+  and no published language (the payload is then the one the code carries, and a rule has no statement or origin). J6's
+  arms do not get it; K4 measures it.
 
 ## 1. The question
 

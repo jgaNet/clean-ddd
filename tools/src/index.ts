@@ -26,3 +26,4 @@ export * from './gate';
 export * from './pack';
 export * from './strategy';
 export * from './api';
+export * from './knowledge';

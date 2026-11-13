@@ -77,10 +77,26 @@ clean-ddd strategy --storm <file> [--priority cost|time] [--contract-minutes <n>
 clean-ddd create <dir> [--name <app>] [--language <id>] [--profile lite] [--rules]   a new application on this architecture,
                                   in that language; --profile lite holds its contexts to Lite (below); --rules gives it a
                                   rule register (ADR 46)
+clean-ddd knowledge <name> [--root <dir>]   one command, query, domain or integration event, rule, aggregate or context:
+                                  what it is, its files, the rules it can refuse with, its tests, the documents that cite it,
+                                  the contracts it crosses, every edge derived or declared (below)
 clean-ddd check [--write]         the conventions check; --write regenerates what it holds
 ```
 
 Every command takes `--json` (valid JSON only, a structured error and exit 1 on an unknown id), `--language <id>`, and `--profile <id>`, which answers as a context held to that profile reads the contract — its grammar's verbs, the checklists its binding gives it — and is the binding's `default_profile` when it says one (an application created Lite). Paths are printed relative to the repository root — the nearest directory at or above where the command was typed that holds `conventions/` — and a path typed on the command line is read from where it was typed.
+
+## The knowledge query
+
+`clean-ddd knowledge <name>` is the read-only query of [RFC 0006](../docs/rfc/0006-software-knowledge-as-a-projection.md) (K3): one answer about a thing named by its public name — a command (`ShareNote`), a query, a domain event, an integration event (`NoteShared`), a rule, the refusal a client reads (`NoteAlreadyShared`), an aggregate or a context — over what the tooling already loads: the storm read from the code, the rule register ([ADR 46](../docs/adr/0046-a-rule-is-a-named-unit-with-its-origin-and-its-evidence.md)), the published language, the domain map. For a command it says its context, actor, route, aggregate, the events it records and the policies that react; its files (handler, command, aggregate, controller, routes, wiring); the rules it can refuse with, each with its statement and origin and the tests that name it; the tests that name it or call its route; the ADRs, storms, plans and `api/` fragments that cite it; the contracts it crosses, an integration event with its payload, a port it owns, each with the relationship the map declares. Every edge is tagged `derived` (read from the code) or `declared` (written under `conventions/`), with the repository-relative file it was read from; a citation is a document that names it, found by search, and nothing more. A name nothing carries answers the nearest known names (exit 1); a file the tree does not hold (an older application has no `conventions/rules.yaml` or `integration-events.yaml`) is listed under what could not be read, and the answer falls back to the code where it can (the payload the code carries). It reads TypeScript trees, writes nothing and holds nothing. Markdown by default, `--json` for a tool.
+
+It runs two ways:
+
+```bash
+yarn architecture knowledge ShareNote                    # here; = clean-ddd knowledge ShareNote, from an installed package
+yarn architecture knowledge CancelBooking --root ../app  # another tree: the nearest directory at or above it holding conventions/
+node tools/dist/knowledge.js ShareNote --json --root <tree>   # the bundle of its own (yarn build), beside a tree whose own
+                                                              # tooling is older, without replacing it
+```
 
 ## A Lite application: `create --profile lite`
 
@@ -115,7 +131,7 @@ The contract, the concepts, the domain map, the bindings, the plans and the stor
 package.json          the package: name, bin (clean-ddd → tools/dist/cli.js), scripts, dev dependencies; no runtime dependency
 tools/src/            the modules, one per concern: load, query, render, plan, modes, create, probes, domain, storm,
                       inventory, storms, profiles, check; cli.ts dispatches; index.ts is the API; *.spec.ts beside each
-tools/build.mjs       yarn build: two esbuild bundles (cli.js, index.js), the declarations, the reference for create
+tools/build.mjs       yarn build: the esbuild bundles (cli.js, index.js, api.js, knowledge.js), the declarations, the reference for create
 tools/dist/           the build, not committed
 ```
 

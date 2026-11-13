@@ -35,6 +35,8 @@ await esbuild.build({ ...common, entryPoints: ['tools/src/cli.ts'], outfile: 'to
 await esbuild.build({ ...common, entryPoints: ['tools/src/index.ts'], outfile: 'tools/dist/index.js' });
 // The API's composer alone (ADR 45): what a created application's end-to-end client imports, without the rest.
 await esbuild.build({ ...common, entryPoints: ['tools/src/api.ts'], outfile: 'tools/dist/api.js' });
+// The read-only query of RFC 0006 (K3) alone: what runs beside a tree whose own tooling is older, without replacing it.
+await esbuild.build({ ...common, entryPoints: ['tools/src/knowledge-main.ts'], outfile: 'tools/dist/knowledge.js' });
 // The shebang goes on its own line, before the banner.
 writeFileSync(join(dist, 'cli.js'), `#!/usr/bin/env node\n${readFileSync(join(dist, 'cli.js'), 'utf8')}`);
 chmodSync(join(dist, 'cli.js'), 0o755);
@@ -97,4 +99,6 @@ for (const language of contract.languages) {
     }
   }
 }
-process.stdout.write('✓ tools/dist: cli.js, index.js, api.js, the declarations, the reference for create\n');
+process.stdout.write(
+  '✓ tools/dist: cli.js, index.js, api.js, knowledge.js, the declarations, the reference for create\n',
+);

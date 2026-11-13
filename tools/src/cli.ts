@@ -33,6 +33,9 @@
  *   yarn architecture inventory [<language>]  what the tree says the application is, in words every language shares;
  *                                             with a language, where that language's committed inventory differs
  *   yarn architecture profiles                the profiles the contract declares, the floor, the profile of each context
+ *   yarn architecture knowledge <name> [--root <dir>]   one command, query, event, rule, aggregate or context: its
+ *                                             behaviours, files, rules, tests, citations and contracts, every edge
+ *                                             derived or declared (RFC 0006, K3; also tools/dist/knowledge.js alone)
  *   yarn architecture rules | concepts | verbs | checklists   the lists
  *
  * Every command takes --json: valid JSON only on stdout, nothing decorative, exit 1 on an
@@ -85,15 +88,26 @@ import {
 import { createApplication, referenceSource } from './create';
 import { describeGate, runGate } from './gate';
 import { adviseStrategy, describeStrategy } from './strategy';
+import { runKnowledge } from './knowledge';
 import type { ModeName } from './types';
 
 const args = process.argv.slice(2);
 const json = args.includes('--json');
 const languageFlag = args.includes('--language') ? args[args.indexOf('--language') + 1] : undefined;
-const valued = ['--language', '--expect', '--profile'];
+const valued = ['--language', '--expect', '--profile', '--root'];
 const expectFlag = args.includes('--expect') ? args[args.indexOf('--expect') + 1] : undefined;
 const profileFlag = args.includes('--profile') ? args[args.indexOf('--profile') + 1] : undefined;
-const flagged = ['--json', '--language', '--markdown', '--svg', '--expect', '--write', '--profile', '--rules'];
+const flagged = [
+  '--json',
+  '--language',
+  '--markdown',
+  '--svg',
+  '--expect',
+  '--write',
+  '--profile',
+  '--rules',
+  '--root',
+];
 const [command, ...rest] = args.filter((arg, index) => !flagged.includes(arg) && !valued.includes(args[index - 1]));
 
 const here = typedFrom();
@@ -161,6 +175,15 @@ async function main(): Promise<void> {
   try {
     // `create` needs no repository: from an installed package it copies the reference it carries.
     if (command === 'create') return create();
+    // The read-only query of RFC 0006 (K3): it finds its own root, from where it was typed or from --root.
+    if (command === 'knowledge') {
+      process.exitCode = runKnowledge(
+        args.filter((_, index) => index !== args.indexOf('knowledge')),
+        here,
+        text => process.stdout.write(text),
+      );
+      return;
+    }
     root = repositoryRoot(here);
     if (command === 'check') {
       const write = args.includes('--write');
@@ -712,7 +735,7 @@ async function main(): Promise<void> {
     default:
       return fail(
         'usage',
-        'usage: yarn architecture <inspect | rules | concepts | verbs | checklists | profiles | rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind> | mode <feature|architecture> | plan <validate|explain> <file> | create <dir> | can-import <file> <specifier> …> [--json]',
+        'usage: yarn architecture <inspect | knowledge <name> | rules | concepts | verbs | checklists | profiles | rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind> | mode <feature|architecture> | plan <validate|explain> <file> | create <dir> | can-import <file> <specifier> …> [--json]',
       );
   }
 }
