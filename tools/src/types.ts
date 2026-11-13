@@ -214,6 +214,11 @@ export interface ArchitectureContract {
   /** The commands a change must pass before it is done, in CI's order. */
   checks: string[];
   /**
+   * The commands that put right what a check would only refuse, run by the gate's `--fix` before it judges: a formatter
+   * that writes (ADR 31: an agent should spend no turn on bookkeeping; J5b's request 90 escalated on formatting alone).
+   */
+  fixes: string[];
+  /**
    * When present, the gate asks every relationship between two contexts that a change crosses for a test
    * of its own, changed with it, named for the pair (`Messaging → Moderation`): the files whose name ends in
    * `suffix`. Absent: the gate asks nothing. With `run` (a command, `{files}` the tests, from the language's

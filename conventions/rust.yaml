@@ -48,6 +48,10 @@ checks:
   - cargo clippy --all-targets -- -D warnings
   - cargo test
 
+# What the gate's --fix runs before it judges: the formatter that writes what `cargo fmt --check` refuses (ADR 31).
+fixes:
+  - cargo fmt
+
 # What the two modes protect and decide in this language, on top of the contract and the
 # decisions, which architecture.yaml protects for every language.
 modes:

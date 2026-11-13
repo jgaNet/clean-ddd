@@ -32,8 +32,9 @@ import { ModeName } from './types';
  * the commands and not from the agent's report of them.
  *
  * With `fix`, it first does the bookkeeping the tooling can do itself (ADR 31: an agent should
- * spend no turn on it): a storm the code carries whole is marked done, and documents the contract
- * renders differently are rendered again. What it fixed is in the report; it fixes nothing else.
+ * spend no turn on it): a storm the code carries whole is marked done, documents the contract
+ * renders differently are rendered again, and the binding's `fixes` run (a formatter that writes).
+ * What it fixed is in the report; it fixes nothing else.
  */
 
 export type GateStage = 'architecture' | 'quality' | 'tests';
@@ -136,8 +137,21 @@ export function markCarriedStorms(root: string, language?: string): string[] {
  * then the documents the contract renders differently written again. A check that cannot run here
  * fixes nothing, and the gate's own conventions step says why.
  */
-export async function fixBookkeeping(root: string, language?: string): Promise<string[]> {
+export async function fixBookkeeping(root: string, language?: string, exec: Executor = shell): Promise<string[]> {
   const fixed = markCarriedStorms(root, language);
+  // The binding's fixes, from the language's directory: what changed is said, one line per command.
+  try {
+    const contract = loadArchitectureContract(root, language);
+    const at = join(root, contract.language.root);
+    const status = () => exec('git status --porcelain', at).output;
+    for (const command of contract.fixes) {
+      const before = status();
+      const ran = exec(command, at);
+      if (ran.code === 0 && status() !== before) fixed.push(`ran: ${command}`);
+    }
+  } catch {
+    // a binding that cannot load fixes nothing here; the gate's conventions step says why
+  }
   try {
     const stale = (await checkConventions(root, false, language)).problems.filter(problem =>
       problem.includes('run the conventions check with --write'),
@@ -161,7 +175,7 @@ export async function runGate({
   exec = shell,
 }: GateOptions): Promise<GateReport> {
   const started = Date.now();
-  const fixed = fix ? await fixBookkeeping(root, language) : [];
+  const fixed = fix ? await fixBookkeeping(root, language, exec) : [];
   const contract = loadArchitectureContract(root, language);
   const steps: GateStep[] = [];
   let blocked = false;

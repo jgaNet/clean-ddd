@@ -43,6 +43,10 @@ checks:
   - yarn test:units
   - yarn test:e2e
 
+# What the gate's --fix runs before it judges: the formatter that writes what `format:check` refuses (ADR 31).
+fixes:
+  - yarn -s format
+
 # Each relationship between two contexts a change crosses asks for an end-to-end test changed with it, named for
 # the pair (`describe('Notes → Notifications', …)`): it makes the thing upstream through the API, keeps the id that
 # request answered, and finds the thing downstream through the API by that id (ADR 33). The reference's is the

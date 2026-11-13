@@ -61,6 +61,10 @@ checks:
   - uv run mypy
   - uv run pytest
 
+# What the gate's --fix runs before it judges: the formatter that writes what `ruff format --check` refuses (ADR 31).
+fixes:
+  - uv run ruff format .
+
 # What the two modes protect and decide in this language, on top of the contract and the
 # decisions, which architecture.yaml protects for every language.
 modes:

@@ -395,6 +395,7 @@ export function loadArchitectureContract(
     libraries: strings(binding.libraries),
     enforcers: (isObject(binding.enforcers) ? binding.enforcers : {}) as Record<Enforcement, string>,
     checks: strings(binding.checks),
+    fixes: strings(binding.fixes),
     ...(isObject(binding.relationship_tests) && {
       relationshipTests: {
         suffix: String(binding.relationship_tests.suffix ?? '.spec.ts'),

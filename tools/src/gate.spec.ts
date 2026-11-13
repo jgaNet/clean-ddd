@@ -179,6 +179,30 @@ describe('the gate', () => {
     expect(plain.fixed).toBeUndefined();
   });
 
+  it("with --fix, runs the binding's fixes before it judges, and says so only when they changed something", async () => {
+    // The recorder answers `git status` with nothing, so the formatter ran and changed nothing: no line.
+    const quiet = recorder();
+    const unchanged = await runGate({ root: directory, base, fix: true, exec: quiet.exec });
+    expect(quiet.ran).toContain('uv run ruff format .');
+    expect(quiet.ran.indexOf('uv run ruff format .')).toBeLessThan(quiet.ran.indexOf('uv run ruff format --check .'));
+    expect(unchanged.fixed).toEqual([]);
+
+    // A formatter that changed a file is reported, one line per command.
+    let formatted = false;
+    const ran: string[] = [];
+    const exec: Executor = command => {
+      ran.push(command);
+      if (command === 'uv run ruff format .') formatted = true;
+      if (command === 'git status --porcelain') return { code: 0, output: formatted ? ' M src/x.py\n' : '' };
+      return { code: 0, output: 'ok\n' };
+    };
+    const changed = await runGate({ root: directory, base, fix: true, exec });
+    expect(changed.fixed).toEqual(['ran: uv run ruff format .']);
+    const plain = recorder();
+    await runGate({ root: directory, base, exec: plain.exec });
+    expect(plain.ran).not.toContain('uv run ruff format .');
+  });
+
   it('keeps the last lines a command printed, which is what a failure is read from', () => {
     expect(tail(Array.from({ length: 50 }, (_, index) => `line ${index}`).join('\n'), 3)).toEqual([
       'line 47',
