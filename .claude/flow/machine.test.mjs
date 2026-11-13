@@ -8,7 +8,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, it } from 'node:test';
 
-import { minimumNodeMajor, nodeMismatch, pathWithThisNode, takeSlot } from './machine.mjs';
+import {
+  boundCache,
+  minimumNodeMajor,
+  nodeMismatch,
+  pathWithThisNode,
+  readRegistry,
+  register,
+  takeSlot,
+  toResume,
+} from './machine.mjs';
 
 const scratch = mkdtempSync(join(tmpdir(), 'machine-'));
 after(() => rmSync(scratch, { recursive: true, force: true }));
@@ -82,5 +91,54 @@ describe('the slots ladders share', () => {
       new Promise(done => setTimeout(() => done(false), 500)),
     ]);
     assert.equal(taken, true);
+  });
+});
+
+describe("jest's cache, bounded in a run's own directory", () => {
+  it('leaves a cache under its cap, and removes one above it whole, touching nothing else', () => {
+    const dir = join(scratch, 'tmp-of-a-run');
+    mkdirSync(join(dir, 'jest_0', 'a'), { recursive: true });
+    writeFileSync(join(dir, 'jest_0', 'a', 'transformed.js'), 'x'.repeat(2048));
+    writeFileSync(join(dir, 'not-jest.txt'), 'kept');
+    assert.deepEqual(boundCache(dir, 4096), { bytes: 2048, removed: false });
+    assert.ok(existsSync(join(dir, 'jest_0')));
+    assert.deepEqual(boundCache(dir, 1024), { bytes: 2048, removed: true });
+    assert.ok(!existsSync(join(dir, 'jest_0')));
+    assert.ok(existsSync(join(dir, 'not-jest.txt')));
+    assert.deepEqual(boundCache(join(scratch, 'nowhere'), 1), { bytes: 0, removed: false });
+  });
+});
+
+describe('the register resume.mjs reads', () => {
+  it('keeps one entry per project and run, the last one written', () => {
+    const file = join(scratch, 'registry', 'ladders.json');
+    register({ run: 'r1', project: '/p', plan: '/a.yaml', log: '/p.flow/r1.jsonl' }, file);
+    register({ run: 'r2', project: '/p', plan: '/b.yaml', log: '/p.flow/r2.jsonl' }, file);
+    register({ run: 'r1', project: '/p', plan: '/c.yaml', log: '/p.flow/r1.jsonl' }, file);
+    assert.deepEqual(
+      readRegistry(file).map(each => [each.run, each.plan]),
+      [
+        ['r2', '/b.yaml'],
+        ['r1', '/c.yaml'],
+      ],
+    );
+    assert.deepEqual(readRegistry(join(scratch, 'registry', 'missing.json')), []);
+  });
+
+  it('resumes a run stopped mid-way or cancelled, and not one running, held, finished or never started', () => {
+    const entries = ['mid', 'cancelled', 'running', 'held', 'done', 'stopped', 'never'].map(run => ({ run }));
+    const facts = {
+      mid: { last: { event: 'agent-finished' } },
+      cancelled: { last: { event: 'finished', state: 'CANCELLED' } },
+      running: { running: true, last: { event: 'attempt' } },
+      held: { held: true, last: { event: 'attempt' } },
+      done: { last: { event: 'finished', state: 'COMPLETED' } },
+      stopped: { last: { event: 'finished', state: 'STOPPED' } },
+      never: {},
+    };
+    assert.deepEqual(
+      toResume(entries, entry => facts[entry.run]).map(entry => entry.run),
+      ['mid', 'cancelled'],
+    );
   });
 });

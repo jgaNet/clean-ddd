@@ -109,6 +109,8 @@ The SDK's agent process is not in a process group of its own: if the driver is k
   A failed push is logged (`publish-failed`) and the run goes on. OpenStay's J5 lost its trees and their logs with a machine.
 - **The time one grading is given** is `gradeTimeoutMinutes` (60 by default): J5's largest tree needed more under load.
 - **How many acceptance files a grading runs at once** is `gradeWorkers` (1 by default, one jest per file, as J5 and J5b graded). With more, `grade.mjs --workers` runs every file in one jest, that many at a time. A file that fails beside the others is run again alone, and that run is its verdict, so the grades are the sequential grader's and only the time changes. J5b's gradings grew with the backlog, to 25–40 minutes by request 80, as long as the writing.
+- **A restart of the machine** stops every ladder. Each one registers itself when it starts (`~/.clean-ddd-flow/ladders.json`, or `FLOW_REGISTRY`), and [`resume.mjs`](resume.mjs) brings back every registered run that is not running, not held (`<project>.flow/hold`) and not finished for good. It sources the plan's `envFile`, runs its `services.start`, then starts the ladder again with `--resume`. Wire it where the machine starts: the environment's setup script, or a SessionStart hook. J5b lost three attempts to restarts, and two hours to a slot its own reused pid held (now taken over, `machine.mjs`).
+- **Each run has a temporary directory of its own** (`<project>.flow/tmp/<run>`, as `TMPDIR` for every process it starts). Jest's cache lands there, and the run removes it between two features once it holds more than `machine.jestCacheGb` (2 by default). J5b's shared cache reached 11 GB.
 
 ## Rehearsing a kit before its runs
 

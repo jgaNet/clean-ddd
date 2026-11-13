@@ -8,7 +8,7 @@
  * - A slot: at most `ladders` ladders run at once on the machine; another waits for a slot to free.
  */
 import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 /** The lowest major version `engines.node` admits (`>=24`, `^24.9`, `24.x`), or undefined if it names none. */
@@ -99,4 +99,71 @@ export async function takeSlot({
     waited = true;
     await new Promise(done => setTimeout(done, pollMs));
   }
+}
+
+/** The bytes a file or a directory holds, everything under it included; 0 for what is not there. */
+export function sizeOf(path) {
+  let stat;
+  try {
+    stat = statSync(path);
+  } catch {
+    return 0;
+  }
+  if (!stat.isDirectory()) return stat.size;
+  return readdirSync(path).reduce((total, name) => total + sizeOf(join(path, name)), 0);
+}
+
+/**
+ * Jest's cache in a ladder's own temporary directory (`jest_*`, where jest puts it under TMPDIR), removed whole once it
+ * holds more than `capBytes`: J5b's shared cache reached 11 GB and took the disk to 1.4 GB free. The ladder calls it
+ * between two features, when none of its own processes reads the cache, and no other ladder shares the directory.
+ * Answers `{ bytes, removed }`.
+ */
+export function boundCache(dir, capBytes) {
+  let names = [];
+  try {
+    names = readdirSync(dir).filter(name => name.startsWith('jest_'));
+  } catch {
+    return { bytes: 0, removed: false };
+  }
+  const bytes = names.reduce((total, name) => total + sizeOf(join(dir, name)), 0);
+  if (bytes <= capBytes) return { bytes, removed: false };
+  for (const name of names) rmSync(join(dir, name), { recursive: true, force: true });
+  return { bytes, removed: true };
+}
+
+/**
+ * The ladders this machine started, for `resume.mjs` to bring back after a restart: one entry per run, its project,
+ * its plan and its log. `FLOW_REGISTRY` names the file; by default it is in the home directory, which a restart keeps.
+ */
+export const registryFile = () => process.env.FLOW_REGISTRY ?? join(homedir(), '.clean-ddd-flow', 'ladders.json');
+
+export function readRegistry(file = registryFile()) {
+  try {
+    const entries = JSON.parse(readFileSync(file, 'utf8'));
+    return Array.isArray(entries) ? entries : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Adds or replaces a run's entry (a run is one project and one plan's `run`). */
+export function register(entry, file = registryFile()) {
+  const entries = readRegistry(file).filter(each => !(each.project === entry.project && each.run === entry.run));
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, `${JSON.stringify([...entries, entry], null, 2)}\n`);
+}
+
+/**
+ * Which registered runs to bring back: not running now, not held (`<project>.flow/hold`), and not finished for good. A
+ * run whose log ends with `finished` is over unless its state is CANCELLED (a stop asked for, or a machine that went
+ * away mid-run leaves no `finished` at all). `facts(entry)` answers `{ running, held, last }`, the log's last event.
+ */
+export function toResume(entries, facts) {
+  return entries.filter(entry => {
+    const { running, held, last } = facts(entry);
+    if (running || held) return false;
+    if (!last) return false;
+    return last.event !== 'finished' || last.state === 'CANCELLED';
+  });
 }
