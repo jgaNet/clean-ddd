@@ -19,3 +19,7 @@ triage: { judge: claude-sonnet-5-5 }
 push: { remote: https://github.com/jgaNet/openstay, branch: j5b/clean-3, logBranch: j5b-logs/clean-3 }
 fanOut: { rounds: 2, split: always, priority: cost }   # as registered, before correction 12
 features: [transfer-proof, support, notice-preferences, email-verification, two-factor, trader-information, registration-numbers, donations, donations-never-rank, transparency, payment-costs, countries, listing-languages, user-language, currencies, indicative-prices, payouts-per-currency, card-fees-passed-on, city-tourist-tax, tax-rates-by-date, night-cap, hosts-report, calendar-export, calendar-import, import-conflicts, terms-versions, operations-dashboard, pausing-payouts]
+# Amended on 12 November, from request 86 on, at the maintainer's request: the parallel grader (grade.mjs --workers;
+# a file that fails beside the others is run again alone, and that run is its verdict). Validated before on simple-3 at
+# 100 and clean-3 at 84: the same verdicts on every file, 8.7 and 10.9 minutes against 24.8 and 26.1.
+gradeWorkers: 2
