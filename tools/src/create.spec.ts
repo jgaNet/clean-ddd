@@ -38,6 +38,8 @@ import { addLiteTasks } from './lite-tasks.spec-helper';
  */
 
 const root = repositoryRoot();
+/** The guide an application starts with (RFC 0005, D4): it is read at every request. */
+const GUIDE_BUDGET_BYTES = 12 * 1024;
 const reference = loadArchitectureContract(root);
 
 describe('yarn architecture create', () => {
@@ -142,6 +144,24 @@ describe('yarn architecture create', () => {
 
   it('is sound on its own terms: nothing it says points at a file it does not have', () => {
     expect(validateContract(generated, directory)).toEqual([]);
+  });
+
+  it('writes a guide within its budget, every rule it states held or marked review (RFC 0005, D4)', () => {
+    const guide = read('CLAUDE.md');
+    expect(Buffer.byteLength(guide)).toBeLessThanOrEqual(GUIDE_BUDGET_BYTES);
+    // Every bullet of the rules and of the things to avoid names its rule and how it is held.
+    const bullets = (heading: string) =>
+      guide
+        .split(`## ${heading}`)[1]
+        .split('\n## ')[0]
+        .split(/\n(?! {2})/)
+        .map(bullet => bullet.replace(/\n {2}/g, ' '))
+        .filter(bullet => bullet.startsWith('- '));
+    for (const line of [...bullets('The rules (enforced)'), ...bullets('Things to avoid')])
+      expect(line).toMatch(/\*\([^)]*; (linter|check|types|tests|review|evaluations)\)\*$|\(the feature mode; check\)/);
+    // The rules about the reference itself are not an application's.
+    expect(guide).not.toContain('(ARCH-ONE-CONTRACT;');
+    expect(guide).not.toContain('(ARCH-COMPAT-ROUTE;');
   });
 
   it('starts with a context map that describes the Tracker and a place for storms, so the cross-context rule holds from the first feature', () => {

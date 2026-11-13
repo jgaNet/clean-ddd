@@ -120,12 +120,43 @@ export const renderRulesTable = (contract: ArchitectureContract, at = '.', langu
       ]),
   );
 
-/** CLAUDE.md's rules list: statement, why, remediation, in one bullet each. */
+/**
+ * An application `create` made: one language, its contract beside its code (the binding's root is `.`). Its guide is
+ * read by the agent at every request, so it carries less than the reference's (RFC 0005, D4).
+ */
+export const isApplication = (contract: ArchitectureContract): boolean => contract.language.root === '.';
+
+/**
+ * The rules about the reference itself, which an application of one language does not meet: its languages held to one
+ * contract and to one inventory, and the agents' evaluations of its guides. A compatibility route is one only where a
+ * migration is declared.
+ */
+const ABOUT_THE_REFERENCE = new Set(['ARCH-ONE-CONTRACT', 'ARCH-ONE-APPLICATION', 'ARCH-LEARNABLE']);
+const appliesToApplication = (contract: ArchitectureContract) => (rule: Rule) =>
+  !ABOUT_THE_REFERENCE.has(rule.id) && (rule.id !== 'ARCH-COMPAT-ROUTE' || contract.migration !== undefined);
+
+/**
+ * CLAUDE.md's rules list. The reference's: statement, why, remediation, in one bullet each. An application's: the
+ * statement and how it is held, one line each, the why and the fix one command away (`architecture rule <ID>`) and in
+ * the message of the tool that refuses it (RFC 0005, D4: the guide has a budget, and each rule it states is held or
+ * marked `review`).
+ */
 export const renderRulesList = (contract: ArchitectureContract): string =>
-  contract.rules
-    .filter(listed)
-    .map(rule => `- **${rule.statement}** ${rule.why} *Fix:* ${rule.remediation} *(${rule.id}; ${rule.enforcement})*`)
-    .join('\n');
+  isApplication(contract)
+    ? [
+        ...contract.rules
+          .filter(listed)
+          .filter(appliesToApplication(contract))
+          .map(rule => `- ${rule.statement} *(${rule.id}; ${rule.enforcement})*`),
+        '',
+        'Why each rule holds and how to fix a breach: `architecture rule <ID>`; the linter or the check that refuses one says it too.',
+      ].join('\n')
+    : contract.rules
+        .filter(listed)
+        .map(
+          rule => `- **${rule.statement}** ${rule.why} *Fix:* ${rule.remediation} *(${rule.id}; ${rule.enforcement})*`,
+        )
+        .join('\n');
 
 /** The dependency table, for the README: one line per layer, what it may import. */
 export const renderDependencyTable = (contract: ArchitectureContract): string =>

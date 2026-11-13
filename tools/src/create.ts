@@ -729,14 +729,14 @@ function claude(
     "projects the answer (the read model, its projection, the route's schema) and the tests that read the old shape,",
     'never the specification. A field is `null` only where a specification says so; a state added later keeps the',
     "values the earlier ones gave. What an operation answers when it is read is the contract's (`http.operation`); a",
-    'specification that wants another shape says so where it is first decided.',
+    'specification that wants another shape says so where it is first decided. *(API-ONE-SURFACE; review)*',
     '',
     '## Things to avoid',
     '',
-    '- A generic `Mapper`, `Repository<T>`, `Saga`, service locator or DI container.',
-    `- Fixing a boundary violation by silencing the linter instead of a port: the conventions check refuses one.`,
+    '- A generic `Mapper`, `Repository<T>`, `Saga`, service locator or DI container. *(ARCH-MODULES-DATA; review)*',
+    `- Fixing a boundary violation by silencing the linter instead of a port: the conventions check refuses one. *(ARCH-MAP-IS-REAL; check)*`,
     `- Changing anything under \`${local(contract.architecture.path)}\`, \`${local(contract.kernel.path)}\` or \`conventions\` while adding a feature:`,
-    `  \`${ask} mode feature\` will say so, and that is a finding, not a detour.`,
+    `  \`${ask} mode feature\` will say so, and that is a finding, not a detour. *(the feature mode; check)*`,
     '',
   ].join('\n');
 }
