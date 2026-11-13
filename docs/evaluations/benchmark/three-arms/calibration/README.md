@@ -57,6 +57,12 @@ kit is the record of an earlier campaign and stays as it ran; what this kit chan
    - Request 1 has no command a signed-in caller makes, so the operation's half is held in request 2, where creating
      a listing is the first: a new test reads the host's operation without a token (`401`) and with another host's
      (`404`), when the application answers later. Registered as `operation-reader`, born at 2.
+5. **Smaller points, taken with the defaults the operator proposed:**
+   - the test of who reads an operation is born at request 2, the first command with a signed-in caller;
+   - between a request's time and the sweep that expires it, the host may still accept or decline it: what is kept
+     holds (request 7 says so);
+   - a list of bookings that carries the per-state fields is allowed, not required;
+   - request 10's retries keep their own timing, apart from the sweep (request 10 says so).
 
 ## What changed from the pilot kit, and why
 

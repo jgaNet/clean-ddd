@@ -15,7 +15,7 @@ Some hosts want to say yes or no before a stay is confirmed.
   - its nights are free again;
   - accepting or declining it is refused;
   - it reads as expired, without anyone having to act on it, never before its time, and never because someone read it: a read answers what is kept.
-- **The sweep.** The server runs a background job every `JOBS_INTERVAL_SECONDS` seconds (60 when that is not set). Each run expires the requests whose time has passed, so a request reads as expired at most `JOBS_INTERVAL_SECONDS` seconds after its time.
+- **The sweep.** The server runs a background job every `JOBS_INTERVAL_SECONDS` seconds (60 when that is not set). Each run expires the requests whose time has passed, so a request reads as expired at most `JOBS_INTERVAL_SECONDS` seconds after its time. Until the sweep has expired it, what is kept holds: the host may still accept or decline it.
 - **Changes to the listing.** The mode can change at any time. A request already made stays a request.
 
 The API works as request 1 says.
