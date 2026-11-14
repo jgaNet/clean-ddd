@@ -521,29 +521,22 @@ accept or change.
   and a CSV statement through the tree graded on the same database, lands the waiting payment, then records in yen:
   an earlier amount read unchanged, a new one in its currency's minor unit.
 
-## Before registration: for the maintainer to decide
+## Decided by the maintainer before registration (14 November)
 
-1. **Checkpoint 4 as written,** the operator's decisions above with it.
-2. **T22:** two relationships declared at the session for request 31, and a merge's moved state "within a few
-   seconds" — or the merge decided in one transaction across the three contexts, which the request would then say.
-3. **T23:** one transaction over several aggregates for a netting, which the Lite and Full guides do not teach; the
-   alternative is a netting whose settlements are recorded one by one, and a request that no longer says "all or
-   nothing".
-4. **T25 and test 35's search:** whether "erased everywhere" may reach a tree's outbox and its operations' records,
-   as the search of every table does; a Full tree that keeps delivered facts forever pays for it at request 35.
-5. **The rule register:** `AccountSuspended` is, like `GroupArchived`, one refusal in two contexts decided by
-   Groups; register it as Groups' (the maintainer's decision 1 of checkpoint 4, applied again).
-6. **The edits to tests 2, 21 and 22** (the superseded `JPY`), the kit's only change to an accepted checkpoint.
-7. **The [S] estimate:** the brief asks it be run on the storms of 13, 31, 32 and 35 before registration; the storms
-   are written, the estimate is not run.
-8. **The rehearsal still owed:** a witness that answers later (`202`), on the Lite and Full starting trees (decided
-   before checkpoint 3); checkpoint 4's reactions to `GroupsMerged`, the netting's transaction and the scrubbing of
-   stored facts are where it would show what the plain witness cannot.
-9. **The flow's temporary directory** (the rehearsal, below): `grade.mjs` puts it under `<project>.flow/tmp/grade`,
-   and a project path longer than about 75 bytes leaves `tsx` no Unix socket; the campaign's trees should live at a
-   short path, or the flow give `tsx` a shorter directory. Reported to whoever changes `.claude/flow`; nothing in
-   the kit depends on it.
-10. **Then the kit is hashed and registered** with the protocol, its four checkpoints written.
+The maintainer accepted checkpoint 4 as written, the edits to tests 2, 21 and 22 with it, and the operator's
+recommendation on each question:
+
+1. **T22:** a merge crosses the contexts by `GroupsMerged`, over the two relationships request 31's storm declares
+   (Groups to Ledger, Groups to Settlements), and completes within a few seconds; the tests read with `eventually`.
+2. **T23:** a netting is all or nothing, several settlement books saved in one transaction, although the Lite and Full
+   guides do not teach it: a real case whose cost differs with structure.
+3. **T25:** "erased everywhere" searches every table, the outbox and the operation records included.
+4. **`AccountSuspended` is one rule, decided by Groups,** as `GroupArchived` is.
+5. **The split's break-even estimate is run on the storms of 13, 31, 32 and 35 before registration,** and the
+   requests registered split are those it puts above the break-even.
+6. **Then, in order, while K4 runs:** the tooling released; the Lite and Full starting trees created, with Groups and
+   Ledger declared, one PostgreSQL server per tree; a witness that answers later (`202`) rehearsed on them; the kit
+   and the arms' profiles hashed and registered, shown to the maintainer before any J6 run.
 
 ## The rehearsal
 
