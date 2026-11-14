@@ -1050,8 +1050,10 @@ async function main(argv) {
     let alive = false;
     try {
       process.kill(pid, 0);
-      // After a restart the pid is reused by another process: only a run-task holds the lock.
-      alive = pid !== process.pid && readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes('run-task.mjs');
+      // After a restart the pid is reused by another process (even the shell that starts this one, whose command
+      // line names run-task.mjs): only a node running run-task.mjs holds the lock.
+      const argv = readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0');
+      alive = pid !== process.pid && /(^|\/)node$/.test(argv[0]) && argv.some(arg => arg.endsWith('run-task.mjs'));
     } catch {
       alive = false;
     }
