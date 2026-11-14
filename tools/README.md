@@ -137,7 +137,9 @@ tools/dist/           the build, not committed
 
 ## Releasing
 
-A release is a tag. `yarn version --new-version 0.2.0` writes the version and tags `v0.2.0`; `git push --follow-tags` runs [`publish.yml`](../.github/workflows/publish.yml), which checks that the tag is the version, runs the conventions check and the specs, builds, and publishes to npm with provenance. Two ways to be allowed to, tried in this order:
+A release is a tag, and the package's version follows the repository's tags (`v3.1.0` was the last before 3.2.0;
+the package said 0.3.0 until then, which no tag matched). `yarn version --new-version 3.2.0` writes the version and
+tags `v3.2.0`; `git push --follow-tags` runs [`publish.yml`](../.github/workflows/publish.yml), which checks that the tag is the version, runs the conventions check and the specs, builds, and publishes to npm with provenance. Two ways to be allowed to, tried in this order:
 
 1. **A token**: a granular access token from npmjs.com (publish rights on `clean-ddd`, bypass 2FA) saved as the repository secret `NPM_TOKEN`. The first publish of a new name needs this one.
 2. **Trusted publishing**, once the package exists: on npmjs.com, the package's settings → _Trusted publisher_ → GitHub Actions, repository `jgaNet/clean-ddd`, workflow `publish.yml`. No secret; the workflow's identity is the credential. Remove `NPM_TOKEN` afterwards and the workflow switches by itself.
