@@ -1,0 +1,12 @@
+# Request 34: an account suspended by an administrator, and reinstated; each logged.
+resources:
+  adminLogEntry:
+    states:
+      - field: action
+        add: [suspended, reinstated]
+        test: writes nothing in a group when an account is suspended or reinstated, and logs each to the administrators
+routes:
+  PUT /v1/admin/accounts/{id}/suspension:
+    2xx: {}
+  DELETE /v1/admin/accounts/{id}/suspension:
+    2xx: {}

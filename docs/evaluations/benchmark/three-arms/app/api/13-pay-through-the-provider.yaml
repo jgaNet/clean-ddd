@@ -1,0 +1,38 @@
+# Request 13: a settlement through the payment provider: a payment link, then the provider's signed webhook.
+resources:
+  # Restated whole, as request 12 left it, with `payUrl`, which a settlement through the provider has and one in
+  # cash does not (a `gains` would require it of both); the new method and statuses are added below, each read
+  # whole by the test named for it.
+  settlement:
+    schema:
+      type: object
+      required: [id, groupId, from, to, amount, method, status, at]
+      properties:
+        id: { $comment: request 12, type: string }
+        groupId: { $comment: request 12, type: string }
+        from: { $comment: request 12, type: string }
+        to: { $comment: request 12, type: string }
+        amount: { $comment: request 12, type: integer, minimum: 1 }
+        method: { $comment: request 12, enum: [cash] }
+        status: { $comment: request 12, enum: [paid] }
+        at: { $comment: request 12, type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)$' }
+        payUrl: { type: string, minLength: 1 }
+      allOf:
+        - $comment: 'request 13: a settlement through the provider has its payUrl'
+          if: { required: [method], properties: { method: { const: provider } } }
+          then: { required: [payUrl] }
+    states:
+      - field: method
+        add: [provider]
+        test: asks the provider for a payment link, and keeps the settlement pending, not counted, until the provider says it succeeded
+      - field: status
+        add: [pending]
+        test: asks the provider for a payment link, and keeps the settlement pending, not counted, until the provider says it succeeded
+      - field: status
+        add: [failed]
+        test: never counts a payment the provider says failed, and frees what it held
+routes:
+  POST /v1/groups/{id}/settlements/provider:
+    2xx: { type: object, required: [id], properties: { id: { type: string } } }
+  POST /v1/provider/webhooks:
+    2xx: {}

@@ -1,0 +1,34 @@
+# K4, task 6: the ground truth, written with the reference solution and before any run.
+task: 6-archive-a-conversation
+kind: handoff                      # a task stopped half-way, continued by a fresh agent with no history (RFC 0006, §8)
+start: c1ac8da7a796bfd94f7793b6d1f48cd0b665eaa8 + half-done.patch, committed as the branch's last commit
+# What the first developer did (half-done.patch, 6 files): the behaviour, its event, its storage and its handler, with the
+# domain's tests; all of the tree's checks pass on it, and nothing reaches it yet.
+half_done:
+  - src/Contexts/Messaging/Domain/Conversation/Conversation.ts                 # archiveFor, isArchivedBy, the archives in the snapshot
+  - src/Contexts/Messaging/Domain/Conversation/ConversationEvents.ts           # ConversationArchivedEvent
+  - src/Contexts/Messaging/Domain/Conversation/ConversationArchives.spec.ts
+  - src/Contexts/Messaging/Infrastructure/PostgresConversations.ts             # conversation_archives
+  - src/Contexts/Messaging/Application/Commands/ArchiveConversation/ArchiveConversationCommandEvent.ts
+  - src/Contexts/Messaging/Application/Commands/ArchiveConversation/ArchiveConversationCommandHandler.ts
+# What is left (solution.patch): the handler is in no Module, no route builds the command, and the list does not leave an
+# archived conversation out.
+reference_solution:
+  changes:
+    source:
+      - src/Contexts/Messaging/module.local.ts                                                  # the command and its one handler
+      - src/Contexts/Messaging/Presentation/API/REST/Routes/conversation.routes.ts             # POST /conversations/:id/archive
+      - src/Contexts/Messaging/Presentation/API/REST/Controllers/FastifyConversationController.ts
+      - src/Contexts/Messaging/Domain/Conversation/ConversationReadModels.ts                   # a summary says whether it is archived
+      - src/Contexts/Messaging/Infrastructure/PostgresConversationQueries.ts                   # read from conversation_archives
+      - src/Contexts/Messaging/Application/Queries/GetMyConversations/GetMyConversationsQueryHandler.ts  # the list leaves it out
+    tests:
+      - src/Contexts/Messaging/Presentation/API/REST/Routes/conversations.routes.e2e.spec.ts
+  canonical_example: MarkConversationRead (the per-reader command the half-done work copies)
+# The unread total keeps counting an archived conversation: filtering in the shared read (ReadableConversations.ts, which
+# both the list and the unread total use) would break the second hidden case. That is the trap a fresh agent can fall in.
+hidden_tests:                      # each fails on the half-done tree and passes on the reference solution
+  - k4-6-archive-a-conversation.acceptance.ts › leaves it out of the archiver’s list only, until a new message brings it back
+  - k4-6-archive-a-conversation.acceptance.ts › keeps counting the unread messages of an archived conversation
+  - k4-6-archive-a-conversation.acceptance.ts › refuses whoever does not read the conversation, and a caller who is not signed in
+regression_kit_j5: [51-conversations, 52-unread-messages, 53-contact-details-held-back, 55-message-notices]

@@ -109,6 +109,9 @@ The SDK's agent process is not in a process group of its own: if the driver is k
   A failed push is logged (`publish-failed`) and the run goes on. OpenStay's J5 lost its trees and their logs with a machine.
 - **The time one grading is given** is `gradeTimeoutMinutes` (60 by default): J5's largest tree needed more under load.
 - **How many acceptance files a grading runs at once** is `gradeWorkers` (1 by default, one jest per file, as J5 and J5b graded). With more, `grade.mjs --workers` runs every file in one jest, that many at a time. A file that fails beside the others is run again alone, and that run is its verdict, so the grades are the sequential grader's and only the time changes. J5b's gradings grew with the backlog, to 25–40 minutes by request 80, as long as the writing.
+- **A request that changes what a tree already stored** (`upgrade: true` in the kit's backlog; the kit standard, `docs/evaluations/benchmark/kit-standard.md` in the clean-ddd reference, says it) is graded with the tree before it: the ladder passes the commit the feature's attempts started from (`grade.mjs --previous`), and the test records through that tree before it reads through the attempt's, on one database. A dry-run plan names it per tree (`previous: { <id>: <ref> }`).
+- **A restart of the machine** stops every ladder. Each one registers itself when it starts (`~/.clean-ddd-flow/ladders.json`, or `FLOW_REGISTRY`), and [`resume.mjs`](resume.mjs) brings back every registered run that is not running, not held (`<project>.flow/hold`) and not finished for good. It sources the plan's `envFile`, runs its `services.start`, then starts the ladder again with `--resume`. Wire it where the machine starts: the environment's setup script, or a SessionStart hook. J5b lost three attempts to restarts, and two hours to a slot its own reused pid held (now taken over, `machine.mjs`).
+- **Each run has a temporary directory of its own** (`/tmp/cdd-<hash of the run>`, as `TMPDIR` for every process it starts: a short path, since a server opens a socket under it and a deep one cannot be bound). Jest's cache lands there, and the run removes it between two features once it holds more than `machine.jestCacheGb` (2 by default). J5b's shared cache reached 11 GB.
 
 ## Rehearsing a kit before its runs
 
@@ -141,7 +144,8 @@ node .claude/flow/kit-check.mjs <kit>     # before the campaign is registered, b
 - **[`api-schema.mjs`](api-schema.mjs)** composes the kit's fragments (`api/<n>-<id>.yaml`: JSON Schema for each
   route's answers and the resources they add or change, the states they add, the fields `null` in one case only) up to
   a request, and validates an answer against the composition; each problem names the request whose fragment set the
-  shape.
+  shape. The composer is the tooling's (`tools/src/api.ts`, `clean-ddd/api`), the one a created
+  application's end-to-end client holds its own `api/` with (ADR 45 of the reference).
 - **[`kit-check.mjs`](kit-check.mjs)** refuses a request with an API table and no fragment, a convention of the
   register without `born` or without its `it` in that request's acceptance file, a state added without a test that
   reads the whole resource in it, and an operation the requests compose that differs from the contract's
@@ -152,5 +156,51 @@ node .claude/flow/kit-check.mjs <kit>     # before the campaign is registered, b
 
 [`kit-check.test.mjs`](kit-check.test.mjs) builds a kit of three requests in a temp dir, shows each refusal, and the
 composed API catching the three conventions OpenStay's trees broke.
+
+## K4: one task, one arm, one run, graded and measured
+
+RFC 0006's pilot (`docs/evaluations/knowledge/k4-pilot` in the clean-ddd reference: its README is the protocol, its
+`plan.yaml` the 54 runs) asks whether an agent given `clean-ddd knowledge` explores less than one given the guide and
+the commands. [`run-task.mjs`](run-task.mjs) runs one of its runs, from `plan.yaml`, to one JSON record:
+
+```bash
+node .claude/flow/run-task.mjs --dry [--show-prompt]                    # the 54 runs, what each would do; runs nothing
+node .claude/flow/run-task.mjs --id k4-t1-B-r1 | --order 1 | --all --k3 <K3 .tgz> [--work <dir>] [--out <dir>]
+node .claude/flow/run-task.mjs --services start|stop|remove [--work <dir>]
+node .claude/flow/k4-report.mjs --records <out>/records [--json <file>] [--md <file>]
+```
+
+- **The tree** of each run is a repository of its own (`prepare-arm.sh`, under `<work>/runs/<nn>/openstay`): the runs of
+  one task and arm share no branch and no Claude Code project directory, the path names neither the pilot nor the arm,
+  and the run refuses to start under a directory that holds a `CLAUDE.md` or a `.claude/`.
+- **The agent** is the `claude-cli` runner with what `run-feature.mjs` could not give it: the plan's prompt with the
+  task verbatim (C's sentence in C only), the arm's tools (`--tools` and `--allowedTools`; `Skill` in B and C),
+  `--setting-sources project --strict-mcp-config`, `--disable-slash-commands` in A, `--session-id`, `--max-budget-usd`,
+  the time limit, the agent's own PostgreSQL cluster, and no clean-ddd gate. [`runners.mjs`](runners.mjs) takes
+  `tools` and `extraArgs` for it; without them it runs as before. A run that could pass the pilot's budget is not
+  started.
+- **The transcript** is copied beside the records, and [`k4-measures.mjs`](k4-measures.mjs) reads it with K1's method:
+  each call classed explore, edit, verify or other, the bytes its result brought in, the tracked files read before the
+  first edit and in all, the unnecessary ones (neither changed nor named by the ground truth), `clean-ddd knowledge`
+  and the skills counted apart. It also scans the tool inputs for a kit, a hidden test, OpenStay's repository, a J5b
+  directory, the K3 package's source or the records: a run that touched one is **void**, and run again as `<id>.2`.
+- **The grading** is the same for every arm, in the task's grading repository (arm B's tree): the run's committed diff
+  applied and committed, the tree's own checks (`check:conventions` recorded apart: A cannot run it), and
+  [`grade.mjs`](grade.mjs) on a kit composed for the task (J5's, the task as request 101), with `--workers 2 --gate
+  false`. The start is graded once a task, and a regression is a J5 file that passed there. Task 4 changes nothing:
+  [`k4-score.mjs`](k4-score.mjs) scores its answer's files and tests by precision and recall against the ground truth,
+  and a judge matches its rules, each match left for the operator to read.
+- **Resumable:** a run with a record that is not void is never run again; an agent that finished before its driver
+  died is graded on resume without running again.
+- **Stand-ins prove it without an agent:** `--stand-in <patch>|none` commits a patch where the agent would have worked,
+  `--stand-in-answer <file>` gives task 4's final message; such a record says `standIn`, needs its own `--out`, and the
+  report refuses it.
+- **[`k4-report.mjs`](k4-report.mjs)** reads the records into the pilot's table per task and arm and §8's two criteria
+  with the README's bands (holds, does not hold, undecided), and the pilot's reading: dropped, stands, undecided (then
+  extended), or incomplete.
+
+The tests ([`k4-measures.test.mjs`](k4-measures.test.mjs), [`k4-score.test.mjs`](k4-score.test.mjs),
+[`k4-report.test.mjs`](k4-report.test.mjs), [`run-task.test.mjs`](run-task.test.mjs)) need no agent, no database and no
+tree: a fixture transcript, the registered ground truths, synthetic records, and the dry run of the 54 runs.
 
 It is a script on purpose. It holds no state but the log (and, while it runs, a lock and the leases); several features at once is a later phase of the RFC, and comes only if the measurements justify it.

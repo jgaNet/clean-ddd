@@ -1,7 +1,34 @@
 # RFC 0006 — Software knowledge as a projection: rules as named units, with their origin and their evidence
 
-**Status:** proposed (13 November), a research direction for the maintainer's decision. Nothing is implemented, and no
-rule, binding or ADR changes by it. Its decisions are listed in §9.
+**Status:** proposed (13 November), a research direction. Nothing was implemented, and no rule, binding or ADR
+changed, by the proposal itself; **K2 is implemented in TypeScript by
+[ADR 46](../adr/0046-a-rule-is-a-named-unit-with-its-origin-and-its-evidence.md), and K3, the query, is built**
+(below). Its decisions are listed in §9. **K1 decided (the maintainer, 13 November): yes,** measured beside J6's
+preparation, without holding it up. **K1 measured the same day (§9b):** exploring is three quarters or more of
+what the tools bring into an agent's context, so the direction stands. **K2–K4 decided (the maintainer, 13
+November): yes, before J6.** Their design is the operator's next proposal, for the maintainer's review before any
+code. With them (the maintainer, 13 November):
+- **J6 is unchanged:** its arms receive neither the register (K2) nor the query (K3); K4 measures them, on the
+  frozen J5b trees, and J6 measures what RFC 0005 registered.
+- **K4 is a pilot first:** 6 tasks, the three arms of §8, 3 runs each (about 54 runs, an estimated $80 to $150),
+  with §8's rejection criteria; it is extended only if the pilot is undecided.
+- **K2 in TypeScript first** (the reference and created applications); Rust, Python and Go after J6.
+- **K4 runs while J6 is prepared,** on the free machine, and is read before J6 starts.
+- **K2 implemented in TypeScript (ADR 46, 13 November):** the rule register `conventions/rules.yaml` names the
+  reference's 24 refusals with their context, their statement and their origin; `yarn check:conventions` holds it to
+  the TypeScript tree under DOMAIN-RULE-NAMED (a refusal no rule names, a rule no exception returns, a rule no test
+  names); `create --rules` gives an application one, and an application created without it, as J6's arms are, is
+  unchanged. Rust, Python and Go bind the rule as a gap until after J6.
+- **K3 built (13 November), tooling only:** the read-only query `clean-ddd knowledge <name>`
+  ([`tools/src/knowledge.ts`](../../tools/src/knowledge.ts), [the tooling's README](../../tools/README.md#the-knowledge-query))
+  answers for a command, a query, a domain event, an integration event, a rule, an aggregate or a context, in Markdown
+  and JSON, every edge tagged `derived` (read from the code) or `declared` (written under `conventions/`), citations from
+  the ADRs, storms, plans and `api/` found by search and said to be so; an unknown name answers the nearest known names,
+  and what a tree does not hold is said. No rule, binding or check changed. It runs as the package's subcommand and as a
+  bundle of its own (`tools/dist/knowledge.js <name> --root <tree>`), so that arm C of §8 can be given arm B's tree with
+  the query beside it; it answers on the reference and on OpenStay's frozen J5b tree clean-3, which has no rule register
+  and no published language (the payload is then the one the code carries, and a rule has no statement or origin). J6's
+  arms do not get it; K4 measures it.
 
 ## 1. The question
 
@@ -252,6 +279,41 @@ kits. A task's text names no file.
 | K4 | Register and run the experiment of §8 | The tasks, the ground truth and the criteria committed before any run |
 
 K1 comes first, and may end the direction. K2 is worth doing on its own evidence (J5, J5b). K3 and K4 wait on K1.
+
+## 9b. K1, measured (13 November)
+
+From J5b's own agents' transcripts (172 sessions, kept by the agents' runner beside each attempt's worktree), each tool
+call is classed:
+- **explore:** reading files, `grep`, listing, the architecture command line;
+- **edit:** an edit, a write, a script that writes a file;
+- **verify:** a test, the linter, the type checker, the gate;
+- **coordinate:** the channel between owners, waiting, the runner's notices;
+- **other.**
+
+The context each class brings in is measured as the size of its results. Bytes stand in for tokens (about four bytes
+to a token).
+
+| | simple-3 (62 sessions) | clean-3 (110 sessions) |
+| --- | --- | --- |
+| Tool calls a session (median) | 45 | 66 |
+| Share of calls: explore / edit / verify / coordinate / other | 43% / 31% / 11% / 6% / 9% | 38% / 26% / 14% / 16% / 7% |
+| Share of the context the tools bring in, from exploring | 82% of 9.3 MB | 73% of 17.8 MB |
+| Reads before the first edit (median) | 13 | 12 |
+| Of the exploring: reading files / text search / the architecture command line | 66% / 32% / 0% | 65% / 22% / 8% |
+
+**What it says:**
+- **Exploring is most of what an agent reads.** Its results are three quarters or more of the context the tools bring
+  in, and every later turn reads that context again. The direction is not ended by K1: the gain the projection
+  aims at is the largest share of an attempt's input.
+- **Agents explore by reading files and searching text, not through the architecture's own commands.** Those are 8% of
+  clean-3's exploring. A projection only helps if an agent reaches for it, so the experiment (§8) must measure whether
+  arm C calls the query, not only whether it could.
+- **Coordinating is 16% of clean-3's calls,** mostly the split's channel and waits, beside the split's cost J5b
+  measured.
+- **It does not say a projection would shorten the exploring.** That is K3 and K4's question.
+
+The measuring scripts are kept in the operator's notes, not in the repository. They read transcripts that live outside
+it.
 
 ## 10. Not proposed
 

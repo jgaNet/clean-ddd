@@ -2,10 +2,23 @@
 
 **Status:** a draft. It is registered (committed with its kit and its criteria, the kit passing `kit-check.mjs`) before any run, and it waits on [RFC 0002](../../../rfc/0002-architecture-profiles-lite-and-full.md)'s implementation plan up to its step 5 (`create --profile lite`).
 
+**Registration:** [proposed on 14 November](registration.md), for the maintainer's review; nothing has run.
+
 **Decided by the maintainer on 8 November.** RFC 0002 had decided to compare Lite alone against the records of J2–J4, and kept three arms run at the same time as the stronger design if that comparison were inconclusive. The review of J5 (8 November) showed why it would be. The records were made on another machine, another harness and another kit, and Lite's rules were designed from the very requests they would be evaluated on. The maintainer chose the stronger design from the start:
 - three arms run at the same time;
 - on requests none of the three was tuned on;
 - with a calibration all three share.
+
+**Decided by the maintainer on 13 November** ([RFC 0005](../../../rfc/0005-what-the-literature-and-j5b-say-before-j6.md),
+"Decided"):
+- three trees per arm;
+- every arm's agents receive the kit's API fragments;
+- the cost of change is the first score, with one unannounced change per ten requests;
+- the split by context only where the estimate recommends it;
+- Lite with its decisions as pure functions, and its use cases declaring who may call them.
+- the calibration's request 1 (OpenStay 1–10) fixes an operation's `error` as the contract's `{ type, message }`
+  ([ADR 41](../../../adr/0041-an-operation-read-is-in-the-contract.md)), not OpenStay's `"<NAME>"`, so no departure is
+  declared.
 
 **Before registration:** [RFC 0005](../../../rfc/0005-what-the-literature-and-j5b-say-before-j6.md) proposes what J6
 carries and measures, from the literature and J5b: Lite's decisions as pure functions, the API's specification as data,

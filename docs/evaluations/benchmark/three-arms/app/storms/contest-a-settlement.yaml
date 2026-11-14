@@ -1,0 +1,60 @@
+# Feature 33 of Tally (../backlog/33-contest-a-settlement.md), as the session decided it.
+schemaVersion: 1
+
+feature: contest-a-settlement
+intent: >-
+  The payee contests a paid settlement through the provider; its effect on the balances is held, and it waits, until an administrator decides it was paid or annuls it; every decision is in the administrators' log.
+
+done: false
+
+hotSpots:
+  - question: Who is an administrator?
+    decision: A role of the caller, given at sign-in to the account whose email is in ADMIN_EMAILS — Groups' Account decides it, as it holds accounts (T1, T21); the role travels with who is calling (ExecutionContext), and the handlers that only an administrator may call guard on it. No command makes one.
+  - question: Where is a contest decided?
+    decision: In the SettlementBook — contesting moves a paid settlement to contested (SettlementContested), deciding moves it back to paid (SettlementPaid) or to annulled (SettlementAnnulled). A contested settlement counts as waiting for what is still owed, and nothing for the balances; SettledAmounts answers the paid and refunding ones only, so Ledger changes nothing.
+  - question: The administrators' log?
+    decision: Each context writes its administrators' decisions in the transaction of the decision, as the audit does (T18) — Settlements here; Groups reads them through a port it owns (AdministratorDecisions) on the relationship Settlements to Groups, and answers the log with its own (request 34). No integration event — an entry is there as soon as the decision is answered.
+  - question: Leaving, archiving and merging while contested?
+    decision: WaitingPayments answers contested as waiting, so the Group refuses all three, as for a pending payment.
+
+contexts:
+  - id: Settlements
+    commands:
+      - name: ContestSettlement
+        actor: a signed-in account
+        route: POST /settlements/{param}/contest
+        aggregate: SettlementBook
+        events: [SettlementContested]
+      - name: DecideContest
+        actor: an administrator
+        route: POST /admin/settlements/{param}/decision
+        aggregate: SettlementBook
+        events: [SettlementAnnulled, SettlementPaid]
+    queries:
+      - name: GetContests
+        actor: an administrator
+        route: GET /admin/contests
+    events: [SettlementAnnulled, SettlementContested, SettlementPaid]
+    policies: []
+  - id: Groups
+    commands: []
+    queries:
+      - name: GetAdministratorsLog
+        actor: an administrator
+        route: GET /admin/log
+    events: []
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Settlements
+    downstream: Groups
+    contracts: [AdministratorDecisions, WaitingPayments]
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Settlements
+    contracts: [SettlementMembers]
+  - mechanism: owned-port
+    upstream: Settlements
+    downstream: Ledger
+    contracts: [SettledAmounts, SettlementAudit]

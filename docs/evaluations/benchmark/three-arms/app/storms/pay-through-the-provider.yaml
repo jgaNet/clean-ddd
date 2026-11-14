@@ -1,0 +1,51 @@
+# Feature 13 of Tally (../backlog/13-pay-through-the-provider.md), as the session decided it.
+schemaVersion: 1
+
+feature: pay-through-the-provider
+intent: >-
+  A payer asks to pay through the payment provider and gets its link; the provider's signed webhook says the payment succeeded or failed, and a payment that succeeded is counted by the balances.
+
+done: false
+
+hotSpots:
+  - question: Where is the provider in the model?
+    decision: Behind a port Settlements owns in its Application layer (PaymentProvider), named for what it decides — a payment link for a reference and an amount; its answer is a plain value the SettlementBook takes or refuses (DOMAIN-NON-DETERMINISM). The adapter calls PROVIDER_URL with a 5-second limit; any other answer is the refusal ProviderUnavailable.
+  - question: When is the provider asked — before the SettlementBook decides, or after?
+    decision: Before it records, after it has checked the rules; the book decides again with the link in hand, so a payment that two requests at once would make too much is refused by the same rule as in cash (an orphan payment at the provider is never paid).
+  - question: Who may send the webhook?
+    decision: Anyone — the handler says so once (API-CALLER-AT-TRANSPORT); the signature is the proof, checked over the body as sent, before anything is decided, and a missing or wrong one is a 401.
+  - question: What does a pending payment change?
+    decision: What is still owed — the SettlementBook counts it as paid for the rule and for the suggestions; the balances count it only once paid, through SettledAmounts.
+  - question: Is a payment that succeeded told to Ledger as a fact?
+    decision: No — Ledger reads what is settled when it reads a balance (T8); the alternative, a SettlementPaid integration event and a copy in Ledger, would let a decision read a balance that has not heard of it.
+
+contexts:
+  - id: Settlements
+    commands:
+      - name: PayThroughProvider
+        actor: a signed-in account
+        route: POST /groups/{param}/settlements/provider
+        aggregate: SettlementBook
+        events: [PaymentRequested]
+      - name: ReceivePaymentWebhook
+        actor: anyone
+        route: POST /provider/webhooks
+        aggregate: SettlementBook
+        events: [SettlementFailed, SettlementPaid]
+    queries: []
+    events: [PaymentRequested, SettlementFailed, SettlementPaid]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Ledger
+    downstream: Settlements
+    contracts: [GroupBalances]
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Settlements
+    contracts: [SettlementMembers]
+  - mechanism: owned-port
+    upstream: Settlements
+    downstream: Ledger
+    contracts: [SettledAmounts]

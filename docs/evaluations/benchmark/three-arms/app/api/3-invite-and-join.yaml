@@ -1,0 +1,29 @@
+# Request 3: an invitation by a link, joining, and the members in the order they joined.
+resources:
+  invitation:
+    schema:
+      type: object
+      required: [id, groupId, groupName, invitedBy]
+      properties:
+        id: { type: string }
+        groupId: { type: string }
+        groupName: { type: string }
+        invitedBy: { type: string }
+  member:
+    schema:
+      type: object
+      required: [memberId, name, role, joinedAt]
+      properties:
+        memberId: { type: string }
+        name: { type: string }
+        role: { enum: [owner, member] }
+        joinedAt: { type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)$' }
+routes:
+  POST /v1/groups/{id}/invitations:
+    2xx: { type: object, required: [id], properties: { id: { type: string } } }
+  GET /v1/invitations/{id}:
+    200: invitation
+  POST /v1/invitations/{id}/accept:
+    2xx: {}
+  GET /v1/groups/{id}/members:
+    200: { type: array, items: { $resource: member } }

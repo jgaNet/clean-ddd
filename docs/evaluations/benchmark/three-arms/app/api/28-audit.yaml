@@ -1,0 +1,17 @@
+# Request 28: a group's audit, every change of money, the oldest first.
+resources:
+  auditEntry:
+    schema:
+      type: object
+      required: [id, at, by, action, subjectId, amount]
+      properties:
+        id: { type: string }
+        at: { type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)$' }
+        by: { type: string }
+        action:
+          enum: [expense-recorded, expense-edited, expense-deleted, settlement-paid, settlement-refunded, balance-passed]
+        subjectId: { type: string }
+        amount: { type: integer }
+routes:
+  GET /v1/groups/{id}/audit:
+    200: { type: array, items: { $resource: auditEntry } }

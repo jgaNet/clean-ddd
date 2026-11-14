@@ -14,6 +14,7 @@ import {
   fingerprint,
   freePort,
   portHolders,
+  previousArgument,
   provideDependencies,
   regressionsAgainstFrom,
 } from './supervision.mjs';
@@ -97,6 +98,28 @@ describe('the port an agent leaves behind', () => {
     await exited;
     assert.deepEqual(portHolders(port), []);
     assert.deepEqual(freePort(port), [], 'a free port has nothing to stop');
+  });
+});
+
+describe('previousArgument', () => {
+  const backlog = [
+    { id: 'a', n: 1 },
+    { id: 'b', n: 2, upgrade: true },
+    { id: 'c', n: 3 },
+    { id: 'd', n: 4, upgrade: true },
+  ];
+  const startedFrom = new Map([
+    ['b', 'b0'],
+    ['d', 'd0'],
+  ]);
+  it('names the start of every upgrade feature graded, and only those', () => {
+    assert.equal(previousArgument(backlog, { upto: 4, startedFrom }), 'b=b0,d=d0');
+    assert.equal(previousArgument(backlog, { upto: 3, startedFrom }), 'b=b0');
+    assert.equal(previousArgument(backlog, { upto: 4, only: ['d', 'c'], startedFrom }), 'd=d0');
+  });
+  it('leaves out a feature the run never started', () => {
+    assert.equal(previousArgument(backlog, { upto: 4, startedFrom: new Map([['d', 'd0']]) }), 'd=d0');
+    assert.equal(previousArgument(backlog, { upto: 1, startedFrom }), '');
   });
 });
 

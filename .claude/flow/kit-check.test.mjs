@@ -178,6 +178,24 @@ function kit(change = () => {}) {
 const messages = result => result.findings.map(f => `${f.check} ${f.request}: ${f.message}`);
 
 describe('kit-check', () => {
+  it('refuses an upgrade whose test never starts the tree before it, and one on the first request', () => {
+    const data = fixture();
+    const [firstFeature, second] = data.backlog.features;
+    const result = checkKit(
+      kit(each => {
+        each.backlog.features[0].upgrade = true;
+        each.backlog.features[1].upgrade = true;
+      }),
+    );
+    assert.deepEqual(
+      messages(result).filter(line => line.startsWith('upgrade')),
+      [
+        `upgrade ${firstFeature.n}: the first request has no tree before it to upgrade from`,
+        `upgrade ${second.n}: ${second.n}-${second.id}.acceptance.ts never starts the tree before it (previous(...))`,
+      ],
+    );
+  });
+
   it('passes the fixture, and prints the operation error it decided in request 1 as decided', () => {
     const result = checkKit(kit());
     assert.deepEqual(result.findings, []);

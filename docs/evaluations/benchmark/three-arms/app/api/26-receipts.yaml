@@ -1,0 +1,15 @@
+# Request 26: a receipt, a JPEG or a PNG of at most 2 MB, kept in the receipts store the server is started with.
+resources:
+  receipt:
+    schema:
+      type: object
+      required: [type, size, url]
+      properties:
+        type: { enum: [image/jpeg, image/png] }
+        size: { type: integer, minimum: 1, maximum: 2097152 }
+        url: { type: string, minLength: 1 }
+routes:
+  PUT /v1/expenses/{id}/receipt:
+    2xx: {}
+  GET /v1/expenses/{id}/receipt:
+    200: receipt

@@ -1,0 +1,35 @@
+# Request 5: the tourist tax, and a quote line by line.
+resources:
+  listing:
+    gains:
+      touristTax: { type: integer }
+  quote:
+    schema:
+      type: object
+      required: [id, listingId, checkIn, checkOut, guests, nights, lines, total, cancellationPolicy, validUntil]
+      properties:
+        id: { type: string }
+        listingId: { type: string }
+        checkIn: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        checkOut: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        guests: { type: integer }
+        nights: { type: integer }
+        lines:
+          type: array
+          items:
+            type: object
+            required: [label, for, amount]
+            properties:
+              label: { type: string }
+              for: { enum: [host, external, platform] }
+              amount: { type: integer }
+        total: { type: integer }
+        cancellationPolicy: { enum: [flexible, moderate, strict] }
+        validUntil: { type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)$' }
+routes:
+  PUT /v1/listings/{id}/tourist-tax:
+    2xx: {}
+  POST /v1/quotes:
+    2xx: { type: object, required: [id], properties: { id: { type: string } } }
+  GET /v1/quotes/{id}:
+    200: quote

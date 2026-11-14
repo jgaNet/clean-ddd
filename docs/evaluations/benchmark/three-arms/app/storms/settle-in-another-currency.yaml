@@ -1,0 +1,43 @@
+# Feature 39 of Tally (../backlog/39-settle-in-another-currency.md), as the session decided it.
+schemaVersion: 1
+
+feature: settle-in-another-currency
+intent: >-
+  A settlement in cash or through the provider is paid in another currency, at the rate the rates service offers when it is decided, kept on it; it counts its amount in the group's currency, whatever the rate later.
+
+done: false
+
+hotSpots:
+  - question: Who asks the rates service, for Settlements?
+    decision: A port Settlements owns (SettlementRates), answered by an adapter over the rates service — an outside system, not a context, as Ledger's OfferedRates is (T14). Two adapters over one outside service, each in its context's words; no relationship between Ledger and Settlements for it.
+  - question: Who converts, and when is the rate fixed?
+    decision: The SettlementBook, when it decides — the rate is an input it takes (DOMAIN-NON-DETERMINISM), the conversion is the OriginalAmount value's, as for an expense (a half up); the settlement keeps the rate and both amounts, so a webhook that lands later counts what was decided.
+  - question: The provider's fee in another currency?
+    decision: Converted at the settlement's rate, by the same value, before request 38's rule.
+
+contexts:
+  - id: Settlements
+    commands:
+      - name: RecordCashSettlement
+        actor: a signed-in account
+        route: POST /groups/{param}/settlements/cash
+        aggregate: SettlementBook
+        events: [SettlementRecorded]
+      - name: PayThroughProvider
+        actor: a signed-in account
+        route: POST /groups/{param}/settlements/provider
+        aggregate: SettlementBook
+        events: [PaymentRequested]
+    queries: []
+    events: [PaymentRequested, SettlementRecorded]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Settlements
+    contracts: [SettlementMembers]
+  - mechanism: owned-port
+    upstream: Ledger
+    downstream: Settlements
+    contracts: [GroupBalances]

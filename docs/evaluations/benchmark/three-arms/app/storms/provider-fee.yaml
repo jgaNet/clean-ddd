@@ -1,0 +1,41 @@
+# Feature 38 of Tally (../backlog/38-provider-fee.md), as the session decided it.
+schemaVersion: 1
+
+feature: provider-fee
+intent: >-
+  A group's owner decides who bears the provider's fee — payer, payee or shared, the payee until then; a payment through the provider settles its amount less its payer's part, fixed when it is asked for.
+
+done: false
+
+hotSpots:
+  - question: Where is the policy?
+    decision: In Settlements, on the SettlementBook of the group (FeePolicySet) — it is a rule of how a settlement settles, set by the owner (the role read through SettlementMembers). A group's other settings are elsewhere, but this one is read by nothing but the book.
+  - question: Where does the fee come from?
+    decision: From the provider's answer to the payment, through the PaymentProvider port (T11) — a plain value the SettlementBook validates (0 or more, less than the amount) and may refuse (DOMAIN-NON-DETERMINISM); the book then keeps the fee, who bore it, and what the settlement settles, as decided when it is asked for.
+  - question: What does Ledger count?
+    decision: What a settlement settles, through SettledAmounts — Ledger reads the amount the book says it settles, never the fee or the policy.
+
+contexts:
+  - id: Settlements
+    commands:
+      - name: SetFeePolicy
+        actor: a signed-in account
+        route: PUT /groups/{param}/fee-policy
+        aggregate: SettlementBook
+        events: [FeePolicySet]
+    queries:
+      - name: GetFeePolicy
+        actor: a signed-in account
+        route: GET /groups/{param}/fee-policy
+    events: [FeePolicySet]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Settlements
+    contracts: [SettlementMembers]
+  - mechanism: owned-port
+    upstream: Settlements
+    downstream: Ledger
+    contracts: [SettledAmounts]

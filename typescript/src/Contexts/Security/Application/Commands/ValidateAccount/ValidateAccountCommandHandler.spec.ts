@@ -8,6 +8,7 @@ import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InM
 import { Account } from '@Contexts/Security/Domain/Account/Account';
 import { IAccount } from '@Contexts/Security/Domain/Account/DTOs';
 import { AccountStatus } from '@Contexts/Security/Domain/Account/AccountStatus';
+import { AccountNotFoundException } from '@Contexts/Security/Domain/Account/AccountExceptions';
 import { TokenTypes } from '@Contexts/Security/Domain/Auth/TokenTypes';
 import { InMemoryAccountRepository } from '@Contexts/Security/Infrastructure/Repositories/InMemoryAccountRepository';
 import { JoseSignedTokens } from '@Contexts/Security/Infrastructure/Services/JoseSignedTokens';
@@ -67,6 +68,16 @@ describe('ValidateAccountCommandHandler', () => {
       expect(result.error).toBeInstanceOf(NotAllowedException);
     }
     expect(store.collection.get(pendingId)?.status).toBe(AccountStatus.PENDING);
+  });
+
+  it('refuses an account that does not exist with AccountNotFound', async () => {
+    const result = await handler.execute(
+      ValidateAccountCommandEvent.set({ accountId: 'nobody' }),
+      contextFor(Role.ADMIN, 'root'),
+    );
+
+    expect(result.error).toBeInstanceOf(AccountNotFoundException);
+    expect(result.error?.type).toBe('AccountNotFound');
   });
 
   it('refuses a login token presented as a validation token', async () => {

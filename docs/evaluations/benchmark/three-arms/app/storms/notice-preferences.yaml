@@ -1,0 +1,33 @@
+# Feature 36 of Tally (../backlog/36-notice-preferences.md), as the session decided it.
+schemaVersion: 1
+
+feature: notice-preferences
+intent: >-
+  Each person turns each kind of notice on or off; a notice of a kind turned off is not made for them from then on, and a reminder not made does not count as made.
+
+done: false
+
+hotSpots:
+  - question: Where are the preferences?
+    decision: In Notifications, a NoticePreferences per person (NoticePreferenceChanged); it is the only context that tells people, so no other context hears of it.
+  - question: When is a preference read?
+    decision: When a notice would be made — in the reaction to ExpenseRecorded or BudgetPassed, and at the reminders' run — so a notice made soon after a change follows the preference in force then. Nothing missed is made later.
+  - question: A reminder not made?
+    decision: The DebtWatch records a reminder only when one is made; turned off, it stays noted, so the first run after it is on again reminds (request 18's rule, unchanged).
+
+contexts:
+  - id: Notifications
+    commands:
+      - name: SetNoticePreference
+        actor: a signed-in account
+        route: PUT /accounts/me/notice-preferences/{param}
+        aggregate: NoticePreferences
+        events: [NoticePreferenceChanged]
+    queries:
+      - name: GetNoticePreferences
+        actor: a signed-in account
+        route: GET /accounts/me/notice-preferences
+    events: [NoticePreferenceChanged]
+    policies: []
+
+links: []

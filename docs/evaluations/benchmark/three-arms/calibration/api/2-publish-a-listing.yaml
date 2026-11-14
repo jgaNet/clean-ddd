@@ -1,0 +1,33 @@
+# Request 2: a listing, its life, and who sees it.
+resources:
+  listing:
+    schema: &listing
+      type: object
+      required: [id, hostId, title, city, capacity, nightlyPrice, cleaningFee, cancellationPolicy, status]
+      properties:
+        id: { type: string }
+        hostId: { type: string }
+        title: { type: string }
+        city: { type: string }
+        capacity: { type: integer }
+        nightlyPrice: { type: integer }
+        cleaningFee: { type: integer }
+        cancellationPolicy: { enum: [flexible, moderate, strict] }
+        status: { enum: [draft, published, suspended, archived] }
+routes:
+  POST /v1/listings:
+    2xx: { type: object, required: [id], properties: { id: { type: string } } }
+  PUT /v1/listings/{id}:
+    2xx: {}
+  POST /v1/listings/{id}/publish:
+    2xx: {}
+  POST /v1/listings/{id}/suspend:
+    2xx: {}
+  POST /v1/listings/{id}/archive:
+    2xx: {}
+  GET /v1/listings/{id}:
+    200: listing
+  # `{ id, hostId, title, city, …, status }`: the fields request 2 names; what later requests add to
+  # the listing (`GET /v1/listings/{id}` gains …) is not said of this list, so it is not required here.
+  GET /v1/listings/mine:
+    200: { type: array, items: *listing }

@@ -1,0 +1,14 @@
+# Request 36: each kind of notice, on or off, for each person.
+resources:
+  noticePreference:
+    schema:
+      type: object
+      required: [kind, enabled]
+      properties:
+        kind: { enum: [expense, reminder, budget] }
+        enabled: { type: boolean }
+routes:
+  GET /v1/accounts/me/notice-preferences:
+    200: { type: array, items: { $resource: noticePreference } }
+  PUT /v1/accounts/me/notice-preferences/{kind}:
+    2xx: {}

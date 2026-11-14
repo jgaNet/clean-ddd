@@ -1,0 +1,6 @@
+# Request 7: splits by exact amounts and by shares; an expense says how it was split. The routes are
+# request 4's and request 6's, with the bodies this request adds.
+resources:
+  expense:
+    gains:
+      splitKind: { enum: [equal, exact, shares] }

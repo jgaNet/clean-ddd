@@ -1,0 +1,41 @@
+# Feature 6 of Tally (../backlog/6-edit-and-delete-an-expense.md), as the session decided it.
+schemaVersion: 1
+
+feature: edit-and-delete-an-expense
+intent: >-
+  An expense's payer or the group's owner edits it whole, from the version they read, or deletes it; of two edits at once, one is kept and the other is refused by name.
+
+done: false
+
+hotSpots:
+  - question: Is the version an edit gives the aggregate's own version?
+    decision: It is the version the Expense was last read at, and the Expense refuses an edit from another one by its own rule (the expense changed since it was read); the aggregate's optimistic check (CONC-OPTIMISTIC) makes the second of two writers re-read and re-decide, and that rule then refuses it by name.
+  - question: How does Ledger know the caller is the group's owner?
+    decision: From GroupMembers, which answers each member's role.
+  - question: Is a deleted expense a state or gone?
+    decision: Gone from every read; ExpenseDeleted is recorded, and the balances read model forgets its shares in the same transaction.
+  - question: Who is the payer after an edit by the owner?
+    decision: The one who paid; an edit never changes the payer, and the split still holds them.
+
+contexts:
+  - id: Ledger
+    commands:
+      - name: EditExpense
+        actor: a signed-in account
+        route: PUT /expenses/{param}
+        aggregate: Expense
+        events: [ExpenseEdited]
+      - name: DeleteExpense
+        actor: a signed-in account
+        route: DELETE /expenses/{param}
+        aggregate: Expense
+        events: [ExpenseDeleted]
+    queries: []
+    events: [ExpenseDeleted, ExpenseEdited]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupMembers]

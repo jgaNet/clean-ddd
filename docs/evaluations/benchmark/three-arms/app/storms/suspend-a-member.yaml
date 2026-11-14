@@ -1,0 +1,49 @@
+# Feature 34 of Tally (../backlog/34-suspend-a-member.md), as the session decided it.
+schemaVersion: 1
+
+feature: suspend-a-member
+intent: >-
+  An administrator suspends an account and reinstates it; while suspended, the expenses and settlements it starts are refused in every group by one rule's name, its recurring expenses wait, and nothing is written in any group.
+
+done: false
+
+hotSpots:
+  - question: Where is a suspension?
+    decision: On the Account, in Groups (AccountSuspended, AccountReinstated), written once — nothing in any group changes (the maintainer's decision 7). A suspension that changes nothing records nothing, so the log has one entry per change.
+  - question: How do Ledger and Settlements refuse a suspended account, by one name?
+    decision: Each asks Groups through the port it already owns (GroupMembers, SettlementMembers) whether the account is suspended, and its aggregate refuses by AccountSuspended, a word of the shared kernel decided once by the Account — as GroupArchived is (T17). No copy of the flag anywhere, so nothing slips in after the suspension.
+  - question: Its recurring expenses?
+    decision: The RecurringExpense asks GroupMembers when its day comes; a suspended payer records nothing and the day stays next, so the first run after the reinstatement records every day that has come (request 23's catching up).
+  - question: The log?
+    decision: Groups writes its own entries with the change, and reads Settlements' (AdministratorDecisions, request 33) to answer the log, the oldest first.
+
+contexts:
+  - id: Groups
+    commands:
+      - name: SuspendAccount
+        actor: an administrator
+        route: PUT /admin/accounts/{param}/suspension
+        aggregate: Account
+        events: [AccountSuspended]
+      - name: ReinstateAccount
+        actor: an administrator
+        route: DELETE /admin/accounts/{param}/suspension
+        aggregate: Account
+        events: [AccountReinstated]
+    queries: []
+    events: [AccountReinstated, AccountSuspended]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupMembers]
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Settlements
+    contracts: [SettlementMembers]
+  - mechanism: owned-port
+    upstream: Settlements
+    downstream: Groups
+    contracts: [AdministratorDecisions]

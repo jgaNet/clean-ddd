@@ -1,0 +1,289 @@
+diff --git a/src/Contexts/Messaging/Application/Commands/ArchiveConversation/ArchiveConversationCommandEvent.ts b/src/Contexts/Messaging/Application/Commands/ArchiveConversation/ArchiveConversationCommandEvent.ts
+new file mode 100644
+index 00000000..deee1420
+--- /dev/null
++++ b/src/Contexts/Messaging/Application/Commands/ArchiveConversation/ArchiveConversationCommandEvent.ts
+@@ -0,0 +1,4 @@
++import { CommandEvent } from '@Architecture/Domain';
++
++/** Asks to archive a conversation the caller reads, for the caller only: it leaves their list until a new message is written in it. */
++export class ArchiveConversationCommandEvent extends CommandEvent<{ conversationId: string }> {}
+diff --git a/src/Contexts/Messaging/Application/Commands/ArchiveConversation/ArchiveConversationCommandHandler.ts b/src/Contexts/Messaging/Application/Commands/ArchiveConversation/ArchiveConversationCommandHandler.ts
+new file mode 100644
+index 00000000..ebdd2b46
+--- /dev/null
++++ b/src/Contexts/Messaging/Application/Commands/ArchiveConversation/ArchiveConversationCommandHandler.ts
+@@ -0,0 +1,42 @@
++import { CommandHandler, ExecutionContext } from '@Architecture/Application';
++import { IResult, NotFoundException, Result } from '@Architecture/Domain';
++import { requireSignedIn } from '@SharedKernel/Application/Guards';
++
++import { IConversationRepository } from '@Contexts/Messaging/Domain/Conversation/Ports/IConversationRepository';
++import { accessOf } from '@Contexts/Messaging/Application/ConversationAccess';
++import { IListingHosts } from '@Contexts/Messaging/Application/Ports/IListingHosts';
++
++import { ArchiveConversationCommandEvent } from './ArchiveConversationCommandEvent';
++
++/**
++ * The caller archives a conversation they read, for themselves: it leaves their list until a new message is written in it. To anyone who
++ * does not read it, the conversation does not exist.
++ */
++export class ArchiveConversationCommandHandler extends CommandHandler<ArchiveConversationCommandEvent> {
++  constructor(
++    private readonly conversations: IConversationRepository,
++    private readonly listings: IListingHosts,
++  ) {
++    super();
++  }
++
++  async execute({ payload }: ArchiveConversationCommandEvent, context: ExecutionContext): Promise<IResult<unknown>> {
++    const by = requireSignedIn(context, 'Messaging');
++    if (by.isFailure()) return by;
++
++    const conversation = await this.conversations.findById(payload.conversationId);
++    if (!conversation) return Result.fail(new NotFoundException('Messaging', 'Conversation not found'));
++
++    const facts = await this.listings.findListing(conversation.listingId, by.data.value);
++    if (!facts) return Result.fail(new NotFoundException('Messaging', 'Conversation not found'));
++
++    const archived = conversation.archiveFor(accessOf(facts, by.data));
++    if (archived.isFailure()) return archived;
++
++    const saved = await this.conversations.save(conversation);
++    if (saved.isFailure()) return saved;
++
++    this.publishDomainEvents(conversation, context);
++    return Result.ok();
++  }
++}
+diff --git a/src/Contexts/Messaging/Domain/Conversation/Conversation.ts b/src/Contexts/Messaging/Domain/Conversation/Conversation.ts
+index 5aea00a2..38e06160 100644
+--- a/src/Contexts/Messaging/Domain/Conversation/Conversation.ts
++++ b/src/Contexts/Messaging/Domain/Conversation/Conversation.ts
+@@ -14,6 +14,7 @@ import {
+ } from './ConversationExceptions';
+ import {
+   AttachmentUploadedEvent,
++  ConversationArchivedEvent,
+   ConversationReadEvent,
+   ConversationStartedEvent,
+   MessageHiddenEvent,
+@@ -45,6 +46,12 @@ export interface ReadSnapshot {
+   messageId: string;
+ }
+ 
++/** A reader's archive: the last message of the conversation when they archived it. A message written after it brings the conversation back. */
++export interface ArchiveSnapshot {
++  readerId: string;
++  messageId: string;
++}
++
+ /** A message reported by one of the readers: the report's id, who reported it, why and when. Kept with the conversation. */
+ export interface ReportSnapshot {
+   id: string;
+@@ -77,6 +84,8 @@ export interface ConversationSnapshot {
+   reports?: ReportSnapshot[];
+   /** The messages hidden from both parties, by an upheld report; none when the snapshot predates them. */
+   hiddenMessageIds?: string[];
++  /** Each reader's archive; none when the snapshot predates them. */
++  archives?: ArchiveSnapshot[];
+   version: number;
+ }
+ 
+@@ -119,6 +128,8 @@ export class Conversation extends AggregateRoot {
+   readonly #reports: Report[];
+   /** The messages hidden from both parties because a report of them was upheld: no one reads them, counts them or downloads their files. */
+   readonly #hidden: Set<string>;
++  /** Each reader's archive, by reader id: the id of the last message when they archived the conversation. */
++  readonly #archives: Map<string, string>;
+ 
+   private constructor(
+     id: Id,
+@@ -130,6 +141,7 @@ export class Conversation extends AggregateRoot {
+     attachments: Attachment[],
+     reports: Report[],
+     hidden: Set<string>,
++    archives: Map<string, string>,
+     version: number,
+   ) {
+     super(id, version);
+@@ -141,6 +153,7 @@ export class Conversation extends AggregateRoot {
+     this.#attachments = attachments;
+     this.#reports = reports;
+     this.#hidden = hidden;
++    this.#archives = archives;
+   }
+ 
+   /**
+@@ -170,6 +183,7 @@ export class Conversation extends AggregateRoot {
+       [],
+       [],
+       new Set(),
++      new Map(),
+       0,
+     );
+     const message = conversation.#append(input.traveller, input.text, input.sentAt ?? new Date());
+@@ -223,6 +237,7 @@ export class Conversation extends AggregateRoot {
+       attachments,
+       reports,
+       new Set(snapshot.hiddenMessageIds ?? []),
++      new Map((snapshot.archives ?? []).map(each => [each.readerId, each.messageId])),
+       snapshot.version,
+     );
+   }
+@@ -261,6 +276,7 @@ export class Conversation extends AggregateRoot {
+         reportedAt: each.reportedAt.toISOString(),
+       })),
+       hiddenMessageIds: [...this.#hidden],
++      archives: [...this.#archives].map(([readerId, messageId]) => ({ readerId, messageId })),
+       version: this.version,
+     };
+   }
+@@ -343,6 +359,25 @@ export class Conversation extends AggregateRoot {
+     return Result.ok();
+   }
+ 
++  /**
++   * The person archives the conversation, for themselves only: it is left out of their list until a message is written after the last one
++   * it has now. Archiving it again changes nothing new. Someone who does not read the conversation is refused, as for one that is not there.
++   */
++  archiveFor(access: ConversationAccess): IResult<undefined> {
++    if (!this.canBeReadBy(access)) return Result.fail(new ConversationNotVisible());
++    const last = this.#messages[this.#messages.length - 1];
++    if (!last || this.#archives.get(access.by.value) === last.id.value) return Result.ok();
++    this.#archives.set(access.by.value, last.id.value);
++    this.record(ConversationArchivedEvent.set({ conversationId: this._id.value, readerId: access.by.value }));
++    return Result.ok();
++  }
++
++  /** Whether the person archived the conversation and no message was written in it since. */
++  isArchivedBy(readerId: string): boolean {
++    const last = this.#messages[this.#messages.length - 1];
++    return last !== undefined && this.#archives.get(readerId) === last.id.value;
++  }
++
+   /**
+    * Someone on the other side of the conversation from the message's sender reports it, once: a message of the traveller by the host or a
+    * manager, a message of the host's side by the traveller. A viewer reports nothing, nobody reports their own message, and whoever does
+diff --git a/src/Contexts/Messaging/Domain/Conversation/ConversationArchives.spec.ts b/src/Contexts/Messaging/Domain/Conversation/ConversationArchives.spec.ts
+new file mode 100644
+index 00000000..1a396d38
+--- /dev/null
++++ b/src/Contexts/Messaging/Domain/Conversation/ConversationArchives.spec.ts
+@@ -0,0 +1,53 @@
++import { Id } from '@Architecture/Domain';
++
++import { Conversation, ConversationAccess } from './Conversation';
++import { ConversationArchivedEvent } from './ConversationEvents';
++import { MessageText } from './MessageText';
++
++const AT = new Date('2027-01-01T10:00:00Z');
++const traveller = Id.generate();
++const host = Id.generate();
++const text = (value: string) => MessageText.create(value).data!;
++const access = (by: Id, extra: Partial<ConversationAccess> = {}): ConversationAccess => ({
++  hostId: host.value,
++  by,
++  managesOrganisation: false,
++  viewsOrganisation: false,
++  ...extra,
++});
++const started = () =>
++  Conversation.start({ listingId: 'l1', traveller, hostId: host.value, text: text('Hello'), bookings: [], sentAt: AT })
++    .data!;
++
++describe('Conversation archives', () => {
++  it('is archived for the reader who archives it only, until a message is written after it', () => {
++    const conversation = started();
++    conversation.pullDomainEvents();
++
++    expect(conversation.archiveFor(access(traveller)).isSuccess()).toBe(true);
++    expect(conversation.isArchivedBy(traveller.value)).toBe(true);
++    expect(conversation.isArchivedBy(host.value)).toBe(false);
++    expect(conversation.pullDomainEvents()).toEqual([expect.any(ConversationArchivedEvent)]);
++
++    conversation.send(access(host), text('Answer'), AT);
++    expect(conversation.isArchivedBy(traveller.value)).toBe(false);
++  });
++
++  it('records nothing new when archived again, and refuses whoever does not read it', () => {
++    const conversation = started();
++    conversation.archiveFor(access(host));
++    conversation.pullDomainEvents();
++
++    expect(conversation.archiveFor(access(host)).isSuccess()).toBe(true);
++    expect(conversation.pullDomainEvents()).toEqual([]);
++    expect(conversation.archiveFor(access(Id.generate())).error?.type).toBe('NotFound');
++    expect(conversation.archiveFor(access(Id.generate(), { viewsOrganisation: true })).isSuccess()).toBe(true);
++  });
++
++  it('keeps the archives through a snapshot', () => {
++    const conversation = started();
++    conversation.archiveFor(access(traveller));
++    const again = Conversation.fromSnapshot(conversation.toSnapshot());
++    expect(again.isArchivedBy(traveller.value)).toBe(true);
++  });
++});
+diff --git a/src/Contexts/Messaging/Domain/Conversation/ConversationEvents.ts b/src/Contexts/Messaging/Domain/Conversation/ConversationEvents.ts
+index 65b136ed..4a310821 100644
+--- a/src/Contexts/Messaging/Domain/Conversation/ConversationEvents.ts
++++ b/src/Contexts/Messaging/Domain/Conversation/ConversationEvents.ts
+@@ -19,6 +19,12 @@ export class ConversationReadEvent extends DomainEvent<{
+   readerId: string;
+ }> {}
+ 
++/** A reader archived the conversation: it is left out of their list of conversations until a new message is written in it. */
++export class ConversationArchivedEvent extends DomainEvent<{
++  conversationId: string;
++  readerId: string;
++}> {}
++
+ /** Someone uploaded a file to a conversation; it is not attached to a message until one of them sends it. */
+ export class AttachmentUploadedEvent extends DomainEvent<{
+   conversationId: string;
+diff --git a/src/Contexts/Messaging/Infrastructure/PostgresConversations.ts b/src/Contexts/Messaging/Infrastructure/PostgresConversations.ts
+index aa8b16b4..2f6a06ae 100644
+--- a/src/Contexts/Messaging/Infrastructure/PostgresConversations.ts
++++ b/src/Contexts/Messaging/Infrastructure/PostgresConversations.ts
+@@ -61,6 +61,12 @@ export const MESSAGING_SCHEMA = `
+     conversation_id TEXT NOT NULL
+   );
+   CREATE INDEX IF NOT EXISTS conversation_hidden_messages_by_conversation ON conversation_hidden_messages (conversation_id);
++  CREATE TABLE IF NOT EXISTS conversation_archives (
++    conversation_id TEXT NOT NULL,
++    reader_id TEXT NOT NULL,
++    archived_through_id TEXT NOT NULL,
++    PRIMARY KEY (conversation_id, reader_id)
++  );
+ `;
+ 
+ export type ConversationRow = {
+@@ -206,6 +212,15 @@ export class PostgresConversations implements IConversationRepository {
+         s.id,
+       );
+     }
++    // Each reader's archive is stored with the conversation, as its reads are: the last message when they archived it.
++    for (const each of s.archives ?? []) {
++      await this.database.run(
++        'INSERT INTO conversation_archives (conversation_id, reader_id, archived_through_id) VALUES (?, ?, ?) ON CONFLICT (conversation_id, reader_id) DO UPDATE SET archived_through_id = excluded.archived_through_id',
++        s.id,
++        each.readerId,
++        each.messageId,
++      );
++    }
+     return Result.ok();
+   }
+ 
+@@ -231,7 +246,12 @@ export class PostgresConversations implements IConversationRepository {
+       'SELECT message_id FROM conversation_hidden_messages WHERE conversation_id = ?',
+       row.id,
+     );
++    const archives = await this.database.all<{ reader_id: string; archived_through_id: string }>(
++      'SELECT reader_id, archived_through_id FROM conversation_archives WHERE conversation_id = ?',
++      row.id,
++    );
+     return Conversation.fromSnapshot({
++      archives: archives.map(each => ({ readerId: each.reader_id, messageId: each.archived_through_id })),
+       hiddenMessageIds: hidden.map(each => each.message_id),
+       reports: reports.map(each => ({
+         id: each.id,

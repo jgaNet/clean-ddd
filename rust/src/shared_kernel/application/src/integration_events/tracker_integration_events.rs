@@ -10,8 +10,8 @@ pub struct OperationCompleteIntegrationEvent {
     pub user_id: String,
     /// `SUCCESS` or `ERROR`: the outcome, in the operation's words.
     pub status: String,
-    /// The command's name.
-    pub kind: String,
+    /// The command's public name (`type` in the published language).
+    pub r#type: String,
     pub result: Option<serde_json::Value>,
     pub error: Option<String>,
 }

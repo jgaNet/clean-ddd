@@ -117,7 +117,8 @@ func (b *TrackedEventBus) notifyCompletion(operation *application.Operation, use
 		Result:      operation.Result,
 	}
 	if operation.Error != nil {
-		notice.Error = operation.Error.Message
+		message := operation.Error.Message
+		notice.Error = &message
 	}
 	b.Publish(notice, operation.Context)
 }

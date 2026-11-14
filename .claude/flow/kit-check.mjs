@@ -238,6 +238,17 @@ export function checkKit(kit, { contract = join(here, '../../conventions/archite
           `${conflict.message}${where}: a conflict to decide in request ${first}${departure ? ` (${departure.name} decides it at request ${departure.born})` : ''}`,
         );
     }
+  // 5. A change to what a tree already stored (`upgrade: true`) comes after the first request, and its test starts the
+  // tree before it (`previous(...)`, grade.mjs --previous): without that, nothing it records predates the change.
+  for (const f of features.filter(each => each.upgrade !== undefined)) {
+    if (f.upgrade !== true) find('upgrade', f.n, `upgrade is true or absent, not ${JSON.stringify(f.upgrade)}`);
+    else if (f.n === first) find('upgrade', f.n, 'the first request has no tree before it to upgrade from');
+    else {
+      const file = join(kit, 'acceptance', `${f.n}-${f.id}.acceptance.ts`);
+      if (!existsSync(file) || !/\bprevious\(/.test(readFileSync(file, 'utf8')))
+        find('upgrade', f.n, `${f.n}-${f.id}.acceptance.ts never starts the tree before it (previous(...))`);
+    }
+  }
   return { findings, notes };
 }
 

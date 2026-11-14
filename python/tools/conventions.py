@@ -22,7 +22,9 @@ linter and the check, generated from the data the way ``typescript/eslint.config
 5. The committed inventory (``docs/inventory/python.json``) is what the tree says the application
    is (ARCH-ONE-APPLICATION): the commands of each context with who may call them, their route,
    the aggregate they reach and the events it records; the queries; the domain events; the
-   policies and what they publish or reach; the links between contexts — read from the canonical
+   policies and what they publish or reach; the links between contexts; the integration events the
+   tree publishes, each with its publisher and its payload in the published language's words
+   (ADR 44: the fields of the kernel's dataclass, by public name) — read from the canonical
    shapes with ``ast`` (the wiring listed as data, a behaviour that ``_record()``s its events, a
    handler that guards with ``require_signed_in()`` or a ``guard()`` on a role, a route whose
    function builds the command) and written in words every language shares, so the TypeScript
@@ -802,28 +804,17 @@ def inventory_links(
         if contract and contract not in contracts:
             contracts.append(contract)
 
-    kernel_events = here / binding["kernel"]["path"] / "application" / "integration_events"
-    events = [
-        cls.name
-        for source in parse_sources(kernel_events)
-        for cls in source.classes.values()
-        if cls.name.endswith("IntegrationEvent")
-    ]
-    for event in events:
-        publishers = [
-            context
-            for context, sources in contexts.items()
-            if any(name_of(call.func) == event for source in sources for call in calls_in(source.module))
-        ]
+    for event in kernel_integration_events(here, binding):
+        publishers = publishers_of(event.name, contexts)
         consumers = [
             context
             for context, sources in contexts.items()
-            if any(event in names_in(source.module) for source in sources if source.path.name == wiring_file)
+            if any(event.name in names_in(source.module) for source in sources if source.path.name == wiring_file)
         ]
         for upstream in publishers:
             for downstream in consumers:
                 if upstream != downstream:
-                    link("integration-event", upstream, downstream, public_name(event))
+                    link("integration-event", upstream, downstream, public_name(event.name))
 
     alias = str(binding["contexts_tree"]["alias"])
     by_package = {context.lower(): context for context in contexts}
@@ -860,6 +851,140 @@ def inventory_links(
     )
 
 
+def kernel_integration_events(here: Path, binding: dict[str, Any]) -> list[ast.ClassDef]:
+    """The integration events of the shared kernel: every ``XIntegrationEvent`` class of its ``integration_events``."""
+    kernel_events = here / binding["kernel"]["path"] / "application" / "integration_events"
+    return [
+        cls
+        for source in parse_sources(kernel_events)
+        for cls in source.classes.values()
+        if cls.name.endswith("IntegrationEvent")
+    ]
+
+
+def publishers_of(event: str, contexts: dict[str, list[Source]]) -> list[str]:
+    """The contexts that build an integration event, by its class name: whose policy or use case publishes it."""
+    return [
+        context
+        for context, sources in contexts.items()
+        if any(name_of(call.func) == event for source in sources for call in calls_in(source.module))
+    ]
+
+
+#: A payload field's type, in the words of the published language (ADR 44): what a Python annotation says.
+PAYLOAD_WORDS = {
+    "str": "string",
+    "int": "number",
+    "float": "number",
+    "bool": "boolean",
+    "Any": "any",
+    "object": "any",
+    "list": "array",
+    "tuple": "array",
+    "Sequence": "array",
+    "dict": "object",
+    "Mapping": "object",
+}
+
+
+def lower_camel(field_name: str) -> str:
+    """A field's public name: ``note_id`` is ``noteId``, whatever Python spells it."""
+    head, *rest = field_name.strip("_").split("_")
+    return head + "".join(part[:1].upper() + part[1:] for part in rest)
+
+
+def payload_word(annotation: ast.expr, dataclasses: set[str]) -> tuple[str, bool]:
+    """The published language's word for an annotation, and whether it lets the field be absent
+    (``X | None``, ``Optional[X]``). A dataclass of the kernel is an ``object``; an annotation the
+    published language has no word for is written as Python spells it, so the check names it."""
+    if isinstance(annotation, ast.Constant) and isinstance(annotation.value, str):
+        annotation = ast.parse(annotation.value, mode="eval").body
+    members = union_members(annotation)
+    if members is not None:
+        return union_word(members, dataclasses)
+    if isinstance(annotation, ast.Subscript) and name_of(annotation.value) == "Annotated":
+        return payload_word(arguments_of(annotation)[0], dataclasses)
+    if isinstance(annotation, ast.Constant) and annotation.value is None:
+        return "", True
+    name = name_of(annotation.value if isinstance(annotation, ast.Subscript) else annotation)
+    word = PAYLOAD_WORDS.get(name) or ("object" if name in dataclasses else ast.unparse(annotation))
+    return word, False
+
+
+def arguments_of(annotation: ast.Subscript) -> list[ast.expr]:
+    """What a subscripted annotation is written over: ``X`` in ``Optional[X]``, ``X, Y`` in ``Union[X, Y]``."""
+    return list(annotation.slice.elts) if isinstance(annotation.slice, ast.Tuple) else [annotation.slice]
+
+
+def union_members(annotation: ast.expr) -> list[ast.expr] | None:
+    """The members of a union (``X | Y``, ``Union[X, Y]``, ``Optional[X]`` as ``X | None``), or ``None``."""
+    if isinstance(annotation, ast.BinOp) and isinstance(annotation.op, ast.BitOr):
+        return [annotation.left, annotation.right]
+    if isinstance(annotation, ast.Subscript) and name_of(annotation.value) == "Union":
+        return arguments_of(annotation)
+    if isinstance(annotation, ast.Subscript) and name_of(annotation.value) == "Optional":
+        return [*arguments_of(annotation), ast.Constant(value=None)]
+    return None
+
+
+def union_word(members: list[ast.expr], dataclasses: set[str]) -> tuple[str, bool]:
+    """A union's word: its members' one word, ``any`` when they differ; absent when ``None`` is one of them."""
+    words = [payload_word(member, dataclasses) for member in members]
+    said = unique([word for word, _ in words if word])
+    return (said[0] if len(said) == 1 else "any"), any(absent for _, absent in words)
+
+
+def payload_of(cls: ast.ClassDef, classes: dict[str, ast.ClassDef], dataclasses: set[str]) -> dict[str, str]:
+    """A dataclass event's payload, by public name, sorted the way names are: its fields and those of the
+    kernel classes it extends, each with its word, and ``?`` when it may be absent (``X | None``,
+    ``Optional[X]``, a default of ``None``)."""
+    fields: dict[str, str] = {}
+    for base in cls.bases:
+        if name_of(base) in classes and name_of(base) != cls.name:
+            fields.update(payload_of(classes[name_of(base)], classes, dataclasses))
+    for statement in cls.body:
+        if not isinstance(statement, ast.AnnAssign) or not isinstance(statement.target, ast.Name):
+            continue
+        if name_of(statement.annotation) == "ClassVar" or (
+            isinstance(statement.annotation, ast.Subscript) and name_of(statement.annotation.value) == "ClassVar"
+        ):
+            continue
+        word, absent = payload_word(statement.annotation, dataclasses)
+        default = statement.value
+        if isinstance(default, ast.Call) and name_of(default.func) == "field":
+            default = next((keyword.value for keyword in default.keywords if keyword.arg == "default"), None)
+        if isinstance(default, ast.Constant) and default.value is None:
+            absent = True
+        fields[lower_camel(statement.target.id)] = f"{word}?" if absent else word
+    return {name: fields[name] for name in sorted_names(list(fields))}
+
+
+def inventory_integration_events(contexts: dict[str, list[Source]], binding: dict[str, Any], here: Path) -> list[Json]:
+    """The published language as this tree carries it (ADR 44): each integration event a context publishes,
+    by its public name, with that context and its payload in the six words, read from the kernel's
+    dataclasses. An event no context builds is published by none and is not listed."""
+    kernel_events = here / binding["kernel"]["path"] / "application" / "integration_events"
+    classes = {name: cls for source in parse_sources(kernel_events) for name, cls in source.classes.items()}
+    dataclasses = {
+        name
+        for name, cls in classes.items()
+        if any(name_of(d.func if isinstance(d, ast.Call) else d) == "dataclass" for d in cls.decorator_list)
+    }
+    events: list[Json] = []
+    for event in kernel_integration_events(here, binding):
+        publishers = publishers_of(event.name, contexts)
+        if not publishers:
+            continue
+        events.append(
+            {
+                "name": public_name(event.name),
+                "publisher": ", ".join(sorted_names(publishers)),
+                "payload": payload_of(event, classes, dataclasses),
+            }
+        )
+    return sorted(events, key=lambda each: (str(each["name"]).casefold(), str(each["name"])))
+
+
 def context_sources(here: Path, binding: dict[str, Any]) -> dict[str, list[Source]]:
     """Every context the binding declares, with its parsed sources, by id."""
     contexts_dir = here / binding["contexts_tree"]["path"]
@@ -869,7 +994,8 @@ def context_sources(here: Path, binding: dict[str, Any]) -> dict[str, list[Sourc
 def inspect_inventory(here: Path) -> Json:
     """The inventory of this language's tree, read with ``ast``: the commands of each context with who may
     call them, their route, the aggregate they reach and the events it records; the queries; the domain
-    events; the policies and what they publish or reach; the links between contexts. Nothing Python owns
+    events; the policies and what they publish or reach; the links between contexts; the integration events
+    published, with their publisher and payload (ADR 44). Nothing Python owns
     is in it: no file, no class name, no idiom (ARCH-ONE-APPLICATION)."""
     root = repository_root(here)
     if root is None:
@@ -883,6 +1009,7 @@ def inspect_inventory(here: Path) -> Json:
         # In the order of the ids, not of the binding: the bindings list their contexts as they please.
         "contexts": [inventory_context(context, sources[context], wiring_file) for context in sorted(sources)],
         "links": inventory_links(sources, binding, wiring_file, here),
+        "integrationEvents": inventory_integration_events(sources, binding, here),
     }
 
 
@@ -897,7 +1024,8 @@ def inventory_changes(committed: Json, tree: Json) -> list[str]:
     difference, in the words every language's check prints: what the committed inventory has and the tree
     no longer says, what is said by both with other fields (before → after), what the tree says and the
     committed one does not. Contexts in the committed order, then the new ones; inside a context the
-    commands, the queries, the domain events, the policies; then the links, under ``context map``."""
+    commands, the queries, the domain events, the policies; then the links, under ``context map``; then the
+    integration events, under ``published language``."""
     lines: list[str] = []
 
     def quoted(value: Any) -> str:
@@ -905,6 +1033,9 @@ def inventory_changes(committed: Json, tree: Json) -> list[str]:
 
     def listed(values: Any) -> str:
         return f"[{', '.join(str(value) for value in values or [])}]"
+
+    def payload_text(payload: Any) -> str:
+        return f"{{{', '.join(f'{name}: {word}' for name, word in (payload or {}).items())}}}"
 
     def compare(
         scope: str,
@@ -996,6 +1127,17 @@ def inventory_changes(committed: Json, tree: Json) -> list[str]:
         tree.get("links", []),
         lambda link: f"{link['upstream']} → {link['downstream']} ({link['mechanism']})",
         [("contracts", lambda link: listed(link.get("contracts")))],
+    )
+    compare(
+        "published language",
+        "integration event",
+        committed.get("integrationEvents", []),
+        tree.get("integrationEvents", []),
+        lambda event: event["name"],
+        [
+            ("publisher", lambda event: quoted(event.get("publisher"))),
+            ("payload", lambda event: payload_text(event.get("payload"))),
+        ],
     )
     return lines
 

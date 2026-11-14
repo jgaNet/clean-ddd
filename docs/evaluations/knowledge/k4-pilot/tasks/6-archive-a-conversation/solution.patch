@@ -1,0 +1,181 @@
+diff --git a/src/Contexts/Messaging/Application/Queries/GetMyConversations/GetMyConversationsQueryHandler.ts b/src/Contexts/Messaging/Application/Queries/GetMyConversations/GetMyConversationsQueryHandler.ts
+index 09c92a22..501b5071 100644
+--- a/src/Contexts/Messaging/Application/Queries/GetMyConversations/GetMyConversationsQueryHandler.ts
++++ b/src/Contexts/Messaging/Application/Queries/GetMyConversations/GetMyConversationsQueryHandler.ts
+@@ -9,7 +9,7 @@ import { IListingHosts } from '@Contexts/Messaging/Application/Ports/IListingHos
+ 
+ /**
+  * Every conversation the caller may read, as traveller, host, manager or viewer, the one with the latest message first, each with
+- * the count of its messages unread for the caller.
++ * the count of its messages unread for the caller. A conversation the caller archived is left out until a new message is written in it.
+  */
+ export class GetMyConversationsQueryHandler extends QueryHandler<
+   IConversationQueries,
+@@ -27,6 +27,7 @@ export class GetMyConversationsQueryHandler extends QueryHandler<
+     const by = requireSignedIn(context, 'Messaging');
+     if (by.isFailure()) return Result.fail(by.error);
+ 
+-    return Result.ok(await conversationsReadBy(by.data.value, this.queries, this.listings));
++    const conversations = await conversationsReadBy(by.data.value, this.queries, this.listings);
++    return Result.ok(conversations.filter(each => !each.archived));
+   }
+ }
+diff --git a/src/Contexts/Messaging/Domain/Conversation/ConversationReadModels.ts b/src/Contexts/Messaging/Domain/Conversation/ConversationReadModels.ts
+index 68981bf0..68ea5486 100644
+--- a/src/Contexts/Messaging/Domain/Conversation/ConversationReadModels.ts
++++ b/src/Contexts/Messaging/Domain/Conversation/ConversationReadModels.ts
+@@ -50,6 +50,8 @@ export interface ConversationSummaryRecord {
+   travellerId: string;
+   lastMessageAt: string;
+   unread: number;
++  /** Whether the reader archived it and no message was written in it since: it is left out of their list, and still counted unread. */
++  archived: boolean;
+ }
+ 
+ /** The unread messages of a person, in all the conversations they read. */
+diff --git a/src/Contexts/Messaging/Infrastructure/PostgresConversationQueries.ts b/src/Contexts/Messaging/Infrastructure/PostgresConversationQueries.ts
+index 71e2f201..f42fa211 100644
+--- a/src/Contexts/Messaging/Infrastructure/PostgresConversationQueries.ts
++++ b/src/Contexts/Messaging/Infrastructure/PostgresConversationQueries.ts
+@@ -10,7 +10,7 @@ import { IConversationQueries } from '@Contexts/Messaging/Domain/Conversation/Po
+ 
+ import { AttachmentRow, ConversationRow, MessageRow } from './PostgresConversations';
+ 
+-type SummaryRow = ConversationRow & { unread: number };
++type SummaryRow = ConversationRow & { unread: number; archived: boolean };
+ 
+ type UploadRecordRow = AttachmentRow & {
+   conversation_id: string;
+@@ -101,7 +101,14 @@ export class PostgresConversationQueries implements IConversationQueries {
+              JOIN conversation_messages rm ON rm.id = r.read_through_id
+              WHERE r.conversation_id = c.id AND r.reader_id = ?
+            ), 0)
+-       ) AS unread
++       ) AS unread,
++       EXISTS (
++         SELECT 1 FROM conversation_archives a
++         WHERE a.conversation_id = c.id AND a.reader_id = ?
++           AND a.archived_through_id = (
++             SELECT lm.id FROM conversation_messages lm WHERE lm.conversation_id = c.id ORDER BY lm.seq DESC LIMIT 1
++           )
++       ) AS archived
+        FROM conversations c
+        WHERE c.traveller_id = ? OR c.listing_id IN (SELECT value FROM json_array_elements_text(?::json))
+        ORDER BY c.last_message_at COLLATE "C" DESC, c.id COLLATE "C"`,
+@@ -109,6 +116,7 @@ export class PostgresConversationQueries implements IConversationQueries {
+       reader,
+       reader,
+       reader,
++      reader,
+       JSON.stringify(listingIds),
+     );
+     return rows.map(row => ({
+@@ -117,6 +125,7 @@ export class PostgresConversationQueries implements IConversationQueries {
+       travellerId: row.traveller_id,
+       lastMessageAt: row.last_message_at,
+       unread: Number(row.unread),
++      archived: Boolean(row.archived),
+     }));
+   }
+ }
+diff --git a/src/Contexts/Messaging/Presentation/API/REST/Controllers/FastifyConversationController.ts b/src/Contexts/Messaging/Presentation/API/REST/Controllers/FastifyConversationController.ts
+index e1bba3ad..d6eabe06 100644
+--- a/src/Contexts/Messaging/Presentation/API/REST/Controllers/FastifyConversationController.ts
++++ b/src/Contexts/Messaging/Presentation/API/REST/Controllers/FastifyConversationController.ts
+@@ -2,6 +2,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
+ 
+ import { Module } from '@Architecture/Application';
+ 
++import { ArchiveConversationCommandEvent } from '@Contexts/Messaging/Application/Commands/ArchiveConversation/ArchiveConversationCommandEvent';
+ import { MarkConversationReadCommandEvent } from '@Contexts/Messaging/Application/Commands/MarkConversationRead/MarkConversationReadCommandEvent';
+ import { ReportMessageCommandEvent } from '@Contexts/Messaging/Application/Commands/ReportMessage/ReportMessageCommandEvent';
+ import { SendMessageCommandEvent } from '@Contexts/Messaging/Application/Commands/SendMessage/SendMessageCommandEvent';
+@@ -76,6 +77,11 @@ export class FastifyConversationController {
+     return reply.acceptCommand(ReportMessageCommandEvent.set({ messageId: req.params.id, reason: req.body.reason }));
+   }
+ 
++  /** Accepted at once: whether the caller reads the conversation is decided when the operation runs. */
++  async archive(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
++    return reply.acceptCommand(ArchiveConversationCommandEvent.set({ conversationId: req.params.id }));
++  }
++
+   /** Accepted at once: the conversation is marked read by the caller when the operation runs, if the caller reads it. */
+   async read(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+     return reply.acceptCommand(MarkConversationReadCommandEvent.set({ conversationId: req.params.id }));
+diff --git a/src/Contexts/Messaging/Presentation/API/REST/Routes/conversation.routes.ts b/src/Contexts/Messaging/Presentation/API/REST/Routes/conversation.routes.ts
+index ab6a22f3..bcdea75b 100644
+--- a/src/Contexts/Messaging/Presentation/API/REST/Routes/conversation.routes.ts
++++ b/src/Contexts/Messaging/Presentation/API/REST/Routes/conversation.routes.ts
+@@ -42,6 +42,12 @@ export const conversationRoutes = function (
+     controller.read.bind(controller),
+   );
+ 
++  fastify.post(
++    '/conversations/:id/archive',
++    { schema: { tags: ['conversations'], response: ActionResSchema } },
++    controller.archive.bind(controller),
++  );
++
+   fastify.post(
+     '/messages/:id/report',
+     { schema: { tags: ['conversations'], body: ReportMessageBodySchema, response: ActionResSchema } },
+diff --git a/src/Contexts/Messaging/Presentation/API/REST/Routes/conversations.routes.e2e.spec.ts b/src/Contexts/Messaging/Presentation/API/REST/Routes/conversations.routes.e2e.spec.ts
+index 5ed39de0..e423d6c4 100644
+--- a/src/Contexts/Messaging/Presentation/API/REST/Routes/conversations.routes.e2e.spec.ts
++++ b/src/Contexts/Messaging/Presentation/API/REST/Routes/conversations.routes.e2e.spec.ts
+@@ -426,3 +426,31 @@ describe('Contact details held back', () => {
+     expect(shown.body.messages[1]).toMatchObject({ text: 'Mail me: anna.b@mail.example.com', masked: false });
+   });
+ });
++
++describe('Archiving a conversation', () => {
++  it('leaves it out of the archiver’s list only, until a new message is written in it', async () => {
++    const host = await account('conv-host-archive@example.com', ['host']);
++    const traveller = await account('conv-traveller-archive@example.com', ['traveller']);
++    const listingId = await listing(host.token);
++    const conversationId = (await write(traveller.token, listingId, 'Hello')).result!.id;
++
++    expect((await command('POST', `/conversations/${conversationId}/archive`, undefined, traveller.token)).status).toBe(
++      'SUCCESS',
++    );
++    expect((await mine(traveller.token)).map(each => each.id)).not.toContain(conversationId);
++    expect((await mine(host.token)).map(each => each.id)).toContain(conversationId);
++
++    await command('POST', `/conversations/${conversationId}/messages`, { text: 'Welcome' }, host.token);
++    expect((await mine(traveller.token)).map(each => each.id)).toContain(conversationId);
++  });
++
++  it('is refused to whoever does not read the conversation', async () => {
++    const host = await account('conv-host-archive-2@example.com', ['host']);
++    const traveller = await account('conv-traveller-archive-2@example.com', ['traveller']);
++    const stranger = await account('conv-stranger-archive@example.com', ['traveller']);
++    const conversationId = (await write(traveller.token, await listing(host.token), 'Hello')).result!.id;
++    expect((await command('POST', `/conversations/${conversationId}/archive`, undefined, stranger.token)).status).toBe(
++      'ERROR',
++    );
++  });
++});
+diff --git a/src/Contexts/Messaging/module.local.ts b/src/Contexts/Messaging/module.local.ts
+index 5bfda8c4..1a1e1c38 100644
+--- a/src/Contexts/Messaging/module.local.ts
++++ b/src/Contexts/Messaging/module.local.ts
+@@ -2,6 +2,8 @@ import { Module } from '@Architecture/Application';
+ import { PostgresDatabase } from '@Architecture/Infrastructure/Postgres/PostgresDatabase';
+ import { Clock } from '@SharedKernel/Application/Clock';
+ 
++import { ArchiveConversationCommandEvent } from '@Contexts/Messaging/Application/Commands/ArchiveConversation/ArchiveConversationCommandEvent';
++import { ArchiveConversationCommandHandler } from '@Contexts/Messaging/Application/Commands/ArchiveConversation/ArchiveConversationCommandHandler';
+ import { MarkConversationReadCommandEvent } from '@Contexts/Messaging/Application/Commands/MarkConversationRead/MarkConversationReadCommandEvent';
+ import { MarkConversationReadCommandHandler } from '@Contexts/Messaging/Application/Commands/MarkConversationRead/MarkConversationReadCommandHandler';
+ import { ReportMessageCommandEvent } from '@Contexts/Messaging/Application/Commands/ReportMessage/ReportMessageCommandEvent';
+@@ -62,6 +64,10 @@ export function messagingWiring(
+         event: MarkConversationReadCommandEvent,
+         handlers: [new MarkConversationReadCommandHandler(conversations, listings)],
+       },
++      {
++        event: ArchiveConversationCommandEvent,
++        handlers: [new ArchiveConversationCommandHandler(conversations, listings)],
++      },
+       { event: ReportMessageCommandEvent, handlers: [new ReportMessageCommandHandler(conversations, listings)] },
+       {
+         event: UploadAttachmentCommandEvent,

@@ -89,11 +89,15 @@ concepts:
     layer: domain
     description: >-
       a broken rule in business words, carried by `Result.fail()`, never thrown — [ADR
-      1](docs/adr/0001-result-instead-of-exceptions.md)
+      1](docs/adr/0001-result-instead-of-exceptions.md); its public name declared once in the rule register, with its
+      context, its statement and its origin, and held to a test that names it — [ADR
+      46](docs/adr/0046-a-rule-is-a-named-unit-with-its-origin-and-its-evidence.md)
     rules:
       - DOMAIN-RESULT
+      - DOMAIN-RULE-NAMED
     references:
       - docs/adr/0001-result-instead-of-exceptions.md
+      - docs/adr/0046-a-rule-is-a-named-unit-with-its-origin-and-its-evidence.md
   - id: result
     name: '`Result`'
     layer: domain
@@ -256,11 +260,15 @@ concepts:
     layer: application
     description: >-
       the only thing one context may know about another — [ADR
-      6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md)
+      6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md); declared once,
+      with its publisher and each version of its payload, in the published language — [ADR
+      44](docs/adr/0044-integration-events-are-a-published-language-declared-once.md)
     rules:
       - CTX-CONTRACTS
+      - CTX-PUBLISHED-LANGUAGE
     references:
       - docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md
+      - docs/adr/0044-integration-events-are-a-published-language-declared-once.md
   - id: anti-corruption-layer
     name: '**Anti-corruption layer**'
     layer: application
@@ -426,9 +434,12 @@ strategic:
     name: Published language
     description: >-
       the upstream publishes its facts in a contract written in its public words, for any consumer; here an
-      integration event in the shared kernel, named for the fact (`NoteShared`)
-    where: the integration-event relationships of the map; [ADR 6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md)
-    references: [docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md]
+      integration event in the shared kernel, named for the fact (`NoteShared`), declared once with each version
+      of its payload, and every language's code held to the last
+    where: the integration-event relationships of the map; [`integration-events.yaml`](conventions/integration-events.yaml); [ADR 6](docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md), [ADR 44](docs/adr/0044-integration-events-are-a-published-language-declared-once.md)
+    references:
+      - docs/adr/0006-integration-events-and-owned-ports-are-the-contracts-between-contexts.md
+      - docs/adr/0044-integration-events-are-a-published-language-declared-once.md
   - id: customer-supplier
     name: Customer–supplier
     description: >-

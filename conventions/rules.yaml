@@ -1,0 +1,116 @@
+# The rule register (ADR 46, DOMAIN-RULE-NAMED): every refusal a context's domain can return, declared once by its
+# public name — the operation's `error.type` a client reads, without the suffix of its kind (`NoteNotFound`) — with
+# the context that decides it, the rule in the business's words, and where it was decided. Names no file.
+#
+# - `context` is a context of the domain map (domain.yaml): the one whose Domain or Application returns the refusal.
+# - `statement` is the rule, one sentence, in the words of the people who use the application.
+# - `origin` is where the rule was decided, one of `{ adr: <n> }` (a decision under docs/adr), `{ storm: <feature> }`
+#   (an expected storm under conventions/storms) or `{ request: <id> }` (the request that asked for it).
+# - The evidence is read from the code, never declared: in a language that holds the register, its check finds the
+#   exception the context returns under that name, and at least one test of that context that names it. A refusal the
+#   code returns that no rule names, a rule no code returns and a rule no test names are each refused.
+#
+# The rules the reference had before ADR 46 were decided in its code: where no decision or storm names one, its origin
+# is ADR 19, the decision that declared each context's purpose and language.
+rules:
+  # Notes: the notes people keep, and who may read them.
+  BlankNoteTitle:
+    context: Notes
+    statement: A note has a title, and a title of blank characters only is no title.
+    origin: { adr: 1 }
+  NoteTitleTooLong:
+    context: Notes
+    statement: A note's title is at most 100 characters long, once trimmed.
+    origin: { adr: 19 }
+  NoteNotFound:
+    context: Notes
+    statement: A note that does not exist, or that someone else owns and did not share with the reader, cannot be read or changed.
+    origin: { adr: 19 }
+  NotNoteOwner:
+    context: Notes
+    statement: Only the owner of a note may edit, archive, restore or share it.
+    origin: { adr: 1 }
+  NoteArchived:
+    context: Notes
+    statement: An archived note is read-only; it is restored before it is edited or shared.
+    origin: { adr: 1 }
+  NoteAlreadyArchived:
+    context: Notes
+    statement: A note that is archived cannot be archived again.
+    origin: { adr: 19 }
+  NoteNotArchived:
+    context: Notes
+    statement: Only an archived note can be restored.
+    origin: { adr: 19 }
+  CannotShareWithSelf:
+    context: Notes
+    statement: The owner of a note cannot share it with themselves.
+    origin: { storm: share-a-note }
+  NoteAlreadyShared:
+    context: Notes
+    statement: A note is shared with an account once.
+    origin: { storm: share-a-note }
+  RecipientNotFound:
+    context: Notes
+    statement: A note is shared only with an account that exists.
+    origin: { storm: share-a-note }
+
+  # Security: who may sign in, and as whom.
+  AccountAlreadyExists:
+    context: Security
+    statement: One email has one account; signing up with an email already taken is refused.
+    origin: { adr: 1 }
+  AccountNotFound:
+    context: Security
+    statement: Only an account that exists can be validated.
+    origin: { adr: 19 }
+  AccountAlreadyActive:
+    context: Security
+    statement: An account that is already active cannot be validated again.
+    origin: { adr: 19 }
+  InactiveAccount:
+    context: Security
+    statement: An account signs in only once its email address is validated.
+    origin: { adr: 19 }
+  InvalidCredentials:
+    context: Security
+    statement: A sign-in with an unknown email or a wrong password is refused, without saying which of the two was wrong.
+    origin: { adr: 19 }
+
+  # Notifications: telling people, on the channels they can be reached on.
+  BlankNotificationTitle:
+    context: Notifications
+    statement: A notification has a title that is not blank.
+    origin: { adr: 19 }
+  BlankNotificationContent:
+    context: Notifications
+    statement: A notification has a content that is not blank.
+    origin: { adr: 19 }
+  EmptyDeliveryStrategy:
+    context: Notifications
+    statement: A notification is sent on at least one channel.
+    origin: { adr: 32 }
+  UnknownChannel:
+    context: Notifications
+    statement: A notification is sent only on a channel the application knows.
+    origin: { adr: 32 }
+  NotificationNotFound:
+    context: Notifications
+    statement: Only a notification that exists can be marked read.
+    origin: { adr: 19 }
+  NotNotificationRecipient:
+    context: Notifications
+    statement: Only the recipient of a notification may mark it read.
+    origin: { adr: 19 }
+  NotificationNotDelivered:
+    context: Notifications
+    statement: A notification can be marked read only once it was delivered.
+    origin: { adr: 19 }
+  NotificationAlreadyRead:
+    context: Notifications
+    statement: A notification is marked read once.
+    origin: { adr: 19 }
+  ChannelAlreadyTried:
+    context: Notifications
+    statement: Each channel of a notification is tried once.
+    origin: { adr: 19 }

@@ -1,0 +1,26 @@
+# Feature 14 of Tally (../backlog/14-webhooks-late-twice-out-of-order.md), as the session decided it. It adds no
+# sticky: a rule of the settlement's status, inside the SettlementBook.
+schemaVersion: 1
+
+feature: webhooks-late-twice-out-of-order
+intent: >-
+  A webhook said twice, late, out of order or at once to two servers changes a payment once; the payment only moves forward, and every webhook is acknowledged.
+
+done: false
+
+hotSpots:
+  - question: What makes a payment count once — the webhook's id, or the payment's status?
+    decision: The status — a settlement moves forward only (pending, then paid or failed), and the balances count a settlement by its status, never by adding what each webhook says; a webhook that says a status already had or passed records nothing, whatever its id. No table of webhook ids to keep.
+  - question: Two servers receive the same webhook at once?
+    decision: The SettlementBook's optimistic check — the second re-reads, finds the settlement paid, and records nothing.
+  - question: Is a webhook that changes nothing refused?
+    decision: No — it is acknowledged with a 2xx like any signed webhook, or the provider sends it forever; ReceivePaymentWebhook succeeds and records no fact.
+
+contexts:
+  - id: Settlements
+    commands: []
+    queries: []
+    events: []
+    policies: []
+
+links: []

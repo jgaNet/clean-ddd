@@ -11,7 +11,7 @@
  *   yarn architecture verb <intent>           which HTTP verb and path shape a use case takes
  *   yarn architecture checklist <kind>        what a new aggregate, value object, command … is made of
  *   yarn architecture place <kind>            where it goes, path only
- *   yarn architecture create <dir> [--name x] [--language <id>] [--profile lite]   a new application on this architecture, in that language, with none of its business
+ *   yarn architecture create <dir> [--name x] [--language <id>] [--profile lite] [--rules]   a new application on this architecture, in that language, with none of its business (--rules: with a rule register, ADR 46)
  *   (--profile <id> on any question: the contract as a context held to that profile reads it — its grammar, its checklists)
  *   yarn architecture mode feature [--base <ref>]     did this change leave the architecture alone
  *   yarn architecture mode architecture [--base <ref>] does it record the decision it makes
@@ -33,6 +33,9 @@
  *   yarn architecture inventory [<language>]  what the tree says the application is, in words every language shares;
  *                                             with a language, where that language's committed inventory differs
  *   yarn architecture profiles                the profiles the contract declares, the floor, the profile of each context
+ *   yarn architecture knowledge <name> [--root <dir>]   one command, query, event, rule, aggregate or context: its
+ *                                             behaviours, files, rules, tests, citations and contracts, every edge
+ *                                             derived or declared (RFC 0006, K3; also tools/dist/knowledge.js alone)
  *   yarn architecture rules | concepts | verbs | checklists   the lists
  *
  * Every command takes --json: valid JSON only on stdout, nothing decorative, exit 1 on an
@@ -85,15 +88,26 @@ import {
 import { createApplication, referenceSource } from './create';
 import { describeGate, runGate } from './gate';
 import { adviseStrategy, describeStrategy } from './strategy';
+import { runKnowledge } from './knowledge';
 import type { ModeName } from './types';
 
 const args = process.argv.slice(2);
 const json = args.includes('--json');
 const languageFlag = args.includes('--language') ? args[args.indexOf('--language') + 1] : undefined;
-const valued = ['--language', '--expect', '--profile'];
+const valued = ['--language', '--expect', '--profile', '--root'];
 const expectFlag = args.includes('--expect') ? args[args.indexOf('--expect') + 1] : undefined;
 const profileFlag = args.includes('--profile') ? args[args.indexOf('--profile') + 1] : undefined;
-const flagged = ['--json', '--language', '--markdown', '--svg', '--expect', '--write', '--profile'];
+const flagged = [
+  '--json',
+  '--language',
+  '--markdown',
+  '--svg',
+  '--expect',
+  '--write',
+  '--profile',
+  '--rules',
+  '--root',
+];
 const [command, ...rest] = args.filter((arg, index) => !flagged.includes(arg) && !valued.includes(args[index - 1]));
 
 const here = typedFrom();
@@ -125,7 +139,10 @@ let root = '';
 function create(): void {
   const [directory] = rest;
   if (!directory)
-    return fail('usage', 'usage: yarn architecture create <dir> [--name <name>] [--language <id>] [--profile <id>]');
+    return fail(
+      'usage',
+      'usage: yarn architecture create <dir> [--name <name>] [--language <id>] [--profile <id>] [--rules]',
+    );
   const name = rest.includes('--name') ? rest[rest.indexOf('--name') + 1] : directory.split('/').filter(Boolean).pop();
   let created;
   try {
@@ -135,6 +152,7 @@ function create(): void {
       referenceSource(here),
       languageFlag,
       profileFlag,
+      { rules: args.includes('--rules') },
     );
   } catch (error) {
     return fail('cannot-create', error instanceof Error ? error.message : String(error));
@@ -144,7 +162,7 @@ function create(): void {
       `${created.name}: ${created.files} files in ${created.directory}`,
       '',
       `The building blocks, the shared kernel, the tooling and the contract — ${created.rules} rules,`,
-      `${created.concepts} concepts — and no business: ${created.contexts.length ? `${created.contexts.join(', ')} to follow every command, and ` : ''}the contexts are yours to write${created.profile ? `, held to the ${created.profile} profile` : ''}.`,
+      `${created.concepts} concepts — and no business: ${created.contexts.length ? `${created.contexts.join(', ')} to follow every command, and ` : ''}the contexts are yours to write${created.profile ? `, held to the ${created.profile} profile` : ''}${created.namedRules !== undefined ? `; a rule register with ${created.namedRules} rule(s), where a new refusal is named first` : ''}.`,
       '',
       'Next:',
       ...created.next.map(line => `  ${line}`),
@@ -157,6 +175,15 @@ async function main(): Promise<void> {
   try {
     // `create` needs no repository: from an installed package it copies the reference it carries.
     if (command === 'create') return create();
+    // The read-only query of RFC 0006 (K3): it finds its own root, from where it was typed or from --root.
+    if (command === 'knowledge') {
+      process.exitCode = runKnowledge(
+        args.filter((_, index) => index !== args.indexOf('knowledge')),
+        here,
+        text => process.stdout.write(text),
+      );
+      return;
+    }
     root = repositoryRoot(here);
     if (command === 'check') {
       const write = args.includes('--write');
@@ -708,7 +735,7 @@ async function main(): Promise<void> {
     default:
       return fail(
         'usage',
-        'usage: yarn architecture <inspect | rules | concepts | verbs | checklists | profiles | rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind> | mode <feature|architecture> | plan <validate|explain> <file> | create <dir> | can-import <file> <specifier> …> [--json]',
+        'usage: yarn architecture <inspect | knowledge <name> | rules | concepts | verbs | checklists | profiles | rule <ID> | concept <id> | verb <intent> | checklist <kind> | place <kind> | mode <feature|architecture> | plan <validate|explain> <file> | create <dir> | can-import <file> <specifier> …> [--json]',
       );
   }
 }

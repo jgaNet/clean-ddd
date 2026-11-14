@@ -1,0 +1,580 @@
+diff --git a/src/Bootstrap/Fastify/createApplication.ts b/src/Bootstrap/Fastify/createApplication.ts
+index 51120c4d..e5b82344 100644
+--- a/src/Bootstrap/Fastify/createApplication.ts
++++ b/src/Bootstrap/Fastify/createApplication.ts
+@@ -444,6 +444,7 @@ export async function createApplication({
+     database,
+     new AccountsRecipientLanguages(accounts.accountQueries),
+     notifyUrl,
++    clock,
+     messageNoticeWindowSeconds,
+   );
+ 
+diff --git a/src/Contexts/Messaging/Application/Commands/ReportMessage/ReportMessageCommandHandler.ts b/src/Contexts/Messaging/Application/Commands/ReportMessage/ReportMessageCommandHandler.ts
+index e165710c..e0ac8b0f 100644
+--- a/src/Contexts/Messaging/Application/Commands/ReportMessage/ReportMessageCommandHandler.ts
++++ b/src/Contexts/Messaging/Application/Commands/ReportMessage/ReportMessageCommandHandler.ts
+@@ -1,5 +1,6 @@
+ import { CommandHandler, ExecutionContext } from '@Architecture/Application';
+ import { IResult, NotFoundException, Result } from '@Architecture/Domain';
++import { Clock } from '@SharedKernel/Application/Clock';
+ import { requireSignedIn } from '@SharedKernel/Application/Guards';
+ 
+ import { ReportReason } from '@Contexts/Messaging/Domain/Conversation/ReportReason';
+@@ -17,6 +18,7 @@ export class ReportMessageCommandHandler extends CommandHandler<ReportMessageCom
+   constructor(
+     private readonly conversations: IConversationRepository,
+     private readonly listings: IListingHosts,
++    private readonly clock: Clock,
+   ) {
+     super();
+   }
+@@ -34,7 +36,7 @@ export class ReportMessageCommandHandler extends CommandHandler<ReportMessageCom
+     const reason = ReportReason.create(payload.reason);
+     if (reason.isFailure()) return reason;
+ 
+-    const reported = conversation.report(accessOf(facts, by.data), payload.messageId, reason.data);
++    const reported = conversation.report(accessOf(facts, by.data), payload.messageId, reason.data, this.clock());
+     if (reported.isFailure()) return reported;
+ 
+     const saved = await this.conversations.save(conversation);
+diff --git a/src/Contexts/Messaging/Application/Commands/SendMessage/SendMessageCommandHandler.ts b/src/Contexts/Messaging/Application/Commands/SendMessage/SendMessageCommandHandler.ts
+index bc781a2d..fd6c5815 100644
+--- a/src/Contexts/Messaging/Application/Commands/SendMessage/SendMessageCommandHandler.ts
++++ b/src/Contexts/Messaging/Application/Commands/SendMessage/SendMessageCommandHandler.ts
+@@ -19,7 +19,7 @@ export class SendMessageCommandHandler extends CommandHandler<SendMessageCommand
+   constructor(
+     private readonly conversations: IConversationRepository,
+     private readonly listings: IListingHosts,
+-    private readonly clock: Clock = () => new Date(),
++    private readonly clock: Clock,
+   ) {
+     super();
+   }
+diff --git a/src/Contexts/Messaging/Application/Commands/StartConversation/StartConversationCommandHandler.ts b/src/Contexts/Messaging/Application/Commands/StartConversation/StartConversationCommandHandler.ts
+index 8e7993cc..2fcccf17 100644
+--- a/src/Contexts/Messaging/Application/Commands/StartConversation/StartConversationCommandHandler.ts
++++ b/src/Contexts/Messaging/Application/Commands/StartConversation/StartConversationCommandHandler.ts
+@@ -22,7 +22,7 @@ export class StartConversationCommandHandler extends CommandHandler<StartConvers
+     private readonly conversations: IConversationRepository,
+     private readonly listings: IListingHosts,
+     private readonly bookings: ITravellerBookings,
+-    private readonly clock: Clock = () => new Date(),
++    private readonly clock: Clock,
+   ) {
+     super();
+   }
+diff --git a/src/Contexts/Messaging/Domain/Conversation/Conversation.spec.ts b/src/Contexts/Messaging/Domain/Conversation/Conversation.spec.ts
+index d81afc66..2e2dfb6a 100644
+--- a/src/Contexts/Messaging/Domain/Conversation/Conversation.spec.ts
++++ b/src/Contexts/Messaging/Domain/Conversation/Conversation.spec.ts
+@@ -4,6 +4,9 @@ import { Conversation, ConversationAccess } from './Conversation';
+ import { MessageText } from './MessageText';
+ import { ConversationStartedEvent, MessageSentEvent } from './ConversationEvents';
+ 
++/** The moment the tests write at: a domain method's time is always given. */
++const AT = new Date('2027-01-01T10:00:00Z');
++
+ const text = (raw: string) => MessageText.create(raw).data!;
+ const traveller = Id.generate();
+ const host = Id.generate();
+@@ -27,7 +30,15 @@ describe('MessageText', () => {
+ 
+ describe('Conversation', () => {
+   const start = (extra: { bookingId?: string | null; bookings?: string[] } = {}) =>
+-    Conversation.start({ listingId: 'l1', traveller, hostId: host.value, text: text('Hello'), bookings: [], ...extra });
++    Conversation.start({
++      listingId: 'l1',
++      traveller,
++      hostId: host.value,
++      text: text('Hello'),
++      bookings: [],
++      sentAt: AT,
++      ...extra,
++    });
+ 
+   it('starts with the conversation and the first message recorded', () => {
+     const started = start();
+@@ -62,7 +73,7 @@ describe('Conversation', () => {
+   it('records no start when a message is written in a conversation that exists', () => {
+     const conversation = start().data!;
+     conversation.pullDomainEvents();
+-    expect(conversation.send(access(traveller), text('Again')).isSuccess()).toBe(true);
++    expect(conversation.send(access(traveller), text('Again'), AT).isSuccess()).toBe(true);
+     expect(conversation.pullDomainEvents().map(each => each.constructor.name)).not.toContain(
+       'ConversationStartedEvent',
+     );
+@@ -78,7 +89,9 @@ describe('Conversation', () => {
+     });
+ 
+     const manager = Id.generate();
+-    expect(conversation.send(access(manager, { managesOrganisation: true }), text('Manager')).isSuccess()).toBe(true);
++    expect(conversation.send(access(manager, { managesOrganisation: true }), text('Manager'), AT).isSuccess()).toBe(
++      true,
++    );
+     const [sent] = conversation.pullDomainEvents() as MessageSentEvent[];
+     expect(sent.payload).toMatchObject({
+       conversationId: expect.any(String),
+@@ -97,6 +110,7 @@ describe('Conversation', () => {
+         hostId: host.value,
+         text: text('Hi'),
+         bookings: [],
++        sentAt: AT,
+       }).isFailure(),
+     ).toBe(true);
+     expect(start({ bookingId: 'b1', bookings: ['b2'] }).isFailure()).toBe(true);
+@@ -106,14 +120,14 @@ describe('Conversation', () => {
+   it('takes the messages of its parties, in order, and refuses a viewer and a stranger', () => {
+     const conversation = start().data!;
+     conversation.pullDomainEvents();
+-    expect(conversation.send(access(host), text('Answer')).isSuccess()).toBe(true);
+-    expect(conversation.send(access(Id.generate(), { managesOrganisation: true }), text('Manager')).isSuccess()).toBe(
+-      true,
+-    );
+-    expect(conversation.send(access(Id.generate(), { viewsOrganisation: true }), text('Viewer')).error?.type).toBe(
++    expect(conversation.send(access(host), text('Answer'), AT).isSuccess()).toBe(true);
++    expect(
++      conversation.send(access(Id.generate(), { managesOrganisation: true }), text('Manager'), AT).isSuccess(),
++    ).toBe(true);
++    expect(conversation.send(access(Id.generate(), { viewsOrganisation: true }), text('Viewer'), AT).error?.type).toBe(
+       'ViewersDoNotWrite',
+     );
+-    expect(conversation.send(access(Id.generate()), text('Stranger')).error?.type).toBe('NotFound');
++    expect(conversation.send(access(Id.generate()), text('Stranger'), AT).error?.type).toBe('NotFound');
+     expect(conversation.toSnapshot().messages.map(each => each.text)).toEqual(['Hello', 'Answer', 'Manager']);
+     expect(conversation.pullDomainEvents()).toHaveLength(2);
+   });
+diff --git a/src/Contexts/Messaging/Domain/Conversation/Conversation.ts b/src/Contexts/Messaging/Domain/Conversation/Conversation.ts
+index 5aea00a2..e3b9268f 100644
+--- a/src/Contexts/Messaging/Domain/Conversation/Conversation.ts
++++ b/src/Contexts/Messaging/Domain/Conversation/Conversation.ts
+@@ -154,7 +154,7 @@ export class Conversation extends AggregateRoot {
+     text: MessageText;
+     bookingId?: string | null;
+     bookings: string[];
+-    sentAt?: Date;
++    sentAt: Date;
+   }): IResult<Conversation> {
+     if (input.traveller.value === input.hostId) return Result.fail(new CannotWriteToYourOwnListing());
+     const bookingId = input.bookingId ?? null;
+@@ -172,7 +172,7 @@ export class Conversation extends AggregateRoot {
+       new Set(),
+       0,
+     );
+-    const message = conversation.#append(input.traveller, input.text, input.sentAt ?? new Date());
++    const message = conversation.#append(input.traveller, input.text, input.sentAt);
+     conversation.record(
+       ConversationStartedEvent.set({
+         conversationId: conversation._id.value,
+@@ -274,12 +274,7 @@ export class Conversation extends AggregateRoot {
+    * The traveller, the listing's host or a manager of its organisation writes a message; a viewer is refused, and so is anyone else (who
+    * reads nothing). `attachmentIds` are uploads of the sender to this conversation, not attached yet: each is attached to the message once.
+    */
+-  send(
+-    access: ConversationAccess,
+-    text: MessageText,
+-    sentAt: Date = new Date(),
+-    attachmentIds: string[] = [],
+-  ): IResult<undefined> {
++  send(access: ConversationAccess, text: MessageText, sentAt: Date, attachmentIds: string[] = []): IResult<undefined> {
+     if (!this.#writes(access)) {
+       return Result.fail(access.viewsOrganisation ? new ViewersDoNotWrite() : new ConversationNotVisible());
+     }
+@@ -349,12 +344,7 @@ export class Conversation extends AggregateRoot {
+    * not read the conversation, or names a message that is not in it, is refused as for a conversation that is not there. Returns the
+    * report's id; from then on the message is hidden from the reporter.
+    */
+-  report(
+-    access: ConversationAccess,
+-    messageId: string,
+-    reason: ReportReason,
+-    reportedAt: Date = new Date(),
+-  ): IResult<string> {
++  report(access: ConversationAccess, messageId: string, reason: ReportReason, reportedAt: Date): IResult<string> {
+     const message = this.#messages.find(each => each.id.value === messageId);
+     if (!message || this.#hidden.has(messageId) || !this.canBeReadBy(access))
+       return Result.fail(new ConversationNotVisible());
+diff --git a/src/Contexts/Messaging/Domain/Conversation/ConversationAttachments.spec.ts b/src/Contexts/Messaging/Domain/Conversation/ConversationAttachments.spec.ts
+index cfb13313..8c42359e 100644
+--- a/src/Contexts/Messaging/Domain/Conversation/ConversationAttachments.spec.ts
++++ b/src/Contexts/Messaging/Domain/Conversation/ConversationAttachments.spec.ts
+@@ -3,6 +3,9 @@ import { Id } from '@Architecture/Domain';
+ import { Conversation, ConversationAccess } from './Conversation';
+ import { MessageText } from './MessageText';
+ 
++/** The moment the tests write at: a domain method's time is always given. */
++const AT = new Date('2027-01-01T10:00:00Z');
++
+ const text = (raw: string) => MessageText.create(raw).data!;
+ const traveller = Id.generate();
+ const host = Id.generate();
+@@ -17,8 +20,14 @@ const access = (by: Id, extra: Partial<ConversationAccess> = {}): ConversationAc
+ const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+ 
+ function started(): Conversation {
+-  return Conversation.start({ listingId: 'l1', traveller, hostId: host.value, text: text('Hello'), bookings: [] })
+-    .data!;
++  return Conversation.start({
++    listingId: 'l1',
++    traveller,
++    hostId: host.value,
++    text: text('Hello'),
++    bookings: [],
++    sentAt: AT,
++  }).data!;
+ }
+ 
+ describe('Conversation uploads', () => {
+diff --git a/src/Contexts/Messaging/Domain/Conversation/ConversationHiding.spec.ts b/src/Contexts/Messaging/Domain/Conversation/ConversationHiding.spec.ts
+index 2d98b675..9528e6bf 100644
+--- a/src/Contexts/Messaging/Domain/Conversation/ConversationHiding.spec.ts
++++ b/src/Contexts/Messaging/Domain/Conversation/ConversationHiding.spec.ts
+@@ -5,6 +5,9 @@ import { MessageHiddenEvent } from './ConversationEvents';
+ import { MessageText } from './MessageText';
+ import { ReportReason } from './ReportReason';
+ 
++/** The moment the tests write at: a domain method's time is always given. */
++const AT = new Date('2027-01-01T10:00:00Z');
++
+ const text = (raw: string) => MessageText.create(raw).data!;
+ const traveller = Id.generate();
+ const host = Id.generate();
+@@ -23,8 +26,9 @@ describe('Conversation hiding (an upheld report)', () => {
+       hostId: host.value,
+       text: text('From the traveller'),
+       bookings: [],
++      sentAt: AT,
+     }).data!;
+-    conversation.send(access(host), text('From the host'));
++    conversation.send(access(host), text('From the host'), AT);
+     conversation.pullDomainEvents();
+     const [fromTraveller, fromHost] = conversation.toSnapshot().messages.map(each => each.id);
+     return { conversation, fromTraveller, fromHost };
+@@ -75,7 +79,7 @@ describe('Conversation hiding (an upheld report)', () => {
+   it('refuses a report of a hidden message, as for a message that is not there', () => {
+     const { conversation, fromTraveller } = setup();
+     conversation.hide(fromTraveller);
+-    const reported = conversation.report(access(host), fromTraveller, ReportReason.create('Scam').data!);
++    const reported = conversation.report(access(host), fromTraveller, ReportReason.create('Scam').data!, AT);
+ 
+     expect(reported.isFailure()).toBe(true);
+   });
+diff --git a/src/Contexts/Messaging/Domain/Conversation/ConversationReads.spec.ts b/src/Contexts/Messaging/Domain/Conversation/ConversationReads.spec.ts
+index f7668ec1..0bd635cf 100644
+--- a/src/Contexts/Messaging/Domain/Conversation/ConversationReads.spec.ts
++++ b/src/Contexts/Messaging/Domain/Conversation/ConversationReads.spec.ts
+@@ -3,6 +3,9 @@ import { Id } from '@Architecture/Domain';
+ import { Conversation, ConversationAccess } from './Conversation';
+ import { MessageText } from './MessageText';
+ 
++/** The moment the tests write at: a domain method's time is always given. */
++const AT = new Date('2027-01-01T10:00:00Z');
++
+ const text = (raw: string) => MessageText.create(raw).data!;
+ const traveller = Id.generate();
+ const host = Id.generate();
+@@ -14,7 +17,8 @@ const access = (by: Id, extra: Partial<ConversationAccess> = {}): ConversationAc
+   ...extra,
+ });
+ const started = () =>
+-  Conversation.start({ listingId: 'l1', traveller, hostId: host.value, text: text('Hello'), bookings: [] }).data!;
++  Conversation.start({ listingId: 'l1', traveller, hostId: host.value, text: text('Hello'), bookings: [], sentAt: AT })
++    .data!;
+ 
+ describe('Conversation read marks', () => {
+   it('marks the conversation read for the reader alone, and records it', () => {
+@@ -47,7 +51,7 @@ describe('Conversation read marks', () => {
+   it('reads through the last message at the time, and keeps it through storage', () => {
+     const conversation = started();
+     conversation.markReadBy(access(host));
+-    conversation.send(access(host), text('Answer'));
++    conversation.send(access(host), text('Answer'), AT);
+ 
+     const snapshot = conversation.toSnapshot();
+     expect(snapshot.reads).toEqual([{ readerId: host.value, messageId: snapshot.messages[0].id }]);
+diff --git a/src/Contexts/Messaging/Domain/Conversation/ConversationReports.spec.ts b/src/Contexts/Messaging/Domain/Conversation/ConversationReports.spec.ts
+index 2ab537b8..38f03f73 100644
+--- a/src/Contexts/Messaging/Domain/Conversation/ConversationReports.spec.ts
++++ b/src/Contexts/Messaging/Domain/Conversation/ConversationReports.spec.ts
+@@ -5,6 +5,9 @@ import { MessageReportedEvent } from './ConversationEvents';
+ import { MessageText } from './MessageText';
+ import { ReportReason } from './ReportReason';
+ 
++/** The moment the tests write at: a domain method's time is always given. */
++const AT = new Date('2027-01-01T10:00:00Z');
++
+ const text = (raw: string) => MessageText.create(raw).data!;
+ const reason = (raw = 'Scam') => ReportReason.create(raw).data!;
+ const traveller = Id.generate();
+@@ -40,9 +43,10 @@ describe('Conversation reports', () => {
+       hostId: host.value,
+       text: text('From the traveller'),
+       bookings: [],
++      sentAt: AT,
+     }).data!;
+-    conversation.send(asHost, text('From the host'));
+-    conversation.send(asManager, text('From the manager'));
++    conversation.send(asHost, text('From the host'), AT);
++    conversation.send(asManager, text('From the manager'), AT);
+     conversation.pullDomainEvents();
+     return conversation;
+   };
+@@ -50,7 +54,7 @@ describe('Conversation reports', () => {
+   it('lets the host side report a traveller message once, and records it with the id the report is born with', () => {
+     const conversation = setup();
+     const [fromTraveller] = messageIds(conversation);
+-    const reported = conversation.report(asManager, fromTraveller, reason());
++    const reported = conversation.report(asManager, fromTraveller, reason(), AT);
+     expect(reported.isSuccess()).toBe(true);
+     const [event] = conversation.pullDomainEvents() as MessageReportedEvent[];
+     expect(event.payload).toMatchObject({
+@@ -61,35 +65,37 @@ describe('Conversation reports', () => {
+       reason: 'Scam',
+     });
+     expect(conversation.toSnapshot().reports).toHaveLength(1);
+-    expect(conversation.report(asManager, fromTraveller, reason()).isFailure()).toBe(true);
+-    expect(conversation.report(asHost, fromTraveller, reason()).isSuccess()).toBe(true);
++    expect(conversation.report(asManager, fromTraveller, reason(), AT).isFailure()).toBe(true);
++    expect(conversation.report(asHost, fromTraveller, reason(), AT).isSuccess()).toBe(true);
+   });
+ 
+   it('lets the traveller report a message of the host side', () => {
+     const conversation = setup();
+     const [, fromHost, fromManager] = messageIds(conversation);
+-    expect(conversation.report(access(traveller), fromHost, reason()).isSuccess()).toBe(true);
+-    expect(conversation.report(access(traveller), fromManager, reason()).isSuccess()).toBe(true);
++    expect(conversation.report(access(traveller), fromHost, reason(), AT).isSuccess()).toBe(true);
++    expect(conversation.report(access(traveller), fromManager, reason(), AT).isSuccess()).toBe(true);
+   });
+ 
+   it('refuses a viewer, the sender, the same side, and what is not there', () => {
+     const conversation = setup();
+     const [fromTraveller, fromHost] = messageIds(conversation);
+-    expect(conversation.report(asViewer, fromTraveller, reason()).error?.type).toBe('CannotReportThisMessage');
+-    expect(conversation.report(access(traveller), fromTraveller, reason()).error?.type).toBe('CannotReportThisMessage');
+-    expect(conversation.report(asHost, fromHost, reason()).error?.type).toBe('CannotReportThisMessage');
+-    expect(conversation.report(asManager, fromHost, reason()).error?.type).toBe('CannotReportThisMessage');
+-    expect(conversation.report(access(traveller), 'nope', reason()).isFailure()).toBe(true);
+-    expect(conversation.report(access(Id.generate()), fromTraveller, reason()).isFailure()).toBe(true);
++    expect(conversation.report(asViewer, fromTraveller, reason(), AT).error?.type).toBe('CannotReportThisMessage');
++    expect(conversation.report(access(traveller), fromTraveller, reason(), AT).error?.type).toBe(
++      'CannotReportThisMessage',
++    );
++    expect(conversation.report(asHost, fromHost, reason(), AT).error?.type).toBe('CannotReportThisMessage');
++    expect(conversation.report(asManager, fromHost, reason(), AT).error?.type).toBe('CannotReportThisMessage');
++    expect(conversation.report(access(traveller), 'nope', reason(), AT).isFailure()).toBe(true);
++    expect(conversation.report(access(Id.generate()), fromTraveller, reason(), AT).isFailure()).toBe(true);
+     expect(conversation.pullDomainEvents()).toEqual([]);
+   });
+ 
+   it('keeps the reports across a snapshot', () => {
+     const conversation = setup();
+-    conversation.report(asHost, messageIds(conversation)[0], reason());
++    conversation.report(asHost, messageIds(conversation)[0], reason(), AT);
+     const again = Conversation.fromSnapshot(conversation.toSnapshot());
+     expect(again.toSnapshot().reports).toEqual(conversation.toSnapshot().reports);
+     expect(again.pullDomainEvents()).toEqual([]);
+-    expect(again.report(asHost, messageIds(again)[0], reason()).error?.type).toBe('MessageAlreadyReported');
++    expect(again.report(asHost, messageIds(again)[0], reason(), AT).error?.type).toBe('MessageAlreadyReported');
+   });
+ });
+diff --git a/src/Contexts/Messaging/module.local.ts b/src/Contexts/Messaging/module.local.ts
+index 5bfda8c4..a971a0f8 100644
+--- a/src/Contexts/Messaging/module.local.ts
++++ b/src/Contexts/Messaging/module.local.ts
+@@ -44,7 +44,7 @@ export function messagingWiring(
+   listings: IListingHosts,
+   bookings: ITravellerBookings,
+   paid: IPaidBookings,
+-  clock: Clock = () => new Date(),
++  clock: Clock,
+ ): Module {
+   const conversations = new PostgresConversations(database);
+   const queries = new PostgresConversationQueries(database);
+@@ -62,7 +62,7 @@ export function messagingWiring(
+         event: MarkConversationReadCommandEvent,
+         handlers: [new MarkConversationReadCommandHandler(conversations, listings)],
+       },
+-      { event: ReportMessageCommandEvent, handlers: [new ReportMessageCommandHandler(conversations, listings)] },
++      { event: ReportMessageCommandEvent, handlers: [new ReportMessageCommandHandler(conversations, listings, clock)] },
+       {
+         event: UploadAttachmentCommandEvent,
+         handlers: [new UploadAttachmentCommandHandler(conversations, listings, files)],
+diff --git a/src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.spec.ts b/src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.spec.ts
+index 84a36e42..0004bdc7 100644
+--- a/src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.spec.ts
++++ b/src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.spec.ts
+@@ -49,6 +49,7 @@ describe('a sent message reaches Notifications as the notice of the other side',
+         { languageOf: async () => 'en' },
+         900,
+       ),
++      () => new Date('2027-05-01T10:00:00Z'),
+     );
+     bus = new InMemoryEventBus({ eventEmitter: new EventEmitter() });
+     await database.migrate();
+diff --git a/src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.ts b/src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.ts
+index 90298bb1..fb9706a5 100644
+--- a/src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.ts
++++ b/src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.ts
+@@ -1,5 +1,6 @@
+ import { CommandHandler, EventHandler, ExecutionContext, publishDomainEvents } from '@Architecture/Application';
+ import { ConcurrencyConflictException, IResult, Result } from '@Architecture/Domain';
++import { Clock } from '@SharedKernel/Application/Clock';
+ import { MessageSentIntegrationEvent } from '@SharedKernel/Application/IntegrationEvents/MessagingIntegrationEvents';
+ 
+ import { MessageNoticeOwing } from '@Contexts/Notifications/Domain/MessageNotice/MessageNoticeOwing';
+@@ -13,7 +14,10 @@ import { MessageNoticeOwing } from '@Contexts/Notifications/Domain/MessageNotice
+  * transaction: nothing is written before the window, so the conflicting attempt has nothing to undo.
+  */
+ export class MessageSentIntegrationEventHandler extends EventHandler<MessageSentIntegrationEvent> {
+-  constructor(private readonly owing: MessageNoticeOwing) {
++  constructor(
++    private readonly owing: MessageNoticeOwing,
++    private readonly clock: Clock,
++  ) {
+     super();
+   }
+ 
+@@ -26,7 +30,7 @@ export class MessageSentIntegrationEventHandler extends EventHandler<MessageSent
+       hostId: event.payload.hostId,
+     };
+ 
+-    let owed = await this.owing.owe(message);
++    let owed = await this.owing.owe(message, this.clock());
+     for (
+       let attempt = 1;
+       owed.isFailure() &&
+@@ -34,7 +38,7 @@ export class MessageSentIntegrationEventHandler extends EventHandler<MessageSent
+       attempt < CommandHandler.CONFLICT_ATTEMPTS;
+       attempt++
+     ) {
+-      owed = await this.owing.owe(message);
++      owed = await this.owing.owe(message, this.clock());
+     }
+     if (owed.isFailure()) return owed;
+     if (owed.data) publishDomainEvents(owed.data, context);
+diff --git a/src/Contexts/Notifications/Application/NoticeDelivery.spec.ts b/src/Contexts/Notifications/Application/NoticeDelivery.spec.ts
+index fc5fc97a..b1993bbd 100644
+--- a/src/Contexts/Notifications/Application/NoticeDelivery.spec.ts
++++ b/src/Contexts/Notifications/Application/NoticeDelivery.spec.ts
+@@ -69,7 +69,7 @@ describe('a booking owes its host one notice, offered until the service accepts
+ 
+   it('offers a refused notice again under the same id, and never offers an accepted one', async () => {
+     const service = new ScriptedService([false, false, true]);
+-    const delivery = new NoticeDelivery(notices, service);
++    const delivery = new NoticeDelivery(notices, service, () => new Date('2027-05-01T10:00:00Z'));
+     await owing.owe(booking);
+ 
+     await delivery.deliverOwed(context());
+@@ -93,7 +93,7 @@ describe('a booking owes its host one notice, offered until the service accepts
+     const service = new ScriptedService([true]);
+     await owing.owe(booking);
+ 
+-    await new NoticeDelivery(notices, service).deliverOwed(context());
++    await new NoticeDelivery(notices, service, () => new Date('2027-05-01T10:00:00Z')).deliverOwed(context());
+ 
+     const notice = await notices.findById(service.offers[0].id);
+     expect(notice?.isAccepted).toBe(true);
+diff --git a/src/Contexts/Notifications/Application/NoticeDelivery.ts b/src/Contexts/Notifications/Application/NoticeDelivery.ts
+index eaecb259..595fb264 100644
+--- a/src/Contexts/Notifications/Application/NoticeDelivery.ts
++++ b/src/Contexts/Notifications/Application/NoticeDelivery.ts
+@@ -1,6 +1,8 @@
+ import { ExecutionContext, publishDomainEvents } from '@Architecture/Application';
+ import { Result } from '@Architecture/Domain';
+ 
++import { Clock } from '@SharedKernel/Application/Clock';
++
+ import { INoticeRepository } from '@Contexts/Notifications/Domain/Notice/Ports/INoticeRepository';
+ import { Notice } from '@Contexts/Notifications/Domain/Notice/Notice';
+ import { INoticeService } from '@Contexts/Notifications/Application/Ports/INoticeService';
+@@ -17,6 +19,7 @@ export class NoticeDelivery {
+   constructor(
+     private readonly notices: INoticeRepository,
+     private readonly service: INoticeService,
++    private readonly clock: Clock,
+   ) {}
+ 
+   async deliverOwed(context: ExecutionContext): Promise<void> {
+@@ -33,7 +36,7 @@ export class NoticeDelivery {
+       const fresh = await this.notices.findById(notice._id.value);
+       if (!fresh || fresh.isAccepted) return Result.ok();
+ 
+-      fresh.accept();
++      fresh.accept(this.clock());
+       const saved = await this.notices.save(fresh);
+       if (saved.isFailure()) return saved;
+       publishDomainEvents(fresh, reaction);
+diff --git a/src/Contexts/Notifications/Domain/MessageNotice/MessageNoticeOwing.ts b/src/Contexts/Notifications/Domain/MessageNotice/MessageNoticeOwing.ts
+index 32b7e465..fecc80cc 100644
+--- a/src/Contexts/Notifications/Domain/MessageNotice/MessageNoticeOwing.ts
++++ b/src/Contexts/Notifications/Domain/MessageNotice/MessageNoticeOwing.ts
+@@ -37,7 +37,7 @@ export class MessageNoticeOwing {
+     private readonly windowSeconds: number,
+   ) {}
+ 
+-  async owe(message: SentMessage, at: Date = new Date()): Promise<IResult<Notice | null>> {
++  async owe(message: SentMessage, at: Date): Promise<IResult<Notice | null>> {
+     const told = otherSide(message);
+     if (told === null) return Result.ok(null);
+ 
+diff --git a/src/Contexts/Notifications/Domain/MessageNotice/NoticeWindow.ts b/src/Contexts/Notifications/Domain/MessageNotice/NoticeWindow.ts
+index d02f3642..766d9849 100644
+--- a/src/Contexts/Notifications/Domain/MessageNotice/NoticeWindow.ts
++++ b/src/Contexts/Notifications/Domain/MessageNotice/NoticeWindow.ts
+@@ -46,7 +46,7 @@ export class NoticeWindow extends AggregateRoot {
+    * then opens the window from `at`. A message the window has already decided is not decided again, so a fact a crash
+    * made to arrive twice owes nothing new. Time is a parameter: the same window and the same moment give the same answer.
+    */
+-  admit(messageId: string, windowSeconds: number, at: Date = new Date()): boolean {
++  admit(messageId: string, windowSeconds: number, at: Date): boolean {
+     if (this.#lastMessageId === messageId) return false;
+     this.#lastMessageId = messageId;
+ 
+diff --git a/src/Contexts/Notifications/Domain/Notice/Notice.ts b/src/Contexts/Notifications/Domain/Notice/Notice.ts
+index 8cf21a5e..8ea391b0 100644
+--- a/src/Contexts/Notifications/Domain/Notice/Notice.ts
++++ b/src/Contexts/Notifications/Domain/Notice/Notice.ts
+@@ -38,7 +38,7 @@ export class Notice extends AggregateRoot {
+   }
+ 
+   /** The service accepted it. Accepting twice is nothing new: the first acceptance is the one recorded. */
+-  accept(at: Date = new Date()): void {
++  accept(at: Date): void {
+     if (this.#acceptedAt !== null) return;
+     this.#acceptedAt = at.toISOString();
+     this.record(NoticeAcceptedEvent.set({ noticeId: this._id.value }));
+diff --git a/src/Contexts/Notifications/module.local.ts b/src/Contexts/Notifications/module.local.ts
+index f3d9495c..3d339b94 100644
+--- a/src/Contexts/Notifications/module.local.ts
++++ b/src/Contexts/Notifications/module.local.ts
+@@ -1,4 +1,5 @@
+ import { Module } from '@Architecture/Application';
++import { Clock } from '@SharedKernel/Application/Clock';
+ import { PostgresDatabase } from '@Architecture/Infrastructure/Postgres/PostgresDatabase';
+ import {
+   BookingCancelledIntegrationEvent,
+@@ -52,6 +53,7 @@ export function notificationsWiring(
+   database: PostgresDatabase,
+   languages: IRecipientLanguages,
+   notifyUrl: string | undefined,
++  clock: Clock,
+   messageNoticeWindowSeconds = 900,
+ ) {
+   const preferences = new PostgresNoticePreferences(database);
+@@ -91,7 +93,7 @@ export function notificationsWiring(
+       },
+       {
+         event: MessageSentIntegrationEvent,
+-        handlers: [new MessageSentIntegrationEventHandler(messageOwing)],
++        handlers: [new MessageSentIntegrationEventHandler(messageOwing, clock)],
+       },
+       {
+         event: EmailVerificationRequestedIntegrationEvent,
+@@ -105,5 +107,5 @@ export function notificationsWiring(
+   });
+ 
+   if (!notifyUrl) return { module, reactions: undefined, delivery: undefined };
+-  return { module, reactions, delivery: new NoticeDelivery(notices, new HttpNoticeService(notifyUrl)) };
++  return { module, reactions, delivery: new NoticeDelivery(notices, new HttpNoticeService(notifyUrl), clock) };
+ }

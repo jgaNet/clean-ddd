@@ -214,6 +214,11 @@ export interface ArchitectureContract {
   /** The commands a change must pass before it is done, in CI's order. */
   checks: string[];
   /**
+   * The commands that put right what a check would only refuse, run by the gate's `--fix` before it judges: a formatter
+   * that writes (ADR 31: an agent should spend no turn on bookkeeping; J5b's request 90 escalated on formatting alone).
+   */
+  fixes: string[];
+  /**
    * When present, the gate asks every relationship between two contexts that a change crosses for a test
    * of its own, changed with it, named for the pair (`Messaging → Moderation`): the files whose name ends in
    * `suffix`. Absent: the gate asks nothing. With `run` (a command, `{files}` the tests, from the language's
@@ -248,6 +253,12 @@ export interface ArchitectureContract {
   bindingProfile?: string;
   /** The profiles other than the default this binding holds, and how (`profiles_held`); empty: the default alone. */
   profilesHeld: Record<string, ProfileBinding>;
+  /**
+   * Present when the repository has a rule register (`conventions/rules.yaml`, ADR 46): the reference, or an
+   * application created with `--rules`. Without one, DOMAIN-RULE-NAMED holds nothing, and an application's documents
+   * do not state it.
+   */
+  ruleRegister?: true;
   sources: { architecture: string; concepts: string; binding: string };
 }
 
@@ -281,4 +292,60 @@ export class ContractError extends Error {
   ) {
     super(message);
   }
+}
+
+/** The rule register (ADR 46, DOMAIN-RULE-NAMED): every refusal by its public name, its context, its rule, its origin. */
+export const RULE_REGISTER_FILE = 'conventions/rules.yaml';
+
+/** Where a rule was decided (ADR 46): a decision, a storm, or the request that asked for it. */
+export type RuleOrigin = { adr: number } | { storm: string } | { request: string };
+
+/** A rule, declared once by the public name of its refusal (ADR 46). */
+export interface NamedRule {
+  /** The refusal's public name, the operation's `error.type`, without the suffix of its kind (`NoteNotFound`). */
+  name: string;
+  /** The context whose domain decides it, a context of the domain map. */
+  context: string;
+  /** The rule in the business's words, one sentence. */
+  statement: string;
+  /** Where it was decided; undefined when the file says none, or more than one, which validation refuses. */
+  origin?: RuleOrigin;
+}
+
+/** The rule register: conventions/rules.yaml, loaded. */
+export interface RuleRegister {
+  rules: NamedRule[];
+  source: string;
+}
+
+/** The six words a payload field's type is said in, in every language (ADR 44). */
+export const PAYLOAD_TYPES = ['string', 'number', 'boolean', 'object', 'array', 'any'] as const;
+export type PayloadKind = (typeof PAYLOAD_TYPES)[number];
+/** A field's type in the published language: one of the six, with `?` when the field may be absent. */
+export type PayloadType = PayloadKind | `${PayloadKind}?`;
+/** A payload: each field by its public name (lowerCamel), to its type. */
+export type Payload = Record<string, PayloadType>;
+
+/** One version of an integration event's payload, numbered from 1. */
+export interface PublishedVersion {
+  version: number;
+  payload: Payload;
+}
+
+/** An integration event, declared once for every language (ADR 44, CTX-PUBLISHED-LANGUAGE). */
+export interface PublishedEvent {
+  /** Its public name, without the suffix of its kind (`NoteShared`). */
+  name: string;
+  /** The context that publishes it, a context of the domain map. */
+  publisher: string;
+  /** For an event that announces a thing's birth: the thing, and the payload field that carries its id. */
+  announces?: { thing: string; id: string };
+  /** Its history, oldest first; the last is the one every language's code carries. */
+  versions: PublishedVersion[];
+}
+
+/** The published language: conventions/integration-events.yaml, loaded. */
+export interface PublishedLanguage {
+  events: PublishedEvent[];
+  source: string;
 }

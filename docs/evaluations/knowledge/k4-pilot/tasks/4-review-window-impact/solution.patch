@@ -1,0 +1,185 @@
+diff --git a/src/Bootstrap/Fastify/ratings.e2e.spec.ts b/src/Bootstrap/Fastify/ratings.e2e.spec.ts
+index 44b7a00e..3616a8f4 100644
+--- a/src/Bootstrap/Fastify/ratings.e2e.spec.ts
++++ b/src/Bootstrap/Fastify/ratings.e2e.spec.ts
+@@ -166,9 +166,9 @@ describe('Reviews → Listings, Booking and hosts (ratings)', () => {
+     expect(await hostRating(host.id)).toEqual({ overall: 4.7, count: 1 });
+     await app.stop();
+ 
+-    // On day +22, B's window has closed: its review is published with no one acting. Two reviews now average to 3.0, 2.5 and 3.0,
++    // On day +38, B's window has closed: its review is published with no one acting. Two reviews now average to 3.0, 2.5 and 3.0,
+     // whose overall is 2.8 (the average of the three rounded averages).
+-    await start(22);
++    await start(38);
+     const twoReviews = { cleanliness: 3, accuracy: 2.5, communication: 3, overall: 2.8, count: 2 };
+     expect(await listingRating(listingId)).toEqual(twoReviews);
+     expect(await searchedRating(listingId)).toEqual(twoReviews);
+diff --git a/src/Bootstrap/Fastify/reviews.e2e.spec.ts b/src/Bootstrap/Fastify/reviews.e2e.spec.ts
+index abc6e469..6e94ab10 100644
+--- a/src/Bootstrap/Fastify/reviews.e2e.spec.ts
++++ b/src/Bootstrap/Fastify/reviews.e2e.spec.ts
+@@ -4,7 +4,7 @@ import { createApplication } from '@Bootstrap/Fastify/createApplication';
+ 
+ /**
+  * Booking tells Reviews whether a stay took place: a stay is reviewed by its traveller from the day after its check-out, up to
+- * 14 days after it, and published when that window closes (ADR 59). The servers are restarted on the same database with a later
++ * 30 days after it, and published when that window closes (ADR 59). The servers are restarted on the same database with a later
+  * `CLOCK_OFFSET_DAYS`, which is how a stay becomes one that took place, and then one whose window has closed.
+  */
+ const YEAR_SECONDS = 365 * 24 * 60 * 60;
+@@ -136,8 +136,8 @@ describe('Booking → Reviews', () => {
+     ).toEqual([]);
+     await app.stop();
+ 
+-    // On day +20 the window has closed: the review is published, and the listing shows it.
+-    await start(20);
++    // On day +36 the window has closed: the review is published, and the listing shows it.
++    await start(36);
+     const published = (await (
+       await request('GET', `/listings/${await listingOf(bookingId, traveller.token)}/reviews`)
+     ).json()) as {
+@@ -300,8 +300,8 @@ describe('Host → Reviews', () => {
+     expect(kept.host).toMatchObject({ authorId: host.id });
+     await app.stop();
+ 
+-    // On day +20 the window has closed: the review waiting alone is published.
+-    await start(20);
++    // On day +36 the window has closed: the review waiting alone is published.
++    await start(36);
+     const published = await read<{ id: string }[]>(`/accounts/${traveller.id}/guest-reviews`, host.token);
+     expect(published.map(each => each.id)).toContain(hostReview.result!.id);
+     expect((await read(`/bookings/${alone}/reviews`, traveller.token)).host).toMatchObject({
+diff --git a/src/Contexts/Reviews/Domain/StayReview/Rating.spec.ts b/src/Contexts/Reviews/Domain/StayReview/Rating.spec.ts
+index 7da1eac1..686a2313 100644
+--- a/src/Contexts/Reviews/Domain/StayReview/Rating.spec.ts
++++ b/src/Contexts/Reviews/Domain/StayReview/Rating.spec.ts
+@@ -47,7 +47,7 @@ function stay(
+ }
+ 
+ const INSIDE_WINDOW = '2026-05-10';
+-const AFTER_WINDOW = '2026-05-16';
++const AFTER_WINDOW = '2026-06-01';
+ 
+ describe('ratingOf', () => {
+   it('rounds each criterion’s average half up to one decimal, so 4.25 is 4.3', () => {
+diff --git a/src/Contexts/Reviews/Domain/StayReview/ReviewWindow.ts b/src/Contexts/Reviews/Domain/StayReview/ReviewWindow.ts
+index 63e3945f..bae686bd 100644
+--- a/src/Contexts/Reviews/Domain/StayReview/ReviewWindow.ts
++++ b/src/Contexts/Reviews/Domain/StayReview/ReviewWindow.ts
+@@ -1,5 +1,5 @@
+ /** A review is written from the day after the check-out, up to this many days after it; the window closing publishes what is written. */
+-export const REVIEW_WINDOW_DAYS = 14;
++export const REVIEW_WINDOW_DAYS = 30;
+ 
+ /** The day `days` after `date` (both `YYYY-MM-DD`), in UTC; a negative number goes back. */
+ export function addDays(date: string, days: number): string {
+@@ -8,7 +8,7 @@ export function addDays(date: string, days: number): string {
+   return day.toISOString().slice(0, 10);
+ }
+ 
+-/** Whether `today` is in the window of a stay checked out on `checkOut`: after it, and at most 14 days after it. */
++/** Whether `today` is in the window of a stay checked out on `checkOut`: after it, and at most `REVIEW_WINDOW_DAYS` days after it. */
+ export function isInReviewWindow(checkOut: string, today: string): boolean {
+   return today > checkOut && today <= addDays(checkOut, REVIEW_WINDOW_DAYS);
+ }
+diff --git a/src/Contexts/Reviews/Domain/StayReview/StayReviewExceptions.ts b/src/Contexts/Reviews/Domain/StayReview/StayReviewExceptions.ts
+index b5f759fc..9ab1fad0 100644
+--- a/src/Contexts/Reviews/Domain/StayReview/StayReviewExceptions.ts
++++ b/src/Contexts/Reviews/Domain/StayReview/StayReviewExceptions.ts
+@@ -14,13 +14,13 @@ export class StayDidNotTakePlace extends Exception {
+   }
+ }
+ 
+-/** A stay is reviewed from the day after its check-out, up to 14 days after it. */
++/** A stay is reviewed from the day after its check-out, up to 30 days after it. */
+ export class OutsideReviewWindow extends Exception {
+   constructor(bookingId: string) {
+     super({
+       service: 'Reviews',
+       type: 'OutsideReviewWindow',
+-      message: 'A stay is reviewed from the day after its check-out, up to 14 days after it',
++      message: 'A stay is reviewed from the day after its check-out, up to 30 days after it',
+       context: { bookingId },
+     });
+   }
+diff --git a/src/Contexts/Reviews/Domain/StayReview/StayReviewReports.spec.ts b/src/Contexts/Reviews/Domain/StayReview/StayReviewReports.spec.ts
+index 96d647d1..70f5fe04 100644
+--- a/src/Contexts/Reviews/Domain/StayReview/StayReviewReports.spec.ts
++++ b/src/Contexts/Reviews/Domain/StayReview/StayReviewReports.spec.ts
+@@ -118,7 +118,7 @@ describe('StayReviews: a review that is not published', () => {
+   it('is reported by another account once the window has closed and it is published alone', () => {
+     const reviews = opened();
+     const travellerReviewId = reviews.reviewByTraveller(travellerReview()).data!;
+-    expect(report(reviews, travellerReviewId, 'host-2', '2026-11-25').isSuccess()).toBe(true);
++    expect(report(reviews, travellerReviewId, 'host-2', '2026-12-11').isSuccess()).toBe(true);
+   });
+ });
+ 
+diff --git a/src/Contexts/Reviews/Domain/StayReview/StayReviews.spec.ts b/src/Contexts/Reviews/Domain/StayReview/StayReviews.spec.ts
+index b985038c..867bab61 100644
+--- a/src/Contexts/Reviews/Domain/StayReview/StayReviews.spec.ts
++++ b/src/Contexts/Reviews/Domain/StayReview/StayReviews.spec.ts
+@@ -75,16 +75,16 @@ describe('StayReviews: the traveller reviews the stay', () => {
+     expect(opened().reviewByTraveller(travellerReview({ tookPlace: false })).error!.type).toBe('StayDidNotTakePlace');
+   });
+ 
+-  it('is refused the day of the check-out, and once the 14 days after it are over', () => {
++  it('is refused the day of the check-out, and once the 30 days after it are over', () => {
+     expect(opened().reviewByTraveller(travellerReview({ today: '2026-11-10' })).error!.type).toBe(
+       'OutsideReviewWindow',
+     );
+     expect(
+       opened()
+-        .reviewByTraveller(travellerReview({ today: '2026-11-24' }))
++        .reviewByTraveller(travellerReview({ today: '2026-12-10' }))
+         .isFailure(),
+     ).toBe(false);
+-    expect(opened().reviewByTraveller(travellerReview({ today: '2026-11-25' })).error!.type).toBe(
++    expect(opened().reviewByTraveller(travellerReview({ today: '2026-12-11' })).error!.type).toBe(
+       'OutsideReviewWindow',
+     );
+   });
+@@ -150,7 +150,7 @@ describe('StayReviews: the host reviews the guest', () => {
+   it('is refused for a stay that did not take place, outside the window, and for a rating or comment out of range', () => {
+     expect(opened().reviewByGuest(guestReview({ tookPlace: false })).error!.type).toBe('StayDidNotTakePlace');
+     expect(opened().reviewByGuest(guestReview({ today: '2026-11-10' })).error!.type).toBe('OutsideReviewWindow');
+-    expect(opened().reviewByGuest(guestReview({ today: '2026-11-25' })).error!.type).toBe('OutsideReviewWindow');
++    expect(opened().reviewByGuest(guestReview({ today: '2026-12-11' })).error!.type).toBe('OutsideReviewWindow');
+     expect(opened().reviewByGuest(guestReview({ rating: 0 })).error!.type).toBe('InvalidRating');
+     expect(opened().reviewByGuest(guestReview({ rating: 5.5 })).error!.type).toBe('InvalidRating');
+     expect(opened().reviewByGuest(guestReview({ comment: 'Short.' })).error!.type).toBe('COMMENT_TOO_SHORT');
+@@ -174,12 +174,12 @@ describe('StayReviews: rebuilt from storage', () => {
+ });
+ 
+ describe('the review window and the publication of a stay’s reviews', () => {
+-  it('is the 14 days after the check-out, and the window closing publishes what is written the day after them', () => {
+-    expect(addDays('2026-11-10', 14)).toBe('2026-11-24');
+-    expect(isInReviewWindow('2026-11-10', '2026-11-24')).toBe(true);
+-    expect(isInReviewWindow('2026-11-10', '2026-11-25')).toBe(false);
+-    expect(isPublished('2026-11-10', '2026-11-24', false)).toBe(false);
+-    expect(isPublished('2026-11-10', '2026-11-25', false)).toBe(true);
++  it('is the 30 days after the check-out, and the window closing publishes what is written the day after them', () => {
++    expect(addDays('2026-11-10', 30)).toBe('2026-12-10');
++    expect(isInReviewWindow('2026-11-10', '2026-12-10')).toBe(true);
++    expect(isInReviewWindow('2026-11-10', '2026-12-11')).toBe(false);
++    expect(isPublished('2026-11-10', '2026-12-10', false)).toBe(false);
++    expect(isPublished('2026-11-10', '2026-12-11', false)).toBe(true);
+   });
+ 
+   it('publishes the two reviews of a stay together: once both are written, before the window closes', () => {
+@@ -227,13 +227,13 @@ describe('StayReviews: the host replies to the traveller’s review', () => {
+     expect(reviews.replyToTravellerReview(replyTo(travellerReviewId, { today: '2026-11-12' })).error!.type).toBe(
+       'ReviewNotPublished',
+     );
+-    expect(reviews.replyToTravellerReview(replyTo(travellerReviewId, { today: '2026-11-25' })).isFailure()).toBe(false);
++    expect(reviews.replyToTravellerReview(replyTo(travellerReviewId, { today: '2026-12-11' })).isFailure()).toBe(false);
+   });
+ 
+   it('is refused before the stay’s reviews are published', () => {
+     const reviews = opened();
+     const travellerReviewId = reviews.reviewByTraveller(travellerReview()).data!;
+-    expect(reviews.replyToTravellerReview(replyTo(travellerReviewId, { today: '2026-11-24' })).error!.type).toBe(
++    expect(reviews.replyToTravellerReview(replyTo(travellerReviewId, { today: '2026-12-10' })).error!.type).toBe(
+       'ReviewNotPublished',
+     );
+     expect(reviews.toSnapshot().traveller!.reply).toBeNull();

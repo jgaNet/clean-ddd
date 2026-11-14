@@ -1,0 +1,888 @@
+# J6's application, Tally, checkpoints 1 to 4 (requests 1-40): every convention a later request relies on, with
+# the request that sets it (`born`) and the test, in that request's acceptance file, that holds it there
+# (docs/evaluations/benchmark/kit-standard.md). kit-check refuses an entry without either.
+#
+# No entry `departs` from the contract: request 1 gives an operation's `error` as the contract's
+# `{ type, message }` (http.operation in conventions/architecture.yaml, ADR 41), as the maintainer decided
+# on 13 November for J6 (the protocol's README), the same as the calibration's request 1.
+conventions:
+  # Request 1: how the API works, for every request after it ("The API works as request 1 says").
+  - id: refusal
+    says: >-
+      A refusal is a 4xx at once, or a 202 whose operation ends in ERROR; a 5xx is never an answer the application
+      chooses: it says the server failed.
+    born: 1
+    test: refuses a body of the wrong shape at once with 400, and anything else it cannot do with a 4xx or an ERROR, never a 5xx
+  - id: body-shape
+    says: >-
+      A body missing a field, or with a field of the wrong type, is refused at once with 400, even by an application
+      that answers that request later otherwise (the contract's API-BODY-SHAPE). Requests 2, 4, 6 and 7 hold it again
+      for their own bodies; request 7 says that a body with none or more than one of the three splits is of the wrong
+      shape.
+    born: 1
+    test: refuses a body of the wrong shape at once with 400, and anything else it cannot do with a 4xx or an ERROR, never a 5xx
+  - id: operation-error
+    says: >-
+      An operation that ends in ERROR has `error: { type, message }`, the contract's record: `type` the name of the
+      rule that refused it, in PascalCase, and `message` a sentence. Two rules have two names. A refusal answered at
+      once is a 4xx whose body no request fixes.
+    born: 1
+    test: names the refused rule in the operation's error
+  - id: operation-result
+    says: >-
+      A request that creates something answers `{ id }` at once, or has the new thing's id as its operation's
+      `result`; `status` is PENDING until it ends, then SUCCESS or ERROR.
+    born: 1
+    test: signs up people with a name, and lets each read their own account
+  - id: value-refusal
+    says: >-
+      Whether a value is allowed (a format, a length, a range, one of a list, a rule between fields) is a refusal like
+      any other: a 4xx at once or ERROR later, decided by the application, not a shape the transport refuses. The
+      tests accept either.
+    born: 1
+    test: refuses an email used twice, whatever its case, and what is not allowed
+  - id: signed-in
+    says: >-
+      A request that needs a signed-in caller and has no token, or one that proves nothing, is refused with 401, a
+      read included, and a command too, at once (the later tests' `hidden` requires it for reads, never 403 or 404;
+      requests 2, 4 and 9 require it for a command; ADR 39).
+    born: 1
+    test: refuses a wrong password and an unknown email alike, and a request without a valid token
+  - id: not-found
+    says: >-
+      A read answers 200 with what it reads, or 404 for something that does not exist or that the caller may not
+      see, signed in or not: what the caller may not see is answered as if it did not exist.
+    born: 1
+    test: answers 404 for something that does not exist
+  - id: formats
+    says: >-
+      Ids are strings; dates are YYYY-MM-DD; times are ISO 8601 in UTC; amounts are integers. Every fragment's schema
+      holds them in each answer the tests read.
+    born: 1
+    test: signs up people with a name, and lets each read their own account
+  - id: no-null
+    says: >-
+      No field requests 1 to 10 name is null, nor absent where its table gives it: each fragment's schema requires
+      every field it gives, with a type that is not null. A later request that lets a field be null says in which
+      states (a `conditions` entry in its fragment).
+    born: 1
+    test: signs up people with a name, and lets each read their own account
+  - id: durable
+    says: >-
+      What the application knows is in the SQLite file DATABASE_PATH names: a server stopped, even killed, and
+      started again on the same file finds everything every request brought. Several servers may run on the same
+      file at the same time (requests 5 and 6 start two). Request 30 moves the state to PostgreSQL, unannounced
+      (postgresql): from then on the tests give every server both DATABASE_PATH and DATABASE_URL.
+    born: 1
+    test: keeps every account when the server is killed and started again on the same file
+  - id: sweep
+    says: >-
+      What changes with time changes at the next run of the background job, every JOBS_INTERVAL_SECONDS (60 when not
+      set; 1 on the tests' servers), never because someone read it: a read answers what is kept. No request of
+      checkpoint 1 changes anything with time; request 1's test holds the half that exists (a read changes nothing,
+      the job running), and the first request whose state changes with time holds the rest where it is born (request
+      18, reminder-sweep).
+    born: 1
+    test: changes nothing by a read while its background job runs
+
+  # Request 2: the first command a signed-in caller makes, the group, and who sees it.
+  - id: operation-reader
+    says: >-
+      An operation is read with the token of the request that started it, or with none when that request had none;
+      read without a token when it had one, it is refused with 401, and with another caller's token it answers 404
+      (ADR 39). Creating a group is the first request a signed-in caller makes, so it is held there.
+    born: 2
+    test: "reads a member's operation with the member's token only: 401 without a token, 404 with another's"
+  - id: group-members-only
+    says: >-
+      A group, and everything in it (its members, invitations to create, expenses, balances, statements, leaving),
+      is seen by its current members only: to anyone else, signed in, it does not exist (404 on a read, a refusal on
+      a command); without a token, 401. Requests 3, 4, 5, 6, 8 and 9 hold it again for what each adds; request 9
+      for a member who has left.
+    born: 2
+    test: creates a group its creator owns, seen by its members only
+  - id: currency-minor-unit
+    says: >-
+      A group's currency is one of EUR, USD, GBP, CHF, CAD and AUD, fixed when it is created; every amount of the
+      group is an integer number of that currency's hundredths (1250 in EUR is 12.50 euros).
+    born: 2
+    test: refuses a name or a currency that is not allowed, and keeps the currency it was created with
+  - id: order-my-groups
+    says: >-
+      A person's groups are the groups they are a member of now, the most recently created first, a group they
+      joined included (request 3), at its place by its creation.
+    born: 2
+    test: "lists a person's groups, the most recently created first"
+
+  # Request 3: members and the order they joined.
+  - id: order-members
+    says: >-
+      A group's members are listed in the order they joined, the earliest first: the owner first; a member who left
+      and joined again is last (request 9). Request 5's balances follow the same order.
+    born: 3
+    test: lets anyone signed in with the link read the invitation and join, and lists the members in the order they joined
+  - id: invitation-link
+    says: >-
+      An invitation's id is the link: long (16 characters or more) and impossible to guess, usable by any signed-in
+      person, any number of times, read without being a member; joining a group one is a member of is refused.
+    born: 3
+    test: lets anyone signed in with the link read the invitation and join, and lists the members in the order they joined
+
+  # Request 4: the expense and its split.
+  - id: split-adds-up
+    says: >-
+      An expense's shares add up to its amount, exactly, whatever the split (equal at 4, exact and by shares at 7,
+      and after request 10's change). The remainder of a division is never lost.
+    born: 4
+    test: gives the remainder of an equal split whole to the payer, and the shares add up to the amount
+  - id: remainder-to-the-payer
+    says: >-
+      Until request 10: each share of an equal split (and, from request 7, of a split by shares) is rounded down, and
+      the remainder goes whole to the payer's share. Request 10 changes it, unannounced; the cases that assert it
+      hold only while the request graded is before 10 (the README's superseded cases).
+    born: 4
+    test: gives the remainder of an equal split whole to the payer, and the shares add up to the amount
+  - id: payer-in-split
+    says: >-
+      The payer of an expense is the member who records it, and is always one of the members of its split, whatever
+      its kind (request 7 lets their exact amount be 0); every member of a split is a current member, listed once.
+    born: 4
+    test: refuses an expense whose values or split are not allowed
+  - id: order-shares
+    says: >-
+      An expense's shares are read in the order its split was given, whatever its kind.
+    born: 4
+    test: records an expense split equally, its shares in the order given, read whole by the members only
+  - id: expense-date
+    says: >-
+      An expense's date is a real day of the calendar, not after today in UTC; earlier days are allowed.
+    born: 4
+    test: refuses an expense whose values or split are not allowed
+
+  # Request 5: balances and the zero sum.
+  - id: balance-sign
+    says: >-
+      A member's balance is what they paid minus their shares, over every expense of the group not deleted: positive
+      when the group owes them, negative when they owe, 0 for a member with nothing.
+    born: 5
+    test: gives each member what they paid minus their shares, in the order they joined, adding up to zero
+  - id: zero-sum
+    says: >-
+      A group's balances add up to 0 after any sequence of changes, held from request 5 on after each change the tests
+      make (expenses, edits, deletions, leaving, the change of request 10), with many expenses sent at once to two
+      servers on one database, each counted once.
+    born: 5
+    test: counts once each of twenty expenses sent at once to two servers on one database, and keeps the zero sum
+  - id: order-balances
+    says: >-
+      A group's balances list every current member, in the order they joined, the earliest first.
+    born: 5
+    test: gives each member what they paid minus their shares, in the order they joined, adding up to zero
+
+  # Request 6: who changes an expense, and its version.
+  - id: payer-or-owner
+    says: >-
+      Only an expense's payer or the group's owner edits or deletes it; another member is refused, someone outside
+      the group sees no expense. An edit keeps the payer.
+    born: 6
+    test: lets the payer or the owner edit an expense whole, one version at a time
+  - id: expense-version
+    says: >-
+      An expense's version is 1 when it is recorded and one more at each edit; an edit gives the version it was made
+      from, and one from a version that is no longer the expense's is refused (the expense changed since it was read).
+    born: 6
+    test: lets the payer or the owner edit an expense whole, one version at a time
+  - id: one-edit-wins
+    says: >-
+      Two edits of one expense from the same version, sent at once to one server or to two on one database: exactly
+      one is kept, the other is refused, at once or as an ERROR named by the same rule as any edit from a stale
+      version, and nothing of it is kept; the balances add up to 0.
+    born: 6
+    test: "keeps exactly one of two edits of one expense sent at once, and refuses the other by its rule's name"
+  - id: deleted-is-gone
+    says: >-
+      A deleted expense no longer exists: read, edited or deleted again, it is 404 or refused; it counts in no balance,
+      no list and no statement (request 8).
+    born: 6
+    test: deletes an expense, by its payer or the owner, which then counts in no balance
+
+  # Request 7: the three splits.
+  - id: split-kinds
+    says: >-
+      An expense gives exactly one of splitBetween, splitExactly and splitByShares (none or two is a body of the
+      wrong shape, 400); exact amounts are 0 or more and add up to the amount; shares are whole numbers, at least 1;
+      `splitKind` says which, and earlier expenses read `equal`.
+    born: 7
+    test: splits by exact amounts that add up, and refuses ones that do not
+
+  # Request 8: the two lists of the ledger.
+  - id: order-expenses
+    says: >-
+      A group's expenses are listed the latest date first, then, on the same date, the most recently recorded first;
+      an edit does not change when an expense was recorded; each is listed as it reads on its own.
+    born: 8
+    test: "lists the group's expenses, the latest date first, then the most recently recorded first"
+  - id: order-statement
+    says: >-
+      A member's statement lists the expenses they paid or are in the split of, the earliest date first, then the
+      earliest recorded first, each with what they paid, their share and their balance once it is counted, from 0;
+      its `balance` is the last entry's, or 0, and the one the group's balances give them until request 12, whose
+      settlements the group's balances count and a statement does not (statement-expenses).
+    born: 8
+    test: "gives a member's statement, the earliest first, with their balance after each entry"
+
+  # Request 9: leaving.
+  - id: leave-at-zero
+    says: >-
+      A member leaves only with a balance of 0; the owner never leaves. Once gone they are in no list of the group
+      and the group is 404 to them, but their expenses stay as they were and cannot be edited or deleted while they
+      are not a member, and their statement is read by the members. Joining again makes them a member again, last.
+      Request 20 supersedes the first half, unannounced: a member then leaves whatever their balance
+      (leave-passes-to-owner); test 9's two refusals of a member with a balance hold only before request 20 (`reached`).
+    born: 9
+    test: refuses to let a member leave while their balance is not zero, and lets them leave once it is
+  - id: former-member-frozen
+    says: >-
+      An expense that concerns someone who is no longer a member, as payer or in its split, is neither edited nor
+      deleted, so that the balances still add up to 0 among the current members.
+    born: 9
+    test: keeps the expenses of a member who left as they were, unchangeable, and their statement readable
+
+  # Request 10, the change not announced in advance.
+  - id: remainder-to-the-first
+    says: >-
+      From request 10 on, the remainder of an equal split or a split by shares goes whole to the member listed first
+      in the split, whoever paid; the payer is still one of the members of the split. It supersedes
+      remainder-to-the-payer.
+    born: 10
+    test: gives the remainder of an equal split whole to the member listed first, whoever paid
+  - id: remainder-not-recomputed
+    says: >-
+      An expense keeps the shares it was given when it was recorded or last edited: the rule in force splits it then,
+      never when it is read, so the expenses recorded before request 10 keep the remainder their payer took, and an
+      expense edited after it is split by the new rule. The hidden test holds what a single tree's database can
+      show (shares kept across reads, other expenses and a restart; an edit split by the new rule); the expenses
+      recorded before the change are the README's open point for the maintainer.
+    born: 10
+    test: keeps the shares an expense was given until it is edited, across a restart
+
+  # Checkpoint 2: settling up (requests 11 to 20).
+
+  # Request 11: the suggestion.
+  - id: order-suggestions
+    says: >-
+      The suggested transfers are made by the stated algorithm from the balances (from request 13, what is still
+      owed): the most owing pays the most owed the smaller of the two, ties to the member who joined first, until every
+      balance is 0; they are listed in the order made, never more than one fewer than the members not even.
+    born: 11
+    test: suggests the transfers of the stated algorithm, in the order made, ties to whoever joined first
+  - id: suggestion-read-only
+    says: >-
+      Reading the suggestion changes nothing and records nothing; with every balance at 0 it is an empty list.
+    born: 11
+    test: suggests nothing when every balance is zero, and changes nothing by being read
+
+  # Request 12: a settlement, and what is owed.
+  - id: no-overpayment
+    says: >-
+      A settlement's amount is a whole number, at least 1, never more than what its payer owes nor more than what its
+      payee is owed when it is decided (from request 13, what is still owed); its payer and payee are two members of
+      the group. Otherwise it is refused, and nothing changes.
+    born: 12
+    test: refuses a settlement of more than is owed, or between the wrong members, and changes nothing
+  - id: settled-at-once
+    says: >-
+      The balances count a settlement as soon as it is recorded (in cash) or acknowledged paid (through the provider,
+      request 13): the payer's balance up by its amount, the payee's down. A read right after the command, or after
+      the webhook's acknowledgement, sees it; the tests do not wait.
+    born: 12
+    test: records a settlement in cash by its payee, read whole, and counts it in the balances at once
+  - id: one-settlement-wins
+    says: >-
+      Two settlements sent at once, to one server or two on one database, that together would pay more than is owed:
+      one is kept, the other refused; the balances still add up to 0 (the brief's zero sum after settlements, held
+      again by requests 13 to 15 and 20 after each change they make).
+    born: 12
+    test: keeps one of two settlements sent at once that together would pay more than is owed
+  - id: statement-expenses
+    says: >-
+      A member's statement (request 8) lists expenses only, its balance the expenses'; from request 12 it differs from
+      the member's balance in the group by the settlements they paid or received (and, from request 20, by what passed
+      to the owner). Request 29 supersedes it (statement-settlements): test 12's case asserts it only before request
+      29 (`reached`).
+    born: 12
+    test: "keeps a member's statement to their expenses, while the balances count the settlements"
+
+  # Request 13: the provider.
+  - id: provider
+    says: >-
+      The provider is an outside system the tests play, named to the server by PROVIDER_URL (the base of its API) and
+      PROVIDER_WEBHOOK_SECRET. Tally asks it POST /payments { reference, amount, currency } and reads 201 { id, payUrl }
+      (request 16 adds `payee`; request 15 POST /payments/{id}/refunds { reference }; request 16 GET /accounts/{id});
+      `reference` is the settlement's id.
+    born: 13
+    test: asks the provider for a payment link, and keeps the settlement pending, not counted, until the provider says it succeeded
+  - id: provider-unavailable
+    says: >-
+      A provider that answers anything but what the request says, or nothing within 5 seconds, or a server started
+      without PROVIDER_URL, makes the command refused (a 4xx or an ERROR, never a 5xx) and nothing kept.
+    born: 13
+    test: refuses to pay when the provider fails or is not there, and keeps nothing
+  - id: webhook-signed
+    says: >-
+      The provider's webhook is POST /v1/provider/webhooks { id, paymentId, status, at }, its header Provider-Signature
+      the lowercase hex HMAC-SHA256 of the body as sent, keyed by PROVIDER_WEBHOOK_SECRET. Unsigned or wrongly
+      signed: 401, nothing changes. Signed: acknowledged with a 2xx (or a 202 whose operation succeeds), whatever it
+      says, a payment Tally does not know included.
+    born: 13
+    test: refuses an unsigned or wrongly signed webhook with 401, and acknowledges a signed one about an unknown payment
+  - id: still-owed
+    says: >-
+      A payment waiting at the provider (pending) counts as paid for what a member still owes or is still owed: for
+      the rule of a settlement, in cash or through the provider, for the suggestions, and (request 18) for reminders.
+      The balances count it only once it is paid.
+    born: 13
+    test: counts a payment waiting at the provider as paid, for what is still owed and for the suggestions
+  - id: payment-failed
+    says: >-
+      A payment the provider says failed is `failed`: never counted, no longer waiting.
+    born: 13
+    test: never counts a payment the provider says failed, and frees what it held
+  - id: settlement-fields
+    says: >-
+      A settlement reads { id, groupId, from, to, amount, method, status, at }; one through the provider also has
+      `payUrl`, the provider's link, in every status. No field of requests 11 to 20 is null: a field a request gives
+      in some cases only (payUrl here, expenseId of a notice at request 18) is absent in the others.
+    born: 13
+    test: asks the provider for a payment link, and keeps the settlement pending, not counted, until the provider says it succeeded
+
+  # Request 14: the provider's webhooks.
+  - id: one-payment-one-effect
+    says: >-
+      A payment counts in the balances once, however many webhooks, under however many ids, say it succeeded.
+    born: 14
+    test: counts a payment once, however many times and under however many ids the provider says it succeeded
+  - id: payment-forward-only
+    says: >-
+      A payment moves forward only: pending, then succeeded (paid) or failed, then (request 15) refunded; a webhook
+      that says a status the settlement had or passed changes nothing, and is acknowledged.
+    born: 14
+    test: "moves a payment only forward: a pending after its success leaves it paid, and a failed payment never becomes paid"
+  - id: webhook-late
+    says: >-
+      A webhook that arrives late, after the server was killed and started again, changes what it would have changed
+      on time; the provider sends again a webhook nobody acknowledged.
+    born: 14
+    test: changes, late and after a restart, what a webhook would have changed on time
+  - id: webhook-at-once
+    says: >-
+      The same webhook sent at once to two servers on one database counts once.
+    born: 14
+    test: counts once the same webhook sent at once to two servers on one database
+
+  # Request 15: refunds.
+  - id: refund-when-told
+    says: >-
+      A refund makes a paid settlement through the provider `refunding` (still counted), then `refunded` once the
+      provider says so (no longer counted: the balances as before it was paid).
+    born: 15
+    test: refunds a paid settlement through the provider, and the balances go back once the provider says it is refunded
+  - id: refund-by-payee
+    says: >-
+      Only the payee refunds, only a paid settlement through the provider, and only while the provider accepts the
+      refund; anything else is refused and changes nothing.
+    born: 15
+    test: refuses a refund by anyone but the payee, of a settlement not paid through the provider, or when the provider refuses
+  - id: former-party-frozen
+    says: >-
+      A settlement whose payer or payee is no longer a member is not refunded, as an expense that concerns a former
+      member is not changed (former-member-frozen).
+    born: 15
+    test: refuses to refund a settlement whose payer or payee has left the group
+
+  # Request 16: payout accounts.
+  - id: payout-account
+    says: >-
+      A person sets their payout account, an id the provider must know (asked at GET {PROVIDER_URL}/accounts/{id});
+      setting another replaces it; they read their own (404 when none), nobody else's.
+    born: 16
+    test: sets a payout account the provider knows, and reads it to its owner only
+  - id: payout-required
+    says: >-
+      From request 16, a member is paid through the provider only with a payout account: otherwise refused by the
+      rule's name, before the provider is asked; Tally's payment request names the payee's account as it is then. The
+      cases of tests 13 to 15, 18 to 20 that pay through the provider make the payee payable once request 16 is
+      reached (`payable`, the README's superseded cases).
+    born: 16
+    test: refuses by name to pay through the provider someone with no payout account, and asks nothing of the provider
+
+  # Request 17: notices.
+  - id: notice-soon
+    says: >-
+      A notice appears within seconds of the expense being recorded, without anyone acting and without waiting for the
+      background job: the tests read until it shows, for 15 seconds at most.
+    born: 17
+    test: tells each member of a split but its payer, soon, with their share
+  - id: order-notices
+    says: >-
+      A person's notices are listed the most recent first, to them alone; an edit or a deletion of an expense makes no
+      notice; a notice stays theirs after they leave the group.
+    born: 17
+    test: "lists a person's notices, the most recent first, to them alone, and makes none for an edit or a deletion"
+  - id: one-notice
+    says: >-
+      An expense makes one notice for each member of its split but its payer, never two, across a server killed and
+      started again.
+    born: 17
+    test: makes one notice per member and expense, even when the server is killed and started again
+
+  # Request 18: reminders, the first state that changes with time.
+  - id: reminder-sweep
+    says: >-
+      Reminders are made by the background job (every JOBS_INTERVAL_SECONDS), never by a read: a server whose job
+      runs once an hour makes none, however often the debt is read. The rest of `sweep`, born here.
+    born: 18
+    test: never reminds because someone read, only at a run of the background job
+  - id: reminder-period
+    says: >-
+      A member who still owes more than 2000 in a group is noted by the first run that sees it, reminded by the first
+      run a period (REMINDER_PERIOD_SECONDS, a week when not set; 3 on the tests' servers) after, and again each
+      period while it lasts; owing 2000 or less clears it, and a debt that comes back waits a period from the run that
+      sees it. A reminder is a notice of kind `reminder`, with what is still owed, and no expenseId.
+    born: 18
+    test: reminds a member who has owed more than 2000 for a period, at the sweep, and again each period while it lasts
+  - id: reminder-once-per-period
+    says: >-
+      However many servers run on one database, a member is reminded at most once a period for a group.
+    born: 18
+    test: reminds at most once a period, however many servers run on the database
+
+  # Request 19: a group's settlements.
+  - id: order-settlements
+    says: >-
+      A group's settlements are listed the most recently recorded or asked for first, each as it reads on its own,
+      with its `history`: every status it has had in Tally, the earliest first, each with when Tally learned it.
+    born: 19
+    test: "lists the group's settlements, the most recent first, each with every status it has had"
+  - id: history-quiet
+    says: >-
+      A webhook that changes nothing adds nothing to a settlement's history; one that jumps past a status adds only
+      the status it reaches.
+    born: 19
+    test: adds nothing to a history for a webhook that changes nothing, and only the status a jump reaches
+
+  # Request 20, the change not announced in advance.
+  - id: leave-passes-to-owner
+    says: >-
+      From request 20 on, a member leaves whatever their balance, which passes to the owner in the same step: the
+      owner's balance moves by it, and the members' balances still add up to 0 at every moment. It supersedes the
+      first half of leave-at-zero. The owner never leaves; someone who joins again is at 0.
+    born: 20
+    test: lets a member leave with a balance, which passes to the owner in the same step
+  - id: leave-not-while-waiting
+    says: >-
+      A member does not leave while a settlement they pay or receive through the provider is pending or refunding.
+    born: 20
+    test: refuses to let a member leave while a payment of theirs waits at the provider
+  - id: leave-and-expense-at-once
+    says: >-
+      An expense or a settlement sent at the moment one of its members leaves, to one server or two on one database,
+      is either counted in what passes to the owner or refused; either way the members' balances add up to 0 (the
+      maintainer's T5 gap, closed here).
+    born: 20
+    test: keeps the zero sum when an expense or a settlement and a leave are sent at once, through one server or two
+
+  # Checkpoint 3: currencies and recurring expenses (requests 21 to 30).
+
+  # Request 21: another currency.
+  - id: original-amount
+    says: >-
+      An expense gives either `amount`, in the group's currency, or `original: { currency, amount, rate }`, never both
+      nor neither (the body's shape, 400): a currency of request 2 other than the group's, an amount of 1 to
+      100 000 000 in its hundredths, and a rate written as a decimal string, greater than 0, with at most 6 digits
+      after the point. The expense's `amount` is then the original amount times the rate, to the nearest whole
+      number, a half up, 1 to 100 000 000, and is what is split and counted.
+    born: 21
+    test: refuses a currency, an amount or a rate that is not allowed, and a body of the wrong shape
+  - id: original-kept
+    says: >-
+      An expense in another currency reads `original: { currency, amount, rate }` as given, the rate the same string;
+      one in the group's currency, and every expense recorded before request 21, reads without `original` (absent,
+      never null).
+    born: 21
+    test: records an expense in another currency at the rate its payer states, and keeps the rate and both amounts
+
+  # Request 22: the rates service, an outside system the tests play, as the provider.
+  - id: rates-service
+    says: >-
+      The rates service is named to the server by RATES_URL; Tally asks GET {RATES_URL}/rates/{from}/{to}?date= and reads
+      200 { rate }; anything else, nothing within 5 seconds, or no RATES_URL, is no rate offered. The offer is read at
+      GET /v1/groups/{id}/rates/{currency}?date= (today without a date), 404 when there is none.
+    born: 22
+    test: offers the rate the rates service gives for a currency and a day, and records an expense at it when its rate is left out
+  - id: rate-band
+    says: >-
+      With a rates service, an expense in another currency without a rate takes the one offered for its currency and
+      date; one with a rate is refused, by that rule's name, when it differs from the one offered by more than 2 % of
+      it, and refused when no rate is offered. Without RATES_URL, the payer's rate is taken (request 21).
+    born: 22
+    test: takes a rate within 2 % of the one offered, and refuses one further from it by its rule's name
+  - id: rates-unavailable
+    says: >-
+      A rates service that has no rate or does not answer refuses an expense in another currency, with or without its
+      rate, and keeps nothing; a server started without RATES_URL on the same database takes the payer's rate.
+    born: 22
+    test: refuses an expense in another currency when no rate is offered, and offers none
+
+  # Request 23: recurring expenses, the second state that changes with time.
+  - id: recurring-sweep
+    says: >-
+      A recurring expense's expenses are recorded by the background job, at its first run on or after each of its
+      days, never at a read: a server whose job runs once an hour records none, however often the group is read; a
+      startsOn already passed has every day that has come recorded at the next run, each dated its day.
+    born: 23
+    test: records the expenses of every day that has come at the next run of the background job, never at a read
+  - id: recurring-once
+    says: >-
+      Each day of a recurring expense has one expense, however many servers run on one database, across a server
+      killed and started again.
+    born: 23
+    test: records each day once, however many servers run on the database, and across a restart
+  - id: recurring-days
+    says: >-
+      A recurring expense recurs every month on startsOn's day, which is 1 to 28, startsOn no more than 365 days from
+      today either way; it reads its split as given (exactly one of splitBetween, splitExactly, splitByShares) and
+      `next`, the day of the next expense it will record.
+    born: 23
+    test: refuses a recurring expense whose day, amount or split is not allowed, and waits for a day to come
+  - id: recurring-ends
+    says: >-
+      Its payer or the owner stops a recurring expense (404 from then on, its expenses kept); one whose payer or a
+      member of its split is no longer a member records nothing on its day, and ends the same way.
+    born: 23
+    test: lets its payer or the owner stop a recurring expense, and ends one whose payer or member has left
+
+  # Request 24: categories and budgets.
+  - id: category
+    says: >-
+      An expense, and a recurring expense, has a category, one of groceries, rent, utilities, transport, food,
+      travel, leisure and other; `other` when none is given, and for every expense recorded before request 24.
+    born: 24
+    test: counts a month by its expenses' dates, edits and deletions, in the category each expense keeps
+  - id: budget-month
+    says: >-
+      What a month spends in a category is the amounts of the group's expenses of that category dated in that month,
+      in UTC, deleted ones left out; the budgets read what the current month spends.
+    born: 24
+    test: counts a month by its expenses' dates, edits and deletions, in the category each expense keeps
+  - id: budget-notice
+    says: >-
+      When an expense recorded or edited makes its month spend more than its category's budget, every member of the
+      group, its payer included, receives one notice of kind `budget` with the category, the month (YYYY-MM), the
+      budget and what the month spends as `amount`: once per group, category and month, soon (within seconds,
+      without the job), across a killed server.
+    born: 24
+    test: tells every member once when a month's spending in a category passes its budget
+  - id: budget-owner
+    says: >-
+      Only the group's owner sets or removes a budget, for one of the categories, of 1 to 100 000 000; the budgets
+      are listed in the order of the categories.
+    born: 24
+    test: lets the owner alone set or remove a budget, for a category Tally has and an amount allowed
+
+  # Request 25: split templates.
+  - id: template-split
+    says: >-
+      An expense, recorded or edited, gives exactly one of the three splits and `template` (otherwise 400); split by a
+      template, it is split as if the template's split had been given, under every rule of a split at that moment,
+      and keeps its shares when the template changes or goes.
+    born: 25
+    test: saves a split as a template, and splits an expense by it as if its split had been given
+  - id: template-rules
+    says: >-
+      A template has a name of 1 to 60 characters, not only spaces, free in its group whatever its case, and exactly
+      one of splitBetween and splitByShares (otherwise 400), of members of the group; its creator or the owner
+      replaces or removes it.
+    born: 25
+    test: refuses a template that is not allowed, and an expense its template cannot split
+
+  # Request 26: receipts, kept by an outside store the tests play, as the provider.
+  - id: receipts-store
+    says: >-
+      The receipts store is named to the server by RECEIPTS_URL; Tally sends POST {RECEIPTS_URL}/files, the file as the
+      body with its type as Content-Type, and reads 201 { id, url }. Anything else, nothing within 5 seconds, or no
+      RECEIPTS_URL, refuses the receipt and keeps the one the expense had.
+    born: 26
+    test: refuses a receipt while the store fails or is not there, and keeps the one the expense had
+  - id: receipt-file
+    says: >-
+      A receipt is sent as application/octet-stream: a JPEG (FF D8 FF) or a PNG (89 50 4E 47 0D 0A 1A 0A) by its first
+      bytes, of 1 to 2 097 152 bytes; anything else is refused, before the store is asked. It reads
+      { type, size, url }, 404 while the expense has none; attaching one is no edit, and the expense keeps its version.
+    born: 26
+    test: refuses a file of another type, an empty one or one over 2 MB, and sends nothing to the store
+
+  # Request 27: archived groups.
+  - id: archived-read-only
+    says: >-
+      Every request that would change something in an archived group is refused by the one rule's name, the same for
+      all, and changes nothing, across a restart; every read answers as before, and the group reads `archivedAt`
+      (absent, never null, until it is archived).
+    born: 27
+    test: archives a group once everyone is even, and refuses every change in it by one rule's name
+  - id: archive-when-even
+    says: >-
+      Only the owner archives a group, once every balance is 0 and no settlement through the provider is pending or
+      refunding.
+    born: 27
+    test: refuses to archive a group while a balance is not 0 or a payment waits at the provider, and to anyone but its owner
+  - id: archived-sweep
+    says: >-
+      The background job records no expense of a recurring expense in an archived group.
+    born: 27
+    test: records no expense of a recurring expense in an archived group
+
+  # Request 28: the audit.
+  - id: audit-entries
+    says: >-
+      Every change of money from request 28 on is one entry { id, at, by, action, subjectId, amount }: expense-recorded,
+      -edited, -deleted, settlement-paid (cash when recorded, by its payee; provider when it succeeds, by its payer),
+      settlement-refunded (by its payee, only for a settlement that was counted), balance-passed (by the member who
+      left, their balance); nothing for what is refused or changes nothing; listed the oldest first.
+    born: 28
+    test: "writes an entry for every change of money: who made it, when, what and how much, the oldest first"
+  - id: audit-with-the-change
+    says: >-
+      An entry is written with its change: there after a server killed right after it, exactly one with two servers on
+      one database, never changed or removed.
+    born: 28
+    test: writes one entry for each change, with two servers on one database
+
+  # Request 29: settlements in a statement, and its CSV.
+  - id: statement-settlements
+    says: >-
+      From request 29 a member's statement lists the settlements the balances count beside the expenses, each entry
+      with `kind`: a settlement's with `settlementId`, its date the UTC day the balances started counting it, its
+      description `Settlement in cash` or `Settlement through the provider`, paid for its payer, share for its payee;
+      in request 8's order, a settlement by when it started counting. It supersedes statement-expenses.
+    born: 29
+    test: lists the settlements a member paid or received that the balances count, beside their expenses
+  - id: statement-csv
+    says: >-
+      A statement as CSV is text/csv in UTF-8: the header date,kind,id,description,paid,share,balance, one line per
+      entry in that column order, CRLF line ends, a field quoted only when it holds a comma, a double quote or a line
+      break, its double quotes doubled.
+    born: 29
+    test: exports a statement as CSV, its columns in the stated order, quoted only where they must be
+
+  # Request 30, the change not announced in advance.
+  - id: postgresql
+    says: >-
+      From request 30, the state is in the PostgreSQL database at DATABASE_URL: found after a kill whatever
+      DATABASE_PATH says; an empty database is prepared at the first start; two servers on one database keep every
+      earlier rule. The tests create a database per file on TALLY_POSTGRES (127.0.0.1:55432 when not set) with psql.
+      It supersedes durable's file.
+    born: 30
+    test: keeps its state in PostgreSQL, and finds it after a kill, whatever DATABASE_PATH says
+  - id: moves-the-file
+    says: >-
+      A server started on a PostgreSQL database that holds nothing of Tally's, while DATABASE_PATH names a file any
+      earlier version kept, moves everything in it first: a payment waiting at the provider lands once after the move,
+      nothing is moved twice on a later start. Test 10's upgrade case, graded from request 30, moves a file the tree
+      at request 9 kept.
+    born: 30
+    test: moves what the tree before it kept, and a payment waiting at the provider when it changed counts once
+
+  # Request 31: merging two groups.
+  - id: merge-owner-of-both
+    says: >-
+      Only the owner of both groups merges one into the other, both in one currency, never a group into itself nor
+      while a settlement through the provider of the group merged waits (pending, refunding, from request 33
+      contested); an archived group, either of the two, is refused by the rule that keeps it read only (GroupArchived,
+      request 27): later, its error names the same rule as any other change in an archived group.
+    born: 31
+    test: refuses to merge groups of two currencies, a group into itself, by anyone but the owner of both, while a payment waits, and an archived group by the rule that keeps it read only
+  - id: merge-moves
+    says: >-
+      Once merged, the group merged is 404 to everyone at once and its invitations let nobody join; within a few
+      seconds (the tests read with `eventually`) its members are the group kept's (after its members, in the order
+      they had joined, role member; a former member a former member there), and its expenses, settlements, recurring
+      expenses, passed balances and audit entries are the group kept's, each keeping its id; its budgets, templates
+      and invitations are not. Each balance is the sum of the two; every group's balances add up to 0 at every moment.
+    born: 31
+    test: "merges a group into another of the same currency: its members, expenses, settlements and balances, the zero sum kept"
+  - id: merge-and-expense-at-once
+    says: >-
+      An expense recorded in the group merged at the moment of the merge, through one server or two, is counted once
+      in the group kept, or refused.
+    born: 31
+    test: counts once every expense recorded in the group merged while it is merged, through two servers
+
+  # Request 32: nettings.
+  - id: netting-rule
+    says: >-
+      A netting between the caller and `with` in a currency covers the groups both are current members of, in that
+      currency, not archived, the oldest first; in each, what one can pay the other is the smaller of what one still
+      owes and the other is still owed (request 13); the amount netted is the smaller of the two totals, refused when
+      0. It makes settlements of `method` net, `status` paid, counted at once everywhere a cash settlement is (the
+      statement's description `Settlement by netting`, the audit's settlement-paid by who asked), the caller's first,
+      group by group; never refunded. A netting reads { id, by, with, currency, amount, settlements } to the two only.
+    born: 32
+    test: nets what two people owe each other across the groups they share, as settlements that count at once
+  - id: netting-once
+    says: >-
+      A netting makes all its settlements or none; two asked at once, through two servers, net once, and no
+      settlement ever pays more than is still owed.
+    born: 32
+    test: nets once when the two people ask at the same moment, through two servers
+
+  # Request 33: administrators and contested settlements.
+  - id: administrators
+    says: >-
+      An administrator is the account whose email is in ADMIN_EMAILS (separated by commas, whatever their case), given
+      to the server at its start; nobody becomes one through the API. What only administrators read (GET
+      /v1/admin/...) is 404 to anyone else signed in, 401 without a token; what only they do is refused to anyone else.
+      Every decision of theirs is an entry { id, at, by, action, subjectId } of the administrators' log, the oldest
+      first, never changed.
+    born: 33
+    test: "holds a contested settlement's effect on the balances until an administrator decides it was paid"
+  - id: contested-held
+    says: >-
+      The payee contests a paid settlement through the provider, once, while both sides are members; while it is
+      `contested` the balances do not count it, what is still owed counts it as waiting (request 13), its payer and
+      payee do not leave, the group is not archived or merged, and webhooks change nothing; its audit entry is
+      settlement-contested, by the payee.
+    born: 33
+    test: "holds a contested settlement's effect on the balances until an administrator decides it was paid"
+  - id: contest-decided
+    says: >-
+      An administrator decides a contested settlement once: paid, it is `paid` again and counted as before (an audit
+      entry settlement-paid by the administrator); not paid, it is `annulled`, counted nowhere and no longer waiting,
+      changed by nothing after. The history lists contested, then paid or annulled.
+    born: 33
+    test: annuls a settlement an administrator decides was not paid, and what was owed is owed again
+
+  # Request 34: suspended accounts.
+  - id: suspended-refused
+    says: >-
+      A suspended account's expenses, recurring expenses, settlements in cash, payments through the provider and
+      nettings are refused by one rule's name in every group until it is reinstated; everything else it does, and
+      the others do with it, goes on.
+    born: 34
+    test: "refuses every expense and settlement a suspended account starts, by one rule's name, in every group, until reinstated"
+  - id: suspension-writes-nothing
+    says: >-
+      Suspending and reinstating change nothing in any group; each change is one entry of the administrators' log
+      (`suspended`, `reinstated`), a suspension that changes nothing none.
+    born: 34
+    test: writes nothing in a group when an account is suspended or reinstated, and logs each to the administrators
+  - id: suspended-recurring
+    says: >-
+      The background job records nothing for a suspended payer's recurring expense; every day that has come is
+      recorded at the first run after they are reinstated.
+    born: 34
+    test: records the recurring expense of a suspended payer at the first run after they are reinstated
+
+  # Request 35: deleted accounts.
+  - id: deleted-anonymous
+    says: >-
+      A deleted account signs in no more (401, as an unknown email), its tokens prove nothing, its email is free; it
+      stays a member of its groups at its place, named `Deleted account`, its id, role and balances kept and every
+      other read unchanged; it is put in no new split, paid nothing through the provider, netted with by nobody.
+    born: 35
+    test: anonymises a deleted account in every group it was in, and keeps its balances
+  - id: deleted-erased
+    says: >-
+      A deleted account's name and email are nowhere in what Tally keeps: no row of any table of the PostgreSQL
+      database holds either, whatever its case (the tests search every table); its id stays.
+    born: 35
+    test: erases the name and the email of a deleted account from everything Tally keeps
+  - id: delete-refused
+    says: >-
+      An account is not deleted while it owns a group with another member, or while a settlement through the
+      provider it pays or receives is pending, refunding or contested.
+    born: 35
+    test: refuses to delete an account that owns a group with another member, or has a payment waiting at the provider
+
+  # Request 36: notice preferences.
+  - id: notice-preferences
+    says: >-
+      Each person turns each kind of notice (expense, reminder, budget, in that order) on or off, all on until then,
+      read as [ { kind, enabled } ] by that person only; a notice of a kind turned off is not made for them from then
+      on, nothing missed is made later, and nothing changes for anyone else (a budget's month is still told once).
+    born: 36
+    test: makes no notice of a kind a person turned off, and makes them again once it is on
+  - id: reminder-off-not-counted
+    says: >-
+      A reminder not made because reminders are off does not count as made: once on again, the member is reminded at
+      the next run that would remind them.
+    born: 36
+    test: reminds nobody who turned reminders off, and reminds them at a later run once they are on
+
+  # Request 37: spending insights.
+  - id: insights-order
+    says: >-
+      A person's insights are, over the groups they are a member of now, their shares in expenses not deleted, summed
+      by month (the expense's date, UTC), group currency and category, lines above 0 only: the earliest month first,
+      then the currencies alphabetically, then the categories in request 24's order.
+    born: 37
+    test: "sums one's shares across one's groups by month, currency and category, in a stated order"
+
+  # Request 38: the provider's fee.
+  - id: fee-borne
+    says: >-
+      The provider answers a payment with its `fee` (0 or more, less than the amount; otherwise the payment is refused
+      and nothing kept). A group's owner decides who bears it (payer, payee or shared; the payee until then); a
+      settlement through the provider settles its amount less its payer's part (all of it, none, or half rounded
+      down), and that is what the balances, what is still owed, the statement and the audit count.
+    born: 38
+    test: settles a payment through the provider by its amount less the part of the fee its payer bears
+  - id: fee-kept
+    says: >-
+      A settlement keeps the fee and who bore it as when its payment was asked for, read as `fee: { amount, borneBy }`
+      on a settlement through the provider asked for from request 38 on, and absent otherwise.
+    born: 38
+    test: keeps on a settlement the fee and who bore it when it was asked for
+
+  # Request 39: settlements in another currency.
+  - id: settlement-rate-fixed
+    says: >-
+      A settlement in cash or through the provider may give `original: { currency, amount }` in place of `amount`
+      (exactly one, else 400); its rate is the rates service's offer for the day it is decided, its `amount` the
+      original times it, a half up, and it keeps `original: { currency, amount, rate }` whatever the service says
+      later; the provider is asked for the original amount and currency. No rate offered refuses it.
+    born: 39
+    test: fixes the rate of a payment through the provider when it is asked for, whatever the rate when it lands
+  - id: settlement-original-kept
+    says: >-
+      A settlement in another currency reads `original` as decided; one in the group's currency reads without it.
+    born: 39
+    test: settles in cash in another currency at the rate offered when it is recorded, and keeps the rate and both amounts
+
+  # Request 40, the change not announced in advance.
+  - id: minor-unit-per-currency
+    says: >-
+      Tally's currencies are ten: the six of request 2 in hundredths, JPY and KRW with no minor unit, KWD and BHD in
+      thousandths; every amount, limits included, is a whole number of its currency's minor unit. It supersedes
+      currency-minor-unit's list.
+    born: 40
+    test: allows currencies with no minor unit or with three decimals, and keeps each amount in its own minor unit
+  - id: conversion-by-units
+    says: >-
+      A rate is what one unit of a currency is worth in another; a conversion reads the amount in its currency's
+      units and writes the result in the other's minor unit, to the nearest whole number, a half up (requests 21, 22
+      and 39).
+    born: 40
+    test: converts between currencies of different precision by what one unit of each is worth
+  - id: reminder-threshold-in-units
+    says: >-
+      A reminder is for more than 20 of the group's currency: 2000 in hundredths, 20 with no minor unit, 20 000 in
+      thousandths. It supersedes reminder-period's 2000.
+    born: 40
+    test: "reminds a member who still owes more than 20 of the group's currency, in its own minor unit"
+  - id: earlier-amounts-read
+    says: >-
+      Every amount kept before request 40 reads the same after it, through the tree graded on the same database as
+      the tree at request 39 kept it.
+    born: 40
+    test: reads every amount kept before the change as it was, and keeps each new one in its own minor unit, on the same database

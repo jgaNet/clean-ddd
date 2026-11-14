@@ -1,0 +1,4 @@
+# Request 31: a group merged into another of the same currency, by the owner of both.
+routes:
+  POST /v1/groups/{id}/merge:
+    2xx: {}

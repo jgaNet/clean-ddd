@@ -22,6 +22,12 @@
 //! of the context that `impl CommandHandler`. What does not resolve is not counted, and the hole it
 //! leaves is caught where it shows: a route lost, a command no handler answers.
 //!
+//! The integration events the tree publishes close it, each with the context that publishes it and its
+//! payload in the published language's words (ADR 44, CTX-PUBLISHED-LANGUAGE): a field by its public
+//! name in lowerCamel (`note_id` and `r#type` are `noteId` and `type`), its type as one of `string`,
+//! `number`, `boolean`, `object`, `array`, `any`, with `?` when it is an `Option`. The payload is read
+//! from the shared kernel's contract, a struct or an enum variant, field by field.
+//!
 //! The same reading holds ARCH-ONE-HANDLER (`check_handlers`): a command the Module lists once,
 //! with one handler, and every command a route or a policy builds is one the Module lists.
 
@@ -52,6 +58,9 @@ pub struct Inventory {
     language: String,
     contexts: Vec<Context>,
     links: Vec<Link>,
+    /// Absent from an inventory written before ADR 44: read as none, so the check names each one.
+    #[serde(default)]
+    integration_events: Vec<PublishedEvent>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -97,6 +106,15 @@ pub struct Link {
     upstream: String,
     downstream: String,
     contracts: Vec<String>,
+}
+
+/// An integration event the tree publishes: its public name, the context that publishes it, and its
+/// payload, field by public name → type word, in the published language's words (ADR 44).
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PublishedEvent {
+    name: String,
+    publisher: String,
+    payload: BTreeMap<String, String>,
 }
 
 /// Canonical JSON: two-space indentation, the keys in the order above, a trailing newline.
@@ -193,7 +211,23 @@ pub fn changes(committed: &Inventory, tree: &Inventory) -> Vec<String> {
     compare(&mut lines, "context map", "link", &committed.links, &tree.links, link_key, |link| {
         vec![("contracts", list(&link.contracts))]
     });
+    let event_key = |event: &PublishedEvent| format!("{} ({})", event.name, event.publisher);
+    compare(
+        &mut lines,
+        "published language",
+        "integration event",
+        &committed.integration_events,
+        &tree.integration_events,
+        event_key,
+        |event| vec![("payload", payload(&event.payload))],
+    );
     lines
+}
+
+/// A payload as the lines spell it: `{noteId: string, result: any?}`.
+fn payload(fields: &BTreeMap<String, String>) -> String {
+    let fields: Vec<String> = fields.iter().map(|(name, word)| format!("{name}: {word}")).collect();
+    format!("{{{}}}", fields.join(", "))
 }
 
 /// One kind of a scope, compared by key: lost, changed field by field (before → after), gained.
@@ -542,10 +576,13 @@ fn event_arms(text: &str, into: &mut BTreeMap<(String, String), String>) {
 struct IntegrationEvents {
     by_variant: BTreeMap<(String, String), String>,
     by_constant: BTreeMap<(String, String), String>,
+    /// The payload of each, by public name: field by public name → type word (ADR 44).
+    payloads: BTreeMap<String, BTreeMap<String, String>>,
 }
 
 fn integration_events(files: &[SourceFile]) -> IntegrationEvents {
-    let mut found = IntegrationEvents { by_variant: BTreeMap::new(), by_constant: BTreeMap::new() };
+    let mut found =
+        IntegrationEvents { by_variant: BTreeMap::new(), by_constant: BTreeMap::new(), payloads: BTreeMap::new() };
     for file in files {
         event_arms(&file.text, &mut found.by_variant);
         for (implemented, type_name, body) in impl_blocks(&file.text) {
@@ -561,7 +598,110 @@ fn integration_events(files: &[SourceFile]) -> IntegrationEvents {
             }
         }
     }
+    for ((type_name, variant), name) in &found.by_variant {
+        if let Some(fields) = files.iter().find_map(|file| payload_fields(&file.text, type_name, variant)) {
+            found.payloads.insert(name.clone(), fields);
+        }
+    }
     found
+}
+
+/// The fields of an integration event's payload, read from its declaration: the struct `type_name`
+/// when `variant` is empty, else the variant `variant` of the enum `type_name`. Each by its public
+/// name, each type as its word; nothing when the text does not declare it.
+fn payload_fields(text: &str, type_name: &str, variant: &str) -> Option<BTreeMap<String, String>> {
+    let keyword = if variant.is_empty() { "struct " } else { "enum " };
+    let declared =
+        after_each(text, keyword).find(|at| ident_at(text, *at).is_some_and(|(name, _)| name == type_name))?;
+    let open = declared + text[declared..].find('{')?;
+    let mut body = balanced(text, open, '{', '}');
+    if !variant.is_empty() {
+        let named = after_each(body, variant).find(|at| body[*at..].trim_start().starts_with('{'))?;
+        let open = named + body[named..].find('{')?;
+        body = balanced(body, open, '{', '}');
+    }
+    let declarations: String = body
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.starts_with("//") && !line.starts_with("#["))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let mut fields = BTreeMap::new();
+    for field in top_level_fields(&declarations) {
+        let field = field.trim();
+        let field = field.strip_prefix("pub(crate)").or_else(|| field.strip_prefix("pub")).unwrap_or(field);
+        let Some((name, type_text)) = field.split_once(':') else { continue };
+        fields.insert(field_public_name(name.trim()), type_word(type_text));
+    }
+    Some(fields)
+}
+
+/// A list split on its commas outside any bracket: `a: String, b: BTreeMap<String, Value>` → two.
+fn top_level_fields(text: &str) -> Vec<&str> {
+    let (mut depth, mut start, mut parts) = (0_i32, 0, Vec::new());
+    for (at, c) in text.char_indices() {
+        match c {
+            '<' | '(' | '[' | '{' => depth += 1,
+            '>' | ')' | ']' | '}' => depth -= 1,
+            ',' if depth == 0 => {
+                parts.push(&text[start..at]);
+                start = at + 1;
+            }
+            _ => {}
+        }
+    }
+    parts.push(&text[start..]);
+    parts.into_iter().filter(|part| !part.trim().is_empty()).collect()
+}
+
+/// A field's public name: its Rust name without the raw prefix, in lowerCamel (`note_id` → `noteId`,
+/// `r#type` → `type`).
+fn field_public_name(name: &str) -> String {
+    let name = name.strip_prefix("r#").unwrap_or(name);
+    let mut out = String::new();
+    for (index, part) in name.split('_').filter(|part| !part.is_empty()).enumerate() {
+        let mut chars = part.chars();
+        let Some(first) = chars.next() else { continue };
+        if index == 0 {
+            out.extend(first.to_lowercase());
+        } else {
+            out.extend(first.to_uppercase());
+        }
+        out.push_str(chars.as_str());
+    }
+    out
+}
+
+/// A Rust type as the published language's word: text → `string`, a number → `number`, `bool` →
+/// `boolean`, `serde_json::Value` → `any`, a sequence → `array`, a map or a struct → `object`; an
+/// `Option<T>` is `T`'s word with `?`, a pointer (`Box`, `Arc`, `Rc`, `Cow`) its pointee's.
+fn type_word(type_text: &str) -> String {
+    let type_text = type_text.trim().trim_start_matches('&').trim_start();
+    let type_text = match type_text.strip_prefix('\'') {
+        Some(lifetime) => lifetime.split_once(' ').map_or("", |(_, rest)| rest).trim_start(),
+        None => type_text,
+    };
+    let type_text = type_text.strip_prefix("mut ").unwrap_or(type_text).trim();
+    if type_text.starts_with('[') || type_text.starts_with('(') {
+        return "array".into();
+    }
+    let (head, inner) = match type_text.find('<') {
+        Some(open) => (&type_text[..open], balanced(type_text, open, '<', '>')),
+        None => (type_text, ""),
+    };
+    let head = head.trim().rsplit("::").next().unwrap_or_default();
+    let last_argument = || top_level_fields(inner).last().copied().unwrap_or_default();
+    match head {
+        "Option" => format!("{}?", type_word(inner).trim_end_matches('?')),
+        "Box" | "Arc" | "Rc" | "Cow" => type_word(last_argument()),
+        "String" | "str" | "char" => "string".into(),
+        "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "f32"
+        | "f64" => "number".into(),
+        "bool" => "boolean".into(),
+        "Value" => "any".into(),
+        "Vec" | "VecDeque" | "HashSet" | "BTreeSet" => "array".into(),
+        _ => "object".into(),
+    }
 }
 
 impl IntegrationEvents {
@@ -1288,7 +1428,19 @@ pub fn inspect(binding: &Yaml, language_root: &Path) -> Inventory {
         .collect();
     links.sort_by_key(|link| format!("{}→{}:{}", link.upstream, link.downstream, link.mechanism));
 
-    Inventory { schema_version: SCHEMA_VERSION, language: tree.language.clone(), contexts, links }
+    // The published language the tree carries: each integration event a context publishes, by name.
+    let integration_events: Vec<PublishedEvent> = published_by
+        .iter()
+        .flat_map(|(name, publishers)| {
+            publishers.iter().map(|publisher| PublishedEvent {
+                name: name.clone(),
+                publisher: publisher.clone(),
+                payload: integration.payloads.get(name).cloned().unwrap_or_default(),
+            })
+        })
+        .collect();
+
+    Inventory { schema_version: SCHEMA_VERSION, language: tree.language.clone(), contexts, links, integration_events }
 }
 
 #[cfg(test)]
@@ -1340,6 +1492,106 @@ impl Account {
         let names: Vec<&str> = found[0].behaviours.iter().map(|(name, _)| name.as_str()).collect();
         assert_eq!(names, ["authenticate", "authenticate_at"]);
         assert_eq!(found[0].behaviours[0].1, ["AccountAuthenticated"]);
+    }
+
+    #[test]
+    fn a_payload_is_read_field_by_field_in_the_published_language_words() {
+        let kernel = vec![
+            SourceFile {
+                path: "integration_events/tracker_integration_events.rs".into(),
+                text: "
+pub struct OperationCompleteIntegrationEvent {
+    pub operation_id: String,
+    /// The command's public name.
+    pub r#type: String,
+    pub result: Option<serde_json::Value>,
+    pub attempts: u32,
+    pub tags: Vec<String>,
+    pub details: BTreeMap<String, Vec<u8>>,
+    pub retried: Option<bool>,
+}
+
+impl OperationCompleteIntegrationEvent {
+    pub const NAME: &'static str = \"OperationCompleteIntegrationEvent\";
+}
+
+impl Event for OperationCompleteIntegrationEvent {
+    fn name(&self) -> &'static str {
+        Self::NAME
+    }
+}
+"
+                .into(),
+            },
+            SourceFile {
+                path: "integration_events/note_integration_events.rs".into(),
+                text: "
+pub enum NoteIntegrationEvent {
+    Archived { note_id: String },
+    Shared { note_id: String, owner_id: String, recipient_ids: Vec<String> },
+}
+
+impl NoteIntegrationEvent {
+    pub const SHARED: &'static str = \"NoteSharedIntegrationEvent\";
+}
+
+impl Event for NoteIntegrationEvent {
+    fn name(&self) -> &'static str {
+        match self {
+            NoteIntegrationEvent::Shared { .. } => Self::SHARED,
+        }
+    }
+}
+"
+                .into(),
+            },
+        ];
+        let integration = integration_events(&kernel);
+        let words = |name: &str| -> Vec<(String, String)> {
+            integration.payloads.get(name).cloned().unwrap_or_default().into_iter().collect()
+        };
+        let pairs = |items: &[(&str, &str)]| -> Vec<(String, String)> {
+            items.iter().map(|(name, word)| ((*name).to_string(), (*word).to_string())).collect()
+        };
+        assert_eq!(
+            words("OperationComplete"),
+            pairs(&[
+                ("attempts", "number"),
+                ("details", "object"),
+                ("operationId", "string"),
+                ("result", "any?"),
+                ("retried", "boolean?"),
+                ("tags", "array"),
+                ("type", "string"),
+            ])
+        );
+        assert_eq!(
+            words("NoteShared"),
+            pairs(&[("noteId", "string"), ("ownerId", "string"), ("recipientIds", "array")])
+        );
+    }
+
+    #[test]
+    fn a_type_maps_to_one_of_the_six_words() {
+        for (type_text, word) in [
+            ("String", "string"),
+            ("&'static str", "string"),
+            ("i64", "number"),
+            ("f64", "number"),
+            ("bool", "boolean"),
+            ("serde_json::Value", "any"),
+            ("Vec<Option<String>>", "array"),
+            ("&[u8]", "array"),
+            ("std::collections::HashMap<String, String>", "object"),
+            ("NoteSummary", "object"),
+            ("Option<Box<String>>", "string?"),
+            ("Option<Vec<String>>", "array?"),
+        ] {
+            assert_eq!(type_word(type_text), word, "{type_text}");
+        }
+        assert_eq!(field_public_name("validation_token"), "validationToken");
+        assert_eq!(field_public_name("r#type"), "type");
+        assert_eq!(field_public_name("email"), "email");
     }
 
     #[test]
@@ -1554,7 +1806,8 @@ use std::io::Write as _;
       "policies": [{ "on": "NoteShared", "kind": "domain-event", "publishes": ["NoteShared"], "events": [] }] },
     { "id": "Security", "commands": [], "queries": [], "events": [], "policies": [] }
   ],
-  "links": [{ "mechanism": "integration-event", "upstream": "Notes", "downstream": "Notifications", "contracts": ["NoteShared"] }]
+  "links": [{ "mechanism": "integration-event", "upstream": "Notes", "downstream": "Notifications", "contracts": ["NoteShared"] }],
+  "integrationEvents": [{ "name": "NoteShared", "publisher": "Notes", "payload": { "noteId": "string", "kind": "string" } }]
 }"#,
         );
         let tree = inventory(
@@ -1571,7 +1824,8 @@ use std::io::Write as _;
       "policies": [{ "on": "NoteShared", "kind": "domain-event", "publishes": [], "events": [] }] },
     { "id": "Tracker", "commands": [], "queries": [], "events": [], "policies": [] }
   ],
-  "links": [{ "mechanism": "integration-event", "upstream": "Notes", "downstream": "Notifications", "contracts": ["NoteArchived", "NoteShared"] }]
+  "links": [{ "mechanism": "integration-event", "upstream": "Notes", "downstream": "Notifications", "contracts": ["NoteArchived", "NoteShared"] }],
+  "integrationEvents": [{ "name": "NoteShared", "publisher": "Notes", "payload": { "noteId": "string", "type": "string" } }]
 }"#,
         );
         assert_eq!(
@@ -1585,6 +1839,7 @@ use std::io::Write as _;
                 "Security: the committed inventory has the context, the tree no longer says it",
                 "Tracker: the tree says the context, the committed inventory does not",
                 "context map: the link Notes → Notifications (integration-event) differs: contracts [NoteShared] → [NoteArchived, NoteShared]",
+                "published language: the integration event NoteShared (Notes) differs: payload {kind: string, noteId: string} → {noteId: string, type: string}",
             ]
         );
         assert_eq!(changes(&committed, &committed), Vec::<String>::new());

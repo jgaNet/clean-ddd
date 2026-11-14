@@ -1,0 +1,46 @@
+# Feature 27 of Tally (../backlog/27-archive-a-group.md), as the session decided it.
+schemaVersion: 1
+
+feature: archive-a-group
+intent: >-
+  The owner archives a group once every balance is 0 and nothing waits at the provider; every change in it is then refused by one rule's name, in every context, and the background job records nothing in it.
+
+done: false
+
+hotSpots:
+  - question: Who decides a group is archived?
+    decision: The Group (GroupArchived), from the balances (MemberBalances, Ledger's) and the payments waiting (WaitingPayments, Settlements'), read in its own transaction.
+  - question: How does every context refuse a change by one name?
+    decision: Each asks Groups, through the port it already owns (GroupMembers for Ledger, SettlementMembers for Settlements), whether the group is archived, and its aggregate refuses by the one rule — GroupArchived, a word of the shared kernel every context agrees on, decided once by Groups (T17). No context keeps a copy of the flag, so no change slips in before it hears.
+  - question: The background job?
+    decision: The RecurringExpense asks GroupMembers when its day comes, and records nothing in an archived group (request 23's sweep).
+
+contexts:
+  - id: Groups
+    commands:
+      - name: ArchiveGroup
+        actor: a signed-in account
+        route: POST /groups/{param}/archive
+        aggregate: Group
+        events: [GroupArchived]
+    queries: []
+    events: [GroupArchived]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Ledger
+    downstream: Groups
+    contracts: [MemberBalances]
+  - mechanism: owned-port
+    upstream: Settlements
+    downstream: Groups
+    contracts: [WaitingPayments]
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupMembers]
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Settlements
+    contracts: [SettlementMembers]

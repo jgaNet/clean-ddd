@@ -1,0 +1,33 @@
+# Feature 18 of Tally (../backlog/18-reminders.md), as the session decided it.
+schemaVersion: 1
+
+feature: reminders
+intent: >-
+  At each run of the background job, a member who has still owed more than 2000 in a group for a period is reminded, and again each period while it lasts, at most once a period whatever the servers.
+
+done: false
+
+hotSpots:
+  - question: Who notices that a debt has lasted?
+    decision: The background job, every JOBS_INTERVAL_SECONDS, in Notifications — never a read. A storm has no sticky for a timer, so the sweep is named here and its facts below (DebtNoted, DebtCleared, ReminderIssued); time is a parameter (DOMAIN-NON-DETERMINISM).
+  - question: What does Notifications keep?
+    decision: A DebtWatch per member and group — since which run it has seen them owe more than 2000, and when it last reminded them; a run that sees 2000 or less clears it, and the last reminder is kept, so a debt that comes back waits a period from the run that sees it.
+  - question: Where does "still owes" come from?
+    decision: From Settlements, through a port Notifications owns (OutstandingDebts), answered over Settlements' read model — the balances with the payments waiting at the provider counted as paid, for the current members only.
+  - question: Two servers, one database?
+    decision: The DebtWatch's optimistic check; the run that loses re-reads and finds the member reminded within the period.
+  - question: Is a reminder a notice?
+    decision: Yes — a Notice of kind reminder, in the person's list; it has no expense.
+
+contexts:
+  - id: Notifications
+    commands: []
+    queries: []
+    events: [DebtCleared, DebtNoted, ReminderIssued]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Settlements
+    downstream: Notifications
+    contracts: [OutstandingDebts]

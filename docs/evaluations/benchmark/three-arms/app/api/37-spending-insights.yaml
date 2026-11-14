@@ -1,0 +1,14 @@
+# Request 37: what a person spent across their groups, by month, currency and category.
+resources:
+  insight:
+    schema:
+      type: object
+      required: [month, currency, category, amount]
+      properties:
+        month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        category: { enum: [groceries, rent, utilities, transport, food, travel, leisure, other] }
+        amount: { type: integer, minimum: 1 }
+routes:
+  GET /v1/accounts/me/insights:
+    200: { type: array, items: { $resource: insight } }

@@ -1,0 +1,26 @@
+# Feature 30 of Tally (../backlog/30-postgresql.md), the change not announced in advance, as the session decided it.
+# It adds no sticky and no relationship: no command, query or fact changes.
+schemaVersion: 1
+
+feature: postgresql
+intent: >-
+  The application keeps its state in PostgreSQL, and moves into it, once, what its SQLite file held; nothing a client sees changes.
+
+done: false
+
+hotSpots:
+  - question: How, for the contexts?
+    decision: One database, the tables of each context as they were, each context's outbox and inbox included; the adapters change, the domain and the application layers do not. An architecture task with its ADR in the arms that keep them.
+  - question: Where does the move from the file live?
+    decision: In the Bootstrap, as a step before the server serves — read the file, write PostgreSQL, in one transaction under one lock, so that a second server waits and finds it done; no context's domain knows it. The outbox's entries and the bus's record of what it delivered move too, so that a fact relayed before the move is not relayed again, and one stored but not yet relayed is relayed after it.
+  - question: What keeps a payment in flight counted once?
+    decision: The SettlementBook as it was moved — its pending settlement, its payment id and its history; the webhook that comes after the move moves it forward once, as request 14 does.
+
+contexts:
+  - id: Ledger
+    commands: []
+    queries: []
+    events: []
+    policies: []
+
+links: []

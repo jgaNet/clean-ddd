@@ -1,0 +1,37 @@
+# Feature 4 of Tally (../backlog/4-record-an-expense.md), as the session decided it.
+schemaVersion: 1
+
+feature: record-an-expense
+intent: >-
+  A member records an expense they paid, split equally between members of the group in an order they choose, the payer among them; the shares add up to the amount and the remainder goes to the payer.
+
+done: false
+
+hotSpots:
+  - question: How does Ledger know who may be in a split, and who the payer is?
+    decision: It asks Groups through a port it owns (GroupMembers), answered over Groups' read model, when it decides; the payer is the caller, and the Expense refuses a split with someone who is not a current member, someone listed twice, or without its payer.
+  - question: One aggregate per expense, or a ledger per group?
+    decision: One Expense per expense — it holds its amount, payer and shares, and keeps that they add up; the balances are not an aggregate (feature 5), so expenses recorded at once never contend.
+  - question: Where are the shares computed?
+    decision: In a Split value the Expense is created with — each share rounded down, the remainder whole to the payer — and kept with the expense as they were decided, never computed again at a read.
+
+contexts:
+  - id: Ledger
+    commands:
+      - name: RecordExpense
+        actor: a signed-in account
+        route: POST /groups/{param}/expenses
+        aggregate: Expense
+        events: [ExpenseRecorded]
+    queries:
+      - name: GetExpense
+        actor: a signed-in account
+        route: GET /expenses/{param}
+    events: [ExpenseRecorded]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupMembers]

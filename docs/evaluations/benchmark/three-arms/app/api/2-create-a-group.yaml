@@ -1,0 +1,18 @@
+# Request 2: a group, its currency fixed at creation, its owner, and who sees it.
+resources:
+  group:
+    schema:
+      type: object
+      required: [id, name, currency, ownerId]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        currency: { enum: [EUR, USD, GBP, CHF, CAD, AUD] }
+        ownerId: { type: string }
+routes:
+  POST /v1/groups:
+    2xx: { type: object, required: [id], properties: { id: { type: string } } }
+  GET /v1/groups/{id}:
+    200: group
+  GET /v1/groups/mine:
+    200: { type: array, items: { $resource: group } }

@@ -1,0 +1,49 @@
+# Request 40, the change not announced in advance: four currencies more, two with no minor unit and two with three
+# decimals; every amount in its currency's own minor unit.
+resources:
+  group:
+    states:
+      - field: currency
+        add: [JPY, KRW, KWD, BHD]
+        test: allows currencies with no minor unit or with three decimals, and keeps each amount in its own minor unit
+  expense:
+    states:
+      - field: original.currency
+        add: [JPY, KRW, KWD, BHD]
+        test: converts between currencies of different precision by what one unit of each is worth
+  settlement:
+    states:
+      - field: original.currency
+        add: [JPY, KRW, KWD, BHD]
+        test: converts between currencies of different precision by what one unit of each is worth
+  rate:
+    states:
+      - field: currency
+        add: [JPY, KRW, KWD, BHD]
+        test: allows currencies with no minor unit or with three decimals, and keeps each amount in its own minor unit
+  # Restated whole, as requests 17, 18 and 24 left it, with a reminder's least amount in the smallest minor unit: more
+  # than 20 yen is 21, where more than 20 euros was 2001 hundredths (request 18).
+  notice:
+    schema:
+      type: object
+      required: [id, kind, groupId, amount, at]
+      properties:
+        id: { $comment: request 17, type: string }
+        kind: { $comment: 'requests 17, 18, 24', enum: [expense, reminder, budget] }
+        groupId: { $comment: request 17, type: string }
+        expenseId: { $comment: request 17, type: string }
+        amount: { $comment: request 17, type: integer }
+        at: { $comment: request 17, type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)$' }
+        category: { $comment: request 24, enum: [groceries, rent, utilities, transport, food, travel, leisure, other] }
+        month: { $comment: request 24, type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        budget: { $comment: request 24, type: integer, minimum: 1 }
+      allOf:
+        - $comment: "request 17: an expense's notice names its expense"
+          if: { $comment: request 17, required: [kind], properties: { kind: { $comment: request 17, const: expense } } }
+          then: { $comment: "request 17: an expense's notice names its expense", required: [expenseId] }
+        - $comment: "request 40: a reminder is for more than 20 of the group's currency, at least 21 of its minor unit"
+          if: { required: [kind], properties: { kind: { const: reminder } } }
+          then: { properties: { amount: { $comment: "request 40: a reminder is for more than 20 of the group's currency", minimum: 21 } } }
+        - $comment: "request 24: a budget's notice names its category, month and budget, and spends more than it"
+          if: { $comment: request 24, required: [kind], properties: { kind: { $comment: request 24, const: budget } } }
+          then: { $comment: "request 24: a budget's notice names its category, month and budget", required: [category, month, budget] }

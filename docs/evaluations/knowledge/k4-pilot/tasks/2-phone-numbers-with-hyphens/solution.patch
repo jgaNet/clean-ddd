@@ -1,0 +1,68 @@
+diff --git a/src/Contexts/Messaging/Domain/Conversation/ContactDetails.spec.ts b/src/Contexts/Messaging/Domain/Conversation/ContactDetails.spec.ts
+index cfa63749..27833859 100644
+--- a/src/Contexts/Messaging/Domain/Conversation/ContactDetails.spec.ts
++++ b/src/Contexts/Messaging/Domain/Conversation/ContactDetails.spec.ts
+@@ -9,6 +9,7 @@ describe('ContactDetails', () => {
+     expect(held('Call +33 6 12 34 56 78 or 06.12.34.56.78 or 0612345678')).toBe(
+       'Call [hidden] or [hidden] or [hidden]',
+     );
++    expect(held('Call 06-12-34-56-78 or +33-6-12-34-56-78')).toBe('Call [hidden] or [hidden]');
+   });
+ 
+   it('leaves a date and a plain text as written', () => {
+diff --git a/src/Contexts/Messaging/Domain/Conversation/ContactDetails.ts b/src/Contexts/Messaging/Domain/Conversation/ContactDetails.ts
+index e64cbeab..cd9943a6 100644
+--- a/src/Contexts/Messaging/Domain/Conversation/ContactDetails.ts
++++ b/src/Contexts/Messaging/Domain/Conversation/ContactDetails.ts
+@@ -5,7 +5,8 @@ export const HIDDEN = '[hidden]';
+ 
+ const IBAN = /[A-Z]{2}\d{2}(?: ?[A-Z0-9]){11,30}/g;
+ const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+-const PHONE = /\+?\d(?:[ .]?\d){8,}/g;
++/** A phone number: an optional `+`, then nine digits or more, each following the one before directly or after one space, dot or hyphen. */
++const PHONE = /\+?\d(?:[ .-]?\d){8,}/g;
+ 
+ /**
+  * The contact details a text holds: IBANs, email addresses and phone numbers. Until a stay of the traveller at the listing is paid,
+diff --git a/src/Contexts/Reviews/Domain/StayReview/ReviewRules.spec.ts b/src/Contexts/Reviews/Domain/StayReview/ReviewRules.spec.ts
+index a43c6ec2..b38dc1b8 100644
+--- a/src/Contexts/Reviews/Domain/StayReview/ReviewRules.spec.ts
++++ b/src/Contexts/Reviews/Domain/StayReview/ReviewRules.spec.ts
+@@ -25,12 +25,16 @@ describe('contact details', () => {
+     },
+   );
+ 
+-  it.each(['+33 6 12 34 56 78', '06.12.34.56.78', '0612345678', 'call 061234567 after six'])(
+-    'refuses a phone number (%s)',
+-    phone => {
+-      expect(firstBrokenRule(withText(phone))).toBe('CONTACT_DETAILS');
+-    },
+-  );
++  it.each([
++    '+33 6 12 34 56 78',
++    '06.12.34.56.78',
++    '0612345678',
++    'call 061234567 after six',
++    '06-12-34-56-78',
++    '+33-6-12-34-56-78',
++  ])('refuses a phone number (%s)', phone => {
++    expect(firstBrokenRule(withText(phone))).toBe('CONTACT_DETAILS');
++  });
+ 
+   it('does not take a date for a phone number, nor a number of fewer than nine digits', () => {
+     expect(firstBrokenRule(withText('We stayed from 2026-12-01 to 2026-12-04.'))).toBeNull();
+diff --git a/src/Contexts/Reviews/Domain/StayReview/ReviewRules.ts b/src/Contexts/Reviews/Domain/StayReview/ReviewRules.ts
+index 50883128..61cd5207 100644
+--- a/src/Contexts/Reviews/Domain/StayReview/ReviewRules.ts
++++ b/src/Contexts/Reviews/Domain/StayReview/ReviewRules.ts
+@@ -21,8 +21,8 @@ export type ReviewRule = 'COMMENT_TOO_SHORT' | 'COMMENT_TOO_LONG' | 'CONTACT_DET
+ /** The email address of request 53: a local part, an `@`, a domain, a dot and at least two letters. */
+ const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+ 
+-/** A phone number: an optional `+`, then nine digits or more, each following the one before directly or after one space or dot. */
+-const PHONE = /\+?\d(?:[ .]?\d){8,}/;
++/** A phone number: an optional `+`, then nine digits or more, each following the one before directly or after one space, dot or hyphen. */
++const PHONE = /\+?\d(?:[ .-]?\d){8,}/;
+ 
+ /** A link: `http://`, `https://` or `www.`, whatever its case. */
+ const LINK = /https?:\/\/|www\./i;

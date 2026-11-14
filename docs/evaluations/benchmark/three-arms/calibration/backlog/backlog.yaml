@@ -1,0 +1,16 @@
+# OpenStay's pilot (docs/evaluations/benchmark/openstay): ten requests, taken in order, each from
+# the smallest model up (the escalation rule in the protocol). `contexts` is the candidate model's
+# (j0.md) until the storms decide it; the simple arm never reads it.
+schemaVersion: 1
+features:
+  - { id: accounts, n: 1, contexts: [Accounts], needs: [] }
+  - { id: publish-a-listing, n: 2, contexts: [Listings], needs: [accounts] }
+  - { id: search, n: 3, contexts: [Listings], needs: [publish-a-listing] }
+  - { id: host-calendar, n: 4, contexts: [Booking, Listings], needs: [search] }
+  - { id: quote, n: 5, contexts: [Booking, Listings], needs: [host-calendar] }
+  - { id: book-instantly, n: 6, contexts: [Booking, Listings], needs: [quote] }
+  - { id: request-to-book, n: 7, contexts: [Booking, Listings], needs: [book-instantly] }
+  - { id: cancel-a-booking, n: 8, contexts: [Booking], needs: [book-instantly] }
+  - { id: booking-history, n: 9, contexts: [Booking, Accounts], needs: [request-to-book] }
+  - { id: notify-the-host, n: 10, contexts: [Booking, Notifications], needs: [request-to-book] }
+# For feature <n>-<id>: backlog/<n>-<id>.md, storms/<id>.yaml, acceptance/<n>-<id>.acceptance.ts.

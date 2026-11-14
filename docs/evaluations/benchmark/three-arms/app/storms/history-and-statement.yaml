@@ -1,0 +1,35 @@
+# Feature 8 of Tally (../backlog/8-history-and-statement.md), as the session decided it.
+schemaVersion: 1
+
+feature: history-and-statement
+intent: >-
+  A member lists the group's expenses, the latest first, and reads any member's statement, the earliest first, with the balance after each entry.
+
+done: false
+
+hotSpots:
+  - question: Which context answers a statement, under a route of the group's members?
+    decision: Ledger — the statement is made of its expenses; the route is only where the API puts it, and Ledger asks GroupMembers whether the member has ever been one.
+  - question: Is "recorded" the time of the last change?
+    decision: No — when the expense was first recorded, kept by Ledger and never changed by an edit; the lists order by date, then by it.
+  - question: Where is the running balance of a statement computed?
+    decision: In the read model, at the read, in the statement's order; nothing is stored per entry.
+
+contexts:
+  - id: Ledger
+    commands: []
+    queries:
+      - name: GetGroupExpenses
+        actor: a signed-in account
+        route: GET /groups/{param}/expenses
+      - name: GetMemberStatement
+        actor: a signed-in account
+        route: GET /groups/{param}/members/{param}/statement
+    events: []
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupMembers]

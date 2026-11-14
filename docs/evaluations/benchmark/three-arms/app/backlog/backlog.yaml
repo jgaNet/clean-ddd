@@ -1,0 +1,59 @@
+# J6's application, Tally (brief.md): checkpoint 1, requests 1 to 10, checkpoint 2, requests 11 to 20,
+# checkpoint 3, requests 21 to 30, and checkpoint 4, requests 31 to 40, taken in order, each from the smallest model up. `contexts` is the brief's candidate model until the storms decide it
+# (storms/README.md); the simple arm never reads it.
+schemaVersion: 1
+features:
+  - { id: accounts, n: 1, contexts: [Groups], needs: [] }
+  - { id: create-a-group, n: 2, contexts: [Groups], needs: [accounts] }
+  - { id: invite-and-join, n: 3, contexts: [Groups], needs: [create-a-group] }
+  - { id: record-an-expense, n: 4, contexts: [Ledger, Groups], needs: [invite-and-join] }
+  - { id: balances, n: 5, contexts: [Ledger, Groups], needs: [record-an-expense] }
+  - { id: edit-and-delete-an-expense, n: 6, contexts: [Ledger, Groups], needs: [balances] }
+  - { id: unequal-splits, n: 7, contexts: [Ledger], needs: [record-an-expense] }
+  - { id: history-and-statement, n: 8, contexts: [Ledger, Groups], needs: [edit-and-delete-an-expense] }
+  - { id: leave-a-group, n: 9, contexts: [Groups, Ledger], needs: [balances] }
+  - { id: remainder-to-the-first, n: 10, contexts: [Ledger], needs: [unequal-splits], upgrade: true }
+  # Checkpoint 2: settling up. Settlements and Notifications are declared at its session (storms/README.md, T2).
+  - { id: suggested-settlements, n: 11, contexts: [Settlements, Ledger, Groups], needs: [balances] }
+  - { id: settle-in-cash, n: 12, contexts: [Settlements, Ledger, Groups], needs: [suggested-settlements] }
+  - { id: pay-through-the-provider, n: 13, contexts: [Settlements, Ledger, Groups], needs: [settle-in-cash] }
+  - { id: webhooks-late-twice-out-of-order, n: 14, contexts: [Settlements], needs: [pay-through-the-provider] }
+  - { id: refund-through-the-provider, n: 15, contexts: [Settlements, Ledger, Groups], needs: [webhooks-late-twice-out-of-order] }
+  - { id: payout-accounts, n: 16, contexts: [Settlements], needs: [pay-through-the-provider] }
+  - { id: notices, n: 17, contexts: [Notifications, Ledger], needs: [record-an-expense] }
+  - { id: reminders, n: 18, contexts: [Notifications, Settlements], needs: [notices, pay-through-the-provider] }
+  - { id: settlement-history, n: 19, contexts: [Settlements, Groups], needs: [refund-through-the-provider] }
+  - { id: leave-with-a-balance, n: 20, contexts: [Groups, Ledger, Settlements], needs: [leave-a-group, pay-through-the-provider] }
+  # Checkpoint 3: currencies and recurring expenses. No context is added (storms/README.md, T12).
+  - { id: another-currency, n: 21, contexts: [Ledger, Groups], needs: [unequal-splits] }
+  - { id: offered-rates, n: 22, contexts: [Ledger, Groups], needs: [another-currency] }
+  - { id: recurring-expenses, n: 23, contexts: [Ledger, Groups], needs: [unequal-splits, notices] }
+  - { id: budgets, n: 24, contexts: [Ledger, Groups, Notifications], needs: [recurring-expenses, notices] }
+  - { id: split-templates, n: 25, contexts: [Ledger, Groups], needs: [unequal-splits] }
+  - { id: receipts, n: 26, contexts: [Ledger, Groups], needs: [edit-and-delete-an-expense] }
+  - { id: archive-a-group, n: 27, contexts: [Groups, Ledger, Settlements], needs: [leave-with-a-balance, receipts, split-templates, budgets] }
+  - { id: audit, n: 28, contexts: [Ledger, Settlements, Groups], needs: [leave-with-a-balance, recurring-expenses] }
+  - { id: statement-as-csv, n: 29, contexts: [Ledger, Settlements, Groups], needs: [history-and-statement, refund-through-the-provider] }
+  - { id: postgresql, n: 30, contexts: [Groups, Ledger, Settlements, Notifications], needs: [statement-as-csv], upgrade: true }
+  # Checkpoint 4: across groups and people. No context is added; the session declares two relationships for request 31
+  # (storms/README.md, T21 and T22).
+  - { id: merge-groups, n: 31, contexts: [Groups, Ledger, Settlements], needs: [archive-a-group, audit] }
+  - { id: net-across-groups, n: 32, contexts: [Settlements, Ledger, Groups], needs: [statement-as-csv] }
+  - { id: contest-a-settlement, n: 33, contexts: [Settlements, Ledger, Groups], needs: [merge-groups, audit] }
+  - { id: suspend-a-member, n: 34, contexts: [Groups, Ledger, Settlements], needs: [contest-a-settlement, net-across-groups] }
+  - { id: delete-an-account, n: 35, contexts: [Groups, Ledger, Settlements], needs: [contest-a-settlement, net-across-groups] }
+  - { id: notice-preferences, n: 36, contexts: [Notifications], needs: [budgets, reminders] }
+  - { id: spending-insights, n: 37, contexts: [Ledger, Groups], needs: [budgets, another-currency] }
+  - { id: provider-fee, n: 38, contexts: [Settlements, Ledger, Groups], needs: [contest-a-settlement] }
+  - { id: settle-in-another-currency, n: 39, contexts: [Settlements, Ledger, Groups], needs: [provider-fee, offered-rates] }
+  - { id: currency-precision, n: 40, contexts: [Groups, Ledger, Settlements, Notifications], needs: [settle-in-another-currency, reminders], upgrade: true }
+# `upgrade: true`: a change to what a tree already stored; its test records through the tree before it and reads
+# through the tree graded, on one database (grade.mjs --previous). Request 20 is not one: it changes leaving from
+# now on, and every member who left before it left at a balance of 0, so nothing stored reads differently
+# (README, "Decided by the operator for checkpoint 2"). Request 30 is one: what a tree kept in its SQLite file
+# moves to PostgreSQL, and its test asks for a payment through the tree before it and lands the payment's webhook
+# through the tree graded (README, "Decided by the maintainer before checkpoint 3", 6). Request 40 is one: every
+# amount a tree kept, in hundredths, reads the same after it, and its test records through the tree at request 39 and
+# reads through the tree graded (README, "Decided by the operator for checkpoint 4").
+# For feature <n>-<id>: backlog/<n>-<id>.md, storms/<id>.yaml, api/<n>-<id>.yaml (when it has an API
+# table), acceptance/<n>-<id>.acceptance.ts.

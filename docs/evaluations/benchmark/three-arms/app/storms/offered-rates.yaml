@@ -1,0 +1,32 @@
+# Feature 22 of Tally (../backlog/22-offered-rates.md), as the session decided it.
+schemaVersion: 1
+
+feature: offered-rates
+intent: >-
+  Tally offers the rate a rates service gives for a currency and a day; an expense in another currency takes it when its rate is left out, and is refused when its own rate is more than 2 % from it.
+
+done: false
+
+hotSpots:
+  - question: Where is the rates service in the model?
+    decision: Behind a port Ledger owns in its Application layer (OfferedRates), named for what it decides — the rate from a currency to another on a day, or none; its answer is a plain value the Expense takes or refuses (DOMAIN-NON-DETERMINISM), as the provider's is (T11). The adapter calls RATES_URL with a 5-second limit; anything else is no rate.
+  - question: Who decides the band?
+    decision: The Expense, given the rate offered as an input like any other — it takes it when its rate is left out, and refuses a rate more than 2 % from it by its own rule's name (RateOutsideBand); the handler asks the port before the Expense decides, and keeps the offer's provenance on the operation.
+  - question: A server without a rates service?
+    decision: The port answers that there is no service, and the Expense takes the payer's rate, as in request 21 — not the same answer as a service that has no rate, which refuses.
+
+contexts:
+  - id: Ledger
+    commands: []
+    queries:
+      - name: GetOfferedRate
+        actor: a signed-in account
+        route: GET /groups/{param}/rates/{param}
+    events: []
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupCurrency, GroupMembers]

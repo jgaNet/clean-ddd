@@ -1,0 +1,36 @@
+# Feature 28 of Tally (../backlog/28-audit.md), as the session decided it.
+schemaVersion: 1
+
+feature: audit
+intent: >-
+  Every change of money is an entry of its group's audit, written with the change — who, when, what, how much — never changed; a member reads the group's audit, the oldest first.
+
+done: false
+
+hotSpots:
+  - question: T8 said an integration event would be reconsidered if request 28 needed a fact to react to. Does it?
+    decision: No (T18). Each context writes its own entries in the transaction of the change, from its aggregate's facts (Ledger for expenses, Settlements for settlements, Groups for a balance passed), and Ledger's audit query reads the other two through ports it owns over their read models (SettlementAudit, PassedBalances), on the relationships it already has. An entry is there as soon as the change is answered, which a fact relayed after the commit would not promise.
+  - question: Who is `by` for what nobody did by hand?
+    decision: The member the change acts for — a provider's payment its payer, a refund its payee, a recurring expense's day its payer.
+  - question: Two servers, a webhook said twice?
+    decision: An entry follows a fact, and a fact is recorded once (the SettlementBook's status, the Expense's version); a change that records nothing writes nothing.
+
+contexts:
+  - id: Ledger
+    commands: []
+    queries:
+      - name: GetGroupAudit
+        actor: a signed-in account
+        route: GET /groups/{param}/audit
+    events: []
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Settlements
+    downstream: Ledger
+    contracts: [SettlementAudit]
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupMembers, PassedBalances]

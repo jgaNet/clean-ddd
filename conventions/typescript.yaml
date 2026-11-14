@@ -43,6 +43,10 @@ checks:
   - yarn test:units
   - yarn test:e2e
 
+# What the gate's --fix runs before it judges: the formatter that writes what `format:check` refuses (ADR 31).
+fixes:
+  - yarn -s format
+
 # Each relationship between two contexts a change crosses asks for an end-to-end test changed with it, named for
 # the pair (`describe('Notes → Notifications', …)`): it makes the thing upstream through the API, keeps the id that
 # request answered, and finds the thing downstream through the API by that id (ADR 33). The reference's is the
@@ -94,6 +98,8 @@ create:
     - src/Bootstrap/Fastify/FastifyApplication.ts
     - src/Bootstrap/Fastify/fastify.d.ts
     - src/Bootstrap/Fastify/application.ts
+    # The end-to-end client, which holds every answer to the application's api/ (ADR 45).
+    - src/Bootstrap/Fastify/api.spec-helper.ts
     - { from: src/Bootstrap/Starter/createApplication.ts, to: src/Bootstrap/Fastify/createApplication.ts }
     - { from: src/Bootstrap/Starter/createApplication.e2e.spec.ts, to: src/Bootstrap/Fastify/createApplication.e2e.spec.ts }
     - tsconfig.json
@@ -167,6 +173,21 @@ rules:
     references: [../tools/src/check.ts]
   CTX-MAP-DECLARED:
     references: [../tools/src/domain.ts]
+  # Held by the conventions check: each language's inventory carries the payloads of the integration events its
+  # tree publishes, held to the last version of the published language; the gate refuses a merged version changed.
+  CTX-PUBLISHED-LANGUAGE:
+    references:
+      - ../conventions/integration-events.yaml
+      - src/SharedKernel/Application/IntegrationEvents/NoteIntegrationEvents.ts
+      - src/SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents.ts
+      - ../tools/src/published-language.ts
+  # Held by the conventions check, where the repository has a rule register: every exception a context's Domain or
+  # Application returns is named there, every rule there has its exception and a spec of its context that names it.
+  DOMAIN-RULE-NAMED:
+    references:
+      - ../conventions/rules.yaml
+      - src/Contexts/Notes/Domain/Note/NoteExceptions.ts
+      - ../tools/src/rule-register.ts
   ARCH-ONE-APPLICATION:
     references: [../tools/src/inventory.ts]
 
@@ -215,6 +236,8 @@ checklists:
   command:
     place: src/Contexts/<Context>/Application/Commands/<UseCase>/
     parts:
+      - 'First, in an application with an `api/` (a created one has it; ADR 45): its answers as a fragment, `api/<n>-<name>.yaml` after the last one, the route by status and the resources it answers (its `202` is already in `all_routes`, and what it answers is the operation''s `result`); the end-to-end client (`apiClient()` in `src/Bootstrap/Fastify/api.spec-helper.ts`) holds every answer a test reads to it, and `yarn check:conventions` refuses a fragment that does not compose.'
+      - 'A refusal it adds is named first in `conventions/rules.yaml` (ADR 46): its public name (the exception without `Exception`), its context, the rule in one sentence, its origin; the check holds it to the exception the context returns and to a spec of that context that names it (DOMAIN-RULE-NAMED).'
       - '`<UseCase>CommandEvent.ts`: a named payload, nothing more.'
       - '`<UseCase>CommandHandler.ts`: `requireSignedIn` at the top of `execute()`, load, ask the aggregate or the domain service, save (check the `IResult`), `publishDomainEvents`. A command anyone may send (a sign-up) has no `requireSignedIn`; its caller follows it by the operation id it was answered, signed in or not (ADR 27).'
       - 'A `guard()` override only for a rule that needs no caller id, such as administrators only.'
@@ -226,6 +249,7 @@ checklists:
   query:
     place: src/Contexts/<Context>/Application/Queries/<UseCase>/
     parts:
+      - 'First, in an application with an `api/` (a created one has it; ADR 45): its answers as a fragment, `api/<n>-<name>.yaml` after the last one, the route by status and the resources it answers (its read model as a resource, `200: <thing>`); the end-to-end client (`apiClient()` in `src/Bootstrap/Fastify/api.spec-helper.ts`) holds every answer a test reads to it, and `yarn check:conventions` refuses a fragment that does not compose.'
       - 'A read model and a method on the queries port, with the order and the unknown-id answer in its JSDoc.'
       - 'The handler reads the port and nothing else: no sorting, no second port, no aggregate.'
       - 'One line in `Application/Queries/index.ts`.'
@@ -238,6 +262,7 @@ checklists:
       - 'A payload carrying everything a consumer needs, so it never queries back.'
       - 'A domain event handler in the publishing context that translates the domain event into it and calls `publishIntegrationEvent()` — that is where a fact leaves its context, through the outbox, never straight to the bus.'
       - 'An anti-corruption handler in each consuming context, registered in its `module.local.ts`.'
+      - 'Declared first in `conventions/integration-events.yaml`, by its public name (`NoteShared`): its publisher and its payload as version 1, each field in lowerCamel as `string`, `number`, `boolean`, `object`, `array` or `any`, `?` for an optional property; the check holds the class to the last version field for field, and a field removed, renamed or retyped later is a new version appended (CTX-PUBLISHED-LANGUAGE).'
       - 'Adding one is not an architecture change: the folder is where a context publishes, and a feature may publish.'
   event-handler:
     place: src/Contexts/<Context>/Application/Events/<Name>Handler.ts
@@ -270,24 +295,28 @@ profiles_held:
       command:
         place: src/Contexts/<Context>/Application/<Things>.ts
         parts:
-          - 'A use case in the file of its thing''s use cases, one export each: `export const <intent> = command(''<Intent>'', (<ports>) => async (input, context) => …)` ([`UseCase.ts`](src/Architecture/Application/Lite/UseCase.ts)); the name is the public one, without a suffix.'
-          - '`requireSignedIn(context, ''<Context>'')` first, and its refusal returned; a use case anyone may ask for (signing up, a link that carries its own proof) has none.'
-          - 'Validate with the domain''s value objects and functions, returning their failed `Result`; generate a new thing''s id with `Id.generate()` and return it; write through the store port the use case takes, the only port it has unless it asks an outside system or another context.'
-          - 'A fact another context reacts to: `publishIntegrationEvent(<Fact>IntegrationEvent.set(…), context)`, after the write — the outbox makes it durable with the write and publishes it after the commit; a refusal undoes both.'
-          - 'Listed once in `module.local.ts`, built with its ports: `useCases: [<intent>(<store>), …]` in a `LiteModule` ([`LiteModule.ts`](src/Architecture/Application/Lite/LiteModule.ts)).'
+          - 'First, in an application with an `api/` (a created one has it; ADR 45): its answers as a fragment, `api/<n>-<name>.yaml` after the last one, the route by status and the resources it answers (`201: created` for a create); the end-to-end client (`apiClient()` in `src/Bootstrap/Fastify/api.spec-helper.ts`) holds every answer a test reads to it, and `yarn check:conventions` refuses a fragment that does not compose.'
+          - 'A refusal it adds is named first in `conventions/rules.yaml` (ADR 46): its public name (the exception without `Exception`), its context, the rule in one sentence, its origin; the check holds it to the exception the context returns and to a spec of that context that names it (DOMAIN-RULE-NAMED).'
+          - 'A use case in the file of its thing''s use cases, one export each: `export const <intent> = command(''<Intent>'', (<ports>, clock: Clock) => async (input, context) => …)` ([`UseCase.ts`](src/Architecture/Application/Lite/UseCase.ts)); the name is the public one, without a suffix.'
+          - 'Who may call it, said once: a signed-in caller unless the definition ends with `{ caller: ''anyone'' }` (signing up, a link that carries its own proof); the route''s `answerAtOnce()` refuses a missing caller with `401` before it runs, so no `requireSignedIn()` here — `callerOf(context)` gives the caller''s id where the decision needs it; "administrators only" is asked through the shared kernel''s `Role` and refused with a `NotAllowedException` (`403`).'
+          - 'Its rules in a decision, `decide<Intent>` in `Domain/<Thing>/<Thing>.decision.ts`: a pure function `Decision<State, Command, Fact>` of the state, the command and `now` ([`Decision.ts`](src/Architecture/Domain/Lite/Decision.ts)) that answers `decided(newState, ...facts)` or the rule''s failed `Result`, refusing a value through the value objects and generating a new thing''s id with `Id.generate()`; no port, no `async`, no clock — the linter refuses them there.'
+          - 'The use case is the shell: load what the decision needs through the store port, call it with `clock()`, return its refusal as is, save the state it answers, return a new thing''s id; the store is its only port unless it asks an outside system or another context.'
+          - 'A fact another context reacts to: the decision records it, and the use case publishes each one, `publishIntegrationEvent(<Fact>IntegrationEvent.set(…), context)`, after the save — the outbox makes it durable with the write and publishes it after the commit; a refusal undoes both.'
+          - 'Listed once in `module.local.ts`, built with its ports and the system clock: `useCases: [<intent>(<store>, systemClock), …]` in a `LiteModule` ([`LiteModule.ts`](src/Architecture/Application/Lite/LiteModule.ts)).'
           - 'A route in `Presentation/<things>.routes.ts` that answers it at once and does nothing else: `answerAtOnce(req, reply, module.useCase(<intent>), input, { created: true })` for a create, without the option otherwise ([`AnswerAtOnce.ts`](src/Architecture/Presentation/Lite/AnswerAtOnce.ts)); the body''s schema says its shape only (API-BODY-SHAPE).'
-          - '`<Things>.spec.ts` beside the use cases, with the in-memory store as the double: a happy path and one refusal for each command; an end-to-end case in `Presentation/<things>.routes.e2e.spec.ts` when the flow is user-visible.'
+          - '`<Thing>.decision.spec.ts` beside the decisions, with no double: a state, a command, a time, the answer — the happy path and each refusal; `<Things>.spec.ts` beside the use cases, with the in-memory store as the double, for what the shell does (loads, saves, publishes); an end-to-end case in `Presentation/<things>.routes.e2e.spec.ts` when the flow is user-visible.'
       query:
         place: src/Contexts/<Context>/Application/<Things>.ts
         parts:
-          - '`export const <question> = query(''<Question>'', (<store>) => async (input, context) => …)` in the file of its thing''s use cases, returning a read model, never an aggregate (QUERY-READ-MODELS).'
+          - 'First, in an application with an `api/` (a created one has it; ADR 45): its answers as a fragment, `api/<n>-<name>.yaml` after the last one, the route by status and the resources it answers (its read model as a resource, `200: <thing>`); the end-to-end client (`apiClient()` in `src/Bootstrap/Fastify/api.spec-helper.ts`) holds every answer a test reads to it, and `yarn check:conventions` refuses a fragment that does not compose.'
+          - '`export const <question> = query(''<Question>'', (<store>) => async (input, context) => …)` in the file of its thing''s use cases, returning a read model, never an aggregate (QUERY-READ-MODELS); for a signed-in caller unless it ends with `{ caller: ''anyone'' }`, as a command.'
           - 'The read model and the store''s method that answers it are declared in the store port, with the order and the answer to an unknown id in its JSDoc; the query never sorts.'
           - 'Listed in the Module''s `useCases`, answered by `answerAtOnce()` on `GET` (`200` with the read model, a refusal with its status).'
       context:
         place: src/Contexts/<Context>/
         parts:
           - 'Declared in `contexts` in this file and held to Lite: `profiles: { <Context>: lite }`, or `default_profile: lite` in an application created Lite; described in `conventions/domain.yaml` (its subdomain, its purpose, its language), a relationship to another context declared there before the code carries it (CTX-MAP-DECLARED).'
-          - '`Domain/`: value objects, the domain''s functions and the exceptions — a not-found one extends `NotFoundException`; an aggregate only where two commands write one thing (several-writers), a domain event only where something reacts to it, each by an ADR.'
+          - '`Domain/`: per thing, its state (`<Thing>.ts`, with the facts its decisions record), its decisions (`<Thing>.decision.ts`), value objects and exceptions — a not-found one extends `NotFoundException`; an aggregate only where two commands write one thing (several-writers), a domain event only where something reacts to it, each by an ADR.'
           - '`Application/`: `<Things>.ts`, the use cases of one thing, and the ports they take at the edges — `I<Thing>Store.ts` for the store, a port for an outside system or another context; no port for anything inside the context.'
           - '`Infrastructure/`: an adapter per port (`InMemory<Thing>Store.ts` over an `InMemoryDataSource`, which the unit of work snapshots).'
           - '`Presentation/<things>.routes.ts`: one registration per use case, each answering through `answerAtOnce()`, the Module in the routes'' options.'
@@ -296,6 +325,7 @@ profiles_held:
     # The file that shows each mechanism the profile uses or keeps, by the profile's word.
     shows:
       use-case: [src/Architecture/Application/Lite/UseCase.ts, src/Architecture/Application/Lite/UseCase.spec.ts]
+      decision: [src/Architecture/Domain/Lite/Decision.ts, src/Architecture/Domain/Lite/Decision.spec.ts, eslint.config.js]
       answered-at-once: [src/Architecture/Presentation/Lite/AnswerAtOnce.ts, src/Architecture/Presentation/Lite/AnswerAtOnce.spec.ts]
       module-as-data: [src/Architecture/Application/Lite/LiteModule.ts, src/Architecture/Application/Lite/LiteModule.spec.ts]
       outbox: [src/Architecture/Application/DomainEvents.ts, src/Architecture/Application/Outbox.ts]
@@ -313,6 +343,7 @@ profiles_held:
         - src/Bootstrap/Fastify/FastifyApplication.ts
         - src/Bootstrap/Fastify/fastify.d.ts
         - src/Bootstrap/Fastify/application.ts
+        - src/Bootstrap/Fastify/api.spec-helper.ts
         - { from: src/Bootstrap/LiteStarter/createApplication.ts, to: src/Bootstrap/Fastify/createApplication.ts }
         - { from: src/Bootstrap/LiteStarter/createApplication.e2e.spec.ts, to: src/Bootstrap/Fastify/createApplication.e2e.spec.ts }
         - tsconfig.json

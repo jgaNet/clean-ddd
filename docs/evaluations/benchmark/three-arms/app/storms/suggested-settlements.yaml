@@ -1,0 +1,37 @@
+# Feature 11 of Tally (../backlog/11-suggested-settlements.md), as the session decided it. The first request of
+# Settlements, declared at checkpoint 2's session (README, T2).
+schemaVersion: 1
+
+feature: suggested-settlements
+intent: >-
+  A member reads the transfers that would bring every balance of the group to zero, made by a stated algorithm: the most owing pays the most owed, ties to whoever joined first.
+
+done: false
+
+hotSpots:
+  - question: Which context answers the suggestion — Ledger, which keeps the balances, or Settlements?
+    decision: Settlements — a suggestion is a settlement not yet made, in Settlements' words; it reads the balances through a port it owns (GroupBalances), answered over Ledger's balances read model, and the members' order through SettlementMembers, answered over Groups'.
+  - question: Is the suggestion kept?
+    decision: No — a query computed at the read from the balances as they are; nothing is recorded and no fact is published.
+  - question: The fewest transfers?
+    decision: The stated greedy algorithm, never more than one fewer than the members not even; the true minimum is a hard problem and two trees would answer it differently, so the request states the algorithm and the order.
+
+contexts:
+  - id: Settlements
+    commands: []
+    queries:
+      - name: GetSuggestedSettlements
+        actor: a signed-in account
+        route: GET /groups/{param}/settlements/suggested
+    events: []
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Ledger
+    downstream: Settlements
+    contracts: [GroupBalances]
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Settlements
+    contracts: [SettlementMembers]

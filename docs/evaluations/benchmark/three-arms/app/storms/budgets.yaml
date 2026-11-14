@@ -1,0 +1,69 @@
+# Feature 24 of Tally (../backlog/24-budgets.md), as the session decided it.
+schemaVersion: 1
+
+feature: budgets
+intent: >-
+  An expense has a category; the owner sets a monthly budget per category; when an expense recorded or edited makes its month spend more than its category's budget, every member is told once for that month.
+
+done: false
+
+hotSpots:
+  - question: Where is a budget, and who decides it is passed?
+    decision: A Budget aggregate per group and category in Ledger, set and removed by the owner (the role read through GroupMembers); it keeps the months it has been passed in, so that it records BudgetPassed once a month. A policy on ExpenseRecorded and ExpenseEdited reads what the expense's month spends (Ledger's own read model) and asks the Budget to decide.
+  - question: How does Notifications learn of it, and who is told?
+    decision: Ledger publishes BudgetPassed, an integration event on the relationship it already has with Notifications (T9), carrying the group, the category, the month, the budget, what the month spends and the members to tell (read through GroupMembers when it was decided); Notifications makes one Notice per member in its own transaction. No new relationship.
+  - question: Is it soon, and once, across a crash?
+    decision: The fact is stored with the Budget's change and relayed after the commit (EVENT-AFTER-COMMIT); the bus delivers it once, and the reaction is never made idempotent by hand.
+  - question: Is the category a value of the Expense?
+    decision: Yes — one of eight, `other` when none is given; the recurring expense keeps one for its expenses (request 23).
+
+contexts:
+  - id: Ledger
+    commands:
+      - name: SetBudget
+        actor: a signed-in account
+        route: PUT /groups/{param}/budgets/{param}
+        aggregate: Budget
+        events: [BudgetSet]
+      - name: RemoveBudget
+        actor: a signed-in account
+        route: DELETE /groups/{param}/budgets/{param}
+        aggregate: Budget
+        events: [BudgetRemoved]
+    queries:
+      - name: GetGroupBudgets
+        actor: a signed-in account
+        route: GET /groups/{param}/budgets
+    events: [BudgetPassed, BudgetRemoved, BudgetSet, ExpenseEdited, ExpenseRecorded]
+    policies:
+      - on: ExpenseRecorded
+        kind: domain-event
+        publishes: []
+        events: [BudgetPassed]
+      - on: ExpenseEdited
+        kind: domain-event
+        publishes: []
+        events: [BudgetPassed]
+      - on: BudgetPassed
+        kind: domain-event
+        publishes: [BudgetPassed]
+        events: []
+  - id: Notifications
+    commands: []
+    queries: []
+    events: [NoticeIssued]
+    policies:
+      - on: BudgetPassed
+        kind: integration-event
+        publishes: []
+        events: [NoticeIssued]
+
+links:
+  - mechanism: integration-event
+    upstream: Ledger
+    downstream: Notifications
+    contracts: [BudgetPassed]
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupMembers]

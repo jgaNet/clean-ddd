@@ -1,0 +1,42 @@
+# Request 23: a recurring expense, whose expenses the background job records on its day of every month.
+resources:
+  recurring:
+    schema:
+      type: object
+      required: [id, groupId, paidBy, description, amount, startsOn, next]
+      properties:
+        id: { type: string }
+        groupId: { type: string }
+        paidBy: { type: string }
+        description: { type: string }
+        amount: { type: integer, minimum: 1 }
+        startsOn: { type: string, pattern: '^\d{4}-\d{2}-(0[1-9]|1\d|2[0-8])$' }
+        next: { type: string, pattern: '^\d{4}-\d{2}-(0[1-9]|1\d|2[0-8])$' }
+        splitBetween: { type: array, minItems: 1, items: { type: string } }
+        splitExactly:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [memberId, amount]
+            properties: { memberId: { type: string }, amount: { type: integer } }
+        splitByShares:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [memberId, shares]
+            properties: { memberId: { type: string }, shares: { type: integer, minimum: 1 } }
+      oneOf:
+        - { $comment: 'request 23: the split as it was given, exactly one of the three', required: [splitBetween] }
+        - { $comment: 'request 23: the split as it was given, exactly one of the three', required: [splitExactly] }
+        - { $comment: 'request 23: the split as it was given, exactly one of the three', required: [splitByShares] }
+routes:
+  POST /v1/groups/{id}/recurring:
+    2xx: { type: object, required: [id], properties: { id: { type: string } } }
+  GET /v1/recurring/{id}:
+    200: recurring
+  GET /v1/groups/{id}/recurring:
+    200: { type: array, items: { $resource: recurring } }
+  DELETE /v1/recurring/{id}:
+    2xx: {}

@@ -1,0 +1,23 @@
+# Request 32: what two people owe each other across their groups, netted as settlements that count at once.
+resources:
+  netting:
+    schema:
+      type: object
+      required: [id, by, with, currency, amount, settlements]
+      properties:
+        id: { type: string }
+        by: { type: string }
+        with: { type: string }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        amount: { type: integer, minimum: 1 }
+        settlements: { type: array, minItems: 2, items: { type: string } }
+  settlement:
+    states:
+      - field: method
+        add: [net]
+        test: nets what two people owe each other across the groups they share, as settlements that count at once
+routes:
+  POST /v1/nettings:
+    2xx: { type: object, required: [id], properties: { id: { type: string } } }
+  GET /v1/nettings/{id}:
+    200: netting

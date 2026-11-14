@@ -2,9 +2,19 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'os';
 import { join } from 'path';
 
+import { load } from 'js-yaml';
+
 import {
+  applicationApiProblems,
   checkConventions,
   checkExpectedStorm,
+  checkInventoryAgainstPublishedLanguage,
+  checkRuleRegister,
+  inspectRuleEvidence,
+  loadRuleRegister,
+  RULE_REGISTER_FILE,
+  validateRuleRegister,
+  loadPublishedLanguage,
   contractUnder,
   createApplication,
   describeInventory,
@@ -12,6 +22,7 @@ import {
   inspectInventory,
   loadArchitectureContract,
   loadDomainMap,
+  loadApplicationApi,
   loadExpectedStorm,
   oneHandlerProblems,
   profileOf,
@@ -38,6 +49,8 @@ import { addLiteTasks } from './lite-tasks.spec-helper';
  */
 
 const root = repositoryRoot();
+/** The guide an application starts with (RFC 0005, D4): it is read at every request. */
+const GUIDE_BUDGET_BYTES = 12 * 1024;
 const reference = loadArchitectureContract(root);
 
 describe('yarn architecture create', () => {
@@ -144,6 +157,52 @@ describe('yarn architecture create', () => {
     expect(validateContract(generated, directory)).toEqual([]);
   });
 
+  it("starts its API as data: the contract's operation, what any route answers, the Tracker's routes (ADR 45)", () => {
+    const fragment = load(read('api/1-the-api.yaml')) as {
+      resources: Record<string, { schema: unknown }>;
+      all_routes: Record<string, unknown>;
+      routes: Record<string, unknown>;
+    };
+    const contractText = readFileSync(join(root, 'conventions/architecture.yaml'), 'utf8');
+    const record = (load(contractText) as { http: { operation: { record: unknown } } }).http.operation.record;
+    // Generated from the contract's record, not a copy of it: the two are one record (ADR 41).
+    expect(fragment.resources.operation.schema).toEqual(record);
+    expect(fragment.all_routes).toEqual({ 202: 'accepted', '4xx': 'refusal' });
+    expect(Object.keys(fragment.routes)).toEqual(['GET /v1/tracker/operations', 'GET /v1/tracker/operations/{id}']);
+    expect(applicationApiProblems(directory)).toEqual([]);
+    expect(loadApplicationApi(directory).anyRoute).toHaveProperty('202');
+    expect(read('api/README.md')).toContain('`all_routes`');
+    // The end-to-end client that holds every answer to it, and the composition root's suite speaking through it.
+    expect(read('src/Bootstrap/Fastify/api.spec-helper.ts')).toBe(
+      readFileSync(join(root, 'typescript/src/Bootstrap/Fastify/api.spec-helper.ts'), 'utf8'),
+    );
+    expect(read('src/Bootstrap/Fastify/createApplication.e2e.spec.ts')).toContain('apiClient(app.address)');
+    // The guide says it in one line; the checklist of a command and of a query starts with it.
+    expect(read('CLAUDE.md')).toContain("A request's API goes into `api/` as a fragment first, before the code");
+    for (const kind of ['command', 'query'])
+      expect(generated.checklists.find(each => each.kind === kind)!.parts[0]).toMatch(
+        /^First, .*`api\/<n>-<name>\.yaml`/,
+      );
+  });
+
+  it('writes a guide within its budget, every rule it states held or marked review (RFC 0005, D4)', () => {
+    const guide = read('CLAUDE.md');
+    expect(Buffer.byteLength(guide)).toBeLessThanOrEqual(GUIDE_BUDGET_BYTES);
+    // Every bullet of the rules and of the things to avoid names its rule and how it is held.
+    const bullets = (heading: string) =>
+      guide
+        .split(`## ${heading}`)[1]
+        .split('\n## ')[0]
+        .split(/\n(?! {2})/)
+        .map(bullet => bullet.replace(/\n {2}/g, ' '))
+        .filter(bullet => bullet.startsWith('- '));
+    for (const line of [...bullets('The rules (enforced)'), ...bullets('Things to avoid')])
+      expect(line).toMatch(/\*\([^)]*; (linter|check|types|tests|review|evaluations)\)\*$|\(the feature mode; check\)/);
+    // The rules about the reference itself are not an application's.
+    expect(guide).not.toContain('(ARCH-ONE-CONTRACT;');
+    expect(guide).not.toContain('(ARCH-COMPAT-ROUTE;');
+  });
+
   it('starts with a context map that describes the Tracker and a place for storms, so the cross-context rule holds from the first feature', () => {
     const map = loadDomainMap(directory);
     expect(map).toMatchObject({ name: 'my-app', relationships: [] });
@@ -152,6 +211,49 @@ describe('yarn architecture create', () => {
     expect(validateDomainMap(map!, [generated], directory)).toEqual([]);
     expect(read('conventions/storms/README.md')).toContain('../../.claude/skills/storm/SKILL.md');
     expect(existsSync(join(directory, '.claude/skills/storm/SKILL.md'))).toBe(true);
+  });
+
+  it('starts with the published language of the Tracker, which its tree carries field for field (ADR 44)', () => {
+    const published = loadPublishedLanguage(directory)!;
+    expect(read('conventions/integration-events.yaml')).toMatch(/^# The published language \(ADR 44 of the reference,/);
+    expect(published.events.map(event => [event.name, event.publisher])).toEqual([['OperationComplete', 'Tracker']]);
+    const inventory = inspectInventory(generated, directory);
+    expect(inventory.integrationEvents).toEqual([
+      {
+        name: 'OperationComplete',
+        publisher: 'Tracker',
+        payload: {
+          error: 'string?',
+          operationId: 'string',
+          result: 'any?',
+          status: 'string',
+          type: 'string',
+          userId: 'string',
+        },
+      },
+    ]);
+    expect(checkInventoryAgainstPublishedLanguage(published, inventory)).toEqual([]);
+  });
+
+  it('refuses a payload field changed in the tree and not in the published language: the probe of CTX-PUBLISHED-LANGUAGE', () => {
+    const path = 'src/SharedKernel/Application/IntegrationEvents/TrackerIntegrationEvents.ts';
+    const text = read(path);
+    try {
+      writeFileSync(
+        join(directory, path),
+        text.replace('  error?: string;', '  reason?: string;').replace('  userId: string;', '  userId: number;'),
+      );
+      expect(
+        checkInventoryAgainstPublishedLanguage(
+          loadPublishedLanguage(directory)!,
+          inspectInventory(generated, directory),
+        ),
+      ).toEqual([
+        "CTX-PUBLISHED-LANGUAGE: typescript: OperationComplete's payload is not version 1 of conventions/integration-events.yaml: error (string?) is missing; userId is number, declared string; reason (string?) is not declared",
+      ]);
+    } finally {
+      writeFileSync(join(directory, path), text);
+    }
   });
 
   it('keeps every concept, shows only those a copied file still shows, and their canonical files exist', () => {
@@ -228,6 +330,26 @@ describe('yarn architecture create --language python', () => {
     expect(existsSync(join(directory, 'src/contexts/notes'))).toBe(false);
   });
 
+  it('refuses an api/ that does not compose, under API-ONE-SURFACE, in whichever language has one', async () => {
+    expect(existsSync(join(directory, 'api'))).toBe(false);
+    try {
+      mkdirSync(join(directory, 'api'));
+      writeFileSync(join(directory, 'api/1-the-api.yaml'), 'routes:\n  GET /v1/things/{id}:\n    200: thing\n');
+      writeFileSync(join(directory, 'api/2-broken.yaml'), 'routes: [unclosed\n');
+      expect(
+        (await checkConventions(directory)).problems.filter(problem => problem.startsWith('API-ONE-SURFACE')),
+      ).toEqual([expect.stringMatching(/^API-ONE-SURFACE: api\/2-broken\.yaml does not parse: /)]);
+      rmSync(join(directory, 'api/2-broken.yaml'));
+      expect(
+        (await checkConventions(directory)).problems.filter(problem => problem.startsWith('API-ONE-SURFACE')),
+      ).toEqual([
+        'API-ONE-SURFACE: api/1-the-api.yaml: GET /v1/things/{id} answers 200 with the resource thing, which no fragment of api/ defines',
+      ]);
+    } finally {
+      rmSync(join(directory, 'api'), { recursive: true, force: true });
+    }
+  });
+
   it('holds its context map to the links its own tool writes in the inventory: CTX-MAP-DECLARED outside TypeScript', async () => {
     expect((await checkConventions(directory)).problems).toEqual([]);
 
@@ -277,6 +399,24 @@ describe('yarn architecture create --language python', () => {
       writeFileSync(join(directory, 'conventions/python.yaml'), binding);
       writeFileSync(join(directory, 'conventions/domain.yaml'), map);
       writeFileSync(join(directory, 'README.md'), readme);
+    }
+  });
+
+  it('holds the payloads its own tool writes in the inventory to the published language: CTX-PUBLISHED-LANGUAGE outside TypeScript', async () => {
+    expect(read('conventions/integration-events.yaml')).toContain('OperationComplete:');
+    const inventory = read('docs/inventory/python.json');
+    try {
+      const changed = JSON.parse(inventory);
+      changed.integrationEvents[0].payload.kind = changed.integrationEvents[0].payload.type;
+      delete changed.integrationEvents[0].payload.type;
+      writeFileSync(join(directory, 'docs/inventory/python.json'), `${JSON.stringify(changed, null, 2)}\n`);
+      expect(
+        (await checkConventions(directory)).problems.filter(problem => problem.startsWith('CTX-PUBLISHED-LANGUAGE')),
+      ).toEqual([
+        "CTX-PUBLISHED-LANGUAGE: python: OperationComplete's payload is not version 1 of conventions/integration-events.yaml: type (string) is missing; kind (string) is not declared",
+      ]);
+    } finally {
+      writeFileSync(join(directory, 'docs/inventory/python.json'), inventory);
     }
   });
 
@@ -466,6 +606,7 @@ describe('yarn architecture create --profile lite', () => {
     // No operation to follow: no Tracker, no contract of its own, no starter of the reference's.
     expect(readdirSync(join(directory, 'src/Contexts'))).toEqual(['README.md']);
     expect(readdirSync(join(directory, 'src/SharedKernel/Application/IntegrationEvents'))).toEqual(['README.md']);
+    expect(read('conventions/integration-events.yaml')).toMatch(/\nevents: \{\}\n$/);
     expect(existsSync(join(directory, 'src/Bootstrap/LiteStarter'))).toBe(false);
     expect(read('conventions/typescript.yaml')).not.toMatch(/LiteStarter|src\/Contexts\/Notes/);
     expect(
@@ -476,6 +617,21 @@ describe('yarn architecture create --profile lite', () => {
     expect(read('CLAUDE.md')).toMatch(/held to the Lite profile/);
     expect(read('CLAUDE.md')).toMatch(/answerAtOnce\(\)/);
     expect(read('README.md')).toMatch(/\*\*Lite\*\* profile/);
+  });
+
+  it('starts its API as data answered at once: no operation, no 202, a refusal on any route (ADR 45)', () => {
+    const fragment = load(read('api/1-the-api.yaml')) as {
+      resources: Record<string, unknown>;
+      all_routes: Record<string, unknown>;
+      routes: Record<string, unknown>;
+    };
+    expect(Object.keys(fragment.resources)).toEqual(['refusal', 'created']);
+    expect(fragment.all_routes).toEqual({ '4xx': 'refusal' });
+    expect(fragment.routes).toEqual({});
+    expect(read('api/1-the-api.yaml')).toMatch(/answers every command at once/);
+    expect(applicationApiProblems(directory)).toEqual([]);
+    expect(read('src/Bootstrap/Fastify/createApplication.e2e.spec.ts')).toContain('apiClient(app.address)');
+    expect(read('CLAUDE.md')).toContain("A request's API goes into `api/` as a fragment first, before the code");
   });
 
   it('is sound on its own terms, and answers for Lite: its checklists, its grammar with no noun of the reference', () => {
@@ -499,6 +655,14 @@ describe('yarn architecture create --profile lite', () => {
       expect(profileOf(contract, 'Tasks')).toBe('lite');
       expect(validateContract(contract, directory)).toEqual([]);
       expect(validateDomainMap(loadDomainMap(directory)!, [contract], directory)).toEqual([]);
+    });
+
+    it('declares the fact it tells in the published language, which started empty, and carries it field for field', () => {
+      const inventory = inspectInventory(generated(), directory);
+      expect(inventory.integrationEvents).toEqual([
+        { name: 'TaskCompleted', publisher: 'Tasks', payload: { ownerId: 'string', taskId: 'string' } },
+      ]);
+      expect(checkInventoryAgainstPublishedLanguage(loadPublishedLanguage(directory)!, inventory)).toEqual([]);
     });
 
     it('reads its use cases: commands answered at once with their route, their caller and what they publish; its query', () => {
@@ -531,6 +695,18 @@ describe('yarn architecture create --profile lite', () => {
       expect(describeInventory(inventory)).toMatch(/CompleteTask .*publishes TaskCompleted; answered at once/);
     });
 
+    it('reads who may call a use case from where it is defined: anyone only where it says so (ADR 43)', () => {
+      const file = join(directory, 'src/Contexts/Tasks/Application/Tasks.ts');
+      const text = read('src/Contexts/Tasks/Application/Tasks.ts');
+      try {
+        writeFileSync(file, text.replace(/\n\);\n$/, "\n  { caller: 'anyone' },\n);\n"));
+        const queries = inspectInventory(generated(), directory).contexts[0].queries;
+        expect(queries).toEqual([{ name: 'ListMyTasks', actor: 'anyone', route: 'GET /tasks' }]);
+      } finally {
+        writeFileSync(file, text);
+      }
+    });
+
     it('fires the triggers its code meets, and no other: the outbox for what it tells, no bus for what it answers at once', () => {
       const contract = generated();
       expect(profileTriggers(contract, inspectInventory(contract, directory))).toEqual([
@@ -552,8 +728,11 @@ describe('yarn architecture create --profile lite', () => {
         writeFileSync(
           join(directory, 'src/Contexts/Tasks/module.local.ts'),
           wiring
-            .replace('completeTask(taskStore), ', '')
-            .replace('addTask(taskStore)', 'addTask(taskStore), addTask(taskStore)'),
+            .replace('completeTask(taskStore, systemClock), ', '')
+            .replace(
+              'addTask(taskStore, systemClock)',
+              'addTask(taskStore, systemClock), addTask(taskStore, systemClock)',
+            ),
         );
         expect(oneHandlerProblems(inspectEventStorm(contract, directory))).toEqual([
           'ARCH-ONE-HANDLER: Tasks: command AddTask has 2 handlers (addTask, addTask); a command has exactly one',
@@ -621,5 +800,115 @@ describe('yarn architecture create --profile, where a language does not hold the
     // Naming the default is the default.
     expect(createApplication(empty, 'my-app', root, undefined, 'full').profile).toBeUndefined();
     rmSync(empty, { recursive: true, force: true });
+  });
+});
+
+describe('yarn architecture create --rules', () => {
+  const plain = mkdtempSync(join(tmpdir(), 'created-plain-'));
+  const named = mkdtempSync(join(tmpdir(), 'created-rules-'));
+  const createdPlain = createApplication(plain, 'my-app', root);
+  const created = createApplication(named, 'my-app', root, undefined, undefined, { rules: true });
+  const readIn = (directory: string, path: string) => readFileSync(join(directory, path), 'utf8');
+  /** Every part of every checklist, the profiles' own included, as the binding says them. */
+  const checklistParts = (directory: string) => {
+    const contract = loadArchitectureContract(directory);
+    return profilesHeldBy(contract).flatMap(profile =>
+      contractUnder(contract, profile).checklists.flatMap(checklist =>
+        checklist.parts.map(part => `${profile} ${checklist.kind}: ${part}`),
+      ),
+    );
+  };
+  const step = (part: string) => part.includes('`conventions/rules.yaml`');
+
+  afterAll(() => {
+    rmSync(plain, { recursive: true, force: true });
+    rmSync(named, { recursive: true, force: true });
+  });
+
+  it('writes a rule register with the rules of the contexts it keeps: none of the Tracker’s', () => {
+    expect(created.namedRules).toBe(0);
+    expect(createdPlain.namedRules).toBeUndefined();
+    expect(readIn(named, RULE_REGISTER_FILE)).toMatch(/^# The rule register \(ADR 46 of the reference,/);
+    expect(readIn(named, RULE_REGISTER_FILE)).toMatch(/\nrules: \{\}\n$/);
+    expect(readIn(named, RULE_REGISTER_FILE)).not.toMatch(/ADR 19|share-a-note/);
+    expect(loadRuleRegister(named)).toEqual({ source: RULE_REGISTER_FILE, rules: [] });
+    const contract = loadArchitectureContract(named);
+    expect(contract.ruleRegister).toBe(true);
+    expect(validateContract(contract, named)).toEqual([]);
+    expect(validateRuleRegister(loadRuleRegister(named)!, ['Tracker'], named)).toEqual([]);
+    expect(checkRuleRegister(loadRuleRegister(named)!, inspectRuleEvidence(contract, named))).toEqual([]);
+  });
+
+  it('says in its guide, within its budget, and in its command checklists that a new refusal is named there first', () => {
+    const guide = readIn(named, 'CLAUDE.md');
+    expect(Buffer.byteLength(guide)).toBeLessThanOrEqual(GUIDE_BUDGET_BYTES);
+    expect(guide).toContain('(DOMAIN-RULE-NAMED; check)*');
+    expect(guide).toContain('A new refusal is named first in `conventions/rules.yaml`');
+    const steps = checklistParts(named).filter(step);
+    expect(steps.map(part => part.split(':')[0])).toEqual(['full command', 'lite command']);
+  });
+
+  it('without --rules, writes no register and says nothing of it: the guide and the checklists are as before ADR 46', () => {
+    expect(existsSync(join(plain, RULE_REGISTER_FILE))).toBe(false);
+    expect(loadArchitectureContract(plain).ruleRegister).toBeUndefined();
+    const guide = readIn(plain, 'CLAUDE.md');
+    expect(guide).not.toContain('DOMAIN-RULE-NAMED');
+    expect(guide).not.toContain('rules.yaml');
+    expect(readIn(plain, 'README.md')).not.toContain('DOMAIN-RULE-NAMED');
+    // Byte for byte what the application with the register says, less the rule and the line about the register.
+    const withRegister = readIn(named, 'CLAUDE.md')
+      .split('\n')
+      .filter(line => !line.includes('DOMAIN-RULE-NAMED'))
+      .join('\n')
+      .replace('\n\n\n', '\n\n');
+    expect(guide).toBe(withRegister);
+    expect(checklistParts(plain)).toEqual(checklistParts(named).filter(part => !step(part)));
+    expect(readIn(plain, 'conventions/typescript.yaml')).not.toContain('rules.yaml');
+  });
+
+  describe('held Lite, with a context of its own', () => {
+    const lite = mkdtempSync(join(tmpdir(), 'created-lite-rules-'));
+    createApplication(lite, 'my-lite-app', root, undefined, 'lite', { rules: true });
+    afterAll(() => rmSync(lite, { recursive: true, force: true }));
+
+    it('names each refusal its decisions return, until the register names it and a spec of the context does', () => {
+      addLiteTasks(lite);
+      const contract = loadArchitectureContract(lite);
+      const findings = () => checkRuleRegister(loadRuleRegister(lite)!, inspectRuleEvidence(contract, lite));
+      expect(findings().map(finding => finding.split(' (')[0])).toEqual([
+        'DOMAIN-RULE-NAMED: Tasks returns TaskNotFound',
+        'DOMAIN-RULE-NAMED: Tasks returns NotYourTask',
+        'DOMAIN-RULE-NAMED: Tasks returns TaskAlreadyCompleted',
+        'DOMAIN-RULE-NAMED: Tasks returns BlankTaskTitle',
+        'DOMAIN-RULE-NAMED: Tasks returns TaskTitleTooLong',
+      ]);
+      const rule = (name: string, statement: string) =>
+        `  ${name}:\n    context: Tasks\n    statement: ${statement}\n    origin: { request: R1 }\n`;
+      writeFileSync(
+        join(lite, RULE_REGISTER_FILE),
+        readIn(lite, RULE_REGISTER_FILE).replace(
+          /\nrules: \{\}\n$/,
+          `\nrules:\n${[
+            rule('BlankTaskTitle', 'A task has a title.'),
+            rule('TaskTitleTooLong', 'A task title is short.'),
+            rule('TaskNotFound', 'Only a task that exists is completed.'),
+            rule('NotYourTask', 'Only its owner completes a task.'),
+            rule('TaskAlreadyCompleted', 'A task is completed once.'),
+          ].join('')}`,
+        ),
+      );
+      expect(validateRuleRegister(loadRuleRegister(lite)!, ['Tasks'], lite)).toEqual([]);
+      // What remains is evidence: the rules whose refusal no spec of Tasks names.
+      expect(findings()).toEqual([
+        'DOMAIN-RULE-NAMED: conventions/rules.yaml rule TaskTitleTooLong (Tasks): no test of Tasks names it — TaskTitleTooLong or TaskTitleTooLongException in a *.spec.ts under src/Contexts/Tasks',
+        'DOMAIN-RULE-NAMED: conventions/rules.yaml rule TaskNotFound (Tasks): no test of Tasks names it — TaskNotFound or TaskNotFoundException in a *.spec.ts under src/Contexts/Tasks',
+      ]);
+      // A spec that names them, and the register holds.
+      writeFileSync(
+        join(lite, 'src/Contexts/Tasks/Domain/Task/TaskExceptions.spec.ts'),
+        "import { TaskNotFoundException } from '@Contexts/Tasks/Domain/Task/TaskExceptions';\nimport { TaskTitleTooLongException } from '@Contexts/Tasks/Domain/Task/TaskTitle';\n\nit('names them', () => expect([TaskNotFoundException, TaskTitleTooLongException]).toHaveLength(2));\n",
+      );
+      expect(findings()).toEqual([]);
+    });
   });
 });

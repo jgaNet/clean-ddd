@@ -25,18 +25,18 @@ impl<R: NotificationRepository + Send + Sync + 'static> EventHandler for Operati
     type Event = OperationCompleteIntegrationEvent;
 
     async fn execute(&self, event: OperationCompleteIntegrationEvent, context: &ExecutionContext) -> DomainResult {
-        let OperationCompleteIntegrationEvent { operation_id, user_id, status, kind, result, error } = event;
+        let OperationCompleteIntegrationEvent { operation_id, user_id, status, r#type: name, result, error } = event;
         let (title, content) = match status.as_str() {
-            "SUCCESS" => (format!("Operation complete: {kind}"), format!("Your operation {operation_id} succeeded.")),
+            "SUCCESS" => (format!("Operation complete: {name}"), format!("Your operation {operation_id} succeeded.")),
             "ERROR" => (
-                format!("Operation failed: {kind}"),
+                format!("Operation failed: {name}"),
                 format!("Your operation {operation_id} failed: {}", error.as_deref().unwrap_or("unknown error")),
             ),
             _ => return Ok(()), // not an outcome (PENDING, SENT): nothing to tell the user yet
         };
         let mut metadata = Metadata::from([
             ("operationId".to_string(), operation_id),
-            ("type".to_string(), kind),
+            ("type".to_string(), name),
             ("status".to_string(), status),
         ]);
         if let Some(result) = result {

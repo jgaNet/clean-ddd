@@ -1,0 +1,4 @@
+# Request 35: a person deletes their account; their name and email are erased, their balances kept.
+routes:
+  DELETE /v1/accounts/me:
+    2xx: {}

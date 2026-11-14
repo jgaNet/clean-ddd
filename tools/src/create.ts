@@ -3,9 +3,11 @@ import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { dump, load } from 'js-yaml';
 
-import { ArchitectureContract, Concept, ContractError, CreateSpec, Rule } from './types';
+import { ArchitectureContract, Concept, ContractError, CreateSpec, Rule, RULE_REGISTER_FILE } from './types';
 import { loadArchitectureContract, repositoryRoot, typedFrom } from './load';
 import { Inventory, serializeInventory } from './inventory';
+import { PUBLISHED_LANGUAGE_FILE } from './published-language';
+import { API_DIR } from './api';
 import {
   END_MARKER,
   RULES_MARKER,
@@ -174,6 +176,8 @@ export interface CreatedApplication {
   language: string;
   /** The profile its contexts are held to when it is not the default (`create --profile lite`; ADR 40). */
   profile?: string;
+  /** The rules its register starts with, when it was created with one (`create --rules`; ADR 46). */
+  namedRules?: number;
   /** The contexts it starts with: plumbing every application needs, never the reference's business (ADR 27). */
   contexts: string[];
   /** The commands to run first, in the language's words. */
@@ -191,6 +195,11 @@ export function createApplication(
   language?: string,
   /** The profile its contexts are held to (ADR 40); the contract's default when none is named. */
   profile?: string,
+  /**
+   * `rules`: a rule register (ADR 46), with the rules of the contexts it keeps; its guide and its checklists then say
+   * that a new refusal is named there first. Without it, nothing of the register is written or said.
+   */
+  options: { rules?: boolean } = {},
 ): CreatedApplication {
   if (existsSync(directory) && readdirSync(directory).length) {
     throw new Error(`${directory} is not empty; a new application is created in an empty directory`);
@@ -314,7 +323,7 @@ export function createApplication(
   const concepts = contract.concepts
     .map(concept => surviving(concept, directory, local))
     .filter((concept): concept is Concept => concept !== undefined);
-  writeContract(directory, source, contract, concepts, name, contexts, held?.id);
+  writeContract(directory, source, contract, concepts, name, contexts, held?.id, options.rules === true);
 
   // 4. The documents, rendered from that contract exactly as this repository renders its own,
   //    the manifest, and — where the language's own tool holds its inventory — an empty one.
@@ -325,6 +334,9 @@ export function createApplication(
     contexts,
     language: { ...contract.language, root: '.' },
   };
+  // The register is the application's only when it was created with one: the reference's says nothing about it.
+  if (options.rules) lean.ruleRegister = true;
+  else delete lean.ruleRegister;
   writeFileSync(join(directory, 'README.md'), readme(lean, name, local, held?.name));
   writeFileSync(join(directory, 'CLAUDE.md'), claude(lean, name, local, held?.name));
   mkdirSync(join(directory, 'docs/adr'), { recursive: true });
@@ -333,8 +345,27 @@ export function createApplication(
   // (RFC 0001): an empty context map, so that CTX-MAP-DECLARED holds the first relationship between
   // two contexts, and the directory the storms a session decides are written to.
   writeFileSync(join(directory, 'conventions/domain.yaml'), domainMap(name, source, contexts));
+  // The published language (ADR 44): the events of the contexts it starts with, as the reference declares
+  // them, so that CTX-PUBLISHED-LANGUAGE holds the first event a context of its own publishes.
+  writeFileSync(join(directory, PUBLISHED_LANGUAGE_FILE), publishedLanguage(source, contexts));
+  // The rule register (ADR 46), when asked for: the rules of the contexts it starts with (none of the Tracker's),
+  // so that DOMAIN-RULE-NAMED holds the first refusal a context of its own returns.
+  const register = options.rules ? ruleRegister(source, contexts) : undefined;
+  if (register) writeFileSync(join(directory, RULE_REGISTER_FILE), register.text);
   mkdirSync(join(directory, 'conventions/storms'), { recursive: true });
   writeFileSync(join(directory, 'conventions/storms/README.md'), stormsReadme());
+  // The API as data (ADR 45): its first fragment, the operation generated from the contract's
+  // `http.operation`, what any route may answer, and the routes it ships with; where the binding
+  // copies the end-to-end client that holds every answer to it (a TypeScript application).
+  if (spec.copy.some(({ to }) => local(to) === API_CLIENT)) {
+    const answersAtOnce = (held ?? contract.profiles.find(each => each.default))?.grammar !== 'http';
+    mkdirSync(join(directory, API_DIR), { recursive: true });
+    writeFileSync(
+      join(directory, API_DIR, '1-the-api.yaml'),
+      firstApiFragment(source, contract, contexts, answersAtOnce),
+    );
+    writeFileSync(join(directory, API_DIR, 'README.md'), apiReadme());
+  }
   writeFileSync(join(directory, local(spec.manifest)), manifest(spec, source, languageDir, name));
   if (!existsSync(join(directory, '.gitignore'))) {
     writeFileSync(join(directory, '.gitignore'), 'node_modules\ndist\ncoverage\n*.tsbuildinfo\n');
@@ -352,6 +383,7 @@ export function createApplication(
     name,
     language: contract.language.id,
     ...(held && { profile: held.id }),
+    ...(register && { namedRules: register.rules }),
     contexts,
     next: [
       `cd ${directory} && ${spec.install}`,
@@ -384,6 +416,8 @@ function writeContract(
   contexts: string[],
   /** The profile its contexts are held to, when it is not the default: the binding's `default_profile`. */
   profile?: string,
+  /** Whether it has a rule register (ADR 46): without one, no checklist names it. */
+  register: boolean = false,
 ): void {
   mkdirSync(join(directory, 'conventions/plans'), { recursive: true });
   const yaml = { lineWidth: 110, noRefs: true };
@@ -459,6 +493,15 @@ function writeContract(
   // reference's business. An application created under one of them holds its contexts to it, and its
   // `create` is the one that made it.
   const profilesHeld = (binding.profiles_held ?? {}) as Record<string, Record<string, unknown>>;
+  // A checklist's step that names the rule register (ADR 46) is the application's only when it has one.
+  if (!register) {
+    for (const checklists of [binding.checklists, ...Object.values(profilesHeld).map(entry => entry.checklists)]) {
+      for (const checklist of Object.values((checklists ?? {}) as Record<string, { parts?: unknown[] }>)) {
+        if (Array.isArray(checklist?.parts))
+          checklist.parts = checklist.parts.filter(part => !String(part).includes(RULE_REGISTER_FILE));
+      }
+    }
+  }
   if (profile && typeof profilesHeld[profile]?.create === 'object') {
     binding.create = { ...(binding.create as object), ...(profilesHeld[profile].create as object) };
   }
@@ -708,11 +751,14 @@ function claude(
           'a domain event, a command answered later come in by an ADR, never quietly.',
           '',
           `Run \`${ask} checklist <kind>\` for the file list, and \`${ask} verb <intent>\``,
-          'for the route; both answer for the profile. In short: the domain first (a value object or a function that',
-          'refuses a value with its exception), then the use case — a function of its ports, in the file of its',
-          "thing's use cases — then the store's adapter only if a method changed, then the route, which answers it at",
-          `once through \`answerAtOnce()\`, then the use case listed in the \`LiteModule\` of \`${contract.wiring}\`.`,
-          'Expected failures are `Result` values, never thrown.',
+          'for the route; both answer for the profile. In short: the domain first — a decision in',
+          '`<Thing>.decision.ts`, a pure function of the state, the command and the time that answers the new state',
+          'and its facts or the refusal (no port, no `async`, no clock: the linter refuses them there) — then the use',
+          "case, a function of its ports in the file of its thing's use cases that loads, decides, saves and",
+          "publishes, then the store's adapter only if a method changed, then the route, which answers it at once",
+          `through \`answerAtOnce()\` (\`401\` to a missing caller unless the use case says \`{ caller: 'anyone' }\`),`,
+          `then the use case listed in the \`LiteModule\` of \`${contract.wiring}\`. Expected failures are \`Result\` values,`,
+          'never thrown.',
         ]
       : [
           `Run \`${ask} checklist <kind>\` for the file list, and \`${ask} verb <intent>\``,
@@ -721,22 +767,35 @@ function claude(
           `the route, then the wiring in \`${contract.wiring}\`. A rule that spans aggregates or needs a port is a`,
           'domain service. Expected failures are `Result` values, never thrown.',
         ]),
+    ...(contract.ruleRegister
+      ? [
+          '',
+          `A new refusal is named first in \`${RULE_REGISTER_FILE}\` (its public name, context, statement, origin), and a spec of its context names it. *(DOMAIN-RULE-NAMED; check)*`,
+        ]
+      : []),
     '',
     "## The API's shape",
     '',
+    ...(contract.create?.copy.some(({ to }) => local(to) === API_CLIENT)
+      ? [
+          "A request's API goes into `api/` as a fragment first, before the code (`api/README.md`); the end-to-end",
+          'tests hold every answer to it, through `apiClient()`. *(API-ONE-SURFACE; tests)*',
+          '',
+        ]
+      : []),
     'When a specification (a request, a ticket, an API document) says what the API answers — a field, its type, when',
     'it is `null`, a status — that is the shape, even where the code already answers otherwise: change the code that',
     "projects the answer (the read model, its projection, the route's schema) and the tests that read the old shape,",
     'never the specification. A field is `null` only where a specification says so; a state added later keeps the',
     "values the earlier ones gave. What an operation answers when it is read is the contract's (`http.operation`); a",
-    'specification that wants another shape says so where it is first decided.',
+    'specification that wants another shape says so where it is first decided. *(API-ONE-SURFACE; review)*',
     '',
     '## Things to avoid',
     '',
-    '- A generic `Mapper`, `Repository<T>`, `Saga`, service locator or DI container.',
-    `- Fixing a boundary violation by silencing the linter instead of a port: the conventions check refuses one.`,
+    '- A generic `Mapper`, `Repository<T>`, `Saga`, service locator or DI container. *(ARCH-MODULES-DATA; review)*',
+    `- Fixing a boundary violation by silencing the linter instead of a port: the conventions check refuses one. *(ARCH-MAP-IS-REAL; check)*`,
     `- Changing anything under \`${local(contract.architecture.path)}\`, \`${local(contract.kernel.path)}\` or \`conventions\` while adding a feature:`,
-    `  \`${ask} mode feature\` will say so, and that is a finding, not a detour.`,
+    `  \`${ask} mode feature\` will say so, and that is a finding, not a detour. *(the feature mode; check)*`,
     '',
   ].join('\n');
 }
@@ -780,6 +839,61 @@ function domainMap(name: string, source: string, contexts: string[]): string {
 }
 
 /**
+ * The published language of a new application: the reference's header, and the events the contexts it
+ * starts with publish (the Tracker's), as the reference declares them; `events: {}` when it starts with none.
+ */
+function publishedLanguage(source: string, contexts: string[]): string {
+  const file = join(source, PUBLISHED_LANGUAGE_FILE);
+  const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
+  const header =
+    text.slice(0, Math.max(0, text.search(/^events:/m))).replace(/\(ADR (\d+),/, '(ADR $1 of the reference,') ||
+    PUBLISHED_LANGUAGE_HEADER;
+  const reference = text ? (load(text) as { events?: Record<string, { publisher?: string }> | null }) : {};
+  const events = Object.fromEntries(
+    Object.entries(reference?.events ?? {}).filter(([, event]) => contexts.includes(event?.publisher ?? '')),
+  );
+  return `${header}${Object.keys(events).length ? dump({ events }, { lineWidth: 110, noRefs: true }) : 'events: {}\n'}`;
+}
+
+/**
+ * The rule register of a new application (ADR 46): the reference's header, without what it says of the reference's
+ * own history, and the rules of the contexts it starts with; `rules: {}` when they have none (the Tracker refuses
+ * nothing of its own).
+ */
+function ruleRegister(source: string, contexts: string[]): { text: string; rules: number } {
+  const file = join(source, RULE_REGISTER_FILE);
+  const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
+  const header =
+    text
+      .slice(0, Math.max(0, text.search(/^(# The rules the reference|rules:)/m)))
+      .replace(/#\n$/, '')
+      .replace(/\(ADR (\d+),/, '(ADR $1 of the reference,') || RULE_REGISTER_HEADER;
+  const reference = text ? (load(text) as { rules?: Record<string, { context?: string }> | null }) : {};
+  const rules = Object.fromEntries(
+    Object.entries(reference?.rules ?? {}).filter(([, rule]) => contexts.includes(rule?.context ?? '')),
+  );
+  return {
+    text: `${header}${Object.keys(rules).length ? dump({ rules }, { lineWidth: 110, noRefs: true }) : 'rules: {}\n'}`,
+    rules: Object.keys(rules).length,
+  };
+}
+
+const RULE_REGISTER_HEADER = [
+  '# The rule register (ADR 46 of the reference, DOMAIN-RULE-NAMED): every refusal a context can return, declared once',
+  "# by its public name, with its context, the rule in the business's words and its origin ({ adr: <n> },",
+  '# { storm: <feature> } or { request: <id> }). `clean-ddd rule DOMAIN-RULE-NAMED` explains the rule.',
+  '',
+].join('\n');
+
+const PUBLISHED_LANGUAGE_HEADER = [
+  '# The published language (ADR 44 of the reference, CTX-PUBLISHED-LANGUAGE): every integration event a context',
+  '# publishes, declared once — its public name, the context that publishes it, the thing it announces when it',
+  '# announces one, and the payload of each version it has been published in, oldest first. A version once merged is',
+  '# changed only by an added optional field. `clean-ddd rule CTX-PUBLISHED-LANGUAGE` explains the rule.',
+  '',
+].join('\n');
+
+/**
  * The inventory a language's own tool would write for the contexts a new application starts
  * with: the reference's, narrowed to them and to the links between them. The check of the new
  * application then holds it to its tree like any other.
@@ -793,8 +907,112 @@ function startingInventory(source: string, language: string, contexts: string[])
     ...reference,
     contexts: reference.contexts.filter(context => contexts.includes(context.id)),
     links: reference.links.filter(link => contexts.includes(link.upstream) && contexts.includes(link.downstream)),
+    ...(reference.integrationEvents && {
+      integrationEvents: reference.integrationEvents.filter(event => contexts.includes(event.publisher)),
+    }),
   };
 }
+
+/** The end-to-end client every created TypeScript application's suites speak through (ADR 45). */
+const API_CLIENT = 'src/Bootstrap/Fastify/api.spec-helper.ts';
+/** The prefix the composition root serves under unless `API_PREFIX` says otherwise. */
+const API_PREFIX = 'v1';
+
+/**
+ * The first fragment of a new application's API (ADR 45): what every route may answer, and the routes
+ * it ships with. Its `operation` is the contract's `http.operation` record, read here rather than copied
+ * by hand, so that what the Tracker answers and what the application's tests hold it to are one record
+ * (ADR 41). An application that answers at once (Lite) has no operation and no `202`.
+ */
+function firstApiFragment(
+  source: string,
+  contract: ArchitectureContract,
+  contexts: string[],
+  answersAtOnce: boolean,
+): string {
+  const table = load(readFileSync(join(source, contract.sources.architecture), 'utf8')) as {
+    http?: { operation?: { read?: string; record?: Record<string, unknown> } };
+  };
+  const operation = table.http?.operation;
+  const tracked = !answersAtOnce && contexts.includes('Tracker') && operation?.record && operation.read;
+  const refusal = {
+    type: 'object',
+    required: ['message'],
+    properties: {
+      message: { type: 'string' },
+      ...(answersAtOnce && { type: { type: 'string', description: "The rule's exception, when a rule refused." } }),
+    },
+  };
+  const resources: Record<string, { schema: unknown }> = {
+    refusal: { schema: refusal },
+    ...(answersAtOnce
+      ? { created: { schema: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } } } }
+      : {
+          accepted: {
+            schema: { type: 'object', required: ['operationId'], properties: { operationId: { type: 'string' } } },
+          },
+        }),
+    ...(tracked && { operation: { schema: operation.record } }),
+  };
+  const [, readPath = ''] = String(tracked ? operation.read : '').split(' ');
+  const read = `/${API_PREFIX}${readPath.replace(/:(\w+)/g, '{$1}')}`;
+  const fragment = {
+    resources,
+    all_routes: answersAtOnce ? { '4xx': 'refusal' } : { 202: 'accepted', '4xx': 'refusal' },
+    routes: tracked
+      ? {
+          [`GET ${read.replace(/\/\{\w+\}$/, '')}`]: { 200: { type: 'array', items: { $resource: 'operation' } } },
+          [`GET ${read}`]: { 200: 'operation' },
+        }
+      : {},
+  };
+  const header = [
+    "# The first fragment of this application's API (ADR 45 of the reference), written by `clean-ddd create`.",
+    answersAtOnce
+      ? '# It answers every command at once (the Lite profile): a create `201 { id }` (`created`), any other `200` or `204`,'
+      : '# A command is answered `202 { operationId }` (`accepted`) and its outcome read at the Tracker (`operation`, the',
+    answersAtOnce
+      ? "# a refusal a `4xx` with the rule's exception; there is no operation to follow."
+      : "# contract's `http.operation`); a refusal is a `4xx`. A `5xx` is never an answer a route gives.",
+    '# Each change adds its fragment after this one (`api/2-<name>.yaml`) before its code: api/README.md says how.',
+    '',
+  ].join('\n');
+  return `${header}${dump(fragment, { lineWidth: 110, noRefs: true })}`;
+}
+
+const apiReadme = () =>
+  [
+    '# The API',
+    '',
+    'What this application answers, as data: one fragment per change, `<n>-<name>.yaml`, composed in their order.',
+    'A change that adds or changes an answer writes its fragment first, before its code; the end-to-end client',
+    '(`src/Bootstrap/Fastify/api.spec-helper.ts`) holds every answer a test reads to the composition, and a',
+    'test fails on an answer of another shape, a status its route and `all_routes` do not name, or a route no',
+    'fragment declares, naming the fragment whose shape it breaks. `yarn check:conventions` refuses an `api/`',
+    'that does not compose (API-ONE-SURFACE).',
+    '',
+    '```yaml',
+    '# api/2-tasks.yaml',
+    'resources:',
+    '  task:',
+    '    schema:                      # a JSON Schema (draft-07): the resource, new or replaced whole',
+    '      type: object',
+    '      required: [id, title, status]',
+    '      properties: { id: { type: string }, title: { type: string }, status: { enum: [open, done] } }',
+    '    # gains: { dueOn: { … } }    # properties it has from this change on, required from now on',
+    '    # states: [{ field: status, add: [archived] }]          # values an enum now takes',
+    '    # conditions: [{ field: doneAt, null_only_when: { status: [open] } }]',
+    'routes:',
+    '  GET /v1/tasks/{id}:',
+    "    200: task                    # a resource's name, or a JSON Schema",
+    '  GET /v1/tasks:',
+    '    200: { type: array, items: { $resource: task } }      # a resource anywhere inside a schema',
+    '```',
+    '',
+    'A status is exact (`404`) or a class (`4xx`); `all_routes`, in the first fragment, says what any route may',
+    'answer besides its own. A route is the whole path, the prefix included.',
+    '',
+  ].join('\n');
 
 const stormsReadme = () =>
   [

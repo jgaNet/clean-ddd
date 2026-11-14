@@ -1,0 +1,40 @@
+# Feature 9 of Tally (../backlog/9-leave-a-group.md), as the session decided it.
+schemaVersion: 1
+
+feature: leave-a-group
+intent: >-
+  A member who is even leaves the group; the owner stays; what concerns a member who left is kept as it was and no longer changes.
+
+done: false
+
+hotSpots:
+  - question: How does Groups know the leaving member's balance?
+    decision: It asks Ledger through a port it owns (MemberBalances), answered over Ledger's balances read model, when it decides; the Group refuses while it is not 0, and refuses the owner always.
+  - question: An expense recorded at the very moment its member leaves?
+    decision: Accepted as a known gap — the two decisions are in two contexts and no hidden test sends them at once; the alternative (one transaction across Groups and Ledger, or a saga) is out of proportion for checkpoint 1, and request 20's change reopens it (T5 in the README).
+  - question: Who keeps an expense of a former member from changing?
+    decision: The Expense, which asks GroupMembers whether its payer and each member of its split is still a member; a member who joins again makes it changeable again.
+  - question: Is leaving told to Ledger?
+    decision: No — Ledger reads the members when it decides, as for joining; MemberLeft is Groups' own fact.
+
+contexts:
+  - id: Groups
+    commands:
+      - name: LeaveGroup
+        actor: a signed-in account
+        route: POST /groups/{param}/leave
+        aggregate: Group
+        events: [MemberLeft]
+    queries: []
+    events: [MemberLeft]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Ledger
+    downstream: Groups
+    contracts: [MemberBalances]
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupMembers]

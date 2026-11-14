@@ -1,0 +1,45 @@
+# Feature 25 of Tally (../backlog/25-split-templates.md), as the session decided it.
+schemaVersion: 1
+
+feature: split-templates
+intent: >-
+  A member saves a split under a name; an expense recorded or edited may be split by it, as if its split had been given, and keeps its shares when the template changes or goes.
+
+done: false
+
+hotSpots:
+  - question: Is a template part of an expense?
+    decision: No — an aggregate of its own in Ledger (SplitTemplate), its name free in the group; the Expense is given the template's split as if the body had given it, and keeps its shares as decided (feature 4), never a reference to the template.
+  - question: Who checks the template's members?
+    decision: The Expense, as for any split, reading GroupMembers when it decides; a template whose member has left is kept, and splits nothing.
+
+contexts:
+  - id: Ledger
+    commands:
+      - name: SaveTemplate
+        actor: a signed-in account
+        route: POST /groups/{param}/templates
+        aggregate: SplitTemplate
+        events: [TemplateSaved]
+      - name: ReplaceTemplate
+        actor: a signed-in account
+        route: PUT /templates/{param}
+        aggregate: SplitTemplate
+        events: [TemplateReplaced]
+      - name: RemoveTemplate
+        actor: a signed-in account
+        route: DELETE /templates/{param}
+        aggregate: SplitTemplate
+        events: [TemplateRemoved]
+    queries:
+      - name: GetGroupTemplates
+        actor: a signed-in account
+        route: GET /groups/{param}/templates
+    events: [TemplateRemoved, TemplateReplaced, TemplateSaved]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupMembers]

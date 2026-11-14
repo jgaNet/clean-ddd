@@ -299,5 +299,46 @@
         "OperationComplete"
       ]
     }
+  ],
+  "integrationEvents": [
+    {
+      "name": "AccountCreated",
+      "publisher": "Security",
+      "payload": {
+        "accountId": "string",
+        "email": "string",
+        "validationToken": "string"
+      }
+    },
+    {
+      "name": "AccountValidated",
+      "publisher": "Security",
+      "payload": {
+        "accountId": "string",
+        "email": "string"
+      }
+    },
+    {
+      "name": "NoteShared",
+      "publisher": "Notes",
+      "payload": {
+        "noteId": "string",
+        "ownerId": "string",
+        "recipientId": "string",
+        "title": "string"
+      }
+    },
+    {
+      "name": "OperationComplete",
+      "publisher": "Tracker",
+      "payload": {
+        "error": "string?",
+        "operationId": "string",
+        "result": "any?",
+        "status": "string",
+        "type": "string",
+        "userId": "string"
+      }
+    }
   ]
 }

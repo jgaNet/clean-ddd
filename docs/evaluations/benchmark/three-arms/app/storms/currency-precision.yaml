@@ -1,0 +1,32 @@
+# Feature 40 of Tally (../backlog/40-currency-precision.md), the change not announced in advance, as the session
+# decided it. It adds no sticky and no relationship: no command, query or fact changes.
+schemaVersion: 1
+
+feature: currency-precision
+intent: >-
+  Ten currencies, each with its own minor unit — none, hundredths or thousandths; every amount in its currency's minor unit, conversions by what one unit of each is worth, and every amount kept before read as it was.
+
+done: false
+
+hotSpots:
+  - question: Where is a currency's minor unit?
+    decision: In the shared kernel — Currency, with its code and its number of decimals, a word every context agrees on (Ledger converts, Settlements converts, Notifications compares a debt with 20 of it). A change to the shared kernel, said in the arms that keep ADRs.
+  - question: What changes in the conversions?
+    decision: The OriginalAmount value of Ledger and Settlements reads the amount in its currency's units and writes the result in the other's minor unit; between two currencies that count in hundredths it gives what it gave.
+  - question: The reminders' threshold?
+    decision: 20 of the group's currency — OutstandingDebts (Settlements to Notifications) answers each debt with its group's currency, which Settlements already reads through SettlementMembers, so Notifications compares it with 20 in that currency's minor unit. A new field on an existing contract, no new relationship.
+  - question: Is anything stored converted?
+    decision: No — every amount kept was in hundredths, in a currency that counts in hundredths; an amount is a whole number of its currency's minor unit, and that is what was kept. The upgrade test reads them through the tree at request 39 and through this one, on the same database.
+
+contexts:
+  - id: Ledger
+    commands: []
+    queries: []
+    events: []
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Settlements
+    downstream: Notifications
+    contracts: [OutstandingDebts]

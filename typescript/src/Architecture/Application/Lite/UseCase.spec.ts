@@ -2,7 +2,7 @@ import { expect, jest } from '@jest/globals';
 
 import { ConcurrencyConflictException, Id, IntegrationEvent, NotAllowedException, Result } from '@Architecture/Domain';
 import { EventBus, ExecutionContext, publishIntegrationEvent } from '@Architecture/Application';
-import { command, CONFLICT_ATTEMPTS, query } from '@Architecture/Application/Lite/UseCase';
+import { callerOf, command, CONFLICT_ATTEMPTS, query } from '@Architecture/Application/Lite/UseCase';
 import { InMemoryDataSource } from '@Architecture/Infrastructure/DataSources/InMemoryDataSource';
 import { InMemoryOutbox } from '@Architecture/Infrastructure/Outbox/InMemoryOutbox';
 import { InMemoryUnitOfWork } from '@Architecture/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
@@ -54,6 +54,18 @@ describe('a Lite use case', () => {
     expect([addTask.useCaseName, addTask.kind]).toEqual(['AddTask', 'command']);
     expect([built.name, built.kind, built.definition]).toEqual(['AddTask', 'command', addTask]);
     expect(listTasks(tasks).kind).toBe('query');
+  });
+
+  it('says once who may call it: a signed-in caller unless its definition says anyone (ADR 43)', () => {
+    const signUp = command('SignUp', () => async () => Result.ok(), { caller: 'anyone' });
+    expect([addTask.whoMayCall, addTask(tasks).whoMayCall, listTasks(tasks).whoMayCall]).toEqual([
+      'signed-in',
+      'signed-in',
+      'signed-in',
+    ]);
+    expect([signUp.whoMayCall, signUp().whoMayCall]).toEqual(['anyone', 'anyone']);
+    expect(callerOf(context())).toBe('alice');
+    expect(callerOf(new ExecutionContext({ traceId: 'trace', eventBus, unitOfWork, auth: {} }))).toBe('');
   });
 
   it('runs a command in the transaction, and publishes what it told other contexts after the commit, from the outbox', async () => {

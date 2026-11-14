@@ -18,7 +18,10 @@
  *   ports: { base: 19100 }
  *   tooling: ../vendor/clean-ddd-0.2.0.tgz                  # clean only, optional: the package the grader runs
  *   features: [accounts, …]     # optional: only these, in the backlog's order
- *   machine: { ladders: 3 }     # optional: how many ladders run at once on the machine (FLOW_LADDERS overrides it)
+ *   machine: { ladders: 3, jestCacheGb: 2 }   # optional: ladders at once on the machine (FLOW_LADDERS overrides it), and
+ *                               # the size of jest's cache in the run's own TMPDIR before it is removed between features
+ *   services: { start: <shell> }  # optional: what resume.mjs starts before the run after a restart (a database)
+ *   envFile: <file>             # optional: a shell file of variables resume.mjs sources first (relative to the plan)
  *   gradeTimeoutMinutes: 60     # optional: the time one grading is given
  *   gradeWorkers: 1             # optional: how many acceptance files a grading runs at once (grade.mjs --workers); a
  *                               # file that fails beside the others is run again alone, and that run is its verdict
@@ -92,9 +95,16 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
 import { integrate, ownerOf, splitWaiting } from './integrator.mjs';
-import { nodeMismatch, pathWithThisNode, takeSlot } from './machine.mjs';
+import { boundCache, nodeMismatch, pathWithThisNode, register, shortTmpDir, takeSlot } from './machine.mjs';
 import { runners } from './runners.mjs';
-import { budget, DEPENDENCY_MODES, freePort, provideDependencies, regressionsAgainstFrom } from './supervision.mjs';
+import {
+  budget,
+  DEPENDENCY_MODES,
+  freePort,
+  previousArgument,
+  provideDependencies,
+  regressionsAgainstFrom,
+} from './supervision.mjs';
 
 const args = process.argv.slice(2);
 const option = (name, fallback) => (args.includes(`--${name}`) ? args[args.indexOf(`--${name}`) + 1] : fallback);
@@ -181,6 +191,12 @@ if (regressionCheck !== undefined && !(Number.isInteger(regressionCheck?.from) &
 const flowDir = `${project}.flow`;
 const runDir = join(flowDir, 'worktrees', run);
 const log = join(flowDir, `${run}.jsonl`);
+// A temporary directory of the run's own, for every process it starts (TMPDIR): jest's cache lands there, and the run
+// bounds it between two features without touching another ladder's (J5b: a shared cache reached 11 GB).
+// At a short path, keyed by the run (machine.mjs, shortTmpDir): a socket under a deep TMPDIR cannot be bound.
+const runTmp = shortTmpDir(join(flowDir, 'tmp', run));
+process.env.TMPDIR = runTmp;
+const cacheCapBytes = Number(plan.machine?.jestCacheGb ?? 2) * 1024 ** 3;
 mkdirSync(runDir, { recursive: true });
 const resuming = args.includes('--resume');
 if (existsSync(log) && !resuming) fail(`${log} exists: a run id is used once`);
@@ -190,6 +206,11 @@ const logged = resuming && existsSync(log) ? readFileSync(log, 'utf8').trim().sp
 const revokedAt = new Map(logged.flatMap((each, index) => (each.event === 'revoked' ? [[each.feature, index]] : [])));
 const before = logged.filter((each, index) => !(index < (revokedAt.get(each.feature) ?? -1)));
 const delivered = new Set(before.filter(each => each.event === 'delivered').map(each => each.feature));
+// The commit each feature's attempts started from: the tree before it, which an `upgrade` feature's test records
+// through before it reads through the attempt's (grade.mjs --previous).
+const startedFrom = new Map(
+  before.filter(each => each.event === 'feature-start').map(each => [each.feature, each.from]),
+);
 
 const event = (name, data = {}) => {
   const line = { run, event: name, at: new Date().toISOString(), ...data };
@@ -408,12 +429,14 @@ async function cleanSteps(feature, cwd, from, { lock, fix = true, storm = true, 
 /** The hidden tests of the features up to this one, graded where no agent reads them. */
 async function hidden(feature, cwd, only, ref) {
   const out = join(runDir, `grade-${feature.id}-${ref ? 'from-' : only ? 'replay-' : ''}${Date.now()}.json`);
+  const previous = previousArgument(backlog, { upto: feature.n, only, startedFrom });
   const graded = await sh(
     [
       `node ${grader} --project ${project} --ref ${ref ?? git(cwd, 'rev-parse', 'HEAD')} --base ${baseCommit}`,
       // M1 is the gate the attempt's verdict has just run; the ladder decides on M2 alone (grade.mjs, --gate false).
       `--kit ${kit} --upto ${feature.n} --keep false --gate false --out ${out}`,
       only ? `--only ${only.join(',')}` : `--workers ${gradeWorkers}`,
+      previous ? `--previous ${previous}` : '',
       clean ? (tooling ? `--tooling ${tooling}` : '') : '--control plain',
     ].join(' '),
     project,
@@ -1020,6 +1043,9 @@ if (existsSync(gradings))
       rmSync(left, { recursive: true, force: true });
     }
   }
+// Registered, so that resume.mjs brings the run back after the machine restarts (J5b lost three attempts and two hours
+// to restarts): its project, its plan, its log, and where its output goes.
+register({ run, project, plan: planFile, log, out: join(flowDir, `${run}.out`), at: new Date().toISOString() });
 await takeSlot({
   max: ladderSlots,
   onWait: () => event('waiting-for-slot', { ladders: ladderSlots }),
@@ -1057,6 +1083,9 @@ for (const feature of backlog) {
     .map(each => each.step);
   const firstStep = judged.length ? Math.max(...judged) + 1 : 0;
   event('feature-start', { feature: feature.id, from, ...(firstStep > 0 && { firstStep }) });
+  startedFrom.set(feature.id, from);
+  const cache = boundCache(runTmp, cacheCapBytes);
+  if (cache.removed) event('cache-pruned', { feature: feature.id, bytes: cache.bytes });
   let deliveredAt;
   for (let step = firstStep; step < plan.ladder.length && deliveredAt === undefined; step++) {
     const tried = await attempt(feature, step, from);

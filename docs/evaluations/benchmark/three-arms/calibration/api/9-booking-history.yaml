@@ -1,0 +1,62 @@
+# Request 9: a booking's history, and each party's email once the booking is confirmed.
+resources:
+  # Restated whole, as request 8 left it, with what this request's table says GET /v1/bookings/{id} gains:
+  # `contact`, the other party's, once the booking has been confirmed; absent or null before. The lists of
+  # bookings are not said to gain it.
+  bookingRead:
+    schema:
+      type: object
+      properties:
+        expiresAt: { $comment: request 7, type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)$' }
+        cancellation:
+          $comment: request 8
+          type: object
+          required: [by, at, refundable]
+          properties:
+            by: { $comment: request 8, enum: [traveller, host] }
+            at: { $comment: request 8, type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)$' }
+            refundable: { $comment: request 8, type: integer }
+        refund:
+          $comment: request 8
+          type: object
+          required: [amount, status]
+          properties:
+            amount: { $comment: 'request 8: what is owed back', type: integer }
+            status: { $comment: 'request 8: owed, never refunded, since nothing was paid', enum: [owed] }
+        contact:
+          type: [object, 'null']
+          required: [email]
+          properties:
+            email: { type: string }
+      allOf:
+        - { $resource: booking }
+        - $comment: 'request 7: a waiting request also has expiresAt'
+          if: { $comment: request 7, required: [status], properties: { status: { $comment: request 7, const: requested } } }
+          then: { $comment: 'request 7: a waiting request also has expiresAt', required: [expiresAt] }
+        - $comment: 'request 8: a cancelled booking also has cancellation and refund'
+          if: { $comment: request 8, required: [status], properties: { status: { $comment: request 8, const: cancelled } } }
+          then: { $comment: 'request 8: a cancelled booking also has cancellation and refund', required: [cancellation, refund] }
+        - $comment: 'request 9: a confirmed booking shows the other party, and still does once cancelled'
+          if: { required: [status], properties: { status: { enum: [confirmed, cancelled] } } }
+          then: { required: [contact] }
+        - $comment: 'request 9: a request waiting, declined or expired never shows the other party'
+          if: { required: [status], properties: { status: { enum: [requested, declined, expired] } } }
+          then: { properties: { contact: { $comment: 'request 9: contact is absent or null before the booking is confirmed', type: 'null' } } }
+    conditions:
+      - field: contact
+        null_only_when: { status: [requested, declined, expired] }
+  historyEntry:
+    schema:
+      type: object
+      required: [status, by, at]
+      properties:
+        status: { enum: [requested, confirmed, declined, expired, cancelled] }
+        by: { type: [string, 'null'] }
+        at: { type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)$' }
+    conditions:
+      # Nobody acted: a booking confirmed at once by the application, or an expired request.
+      - field: by
+        null_only_when: { status: [confirmed, expired] }
+routes:
+  GET /v1/bookings/{id}/history:
+    200: { type: array, items: { $resource: historyEntry } }

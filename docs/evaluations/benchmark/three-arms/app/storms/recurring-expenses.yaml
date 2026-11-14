@@ -1,0 +1,51 @@
+# Feature 23 of Tally (../backlog/23-recurring-expenses.md), as the session decided it.
+schemaVersion: 1
+
+feature: recurring-expenses
+intent: >-
+  A member sets up an expense they pay every month; the background job records its expense on its day of every month, at its first run on or after the day, once whatever the servers, never at a read; its payer or the owner stops it, and it ends when its payer or a member of its split has left.
+
+done: false
+
+hotSpots:
+  - question: What is a recurring expense?
+    decision: An aggregate of its own in Ledger (RecurringExpense) — its payer, description, amount, split as given, and the next day it records; set up and stopped by commands, its day reached by the background job.
+  - question: Who notices that a day has come?
+    decision: The background job, every JOBS_INTERVAL_SECONDS, never a read; a storm has no sticky for a timer, so the sweep is named here and its facts below (RecurringExpenseDayCame, RecurringExpenseEnded). Time is a parameter (DOMAIN-NON-DETERMINISM); a startsOn already passed has each day that has come reached at one run, one fact a day.
+  - question: How is a day's expense recorded once?
+    decision: The RecurringExpense moves its next day forward and records RecurringExpenseDayCame, its optimistic check (CONC-OPTIMISTIC) letting one of two servers win; a policy on that fact records the Expense in its own transaction, the fact delivered once by the outbox and the bus (EVENT-AFTER-COMMIT), the Expense's id carried by the fact so that a redelivery finds it recorded.
+  - question: A member who has left?
+    decision: The RecurringExpense asks GroupMembers when its day comes; if its payer or a member of its split is no longer a member, it records RecurringExpenseEnded and no expense, and is gone from every read.
+
+contexts:
+  - id: Ledger
+    commands:
+      - name: SetUpRecurringExpense
+        actor: a signed-in account
+        route: POST /groups/{param}/recurring
+        aggregate: RecurringExpense
+        events: [RecurringExpenseSetUp]
+      - name: StopRecurringExpense
+        actor: a signed-in account
+        route: DELETE /recurring/{param}
+        aggregate: RecurringExpense
+        events: [RecurringExpenseStopped]
+    queries:
+      - name: GetRecurringExpense
+        actor: a signed-in account
+        route: GET /recurring/{param}
+      - name: GetGroupRecurringExpenses
+        actor: a signed-in account
+        route: GET /groups/{param}/recurring
+    events: [ExpenseRecorded, RecurringExpenseDayCame, RecurringExpenseEnded, RecurringExpenseSetUp, RecurringExpenseStopped]
+    policies:
+      - on: RecurringExpenseDayCame
+        kind: domain-event
+        publishes: []
+        events: [ExpenseRecorded]
+
+links:
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupMembers]

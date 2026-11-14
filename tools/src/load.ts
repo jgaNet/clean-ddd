@@ -14,6 +14,7 @@ import {
   Migration,
   MigrationApi,
   Rule,
+  RULE_REGISTER_FILE,
   SUPPORTED_SCHEMA_VERSION,
   Mode,
   ModeName,
@@ -395,6 +396,7 @@ export function loadArchitectureContract(
     libraries: strings(binding.libraries),
     enforcers: (isObject(binding.enforcers) ? binding.enforcers : {}) as Record<Enforcement, string>,
     checks: strings(binding.checks),
+    fixes: strings(binding.fixes),
     ...(isObject(binding.relationship_tests) && {
       relationshipTests: {
         suffix: String(binding.relationship_tests.suffix ?? '.spec.ts'),
@@ -417,6 +419,7 @@ export function loadArchitectureContract(
     grammarVerbs,
     ...(bindingProfile && { bindingProfile }),
     profilesHeld,
+    ...(existsSync(join(root, RULE_REGISTER_FILE)) && { ruleRegister: true as const }),
     tests,
     vocabulary,
     sources,

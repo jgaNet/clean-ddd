@@ -74,6 +74,7 @@ describe('the profiles of the reference', () => {
       'CTX-CONTRACTS',
       'ARCH-CONTEXT-DECLARED',
       'CTX-MAP-DECLARED',
+      'CTX-PUBLISHED-LANGUAGE',
       'ARCH-DOMAIN',
       'DOMAIN-RESULT',
       'CONC-OPTIMISTIC',
@@ -114,7 +115,7 @@ describe('the profiles of the reference', () => {
       'ports-inside-a-context',
       'one-file-per-concept',
     ]);
-    expect(byStance('uses')).toEqual(['use-case', 'answered-at-once']);
+    expect(byStance('uses')).toEqual(['use-case', 'answered-at-once', 'decision']);
     expect(byStance('kept')).toEqual([
       'integration-events',
       'outbox',

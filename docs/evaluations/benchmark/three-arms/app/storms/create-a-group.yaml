@@ -1,0 +1,36 @@
+# Feature 2 of Tally (../backlog/2-create-a-group.md), as the session decided it.
+schemaVersion: 1
+
+feature: create-a-group
+intent: >-
+  A signed-in person creates a group in a currency fixed for good, owns it and is its first member; only its members see it.
+
+done: false
+
+hotSpots:
+  - question: Is the owner's membership a fact of its own when a group is created?
+    decision: No — GroupCreated says who created it, and the group starts with its owner as its first member; MemberJoined is for the members who join later (feature 3).
+  - question: Where does the currency live, and can it change?
+    decision: A value of the Group, chosen from the stated list when it is created; no command changes it, so every amount of the group is in it.
+  - question: How is a group hidden from someone who is not a member?
+    decision: The queries read the group for its members only and answer as if it did not exist otherwise; nothing is filtered after the read.
+
+contexts:
+  - id: Groups
+    commands:
+      - name: CreateGroup
+        actor: a signed-in account
+        route: POST /groups
+        aggregate: Group
+        events: [GroupCreated]
+    queries:
+      - name: GetGroup
+        actor: a signed-in account
+        route: GET /groups/{param}
+      - name: GetMyGroups
+        actor: a signed-in account
+        route: GET /groups/mine
+    events: [GroupCreated]
+    policies: []
+
+links: []

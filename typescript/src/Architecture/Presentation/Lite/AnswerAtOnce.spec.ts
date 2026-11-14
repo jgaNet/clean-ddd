@@ -15,7 +15,9 @@ import { answerAtOnce, INTERNAL_ERROR } from '@Architecture/Presentation/Lite/An
 /**
  * The Lite transport (ADR 40, the `http-lite` grammar), over real HTTP: a route runs its use case and
  * answers at once — 201 with the new id, 200 with a result or a read model, 204 for nothing — and a
- * refusal answers at once with its status and the rule's exception, the same on every route.
+ * refusal answers at once with its status and the rule's exception, the same on every route. Who may
+ * call is the use case's to say once and the transport's to hold (ADR 43): a missing caller is refused
+ * with 401 before a signed-in use case runs.
  */
 
 class BlankTitleException extends Exception {
@@ -25,14 +27,23 @@ class BlankTitleException extends Exception {
 }
 
 const tasks = new Map<string, string>();
-const signedIn = (context: ExecutionContext) => Boolean(context.auth.subjectId);
+let runs = 0;
 
-const addTask = command('AddTask', () => async ({ title }: { title: string }, context) => {
-  if (!signedIn(context)) return Result.fail(new NotAllowedException('Tasks', 'Authentication required'));
+const addTask = command('AddTask', () => async ({ title }: { title: string }) => {
+  runs += 1;
   if (!title.trim()) return Result.fail(new BlankTitleException());
   tasks.set('t1', title);
   return Result.ok('t1');
 });
+const signUp = command(
+  'SignUp',
+  () =>
+    async ({ title }: { title: string }) =>
+      Result.ok(`account-${title}`),
+  {
+    caller: 'anyone',
+  },
+);
 const renameTask = command('RenameTask', () => async ({ id, title }: { id: string; title: string }) => {
   if (!tasks.has(id)) return Result.fail(new NotFoundException('Tasks', `No task ${id}`));
   if (title === 'race') return Result.fail(new ConcurrencyConflictException('Tasks', 'changed'));
@@ -69,6 +80,9 @@ beforeAll(async () => {
   fastify.delete<{ Params: { id: string } }>('/tasks/:id', (req, reply) =>
     answerAtOnce(request(req), reply, removeTask(), { id: req.params.id }),
   );
+  fastify.post<{ Body: Body }>('/accounts', (req, reply) =>
+    answerAtOnce(request(req), reply, signUp(), { title: req.body.title }, { created: true }),
+  );
   fastify.post('/explode', (req, reply) => answerAtOnce(request(req), reply, explode(), undefined));
   fastify.get('/tasks', (req, reply) => answerAtOnce(request(req), reply, listTasks(), undefined));
   await fastify.ready();
@@ -93,15 +107,26 @@ describe('answerAtOnce', () => {
       status: 200,
       body: { id: 't1', title: 'Rewrite it' },
     });
-    expect(await send('GET', '/tasks')).toEqual({ status: 200, body: ['Rewrite it'] });
+    expect(await send('GET', '/tasks', 'alice:USER')).toEqual({ status: 200, body: ['Rewrite it'] });
     expect(await send('DELETE', '/tasks/t1', 'root:ADMIN')).toEqual({ status: 204, body: undefined });
   });
 
-  it('answers a refusal at once, with its status and the rule’s exception', async () => {
+  it('refuses a missing caller with 401 before a use case that needs one runs, a command and a query alike', async () => {
+    runs = 0;
     expect(await send('POST', '/tasks', '', { title: 'x' })).toEqual({
       status: 401,
       body: { type: 'NotAllowed', message: 'Authentication required' },
     });
+    expect(runs).toBe(0);
+    expect((await send('GET', '/tasks')).status).toBe(401);
+    expect((await send('DELETE', '/tasks/t1')).status).toBe(401);
+  });
+
+  it('lets anyone call a use case that says so where it is defined', async () => {
+    expect(await send('POST', '/accounts', '', { title: 'bob' })).toEqual({ status: 201, body: { id: 'account-bob' } });
+  });
+
+  it('answers a refusal at once, with its status and the rule’s exception', async () => {
     expect((await send('DELETE', '/tasks/t1', 'alice:USER')).status).toBe(403);
     expect(await send('POST', '/tasks', 'alice:USER', { title: ' ' })).toEqual({
       status: 400,
@@ -113,6 +138,6 @@ describe('answerAtOnce', () => {
   });
 
   it('answers an unexpected failure with 500 and says nothing of it', async () => {
-    expect(await send('POST', '/explode')).toEqual({ status: 500, body: { message: INTERNAL_ERROR } });
+    expect(await send('POST', '/explode', 'alice:USER')).toEqual({ status: 500, body: { message: INTERNAL_ERROR } });
   });
 });

@@ -1,0 +1,44 @@
+# Feature 35 of Tally (../backlog/35-delete-an-account.md), as the session decided it.
+schemaVersion: 1
+
+feature: delete-an-account
+intent: >-
+  A person deletes their account; their name and email are erased from everything Tally keeps, their id stays where it is, and in every group they stay a member, anonymous, with their balance.
+
+done: false
+
+hotSpots:
+  - question: Who decides a deletion, and what does it refuse?
+    decision: The Account (AccountDeleted), reading in its transaction the groups it owns (Groups' own) and the payments it waits on (WaitingPayments, Settlements'); it refuses while it owns a group with another member, or a payment waits.
+  - question: Erased everywhere — where are the name and the email?
+    decision: In Groups only, by design — the Account holds them, and no other context keeps a copy (Ledger, Settlements and Notifications hold account ids). But Groups' own stored facts hold them too — AccountRegistered in the outbox, the operations a sign-up recorded — so the deletion scrubs the account's past facts in the same transaction; the hidden test searches every table. The audit and the administrators' log keep the id, an opaque id (the maintainer's decision 5).
+  - question: Why does a deleted account stay a member?
+    decision: Its balances are kept, and a balance is a member's; leaving would pass it to the owner (request 20), which the request does not ask. The members list names it `Deleted account`, read from the Account.
+  - question: What can no longer happen to it?
+    decision: Ledger and Settlements ask through GroupMembers and SettlementMembers whether an account is deleted — no new split, no payment through the provider, no netting; a recurring expense with it ends on its day, as with a member who left. Notifications is told nothing new — a deleted account is in no new split (no expense's notice), Ledger leaves it out of the members BudgetPassed carries, and Settlements out of OutstandingDebts — so no relationship is added.
+
+contexts:
+  - id: Groups
+    commands:
+      - name: DeleteAccount
+        actor: a signed-in account
+        route: DELETE /accounts/me
+        aggregate: Account
+        events: [AccountDeleted]
+    queries: []
+    events: [AccountDeleted]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Settlements
+    downstream: Groups
+    contracts: [WaitingPayments]
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupMembers]
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Settlements
+    contracts: [SettlementMembers]

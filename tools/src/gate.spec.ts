@@ -114,6 +114,35 @@ describe('the gate', () => {
     }
   });
 
+  it('refuses a merged version of the published language changed in place, and lets an optional field be added (ADR 44)', async () => {
+    const file = join(directory, 'conventions/integration-events.yaml');
+    const text = readFileSync(file, 'utf8');
+    try {
+      writeFileSync(file, text.replace('          error: string?\n', '          error: string\n'));
+      const { ran, exec } = recorder();
+      const refused = await runGate({ root: directory, base, exec });
+      expect(refused.verdict).toBe('fail');
+      expect(ran).toEqual([]);
+      expect(refused.steps[1]).toMatchObject({
+        name: 'published language',
+        stage: 'architecture',
+        status: 'fail',
+        lines: [
+          'CTX-PUBLISHED-LANGUAGE: conventions/integration-events.yaml: OperationComplete version 1 was changed in place: error string? → string; append version 2 instead (only an added optional field may change a merged version)',
+        ],
+      });
+
+      writeFileSync(
+        file,
+        text.replace('          error: string?\n', '          error: string?\n          retriedAt: string?\n'),
+      );
+      const allowed = await runGate({ root: directory, base, exec: recorder().exec });
+      expect(allowed.steps.find(step => step.name === 'published language')).toMatchObject({ status: 'pass' });
+    } finally {
+      writeFileSync(file, text);
+    }
+  });
+
   it('holds an architecture task to the architecture mode: it may touch the architecture if it records why', async () => {
     writeFileSync(
       join(directory, 'src/architecture/domain/added.py'),
@@ -177,6 +206,30 @@ describe('the gate', () => {
     expect(fixed.fixed).toEqual([]);
     const plain = await runGate({ root: directory, base, exec: recorder().exec });
     expect(plain.fixed).toBeUndefined();
+  });
+
+  it("with --fix, runs the binding's fixes before it judges, and says so only when they changed something", async () => {
+    // The recorder answers `git status` with nothing, so the formatter ran and changed nothing: no line.
+    const quiet = recorder();
+    const unchanged = await runGate({ root: directory, base, fix: true, exec: quiet.exec });
+    expect(quiet.ran).toContain('uv run ruff format .');
+    expect(quiet.ran.indexOf('uv run ruff format .')).toBeLessThan(quiet.ran.indexOf('uv run ruff format --check .'));
+    expect(unchanged.fixed).toEqual([]);
+
+    // A formatter that changed a file is reported, one line per command.
+    let formatted = false;
+    const ran: string[] = [];
+    const exec: Executor = command => {
+      ran.push(command);
+      if (command === 'uv run ruff format .') formatted = true;
+      if (command === 'git status --porcelain') return { code: 0, output: formatted ? ' M src/x.py\n' : '' };
+      return { code: 0, output: 'ok\n' };
+    };
+    const changed = await runGate({ root: directory, base, fix: true, exec });
+    expect(changed.fixed).toEqual(['ran: uv run ruff format .']);
+    const plain = recorder();
+    await runGate({ root: directory, base, exec: plain.exec });
+    expect(plain.ran).not.toContain('uv run ruff format .');
   });
 
   it('keeps the last lines a command printed, which is what a failure is read from', () => {

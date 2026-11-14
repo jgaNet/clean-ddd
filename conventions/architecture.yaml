@@ -118,8 +118,11 @@ modes:
       architecture change with its own reasoning.
     # The tooling at the root holds every language to this file; a feature does not change it.
     protected: [conventions, docs/adr, tools]
-    # A feature may bring its plan, and the storm the session decided it would be.
-    allowed: [conventions/plans, conventions/storms]
+    # A feature may bring its plan, and the storm the session decided it would be; and, since a feature
+    # may publish, the integration event it declares in the published language (ADR 44), where the gate
+    # refuses a merged version changed in place; and, since a feature may refuse, the rule it names in the
+    # rule register (ADR 46).
+    allowed: [conventions/plans, conventions/storms, conventions/integration-events.yaml, conventions/rules.yaml]
   architecture:
     why: >-
       The architecture may change; it may not change silently. A change to the building blocks,
@@ -341,6 +344,8 @@ floor:
     rules: [CTX-CONTRACTS, ARCH-CONTEXT-DECLARED]
   - guarantee: Every relationship between two contexts is declared
     rules: [CTX-MAP-DECLARED]
+  - guarantee: What a context publishes to the others is declared once
+    rules: [CTX-PUBLISHED-LANGUAGE]
   - guarantee: The domain imports no framework
     rules: [ARCH-DOMAIN]
   - guarantee: An invariant is enforced where its state lives, and a refusal is a value
@@ -377,7 +382,8 @@ profiles:
       An experiment (RFC 0002, ADR 40), held in TypeScript alone: every boundary of Full kept — the layers,
       the contexts apart, the context map, integration events through the outbox, the ports a context
       owns, wiring as data — and the ceremony inside a context dropped. A use case is a function of its
-      ports, listed in the context's Module and called by the route, which answers at once; aggregates and
+      ports that calls a pure decision (ADR 43), listed in the context's Module and called by the route,
+      which holds who may call it and answers at once; aggregates and
       domain events come in where a trigger fires, by an ADR. Promoted, kept as an experiment or removed by
       the criteria registered before its campaign.
     # Every rule named, so that a rule added later is a decision for Lite rather than held by default.
@@ -408,9 +414,13 @@ profiles:
       - ARCH-ONE-CONTRACT
       - API-ONE-SURFACE
       - API-BODY-SHAPE
-      # A command answered at once keeps its own 4xx, which the rule says; a query's refusal is 401 or 403 as in Full.
+      # Every use case needs a signed-in caller unless its definition says anyone, and the transport refuses a
+      # missing one with 401 before it runs (ADR 43); a role the rule refuses is the use case's 403.
       - API-CALLER-AT-TRANSPORT
       - CTX-MAP-DECLARED
+      - CTX-PUBLISHED-LANGUAGE
+      # A decision's refusal is a context's exception like any other: named in the register where there is one.
+      - DOMAIN-RULE-NAMED
       - ARCH-ONE-APPLICATION
       - ARCH-COMPAT-ROUTE
     waives: {}
@@ -457,7 +467,16 @@ profiles:
           A use case is a function of its ports, named for its intent, run by the building block in the
           request's transaction, retried from a fresh read on a conflict, refused with a Result.
       answered-at-once:
-        uses: The transport answers a use case's result at once, a refusal with its status and the rule's exception.
+        uses: >-
+          The transport answers a use case's result at once, a refusal with its status and the rule's exception,
+          and refuses a missing caller with 401 before a use case runs, unless the use case says anyone may call
+          it (ADR 43).
+      decision:
+        uses: >-
+          A command's rules live in a decision (ADR 43, after RFC 0005's P1): a pure function of the state, the
+          command and the time, which answers the new state and the facts it records, or the rule's refusal;
+          it imports no port, is not async and reads no clock. The use case is the shell that loads, calls it,
+          saves and publishes.
       integration-events:
         kept: A fact another context reacts to is a contract in the shared kernel, as in Full.
       outbox:
@@ -670,9 +689,9 @@ rules:
 
   - id: API-CALLER-AT-TRANSPORT
     name: a-command-whose-outcome-is-read-later-needs-a-caller-at-the-transport
-    statement: A command whose outcome is read later (answered 202 with an operation) needs a signed-in caller unless its handler says, once, that anyone may ask for it; the transport refuses a missing caller at once with 401, before anything is published, in the one helper every such route calls. A query that needs a caller and has none answers 401 too, 403 is for a signed-in caller the rule refuses, and a command answered at once keeps its own 4xx; the handler still asks for its caller's id and the aggregate still decides what that caller may do.
+    statement: A command whose outcome is read later (answered 202 with an operation) needs a signed-in caller unless its handler says, once, that anyone may ask for it, and so does a use case of a profile that answers every command at once unless its definition says so; the transport refuses a missing caller at once with 401, before anything is published or run, in the one helper every such route calls. A query that needs a caller and has none answers 401 too, 403 is for a signed-in caller the rule refuses, and any other command answered at once keeps its own 4xx; the handler still asks for its caller's id and the aggregate, or the decision, still decides what that caller may do.
     why: A client that is not signed in learns it at once, instead of following an operation that was never going to succeed; missing credentials are a 401 in HTTP, and one refusal has one status. Said once on the handler and held in one helper, who reaches a command cannot differ from one route to the next — routes that each checked the caller in their own way did, and a new route copied whichever it saw first.
-    remediation: Answer a 202 route through the transport's helper, never by publishing a command on the bus from the route; mark the handler of a command anyone may ask for (signing up, a link that carries its own proof, a provider's webhook) and no other; answer a query's refusal of a caller who is not signed in with 401 and of a signed-in caller with 403; leave a command answered at once its own 4xx.
+    remediation: Answer a 202 route through the transport's helper, never by publishing a command on the bus from the route, and a route of a profile that answers at once through its own; mark the handler or the use case of a command anyone may ask for (signing up, a link that carries its own proof, a provider's webhook) and no other; answer a query's refusal of a caller who is not signed in with 401 and of a signed-in caller with 403; leave any other command answered at once its own 4xx.
     enforcement: tests
     references: [docs/adr/0039-a-command-whose-outcome-is-read-later-needs-a-caller-at-the-transport.md]
 
@@ -683,6 +702,22 @@ rules:
     remediation: Add the relationship to `relationships` in the domain map with its pattern and its reason — declared `planned` when it is decided before the code that carries it — or remove the link in the code, if the coupling was not meant; never widen the check.
     enforcement: check
     references: [docs/adr/0019-the-domain-is-data.md, docs/adr/0028-a-relationship-is-decided-before-its-code.md, conventions/README.md]
+
+  - id: CTX-PUBLISHED-LANGUAGE
+    name: integration-events-are-a-published-language
+    statement: Every integration event is declared once in the published language, with the context that publishes it, the thing it announces when it announces one, and the payload of each version it was published in; every language's code carries the last version, field for field, and the check holds each inventory to it; a version once merged is changed only by an added optional field — a field removed, renamed or retyped is a new version, and the gate refuses the change in place; an event that announces a thing carries the id it was born with.
+    why: An integration event is the one promise a context makes to the others, and a promise kept in four hand-written copies drifts unseen — a field another language names differently, an id a consumer needs and the event forgot, a change that breaks a consumer made in place. Declared once and held by the check, the payload is one thing in every language, and a breaking change says so with a new version.
+    remediation: Declare the event, its publisher and its payload in the published language before the code publishes it, and make each language's event carry the last version field for field; to remove, rename or retype a field, append a version rather than edit one; give an event that announces a thing the id field it names.
+    enforcement: check
+    references: [docs/adr/0044-integration-events-are-a-published-language-declared-once.md, conventions/README.md]
+
+  - id: DOMAIN-RULE-NAMED
+    name: a-rule-is-named-with-its-origin-and-its-evidence
+    statement: Every refusal a context's domain can return is declared once in the rule register, by its public name, with the context that decides it, the rule in the business's words and where it was decided; the code returns it as that context's exception and at least one test of that context names it; the check refuses a refusal no rule names, a rule no code returns and a rule no test names, and holds nothing where there is no register.
+    why: A rule that lives as an exception in the domain, a sentence in a storm and a test is three things nothing ties together — a refusal returned that no rule names, a rule named that no test holds — and a later request that relies on it finds it by accident or not at all. Declared once with its origin and held to its evidence, a rule is one unit a person or an agent can read.
+    remediation: Name a new refusal in the register before the code returns it — its public name (the exception without the suffix of its kind), its context, one sentence, its origin — and write a test of that context that names it; remove the entry with the last code that returns it.
+    enforcement: check
+    references: [docs/adr/0046-a-rule-is-a-named-unit-with-its-origin-and-its-evidence.md, conventions/README.md]
 
   - id: ARCH-ONE-APPLICATION
     name: every-language-is-the-same-application

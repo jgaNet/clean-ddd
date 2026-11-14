@@ -1,0 +1,13 @@
+# Request 11: the transfers that would bring every balance to 0, made by a stated algorithm, in the order made.
+resources:
+  transfer:
+    schema:
+      type: object
+      required: [from, to, amount]
+      properties:
+        from: { type: string }
+        to: { type: string }
+        amount: { type: integer, minimum: 1 }
+routes:
+  GET /v1/groups/{id}/settlements/suggested:
+    200: { type: array, items: { $resource: transfer } }

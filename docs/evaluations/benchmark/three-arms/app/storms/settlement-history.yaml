@@ -1,0 +1,30 @@
+# Feature 19 of Tally (../backlog/19-settlement-history.md), as the session decided it.
+schemaVersion: 1
+
+feature: settlement-history
+intent: >-
+  A member lists the group's settlements, the most recent first, each with every status it has had and when Tally learned it.
+
+done: false
+
+hotSpots:
+  - question: Where does a settlement's history come from?
+    decision: From Settlements' own facts — each status the SettlementBook records (SettlementRecorded, PaymentRequested, SettlementPaid, SettlementFailed, RefundRequested, SettlementRefunded) is a line of the read model, written in the transaction of the fact; a webhook that records nothing adds nothing.
+  - question: Who reads them, and a member who left?
+    decision: The current members, through SettlementMembers; a settlement stays the group's after its payer or payee leaves.
+
+contexts:
+  - id: Settlements
+    commands: []
+    queries:
+      - name: GetGroupSettlements
+        actor: a signed-in account
+        route: GET /groups/{param}/settlements
+    events: []
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Settlements
+    contracts: [SettlementMembers]

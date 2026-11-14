@@ -1,0 +1,13 @@
+diff --git a/src/Contexts/Booking/Infrastructure/PostgresBookingQueries.ts b/src/Contexts/Booking/Infrastructure/PostgresBookingQueries.ts
+index 0d159509..f3a84bf4 100644
+--- a/src/Contexts/Booking/Infrastructure/PostgresBookingQueries.ts
++++ b/src/Contexts/Booking/Infrastructure/PostgresBookingQueries.ts
+@@ -137,7 +137,7 @@ export class PostgresBookingQueries implements IBookingQueries {
+   async hasPaidStay(travellerId: string, listingId: string): Promise<boolean> {
+     const row = await this.database.get<{ found: number }>(
+       `SELECT 1 AS found FROM payments p JOIN bookings b ON b.id = p.booking_id
+-        WHERE b.traveller_id = ? AND b.listing_id = ? AND p.status IN ('paid', 'declared')
++        WHERE b.traveller_id = ? AND b.listing_id = ? AND p.status IN ('paid', 'declared') AND b.status <> 'cancelled'
+         LIMIT 1`,
+       travellerId,
+       listingId,

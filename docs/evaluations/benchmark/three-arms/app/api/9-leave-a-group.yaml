@@ -1,0 +1,4 @@
+# Request 9: leaving a group, once one's balance is 0; the owner stays.
+routes:
+  POST /v1/groups/{id}/leave:
+    2xx: {}
