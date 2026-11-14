@@ -80,6 +80,12 @@ const previousRefs = new Map(
 const cli = resolve(new URL('../../tools/dist/cli.js', import.meta.url).pathname);
 const git = (cwd, ...gitArgs) => execFileSync('git', gitArgs, { cwd, encoding: 'utf8' }).trim();
 const env = { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1', CI: '1' };
+// A temporary directory of the project's own, as the ladder gives each run (jest's cache follows it): graded outside a
+// ladder (a dry run), thirty files an attempt filled a shared /tmp with 13 GB of transforms (J6's kit, checkpoint 3).
+if (!env.TMPDIR?.includes(`${project}.flow`)) {
+  env.TMPDIR = join(`${project}.flow`, 'tmp', 'grade');
+  mkdirSync(env.TMPDIR, { recursive: true });
+}
 const sh = (command, cwd, timeout = 600_000) => {
   const result = spawnSync('sh', ['-c', command], { cwd, env, encoding: 'utf8', timeout, maxBuffer: 64 * 1024 * 1024 });
   return { code: result.status ?? 1, out: `${result.stdout ?? ''}${result.stderr ?? ''}` };
