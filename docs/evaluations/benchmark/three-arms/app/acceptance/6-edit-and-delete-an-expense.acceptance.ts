@@ -1,4 +1,4 @@
-import { client, Client, database, day, Outcome, pairs, Running, start, stop } from './tally';
+import { client, Client, database, day, Outcome, pairs, Running, start, stop } from './tally.spec-helper';
 
 /** Request 6: an expense edited from the version its author read, or deleted, by its payer or the owner. */
 const db = database('edits');

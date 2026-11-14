@@ -96,10 +96,21 @@ export async function eventually<T>(read: () => Promise<T>, expected: (value: T)
 }
 
 /**
- * The PostgreSQL server the tests create their databases on from request 30 (`TALLY_POSTGRES`, a PostgreSQL 16 at
- * 127.0.0.1:55432 when it is not set, as request 30 says), through `psql`, which must be on the PATH.
+ * The PostgreSQL server the tests create their databases on from request 30: `TALLY_POSTGRES`, else the server of the
+ * environment's `DATABASE_URL` (request 30: the environment names a database on a PostgreSQL 16 server), through
+ * `psql`, which must be on the PATH.
  */
-export const POSTGRES = process.env.TALLY_POSTGRES ?? 'postgresql://postgres@127.0.0.1:55432';
+const serverOf = (url: string | undefined) => {
+  if (!url) return undefined;
+  const server = new URL(url);
+  server.pathname = '';
+  server.search = '';
+  return server.toString().replace(/\/$/, '');
+};
+export const POSTGRES =
+  process.env.TALLY_POSTGRES ?? serverOf(process.env.DATABASE_URL) ?? 'postgresql://postgres@127.0.0.1:5432';
+/** The environment a server is started with: the tests' own, less its `DATABASE_URL`, which names no test's database. */
+const inherited = () => Object.fromEntries(Object.entries(process.env).filter(([name]) => name !== 'DATABASE_URL'));
 const psql = (sql: string, url = `${POSTGRES}/postgres`) =>
   execFileSync('psql', [url, '-v', 'ON_ERROR_STOP=1', '-tAc', sql], { encoding: 'utf8' }).trim();
 const urls = new Map<string, string>();
@@ -200,7 +211,7 @@ export async function start(
   const child = spawn('npx', ['tsx', '--tsconfig', './tsconfig.json', entry], {
     ...(directory && { cwd: directory }),
     env: {
-      ...process.env,
+      ...inherited(),
       PORT: String(port),
       DATABASE_PATH: path,
       ...(urls.has(path) && { DATABASE_URL: urls.get(path) }),

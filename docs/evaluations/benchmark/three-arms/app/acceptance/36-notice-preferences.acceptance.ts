@@ -1,4 +1,16 @@
-import { bySweep, client, Client, database, eventually, Json, Person, Running, sleep, start, stop } from './tally';
+import {
+  bySweep,
+  client,
+  Client,
+  database,
+  eventually,
+  Json,
+  Person,
+  Running,
+  sleep,
+  start,
+  stop,
+} from './tally.spec-helper';
 
 /** Request 36: each kind of notice, on or off, for each person. */
 const PERIOD = 3;

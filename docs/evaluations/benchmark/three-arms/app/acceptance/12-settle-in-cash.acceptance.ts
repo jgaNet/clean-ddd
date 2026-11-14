@@ -1,4 +1,4 @@
-import { client, Client, database, Outcome, reached, Running, start, stop } from './tally';
+import { client, Client, database, Outcome, reached, Running, start, stop } from './tally.spec-helper';
 
 /** Request 12: a settlement in cash, recorded by its payee, never more than is owed, counted by the balances at once. */
 const db = database('cash');

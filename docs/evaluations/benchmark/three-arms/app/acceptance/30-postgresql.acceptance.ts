@@ -13,12 +13,13 @@ import {
   Running,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /**
  * Request 30: the state kept in PostgreSQL, across kills and two servers, and what a tree kept in its SQLite file
  * moved into it, a payment waiting at the provider included. It needs a PostgreSQL 16 server the tests create
- * databases on (`TALLY_POSTGRES`, 127.0.0.1:55432 when not set) and `psql` on the PATH (tally.ts, `database`).
+ * databases on (`TALLY_POSTGRES`, else the server of the environment's `DATABASE_URL`, as request 30 says) and `psql`
+ * on the PATH (tally.spec-helper.ts, `database`).
  */
 const db = database('postgresql');
 let provider: PaymentProvider;

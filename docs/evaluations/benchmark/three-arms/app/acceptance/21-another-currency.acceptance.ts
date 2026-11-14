@@ -1,4 +1,4 @@
-import { client, Client, database, day, Json, pairs, reached, Running, Share, start, stop } from './tally';
+import { client, Client, database, day, Json, pairs, reached, Running, Share, start, stop } from './tally.spec-helper';
 
 /** Request 21: an expense in another currency, at the rate its payer states; the rate and both amounts are kept. */
 const db = database('currency');

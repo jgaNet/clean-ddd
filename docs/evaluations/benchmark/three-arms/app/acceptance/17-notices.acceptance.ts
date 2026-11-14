@@ -1,4 +1,17 @@
-import { client, Client, database, day, eventually, Json, kill, Person, Running, sleep, start, stop } from './tally';
+import {
+  client,
+  Client,
+  database,
+  day,
+  eventually,
+  Json,
+  kill,
+  Person,
+  Running,
+  sleep,
+  start,
+  stop,
+} from './tally.spec-helper';
 
 /** Request 17: a notice to each member of an expense's split but its payer; a person's notices, the most recent first. */
 const db = database('notices');

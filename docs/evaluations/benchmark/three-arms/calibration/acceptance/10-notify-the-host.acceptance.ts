@@ -1,4 +1,14 @@
-import { client, database, day, eventually, kill, notificationService, sleep, start, stop } from './openstay';
+import {
+  client,
+  database,
+  day,
+  eventually,
+  kill,
+  notificationService,
+  sleep,
+  start,
+  stop,
+} from './openstay.spec-helper';
 
 /** Request 10: a notice per booking, through a service that fails, across crashes. Invariant 12. */
 const services: ReturnType<typeof notificationService>[] = [];

@@ -14,7 +14,7 @@ import {
   sleep,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 24: an expense's category, a monthly budget per category, and a notice when a month passes one. */
 const db = database('budgets');

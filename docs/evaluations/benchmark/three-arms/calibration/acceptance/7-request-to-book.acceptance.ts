@@ -1,4 +1,15 @@
-import { bySweep, client, Client, database, day, eventually, Running, sleep, start, stop } from './openstay';
+import {
+  bySweep,
+  client,
+  Client,
+  database,
+  day,
+  eventually,
+  Running,
+  sleep,
+  start,
+  stop,
+} from './openstay.spec-helper';
 
 /** Request 7: a request holds its nights until the host decides, or until it expires. Invariant 3. */
 const db = database('request');
@@ -76,7 +87,7 @@ describe('request to book', () => {
   }, 60000);
 
   it('expires a request the host did not decide in time at the next sweep, never at a read, which frees its nights without anyone acting', async () => {
-    // The tests' servers run their job every JOBS_INTERVAL_SECONDS (1, openstay.ts): the request reads as expired
+    // The tests' servers run their job every JOBS_INTERVAL_SECONDS (1, openstay.spec-helper.ts): the request reads as expired
     // once its second has passed, at the next sweep, and the test reads until then.
     const expiring = database('request-ttl');
     const short = await start(expiring.path, { BOOKING_REQUEST_TTL_SECONDS: '1' });

@@ -16,7 +16,7 @@ kit is the record of an earlier campaign and stays as it ran; what this kit chan
 | [`backlog/`](backlog) | The ten requests and `backlog.yaml`, the pilot's, with requests 1, 7 and 9 changed (below). |
 | [`api/`](api) | One fragment per request with an API table (1 to 9; request 10 changes no route): its resources, the routes that answer them by status, and, from request 1 on, what any route may answer (`202 { operationId }`, a `4xx`; never a `5xx`). |
 | [`conventions.yaml`](conventions.yaml) | Every convention a later request relies on, with the request that sets it and the test that holds it there. |
-| [`acceptance/`](acceptance) | The hidden tests, one file per request, and their client [`openstay.ts`](acceptance/openstay.ts), which holds every answer it reads to the API composed up to the request graded. No arm ever sees them. |
+| [`acceptance/`](acceptance) | The hidden tests, one file per request, and their client [`openstay.spec-helper.ts`](acceptance/openstay.spec-helper.ts), which holds every answer it reads to the API composed up to the request graded. No arm ever sees them. |
 | [`storms/`](storms) | The pilot's storms, with the hot spot of request 7's expiry (S9) changed on 13 November (below). |
 
 ## Decided by the maintainer (13 November)
@@ -27,7 +27,7 @@ kit is the record of an earlier campaign and stays as it ran; what this kit chan
    read it. The pilot said "as soon as its time has passed", and its tests slept 2.5 s after a 1 s time-to-live
    (`BOOKING_REQUEST_TTL_SECONDS`). Now:
    - request 7 says it, and request 9's `expired` entry, made by nobody, is the sweep's;
-   - every server the tests start runs its job every second (`JOBS_INTERVAL_SECONDS` 1, in `openstay.ts`'s `start`);
+   - every server the tests start runs its job every second (`JOBS_INTERVAL_SECONDS` 1, in `openstay.spec-helper.ts`'s `start`);
    - tests 7 and 9 read with `eventually` until the sweep has done it (`bySweep`: the time-to-live, three runs of the
      job, and three seconds more), never a fixed sleep;
    - test 7 also starts a server whose job runs every hour: past its time, its request still reads `requested`;
@@ -162,3 +162,20 @@ kit is the record of an earlier campaign and stays as it ran; what this kit chan
   reports committed with it, as the [standard](../../kit-standard.md#before-registration-kit-check) asks. The pilot's
   trees were written before request 1 said what an operation's `error` is; one that answered a refusal later without
   `error` would fail wherever it did so, as it should.
+
+## Decided by the maintainer at registration (14 November)
+
+- **The client is a test's support, and named so:** `acceptance/openstay.ts` is now
+  [`openstay.spec-helper.ts`](acceptance/openstay.spec-helper.ts), and every test imports `./openstay.spec-helper`
+  (two tests' imports wrapped by the trees' formatter). The Lite and Full trees' linter exempts `*.spec-helper.ts` from
+  DOMAIN-ONE-CLOCK as it exempts the tests, which the client's five reads of the machine's time had broken there
+  ([the registration](../registration.md#the-maintainers-decisions-14-november), finding 5); nothing else in it changes.
+- **The storms are not changed:** the ladder marks each command `answered: at-once` in the copy it gives a Lite tree and
+  in the copy it holds that tree to; the ten are legal on `cal-lite` once marked, and 7 of them are refused as written.
+- **Rehearsed again at registration** (14 November), [`dry-run.mjs`](../../../../../.claude/flow/dry-run.mjs) with the
+  composed API in force; [`dry-run.json`](dry-run.json) is its report. **Verdict: read, no defect.**
+  - On copies of the arms' Lite and Full starting trees (`cal-lite` at `5a386f7`, `cal-full` at `1c90a20`): all ten
+    files fail (discrimination), and **the kit's files raise nothing** in their formatter, linter or type checker.
+  - On the simple arm's witness (`simple-w`, `08b94b0` to `2dd7254`): all ten fail before; solved, eight pass, and
+    requests 6 and 7 fail, as on 13 November after the maintainer's decisions 1 and 4 (above): the tree was written
+    before them. Hygiene: nothing.

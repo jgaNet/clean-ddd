@@ -20,7 +20,7 @@ import {
   sleep,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 27: an archived group, read only. */
 const db = database('archive');

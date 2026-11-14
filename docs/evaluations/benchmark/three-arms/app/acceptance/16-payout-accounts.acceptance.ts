@@ -1,4 +1,4 @@
-import { client, Client, database, PaymentProvider, paymentProvider, Running, start, stop } from './tally';
+import { client, Client, database, PaymentProvider, paymentProvider, Running, start, stop } from './tally.spec-helper';
 
 /** Request 16: a member's payout account at the provider, required to be paid through it. */
 const db = database('payout');

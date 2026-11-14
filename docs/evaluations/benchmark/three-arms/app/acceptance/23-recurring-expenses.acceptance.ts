@@ -16,7 +16,7 @@ import {
   sleep,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 23: a recurring expense, whose expenses the background job records on its day of every month. */
 const db = database('recurring');

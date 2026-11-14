@@ -1,4 +1,4 @@
-import { bySweep, client, Client, database, day, eventually, Json, Running, start, stop } from './openstay';
+import { bySweep, client, Client, database, day, eventually, Json, Running, start, stop } from './openstay.spec-helper';
 
 /** Request 9: a booking's history, and contact details only once a stay is agreed. */
 const db = database('history');
@@ -94,7 +94,7 @@ describe("a booking's history", () => {
       const id = await quick.listing(hal.token, { city: 'Beaune' });
       await quick.done('PUT', `/listings/${id}/booking-mode`, hal.token, { mode: 'request' });
       const bookingId = await quick.book(tom.token, await quick.quote(tom.token, id, day(5), day(6)));
-      // Expired at the next sweep (request 7), which the tests' servers run every second (openstay.ts).
+      // Expired at the next sweep (request 7), which the tests' servers run every second (openstay.spec-helper.ts).
       const history = await eventually(
         () => quick.list(`/bookings/${bookingId}/history`, tom.token),
         entries => entries.some(entry => entry.status === 'expired'),

@@ -9,7 +9,7 @@ import {
   Running,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 13: a settlement through the payment provider: a payment link, then the provider's signed webhook. */
 const db = database('provider');

@@ -1,4 +1,4 @@
-import { client, Client, database, eventually, kill, PASSWORD, Running, start, stop } from './openstay';
+import { client, Client, database, eventually, kill, PASSWORD, Running, start, stop } from './openstay.spec-helper';
 
 /** Request 1: accounts, signing in, and data that outlives the server. */
 const db = database('accounts');

@@ -680,8 +680,9 @@ conventions:
     says: >-
       From request 30, the state is in the PostgreSQL database at DATABASE_URL: found after a kill whatever
       DATABASE_PATH says; an empty database is prepared at the first start; two servers on one database keep every
-      earlier rule. The tests create a database per file on TALLY_POSTGRES (127.0.0.1:55432 when not set) with psql.
-      It supersedes durable's file.
+      earlier rule. The tests create a database per file with psql, on TALLY_POSTGRES, else on the server the
+      environment's DATABASE_URL names, and give each server they start its own: never the environment's. It
+      supersedes durable's file.
     born: 30
     test: keeps its state in PostgreSQL, and finds it after a kill, whatever DATABASE_PATH says
   - id: moves-the-file

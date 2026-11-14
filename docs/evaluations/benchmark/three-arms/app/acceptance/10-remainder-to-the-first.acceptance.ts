@@ -1,4 +1,16 @@
-import { client, Client, database, day, kill, keepsTheSplit, pairs, previous, Running, start, stop } from './tally';
+import {
+  client,
+  Client,
+  database,
+  day,
+  kill,
+  keepsTheSplit,
+  pairs,
+  previous,
+  Running,
+  start,
+  stop,
+} from './tally.spec-helper';
 
 /** Request 10: from now on, the remainder goes whole to the member listed first in the split, whoever paid. */
 const db = database('remainder');

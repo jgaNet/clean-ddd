@@ -16,7 +16,7 @@ import {
   sleep,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 34: an account suspended by an administrator, and reinstated. */
 const ADMIN_EMAILS = 'admin@suspend.test';

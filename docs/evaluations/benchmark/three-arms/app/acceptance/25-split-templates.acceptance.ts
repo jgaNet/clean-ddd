@@ -1,4 +1,4 @@
-import { client, Client, database, day, Json, pairs, Running, Share, start, stop } from './tally';
+import { client, Client, database, day, Json, pairs, Running, Share, start, stop } from './tally.spec-helper';
 
 /** Request 25: a split saved under a name, which an expense is split by in place of its own. */
 const db = database('templates');

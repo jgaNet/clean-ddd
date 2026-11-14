@@ -127,6 +127,12 @@ rehearsed with `dry-run.mjs` ([the flow](../../../.claude/flow/README.md)), and 
 
 ## In the hidden tests: the lines a client needs
 
+**The client is a test's support, and named so:** `acceptance/<name>.spec-helper.ts`, imported by every test as
+`./<name>.spec-helper`. A tree `create` makes holds its code to rules a test's support does not keep (the machine's
+time read by its one clock alone, DOMAIN-ONE-CLOCK), and exempts `*.spec-helper.ts` from them as it exempts the tests;
+jest does not run it as a test. J6's kits, whose clients were first named `tally.ts` and `openstay.ts`, failed their
+rehearsal's hygiene on the Lite and Full trees for that alone.
+
 When the kit has `api/`, `grade.mjs` writes the API composed up to `--upto` beside the tests (`api-schema.json`) and
 gives its path in `API_SCHEMA`. The kit's client passes every answer it reads through one function; with `ajv` (6 or 8)
 in the kit's project:

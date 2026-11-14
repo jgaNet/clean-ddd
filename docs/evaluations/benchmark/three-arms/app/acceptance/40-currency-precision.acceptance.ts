@@ -19,7 +19,7 @@ import {
   sleep,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /**
  * Request 40, the change not announced in advance: currencies with no minor unit (JPY, KRW) or with three decimals

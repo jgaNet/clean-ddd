@@ -20,7 +20,7 @@ Lite and Full arms also the feature's storm. The hidden tests, the brief and thi
 | [`backlog/`](backlog) | The forty requests of checkpoints 1 to 4 and `backlog.yaml`. Request 1 fixes how the API works, as the calibration's request 1 does; requests 10, 20, 30 and 40 are the changes not announced in advance (below). |
 | [`api/`](api) | One fragment per request with an API table (1 to 9, 11 to 13, 15 to 19, 21 to 29, 31 to 40; requests 10, 14, 20 and 30 change no route): its resources, the routes that answer them by status, and, from request 1, what any route may answer (`202 { operationId }`, a `4xx`; never a `5xx`). |
 | [`conventions.yaml`](conventions.yaml) | Every convention a later request relies on (36 born in checkpoint 1, 32 in checkpoint 2, 26 in checkpoint 3, 25 in checkpoint 4), with the request that sets it and the test that holds it there. |
-| [`acceptance/`](acceptance) | The hidden tests, one file per request (51 tests in checkpoint 1, 41 in checkpoint 2, 41 in checkpoint 3, 32 in checkpoint 4), and their client [`tally.ts`](acceptance/tally.ts): the calibration's harness (`start`, `stop`, `kill`, `database`, `eventually`, `bySweep`, `client`, `hidden`, `holdToApi`) with Tally's resources (`person`, `group`, `invite`, `join`, `groupOf`, `expense`, `shares`, `balances`; from checkpoint 2 `cash`, `payThrough`, `settlement`, `notices`), two additions of checkpoint 1, `reached` and `keepsTheSplit`, two of checkpoint 2, `paymentProvider` (the provider the tests play) and `payable` (below), and those of checkpoint 3: `ratesService` and `receiptStore` (two more outside systems the tests play), files (`JPEG`, `PNG`, `PDF`, `padded`, the client's `upload` and `raw`), days by the month (`monthly`, `monthsFrom`), a PostgreSQL database beside each file from request 30 (`database`, `POSTGRES`), and a client that does not hold an earlier tree's answers (`client(port, false)`); and those of checkpoint 4: the provider's fee on each payment it makes (`state.fee`) and what the PostgreSQL database holds of a text (`holds`). |
+| [`acceptance/`](acceptance) | The hidden tests, one file per request (51 tests in checkpoint 1, 41 in checkpoint 2, 41 in checkpoint 3, 32 in checkpoint 4), and their client [`tally.spec-helper.ts`](acceptance/tally.spec-helper.ts): the calibration's harness (`start`, `stop`, `kill`, `database`, `eventually`, `bySweep`, `client`, `hidden`, `holdToApi`) with Tally's resources (`person`, `group`, `invite`, `join`, `groupOf`, `expense`, `shares`, `balances`; from checkpoint 2 `cash`, `payThrough`, `settlement`, `notices`), two additions of checkpoint 1, `reached` and `keepsTheSplit`, two of checkpoint 2, `paymentProvider` (the provider the tests play) and `payable` (below), and those of checkpoint 3: `ratesService` and `receiptStore` (two more outside systems the tests play), files (`JPEG`, `PNG`, `PDF`, `padded`, the client's `upload` and `raw`), days by the month (`monthly`, `monthsFrom`), a PostgreSQL database beside each file from request 30 (`database`, `POSTGRES`), and a client that does not hold an earlier tree's answers (`client(port, false)`); and those of checkpoint 4: the provider's fee on each payment it makes (`state.fee`) and what the PostgreSQL database holds of a text (`holds`). |
 | [`storms/`](storms) | One storm per request, in the inventory's words, and each checkpoint's session's [hot spots](storms/README.md), decided by the operator for the maintainer. |
 | [`dry-run.json`](dry-run.json) | The rehearsal's report, on a plain witness tree (below). |
 
@@ -125,7 +125,7 @@ hundredths, reads the same after it, and its test records through the tree at re
   4 adds a field every state of an earlier resource has: test 30's upgrade case compares eighteen reads through the
   tree at request 29 with the same reads through the tree graded, and would break on one. The forty storms are legal
   against the map of checkpoint 4's session (two relationships more, T22), and request 31's is refused without them.
-  The kit's TypeScript, `tally.ts`'s additions and the edited tests 2, 21 and 22 included, raises nothing in the
+  The kit's TypeScript, `tally.spec-helper.ts`'s additions and the edited tests 2, 21 and 22 included, raises nothing in the
   witness's checks.
 - **The rehearsal** ([`dry-run.mjs`](../../../../../.claude/flow/dry-run.mjs), report in [`dry-run.json`](dry-run.json)),
   13 November, on a witness tree of the simple arm's kind: the plain project (`created: plain`, as OpenStay's
@@ -214,7 +214,7 @@ recommendation on each question:
    `backlog.yaml` changes what a tree already stored; its test records through the tree as it stood before it and
    reads through the tree graded, on one database. `grade.mjs --previous <id>=<ref>` checks that earlier tree out
    beside the graded one and names it to the tests (`ACCEPTANCE_PREVIOUS`, read by `previous(id)` in
-   [`tally.ts`](acceptance/tally.ts)); the ladder passes the commit the feature's attempts started from, as it
+   [`tally.spec-helper.ts`](acceptance/tally.spec-helper.ts)); the ladder passes the commit the feature's attempts started from, as it
    logged it at `feature-start`, at every grading up to the end of the run; `kit-check` refuses an `upgrade` whose
    test never starts the tree before it. Test 10 gained the case (*keeps the shares of the expenses recorded before
    the change, on the same database*). Requests 20, 30 and 40 are marked the same way when they are written.
@@ -288,7 +288,7 @@ decisions above (T2, T5's gap, the storms' crossings, `reached`, `upgrade`). Eac
   checkpoint 2 would announce it; T5's gap is closed there, on the one database.
 
 **The tests.**
-- **The provider is played by the tests** (`paymentProvider()` in `tally.ts`): an HTTP server of the test's own, which
+- **The provider is played by the tests** (`paymentProvider()` in `tally.spec-helper.ts`): an HTTP server of the test's own, which
   records what Tally asks, answers with a link, refuses while `refusing`, and signs the webhooks each test sends when
   it chooses: twice, under two ids, out of order, while the server is killed and after it starts again, at once to two
   servers.
@@ -373,8 +373,9 @@ declare a relationship, the fixed reminder threshold, request 30 an upgrade). Ea
     the member's balance but for it.
 14. **The CSV** is the JSON statement's entries, header `date,kind,id,description,paid,share,balance`, CRLF, quoted
     only where RFC 4180 needs it, integers in hundredths.
-15. **Request 30** names `DATABASE_URL` and, as OpenStay's request 40 did, the PostgreSQL 16 server of the environment
-    (`127.0.0.1:55432`); unlike OpenStay's, what the file held moves at the first start on an empty database, from a
+15. **Request 30** names `DATABASE_URL`, which the environment already sets to a database on a PostgreSQL 16 server
+    (decided by the maintainer at registration: each tree has its own server, the one its hidden tests use, where
+    the request first named a fixed `127.0.0.1:55432`); unlike OpenStay's request 40, what the file held moves at the first start on an empty database, from a
     file any earlier version kept, and the file is not read again. Without the move, the maintainer's upgrade test
     (decision 6) would have nothing to read.
 
@@ -389,8 +390,8 @@ declare a relationship, the fixed reminder threshold, request 30 an upgrade). Ea
 - **No relationship is added:** every link of checkpoint 3 is a new contract on a pair already declared.
 
 **The tests.**
-- **PostgreSQL from request 30 only.** `database()` creates a PostgreSQL database (on `TALLY_POSTGRES`, `127.0.0.1:55432`
-  when not set, through `psql`) only once request 30 is reached, and `start` gives the server `DATABASE_URL` beside
+- **PostgreSQL from request 30 only.** `database()` creates a PostgreSQL database (on `TALLY_POSTGRES`, else on the
+  server of the environment's `DATABASE_URL`, through `psql`) only once request 30 is reached, and `start` gives the server `DATABASE_URL` beside
   `DATABASE_PATH`: graded up to 29, no test needs a PostgreSQL. Graded whole, every file does.
 - **An earlier tree's answers are not held to the API** (`client(port, false)`): request 24 gives every expense a
   `category`, which the tree at request 9 does not answer, so test 10's upgrade case read through that tree failed
@@ -511,7 +512,7 @@ accept or change.
 - **Superseded cases, by request 40:** tests 2, 21 and 22 refuse `JPY` as a currency Tally does not count in; from
   request 40 they refuse `SEK` in its place (`reached(40)`), and the rest of each case holds under both. The witness
   shows it graded up to 39 and whole (below).
-- **Two more lines in `tally.ts`:** the provider says a fee on each payment (`state.fee`, 0 unless a test sets it, so
+- **Two more lines in `tally.spec-helper.ts`:** the provider says a fee on each payment (`state.fee`, 0 unless a test sets it, so
   every earlier test sees the fee of a tree that ignores it), and `database().holds(text)` counts the rows of every
   PostgreSQL table that hold a text, whatever its case.
 - **Administrators** are named per test file (`ADMIN_EMAILS` given to `start`), each signing up as anyone does.
@@ -537,6 +538,28 @@ recommendation on each question:
 6. **Then, in order, while K4 runs:** the tooling released; the Lite and Full starting trees created, with Groups and
    Ledger declared, one PostgreSQL server per tree; a witness that answers later (`202`) rehearsed on them; the kit
    and the arms' profiles hashed and registered, shown to the maintainer before any J6 run.
+
+## Decided by the maintainer at registration (14 November)
+
+On the five findings of [the registration](../registration.md#the-maintainers-decisions-14-november), three of which change this kit:
+
+1. **The client is a test's support, and named so** (finding 5): `acceptance/tally.ts` is now
+   [`tally.spec-helper.ts`](acceptance/tally.spec-helper.ts), and every test imports `./tally.spec-helper`. A Lite or
+   Full tree's linter exempts `*.spec-helper.ts` from DOMAIN-ONE-CLOCK as it exempts the tests, so the kit's files are
+   clean in every arm's tree; [the kit standard](../../kit-standard.md#in-the-hidden-tests-the-lines-a-client-needs)
+   now says so for any kit.
+2. **Request 30 names no address** (finding 3): its sentence reads *In this environment `DATABASE_URL` already names a
+   database on a PostgreSQL 16 server that asks for no password: create the databases you need on that server.* Each
+   tree has its own server, and its plan's environment names it twice: `DATABASE_URL` for the agent's own tests and
+   servers, `TALLY_POSTGRES` for the hidden tests. The client creates its databases on `TALLY_POSTGRES`, else on the
+   server of the environment's `DATABASE_URL`, and starts every server with its own database, never with the
+   environment's `DATABASE_URL` (`start`, `inherited`): a hidden test's server reads nothing an agent's tests wrote.
+   The [register's](conventions.yaml) `postgresql` says the same.
+3. **The storms are not changed** (finding 2): they are written once for every arm, and the ladder marks each command
+   `answered: at-once` in the copy it gives a Lite tree and in the copy it holds that tree to; a Lite tree stays held to
+   the aggregates and the events they decided.
+4. **The API fragments are given to every arm's agents by the ladder** (finding 1, D3): the request's fragment and those
+   of the requests before it, in the brief; the kit does not change for it.
 
 ## The rehearsal
 
@@ -575,7 +598,7 @@ above was replaced by it).
 - **Solvability:** all twenty files pass on the solved tree, checkpoint 1's ten among them (test 9 with its
   superseded cases, below), at the first run: no test had to change for the witness, and the witness did not have to
   change for a test.
-- **Hygiene:** the kit's files, `tally.ts`'s provider included, raise nothing in the tree's formatter, linter or type
+- **Hygiene:** the kit's files, `tally.spec-helper.ts`'s provider included, raise nothing in the tree's formatter, linter or type
   checker.
 - **Request 20's superseding, graded as the ladder grades it** (`grade.mjs --upto`): on a variant of the witness
   that refuses a member with a balance (`11b7cf1`, the tree as it would stand after request 19), test 9 passes graded
@@ -647,7 +670,7 @@ is this rehearsal's report, the four checkpoints in it.
 - **Solvability:** all forty files pass on the solved tree, at the first run of the dry run, and each of the ten new
   files passed on the witness, run file by file, at its first run: no test had to change for the witness, and the
   witness did not change for a test.
-- **Hygiene:** the kit's files, `tally.ts`'s additions and the edited tests 2, 21 and 22 included, raise nothing in the
+- **Hygiene:** the kit's files, `tally.spec-helper.ts`'s additions and the edited tests 2, 21 and 22 included, raise nothing in the
   tree's formatter, linter or type checker.
 - **Request 40's upgrade test discriminates.** On the tree before it (`d6c00b1`), test 40 fails its four cases (no
   group in yen or dinars). On a variant of the solved commit (`62da7a4`), whose first start reads every amount kept
@@ -667,3 +690,22 @@ is this rehearsal's report, the four checkpoints in it.
 - **Not rehearsed, still:** a tree that answers commands later (`202`), where checkpoint 4's reactions to
   `GroupsMerged` (T22), the netting's transaction over several books (T23) and the scrubbing of stored facts (T25)
   are what a plain tree cannot show.
+
+### At registration (14 November)
+
+The same tool, on the kit as the maintainer's decisions at registration changed it (above: the client renamed
+`tally.spec-helper.ts`, six tests' imports wrapped by the trees' formatter, request 30's sentence, the client's
+PostgreSQL), with the composed API in force, on copies of two of the arms' starting trees and on the same witness:
+`lite-1` (`02aa404`) and `full-1` (`86d20e8`) before; `tally-w` from `d859700` to `6bdb13c`, which is `68ccae6` with its
+own spec's database made on the server of the environment's `DATABASE_URL` instead of a fixed `127.0.0.1:55432`, with
+`previous` for requests 10 (`13ceb79`), 30 (`a46ce6c`) and 40 (`d6c00b1`). The tests ran against a PostgreSQL 16 the
+operator started on a port of its own, named by `TALLY_POSTGRES` and `DATABASE_URL` as a tree's environment names its
+server. **Verdict: clean, no finding**; [`dry-run.json`](dry-run.json) is this rehearsal's report, and replaces
+checkpoint 4's (which held the same witness's gradings, before the decisions).
+
+- **Discrimination:** all forty files fail on each starting tree, Lite, Full and plain.
+- **Solvability:** all forty files pass on the solved witness, at the first run. Before it, test 30 alone passed on the
+  witness (4 of 4) with `DATABASE_URL` and no `TALLY_POSTGRES` in the environment: the client found the server through
+  the environment's `DATABASE_URL`, as request 30 now says.
+- **Hygiene: the kit's files raise nothing in a Lite or a Full tree,** nor in the plain one: the defect the registration
+  found (DOMAIN-ONE-CLOCK in `tally.ts`) is gone with the name.

@@ -1,4 +1,4 @@
-import { client, Client, database, Running, sleep, start, stop } from './openstay';
+import { client, Client, database, Running, sleep, start, stop } from './openstay.spec-helper';
 
 /** Request 2: a listing, its life, and who sees it. */
 const db = database('listings');

@@ -1,4 +1,15 @@
-import { client, Client, database, day, keepsTheSplit, pairs, reached, Running, start, stop } from './tally';
+import {
+  client,
+  Client,
+  database,
+  day,
+  keepsTheSplit,
+  pairs,
+  reached,
+  Running,
+  start,
+  stop,
+} from './tally.spec-helper';
 
 /** Request 7: splits by exact amounts and by shares, which add up; an expense says how it was split. */
 const db = database('splits');

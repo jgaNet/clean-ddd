@@ -1,29 +1,35 @@
 # J6's registration: Simple, Lite and Full on Tally, after the calibration
 
-**Status: proposed, for the maintainer's review.** Nothing of J6 has run: no agent, no ladder. The maintainer approves
-this registration, or changes it, before any run; until then the trees, the plans and the servers below are prepared
-and idle. Five findings below ([what blocks a run](#what-blocks-a-run)) need a decision before the first ladder
-starts, and three of them need a change outside this file (the flow, the kit), which the operator did not make.
+**Status: proposed, for the maintainer's approval.** Nothing of J6 has run: no agent, no ladder. On 14 November the
+maintainer decided the five findings of the first proposal; this registration applies
+[those decisions](#the-maintainers-decisions-14-november) and is not approved yet. Until it is, the trees, the plans
+and the servers below are prepared and idle.
 
 Prepared on 14 November by the operator, with no agent, following the maintainer's decisions of 13 and 14 November
-([the protocol](README.md), [the kit's last section](app/README.md#decided-by-the-maintainer-before-registration-14-november)).
+([the protocol](README.md), [the kit's last sections](app/README.md#decided-by-the-maintainer-at-registration-14-november)).
+The repository's changes it needs (the flow, the two kits, the kit standard, this file) are left uncommitted by the one
+who prepared them: **the repository commit this registration names is the commit that carries this file**, made by the
+operator on top of `895dc94` (*K4 runner: a grading runs one acceptance file per core, at most 4*). The operator adds its
+hash on committing. Every hash below that is the repository's is taken from what that commit carries.
 
 ## What is registered
 
 | | Value |
 | --- | --- |
-| The repository | `924901cce8cd12ffa418cec20928eeb910aeac23` (*The tooling's version follows the repository's tags: 3.2.0*); the ladders run from a checkout of it: [`run-ladder.mjs`](../../../../.claude/flow/run-ladder.mjs), [`grade.mjs`](../../../../.claude/flow/grade.mjs), [`machine.mjs`](../../../../.claude/flow/machine.mjs), [`resume.mjs`](../../../../.claude/flow/resume.mjs) |
-| The package | `/var/tmp/j6/clean-ddd-3.2.0.tgz`, packed from `924901c`, sha256 `72477f7314e06c4894563de281f290d891911258c6debe93bafe0a433269708e` (checked, not repacked); vendored in every Lite and Full tree as `vendor/clean-ddd-3.2.0.tgz` (`"clean-ddd": "file:vendor/clean-ddd-3.2.0.tgz"`: the version is not on the npm registry) and given to the grader as `tooling` |
-| The kit, Tally | [`app/`](app/README.md) at `924901c`: git tree `2814e037f9fd8887d16bf53ad6e38929a1fc3266`; files sha256 `c507d84107a1f1b4b8014d763166a1d89a138fde032f9471b781f44deb539ff7` |
-| The kit, the calibration | [`calibration/`](calibration/README.md) at `924901c`: git tree `e3f07127a453323a0c0aaec0d17d24c807d460ae`; files sha256 `0ed50242d9dc530c9f5d4c42fd42aa0edc855dc3bfec3afba2a350f1cc3029a4` |
-| Lite's profile data (RFC 0002) | sha256 `1acf5a1ae779acced056dbc8709a3a10bc89d370c32aef9edfe2383f4dfd128f`, at `924901c` (after ADR 43, as RFC 0005's D1 asks) |
+| The repository | the commit that carries this file (above). The ladders run from a checkout of it: [`run-ladder.mjs`](../../../../.claude/flow/run-ladder.mjs) (sha256 `0f4a99a57acdc074efe00f0b8f56973036d105cb01b5cea890e4b8dbddd11264`) with [`ladder.mjs`](../../../../.claude/flow/ladder.mjs) (`62b445ab6a17cb74d6e3dd19b300965a935e2522786e9ada11fdb062678f85ed`), [`grade.mjs`](../../../../.claude/flow/grade.mjs) (`a86139b4b95ee1f7a8587804e889753e7a75062b543aea83952207f044eaf103`), [`machine.mjs`](../../../../.claude/flow/machine.mjs), [`resume.mjs`](../../../../.claude/flow/resume.mjs); every module the ladder reaches is hashed in `hashes.json` |
+| The package | `/var/tmp/j6/clean-ddd-3.2.0.tgz`, packed from `924901c` (*The tooling's version follows the repository's tags: 3.2.0*; nothing it holds has changed since), sha256 `72477f7314e06c4894563de281f290d891911258c6debe93bafe0a433269708e` (checked, not repacked); vendored in every Lite and Full tree as `vendor/clean-ddd-3.2.0.tgz` (`"clean-ddd": "file:vendor/clean-ddd-3.2.0.tgz"`: the version is not on the npm registry) and given to the grader as `tooling` |
+| The kit, Tally | [`app/`](app/README.md), as the commit that carries this file holds it: git tree `d2ffa3403023aaa5057e2af9ab174c45728e9d49`; files sha256 `570c05025634d4c9753d7ea04f5452a929cc4afbd425a948e8fec392163141af`. The plans read its frozen copy, `/var/lib/cdd-frozen/r14/app`: the same files hash |
+| The kit, the calibration | [`calibration/`](calibration/README.md), the same way: git tree `41e765653ab66ca2fb8c51fca5eda0c5b97b3efd`; files sha256 `670c748611ff075d3492bd6d653fcd25d317f83e1b7840e57bda0c5c6c313672`; frozen at `/var/lib/cdd-frozen/r14/calibration`, the same |
+| Lite's profile data (RFC 0002) | sha256 `1acf5a1ae779acced056dbc8709a3a10bc89d370c32aef9edfe2383f4dfd128f` (after ADR 43, as RFC 0005's D1 asks; the contract and the binding are unchanged since `924901c`) |
 | Full's profile data | sha256 `cdf42672de0a27b3de077892dd7b05776ed18fcb62643c8651878f650ebdef31` |
 | The floor every profile keeps | sha256 `cf1e2022e14a7964a463c3f38a382cc83e2dff7a35414c3fcde1681eb5bb5019` |
 | The simple arm's guide | `CLAUDE.md` of the plain trees: Tally sha256 `32a34a2a135d047a3126972ad935c38d2aa00ba236ff351534478ea040ce6df3`, the calibration's `77ef79452c400d5e8f4a6071b788d077d48e02ce9eb30039c0b7e2ef6a43154d` (they differ by the application's name only) |
 
-**How each hash is taken,** so that anyone recomputes it ([`hashes.mjs`](#where-everything-is), run with Node 24):
-- *a kit's files:* every file under the directory, its path relative to it, sorted; one line `<sha256 of the file>  <path>` each; the sha256 of those lines. The git tree id is `git rev-parse 924901c:docs/evaluations/benchmark/three-arms/<kit>`. The copies the plans read, `/home/user/j6/kit/{app,calibration}` (`git archive 924901c`), give the same file hash.
-- *a profile's data:* the sha256 of the canonical JSON (keys sorted at every depth) of `{ contract: profiles.<profile> of conventions/architecture.yaml, binding: profiles_held.<profile> of conventions/typescript.yaml }` at `924901c`; the floor, of `floor` in `conventions/architecture.yaml`. Read from the starting trees, Full's is the same (`cdf42672…`); Lite's is `29d19f87cacbefa10007430af8300b3e494708c8ce3621879aeb5e889f482ac8`, since `create --profile lite` writes the binding's Lite checklists without the rule register's line (no `--rules`) and without the reference's `shows` and `create` entries; the contract's Lite profile is the same in both.
+**How each hash is taken,** so that anyone recomputes it ([`hashes.mjs`](#where-everything-is), run with Node 24; its
+output is `/home/user/j6/hashes.json`):
+- *a kit's files:* every file under the directory, its path relative to it, sorted; one line `<sha256 of the file>  <path>` each; the sha256 of those lines. Taken of the repository's directory and of the frozen copy the plans read (copied from it, `cp -a`): the two are equal. The git tree id is the one git gives the directory once it is committed as it is: `hashes.mjs` computes it as git does, without writing to the repository (on `924901c`'s kit it gives `2814e037…`, as `git rev-parse` does). Once the operator has committed, `git rev-parse <commit>:docs/evaluations/benchmark/three-arms/<kit>` gives it.
+- *a profile's data:* the sha256 of the canonical JSON (keys sorted at every depth) of `{ contract: profiles.<profile> of conventions/architecture.yaml, binding: profiles_held.<profile> of conventions/typescript.yaml }` in the repository (the same at `924901c`); the floor, of `floor` in `conventions/architecture.yaml`. Read from the starting trees, Full's is the same (`cdf42672…`); Lite's is `29d19f87cacbefa10007430af8300b3e494708c8ce3621879aeb5e889f482ac8`, since `create --profile lite` writes the binding's Lite checklists without the rule register's line (no `--rules`) and without the reference's `shows` and `create` entries; the contract's Lite profile is the same in both.
+- *a file* (a plan, an environment, a script, a module of the flow, a guide): its sha256.
 
 ## The split's estimate (step 1)
 
@@ -47,18 +53,24 @@ not count, and which the ladder does not split on either (`ownersOf` reads the s
 `split: always` could split 13, 32 or 35. Request 31 has two stickies outside its largest context, against a
 break-even of 8.6 (the contract stage counted at 0.6 minutes per context; with none at all, it would be 5). Run on all
 forty storms, the estimate recommends one agent everywhere: 36 storms list one context, and the most any has outside
-its largest is 2 (31), against 7.4 or more. **The brief's [S] marks are not borne out by the storms as written, and
-correction 14's measure cannot be made on Tally** (a decision below).
+its largest is 2 (31), against 7.4 or more.
+
+**Decided (14 November, [decision 4](#the-maintainers-decisions-14-november)): all forty requests are registered not
+split, and correction 14 cannot be measured on Tally.** The brief's [S] marks are not borne out by the storms as
+written: no request is above the break-even, three of the four [S] requests could not be split at all, and the one that
+could (31) would need four times the stickies it has outside its largest context. Correction 14 waits for a kit whose
+storms put a request above the break-even; J6 measures nothing of the split.
 
 ## The starting trees (step 3)
 
 Each tree is a git repository of its own, with no remote, on `main`, made by
 [`make-tree.sh`](#where-everything-is) with fixed authors and dates, so that making it again gives the same commit; the
-three trees of an arm were each made, not copied, and are the same commit.
+three trees of an arm were each made, not copied, and are the same commit. **None was made again for this
+registration:** no decision changes a starting commit ([decision 7](#the-maintainers-decisions-14-november)).
 
 | Arm | How it is made | Trees | Starting commit (`main`) | Its own checks |
 | --- | --- | --- | --- | --- |
-| Simple | OpenStay's `created: plain` (`08b94b0`, where `trees/simple-w` starts), named `tally` (`package.json`, the guide's title, as the kit's rehearsal witness `tally-w` was); then the guide's two sentences of J5's corrections 4 and 3: *A read never changes what is stored…* (correction 4's text) and *When a request fixes what the API answers, its shape wins over the code's own habit…* (R3's first sentence, without its `"<NAME>"`, which Tally's request 1 does not say) | `plain-1`, `plain-2`, `plain-3` | `47b6ebe87263f29b63f6e8f2c83f8e9541dcbb28` (on `30bc83e`, *created: plain*) | `yarn verify`: pass, ×3 |
+| Simple | OpenStay's `created: plain` (`08b94b0`, where `trees/simple-w` starts), named `tally` (`package.json`, the guide's title, as the kit's rehearsal witness `tally-w` was); then the guide's two sentences of J5's corrections 4 and 3: *A read never changes what is stored…* (correction 4's text) and *When a request fixes what the API answers, its shape wins over the code's own habit: change the code that projects the answer, not the request.* (R3's first sentence, without its `"<NAME>"` example, which Tally's request 1 does not say) | `plain-1`, `plain-2`, `plain-3` | `47b6ebe87263f29b63f6e8f2c83f8e9541dcbb28` (on `30bc83e`, *created: plain*) | `yarn verify`: pass, ×3 |
 | Lite | `clean-ddd create --name tally --profile lite` (3.2.0), then the strategic session of checkpoint 1 | `lite-1`, `lite-2`, `lite-3` | `02aa404f01460d0f290515947b4d206b36308888` (on `9a1e71c`, *created: lite*) | the six of its guide (`check:conventions`, `format:check`, `lint`, `typecheck`, `test:units`, `test:e2e`) pass, ×3; the gate (`gate --base HEAD --mode architecture`) on the same commit: pass |
 | Full | `clean-ddd create --name tally` (3.2.0), then the same session | `full-1`, `full-2`, `full-3` | `86d20e8aa618d5488d4835dab2999f922003801b` (on `6a67e5d`, *created: full*) | the same: pass, ×3 |
 
@@ -68,15 +80,17 @@ Ledger declared in the binding and described in the domain map (purpose, subdoma
 the two relationships of [checkpoint 1's session](app/storms/README.md#the-strategic-session-the-contexts-and-how-they-relate)
 declared `planned` (Groups → Ledger and Ledger → Groups, owned ports), and ADR 1, which records T1 to T5. Nothing else:
 no `--rules`, no rule register, no knowledge query in the guide, no file of the kit. On Full, the ten storms of
-checkpoint 1 are *legal against the contract and the map; not in the code yet*; on Lite, see
-[what blocks a run](#what-blocks-a-run), 2.
+checkpoint 1 are *legal against the contract and the map; not in the code yet*. On Lite, they are legal as the ladder
+gives them, each command marked `answered: at-once` ([decision 2](#the-maintainers-decisions-14-november)): shown on a
+copy of `lite-1`, where 6 of the ten are refused as the kit writes them and all ten are legal once marked.
 
 **The later sessions are prepared, not applied:** `tally-cp2.json` (Settlements and Notifications, five relationships,
 ADR 2) and `tally-cp4.json` (Groups → Ledger and Groups → Settlements over an integration event, its ADR), as
 [the storms' README](app/storms/README.md) decides them; checkpoint 3 declares nothing, and request 20's relationship is
 the arm's, with its storm. Applied to copies of `full-1` and `lite-1` (request 20's relationship added as its storm would),
 each passes the conventions check, and the forty storms are legal on Full, with request 20's refused before its
-relationship, as the storms' README says.
+relationship, as the storms' README says; on Lite, the first proposal showed the forty legal once each command is
+marked `answered: at-once`, as the ladder now marks them.
 
 **The calibration's trees.** The protocol runs the calibration on the same machine, by the three arms, before Tally; its
 requests are another application's, so it needs trees of its own, made the same way: `cal-plain` (OpenStay's
@@ -84,21 +98,29 @@ requests are another application's, so it needs trees of its own, made the same 
 (`5a386f7f042e2fe3b963d0e8a3c915d8fb1165b3`) and `cal-full` (`1c90a209f3df8d44cb9f780d3c99c44e871e5e20`), the two
 last with [the calibration's session](calibration/storms/README.md#the-strategic-session-the-contexts-and-how-they-relate)
 (Accounts, Listings, Booking, Notifications, the four relationships `planned`, the pilot's ADR 1, as OpenStay's
-`ccf7f75` did). Their own checks pass. On `cal-full` the ten storms are legal. **One tree per arm** is prepared: the
-protocol says the calibration shows the machine, the harness and the budgets treat the arms alike, and one ladder per
-arm at once is that; three per arm would be the maintainer's call (a decision below).
+`ccf7f75` did). Their own checks pass. On `cal-full` the ten storms are legal; on a copy of `cal-lite`, 7 are refused as
+written and all ten are legal once marked. **One tree per arm**, as the maintainer decided
+([decision 6](#the-maintainers-decisions-14-november)): the protocol says the calibration shows the machine, the harness
+and the budgets treat the arms alike, and one ladder per arm at once is that.
 
 ## PostgreSQL (step 4)
 
 One PostgreSQL 16 server per Tally tree, run as the `postgres` user, its data under `/var/lib/postgresql/j6/<tree>`,
 listening on 127.0.0.1 only, on its own port: `plain-1..3` 55481–55483, `lite-1..3` 55484–55486, `full-1..3`
 55487–55489 (away from 55432 and from K4's 55471–55472). [`pg.sh`](#where-everything-is) `start|stop|status <tree>`
-makes the cluster on its first start and is idempotent; each plan's `services.start` is `pg.sh start <tree>`, and its
-`envFile` (`/home/user/j6/<tree>.env`) names the server to the kit, `TALLY_POSTGRES=postgresql://postgres@127.0.0.1:<port>`
-(the only variable `tally.ts` reads besides those the grader sets), and puts Node 24, yarn and `psql` on the `PATH`. The
-nine were each started and stopped once; `full-1` was shown to start, take a `CREATE DATABASE` through
-`TALLY_POSTGRES`, and stop (`status` then exits 3). The calibration needs none: OpenStay's requests 1 to 10 keep a
-SQLite file. All nine are stopped now.
+makes the cluster on its first start and is idempotent; each plan's `services.start` is `pg.sh start <tree>`.
+
+**Each tree's server is named twice in its `envFile`** (`/home/user/j6/<tree>.env`, [decision 3](#the-maintainers-decisions-14-november)):
+`TALLY_POSTGRES=postgresql://postgres@127.0.0.1:<port>` for the hidden tests, and
+`DATABASE_URL=postgresql://postgres@127.0.0.1:<port>/postgres` for the agent, whose request 30 now says that
+`DATABASE_URL` names a database on a PostgreSQL 16 server, where it creates the databases it needs. The ladder is
+started with the `envFile` sourced (the plan's first line, and `resume.mjs` after a restart), so every agent, every
+check and every grading of a tree sees its own server, and only it. The hidden tests create their databases on
+`TALLY_POSTGRES` (else on the server of `DATABASE_URL`) and give each server they start its own, never the
+environment's `DATABASE_URL`. The `envFile` also puts Node 24, yarn and `psql` on the `PATH`. The nine servers were
+each started and stopped once; `full-1` was shown to start, take a `CREATE DATABASE` through `TALLY_POSTGRES`, and stop
+(`status` then exits 3). The calibration needs none: OpenStay's requests 1 to 10 keep a SQLite file. All nine are
+stopped now.
 
 ## The witness that answers later (step 5)
 
@@ -109,7 +131,8 @@ requests 1 to 6 by hand from their text, every command answered `202 { operation
 transaction; requests 7 to 10 are not solved. Graded by [`grade.mjs`](../../../../.claude/flow/grade.mjs) up to 6, with the
 composed API in force, `--gate false`, two workers:
 
-- **On the witness: all six files pass, 32 of 32 tests, at the first run.** Tests 1, 2 and 6 ran their operation's half:
+- **On the witness: all six files pass, 32 of 32 tests, at the first run;** graded again with the kit as registered
+  (its client renamed), the same 32 of 32. Tests 1, 2 and 6 ran their operation's half:
   sign-ups refused later with `error: { type, message }` (`EmailAlreadyUsed`, `PasswordTooShort`, `InvalidEmail`,
   `InvalidName`); a member's operation read `401` without a token and `404` with another's; the stale edit and the
   edit by a member who is neither payer nor owner refused under two names (`ExpenseChangedSinceRead`,
@@ -125,52 +148,61 @@ composed API in force, `--gate false`, two workers:
 
 The calibration's README asks for its rehearsal on the arms' own starting trees and on trees solved to the kit, not for
 a new `202` witness: the pilot's `clean-w`, which answers sign-ups later, was its `202` witness on 13 November.
-[The rehearsals below](#the-rehearsals-on-the-arms-own-trees) are on the arms' own trees.
 
-## The rehearsals on the arms' own trees
+## The rehearsals
 
-[`dry-run.mjs`](../../../../.claude/flow/dry-run.mjs) at `924901c`, with the composed API in force, on the frozen kits
-(the plans and reports are in `/home/user/j6/rehearsal`; neither report is committed, since the kit is not the
-operator's to change):
+[`dry-run.mjs`](../../../../.claude/flow/dry-run.mjs), with the composed API in force, on the kits as registered
+([decision 5](#the-maintainers-decisions-14-november)), on copies of a Lite and a Full starting tree (so that no
+grading writes beside the trees the agents will work in) and on the plain witness of each kit, solved, as each kit was
+rehearsed before. Each report is committed with its kit, as the kit standard asks; the plans and logs are in
+`/home/user/j6/rehearsal/registration`. The tests from request 30 ran against a PostgreSQL 16 the operator started on a
+port of its own (55497), named by `TALLY_POSTGRES` and `DATABASE_URL` as a tree's `envFile` names its server, and
+removed afterwards.
 
-- **Tally** (`tally.json`, sha256 `588f5ecff1c4d4d9aaf66b48f0b2458a0160c3ebe08a70631a008c8c2b5c166f`), on `plain-1`,
-  `lite-1` and `full-1` before, and on the witness before and solved, graded whole, with `full-1`'s server for the tests
-  from request 30. **Discrimination:** all forty files fail on every starting tree. **Solvability:** on the witness,
-  graded whole, requests 1 to 3 pass and 4 to 40 fail, all *read*, none a defect: the witness answers request 6's
-  expense, and the API composed to request 40 requires what later requests add to it (`splitKind` from 7, `category`
-  from 24), which is the witness's, not the kit's; graded up to 6, as the ladder grades it, its six files pass (above).
-  **Hygiene: a defect, the kit's.** The kit's `tally.ts`, copied into a Lite or a Full tree, is refused by its linter's
-  DOMAIN-ONE-CLOCK (`no-restricted-syntax`) at five lines that read the machine's time (77, 89, 91, 174, 614): the
-  kit's README held its TypeScript to the plain tree's checks only, where the rule does not exist. **Verdict: defect.**
-- **The calibration** (`calibration.json`, sha256 `6742719a57c41c37dc3af67a1c70e298f508fc80b1d4b005e09ca83534fc6341`), on
-  `cal-plain`, `cal-lite` and `cal-full` before. **Discrimination:** all ten files fail on each. **Hygiene:** the same
-  defect, in `openstay.ts` (lines 59, 71, 73, 102, 357), in `cal-lite` and `cal-full`. **Verdict: defect.**
-
-Neither defect changes a grade the ladder gives: the ladder grades with `--gate false`, and the kit's files are only ever
-in the grader's worktree, never in a tree an agent or a verdict checks. They do fail the kit standard's rule that a kit
-passes its rehearsal before registration ([what blocks a run](#what-blocks-a-run), 5).
+- **Tally: clean, no finding** ([`app/dry-run.json`](app/dry-run.json), sha256 `bc8c4abb31e5a7af08849a6670e79b2fb0eae6b4149cb41ce4400e8b7ca2b3cd`).
+  - **Discrimination:** all forty files fail on `lite-1` (`02aa404`), on `full-1` (`86d20e8`) and on the witness before
+    (`d859700`, *created: plain*).
+  - **Solvability:** on the witness solved to request 40, all forty pass at the first run (`tally-w` at `6bdb13c`:
+    `68ccae6`, checkpoint 4's solved commit, with its own spec's database made on the server of `DATABASE_URL` rather
+    than a fixed `127.0.0.1:55432`; `previous` 13ceb79, a46ce6c and d6c00b1 for requests 10, 30 and 40). Test 30 also
+    passed alone (4 of 4) with `DATABASE_URL` and no `TALLY_POSTGRES` in the environment.
+  - **Hygiene:** nothing, in the Lite and the Full tree (DOMAIN-ONE-CLOCK no longer applies to the client, named
+    `tally.spec-helper.ts`) and in the plain one. The first run of this rehearsal found six tests whose imports, longer
+    with the new name, the trees' formatter wraps; they were formatted with the trees' own Prettier, and the run above
+    is the one after.
+- **The calibration: read, no defect** ([`calibration/dry-run.json`](calibration/dry-run.json), sha256 `d4681c871160209018d5efe1e311f65d4b87926d27b5cb7eb644ce0ca1dc1079`).
+  - **Discrimination:** all ten files fail on `cal-lite` (`5a386f7`), `cal-full` (`1c90a20`) and the pilot's `simple-w`
+    before (`08b94b0`).
+  - **Solvability:** on `simple-w` solved (`2dd7254`), eight pass; requests 6 and 7 fail, as they did on 13 November
+    after the maintainer's decisions 1 and 4 there ([the calibration's README](calibration/README.md#how-it-is-checked)):
+    the tree was written before those decisions. Read, not a defect.
+  - **Hygiene:** nothing, in any tree (`openstay.spec-helper.ts`; two tests' imports wrapped the same way).
 
 ## The plans (step 6)
 
-One plan per tree, `/home/user/j6/<tree>.plan.yaml`, in the format `run-ladder.mjs` reads. The same in every arm but
-the arm, the tree's port, its server and the tooling:
+One plan per tree, `/home/user/j6/<tree>.plan.yaml`, written by [`make-plans.py`](#where-everything-is), in the format
+`run-ladder.mjs` reads. The same in every arm but the arm, the tree's port, its server and the tooling:
 
 | Field | Value |
 | --- | --- |
 | `arm` | `simple` (plain), `clean` (Lite and Full) |
-| `kit` | `kit/app` (Tally) or `kit/calibration`: the frozen copies, relative to the plan |
+| `kit` | `/var/lib/cdd-frozen/r14/app` (Tally) or `/var/lib/cdd-frozen/r14/calibration`: the frozen copies, away from the trees ([decision 8](#the-maintainers-decisions-14-november)) |
 | `base`, `of` | `main`; 40 (Tally) or 10 |
-| `ladder` | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5`, as J5b |
+| `ladder` | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5`, as J5b ([decision 6](#the-maintainers-decisions-14-november)) |
 | `agent`, `retry` | `claude-cli`, 90 minutes an attempt; sent back once |
-| `budgetUsd`, `agentBudgetUsd` | $200 a Tally tree across its resumes, $60 a calibration tree; $12 an attempt |
+| `budgetUsd`, `agentBudgetUsd` | $200 a Tally tree across its resumes, $60 a calibration tree; $12 an attempt ([decision 6](#the-maintainers-decisions-14-november)) |
 | `dependencies`, `ports` | `copy`; 21100 to 21900 (Tally, by hundreds), 22000 to 22200 (calibration) |
 | `machine` | `{ ladders: 3, jestCacheGb: 2 }` |
 | `gradeTimeoutMinutes`, `gradeWorkers`, `regressionCheck` | 120; 2; `{ from: 2 }` |
 | `triage` | `{ judge: claude-sonnet-5-5 }` |
 | `tooling` | the tree's vendored package (Lite and Full) |
-| `services`, `envFile` | `{ start: pg.sh start <tree> }` and `<tree>.env` (Tally); the calibration's `envFile` only |
-| `fanOut` | none: no request is split (step 1) |
+| `services`, `envFile` | `{ start: pg.sh start <tree> }` and `<tree>.env`, with `TALLY_POSTGRES` and `DATABASE_URL` (Tally); the calibration's `envFile` only |
+| `fanOut` | none: no request is split ([decision 4](#the-maintainers-decisions-14-november)) |
 | `features` | Tally: checkpoint 1's ten; the calibration: all ten |
+
+**What every agent is given** is the ladder's, not the plan's ([decision 1](#the-maintainers-decisions-14-november)): the
+request's text and, in the brief, the request's API fragment and those of the requests before it (at request 40, the
+36 fragments of the kit, 42 kB); in Lite and Full, the storm in the tree, marked for Lite.
 
 **Checkpoints.** A Tally plan lists checkpoint 1's ten requests. At each checkpoint, after the session's commit on
 `main` (Lite and Full: checkpoint 2's before request 11, checkpoint 4's before 31), the operator adds the next ten ids
@@ -182,22 +214,26 @@ hash at each checkpoint is recorded with the session's commit. Nothing else in a
 the ladder's own code on each plan, cut just before its first side effect (`const flowDir`), so that every check a start
 makes of a plan runs (the required keys, the arm, the ladder, the runner, `dependencies`, `gradeWorkers`, `fanOut`,
 `regressionCheck`, the project's Node), and adds what the ladder accepts silently (a feature id not in the backlog, the
-kit, the tooling, the `envFile`, the server's script, the base). **All twelve pass.**
+kit, the tooling, the `envFile`, the server's script, the base) and, now, a kit whose path names `j6`, `tally` or a kit.
+**All twelve pass.**
 
 | Plan | sha256 |
 | --- | --- |
-| `plain-1.plan.yaml` | `9b2953fddffa9b8db54127e0f81aa018616af5c0b2edd8408712ece104f11cd5` |
-| `plain-2.plan.yaml` | `095930cb12a4a25e5e0989cde9b9709a732e5a8ec7843ce545d5a2436b654349` |
-| `plain-3.plan.yaml` | `24ccdc473b5bd2b15b4036f89cc505a769ffc272457a705e3ebafea2052a4d85` |
-| `lite-1.plan.yaml` | `df340563ee144f8f90ff52aee1df93ba6b0627f255c3718eb7cff87fd1ca5eb2` |
-| `lite-2.plan.yaml` | `aa9e6e219645ca6a47c1e0a2e016356a757fb6050772ba17c4bbebbb7fc85bfa` |
-| `lite-3.plan.yaml` | `e93513a4828ac228e854364bbb8889b2610b602d20043598dfa5f3a731990c05` |
-| `full-1.plan.yaml` | `32f30d0edec88f390268821c5dd01120f9cc42d11b8e2e8aa7d777947350cee7` |
-| `full-2.plan.yaml` | `0bad2a01746d1175a6c273a46678234446973be96fb48d33f061367def59f730` |
-| `full-3.plan.yaml` | `46241c7a037623d337a33a8155a66ec1195e718ae92eca197cecd8817e2db1ef` |
-| `cal-plain.plan.yaml` | `ae1549e0d01b4ac7b9fa825f2b7625a0dbb3988a13472c6843db8368c5ef8d04` |
-| `cal-lite.plan.yaml` | `a2b76d96f7f7835a1f2029f098873c10f8e85ceafe3ef708157b7b1efda281e2` |
-| `cal-full.plan.yaml` | `06f7e5a12acd0b338cb8b29b7949f7a38a0e41c17f6ba111b18d77dfffee750c` |
+| `plain-1.plan.yaml` | `9f586541b6bbd87203e747227109a5de83e6292c54d4e2cbbce4b8f06bd84383` |
+| `plain-2.plan.yaml` | `c313dc1b21372d803e97a6f590c0382234667d32deaaca00a5f9d0420a2a341b` |
+| `plain-3.plan.yaml` | `f09e0434c2e59707419a440e5658923bdefd902f243f08a71f5f8ebf77583532` |
+| `lite-1.plan.yaml` | `3b336185c72bcd59b487453bc1eff1c59465521040c844455cdeaa38b91506cd` |
+| `lite-2.plan.yaml` | `ef419b7d8a6ea66c9be37b7186813380e77fd1f8c4544fa63c38b164d3fb25ae` |
+| `lite-3.plan.yaml` | `3df3539eeff2b9e52238c1175ce8f08723d0861487b305fda302a3589d3069d4` |
+| `full-1.plan.yaml` | `efae935edd76489be0aa55c0505f369be72004f791769e7e157f907de698e1c3` |
+| `full-2.plan.yaml` | `24d14c5bd0dfd6e1ccbe8e0e8f1fab0f20ab9a49f07252fcb9008e369e93b3e2` |
+| `full-3.plan.yaml` | `e07c9624332bc927ca5f244fdcf781be9716fd5a3108b7b8784c14fd961a372a` |
+| `cal-plain.plan.yaml` | `c6800e484b84b1f228d0202ee81411a1a629bc8295139dcffe3d8975e49fd9ac` |
+| `cal-lite.plan.yaml` | `1c5ba48edac02b1e8d2481a684cae122be12ce0cb54c041a6cec21e581d362f1` |
+| `cal-full.plan.yaml` | `eea573f89a97096443c63764ed788ad21aa2a3eed7bbf01094a2e0047ddcf9ed` |
+
+The nine Tally `envFile`s are hashed in `hashes.json` beside them (`full-1.env`
+`1089c692290468ec536c96173a979499af801d92e5d61ff26831f5c35b9aff45`, and so on).
 
 ## The hypotheses and the scores
 
@@ -227,76 +263,120 @@ nothing here rewords one.
 6. **Lite's decisions:** how often a Lite feature brings a mechanism in, whether the trigger called for it, what the gate
    refused for a mechanism missing or added without its trigger.
 
-The calibration is not counted.
+The calibration is not counted. Correction 14 (the split) is not measured (step 1).
 
 ## The stopping rules and the budgets
 
 - **Per feature,** from the smallest model up: an attempt per model, sent back once on the driver's verdict, 90 minutes
   and $12 each; a failure of the hidden tests is graded again alone before it counts; an earlier test that fails is
   graded twice on the attempt's start before it counts as a regression (`regressionCheck`).
+- **An attempt whose agent read the kit is void** ([decision 8](#the-maintainers-decisions-14-november)): its
+  transcripts are scanned before it is judged, and a tool call that reads or lists the plan's kit, or the grader's
+  worktrees, voids it. It is logged as `leak` and run again once, at the same step; a second leak at that step stops the
+  tree (`VOID`), for the operator. Its cost counts against the tree's budget.
 - **A feature the last model fails** stops the tree at `needs-triage`; it is judged by [J5's triage](../openstay/j5/triage.md),
   written before any run, with `claude-sonnet-5-5` as the judge: the kit's (amended for every arm alike and graded
-  again) or FAILED, and the tree stops there.
+  again) or FAILED.
+- **One repair per triaged failure,** as in J5 and J5b ([decision 6](#the-maintainers-decisions-14-november);
+  [J5's rule](../openstay/j5/repairs.md)): a tree that stops on a failure the triage judged real is repaired once, in its
+  arm's medium (a section of the tree's guide, `CLAUDE.md`, committed by the maintainer on its `main`; a rule that holds
+  for every feature, never a test's answer), and continues from the request it failed. If the replay fails at every
+  step again, the correction may be reworded once and the request replayed again; a second failure after the rewording
+  stops the tree for good. The replay is counted as the tree's second attempt at that request, its cost the tree's;
+  a correction reaches every tree of the same arm that has not reached that request, and a failure two arms share gets
+  the same words in both.
 - **A tree's budget** is its run's, across resumes, reserved before each agent starts: $200 a Tally tree, $60 a
-  calibration tree, equal in every arm. Proposed so that no arm reaches it: J5b's clean-3 cost $156 for fifty requests,
-  with a split that doubled its split requests' cost.
+  calibration tree, equal in every arm, kept by the maintainer. Proposed so that no arm reaches it: J5b's clean-3 cost
+  $156 for fifty requests, with a split that doubled its split requests' cost.
 - **The machine:** at most three ladders at once (`machine.ladders`), each started through
   [`machine.mjs`](../../../../.claude/flow/machine.mjs) with Node 24 first on its `PATH`; a restart is resumed by
   [`resume.mjs`](../../../../.claude/flow/resume.mjs), which sources the plan's `envFile` and runs its `services.start`.
+  The ladders share their three slots in the machine's temporary directory (below, what the decisions found).
 
 ## The order of the runs
+
+Kept by the maintainer ([decision 6](#the-maintainers-decisions-14-november)):
 
 1. **The calibration,** first, not counted: `cal-plain`, `cal-lite` and `cal-full` at once, one ladder each.
 2. **Tally, checkpoint by checkpoint,** one tree per arm at a time, three at once: `plain-1`, `lite-1` and `full-1`; then
    the `-2` trees; then the `-3` trees; then, after the maintainer's decision at the checkpoint and the session's commit
    on the Lite and Full trees, checkpoint 2 in the same order, and so on to checkpoint 4.
 
-## What blocks a run
+## The maintainer's decisions (14 November)
 
-1. **The agents do not receive the API fragments (D3).** The ladder at `924901c` gives an agent the request's text
-   (`backlog/<n>-<id>.md`) and, in Lite and Full, the storm; nothing gives it `api/<n>-<id>.yaml`
-   (`run-ladder.mjs`, `brief`, reads `request(feature)` only; only `grade.mjs` reads `api/`). D3 says every arm's agents
-   receive them, and the kit's README says so. **A change to the flow,** the same for every arm (the fragment appended
-   to the brief, or copied into the tree), then a new repository commit for this registration. The package needs no
-   change: the ladder runs from the repository.
-2. **The kit's storms are refused on a Lite tree.** A storm's command under a profile that answers at once must say
-   `answered: at-once`; none of the kit's does. `storm validate` refuses 6 of checkpoint 1's ten storms on `lite-1`, and
-   7 of the calibration's ten on `cal-lite` (*Groups is held to Lite, whose commands are answered at once …*), and the
-   ladder's clean verdict (`storm --expect`, which compares `answered`) would owe every command storm forever: no Lite
-   attempt with a command could be delivered. With `answered: at-once` added to each command, mechanically, the forty
-   storms are legal on a Lite tree with the sessions' declarations (shown on a copy of `lite-1`). **A change to the kit
-   (Lite's rendering of each storm) or to the flow (rendering it when it copies the storm into a Lite worktree),** and
-   the kit's hash taken again. A question with it: the storms name aggregates and recorded events, which `--expect`
-   holds a Lite tree to as well, where Lite brings an aggregate and a domain event only on a trigger.
-3. **Request 30 names `postgresql://postgres@127.0.0.1:55432/postgres`** for the agents, while each tree has its own
-   server and the hidden tests reach it through `TALLY_POSTGRES`. Nothing serves 55432 now (the rehearsal's
-   `/var/lib/postgresql/tally-j6` is stopped), and the operator was told to stay off it. From request 30, every tree's own
-   tests and servers would meet on one shared server, or on none. **The maintainer decides:** one shared server on 55432
-   for the agents' own tests, beside the per-tree servers of the hidden tests (the same for every arm); or a per-tree
-   `DATABASE_URL` in the `envFile`, which every agent would see and the request does not name.
-4. **The split cannot be measured on Tally** (step 1): no request is above the break-even, and three of the four [S]
-   requests list one context. Registered as is, J6 splits nothing and correction 14 waits for another kit; a request
-   registered split regardless could only be 31 (`split: always` on a plan that lists it).
+The first proposal named five findings that blocked a run and left six questions; the maintainer decided them all. Each
+decision, what changed for it and how it was shown:
 
-5. **The kits fail their rehearsal's hygiene on the Lite and Full trees** (above): `tally.ts` and `openstay.ts` read
-   the machine's time where the 3.2.0 linter's DOMAIN-ONE-CLOCK refuses it. No grade changes, but the kit standard
-   asks for a clean rehearsal before registration. **A change to the kit,** or the maintainer's decision that the
-   linter's rules of a created tree do not apply to the hidden tests' support.
+1. **D3, in the flow: the agents receive the API fragments.** The ladder at `924901c` gave an agent the request's text
+   and nothing of `api/`. Now, with each request, the brief gives the request's fragment and those of the requests
+   before it, in their order, in every arm alike ([`ladder.mjs`](../../../../.claude/flow/ladder.mjs), `apiFragments`
+   and `apiBrief`, called by `brief` and by the owners' brief in
+   [`run-ladder.mjs`](../../../../.claude/flow/run-ladder.mjs)): fragments, not the composed API, as the protocol's D3
+   sentence says (*every arm's agents receive the kit's API fragments*). A request without a fragment of its own (10,
+   14, 20, 30) is given the earlier ones and told so. Tested in [`ladder.test.mjs`](../../../../.claude/flow/ladder.test.mjs)
+   on both kits, and in [`run-ladder.test.mjs`](../../../../.claude/flow/run-ladder.test.mjs) on a ladder run with
+   `runner: command`, whose agent keeps the prompt it was given.
+2. **Lite storms, in the flow.** The kit's storms are one per request, shared by the arms, and unchanged. At each
+   attempt of the clean arm, the ladder asks the tree which contexts answer their commands at once
+   (`architecture profiles --json`: a context held to a profile that does not use the command bus, as `storm validate`
+   decides it) and marks each of their commands `answered: at-once`, a line under its name, the rest of the file as
+   written, in the copy it commits for the agent and in the copy `storm --expect` holds the code to (`storm-given` in
+   the log). On a Full tree nothing is marked. A Lite tree stays held to the aggregates and the events the storms
+   decided. Shown with the ladder's own function on a copy of `lite-1`: checkpoint 1's ten storms, 6 refused as
+   written, are all legal once marked; and the calibration's ten on a copy of `cal-lite` (their contexts are not
+   `lite-1`'s), 7 refused as written, all legal once marked (`/home/user/j6/rehearsal/registration/mark-*.log`). Every
+   storm of both kits, marked, reads back as the storm with `answered: at-once` added to each command and nothing
+   else (`ladder.test.mjs`).
+3. **Request 30 names `DATABASE_URL`, per tree.** Its sentence now reads *In this environment `DATABASE_URL` already
+   names a database on a PostgreSQL 16 server that asks for no password: create the databases you need on that
+   server*, in place of the fixed `127.0.0.1:55432`. Each Tally `envFile` sets `DATABASE_URL` and `TALLY_POSTGRES` to its
+   tree's server. In the kit: the register's `postgresql`, test 30's header and the kit's README say the same; the
+   client finds its server on `TALLY_POSTGRES`, else on `DATABASE_URL`'s, and starts each server with its own database,
+   never the environment's `DATABASE_URL` (a hidden test reads nothing an agent's own test wrote). Rehearsed on the
+   witness: its own spec still read a fixed `127.0.0.1:55432`, so it now reads its server from `DATABASE_URL`
+   (committed in the witness, `6bdb13c` on branch `cp4`); with a PostgreSQL started on 55497, its spec passes, test 30
+   passes 4 of 4 with `DATABASE_URL` alone, and the forty pass with both (the rehearsal above).
+4. **The split:** all forty requests are registered not split, and correction 14 cannot be measured on Tally (step 1).
+5. **Hygiene:** the kits' clients are renamed `tally.spec-helper.ts` and `openstay.spec-helper.ts`, with every import
+   (six tests' and two tests' imports wrapped by the trees' formatter), every mention in the kits' READMEs and tests,
+   and a paragraph of [the kit standard](../kit-standard.md#in-the-hidden-tests-the-lines-a-client-needs) that names
+   the rule for any kit. `grade.mjs`, `kit-check.mjs` and `dry-run.mjs` assumed nothing of the name (the grader copies
+   every file of `acceptance/`; the checks read `<n>-<id>.acceptance.ts` only), so none changed. Both kits rehearsed
+   clean of hygiene on a Lite and a Full tree (above); `kit-check.mjs`: clean, on both.
+6. **The calibration: one tree per arm. The budgets and the model ladder, kept. One repair per triaged failure, as in J5
+   and J5b. The order, kept:** the plans and the sections above say each.
+7. **Correction 3 in the plain guide:** R3's first sentence, without its `"<NAME>"` example, is the guide's
+   *The API's shapes* section in every plain tree, as `make-tree.sh` wrote it at preparation; the plain trees and their
+   commit (`47b6ebe`, and `0932e48` for the calibration) do not change, and their guides hash as before.
+8. **The hidden kit away from the trees, and leakage voided.** The frozen kit moved from `/home/user/j6/kit` (removed)
+   to `/var/lib/cdd-frozen/r14`, a path with no `j6`, `tally` or `kit` in it, copied from the repository's kits as
+   registered; the plans read it, and `check-plans.sh` refuses a kit path that names one. In the ladder, once an
+   attempt's agents have stopped and before it is judged, the transcripts Claude Code wrote for its worktree since it
+   began are scanned with K4's scan (`k4-measures.mjs`, `scanLeakage`), held to the plan's kit and the grader's
+   worktrees (`<project>.flow/grade`, where the hidden tests are while a grading runs): a tool call whose input names
+   one voids the attempt (`ladder.mjs`, `transcriptsOf` and `kitLeakage`; a result that only mentions one is counted,
+   not voided). Tested on transcripts (`ladder.test.mjs`: a read, a listing, a search; a path that only begins like
+   the kit's; K4's own patterns left out) and on a ladder run whose agent lists the kit once (the attempt is run again
+   and judged) and twice (the tree stops `VOID`, nothing escalated) (`run-ladder.test.mjs`).
+9. **The registration:** this file, every hash taken again (`hashes.mjs` on the kits as renamed, request 30 changed,
+   the reports committed), the plans written again (`make-plans.py`) and checked (`check-plans.sh`: twelve pass).
 
-## What is left for the maintainer to decide
+**What the decisions found on the way, and fixed in the flow:** the ladder took its slot of `machine.ladders` in its
+own temporary directory. `run-ladder.mjs` sets `TMPDIR` to the run's own directory before it takes a slot, and
+`takeSlot` looked for the slots under `TMPDIR`: each ladder would have counted its own slots alone, and three at once
+was not held. The slots are now read in the machine's temporary directory, before `TMPDIR` changes; `run-ladder.test.mjs`
+fails without the fix.
 
-- The five findings above, before any run.
-- **The calibration's trees:** one per arm (prepared) or three.
-- **The budgets** ($200 a Tally tree, $60 a calibration tree, $12 an attempt) and **the ladder's models**, as J5b's.
-- **Repairs:** whether J5's [one repair per triaged failure](../openstay/j5/repairs.md) applies in J6, in each arm's
-  medium; the protocol does not say.
-- **The order** of the runs, checkpoint by checkpoint (proposed) or tree by tree.
-- **The simple arm's guide:** correction 3's sentence as R3's first sentence, without its `"<NAME>"`.
-- **Where the kit lives while agents run:** the plans read `/home/user/j6/kit`, a sibling of the trees, as J5b's read
-  the repository's; an agent with a shell can reach either. The rehearsal's graded worktrees, which held the hidden
-  tests beside the trees, were removed.
-- Two things the kit's README asked for and this registration does not include: the dry run's report committed with
-  the kit (it is the kit's to change), and a witness beyond request 6.
+## What is left for the maintainer
+
+- **The approval** of this registration, after which the operator commits these changes and adds the commit's hash
+  above.
+- **The grader's storm column for Lite trees.** `grade.mjs` holds every tree to the kit's storms as written (its `M3`,
+  "storm carried"), not to the copy the ladder gives a Lite tree: on a Lite tree, `M3` will say every command storm is
+  owed (`answered`). No verdict and no score reads `M3` (the ladder decides on the hidden tests, `M2`, and on its own
+  verdict, which reads the marked copy); `grade.mjs` was not changed while K4's pilot runs it at every run. Whether
+  the record reports `M3` for Lite, or the grader marks the storms as the ladder does, is the maintainer's.
+- Still not included, as in the first proposal: a `202` witness beyond request 6.
 
 ## Where everything is
 
@@ -306,10 +386,14 @@ Outside the repository, on this machine:
 | --- | --- |
 | `/home/user/j6/<tree>/app` | the twelve trees: `plain-1..3`, `lite-1..3`, `full-1..3`, `cal-plain`, `cal-lite`, `cal-full` |
 | `/home/user/j6/<tree>.plan.yaml`, `/home/user/j6/<tree>.env` | each tree's plan and environment |
-| `/home/user/j6/kit/app`, `/home/user/j6/kit/calibration` | the kit at `924901c`, as the plans read it |
+| `/var/lib/cdd-frozen/r14/app`, `/var/lib/cdd-frozen/r14/calibration` | the kits as registered, as the plans read them |
 | `/home/user/j6/bin/make-tree.sh` | makes a tree (sha256 `47e979cc6ef954804634fe0907df59b29dd43e4f130588082994abaf718e1a23`) |
+| `/home/user/j6/bin/make-plans.py` | writes the plans (sha256 `d3523880d9699033dfef64b56328905f38d83e843769cac078445bb540981b71`) |
 | `/home/user/j6/sessions/declare.py` and `*.json` | a session's commit (sha256 `50923825294b0de282c2271c3c23753d0220eb02efc549331aa4aca5bdfc689c`; `tally-cp1.json` `b8f7da9e…`, `tally-cp2.json` `bb4fff34…`, `tally-cp4.json` `602ca0e5…`, `openstay.json` `f99eb3bf…`) |
-| `/home/user/j6/bin/pg.sh` | the servers (sha256 `f7aa13354f1927a0535db0142e233f9da3a69ab79f66b200c940257e42102858`); data under `/var/lib/postgresql/j6/<tree>` |
-| `/home/user/j6/bin/checks.sh`, `check-all.sh`, `check-plans.sh`, `hashes.mjs` | the trees' own checks, the plans' validation, the hashes (`/home/user/j6/hashes.json`) |
+| `/home/user/j6/bin/pg.sh` | the servers (sha256 `babe393136900e7f20a2e06d10a4384687183bd33f07522d5efe2534d22cbe3c`); data under `/var/lib/postgresql/j6/<tree>` |
+| `/home/user/j6/bin/check-plans.sh`, `plan-extra.mjs` | the plans' validation (sha256 `facd804e3893a5353a34fd3d1a0a7c17ad59e8c0c9d202933c97dc40e4016dea`, `dd11ab9913044eab9c06d652e88378824fb0512003b889eeb916cb2fe0b0baf7`) |
+| `/home/user/j6/bin/hashes.mjs` | the hashes (sha256 `8a07eb41921f203e3b97f504899376add82727c1ddba2277a6db81d9e8215dfb`), written to `/home/user/j6/hashes.json` |
+| `/home/user/j6/bin/checks.sh`, `check-all.sh` | the trees' own checks |
 | `/home/user/j6/witness/full-w`, `/home/user/j6/witness/grades` | the `202` witness, its variants and its gradings |
-| `/home/user/j6/rehearsal` | the dry runs' plans, reports and logs |
+| `/home/user/j6/rehearsal`, `/home/user/j6/rehearsal/registration` | the first proposal's dry runs; this registration's (plans, logs, reports, the storms marked on Lite, test 30 and the `202` witness graded again) |
+| the kit's plain witness `tally-w` (the operator's scratch space) | `6bdb13c` on branch `cp4`: `68ccae6` and its spec's database on `DATABASE_URL`'s server |

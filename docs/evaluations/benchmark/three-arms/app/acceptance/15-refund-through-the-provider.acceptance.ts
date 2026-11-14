@@ -1,4 +1,14 @@
-import { client, Client, database, payable, PaymentProvider, paymentProvider, Running, start, stop } from './tally';
+import {
+  client,
+  Client,
+  database,
+  payable,
+  PaymentProvider,
+  paymentProvider,
+  Running,
+  start,
+  stop,
+} from './tally.spec-helper';
 
 /** Request 15: a refund of a settlement paid through the provider; the balances go back once the provider says so. */
 const db = database('refund');

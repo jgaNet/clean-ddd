@@ -1,4 +1,4 @@
-import { client, Client, database, day, Running, start, stop } from './openstay';
+import { client, Client, database, day, Running, start, stop } from './openstay.spec-helper';
 
 /** Request 6: book instantly, never the same night twice, never twice by mistake. Invariants 3, 4 and 8. */
 const db = database('book');

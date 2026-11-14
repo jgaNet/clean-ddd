@@ -1,4 +1,4 @@
-import { client, Client, database, day, Person, Running, sleep, start, stop } from './tally';
+import { client, Client, database, day, Person, Running, sleep, start, stop } from './tally.spec-helper';
 
 /** Request 5: every member's balance, in the order they joined; the zero sum, whatever happens at once. */
 const db = database('balances');

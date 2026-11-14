@@ -10,7 +10,7 @@ import {
   Running,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 20: a member leaves whatever their balance, which passes to the group's owner in the same step. */
 const db = database('leave-balance');
