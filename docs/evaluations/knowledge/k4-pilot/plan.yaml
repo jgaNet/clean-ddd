@@ -35,30 +35,39 @@ prompt_c: |                                # appended to the prompt in arm C onl
   exception, it prints its context, its behaviours, its files, the rules it can refuse with, the tests that assert them,
   the decisions and storms that cite it and the contracts it crosses, each fact marked derived or declared.
 
-# How a run is launched. No existing runner fits as it is (README.md, "What the runners lack"): the claude-cli runner
-# (.claude/flow/runners.mjs) runs one agent with a model, a budget and a timeout, but run-feature.mjs, the driver that
-# makes the worktree and logs the run, has a fixed brief, a fixed tool list, no budget, no session id and the clean-ddd
-# gate. Until a driver has the options below, a run is these steps, by hand or by a script, in this order:
+# How a run is launched: .claude/flow/run-task.mjs (the flow's README, "K4"), one run at a time, from this file; it
+# reads the prompt, the model, per_run, the databases and the runs above and below, and nothing in `launch` (which says
+# what it does, for a reader and for a run by hand):
+#   node .claude/flow/run-task.mjs --dry                                   # the 54 runs, what each would do; runs nothing
+#   node .claude/flow/run-task.mjs --all --k3 <K3 .tgz> [--work <dir>] [--out <dir>]   # resumable: a recorded run is skipped
+#   node .claude/flow/k4-report.mjs --records <out>/records                 # the table and the two criteria
 launch:
-  1-prepare: prepare-arm.sh <arm> tasks/<task> <openstay> <dir>/<arm>-t<n> <node_modules> [<K3 .tgz>]   # once per task and arm
-  2-worktree: git -C <dir>/<arm>-t<n> worktree add -b run/<id> <dir>/<arm>-t<n>.flow/worktrees/<id>; copy node_modules into it
+  1-prepare: >-
+    prepare-arm.sh <arm> tasks/<task> <openstay> <work>/runs/<nn>/openstay <node_modules> [<K3 .tgz>], once per run (not
+    per task and arm: two runs of one arm would share a repository's branches, and Claude Code's project directory);
+    the path names neither the pilot nor the arm, and nothing above it holds a CLAUDE.md or a .claude/
+  2-services: the two clusters of `database`, each of its own under <work>/pg/, started if they are not
   3-agent: >-
-    cd <worktree> && PATH=[<dir>/C-t<n>.k3/bin:]/opt/node24/bin:$PATH TEST_DATABASE_URL=<agent db>/postgres
+    cd <work>/runs/<nn>/openstay && PATH=[<tree>.k3/bin:]/opt/node24/bin:$PATH TEST_DATABASE_URL=<agent db>/postgres
     OPENSTAY_POSTGRES=<agent db> claude -p "<prompt>" --output-format json --model claude-haiku-5-5
-    --session-id <uuid> --max-budget-usd 4 --setting-sources project --strict-mcp-config
-    --allowedTools "Bash Read Edit Write Glob Grep[ Skill]" [--disable-slash-commands, arm A]
-    (stopped by process group at 60 minutes, as runners.mjs does)
+    --allowedTools "Bash Read Edit Write Glob Grep[ Skill]" --tools "Bash,Read,Edit,Write,Glob,Grep[,Skill]"
+    --max-budget-usd 4 --session-id <uuid> --setting-sources project --strict-mcp-config [--disable-slash-commands, arm A]
+    (stopped by process group at 60 minutes, as runners.mjs does; --tools makes the arm's tools the only ones the agent
+    has, where --allowedTools alone only approves them)
   4-log: >-
-    append to k4-pilot.jsonl one `run` event: id, task, arm, run, start commit, head, the runner's JSON (cost, modelUsage,
-    num_turns, duration_ms, result), wall clock, session id; copy ~/.claude/projects/<cwd with / as ->/<uuid>.jsonl
-    beside the log as transcripts/<id>.jsonl
+    <out>/k4-pilot.jsonl gets `started`, `agent-finished` and one `run` event: id, task, arm, run, start commit, head,
+    cost, tokens, turns, duration, wall clock, session id; ~/.claude/projects/<the tree's path>/<uuid>.jsonl is copied
+    to <out>/transcripts/<id>.jsonl; the leakage scan voids a run (README.md, "Leakage"), which is run again as <id>.2
   5-grade: >-
-    apply the run's diff (start..head) onto the B tree of the task, commit it, and run there: the tree's own checks
-    (format:check, lint, typecheck, test:units, test:e2e, and check:conventions, recorded apart), then
-    node .claude/flow/grade.mjs --project <B repo> --ref <that commit> --base <B start> --kit <the task's kit> --upto 101
-    --workers 2 --gate false --keep false, with the task's kit composed as README.md says (J5's 100 requests and the
-    task as request 101). Task 4: no grading of code; its answer is scored against ground-truth.yaml (`expected`).
-  6-measure: the transcript measures of README.md ("Measures"), from transcripts/<id>.jsonl and the task's ground-truth.yaml
+    in the task's grading repository (prepare-arm.sh B, once a task), the run's committed diff (start..head) applied with
+    --3way and committed; the tree's own checks there (format:check, lint, typecheck, test:units, test:e2e, and
+    check:conventions, recorded apart); then node .claude/flow/grade.mjs --project <B repo> --ref <that commit>
+    --base <B start> --kit <work>/kits/<task> --upto 101 --workers 2 --gate false --keep false, the kit composed as
+    README.md says (J5's 101 files and the task as request 101); the start graded the same way once a task, for the
+    regressions. Task 4: no grading of code; its answer is scored against ground-truth.yaml (`expected`), the rules by
+    the judge (claude-sonnet-5-5), each match read by the operator
+  6-measure: the transcript measures of README.md ("Measures"), by .claude/flow/k4-measures.mjs, into the run's record
+  7-record: <out>/records/<id>.json, one a run; the run's repository kept as <out>/bundles/<id>.bundle
 
 # The 54 runs, in the order they are run: three rounds, each task once per round, the arms rotated within a task.
 runs:

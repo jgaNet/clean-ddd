@@ -6,7 +6,7 @@ rule:
   says: OpenStay has one now, the clock the wiring passes (request 57); a domain method's time is always given, never a
     default that reads the machine.
   born: request 57; J5b's repair R6, the tree guide's section "OpenStay's now"; in the reference, ADR 42 and its rule
-    DOMAIN-ONE-CLOCK (which clean-3's tooling, 0.2.0, predates: nothing in the tree holds it)
+    DOMAIN-ONE-CLOCK (which clean-3's tooling, 0.2.0, predates; nothing in the tree holds it)
   names: [Clock, openStayClock]
 # The machine-time reads at the start, in the two contexts (the hidden test lists them as it finds them):
 start_reads:

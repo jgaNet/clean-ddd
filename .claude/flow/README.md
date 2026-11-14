@@ -157,4 +157,50 @@ node .claude/flow/kit-check.mjs <kit>     # before the campaign is registered, b
 [`kit-check.test.mjs`](kit-check.test.mjs) builds a kit of three requests in a temp dir, shows each refusal, and the
 composed API catching the three conventions OpenStay's trees broke.
 
+## K4: one task, one arm, one run, graded and measured
+
+RFC 0006's pilot (`docs/evaluations/knowledge/k4-pilot` in the clean-ddd reference: its README is the protocol, its
+`plan.yaml` the 54 runs) asks whether an agent given `clean-ddd knowledge` explores less than one given the guide and
+the commands. [`run-task.mjs`](run-task.mjs) runs one of its runs, from `plan.yaml`, to one JSON record:
+
+```bash
+node .claude/flow/run-task.mjs --dry [--show-prompt]                    # the 54 runs, what each would do; runs nothing
+node .claude/flow/run-task.mjs --id k4-t1-B-r1 | --order 1 | --all --k3 <K3 .tgz> [--work <dir>] [--out <dir>]
+node .claude/flow/run-task.mjs --services start|stop|remove [--work <dir>]
+node .claude/flow/k4-report.mjs --records <out>/records [--json <file>] [--md <file>]
+```
+
+- **The tree** of each run is a repository of its own (`prepare-arm.sh`, under `<work>/runs/<nn>/openstay`): the runs of
+  one task and arm share no branch and no Claude Code project directory, the path names neither the pilot nor the arm,
+  and the run refuses to start under a directory that holds a `CLAUDE.md` or a `.claude/`.
+- **The agent** is the `claude-cli` runner with what `run-feature.mjs` could not give it: the plan's prompt with the
+  task verbatim (C's sentence in C only), the arm's tools (`--tools` and `--allowedTools`; `Skill` in B and C),
+  `--setting-sources project --strict-mcp-config`, `--disable-slash-commands` in A, `--session-id`, `--max-budget-usd`,
+  the time limit, the agent's own PostgreSQL cluster, and no clean-ddd gate. [`runners.mjs`](runners.mjs) takes
+  `tools` and `extraArgs` for it; without them it runs as before. A run that could pass the pilot's budget is not
+  started.
+- **The transcript** is copied beside the records, and [`k4-measures.mjs`](k4-measures.mjs) reads it with K1's method:
+  each call classed explore, edit, verify or other, the bytes its result brought in, the tracked files read before the
+  first edit and in all, the unnecessary ones (neither changed nor named by the ground truth), `clean-ddd knowledge`
+  and the skills counted apart. It also scans the tool inputs for a kit, a hidden test, OpenStay's repository, a J5b
+  directory, the K3 package's source or the records: a run that touched one is **void**, and run again as `<id>.2`.
+- **The grading** is the same for every arm, in the task's grading repository (arm B's tree): the run's committed diff
+  applied and committed, the tree's own checks (`check:conventions` recorded apart: A cannot run it), and
+  [`grade.mjs`](grade.mjs) on a kit composed for the task (J5's, the task as request 101), with `--workers 2 --gate
+  false`. The start is graded once a task, and a regression is a J5 file that passed there. Task 4 changes nothing:
+  [`k4-score.mjs`](k4-score.mjs) scores its answer's files and tests by precision and recall against the ground truth,
+  and a judge matches its rules, each match left for the operator to read.
+- **Resumable:** a run with a record that is not void is never run again; an agent that finished before its driver
+  died is graded on resume without running again.
+- **Stand-ins prove it without an agent:** `--stand-in <patch>|none` commits a patch where the agent would have worked,
+  `--stand-in-answer <file>` gives task 4's final message; such a record says `standIn`, needs its own `--out`, and the
+  report refuses it.
+- **[`k4-report.mjs`](k4-report.mjs)** reads the records into the pilot's table per task and arm and §8's two criteria
+  with the README's bands (holds, does not hold, undecided), and the pilot's reading: dropped, stands, undecided (then
+  extended), or incomplete.
+
+The tests ([`k4-measures.test.mjs`](k4-measures.test.mjs), [`k4-score.test.mjs`](k4-score.test.mjs),
+[`k4-report.test.mjs`](k4-report.test.mjs), [`run-task.test.mjs`](run-task.test.mjs)) need no agent, no database and no
+tree: a fixture transcript, the registered ground truths, synthetic records, and the dry run of the 54 runs.
+
 It is a script on purpose. It holds no state but the log (and, while it runs, a lock and the leases); several features at once is a later phase of the RFC, and comes only if the measurements justify it.

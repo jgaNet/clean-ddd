@@ -2,7 +2,7 @@
  * The agent runners a driver can start an agent with (RFC 0001, `AgentRunner`): the provider
  * changes, the flow does not. Each takes the same task and answers the same shape:
  *
- *   run({ prompt, cwd, model?, again?, env, timeoutMs, maxBudgetUsd?, onProcess }) →
+ *   run({ prompt, cwd, model?, again?, env, timeoutMs, maxBudgetUsd?, tools?, extraArgs?, onProcess }) →
  *     { exitCode?, signal?, stoppedBy?, wallClockMs, isError?, numTurns?, durationMs?, costUsd?, modelUsage?, report?, usage? }
  *
  * `again` continues the latest conversation in `cwd` instead of starting one: a slice sent back,
@@ -13,7 +13,9 @@
  * a cancel; `pgid`, when there is one, is recorded in the slice's lease so that a driver that died
  * can find the agent it left behind. `maxBudgetUsd` is the agent's reservation (supervision.mjs),
  * a cap it may not spend past. `stoppedBy` says why an agent was stopped before it finished:
- * `timeout` when it ran past `timeoutMs`, `cancel` when the driver stopped it.
+ * `timeout` when it ran past `timeoutMs`, `cancel` when the driver stopped it. `tools` replaces the tools the agent is
+ * allowed (`Bash Read Edit Write Glob Grep` when absent; none when empty); `extraArgs`, on the CLI only, are passed to
+ * `claude` as they are (K4's per-arm settings: `--tools`, `--session-id`, `--setting-sources`, …).
  *
  * When the agent has stopped, for whatever reason, both runners `reap` what it left running in
  * `cwd`: a background command the agent started runs in a process group of its own, so the
@@ -94,22 +96,25 @@ const fromResult = json => ({
   report: json.result,
 });
 
+/** The arguments the CLI runner gives `claude` (exported so that a dry run prints exactly them). */
+export const claudeCliArguments = ({ prompt, model, again, maxBudgetUsd, tools = TOOLS, extraArgs = [] }) => [
+  '-p',
+  prompt,
+  '--output-format',
+  'json',
+  ...(model ? ['--model', model] : []),
+  ...(tools.length ? ['--allowedTools', tools.join(' ')] : []),
+  ...(again ? ['--continue'] : []),
+  ...(maxBudgetUsd !== undefined ? ['--max-budget-usd', String(maxBudgetUsd)] : []),
+  ...extraArgs,
+];
+
 const claudeCli = {
   name: 'claude-cli',
-  run({ prompt, cwd, model, again, env, timeoutMs, maxBudgetUsd, onProcess }) {
+  run({ prompt, cwd, model, again, env, timeoutMs, maxBudgetUsd, tools = TOOLS, extraArgs = [], onProcess }) {
     const started = Date.now();
     let stoppedBy;
-    const args = [
-      '-p',
-      prompt,
-      '--output-format',
-      'json',
-      ...(model ? ['--model', model] : []),
-      '--allowedTools',
-      TOOLS.join(' '),
-      ...(again ? ['--continue'] : []),
-      ...(maxBudgetUsd !== undefined ? ['--max-budget-usd', String(maxBudgetUsd)] : []),
-    ];
+    const args = claudeCliArguments({ prompt, model, again, maxBudgetUsd, tools, extraArgs });
     return new Promise(done => {
       const child = spawn('claude', args, { cwd, env, detached: true });
       const stop = () => {
@@ -163,7 +168,7 @@ async function loadSdk(project) {
 
 const claudeSdk = {
   name: 'claude-sdk',
-  async run({ prompt, cwd, model, again, env, timeoutMs, maxBudgetUsd, onProcess, project }) {
+  async run({ prompt, cwd, model, again, env, timeoutMs, maxBudgetUsd, tools = TOOLS, onProcess, project }) {
     const started = Date.now();
     let stoppedBy;
     let sdk;
@@ -196,7 +201,7 @@ const claudeSdk = {
         options: {
           cwd,
           ...(model && { model }),
-          allowedTools: TOOLS,
+          allowedTools: tools,
           ...(again && { continue: true }),
           ...(maxBudgetUsd !== undefined && { maxBudgetUsd }),
           abortController,
