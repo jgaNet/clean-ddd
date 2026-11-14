@@ -95,7 +95,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
 import { integrate, ownerOf, splitWaiting } from './integrator.mjs';
-import { boundCache, nodeMismatch, pathWithThisNode, register, takeSlot } from './machine.mjs';
+import { boundCache, nodeMismatch, pathWithThisNode, register, shortTmpDir, takeSlot } from './machine.mjs';
 import { runners } from './runners.mjs';
 import {
   budget,
@@ -193,8 +193,8 @@ const runDir = join(flowDir, 'worktrees', run);
 const log = join(flowDir, `${run}.jsonl`);
 // A temporary directory of the run's own, for every process it starts (TMPDIR): jest's cache lands there, and the run
 // bounds it between two features without touching another ladder's (J5b: a shared cache reached 11 GB).
-const runTmp = join(flowDir, 'tmp', run);
-mkdirSync(runTmp, { recursive: true });
+// At a short path, keyed by the run (machine.mjs, shortTmpDir): a socket under a deep TMPDIR cannot be bound.
+const runTmp = shortTmpDir(join(flowDir, 'tmp', run));
 process.env.TMPDIR = runTmp;
 const cacheCapBytes = Number(plan.machine?.jestCacheGb ?? 2) * 1024 ** 3;
 mkdirSync(runDir, { recursive: true });

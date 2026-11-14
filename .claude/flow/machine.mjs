@@ -7,6 +7,7 @@
  *   every command it runs (the agent's checks, the gate, the grader) finds that same Node first on its PATH.
  * - A slot: at most `ladders` ladders run at once on the machine; another waits for a slot to free.
  */
+import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -166,4 +167,16 @@ export function toResume(entries, facts) {
     if (!last) return false;
     return last.event !== 'finished' || last.state === 'CANCELLED';
   });
+}
+
+/**
+ * A temporary directory of one's own, at a short path: `/tmp/cdd-<hash of key>`, made if missing. A process's TMPDIR
+ * ends up in Unix socket paths (tsx opens one under it), and a socket path longer than 107 bytes cannot be bound: a
+ * TMPDIR under a project's `.flow` directory in a deep tree stopped every server of J6's dry run from starting. The
+ * same key gives the same directory, so a ladder resumed bounds the cache it left.
+ */
+export function shortTmpDir(key) {
+  const dir = join('/tmp', `cdd-${createHash('sha256').update(String(key)).digest('hex').slice(0, 10)}`);
+  mkdirSync(dir, { recursive: true });
+  return dir;
 }

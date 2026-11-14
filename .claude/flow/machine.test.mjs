@@ -15,6 +15,7 @@ import {
   pathWithThisNode,
   readRegistry,
   register,
+  shortTmpDir,
   takeSlot,
   toResume,
 } from './machine.mjs';
@@ -140,5 +141,16 @@ describe('the register resume.mjs reads', () => {
       toResume(entries, entry => facts[entry.run]).map(entry => entry.run),
       ['mid', 'cancelled'],
     );
+  });
+});
+
+describe('shortTmpDir', () => {
+  it('answers one short directory per key, the same each time, short enough for a socket under it', () => {
+    const key = `/${'deep/'.repeat(30)}project.flow/tmp/run`;
+    const dir = shortTmpDir(key);
+    assert.equal(dir, shortTmpDir(key));
+    assert.notEqual(dir, shortTmpDir(`${key}-other`));
+    assert.ok(`${dir}/tsx-0/12345678.pipe`.length < 107);
+    assert.ok(existsSync(dir));
   });
 });

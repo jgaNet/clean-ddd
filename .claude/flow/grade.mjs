@@ -50,6 +50,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync,
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 
+import { shortTmpDir } from './machine.mjs';
 import { provideDependencies } from './supervision.mjs';
 
 const args = process.argv.slice(2);
@@ -82,10 +83,8 @@ const git = (cwd, ...gitArgs) => execFileSync('git', gitArgs, { cwd, encoding: '
 const env = { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1', CI: '1' };
 // A temporary directory of the project's own, as the ladder gives each run (jest's cache follows it): graded outside a
 // ladder (a dry run), thirty files an attempt filled a shared /tmp with 13 GB of transforms (J6's kit, checkpoint 3).
-if (!env.TMPDIR?.includes(`${project}.flow`)) {
-  env.TMPDIR = join(`${project}.flow`, 'tmp', 'grade');
-  mkdirSync(env.TMPDIR, { recursive: true });
-}
+// At a short path (machine.mjs, shortTmpDir), or no server starts. A ladder's own is kept.
+if (!env.TMPDIR?.startsWith('/tmp/cdd-')) env.TMPDIR = shortTmpDir(`${project}/grade`);
 const sh = (command, cwd, timeout = 600_000) => {
   const result = spawnSync('sh', ['-c', command], { cwd, env, encoding: 'utf8', timeout, maxBuffer: 64 * 1024 * 1024 });
   return { code: result.status ?? 1, out: `${result.stdout ?? ''}${result.stderr ?? ''}` };

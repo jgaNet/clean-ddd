@@ -72,6 +72,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadGroundTruth, measure, readTranscript, toolCalls } from './k4-measures.mjs';
 import { judgePrompt, parseAnswer, readJudgement, scoreAnswer } from './k4-score.mjs';
 import { claudeCliArguments, runners } from './runners.mjs';
+import { shortTmpDir } from './machine.mjs';
 import { freePort, provideDependencies } from './supervision.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -429,12 +430,11 @@ function prepareTree(ctx, arm, taskDir, out) {
 function agentEnvironment(ctx, p, arm) {
   const env = cleanEnvironment(process.env, leakPaths(ctx));
   const k3bin = arm === 'C' ? `${p.tree}.k3/bin:` : '';
-  mkdirSync(join(p.runDir, 'tmp'), { recursive: true });
   return {
     ...env,
     PATH: `${k3bin}${nodePath(env.PATH)}`,
     PWD: p.tree,
-    TMPDIR: join(p.runDir, 'tmp'),
+    TMPDIR: shortTmpDir(p.runDir),
     TEST_DATABASE_URL: `${ctx.plan.database.agent}/postgres`,
     OPENSTAY_POSTGRES: ctx.plan.database.agent,
   };
@@ -457,8 +457,7 @@ function ownChecks(ctx, grading, start, commit, label) {
   if (existsSync(dir)) git(grading, 'worktree', 'remove', '--force', dir);
   mkdirSync(dirname(dir), { recursive: true });
   git(grading, 'worktree', 'add', '-q', '--detach', dir, commit);
-  const env = { ...gradingEnvironment(ctx), TMPDIR: join(`${grading}.flow`, 'tmp', 'checks') };
-  mkdirSync(env.TMPDIR, { recursive: true });
+  const env = { ...gradingEnvironment(ctx), TMPDIR: shortTmpDir(`${grading}/checks`) };
   const same = ['package.json', 'yarn.lock'].every(
     file => sh('git', ['diff', '--quiet', start, commit, '--', file], { cwd: grading }).code === 0,
   );
