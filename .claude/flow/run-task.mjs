@@ -62,6 +62,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -1045,6 +1046,9 @@ async function main(argv) {
   // One driver at a time on a work directory.
   mkdirSync(ctx.work, { recursive: true });
   const lock = join(ctx.work, 'run-task.lock');
+  // A lock written before this machine booted is a restart's leftover, whatever process holds its pid now.
+  const bootedMs = Number(/^btime (\d+)$/m.exec(readFileSync('/proc/stat', 'utf8'))?.[1] ?? 0) * 1000;
+  if (existsSync(lock) && statSync(lock).mtimeMs < bootedMs) rmSync(lock, { force: true });
   if (existsSync(lock)) {
     const pid = Number(readFileSync(lock, 'utf8'));
     let alive = false;
