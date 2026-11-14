@@ -1,4 +1,16 @@
-import { client, Client, database, day, Outcome, RatesService, ratesService, Running, start, stop } from './tally';
+import {
+  client,
+  Client,
+  database,
+  day,
+  Outcome,
+  RatesService,
+  ratesService,
+  reached,
+  Running,
+  start,
+  stop,
+} from './tally';
 
 /** Request 22: the rate a rates service offers, which an expense in another currency takes or corrects within 2 %. */
 const db = database('rates');
@@ -146,11 +158,13 @@ describe('rates offered by a rates service', () => {
   it("offers no rate for the group's own currency or one Tally does not count in, and to its members only", async () => {
     const { ann, groupId } = await flat('who');
     rates.set('EUR', 'EUR', '1');
-    rates.set('JPY', 'EUR', '0.006');
+    // A currency Tally does not count in: JPY until request 40 makes it one of Tally's (the README's superseded cases).
+    const foreign = reached(40) ? 'SEK' : 'JPY';
+    rates.set(foreign, 'EUR', '0.006');
     rates.set('AUD', 'EUR', '0.6');
     const out = await api.person('out@who.rates.test');
     expect(await api.hidden(`/groups/${groupId}/rates/EUR`, ann.token)).toBe(404);
-    expect(await api.hidden(`/groups/${groupId}/rates/JPY`, ann.token)).toBe(404);
+    expect(await api.hidden(`/groups/${groupId}/rates/${foreign}`, ann.token)).toBe(404);
     expect(await api.hidden(`/groups/${groupId}/rates/AUD`, out.token)).toBe(404);
     expect(await api.hidden(`/groups/${groupId}/rates/AUD`)).toBe(401);
     expect(await api.hidden(`/groups/no-such-group/rates/AUD`, ann.token)).toBe(404);

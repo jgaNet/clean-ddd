@@ -1,0 +1,65 @@
+# Request 33: a settlement through the provider contested by its payee, held until an administrator decides; the
+# administrators' log.
+resources:
+  # Restated whole, as requests 12, 13, 15, 19 and 32 left it, with `contested` and `annulled` in its history (a
+  # `states` reaches an enum through `properties` only, and the history's is in its items); the two statuses are added
+  # below, each read whole by the test named for it.
+  settlement:
+    schema:
+      type: object
+      required: [id, groupId, from, to, amount, method, status, at, history]
+      properties:
+        id: { $comment: request 12, type: string }
+        groupId: { $comment: request 12, type: string }
+        from: { $comment: request 12, type: string }
+        to: { $comment: request 12, type: string }
+        amount: { $comment: request 12, type: integer, minimum: 1 }
+        method: { $comment: 'requests 12, 13, 32', enum: [cash, provider, net] }
+        status: { $comment: 'requests 12, 13, 15', enum: [paid, pending, failed, refunding, refunded] }
+        at: { $comment: request 12, type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)$' }
+        payUrl: { $comment: request 13, type: string, minLength: 1 }
+        history:
+          $comment: request 19
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [status, at]
+            properties:
+              status: { enum: [pending, paid, failed, refunding, refunded, contested, annulled] }
+              at: { $comment: request 19, type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)$' }
+      allOf:
+        - $comment: 'request 13: a settlement through the provider has its payUrl'
+          if: { $comment: request 13, required: [method], properties: { method: { $comment: request 13, const: provider } } }
+          then: { $comment: 'request 13: a settlement through the provider has its payUrl', required: [payUrl] }
+    states:
+      - field: status
+        add: [contested]
+        test: holds a contested settlement's effect on the balances until an administrator decides it was paid
+      - field: status
+        add: [annulled]
+        test: annuls a settlement an administrator decides was not paid, and what was owed is owed again
+  auditEntry:
+    states:
+      - field: action
+        add: [settlement-contested]
+        test: holds a contested settlement's effect on the balances until an administrator decides it was paid
+  adminLogEntry:
+    schema:
+      type: object
+      required: [id, at, by, action, subjectId]
+      properties:
+        id: { type: string }
+        at: { type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)$' }
+        by: { type: string }
+        action: { enum: [decided-paid, decided-annulled] }
+        subjectId: { type: string }
+routes:
+  POST /v1/settlements/{id}/contest:
+    2xx: {}
+  GET /v1/admin/contests:
+    200: { type: array, items: { $resource: settlement } }
+  POST /v1/admin/settlements/{id}/decision:
+    2xx: {}
+  GET /v1/admin/log:
+    200: { type: array, items: { $resource: adminLogEntry } }

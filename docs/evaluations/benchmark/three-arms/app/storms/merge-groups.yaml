@@ -1,0 +1,73 @@
+# Feature 31 of Tally (../backlog/31-merge-groups.md), as the session decided it. It uses the two relationships the
+# session of checkpoint 4 declares (README, T22): GroupsMerged, published by Groups to Ledger and to Settlements.
+schemaVersion: 1
+
+feature: merge-groups
+intent: >-
+  The owner of two groups of one currency merges one into the other; the group merged is gone at once, and its members, expenses, settlements, recurring expenses and audit are the group kept's within seconds, every group's balances adding up to 0 at every moment.
+
+done: false
+
+hotSpots:
+  - question: Who decides a merge, and where?
+    decision: The Group kept (GroupsMerged), reading the group merged in the same transaction — the owner of both, one currency, neither archived (GroupArchived, as any change in an archived group), and no payment waiting in the group merged (WaitingPayments, Settlements'). It takes the members of the group merged in the order they joined, and the group merged is closed in the same write, so it is 404 at once.
+  - question: How do the expenses and the settlements move, when they are not Groups'?
+    decision: Groups publishes GroupsMerged, an integration event on two relationships the session declares (T22) — Groups to Ledger and Groups to Settlements — carrying both group ids; Ledger moves the expenses, recurring expenses, passed balances and audit entries of the group merged to the group kept (ExpenseMoved, RecurringExpenseMoved), Settlements its SettlementBook into the group kept's (SettlementBookMerged), each in a reaction of its own, delivered once by the outbox and the bus. A port could not carry it — a port answers a question, it moves nothing (CTX-CONTRACTS).
+  - question: Does the zero sum hold while the two reactions run?
+    decision: Yes, by construction — an expense adds up to 0 and a settlement moves as much up as down, so a group with some of them moved and others not yet still adds up to 0. A member's balance is the sum of the two only once both reactions have run; the request says within seconds, and the tests read with eventually.
+  - question: An expense recorded in the group merged at the moment it is merged?
+    decision: Ledger reads the group through GroupMembers under the group's lock when it records, and its reaction to GroupsMerged takes the same lock — an expense that commits first is moved with the rest, one that comes after reads a group that no longer exists and is refused (T10's way, on the one database).
+  - question: Budgets, templates, invitations?
+    decision: The group kept's hold; the group merged's are dropped with it. Notices stay as they were made.
+
+contexts:
+  - id: Groups
+    commands:
+      - name: MergeGroups
+        actor: a signed-in account
+        route: POST /groups/{param}/merge
+        aggregate: Group
+        events: [GroupsMerged]
+    queries: []
+    events: [GroupsMerged]
+    policies:
+      - on: GroupsMerged
+        kind: domain-event
+        publishes: [GroupsMerged]
+        events: []
+  - id: Ledger
+    commands: []
+    queries: []
+    events: [ExpenseMoved, RecurringExpenseMoved]
+    policies:
+      - on: GroupsMerged
+        kind: integration-event
+        publishes: []
+        events: [ExpenseMoved, RecurringExpenseMoved]
+  - id: Settlements
+    commands: []
+    queries: []
+    events: [SettlementBookMerged]
+    policies:
+      - on: GroupsMerged
+        kind: integration-event
+        publishes: []
+        events: [SettlementBookMerged]
+
+links:
+  - mechanism: integration-event
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupsMerged]
+  - mechanism: integration-event
+    upstream: Groups
+    downstream: Settlements
+    contracts: [GroupsMerged]
+  - mechanism: owned-port
+    upstream: Settlements
+    downstream: Groups
+    contracts: [WaitingPayments]
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupMembers]

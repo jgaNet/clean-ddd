@@ -1,0 +1,30 @@
+# Feature 37 of Tally (../backlog/37-spending-insights.md), as the session decided it.
+schemaVersion: 1
+
+feature: spending-insights
+intent: >-
+  A person reads what they spent across the groups they are a member of now — their shares, by month, currency and category, in a stated order.
+
+done: false
+
+hotSpots:
+  - question: Which context answers it?
+    decision: Ledger — the shares, the categories and the dates are its own; a query over its read model, nothing kept.
+  - question: Across groups — how does Ledger know a person's groups and their currencies?
+    decision: Through GroupMembers and GroupCurrency, the ports it owns on Groups, which now also answer the groups an account is a member of now. No new relationship, no copy.
+
+contexts:
+  - id: Ledger
+    commands: []
+    queries:
+      - name: GetMyInsights
+        actor: a signed-in account
+        route: GET /accounts/me/insights
+    events: []
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupCurrency, GroupMembers]

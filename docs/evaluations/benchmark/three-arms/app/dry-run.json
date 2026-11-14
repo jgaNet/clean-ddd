@@ -36,14 +36,24 @@
         "archive-a-group": false,
         "audit": false,
         "statement-as-csv": false,
-        "postgresql": false
+        "postgresql": false,
+        "merge-groups": false,
+        "net-across-groups": false,
+        "contest-a-settlement": false,
+        "suspend-a-member": false,
+        "delete-an-account": false,
+        "notice-preferences": false,
+        "spending-insights": false,
+        "provider-fee": false,
+        "settle-in-another-currency": false,
+        "currency-precision": false
       },
       "hygiene": []
     },
     {
       "tree": "tally-w",
       "role": "solved",
-      "ref": "d29b71a",
+      "ref": "68ccae6",
       "features": {
         "accounts": true,
         "create-a-group": true,
@@ -74,7 +84,17 @@
         "archive-a-group": true,
         "audit": true,
         "statement-as-csv": true,
-        "postgresql": true
+        "postgresql": true,
+        "merge-groups": true,
+        "net-across-groups": true,
+        "contest-a-settlement": true,
+        "suspend-a-member": true,
+        "delete-an-account": true,
+        "notice-preferences": true,
+        "spending-insights": true,
+        "provider-fee": true,
+        "settle-in-another-currency": true,
+        "currency-precision": true
       },
       "hygiene": []
     }

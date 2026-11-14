@@ -1,0 +1,47 @@
+# Feature 32 of Tally (../backlog/32-net-across-groups.md), as the session decided it.
+schemaVersion: 1
+
+feature: net-across-groups
+intent: >-
+  A person nets what they and another owe each other in one currency across the groups they share, at once, as settlements of each group that count at once; all of them or none, and never more than is still owed.
+
+done: false
+
+hotSpots:
+  - question: What decides a netting, when it spans several SettlementBooks?
+    decision: A domain service of Settlements (NetDebts) — it reads the groups the two share in the currency through SettlementMembers, what each still owes through GroupBalances and the books' pending payments, computes the amount and the settlements by the stated rule, and asks each SettlementBook to record its settlement (SettlementRecorded, method net). The books are saved in one transaction of the one database, each with its optimistic check; a conflict on any re-decides the whole netting (CONC-OPTIMISTIC), so a netting is all or nothing and no book is written past what it owes.
+  - question: Is a netting an aggregate of its own?
+    decision: Yes, small — a Netting (NettingRecorded) keeps who asked, with whom, the currency, the amount and its settlements' ids, read by the two people; it is written in the same transaction as the books.
+  - question: Two nettings at once?
+    decision: The second re-reads the books the first wrote and finds nothing left to net — refused by its rule's name (NothingToNet).
+  - question: Does Ledger learn anything new?
+    decision: No — a net settlement is paid at once and counted through SettledAmounts like a cash one; the statement names it `Settlement by netting`.
+
+contexts:
+  - id: Settlements
+    commands:
+      - name: NetDebts
+        actor: a signed-in account
+        route: POST /nettings
+        aggregate: Netting
+        events: [NettingRecorded, SettlementRecorded]
+    queries:
+      - name: GetNetting
+        actor: a signed-in account
+        route: GET /nettings/{param}
+    events: [NettingRecorded, SettlementRecorded]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Ledger
+    downstream: Settlements
+    contracts: [GroupBalances]
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Settlements
+    contracts: [SettlementMembers]
+  - mechanism: owned-port
+    upstream: Settlements
+    downstream: Ledger
+    contracts: [SettledAmounts]

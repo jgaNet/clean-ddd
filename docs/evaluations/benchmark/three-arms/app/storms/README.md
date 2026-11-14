@@ -190,3 +190,70 @@ reads from the code (CTX-MAP-DECLARED).
 | 28 Audit | A fact to react to? | No: entries in each context's own transaction, read by Ledger through ports (T18). T8 stands. |
 | 29 Statement as CSV | Settlements in it | Through `SettledAmounts` (T19), the maintainer's decision. |
 | 30 PostgreSQL (unannounced) | The move | The Bootstrap's, once, before serving; the outbox and the bus's record move with the rest (T20). |
+
+## Checkpoint 4: the session before request 31
+
+The session of checkpoint 4 (requests 31 to 40), held before request 31, the maintainer's decisions of 14 November
+applied (`GroupArchived` one rule decided by Groups, an account's id kept in the audit, request 39's rate the offer at
+the decision, merging an archived group refused by `GroupArchived`, a suspension writing nothing in a group). As for
+checkpoints 1 to 3, every decision below is the operator's, **for the maintainer to accept or change before the kit is
+registered**.
+
+### How they were validated
+
+As checkpoint 3's: from the same tree `create` made (in the operator's scratch space), with the four contexts declared,
+the eight relationships of checkpoints 1 to 3 and the two of T22 below declared `planned`. All forty storms answer
+*legal against the contract and the map; not in the code yet*. With checkpoint 3's map alone, the thirty-nine others
+are legal and request 31's is refused, as it should be: *link Groups → Ledger: a relationship the context map does not
+declare*, and the same for Groups → Settlements. Request 40 declares nothing.
+
+### The strategic session
+
+| # | Question | Decision | The alternative, and what it costs |
+| --- | --- | --- | --- |
+| T21 | Does checkpoint 4 add a context? Suspension (34) and deletion (35) make people a subject of their own, as T1 foresaw. | **No.** Accounts stay in Groups (T1, kept by the maintainer): a suspension and a deletion are two behaviours of the `Account`, and the other contexts ask through the ports they own (`GroupMembers`, `SettlementMembers`) whether an account is suspended or deleted. **An administrator is a role of the caller**, given at sign-in to the account whose email is in `ADMIN_EMAILS`, guarded in the handlers only an administrator calls. | **An Accounts context** (generic), upstream of the three: one more context and three ports, for two behaviours. Worth it if a later campaign brings sign-in by a provider or roles of its own; checkpoint 4 does not. |
+| T22 | How do a merge's expenses and settlements move (request 31), when Groups decides it and does not hold them? | **`GroupsMerged`, an integration event Groups publishes**, consumed by Ledger and by Settlements, each moving its own in a reaction of its own (EVENT-AFTER-COMMIT). Two relationships are declared at this session, `planned`: Groups → Ledger and Groups → Settlements, over an integration event, beside the owned ports already on those pairs. The zero sum holds while the reactions run, by construction (an expense adds up to 0; a settlement moves as much up as down); a member's balance is the sum of the two once both have run, which the request says ("within a few seconds"). | **A port** cannot carry it: a port answers a question and moves nothing (CTX-CONTRACTS). **The merge as a Ledger command**, Groups told after: the members would move after the expenses, and an expense of the group merged would name members the group kept does not have yet. |
+| T23 | A netting (32) decides over several `SettlementBook`s at once: one aggregate per transaction? | **A domain service of Settlements (`NetDebts`)** that decides over the books of the groups the two share and saves them in one transaction of the one database, each with its optimistic check; a conflict on any re-decides the whole netting. A `Netting` keeps what it netted. All or nothing, and no book is written past what is owed. | **A `Netting` aggregate and a policy per book**, each recording its settlement later: a book that refuses (a payment landed meanwhile) leaves half a netting to undo, and the request says all or nothing. |
+| T24 | Where is a contest decided (33), and where does the administrators' log live? | **In the `SettlementBook`** (`SettlementContested`, then `SettlementPaid` or `SettlementAnnulled`); a contested settlement waits, as a pending one does, through `WaitingPayments` and what is still owed, and `SettledAmounts` answers it as not paid. **The log is each context's own entries, written with the decision** (Settlements' contests, Groups' suspensions), Groups answering it with Settlements' read through a port it owns (`AdministratorDecisions`), as T18 did for the audit. | **An Administration context** fed by facts: the log eventual (an entry after its decision), a fifth context for one list. |
+| T25 | How is "erased everywhere" (35) held, when facts are stored? | **Groups alone holds a name and an email,** and scrubs, in the transaction of the deletion, its own stored facts that carry them (the outbox's `AccountRegistered`, an operation's record of a sign-up); the hidden test searches every table of the database. The id stays, opaque (the maintainer's decision 5). | **Crypto-shredding** (each account's personal data encrypted with a key thrown away on deletion): the right answer at scale, and more than one request needs. |
+| T26 | Who bears the fee (38), and where is the policy? | **On the `SettlementBook`** (`FeePolicySet`), set by the owner; the fee is a value the provider answers through the `PaymentProvider` port, which the book validates and keeps with what the settlement settles. Ledger reads what a settlement settles through `SettledAmounts`, never the fee. | **A group setting in Groups**, read by Settlements through a port: a second place for a rule only the book applies. |
+| T27 | Who asks the rates service for a settlement (39)? | **A port Settlements owns (`SettlementRates`),** over the same outside service as Ledger's `OfferedRates` (T14): two adapters in two contexts' words, and no relationship between the two contexts. The rate is an input the book takes when it decides, and keeps. | **Ledger answering rates to Settlements** through a port: a new relationship for a value neither context owns. |
+| T28 | Request 40, unannounced: what does the session declare of it? | **Nothing,** as for requests 10, 20 and 30. Its storm puts `Currency`, with its minor unit, in the shared kernel, and adds the group's currency to `OutstandingDebts` for the reminders' threshold: a field on a contract that exists. | **A Currencies context**: rejected at T12, and request 40 gives it no more reason. |
+
+The relationships, to declare in the domain map of the Lite and Full starting trees of checkpoint 4, beside the eight
+of checkpoints 1 to 3:
+
+| Relationship | Pattern | Mechanism | Contracts (read from the code) | Declared |
+| --- | --- | --- | --- | --- |
+| Groups → Ledger | published language, anti-corruption layer | integration event | `GroupsMerged` (request 31) | at the session |
+| Groups → Settlements | published language, anti-corruption layer | integration event | `GroupsMerged` (request 31) | at the session |
+
+New contracts on pairs already declared, which the map reads from the code:
+
+| Contract | Relationship | Requests |
+| --- | --- | --- |
+| `GroupMembers` (suspended, deleted, a person's groups) | Groups → Ledger (owned port) | 34, 35, 37 |
+| `SettlementMembers` (suspended, deleted, the groups two people share) | Groups → Settlements (owned port) | 32, 34, 35, 38 |
+| `WaitingPayments` (contested) | Settlements → Groups (owned port) | 31, 33, 35 |
+| `AdministratorDecisions` | Settlements → Groups (owned port) | 33, 34 |
+| `OutstandingDebts` (the group's currency) | Settlements → Notifications (owned port) | 40 |
+
+### The hot spots of each feature
+
+| Feature | Hot spot | Decision |
+| --- | --- | --- |
+| 31 Merge groups | Who decides? | The `Group` kept, reading the group merged in its transaction; `GroupArchived` for an archived one (the maintainer's decision 7). |
+| 31 | The expenses and the settlements | `GroupsMerged`, two reactions (T22); the zero sum by construction. |
+| 31 | An expense at the same moment | Under the group's lock in Ledger, as T10 did: moved with the rest, or refused. |
+| 32 Net across groups | Several books at once | `NetDebts`, one transaction, all or nothing (T23). |
+| 33 Contest | Held | `contested` waits and does not count (T24). |
+| 33 | Administrators | A role at sign-in (T21); the log, each context's own entries (T24). |
+| 34 Suspend | One name everywhere | `AccountSuspended`, a word of the shared kernel decided by the `Account`, asked through each context's port, as `GroupArchived` (T17). |
+| 34 | Nothing in a group | The `Account` changes; no group does (the maintainer's decision 7). |
+| 35 Delete an account | Erased everywhere | Groups' own records and stored facts, in one transaction (T25). |
+| 35 | The balances | A deleted account stays a member, anonymous. |
+| 36 Notice preferences | Where? | `NoticePreferences` in Notifications, read when a notice would be made. |
+| 37 Spending insights | Across groups | A Ledger query; a person's groups through `GroupMembers`. |
+| 38 Provider's fee | The policy and the fee | On the `SettlementBook` (T26); Ledger counts what a settlement settles. |
+| 39 Settle in another currency | The rate | `SettlementRates`, taken when the book decides, kept (T27; the maintainer's decision 6). |
+| 40 Currency precision (unannounced) | The minor unit | `Currency` in the shared kernel; nothing stored converted (T28). |

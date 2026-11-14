@@ -1,4 +1,4 @@
-# J6's application, Tally, checkpoints 1 to 3 (requests 1-30): every convention a later request relies on, with
+# J6's application, Tally, checkpoints 1 to 4 (requests 1-40): every convention a later request relies on, with
 # the request that sets it (`born`) and the test, in that request's acceptance file, that holds it there
 # (docs/evaluations/benchmark/kit-standard.md). kit-check refuses an entry without either.
 #
@@ -692,3 +692,197 @@ conventions:
       at request 9 kept.
     born: 30
     test: moves what the tree before it kept, and a payment waiting at the provider when it changed counts once
+
+  # Request 31: merging two groups.
+  - id: merge-owner-of-both
+    says: >-
+      Only the owner of both groups merges one into the other, both in one currency, never a group into itself nor
+      while a settlement through the provider of the group merged waits (pending, refunding, from request 33
+      contested); an archived group, either of the two, is refused by the rule that keeps it read only (GroupArchived,
+      request 27): later, its error names the same rule as any other change in an archived group.
+    born: 31
+    test: refuses to merge groups of two currencies, a group into itself, by anyone but the owner of both, while a payment waits, and an archived group by the rule that keeps it read only
+  - id: merge-moves
+    says: >-
+      Once merged, the group merged is 404 to everyone at once and its invitations let nobody join; within a few
+      seconds (the tests read with `eventually`) its members are the group kept's (after its members, in the order
+      they had joined, role member; a former member a former member there), and its expenses, settlements, recurring
+      expenses, passed balances and audit entries are the group kept's, each keeping its id; its budgets, templates
+      and invitations are not. Each balance is the sum of the two; every group's balances add up to 0 at every moment.
+    born: 31
+    test: "merges a group into another of the same currency: its members, expenses, settlements and balances, the zero sum kept"
+  - id: merge-and-expense-at-once
+    says: >-
+      An expense recorded in the group merged at the moment of the merge, through one server or two, is counted once
+      in the group kept, or refused.
+    born: 31
+    test: counts once every expense recorded in the group merged while it is merged, through two servers
+
+  # Request 32: nettings.
+  - id: netting-rule
+    says: >-
+      A netting between the caller and `with` in a currency covers the groups both are current members of, in that
+      currency, not archived, the oldest first; in each, what one can pay the other is the smaller of what one still
+      owes and the other is still owed (request 13); the amount netted is the smaller of the two totals, refused when
+      0. It makes settlements of `method` net, `status` paid, counted at once everywhere a cash settlement is (the
+      statement's description `Settlement by netting`, the audit's settlement-paid by who asked), the caller's first,
+      group by group; never refunded. A netting reads { id, by, with, currency, amount, settlements } to the two only.
+    born: 32
+    test: nets what two people owe each other across the groups they share, as settlements that count at once
+  - id: netting-once
+    says: >-
+      A netting makes all its settlements or none; two asked at once, through two servers, net once, and no
+      settlement ever pays more than is still owed.
+    born: 32
+    test: nets once when the two people ask at the same moment, through two servers
+
+  # Request 33: administrators and contested settlements.
+  - id: administrators
+    says: >-
+      An administrator is the account whose email is in ADMIN_EMAILS (separated by commas, whatever their case), given
+      to the server at its start; nobody becomes one through the API. What only administrators read (GET
+      /v1/admin/...) is 404 to anyone else signed in, 401 without a token; what only they do is refused to anyone else.
+      Every decision of theirs is an entry { id, at, by, action, subjectId } of the administrators' log, the oldest
+      first, never changed.
+    born: 33
+    test: "holds a contested settlement's effect on the balances until an administrator decides it was paid"
+  - id: contested-held
+    says: >-
+      The payee contests a paid settlement through the provider, once, while both sides are members; while it is
+      `contested` the balances do not count it, what is still owed counts it as waiting (request 13), its payer and
+      payee do not leave, the group is not archived or merged, and webhooks change nothing; its audit entry is
+      settlement-contested, by the payee.
+    born: 33
+    test: "holds a contested settlement's effect on the balances until an administrator decides it was paid"
+  - id: contest-decided
+    says: >-
+      An administrator decides a contested settlement once: paid, it is `paid` again and counted as before (an audit
+      entry settlement-paid by the administrator); not paid, it is `annulled`, counted nowhere and no longer waiting,
+      changed by nothing after. The history lists contested, then paid or annulled.
+    born: 33
+    test: annuls a settlement an administrator decides was not paid, and what was owed is owed again
+
+  # Request 34: suspended accounts.
+  - id: suspended-refused
+    says: >-
+      A suspended account's expenses, recurring expenses, settlements in cash, payments through the provider and
+      nettings are refused by one rule's name in every group until it is reinstated; everything else it does, and
+      the others do with it, goes on.
+    born: 34
+    test: "refuses every expense and settlement a suspended account starts, by one rule's name, in every group, until reinstated"
+  - id: suspension-writes-nothing
+    says: >-
+      Suspending and reinstating change nothing in any group; each change is one entry of the administrators' log
+      (`suspended`, `reinstated`), a suspension that changes nothing none.
+    born: 34
+    test: writes nothing in a group when an account is suspended or reinstated, and logs each to the administrators
+  - id: suspended-recurring
+    says: >-
+      The background job records nothing for a suspended payer's recurring expense; every day that has come is
+      recorded at the first run after they are reinstated.
+    born: 34
+    test: records the recurring expense of a suspended payer at the first run after they are reinstated
+
+  # Request 35: deleted accounts.
+  - id: deleted-anonymous
+    says: >-
+      A deleted account signs in no more (401, as an unknown email), its tokens prove nothing, its email is free; it
+      stays a member of its groups at its place, named `Deleted account`, its id, role and balances kept and every
+      other read unchanged; it is put in no new split, paid nothing through the provider, netted with by nobody.
+    born: 35
+    test: anonymises a deleted account in every group it was in, and keeps its balances
+  - id: deleted-erased
+    says: >-
+      A deleted account's name and email are nowhere in what Tally keeps: no row of any table of the PostgreSQL
+      database holds either, whatever its case (the tests search every table); its id stays.
+    born: 35
+    test: erases the name and the email of a deleted account from everything Tally keeps
+  - id: delete-refused
+    says: >-
+      An account is not deleted while it owns a group with another member, or while a settlement through the
+      provider it pays or receives is pending, refunding or contested.
+    born: 35
+    test: refuses to delete an account that owns a group with another member, or has a payment waiting at the provider
+
+  # Request 36: notice preferences.
+  - id: notice-preferences
+    says: >-
+      Each person turns each kind of notice (expense, reminder, budget, in that order) on or off, all on until then,
+      read as [ { kind, enabled } ] by that person only; a notice of a kind turned off is not made for them from then
+      on, nothing missed is made later, and nothing changes for anyone else (a budget's month is still told once).
+    born: 36
+    test: makes no notice of a kind a person turned off, and makes them again once it is on
+  - id: reminder-off-not-counted
+    says: >-
+      A reminder not made because reminders are off does not count as made: once on again, the member is reminded at
+      the next run that would remind them.
+    born: 36
+    test: reminds nobody who turned reminders off, and reminds them at a later run once they are on
+
+  # Request 37: spending insights.
+  - id: insights-order
+    says: >-
+      A person's insights are, over the groups they are a member of now, their shares in expenses not deleted, summed
+      by month (the expense's date, UTC), group currency and category, lines above 0 only: the earliest month first,
+      then the currencies alphabetically, then the categories in request 24's order.
+    born: 37
+    test: "sums one's shares across one's groups by month, currency and category, in a stated order"
+
+  # Request 38: the provider's fee.
+  - id: fee-borne
+    says: >-
+      The provider answers a payment with its `fee` (0 or more, less than the amount; otherwise the payment is refused
+      and nothing kept). A group's owner decides who bears it (payer, payee or shared; the payee until then); a
+      settlement through the provider settles its amount less its payer's part (all of it, none, or half rounded
+      down), and that is what the balances, what is still owed, the statement and the audit count.
+    born: 38
+    test: settles a payment through the provider by its amount less the part of the fee its payer bears
+  - id: fee-kept
+    says: >-
+      A settlement keeps the fee and who bore it as when its payment was asked for, read as `fee: { amount, borneBy }`
+      on a settlement through the provider asked for from request 38 on, and absent otherwise.
+    born: 38
+    test: keeps on a settlement the fee and who bore it when it was asked for
+
+  # Request 39: settlements in another currency.
+  - id: settlement-rate-fixed
+    says: >-
+      A settlement in cash or through the provider may give `original: { currency, amount }` in place of `amount`
+      (exactly one, else 400); its rate is the rates service's offer for the day it is decided, its `amount` the
+      original times it, a half up, and it keeps `original: { currency, amount, rate }` whatever the service says
+      later; the provider is asked for the original amount and currency. No rate offered refuses it.
+    born: 39
+    test: fixes the rate of a payment through the provider when it is asked for, whatever the rate when it lands
+  - id: settlement-original-kept
+    says: >-
+      A settlement in another currency reads `original` as decided; one in the group's currency reads without it.
+    born: 39
+    test: settles in cash in another currency at the rate offered when it is recorded, and keeps the rate and both amounts
+
+  # Request 40, the change not announced in advance.
+  - id: minor-unit-per-currency
+    says: >-
+      Tally's currencies are ten: the six of request 2 in hundredths, JPY and KRW with no minor unit, KWD and BHD in
+      thousandths; every amount, limits included, is a whole number of its currency's minor unit. It supersedes
+      currency-minor-unit's list.
+    born: 40
+    test: allows currencies with no minor unit or with three decimals, and keeps each amount in its own minor unit
+  - id: conversion-by-units
+    says: >-
+      A rate is what one unit of a currency is worth in another; a conversion reads the amount in its currency's
+      units and writes the result in the other's minor unit, to the nearest whole number, a half up (requests 21, 22
+      and 39).
+    born: 40
+    test: converts between currencies of different precision by what one unit of each is worth
+  - id: reminder-threshold-in-units
+    says: >-
+      A reminder is for more than 20 of the group's currency: 2000 in hundredths, 20 with no minor unit, 20 000 in
+      thousandths. It supersedes reminder-period's 2000.
+    born: 40
+    test: "reminds a member who still owes more than 20 of the group's currency, in its own minor unit"
+  - id: earlier-amounts-read
+    says: >-
+      Every amount kept before request 40 reads the same after it, through the tree graded on the same database as
+      the tree at request 39 kept it.
+    born: 40
+    test: reads every amount kept before the change as it was, and keeps each new one in its own minor unit, on the same database

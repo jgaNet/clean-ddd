@@ -1,4 +1,4 @@
-import { client, Client, database, Running, sleep, start, stop } from './tally';
+import { client, Client, database, reached, Running, sleep, start, stop } from './tally';
 
 /** Request 2: a group, its currency, its owner, and who sees it. */
 const db = database('groups');
@@ -48,7 +48,8 @@ describe('create a group', () => {
     expect(await refusedWith('', 'EUR')).toBe(true);
     expect(await refusedWith('x'.repeat(61), 'EUR')).toBe(true);
     expect(await refusedWith('The flat', 'XYZ')).toBe(true);
-    expect(await refusedWith('The flat', 'JPY')).toBe(true);
+    // A currency Tally does not count in: JPY until request 40 makes it one of Tally's (the README's superseded cases).
+    expect(await refusedWith('The flat', reached(40) ? 'SEK' : 'JPY')).toBe(true);
     expect(await refusedWith('The flat', '')).toBe(true);
 
     for (const currency of ['EUR', 'USD', 'GBP', 'CHF', 'CAD', 'AUD']) {

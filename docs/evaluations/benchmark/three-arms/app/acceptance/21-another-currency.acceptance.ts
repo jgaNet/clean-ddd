@@ -1,4 +1,4 @@
-import { client, Client, database, day, Json, pairs, Running, Share, start, stop } from './tally';
+import { client, Client, database, day, Json, pairs, reached, Running, Share, start, stop } from './tally';
 
 /** Request 21: an expense in another currency, at the rate its payer states; the rate and both amounts are kept. */
 const db = database('currency');
@@ -89,7 +89,8 @@ describe('an expense in another currency', () => {
     const base = { description: 'Fondue', date: day(0), splitBetween: [ann.id, bob.id] };
     const refusals: [string, Json][] = [
       ["the group's own currency", { currency: 'EUR', amount: 1000, rate: '1' }],
-      ['a currency Tally does not count in', { currency: 'JPY', amount: 1000, rate: '1' }],
+      // JPY until request 40 makes it one of Tally's (the README's superseded cases).
+      ['a currency Tally does not count in', { currency: reached(40) ? 'SEK' : 'JPY', amount: 1000, rate: '1' }],
       ['an amount of 0', { currency: 'CHF', amount: 0, rate: '1' }],
       ['an amount over 100 000 000', { currency: 'CHF', amount: 100_000_001, rate: '1' }],
       ['an amount that is not whole', { currency: 'CHF', amount: 10.5, rate: '1' }],

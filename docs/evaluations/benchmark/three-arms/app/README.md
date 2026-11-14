@@ -1,10 +1,11 @@
-# J6's application kit: Tally, checkpoints 1 to 3 (requests 1 to 30)
+# J6's application kit: Tally, checkpoints 1 to 4 (requests 1 to 40)
 
 The application of the [three-arms protocol](../README.md): **Tally**, a group of people sharing expenses, written
 from the [brief](brief.md) the maintainer approved on 13 November. It is the campaign's counted kit, in four
-checkpoints of ten requests; this is **checkpoint 3 of 4**: checkpoint 1, groups and the ledger (requests 1 to 10),
-and checkpoint 2, settling up (requests 11 to 20), accepted by the maintainer on 13 November, and checkpoint 3,
-currencies and recurring expenses (requests 21 to 30), for the maintainer's review. The calibration (OpenStay 1 to 10,
+checkpoints of ten requests; this is **checkpoint 4 of 4**: checkpoint 1, groups and the ledger (requests 1 to 10),
+and checkpoint 2, settling up (requests 11 to 20), accepted by the maintainer on 13 November, checkpoint 3,
+currencies and recurring expenses (requests 21 to 30), accepted on 14 November, and checkpoint 4, across groups and
+people (requests 31 to 40), for the maintainer's review. The calibration (OpenStay 1 to 10,
 run first and not counted) is a separate kit, [`../calibration`](../calibration/README.md).
 
 No arm was tuned on it: its domain is none of the three arms' guides' examples, and its requests were written after
@@ -16,10 +17,10 @@ Lite and Full arms also the feature's storm. The hidden tests, the brief and thi
 | Path | What it is |
 | --- | --- |
 | [`brief.md`](brief.md) | The approved brief: the product, the actors, the candidate contexts, the invariants, the outline of the forty requests. |
-| [`backlog/`](backlog) | The thirty requests of checkpoints 1 to 3 and `backlog.yaml`. Request 1 fixes how the API works, as the calibration's request 1 does; requests 10, 20 and 30 are the changes not announced in advance (below). |
-| [`api/`](api) | One fragment per request with an API table (1 to 9, 11 to 13, 15 to 19, 21 to 29; requests 10, 14, 20 and 30 change no route): its resources, the routes that answer them by status, and, from request 1, what any route may answer (`202 { operationId }`, a `4xx`; never a `5xx`). |
-| [`conventions.yaml`](conventions.yaml) | Every convention a later request relies on (36 born in checkpoint 1, 32 in checkpoint 2, 26 in checkpoint 3), with the request that sets it and the test that holds it there. |
-| [`acceptance/`](acceptance) | The hidden tests, one file per request (51 tests in checkpoint 1, 41 in checkpoint 2, 41 in checkpoint 3), and their client [`tally.ts`](acceptance/tally.ts): the calibration's harness (`start`, `stop`, `kill`, `database`, `eventually`, `bySweep`, `client`, `hidden`, `holdToApi`) with Tally's resources (`person`, `group`, `invite`, `join`, `groupOf`, `expense`, `shares`, `balances`; from checkpoint 2 `cash`, `payThrough`, `settlement`, `notices`), two additions of checkpoint 1, `reached` and `keepsTheSplit`, two of checkpoint 2, `paymentProvider` (the provider the tests play) and `payable` (below), and those of checkpoint 3: `ratesService` and `receiptStore` (two more outside systems the tests play), files (`JPEG`, `PNG`, `PDF`, `padded`, the client's `upload` and `raw`), days by the month (`monthly`, `monthsFrom`), a PostgreSQL database beside each file from request 30 (`database`, `POSTGRES`), and a client that does not hold an earlier tree's answers (`client(port, false)`). |
+| [`backlog/`](backlog) | The forty requests of checkpoints 1 to 4 and `backlog.yaml`. Request 1 fixes how the API works, as the calibration's request 1 does; requests 10, 20, 30 and 40 are the changes not announced in advance (below). |
+| [`api/`](api) | One fragment per request with an API table (1 to 9, 11 to 13, 15 to 19, 21 to 29, 31 to 40; requests 10, 14, 20 and 30 change no route): its resources, the routes that answer them by status, and, from request 1, what any route may answer (`202 { operationId }`, a `4xx`; never a `5xx`). |
+| [`conventions.yaml`](conventions.yaml) | Every convention a later request relies on (36 born in checkpoint 1, 32 in checkpoint 2, 26 in checkpoint 3, 25 in checkpoint 4), with the request that sets it and the test that holds it there. |
+| [`acceptance/`](acceptance) | The hidden tests, one file per request (51 tests in checkpoint 1, 41 in checkpoint 2, 41 in checkpoint 3, 32 in checkpoint 4), and their client [`tally.ts`](acceptance/tally.ts): the calibration's harness (`start`, `stop`, `kill`, `database`, `eventually`, `bySweep`, `client`, `hidden`, `holdToApi`) with Tally's resources (`person`, `group`, `invite`, `join`, `groupOf`, `expense`, `shares`, `balances`; from checkpoint 2 `cash`, `payThrough`, `settlement`, `notices`), two additions of checkpoint 1, `reached` and `keepsTheSplit`, two of checkpoint 2, `paymentProvider` (the provider the tests play) and `payable` (below), and those of checkpoint 3: `ratesService` and `receiptStore` (two more outside systems the tests play), files (`JPEG`, `PNG`, `PDF`, `padded`, the client's `upload` and `raw`), days by the month (`monthly`, `monthsFrom`), a PostgreSQL database beside each file from request 30 (`database`, `POSTGRES`), and a client that does not hold an earlier tree's answers (`client(port, false)`); and those of checkpoint 4: the provider's fee on each payment it makes (`state.fee`) and what the PostgreSQL database holds of a text (`holds`). |
 | [`storms/`](storms) | One storm per request, in the inventory's words, and each checkpoint's session's [hot spots](storms/README.md), decided by the operator for the maintainer. |
 | [`dry-run.json`](dry-run.json) | The rehearsal's report, on a plain witness tree (below). |
 
@@ -57,6 +58,16 @@ Lite and Full arms also the feature's storm. The hidden tests, the brief and thi
 | 28 | An audit of money changes | Ledger, Settlements, Groups | six actions, who, when, how much; with the change, across a kill, once on two servers |
 | 29 | A statement as CSV | Ledger, Settlements, Groups | settlements in the statement while counted; a stated column order, CRLF, quoting only where needed |
 | 30 | **[U]** Storage on PostgreSQL | all four | `DATABASE_URL`; the file moved once, a payment in flight counted once; an upgrade |
+| 31 | Merge two groups | Groups, Ledger, Settlements | the owner of both, one currency; the group merged gone at once, its money moved within seconds, the zero sum at every moment; an expense and a merge at once on two servers |
+| 32 | Net debts across groups | Settlements, Ledger, Groups | a stated rule, the groups' order; settlements that count at once; all or nothing, once on two servers |
+| 33 | Contest a settlement | Settlements, Ledger, Groups | administrators by `ADMIN_EMAILS`; held, waiting, not counted; paid again or annulled, once; always logged |
+| 34 | Suspend a member | Groups, Ledger, Settlements | five starts refused by one name in every group; nothing written in a group; its recurring days wait |
+| 35 | Delete an account | Groups, Ledger, Settlements | name and email in no table; the id and the balances kept; anonymous member, free email |
+| 36 | Notice preferences | Notifications | per person and kind, on until off; nothing missed made later; a reminder not made not counted |
+| 37 | Spending insights | Ledger, Groups | one's shares by month, currency and category, in a stated order; current groups only |
+| 38 | Who bears the provider's fee | Settlements, Ledger, Groups | the provider's `fee`; the owner decides, the payee by default; what a payment settles, fixed when asked |
+| 39 | Settle up in another currency | Settlements, Ledger, Groups | the rate offered when decided, kept; the provider asked in that currency; a payment landing later counts what was decided |
+| 40 | **[U]** Currencies with no minor unit, or three decimals | all four | ten currencies; a rate per unit, written in the minor unit; the reminders' 20 of the currency; an upgrade |
 
 **The change not announced in advance (request 10).** Requests 1 to 9 say the remainder goes to the payer and
 nothing else: no word of an order that matters for the remainder, no rule "for now". Request 4 says the shares are
@@ -74,6 +85,14 @@ the database, even when the server is stopped" is request 1's durability, nothin
 sentence, as OpenStay's request 40 did, and, unlike OpenStay's, asks that what the file held moves with it, so that it
 is an upgrade (the maintainer's decision 6 of checkpoint 3): its test asks for a payment through the tree before it
 and lands the provider's webhook through the tree graded.
+
+**The change not announced in advance (request 40).** Requests 31 to 39 keep request 2's six currencies and their
+hundredths, and say nothing of precision: request 38 says the provider's fee is in "the hundredths of the payment's
+currency", and request 39 converts "as for an expense (request 21)", both facts of the six currencies, neither a rule
+"for now". Request 40 brings four currencies, two with no minor unit and two with three decimals, and says what every
+earlier rule that counted in hundredths becomes: a conversion reads an amount in its currency's units, the reminders'
+threshold is 20 of the group's currency. It is an upgrade (`upgrade: true`): every amount a tree kept before it, in
+hundredths, reads the same after it, and its test records through the tree at request 39.
 
 ## How it is checked
 
@@ -97,6 +116,17 @@ and lands the provider's webhook through the tree graded.
   the statement whole where a field is given in some states only (`original`, a budget notice's fields, `archivedAt`, a
   settlement entry's `settlementId`). The thirty storms are legal against the map of request 20, which checkpoint 3
   does not change. The kit's TypeScript, the new helpers included, raises nothing in the witness's checks.
+- **Checkpoint 4:** kit-check clean on all four checkpoints (14 November). Requests 32, 33, 34 and 40 add states,
+  each read whole by the test its fragment names: a settlement's `net` method, its `contested` and `annulled`
+  statuses, the audit's `settlement-contested`, the administrators' log's `suspended` and `reinstated`, and request
+  40's four currencies to a group's, an expense's and a settlement's `original`, and a rate's. Requests 33, 38 and 39
+  restate the settlement whole (its history's statuses, its `fee`, its `original`, each given in some states only),
+  and request 40 the notice, whose reminder's least amount was request 18's 2001 hundredths. No fragment of checkpoint
+  4 adds a field every state of an earlier resource has: test 30's upgrade case compares eighteen reads through the
+  tree at request 29 with the same reads through the tree graded, and would break on one. The forty storms are legal
+  against the map of checkpoint 4's session (two relationships more, T22), and request 31's is refused without them.
+  The kit's TypeScript, `tally.ts`'s additions and the edited tests 2, 21 and 22 included, raises nothing in the
+  witness's checks.
 - **The rehearsal** ([`dry-run.mjs`](../../../../../.claude/flow/dry-run.mjs), report in [`dry-run.json`](dry-run.json)),
   13 November, on a witness tree of the simple arm's kind: the plain project (`created: plain`, as OpenStay's
   `trees/simple-w` starts: `src/server.ts`, Fastify, `yarn verify`), and one commit that solves requests 1 to 10
@@ -401,6 +431,120 @@ The maintainer accepted checkpoint 3 as written, and the operator's recommendati
 8. **Balances passed to the owner at request 20 stay out of the statement:** they are in the audit only.
 9. **A witness that answers later (`202`)** is rehearsed before registration, as decided before checkpoint 3.
 
+## Decided by the operator for checkpoint 4, for the maintainer to review
+
+Where the brief's outline of requests 31 to 40 is terse, the operator decided in its spirit, held to the maintainer's
+decisions above (`GroupArchived` decided by Groups, tests that hold outcomes only, test 10's request-9 file, the
+account's id kept in the audit, request 39's rate the offer at the decision, merging an archived group refused by
+`GroupArchived`, a suspension writing nothing in a group, the passed balances out of the statement). Each is a line to
+accept or change.
+
+**The product (the requests).**
+1. **A merge** (request 31) is the owner of both groups', `POST /v1/groups/{kept}/merge { from }`, refused while a
+   payment of the group merged waits at the provider (as leaving and archiving are); either group archived is
+   refused by `GroupArchived` (the maintainer's decision 7).
+2. **What a merge moves:** the members (after the group kept's, in the order they had joined, role `member`; a former
+   member stays a former member, whose statement is read), the expenses with their receipts, the settlements, the
+   recurring expenses, the passed balances and the audit, each keeping its id; **not** the budgets, templates and
+   invitations of the group merged (the group kept's hold), nor the notices (they stay as made).
+3. **The group merged is 404 at once; the rest moves "within a few seconds"** (T22): a tree that moves through an
+   integration event is not refused for being eventual, and the zero sum holds at every moment by construction.
+4. **A netting** (request 32) covers the groups both people are current members of, in one currency, not archived;
+   its rule is stated (what each can pay in each group, the smaller of the two totals, the caller's settlements first,
+   the groups oldest first), as request 11's was, so that two trees net the same; either person asks, without the
+   other's consent, since neither's total across the groups changes.
+5. **A netting's settlements** are `method` `net`, `paid` at once, counted as a cash settlement is, described
+   `Settlement by netting` in the statement, `settlement-paid` by who asked in the audit, never refunded; the netting
+   is a resource of its own (`GET /v1/nettings/{id}`), read by the two people.
+6. **Administrators** (request 33) are named to the server by `ADMIN_EMAILS`, whatever the case; no API makes one.
+   What only they read is `404` to anyone else (request 1's not-found), what only they do is refused.
+7. **A contest** is the payee's, once, of a `paid` settlement through the provider; while `contested` it waits (what
+   is still owed, leaving, archiving and merging treat it as pending) and is not counted; a webhook changes nothing.
+   An administrator decides it `paid` (counted again, an audit entry `settlement-paid` by the administrator) or
+   `annulled` (counted nowhere, no longer waiting, owed again).
+8. **The administrators' log** is `GET /v1/admin/log`, `{ id, at, by, action, subjectId }`, the oldest first:
+   `decided-paid`, `decided-annulled` (request 33), `suspended`, `reinstated` (request 34); a change that changes
+   nothing is no entry.
+9. **A suspension** (request 34) refuses five things a suspended account starts (an expense, a recurring expense, a
+   settlement in cash, a payment through the provider, a netting), by one name, and nothing else; the others may
+   still put it in a split and pay it. Its recurring days wait and are caught up at the first run after it is
+   reinstated (request 23's catching up), rather than skipped.
+10. **A deleted account** (request 35) stays a member of its groups, named `Deleted account`, its balances kept
+    (leaving would pass them to the owner, which the request does not ask); its email is free again. It is put in no
+    new split, paid nothing through the provider, netted with by nobody; a payment others received from it in cash is
+    still recorded. Deletion is refused while the account owns a group with another member (there is no hand-over),
+    or a payment of its waits.
+11. **"Erased everywhere"** is held on the database: no row of any table holds the name or the email (request 30
+    puts every state in PostgreSQL); the notices and the payout account of a deleted account, which hold neither,
+    are left unread.
+12. **Notice preferences** (request 36) are per person and kind (`expense`, `reminder`, `budget`), not per group, all
+    on until turned off; nothing missed is made later, and a reminder not made does not count as made.
+13. **Insights** (request 37) are the caller's shares, not what they paid, over the groups they are a member of now,
+    by the expense's month in UTC, in the group's currency, lines above 0, every month (no parameter), in a stated
+    order.
+14. **The provider's fee** (request 38) is in its answer to a payment (`fee`); an answer without one, or with one not
+    less than the amount, refuses the payment. The owner decides who bears it, the payee by default (what happened
+    before the request); a payment asks the provider for its `amount` as before, and settles that less its payer's part
+    (shared: the payer half, rounded down). The no-overpayment rule stays on the amount asked.
+15. **Who bears the fee is a resource of its own** (`/v1/groups/{id}/fee-policy`), and a settlement's `fee` is given
+    only for a payment asked for from request 38 on: no field is added that every group or settlement would read
+    (test 30's upgrade case compares whole reads across trees).
+16. **A settlement in another currency** (request 39) gives `original: { currency, amount }` in place of `amount`, in
+    cash or through the provider; the rate is the offer for the day it is decided (the maintainer's decision 6), with
+    no rate of the payer's and no band; the provider is asked in that currency; its fee is converted at the
+    settlement's rate and read in the group's currency.
+17. **Request 40's currencies** are `JPY` and `KRW` (no minor unit), `KWD` and `BHD` (thousandths); every limit stated
+    as an amount stays 1 to 100 000 000 of the minor unit; a rate is per unit; the reminders' threshold is 20 of the
+    group's currency (request 18's "20.00 in its currency", not its 2000); the fee is in the payment currency's minor
+    unit. It is an upgrade: nothing stored is converted, and every earlier amount reads the same.
+
+**The model (the storms):** T21 to T28 and each feature's hot spots, in
+[`storms/README.md`](storms/README.md#checkpoint-4-the-session-before-request-31). The ones to read first:
+- **T21, still no Accounts context:** suspension and deletion are the `Account`'s; administrators are a role given at
+  sign-in.
+- **T22, two relationships declared at the session:** `GroupsMerged`, Groups' first integration event, to Ledger and
+  to Settlements, for request 31.
+- **T23, a netting decides over several `SettlementBook`s in one transaction,** all or nothing.
+- **T25, "erased everywhere" includes Groups' stored facts** (the outbox, an operation's record).
+
+**The tests.**
+- **Superseded cases, by request 40:** tests 2, 21 and 22 refuse `JPY` as a currency Tally does not count in; from
+  request 40 they refuse `SEK` in its place (`reached(40)`), and the rest of each case holds under both. The witness
+  shows it graded up to 39 and whole (below).
+- **Two more lines in `tally.ts`:** the provider says a fee on each payment (`state.fee`, 0 unless a test sets it, so
+  every earlier test sees the fee of a tree that ignores it), and `database().holds(text)` counts the rows of every
+  PostgreSQL table that hold a text, whatever its case.
+- **Administrators** are named per test file (`ADMIN_EMAILS` given to `start`), each signing up as anyone does.
+- **A merge's moved state** is read with `eventually` (15 s), the group merged's `404` at once (T22).
+- **Request 40's upgrade test** records through the tree at request 39 (an expense in dollars, a cash settlement in
+  francs at the rate offered, a payment through the provider with a fee that waits, a budget), compares sixteen reads
+  and a CSV statement through the tree graded on the same database, lands the waiting payment, then records in yen:
+  an earlier amount read unchanged, a new one in its currency's minor unit.
+
+## Before registration: for the maintainer to decide
+
+1. **Checkpoint 4 as written,** the operator's decisions above with it.
+2. **T22:** two relationships declared at the session for request 31, and a merge's moved state "within a few
+   seconds" — or the merge decided in one transaction across the three contexts, which the request would then say.
+3. **T23:** one transaction over several aggregates for a netting, which the Lite and Full guides do not teach; the
+   alternative is a netting whose settlements are recorded one by one, and a request that no longer says "all or
+   nothing".
+4. **T25 and test 35's search:** whether "erased everywhere" may reach a tree's outbox and its operations' records,
+   as the search of every table does; a Full tree that keeps delivered facts forever pays for it at request 35.
+5. **The rule register:** `AccountSuspended` is, like `GroupArchived`, one refusal in two contexts decided by
+   Groups; register it as Groups' (the maintainer's decision 1 of checkpoint 4, applied again).
+6. **The edits to tests 2, 21 and 22** (the superseded `JPY`), the kit's only change to an accepted checkpoint.
+7. **The [S] estimate:** the brief asks it be run on the storms of 13, 31, 32 and 35 before registration; the storms
+   are written, the estimate is not run.
+8. **The rehearsal still owed:** a witness that answers later (`202`), on the Lite and Full starting trees (decided
+   before checkpoint 3); checkpoint 4's reactions to `GroupsMerged`, the netting's transaction and the scrubbing of
+   stored facts are where it would show what the plain witness cannot.
+9. **The flow's temporary directory** (the rehearsal, below): `grade.mjs` puts it under `<project>.flow/tmp/grade`,
+   and a project path longer than about 75 bytes leaves `tsx` no Unix socket; the campaign's trees should live at a
+   short path, or the flow give `tsx` a shorter directory. Reported to whoever changes `.claude/flow`; nothing in
+   the kit depends on it.
+10. **Then the kit is hashed and registered** with the protocol, its four checkpoints written.
+
 ## The rehearsal
 
 [`dry-run.mjs`](../../../../../.claude/flow/dry-run.mjs) on 13 November, with the composed API in force
@@ -491,3 +635,42 @@ clean, no finding**; [`dry-run.json`](dry-run.json) is this rehearsal's report, 
 - **Not rehearsed, still:** a tree that answers commands later (`202`), where checkpoint 3's policy that records a
   recurring expense's day (T15), its `BudgetPassed` (T16) and the move of an outbox (T20) are what a plain tree cannot
   show.
+
+### Checkpoint 4 (14 November)
+
+The same tool, on the same witness, the plan updated: `d859700` before, and `68ccae6` solved, with `previous` for
+request 10 (`13ceb79`), request 30 (`a46ce6c`) and request 40 (`d6c00b1`). The witness has two commits for checkpoint
+4, both written from the requests and their fragments before the tests: `d6c00b1`, requests 31 to 39 (the tree before
+request 40), and `68ccae6` on top of it, request 40. A merge is one transaction under the database's one write lock
+(members inserted, the group merged's rows given the group kept's id, the group merged marked merged); a netting
+writes its settlements in one transaction; administrators are read from `ADMIN_EMAILS` at each request; a deleted
+account's email, name and password are overwritten and its sessions removed; what PostgreSQL gains after request 30 is
+a list of upgrades applied once each on a database any earlier version prepared, so that request 40's upgrade case,
+and test 30's, run on a database an earlier tree made. The tests ran against the PostgreSQL 16 at `127.0.0.1:55432`,
+started again by the operator after the machine's restart. **Verdict: clean, no finding**; [`dry-run.json`](dry-run.json)
+is this rehearsal's report, the four checkpoints in it.
+
+- **Discrimination:** all forty files fail on the starting tree.
+- **Solvability:** all forty files pass on the solved tree, at the first run of the dry run, and each of the ten new
+  files passed on the witness, run file by file, at its first run: no test had to change for the witness, and the
+  witness did not change for a test.
+- **Hygiene:** the kit's files, `tally.ts`'s additions and the edited tests 2, 21 and 22 included, raise nothing in the
+  tree's formatter, linter or type checker.
+- **Request 40's upgrade test discriminates.** On the tree before it (`d6c00b1`), test 40 fails its four cases (no
+  group in yen or dinars). On a variant of the solved commit (`62da7a4`), whose first start reads every amount kept
+  before it in thousandths — a tenth of what it was, as a tree that moved every currency to one scale without
+  converting what it kept would — it fails its upgrade case alone, and passes the three others: an earlier amount
+  reinterpreted in the new minor unit is caught, and only there.
+- **Request 40's superseding, graded as the ladder grades it** (`grade.mjs --upto`): on the tree at request 39
+  (`d6c00b1`), tests 2, 21 and 22 pass graded up to 39 (14 of 14), and so do tests 31 to 39 (28 of 28); on the solved
+  tree, tests 2, 21 and 22 fail graded up to 39 (one case each, `JPY` refused, which `reached(40)` keeps until request 40)
+  and pass graded whole. So request 2's list is held until request 40, and request 40's from it, by the same files.
+- **A flow change that broke grading here.** The first run of the dry run failed every file on the solved tree: a
+  grading outside a ladder now gives jest a temporary directory under `<project>.flow/tmp/grade` (the flow's answer to
+  checkpoint 3's full disk), and `tsx`, which each test starts the server with, opens a Unix socket there, whose path,
+  under the operator's deep scratch directory, came to 114 bytes, over the 107 a socket path may have: no server
+  started. The operator graded through a short link to the witness (`w`), which leaves at most 106; the verdict above
+  is that run's. A campaign's trees, or the flow, should keep that path short (below).
+- **Not rehearsed, still:** a tree that answers commands later (`202`), where checkpoint 4's reactions to
+  `GroupsMerged` (T22), the netting's transaction over several books (T23) and the scrubbing of stored facts (T25)
+  are what a plain tree cannot show.

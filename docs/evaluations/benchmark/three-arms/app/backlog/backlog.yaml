@@ -1,5 +1,5 @@
-# J6's application, Tally (brief.md): checkpoint 1, requests 1 to 10, checkpoint 2, requests 11 to 20, and
-# checkpoint 3, requests 21 to 30, taken in order, each from the smallest model up. `contexts` is the brief's candidate model until the storms decide it
+# J6's application, Tally (brief.md): checkpoint 1, requests 1 to 10, checkpoint 2, requests 11 to 20,
+# checkpoint 3, requests 21 to 30, and checkpoint 4, requests 31 to 40, taken in order, each from the smallest model up. `contexts` is the brief's candidate model until the storms decide it
 # (storms/README.md); the simple arm never reads it.
 schemaVersion: 1
 features:
@@ -35,11 +35,25 @@ features:
   - { id: audit, n: 28, contexts: [Ledger, Settlements, Groups], needs: [leave-with-a-balance, recurring-expenses] }
   - { id: statement-as-csv, n: 29, contexts: [Ledger, Settlements, Groups], needs: [history-and-statement, refund-through-the-provider] }
   - { id: postgresql, n: 30, contexts: [Groups, Ledger, Settlements, Notifications], needs: [statement-as-csv], upgrade: true }
+  # Checkpoint 4: across groups and people. No context is added; the session declares two relationships for request 31
+  # (storms/README.md, T21 and T22).
+  - { id: merge-groups, n: 31, contexts: [Groups, Ledger, Settlements], needs: [archive-a-group, audit] }
+  - { id: net-across-groups, n: 32, contexts: [Settlements, Ledger, Groups], needs: [statement-as-csv] }
+  - { id: contest-a-settlement, n: 33, contexts: [Settlements, Ledger, Groups], needs: [merge-groups, audit] }
+  - { id: suspend-a-member, n: 34, contexts: [Groups, Ledger, Settlements], needs: [contest-a-settlement, net-across-groups] }
+  - { id: delete-an-account, n: 35, contexts: [Groups, Ledger, Settlements], needs: [contest-a-settlement, net-across-groups] }
+  - { id: notice-preferences, n: 36, contexts: [Notifications], needs: [budgets, reminders] }
+  - { id: spending-insights, n: 37, contexts: [Ledger, Groups], needs: [budgets, another-currency] }
+  - { id: provider-fee, n: 38, contexts: [Settlements, Ledger, Groups], needs: [contest-a-settlement] }
+  - { id: settle-in-another-currency, n: 39, contexts: [Settlements, Ledger, Groups], needs: [provider-fee, offered-rates] }
+  - { id: currency-precision, n: 40, contexts: [Groups, Ledger, Settlements, Notifications], needs: [settle-in-another-currency, reminders], upgrade: true }
 # `upgrade: true`: a change to what a tree already stored; its test records through the tree before it and reads
 # through the tree graded, on one database (grade.mjs --previous). Request 20 is not one: it changes leaving from
 # now on, and every member who left before it left at a balance of 0, so nothing stored reads differently
 # (README, "Decided by the operator for checkpoint 2"). Request 30 is one: what a tree kept in its SQLite file
 # moves to PostgreSQL, and its test asks for a payment through the tree before it and lands the payment's webhook
-# through the tree graded (README, "Decided by the maintainer before checkpoint 3", 6).
+# through the tree graded (README, "Decided by the maintainer before checkpoint 3", 6). Request 40 is one: every
+# amount a tree kept, in hundredths, reads the same after it, and its test records through the tree at request 39 and
+# reads through the tree graded (README, "Decided by the operator for checkpoint 4").
 # For feature <n>-<id>: backlog/<n>-<id>.md, storms/<id>.yaml, api/<n>-<id>.yaml (when it has an API
 # table), acceptance/<n>-<id>.acceptance.ts.

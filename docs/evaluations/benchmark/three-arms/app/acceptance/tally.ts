@@ -23,6 +23,9 @@ import { join } from 'path';
  * and the client's `upload` (request 26) and `raw` (request 29's CSV); days by the month (`monthly`, `monthsFrom`,
  * request 23); and, from request 30, a PostgreSQL database of its own beside each SQLite file (`database`), given to
  * the server as `DATABASE_URL`.
+ *
+ * From checkpoint 4 (requests 31 to 40): the provider's fee on each payment (`state.fee`, request 38), and what the
+ * PostgreSQL database holds of a text (`holds`, request 35's erasure).
  */
 export type Json = Record<string, unknown>;
 export interface Answer {
@@ -126,6 +129,19 @@ export function database(name: string) {
         ? Number(
             psql(
               `SELECT coalesce(sum((xpath('/row/c/text()', query_to_xml(format('SELECT count(*) AS c FROM %I.%I', table_schema, table_name), false, true, '')))[1]::text::int), 0) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema') AND table_type = 'BASE TABLE'`,
+              url,
+            ) || 0,
+          )
+        : 0,
+    /**
+     * How many rows, in every table of the PostgreSQL database, hold `text` anywhere in them, whatever its case
+     * (request 35: a deleted account's name and email are kept nowhere).
+     */
+    holds: (text: string) =>
+      pg
+        ? Number(
+            psql(
+              `SELECT coalesce(sum((xpath('/row/c/text()', query_to_xml(format('SELECT count(*) AS c FROM %I.%I t WHERE strpos(lower(t::text), %L) > 0', table_schema, table_name, lower('${text.replace(/'/g, "''")}')), false, true, '')))[1]::text::int), 0) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema') AND table_type = 'BASE TABLE'`,
               url,
             ) || 0,
           )
@@ -521,7 +537,8 @@ export interface ProviderPayment {
  * payments (`POST /payments`), refunds them (`POST /payments/{id}/refunds`) and knows payout accounts
  * (`GET /accounts/{id}`), and the webhooks it sends Tally, signed with the secret the server is started with
  * (`environment()`). A test sends each webhook itself, when it chooses: late, twice, out of order. While `refusing`,
- * it answers every request with 503, as a provider that is down.
+ * it answers every request with 503, as a provider that is down. From request 38 it says its fee on each payment it
+ * makes (`state.fee`, 0 unless a test sets it; `null` leaves it out of its answer).
  */
 export function paymentProvider() {
   const secret = `whsec-${randomBytes(16).toString('hex')}`;
@@ -529,7 +546,7 @@ export function paymentProvider() {
   const refunds: { paymentId: string; body: Json }[] = [];
   const accountsAsked: string[] = [];
   const accounts = new Set<string>();
-  const state = { refusing: false };
+  const state: { refusing: boolean; fee: number | null } = { refusing: false, fee: 0 };
   const server: Server = createHttpServer((request, response) => {
     let raw = '';
     request.on('data', chunk => (raw += chunk));
@@ -556,7 +573,7 @@ export function paymentProvider() {
         const id = `pay_${randomBytes(8).toString('hex')}`;
         const payment = { id, payUrl: `https://provider.test/pay/${id}`, body };
         payments.push(payment);
-        return answer(201, { id: payment.id, payUrl: payment.payUrl });
+        return answer(201, { id: payment.id, payUrl: payment.payUrl, ...(state.fee !== null && { fee: state.fee }) });
       }
       const refund = /^\/payments\/([^/]+)\/refunds$/.exec(path);
       if (request.method === 'POST' && refund) {
