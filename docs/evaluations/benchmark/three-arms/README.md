@@ -2,6 +2,8 @@
 
 **Status:** a draft. It is registered (committed with its kit and its criteria, the kit passing `kit-check.mjs`) before any run, and it waits on [RFC 0002](../../../rfc/0002-architecture-profiles-lite-and-full.md)'s implementation plan up to its step 5 (`create --profile lite`).
 
+**Registration:** [proposed on 14 November](registration.md), for the maintainer's review; nothing has run.
+
 **Decided by the maintainer on 8 November.** RFC 0002 had decided to compare Lite alone against the records of J2–J4, and kept three arms run at the same time as the stronger design if that comparison were inconclusive. The review of J5 (8 November) showed why it would be. The records were made on another machine, another harness and another kit, and Lite's rules were designed from the very requests they would be evaluated on. The maintainer chose the stronger design from the start:
 - three arms run at the same time;
 - on requests none of the three was tuned on;
