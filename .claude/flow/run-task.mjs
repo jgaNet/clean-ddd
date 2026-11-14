@@ -1043,7 +1043,8 @@ async function main(argv) {
     let alive = false;
     try {
       process.kill(pid, 0);
-      alive = pid !== process.pid;
+      // After a restart the pid is reused by another process: only a run-task holds the lock.
+      alive = pid !== process.pid && readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes('run-task.mjs');
     } catch {
       alive = false;
     }
