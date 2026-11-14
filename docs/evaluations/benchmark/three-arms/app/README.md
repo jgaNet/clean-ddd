@@ -382,31 +382,24 @@ declare a relationship, the fixed reminder threshold, request 30 an upgrade). Ea
   under two ids, a late `pending`, the landed one's again), restarts on the same file and database, and reads it from
   a server pointed at another file: one `paid` in the history, one `settlement-paid` in the audit, the balances once.
 
-## Before checkpoint 4: for the maintainer to decide
+## Decided by the maintainer before checkpoint 4 (14 November)
 
-1. **The rule register and T17.** `GroupArchived` is one refusal three contexts return (Ledger, Settlements, Groups);
-   DOMAIN-RULE-NAMED declares a rule with *its* context. Accept a shared-kernel rule decided by Groups, or ask each
-   context for its own name (three names for one rule, which request 27's "by one rule's name" refuses)?
-2. **T15 against the plain arm.** The Lite and Full storms record a recurring day's expense through a policy; a tree
-   that records both in one transaction passes the same test. Accept that the test holds the outcome only?
-3. **Test 10 after request 30** moves a file the tree at request 9 kept, skipping the trees between (the deployed path
-   would have run each). Keep it, as request 30's "by this version or an earlier one" says, or hold test 10's case to
-   SQLite from request 30 on?
-4. **The PostgreSQL server of the campaign:** request 30 names `127.0.0.1:55432` for the agents and the tests, as
-   OpenStay's J4 and J5 did; J5's lesson (a server per tree, UTF-8) applies. Which machine runs it, and one per tree?
-5. **Requests 35 and 28:** account deletion anonymises a member "in every ledger"; the audit is "never changed" and
-   names members by account id. Decide now whether an id is personal data the anonymising replaces in the audit.
-6. **Requests 39 and 22:** a settlement across currencies "fixes its rate when it is decided"; say whether that rate is
-   the rates service's offer (request 22's port and band) or the payer's.
-7. **Requests 31, 34 and 27:** whether an archived group can be merged (31) or holds a suspended member's
-   expenses (34), so that the requests do not contradict request 27's "every write is refused".
-8. **Request 40 after request 30:** request 40 is an upgrade "for every earlier amount read"; its test will record
-   through the tree at 39 on PostgreSQL. `database()` already gives both trees the same database; nothing else to add.
-9. **The `202` witness** (decision 7 before checkpoint 3) is still to rehearse: checkpoint 3 adds a policy that records
-   an expense (T15), a fact told to Notifications (T16) and a move of the outbox (T20), where a Lite or Full witness
-   would show what the plain one cannot.
-10. **Statement and passes:** settlements enter the statement at 29, what passed to the owner (request 20) does not;
-    a member's statement then differs from their balance by it. Accept, or bring passes in at a later request?
+The maintainer accepted checkpoint 3 as written, and the operator's recommendation on each question:
+
+1. **`GroupArchived` is one rule, decided by Groups:** one public name; Ledger and Settlements return it by reading
+   Groups' state. In the rule register (ADR 46) it is Groups'.
+2. **T15: the tests hold the outcome only.** A tree that records a recurring day in one transaction rather than
+   through a policy passes; the form is the maintainability review's to read.
+3. **Test 10's upgrade case keeps moving a request-9 file** through the tree graded, the PostgreSQL tree included: an
+   old database must always be read.
+4. **PostgreSQL: one server per tree** in the campaign, each with its own port and data (J5's lesson).
+5. **Request 35:** an account's id stays in the audit (an opaque id, not personal data); its name and email are erased
+   everywhere. The audit is never changed.
+6. **Request 39:** the rate is the rates service's offer at the moment the settlement is decided, kept on it.
+7. **Requests 31 and 34:** merging an archived group is a write, refused by `GroupArchived`; a suspension writes
+   nothing in a group.
+8. **Balances passed to the owner at request 20 stay out of the statement:** they are in the audit only.
+9. **A witness that answers later (`202`)** is rehearsed before registration, as decided before checkpoint 3.
 
 ## The rehearsal
 
