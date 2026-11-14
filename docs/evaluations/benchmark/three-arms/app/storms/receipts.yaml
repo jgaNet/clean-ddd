@@ -1,0 +1,37 @@
+# Feature 26 of Tally (../backlog/26-receipts.md), as the session decided it.
+schemaVersion: 1
+
+feature: receipts
+intent: >-
+  The payer or the owner attaches a JPEG or a PNG of at most 2 MB to an expense; Tally keeps it in an outside store and reads its type, its size and the store's link.
+
+done: false
+
+hotSpots:
+  - question: Where is the store in the model?
+    decision: Behind a port Ledger owns in its Application layer (ReceiptStore), named for what it decides — where a file is kept; its answer, a link, is a plain value the Receipt takes (DOMAIN-NON-DETERMINISM), as the provider's is (T11). The adapter calls RECEIPTS_URL with a 5-second limit.
+  - question: A receipt on the Expense, or its own?
+    decision: Its own aggregate (Receipt, one per expense) — a receipt is not an edit, and the Expense keeps its version; the Receipt asks the Expense's rules (payer or owner, no former member) through Ledger's own read model when it decides.
+  - question: Who reads the file's type and size?
+    decision: The Receipt, from the bytes the transport hands over as they were sent — the type from the first bytes, never from a header; a file refused is never sent to the store.
+
+contexts:
+  - id: Ledger
+    commands:
+      - name: AttachReceipt
+        actor: a signed-in account
+        route: PUT /expenses/{param}/receipt
+        aggregate: Receipt
+        events: [ReceiptAttached]
+    queries:
+      - name: GetReceipt
+        actor: a signed-in account
+        route: GET /expenses/{param}/receipt
+    events: [ReceiptAttached]
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupMembers]

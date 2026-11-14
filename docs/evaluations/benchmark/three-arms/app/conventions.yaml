@@ -1,4 +1,4 @@
-# J6's application, Tally, checkpoints 1 and 2 (requests 1-20): every convention a later request relies on, with
+# J6's application, Tally, checkpoints 1 to 3 (requests 1-30): every convention a later request relies on, with
 # the request that sets it (`born`) and the test, in that request's acceptance file, that holds it there
 # (docs/evaluations/benchmark/kit-standard.md). kit-check refuses an entry without either.
 #
@@ -71,7 +71,8 @@ conventions:
     says: >-
       What the application knows is in the SQLite file DATABASE_PATH names: a server stopped, even killed, and
       started again on the same file finds everything every request brought. Several servers may run on the same
-      file at the same time (requests 5 and 6 start two).
+      file at the same time (requests 5 and 6 start two). Request 30 moves the state to PostgreSQL, unannounced
+      (postgresql): from then on the tests give every server both DATABASE_PATH and DATABASE_URL.
     born: 1
     test: keeps every account when the server is killed and started again on the same file
   - id: sweep
@@ -307,7 +308,8 @@ conventions:
     says: >-
       A member's statement (request 8) lists expenses only, its balance the expenses'; from request 12 it differs from
       the member's balance in the group by the settlements they paid or received (and, from request 20, by what passed
-      to the owner).
+      to the owner). Request 29 supersedes it (statement-settlements): test 12's case asserts it only before request
+      29 (`reached`).
     born: 12
     test: "keeps a member's statement to their expenses, while the balances count the settlements"
 
@@ -489,3 +491,204 @@ conventions:
       maintainer's T5 gap, closed here).
     born: 20
     test: keeps the zero sum when an expense or a settlement and a leave are sent at once, through one server or two
+
+  # Checkpoint 3: currencies and recurring expenses (requests 21 to 30).
+
+  # Request 21: another currency.
+  - id: original-amount
+    says: >-
+      An expense gives either `amount`, in the group's currency, or `original: { currency, amount, rate }`, never both
+      nor neither (the body's shape, 400): a currency of request 2 other than the group's, an amount of 1 to
+      100 000 000 in its hundredths, and a rate written as a decimal string, greater than 0, with at most 6 digits
+      after the point. The expense's `amount` is then the original amount times the rate, to the nearest whole
+      number, a half up, 1 to 100 000 000, and is what is split and counted.
+    born: 21
+    test: refuses a currency, an amount or a rate that is not allowed, and a body of the wrong shape
+  - id: original-kept
+    says: >-
+      An expense in another currency reads `original: { currency, amount, rate }` as given, the rate the same string;
+      one in the group's currency, and every expense recorded before request 21, reads without `original` (absent,
+      never null).
+    born: 21
+    test: records an expense in another currency at the rate its payer states, and keeps the rate and both amounts
+
+  # Request 22: the rates service, an outside system the tests play, as the provider.
+  - id: rates-service
+    says: >-
+      The rates service is named to the server by RATES_URL; Tally asks GET {RATES_URL}/rates/{from}/{to}?date= and reads
+      200 { rate }; anything else, nothing within 5 seconds, or no RATES_URL, is no rate offered. The offer is read at
+      GET /v1/groups/{id}/rates/{currency}?date= (today without a date), 404 when there is none.
+    born: 22
+    test: offers the rate the rates service gives for a currency and a day, and records an expense at it when its rate is left out
+  - id: rate-band
+    says: >-
+      With a rates service, an expense in another currency without a rate takes the one offered for its currency and
+      date; one with a rate is refused, by that rule's name, when it differs from the one offered by more than 2 % of
+      it, and refused when no rate is offered. Without RATES_URL, the payer's rate is taken (request 21).
+    born: 22
+    test: takes a rate within 2 % of the one offered, and refuses one further from it by its rule's name
+  - id: rates-unavailable
+    says: >-
+      A rates service that has no rate or does not answer refuses an expense in another currency, with or without its
+      rate, and keeps nothing; a server started without RATES_URL on the same database takes the payer's rate.
+    born: 22
+    test: refuses an expense in another currency when no rate is offered, and offers none
+
+  # Request 23: recurring expenses, the second state that changes with time.
+  - id: recurring-sweep
+    says: >-
+      A recurring expense's expenses are recorded by the background job, at its first run on or after each of its
+      days, never at a read: a server whose job runs once an hour records none, however often the group is read; a
+      startsOn already passed has every day that has come recorded at the next run, each dated its day.
+    born: 23
+    test: records the expenses of every day that has come at the next run of the background job, never at a read
+  - id: recurring-once
+    says: >-
+      Each day of a recurring expense has one expense, however many servers run on one database, across a server
+      killed and started again.
+    born: 23
+    test: records each day once, however many servers run on the database, and across a restart
+  - id: recurring-days
+    says: >-
+      A recurring expense recurs every month on startsOn's day, which is 1 to 28, startsOn no more than 365 days from
+      today either way; it reads its split as given (exactly one of splitBetween, splitExactly, splitByShares) and
+      `next`, the day of the next expense it will record.
+    born: 23
+    test: refuses a recurring expense whose day, amount or split is not allowed, and waits for a day to come
+  - id: recurring-ends
+    says: >-
+      Its payer or the owner stops a recurring expense (404 from then on, its expenses kept); one whose payer or a
+      member of its split is no longer a member records nothing on its day, and ends the same way.
+    born: 23
+    test: lets its payer or the owner stop a recurring expense, and ends one whose payer or member has left
+
+  # Request 24: categories and budgets.
+  - id: category
+    says: >-
+      An expense, and a recurring expense, has a category, one of groceries, rent, utilities, transport, food,
+      travel, leisure and other; `other` when none is given, and for every expense recorded before request 24.
+    born: 24
+    test: counts a month by its expenses' dates, edits and deletions, in the category each expense keeps
+  - id: budget-month
+    says: >-
+      What a month spends in a category is the amounts of the group's expenses of that category dated in that month,
+      in UTC, deleted ones left out; the budgets read what the current month spends.
+    born: 24
+    test: counts a month by its expenses' dates, edits and deletions, in the category each expense keeps
+  - id: budget-notice
+    says: >-
+      When an expense recorded or edited makes its month spend more than its category's budget, every member of the
+      group, its payer included, receives one notice of kind `budget` with the category, the month (YYYY-MM), the
+      budget and what the month spends as `amount`: once per group, category and month, soon (within seconds,
+      without the job), across a killed server.
+    born: 24
+    test: tells every member once when a month's spending in a category passes its budget
+  - id: budget-owner
+    says: >-
+      Only the group's owner sets or removes a budget, for one of the categories, of 1 to 100 000 000; the budgets
+      are listed in the order of the categories.
+    born: 24
+    test: lets the owner alone set or remove a budget, for a category Tally has and an amount allowed
+
+  # Request 25: split templates.
+  - id: template-split
+    says: >-
+      An expense, recorded or edited, gives exactly one of the three splits and `template` (otherwise 400); split by a
+      template, it is split as if the template's split had been given, under every rule of a split at that moment,
+      and keeps its shares when the template changes or goes.
+    born: 25
+    test: saves a split as a template, and splits an expense by it as if its split had been given
+  - id: template-rules
+    says: >-
+      A template has a name of 1 to 60 characters, not only spaces, free in its group whatever its case, and exactly
+      one of splitBetween and splitByShares (otherwise 400), of members of the group; its creator or the owner
+      replaces or removes it.
+    born: 25
+    test: refuses a template that is not allowed, and an expense its template cannot split
+
+  # Request 26: receipts, kept by an outside store the tests play, as the provider.
+  - id: receipts-store
+    says: >-
+      The receipts store is named to the server by RECEIPTS_URL; Tally sends POST {RECEIPTS_URL}/files, the file as the
+      body with its type as Content-Type, and reads 201 { id, url }. Anything else, nothing within 5 seconds, or no
+      RECEIPTS_URL, refuses the receipt and keeps the one the expense had.
+    born: 26
+    test: refuses a receipt while the store fails or is not there, and keeps the one the expense had
+  - id: receipt-file
+    says: >-
+      A receipt is sent as application/octet-stream: a JPEG (FF D8 FF) or a PNG (89 50 4E 47 0D 0A 1A 0A) by its first
+      bytes, of 1 to 2 097 152 bytes; anything else is refused, before the store is asked. It reads
+      { type, size, url }, 404 while the expense has none; attaching one is no edit, and the expense keeps its version.
+    born: 26
+    test: refuses a file of another type, an empty one or one over 2 MB, and sends nothing to the store
+
+  # Request 27: archived groups.
+  - id: archived-read-only
+    says: >-
+      Every request that would change something in an archived group is refused by the one rule's name, the same for
+      all, and changes nothing, across a restart; every read answers as before, and the group reads `archivedAt`
+      (absent, never null, until it is archived).
+    born: 27
+    test: archives a group once everyone is even, and refuses every change in it by one rule's name
+  - id: archive-when-even
+    says: >-
+      Only the owner archives a group, once every balance is 0 and no settlement through the provider is pending or
+      refunding.
+    born: 27
+    test: refuses to archive a group while a balance is not 0 or a payment waits at the provider, and to anyone but its owner
+  - id: archived-sweep
+    says: >-
+      The background job records no expense of a recurring expense in an archived group.
+    born: 27
+    test: records no expense of a recurring expense in an archived group
+
+  # Request 28: the audit.
+  - id: audit-entries
+    says: >-
+      Every change of money from request 28 on is one entry { id, at, by, action, subjectId, amount }: expense-recorded,
+      -edited, -deleted, settlement-paid (cash when recorded, by its payee; provider when it succeeds, by its payer),
+      settlement-refunded (by its payee, only for a settlement that was counted), balance-passed (by the member who
+      left, their balance); nothing for what is refused or changes nothing; listed the oldest first.
+    born: 28
+    test: "writes an entry for every change of money: who made it, when, what and how much, the oldest first"
+  - id: audit-with-the-change
+    says: >-
+      An entry is written with its change: there after a server killed right after it, exactly one with two servers on
+      one database, never changed or removed.
+    born: 28
+    test: writes one entry for each change, with two servers on one database
+
+  # Request 29: settlements in a statement, and its CSV.
+  - id: statement-settlements
+    says: >-
+      From request 29 a member's statement lists the settlements the balances count beside the expenses, each entry
+      with `kind`: a settlement's with `settlementId`, its date the UTC day the balances started counting it, its
+      description `Settlement in cash` or `Settlement through the provider`, paid for its payer, share for its payee;
+      in request 8's order, a settlement by when it started counting. It supersedes statement-expenses.
+    born: 29
+    test: lists the settlements a member paid or received that the balances count, beside their expenses
+  - id: statement-csv
+    says: >-
+      A statement as CSV is text/csv in UTF-8: the header date,kind,id,description,paid,share,balance, one line per
+      entry in that column order, CRLF line ends, a field quoted only when it holds a comma, a double quote or a line
+      break, its double quotes doubled.
+    born: 29
+    test: exports a statement as CSV, its columns in the stated order, quoted only where they must be
+
+  # Request 30, the change not announced in advance.
+  - id: postgresql
+    says: >-
+      From request 30, the state is in the PostgreSQL database at DATABASE_URL: found after a kill whatever
+      DATABASE_PATH says; an empty database is prepared at the first start; two servers on one database keep every
+      earlier rule. The tests create a database per file on TALLY_POSTGRES (127.0.0.1:55432 when not set) with psql.
+      It supersedes durable's file.
+    born: 30
+    test: keeps its state in PostgreSQL, and finds it after a kill, whatever DATABASE_PATH says
+  - id: moves-the-file
+    says: >-
+      A server started on a PostgreSQL database that holds nothing of Tally's, while DATABASE_PATH names a file any
+      earlier version kept, moves everything in it first: a payment waiting at the provider lands once after the move,
+      nothing is moved twice on a later start. Test 10's upgrade case, graded from request 30, moves a file the tree
+      at request 9 kept.
+    born: 30
+    test: moves what the tree before it kept, and a payment waiting at the provider when it changed counts once

@@ -1,0 +1,35 @@
+# Feature 29 of Tally (../backlog/29-statement-as-csv.md), as the session decided it, the maintainer's decision of 13
+# November applied: settlements enter a member's statement here, with the CSV export.
+schemaVersion: 1
+
+feature: statement-as-csv
+intent: >-
+  A member's statement lists the settlements the balances count beside the expenses, and is read as CSV in a stated column order.
+
+done: false
+
+hotSpots:
+  - question: How does the statement learn of the settlements?
+    decision: Ledger reads them through SettledAmounts (T8), the port it owns over Settlements' read model, which now answers each counted settlement of a member with when it started to count; nothing is copied into Ledger.
+  - question: Is the CSV another query?
+    decision: The same statement, rendered by the transport as text/csv; the query is GetMemberStatement (request 8), and the route is only where the API puts the other rendering.
+
+contexts:
+  - id: Ledger
+    commands: []
+    queries:
+      - name: GetMemberStatementCsv
+        actor: a signed-in account
+        route: GET /groups/{param}/members/{param}/statement.csv
+    events: []
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Settlements
+    downstream: Ledger
+    contracts: [SettledAmounts]
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupMembers]

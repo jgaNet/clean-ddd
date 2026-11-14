@@ -1,0 +1,53 @@
+# Request 24: an expense's category, a monthly budget per category, and a notice when a month passes one.
+resources:
+  expense:
+    gains:
+      category: { enum: [groceries, rent, utilities, transport, food, travel, leisure, other] }
+  recurring:
+    gains:
+      category: { enum: [groceries, rent, utilities, transport, food, travel, leisure, other] }
+  budget:
+    schema:
+      type: object
+      required: [category, amount, spent]
+      properties:
+        category: { enum: [groceries, rent, utilities, transport, food, travel, leisure, other] }
+        amount: { type: integer, minimum: 1 }
+        spent: { type: integer, minimum: 0 }
+  # Restated whole, as requests 17 and 18 left it, with what a budget's notice has and the others have not (a `gains`
+  # would require it of every kind); the new kind is added below, read whole by the test named for it.
+  notice:
+    schema:
+      type: object
+      required: [id, kind, groupId, amount, at]
+      properties:
+        id: { $comment: request 17, type: string }
+        kind: { $comment: 'requests 17, 18', enum: [expense, reminder] }
+        groupId: { $comment: request 17, type: string }
+        expenseId: { $comment: request 17, type: string }
+        amount: { $comment: request 17, type: integer }
+        at: { $comment: request 17, type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)$' }
+        category: { enum: [groceries, rent, utilities, transport, food, travel, leisure, other] }
+        month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        budget: { type: integer, minimum: 1 }
+      allOf:
+        - $comment: "request 17: an expense's notice names its expense"
+          if: { $comment: request 17, required: [kind], properties: { kind: { $comment: request 17, const: expense } } }
+          then: { $comment: "request 17: an expense's notice names its expense", required: [expenseId] }
+        - $comment: 'request 18: a reminder is for more than 2000 still owed'
+          if: { $comment: request 18, required: [kind], properties: { kind: { $comment: request 18, const: reminder } } }
+          then: { properties: { amount: { $comment: 'request 18: a reminder is for more than 2000 still owed', minimum: 2001 } } }
+        - $comment: "request 24: a budget's notice names its category, month and budget, and spends more than it"
+          if: { required: [kind], properties: { kind: { const: budget } } }
+          then: { required: [category, month, budget] }
+    states:
+      - field: kind
+        add: [budget]
+        test: tells every member once when a month's spending in a category passes its budget
+routes:
+  PUT /v1/groups/{id}/budgets/{category}:
+    2xx: {}
+  DELETE /v1/groups/{id}/budgets/{category}:
+    2xx: {}
+  GET /v1/groups/{id}/budgets:
+    200: { type: array, items: { $resource: budget } }

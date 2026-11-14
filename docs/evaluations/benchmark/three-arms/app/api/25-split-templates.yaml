@@ -1,0 +1,30 @@
+# Request 25: a split saved under a name, which an expense is split by in place of its own.
+resources:
+  template:
+    schema:
+      type: object
+      required: [id, groupId, name]
+      properties:
+        id: { type: string }
+        groupId: { type: string }
+        name: { type: string }
+        splitBetween: { type: array, minItems: 1, items: { type: string } }
+        splitByShares:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [memberId, shares]
+            properties: { memberId: { type: string }, shares: { type: integer, minimum: 1 } }
+      oneOf:
+        - { $comment: 'request 25: the split as it was given, one of the two', required: [splitBetween] }
+        - { $comment: 'request 25: the split as it was given, one of the two', required: [splitByShares] }
+routes:
+  POST /v1/groups/{id}/templates:
+    2xx: { type: object, required: [id], properties: { id: { type: string } } }
+  GET /v1/groups/{id}/templates:
+    200: { type: array, items: { $resource: template } }
+  PUT /v1/templates/{id}:
+    2xx: {}
+  DELETE /v1/templates/{id}:
+    2xx: {}

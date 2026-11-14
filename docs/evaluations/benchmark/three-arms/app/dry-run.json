@@ -26,14 +26,24 @@
         "notices": false,
         "reminders": false,
         "settlement-history": false,
-        "leave-with-a-balance": false
+        "leave-with-a-balance": false,
+        "another-currency": false,
+        "offered-rates": false,
+        "recurring-expenses": false,
+        "budgets": false,
+        "split-templates": false,
+        "receipts": false,
+        "archive-a-group": false,
+        "audit": false,
+        "statement-as-csv": false,
+        "postgresql": false
       },
       "hygiene": []
     },
     {
       "tree": "tally-w",
       "role": "solved",
-      "ref": "bb0c3e9",
+      "ref": "d29b71a",
       "features": {
         "accounts": true,
         "create-a-group": true,
@@ -54,7 +64,17 @@
         "notices": true,
         "reminders": true,
         "settlement-history": true,
-        "leave-with-a-balance": true
+        "leave-with-a-balance": true,
+        "another-currency": true,
+        "offered-rates": true,
+        "recurring-expenses": true,
+        "budgets": true,
+        "split-templates": true,
+        "receipts": true,
+        "archive-a-group": true,
+        "audit": true,
+        "statement-as-csv": true,
+        "postgresql": true
       },
       "hygiene": []
     }

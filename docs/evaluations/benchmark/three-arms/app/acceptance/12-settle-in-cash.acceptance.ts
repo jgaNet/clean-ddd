@@ -1,4 +1,4 @@
-import { client, Client, database, Outcome, Running, start, stop } from './tally';
+import { client, Client, database, Outcome, reached, Running, start, stop } from './tally';
 
 /** Request 12: a settlement in cash, recorded by its payee, never more than is owed, counted by the balances at once. */
 const db = database('cash');
@@ -156,12 +156,17 @@ describe('settle up in cash', () => {
   it("keeps a member's statement to their expenses, while the balances count the settlements", async () => {
     const { ann, bob, groupId } = await flat('statement');
     const expenses = await api.list(`/groups/${groupId}/expenses`, ann.token);
-    await api.cash(ann, groupId, bob, 200);
+    const id = await api.cash(ann, groupId, bob, 200);
     const statement = await api.read(`/groups/${groupId}/members/${bob.id}/statement`, ann.token);
-    expect(statement.balance).toBe(-300);
-    expect((statement.entries as { expenseId: string }[]).map(each => each.expenseId)).toEqual(
-      expenses.map(each => each.id),
-    );
+    const entries = statement.entries as { expenseId?: string; settlementId?: string }[];
+    if (!reached(29)) {
+      expect(statement.balance).toBe(-300);
+      expect(entries.map(each => each.expenseId)).toEqual(expenses.map(each => each.id));
+    } else {
+      // From request 29, a settlement the balances count is an entry of its payer's and its payee's statements.
+      expect(statement.balance).toBe(-100);
+      expect(entries.map(each => each.expenseId ?? each.settlementId)).toEqual([...expenses.map(each => each.id), id]);
+    }
     expect((await api.balances(groupId, ann.token)).of[bob.id]).toBe(-100);
   }, 60000);
 });

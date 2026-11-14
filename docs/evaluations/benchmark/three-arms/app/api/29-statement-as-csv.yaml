@@ -1,0 +1,36 @@
+# Request 29: settlements in a member's statement, and the statement as CSV.
+resources:
+  # Restated whole, as request 8 left it, with each entry's `kind`, and `expenseId` required of an expense's entry
+  # only: a settlement's has `settlementId` in its place.
+  statement:
+    schema:
+      type: object
+      required: [memberId, balance, entries]
+      properties:
+        memberId: { $comment: request 8, type: string }
+        balance: { $comment: request 8, type: integer }
+        entries:
+          $comment: request 8
+          type: array
+          items:
+            type: object
+            required: [kind, date, description, paid, share, balance]
+            properties:
+              kind: { enum: [expense, settlement] }
+              expenseId: { $comment: request 8, type: string }
+              settlementId: { type: string }
+              date: { $comment: request 8, type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+              description: { $comment: request 8, type: string }
+              paid: { $comment: request 8, type: integer, minimum: 0 }
+              share: { $comment: request 8, type: integer, minimum: 0 }
+              balance: { $comment: request 8, type: integer }
+            allOf:
+              - $comment: "request 8: an expense's entry names its expense"
+                if: { required: [kind], properties: { kind: { const: expense } } }
+                then: { required: [expenseId] }
+              - $comment: "request 29: a settlement's entry names its settlement"
+                if: { required: [kind], properties: { kind: { const: settlement } } }
+                then: { required: [settlementId] }
+routes:
+  GET /v1/groups/{id}/members/{memberId}/statement.csv:
+    200: { type: string, pattern: '^date,kind,id,description,paid,share,balance\r\n' }

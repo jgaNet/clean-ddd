@@ -170,7 +170,8 @@ describe('the remainder goes to the first member of the split', () => {
     const upgraded = database('upgraded');
     let running = await start(upgraded.path, {}, previous('remainder-to-the-first'));
     try {
-      let through = client(running.port);
+      // The tree before the change answers as the requests before it did: its answers are not held to the API now.
+      let through = client(running.port, false);
       const ann = await through.person('ann@upgraded.remainder.test');
       const bob = await through.person('bob@upgraded.remainder.test');
       const cy = await through.person('cy@upgraded.remainder.test');

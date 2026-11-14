@@ -127,3 +127,66 @@ Request 20 also uses checkpoint 1's two: `MemberBalances` (Ledger → Groups) fo
 | 20 Leave with a balance (unannounced) | Who decides what passes? | The `Group`, reading `MemberBalances` in the leave's transaction (`BalancePassed`); Ledger counts it through `GroupMembers` (T10). |
 | 20 | An expense at the same moment | Serialised on the one database: counted in what passes, or refused (T5's gap, closed). |
 | 20 | Not an upgrade | Every member who left before it left at 0. |
+
+## Checkpoint 3: the session before request 21
+
+The session of checkpoint 3 (requests 21 to 30), held before request 21, the maintainer's decisions of 13 November
+applied (T8 kept, settlements in the statement at 29, an unannounced request's storm may declare a relationship). As
+for checkpoints 1 and 2, every decision below is the operator's, **for the maintainer to accept or change before the
+kit is registered**.
+
+### How they were validated
+
+As checkpoint 2's: from the same tree `create` made (13 November, in the operator's scratch space), with Groups,
+Ledger, Settlements and Notifications declared and the eight relationships of checkpoints 1 and 2 declared `planned`,
+request 20's included. All thirty storms answer *legal against the contract and the map; not in the code yet*.
+Checkpoint 3 declares no context and no relationship: its ten storms use the eight relationships already declared.
+With the map of checkpoint 2's session alone (without T10's relationship), requests 20 and 27 are refused, as they
+should be: request 27 asks Settlements whether a payment waits, through request 20's `WaitingPayments`.
+
+### The strategic session
+
+| # | Question | Decision | The alternative, and what it costs |
+| --- | --- | --- | --- |
+| T12 | Does checkpoint 3 add a context? | **No.** Currencies, rates, recurring expenses, budgets, templates, receipts, the audit and the CSV are Ledger's (expenses and what they count); archiving is Groups'. The rates service and the receipts store are ports Ledger owns (T14), not contexts. | **A Currencies context** (generic: rates and conversion) upstream of Ledger: a fifth context for one port and one value. **An Audit context**, downstream of the three: T18. |
+| T13 | How does Ledger know a group's currency (request 21)? | **A port Ledger owns on the relationship it has with Groups** (`GroupCurrency`, beside `GroupMembers`), read when an expense is decided. The currency never changes, so nothing would lag; a port adds no copy to keep. | **A copy in Ledger,** told by `GroupCreated` as an integration event: a new mechanism on the pair Groups → Ledger, for a value that never changes. |
+| T14 | Where are the rates service and the receipts store? | **Behind ports Ledger owns** (`OfferedRates`, `ReceiptStore`), as the provider is behind Settlements' (T11): plain values the `Expense` and the `Receipt` take or refuse (DOMAIN-NON-DETERMINISM). The band of request 22 is the `Expense`'s rule, the offer an input. | **The band checked by the adapter**: a rule outside the domain, refused without its name. |
+| T15 | What records a recurring expense's day once (request 23)? | **A `RecurringExpense` aggregate** whose next day the background job moves forward (`RecurringExpenseDayCame`), its optimistic check deciding between two servers; a policy on that fact records the `Expense` in its own transaction, delivered once by the outbox and the bus. A member who left ends it (`RecurringExpenseEnded`), read through `GroupMembers` on its day. | **The job records the `Expense` directly** in the transaction that moves the day: two aggregates in one transaction, which the arms' handlers do not do. The plain arm will, and the test does not tell them apart. |
+| T16 | Who decides a budget is passed, and who tells (request 24)? | **A `Budget` per group and category in Ledger,** which keeps the months it was passed in; a policy on `ExpenseRecorded` and `ExpenseEdited` asks it with what the month spends. Ledger publishes **`BudgetPassed`** on its existing relationship with Notifications (T9), with the members to tell, read through `GroupMembers`; Notifications makes one notice each. | **Notifications reacting to `ExpenseRecorded`** and keeping each month's spending: a second copy of what Ledger counts, edits and deletions included, which `ExpenseRecorded` alone does not carry. |
+| T17 | How does every context refuse a change in an archived group by one name (request 27)? | **Each asks Groups,** through the port it already owns (`GroupMembers`, `SettlementMembers`), whether the group is archived, and refuses by **`GroupArchived`, a word of the shared kernel** decided once by the `Group`. No context keeps a copy of the flag, so nothing slips in before it hears. For the rule register (DOMAIN-RULE-NAMED), one rule refused in three contexts is a question for the maintainer (below). | **`GroupArchived` as an integration event** and a flag copied in Ledger and Settlements: an expense recorded in the moment before the copy arrives would change an archived group. |
+| T18 | Request 28: does the audit need a fact to react to (T8's open question)? | **No.** Each context writes its own entries in the transaction of the change, from its own aggregate's facts (Ledger the expenses, Settlements the settlements, Groups a balance passed), and Ledger's audit query reads the other two through ports it owns (`SettlementAudit`, `PassedBalances`) on the relationships it has. An entry is there as soon as the change is answered, which the tests read at once. T8 stands. | **An Audit context** fed by integration events from the three: the entries eventual, a change answered before its entry exists, and three new relationships. |
+| T19 | Request 29: how does a statement show the settlements? | **Through `SettledAmounts` (T8),** which now answers each settlement of a member the balances count, with when it started to count. The CSV is the same query, rendered by the transport. | **A copy of the settlements in Ledger**: what T8 refused. |
+| T20 | Request 30, unannounced: what does the session declare of it? | **Nothing,** as for requests 10 and 20: the storm of request 30 brings its hot spots, and no relationship, since none is needed. The move of the SQLite file is the Bootstrap's, before the server serves, one transaction under one lock; the outboxes and the bus's record of what it delivered move with the rest. | **A relationship or a context for storage**: storage is no context's subject. |
+
+No relationship is added: every link of checkpoint 3 is a new contract on a pair already declared, which the map
+reads from the code (CTX-MAP-DECLARED).
+
+| Contract | Relationship | Requests |
+| --- | --- | --- |
+| `GroupCurrency` | Groups → Ledger (owned port) | 21, 22 |
+| `GroupMembers` (archived, roles) | Groups → Ledger (owned port) | 23 to 29 |
+| `SettlementMembers` (archived) | Groups → Settlements (owned port) | 27 |
+| `MemberBalances`, `WaitingPayments` | Ledger → Groups, Settlements → Groups (owned ports) | 27 |
+| `BudgetPassed` | Ledger → Notifications (integration event) | 24 |
+| `SettlementAudit` | Settlements → Ledger (owned port) | 28 |
+| `PassedBalances` | Groups → Ledger (owned port) | 28 |
+| `SettledAmounts` (each settlement counted) | Settlements → Ledger (owned port) | 29 |
+
+### The hot spots of each feature
+
+| Feature | Hot spot | Decision |
+| --- | --- | --- |
+| 21 Another currency | The conversion | A value of the `Expense` (`OriginalAmount`), exact decimal arithmetic, a half up; the `Split` divides the result. |
+| 21 | A rate's type | A string, read back as given; its digits are the value's rule, not the body's shape. |
+| 22 Offered rates | The service | A port (T14); the `Expense` takes the offer or refuses a rate more than 2 % from it, by name. |
+| 22 | No service | The payer's rate, as at 21; a service with no rate refuses. |
+| 23 Recurring expenses | The day | The background job and the `RecurringExpense` (T15); never a read. |
+| 23 | Once | The `RecurringExpense`'s optimistic check; the `Expense` recorded by a policy, delivered once. |
+| 24 Budgets | Passing | The `Budget`, once a month, from what the month spends (T16). |
+| 24 | Telling | `BudgetPassed`, integration event, with the members; one notice each. |
+| 25 Templates | Kept by the expense? | No: a `SplitTemplate` of its own; the `Expense` keeps its shares. |
+| 26 Receipts | The store | A port (T14); a `Receipt` of its own, so the `Expense` keeps its version. |
+| 27 Archive | One name everywhere | `GroupArchived`, decided by the `Group`, asked through each context's port (T17). |
+| 28 Audit | A fact to react to? | No: entries in each context's own transaction, read by Ledger through ports (T18). T8 stands. |
+| 29 Statement as CSV | Settlements in it | Through `SettledAmounts` (T19), the maintainer's decision. |
+| 30 PostgreSQL (unannounced) | The move | The Bootstrap's, once, before serving; the outbox and the bus's record move with the rest (T20). |

@@ -1,0 +1,30 @@
+# Feature 21 of Tally (../backlog/21-another-currency.md), as the session decided it. It adds no sticky: the Expense
+# takes what was paid in another currency and keeps it.
+schemaVersion: 1
+
+feature: another-currency
+intent: >-
+  An expense may give what was paid in another currency and the rate its payer states; it keeps the currency, the rate and both amounts, and splits and counts the amount in the group's currency.
+
+done: false
+
+hotSpots:
+  - question: Where does the conversion live?
+    decision: In a value of the Expense (OriginalAmount — a currency, an amount, a rate kept as the decimal string given), which computes the amount in the group's currency, a half up, in exact decimal arithmetic, never in floating point; the Split divides that amount, unchanged (requests 4, 7, 10).
+  - question: How does Ledger know the group's currency, which Groups keeps (request 2)?
+    decision: Through the port it owns on the relationship it already has with Groups (GroupCurrency beside GroupMembers), read when it decides; the currency never changes, so a copy would do too, but a port adds no fact to keep.
+  - question: Is a rate a number or a string?
+    decision: A string — the rate is read back as given, and two trees parsing a JSON number into a float would disagree on a half; the rule that it has at most 6 digits after the point is the value's, refused by name, not the body's shape.
+
+contexts:
+  - id: Ledger
+    commands: []
+    queries: []
+    events: []
+    policies: []
+
+links:
+  - mechanism: owned-port
+    upstream: Groups
+    downstream: Ledger
+    contracts: [GroupCurrency, GroupMembers]

@@ -1,8 +1,8 @@
 import Ajv from 'ajv';
-import { ChildProcess, spawn } from 'child_process';
+import { ChildProcess, execFileSync, spawn } from 'child_process';
 import { createHmac, randomBytes, randomUUID } from 'crypto';
 import { mkdtempSync, readFileSync, rmSync } from 'fs';
-import { createServer as createHttpServer, Server } from 'http';
+import { createServer as createHttpServer, IncomingMessage, Server, ServerResponse } from 'http';
 import { createServer } from 'net';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -17,6 +17,12 @@ import { join } from 'path';
  * requests give up to the one graded (API_SCHEMA, written by the grader from the kit's api/;
  * docs/evaluations/benchmark/kit-standard.md): an answer of another shape fails the test that read
  * it, naming the request whose shape it breaks.
+ *
+ * From checkpoint 3 (requests 21 to 30) it also has: the rates service (`ratesService`, request 22) and the receipts
+ * store (`receiptStore`, request 26) the tests play, as they play the provider; files (`JPEG`, `PNG`, `PDF`, `padded`)
+ * and the client's `upload` (request 26) and `raw` (request 29's CSV); days by the month (`monthly`, `monthsFrom`,
+ * request 23); and, from request 30, a PostgreSQL database of its own beside each SQLite file (`database`), given to
+ * the server as `DATABASE_URL`.
  */
 export type Json = Record<string, unknown>;
 export interface Answer {
@@ -86,12 +92,53 @@ export async function eventually<T>(read: () => Promise<T>, expected: (value: T)
   return value;
 }
 
-/** A database file of its own, in a directory removed with `remove()`. */
+/**
+ * The PostgreSQL server the tests create their databases on from request 30 (`TALLY_POSTGRES`, a PostgreSQL 16 at
+ * 127.0.0.1:55432 when it is not set, as request 30 says), through `psql`, which must be on the PATH.
+ */
+export const POSTGRES = process.env.TALLY_POSTGRES ?? 'postgresql://postgres@127.0.0.1:55432';
+const psql = (sql: string, url = `${POSTGRES}/postgres`) =>
+  execFileSync('psql', [url, '-v', 'ON_ERROR_STOP=1', '-tAc', sql], { encoding: 'utf8' }).trim();
+const urls = new Map<string, string>();
+
+/**
+ * A database of its own: a SQLite file in a directory and, once request 30 is reached, a PostgreSQL database, both
+ * removed with `remove()`. `start(path)` gives the server both (`DATABASE_PATH` and `DATABASE_URL`), and a tree uses
+ * the one it knows. Before request 30, no PostgreSQL is needed, and `url` is empty.
+ */
 export function database(name: string) {
   const directory = mkdtempSync(join(tmpdir(), `tally-${name}-`));
+  const path = join(directory, 'tally.sqlite');
+  const pg = reached(30)
+    ? `tally_${name.replace(/[^a-z0-9]/gi, '_')}_${process.pid}_${randomBytes(4).toString('hex')}`.toLowerCase()
+    : undefined;
+  if (pg) {
+    psql(`CREATE DATABASE ${pg}`);
+    urls.set(path, `${POSTGRES}/${pg}`);
+  }
+  const url = pg ? `${POSTGRES}/${pg}` : '';
   return {
-    path: join(directory, 'tally.sqlite'),
-    remove: () => rmSync(directory, { recursive: true, force: true }),
+    path,
+    url,
+    /** What the PostgreSQL database holds: the number of rows in all its tables (request 30). */
+    rows: () =>
+      pg
+        ? Number(
+            psql(
+              `SELECT coalesce(sum((xpath('/row/c/text()', query_to_xml(format('SELECT count(*) AS c FROM %I.%I', table_schema, table_name), false, true, '')))[1]::text::int), 0) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema') AND table_type = 'BASE TABLE'`,
+              url,
+            ) || 0,
+          )
+        : 0,
+    remove: () => {
+      rmSync(directory, { recursive: true, force: true });
+      if (!pg) return;
+      try {
+        psql(`DROP DATABASE IF EXISTS ${pg} WITH (FORCE)`);
+      } catch {
+        // a database a server still holds is left for the machine's cleanup
+      }
+    },
   };
 }
 
@@ -140,6 +187,7 @@ export async function start(
       ...process.env,
       PORT: String(port),
       DATABASE_PATH: path,
+      ...(urls.has(path) && { DATABASE_URL: urls.get(path) }),
       NODE_ENV: 'production',
       JOBS_INTERVAL_SECONDS: String(JOBS_INTERVAL_SECONDS),
       ...environment,
@@ -206,14 +254,20 @@ export interface Share {
   amount: number;
 }
 
-/** The body of an expense: one of the three splits (requests 4 and 7). */
+/**
+ * The body of an expense: one of the three splits (requests 4 and 7) or a template (request 25); its amount, or what
+ * was paid in another currency (requests 21 and 22); its category (request 24).
+ */
 export type ExpenseBody = {
   description?: string;
   amount?: number;
+  original?: { currency: string; amount: number; rate?: string };
   date?: string;
+  category?: string;
   splitBetween?: string[];
   splitExactly?: { memberId: string; amount: number }[];
   splitByShares?: { memberId: string; shares: number }[];
+  template?: string;
 };
 
 export interface Person {
@@ -223,7 +277,13 @@ export interface Person {
   token: string;
 }
 
-export function client(port: number) {
+/**
+ * A client of the server on `port`. Every answer it reads is held to the API composed up to the request graded,
+ * unless `held` is false: the client of a tree before an `upgrade` (`previous`), whose answers are an earlier
+ * request's, which a later request may have added a field to (request 24's `category`, read through request 10's
+ * tree before it).
+ */
+export function client(port: number, held = true) {
   const origin = `http://127.0.0.1:${port}`;
   const call = async (
     method: string,
@@ -232,14 +292,16 @@ export function client(port: number) {
     body?: unknown,
     headers: Record<string, string> = {},
   ): Promise<Answer> => {
+    // A file is sent as it is (request 26); anything else as JSON.
+    const bytes = body instanceof Uint8Array;
     const response = await fetch(`${origin}/v1${path}`, {
       method,
       headers: {
-        ...(body !== undefined && { 'content-type': 'application/json' }),
+        ...(body !== undefined && { 'content-type': bytes ? 'application/octet-stream' : 'application/json' }),
         ...(token && { authorization: `Bearer ${token}` }),
         ...headers,
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : bytes ? new Uint8Array(body) : JSON.stringify(body),
     });
     const text = await response.text();
     let parsed: unknown = undefined;
@@ -248,7 +310,7 @@ export function client(port: number) {
     } catch {
       parsed = text;
     }
-    holdToApi(method, `/v1${path}`, response.status, parsed);
+    if (held) holdToApi(method, `/v1${path}`, response.status, parsed);
     return { status: response.status, body: parsed as Json };
   };
 
@@ -373,8 +435,32 @@ export function client(port: number) {
     create(`/groups/${groupId}/settlements/provider`, payer.token, { to: to.id, amount });
   /** A settlement, as `GET /v1/settlements/{id}` reads it (requests 12, 13, 15 and 19). */
   const settlement = (id: string, token: string) => read(`/settlements/${id}`, token);
-  /** A person's notices, the most recent first (requests 17 and 18). */
+  /** A person's notices, the most recent first (requests 17, 18 and 24). */
   const notices = (token: string) => list('/notices', token);
+  /**
+   * A file sent as the body of a command, `Content-Type: application/octet-stream`, followed to its outcome as `act`
+   * follows any command (request 26). A server may refuse a file over its limit before reading it: it answers `413`
+   * and closes the connection while the file is still being sent; whether the client reads that `413` or meets the
+   * closed connection (`EPIPE`, `ECONNRESET`) is a race, and the file was refused either way.
+   */
+  const upload = async (method: string, path: string, token: string | undefined, bytes: Uint8Array) => {
+    try {
+      return await act(method, path, token, bytes);
+    } catch (error) {
+      const code = (error as { cause?: { code?: string } }).cause?.code;
+      if (code !== 'EPIPE' && code !== 'ECONNRESET') throw error;
+      return { accepted: false, result: undefined, later: false, status: 413 } as Outcome;
+    }
+  };
+  /** A read answered as text, with its `Content-Type` (request 29's CSV), held to the API as any answer. */
+  const raw = async (path: string, token?: string) => {
+    const response = await fetch(`${origin}/v1${path}`, {
+      headers: { ...(token && { authorization: `Bearer ${token}` }) },
+    });
+    const text = await response.text();
+    if (held && response.status === 200) holdToApi('GET', `/v1${path}`, response.status, text);
+    return { status: response.status, type: response.headers.get('content-type') ?? '', text };
+  };
   return {
     call,
     act,
@@ -397,6 +483,8 @@ export function client(port: number) {
     payThrough,
     settlement,
     notices,
+    upload,
+    raw,
   };
 }
 
@@ -531,3 +619,139 @@ export async function payable(api: Client, person: Person, provider: PaymentProv
 
 /** An ISO time in milliseconds, for the tests that compare two of them. */
 export const ms = (time: unknown) => new Date(String(time)).getTime();
+
+/** A test's own HTTP server, as an outside system (requests 13, 22 and 26): its base URL once it listens. */
+function outside(handle: (request: IncomingMessage, body: Buffer, response: ServerResponse) => void) {
+  const server: Server = createHttpServer((request, response) => {
+    const chunks: Buffer[] = [];
+    request.on('data', chunk => chunks.push(chunk as Buffer));
+    request.on('end', () => handle(request, Buffer.concat(chunks), response));
+  });
+  const listening = new Promise<string>(resolve =>
+    server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${(server.address() as { port: number }).port}`)),
+  );
+  return { listening, close: () => new Promise<void>(resolve => server.close(() => resolve())) };
+}
+
+const json = (response: ServerResponse, status: number, body?: unknown) =>
+  response
+    .writeHead(status, body === undefined ? {} : { 'content-type': 'application/json' })
+    .end(body === undefined ? undefined : JSON.stringify(body));
+
+/**
+ * The rates service (request 22), an outside system the tests play: `GET /rates/{from}/{to}?date=` answers the rate a
+ * test set for that day (`set(from, to, rate, date)`), or for any day (`set(from, to, rate)`), and `404` for one it
+ * has none of. It records what Tally asked (`asked`); while `refusing`, it answers `503`, as a service that is down.
+ */
+export function ratesService() {
+  const rates = new Map<string, string>();
+  const asked: { from: string; to: string; date: string }[] = [];
+  const state = { refusing: false };
+  const server = outside((request, _body, response) => {
+    const url = new URL(request.url ?? '/', 'http://rates.test');
+    const match = /^\/rates\/([^/]+)\/([^/]+)$/.exec(url.pathname);
+    if (request.method !== 'GET' || !match) return json(response, 404);
+    const [from, to, date] = [
+      decodeURIComponent(match[1]),
+      decodeURIComponent(match[2]),
+      url.searchParams.get('date') ?? '',
+    ];
+    asked.push({ from, to, date });
+    if (state.refusing) return json(response, 503);
+    const rate = rates.get(`${from}/${to}/${date}`) ?? rates.get(`${from}/${to}`);
+    return rate === undefined ? json(response, 404) : json(response, 200, { rate });
+  });
+  return {
+    rates,
+    asked,
+    state,
+    /** The rate of `from` to `to` on `date`, or on any day when `date` is not given. */
+    set: (from: string, to: string, rate: string, date?: string) =>
+      rates.set(date === undefined ? `${from}/${to}` : `${from}/${to}/${date}`, rate),
+    /** What a server is started with to use this service (request 22). */
+    environment: async () => ({ RATES_URL: await server.listening }),
+    close: server.close,
+  };
+}
+
+export type RatesService = ReturnType<typeof ratesService>;
+
+/**
+ * The receipts store (request 26), an outside system the tests play: `POST /files` keeps the body as sent, with its
+ * `Content-Type`, and answers `201 { id, url }`; `GET /files/{id}` gives the file back. It records every file it was
+ * sent (`files`); while `refusing`, it answers `503`, as a store that is down.
+ */
+export function receiptStore() {
+  const files: { id: string; type: string; bytes: Buffer; url: string }[] = [];
+  const state = { refusing: false };
+  let base = '';
+  const server = outside((request, body, response) => {
+    const path = (request.url ?? '').split('?')[0];
+    if (request.method === 'GET' && path.startsWith('/files/')) {
+      const file = files.find(each => each.id === decodeURIComponent(path.slice('/files/'.length)));
+      if (!file) return json(response, 404);
+      return response.writeHead(200, { 'content-type': file.type }).end(file.bytes);
+    }
+    if (request.method !== 'POST' || path !== '/files') return json(response, 404);
+    if (state.refusing) return json(response, 503);
+    const id = `file_${randomBytes(8).toString('hex')}`;
+    const file = { id, type: String(request.headers['content-type'] ?? ''), bytes: body, url: `${base}/files/${id}` };
+    files.push(file);
+    return json(response, 201, { id, url: file.url });
+  });
+  void server.listening.then(url => (base = url));
+  return {
+    files,
+    state,
+    /** What a server is started with to use this store (request 26). */
+    environment: async () => ({ RECEIPTS_URL: await server.listening }),
+    close: server.close,
+  };
+}
+
+export type ReceiptStore = ReturnType<typeof receiptStore>;
+
+/**
+ * The smallest files of each type request 26 tells apart by their first bytes: a 1×1 JPEG (`FF D8 FF`), a 1×1 PNG
+ * (`89 50 4E 47 0D 0A 1A 0A`), and a one-page PDF (`%PDF-`), which is neither.
+ */
+export const JPEG = Buffer.from(
+  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAFA3PEY8MlBGQUZaVVBfeMiCeG5uePWvuZHI////////////////////////////////////////////////////' +
+    'wAALCAABAAEBAREA/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEI' +
+    'I0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ip' +
+    'qrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oACAEBAAA/ALtf/9k=',
+  'base64',
+);
+export const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGP4DwABAQEAsTj2FAAAAABJRU5ErkJggg==',
+  'base64',
+);
+export const PDF = Buffer.from(
+  '%PDF-1.0\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n' +
+    '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 3 3]>>endobj\nxref\n0 4\n0000000000 65535 f \n' +
+    '0000000009 00000 n \n0000000052 00000 n \n0000000101 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n160\n%%EOF\n',
+);
+/** `bytes` followed by zeros up to `size` bytes: a file of a type at a size limit (2 097 152 bytes, 2 097 153). */
+export const padded = (bytes: Uint8Array, size: number) => {
+  const file = Buffer.alloc(size);
+  Buffer.from(bytes).copy(file, 0, 0, Math.min(bytes.length, size));
+  return file;
+};
+
+/** The same day `months` later (request 23's days, 1 to 28, which every month has). */
+export const monthsFrom = (date: string, months: number) => {
+  const [year, month, dayOfMonth] = date.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1 + months, dayOfMonth)).toISOString().slice(0, 10);
+};
+
+/**
+ * A recurring expense's `startsOn` about `days` from today (negative: before), moved back to the 28th when it falls
+ * later in its month, and every day of it, month by month, up to today (request 23).
+ */
+export function monthly(days: number) {
+  const startsOn = day(days);
+  const first = Number(startsOn.slice(8)) > 28 ? `${startsOn.slice(0, 8)}28` : startsOn;
+  const passed: string[] = [];
+  for (let next = first; next <= day(0); next = monthsFrom(next, 1)) passed.push(next);
+  return { startsOn: first, passed, next: monthsFrom(first, passed.length) };
+}
