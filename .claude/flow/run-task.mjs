@@ -31,7 +31,7 @@
  *   5. **The grading** (tasks 1, 2, 3, 5, 6), in the task's grading repository (`prepare-arm.sh B`, once a task,
  *      `<work>/grading/<task>/openstay`): the run's diff (start..head, committed work only) applied with `--3way`
  *      and committed; the tree's own checks there (`format:check`, `lint`, `typecheck`, `test:units`, `test:e2e`;
- *      `check:conventions` recorded apart); then `grade.mjs --upto 101 --workers 2 --gate false --keep false` on the
+ *      `check:conventions` recorded apart); then `grade.mjs --upto 101 --workers <n> --gate false --keep false` on the
  *      task's kit (`<work>/kits/<task>`: J5's backlog, acceptance and storms, the task added as request 101 with its
  *      hidden test as `acceptance/101-<task id>.acceptance.ts`). The start is graded the same way once a task
  *      (`<work>/baselines/`), and a regression is a J5 file that passes there and fails on the result; a result
@@ -65,7 +65,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
-import { homedir } from 'node:os';
+import { availableParallelism, homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -74,6 +74,13 @@ import { judgePrompt, parseAnswer, readJudgement, scoreAnswer } from './k4-score
 import { claudeCliArguments, runners } from './runners.mjs';
 import { shortTmpDir } from './machine.mjs';
 import { freePort, provideDependencies } from './supervision.mjs';
+
+/**
+ * How many acceptance files a grading runs at once (grade.mjs --workers): the plan's `grading.workers`, else one per
+ * core, at most 4. A file that fails beside the others is run again alone and that run is its verdict, so the number
+ * changes the time a grading takes, not what it decides; the container's restarts made 2 too slow to finish one.
+ */
+export const gradeWorkers = plan => plan?.grading?.workers ?? Math.min(4, availableParallelism());
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const REPOSITORY = resolve(here, '../..');
@@ -508,7 +515,7 @@ function gradeKit(ctx, p, ref, start, out, logName) {
     '--upto',
     '101',
     '--workers',
-    '2',
+    String(gradeWorkers(ctx.plan)),
     '--gate',
     'false',
     '--keep',
@@ -958,7 +965,7 @@ function dryRun(ctx, runs) {
       `           prompt: ${Buffer.byteLength(prompt)} bytes, sha256 ${sha256(prompt).slice(0, 12)}${run.arm === 'C' ? ", with C's sentence" : ''}; stopped by process group at ${plan.per_run.timeout_minutes} min`,
       run.task === IMPACT_TASK
         ? `  score    the final message's YAML block against ground-truth.yaml's expected (pooled F1 ≥ 0.6, the tree unchanged); rules by ${ctx.flag('no-judge') ? 'the operator (--no-judge)' : JUDGE_MODEL}`
-        : `  grade    the diff onto ${p.grading} (B), its own checks (${[...CHECKS, ...APART].join(', ')}), then grade.mjs --project ${p.grading} --kit ${p.kit} --upto 101 --workers 2 --gate false --keep false`,
+        : `  grade    the diff onto ${p.grading} (B), its own checks (${[...CHECKS, ...APART].join(', ')}), then grade.mjs --project ${p.grading} --kit ${p.kit} --upto 101 --workers ${gradeWorkers(ctx.plan)} --gate false --keep false`,
       `  record   ${p.record}; transcript ${p.transcript}`,
     );
     if (ctx.flag('show-prompt'))
