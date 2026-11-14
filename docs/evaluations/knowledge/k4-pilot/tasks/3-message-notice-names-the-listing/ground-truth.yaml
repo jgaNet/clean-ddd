@@ -1,0 +1,36 @@
+# K4, task 3: the ground truth, written with the reference solution and before any run.
+task: 3-message-notice-names-the-listing
+kind: cross-context                # a change that crosses two contexts (RFC 0006, §8): Messaging and Notifications
+start: c1ac8da7a796bfd94f7793b6d1f48cd0b665eaa8
+crosses:
+  relationship: Messaging -> Notifications, published-language, integration event (declared in conventions/domain.yaml;
+    no new relationship, so the context map does not change)
+  contract: MessageSentIntegrationEvent (src/SharedKernel/Application/IntegrationEvents/MessagingIntegrationEvents.ts)
+rule:
+  says: A new message owes the other side of its conversation one notice per window; the notice's body is fixed when it
+    is owed and sent under its own id until accepted.
+  born: request 55 (notices of new messages), request 10 (delivery), ADR 57
+  names: [MessageSentEvent, MessageSentIntegrationEvent, MessageNoticeOwing, MessageNoticeBody, NoticeDelivery]
+reference_solution:
+  changes:
+    source:
+      - src/Contexts/Messaging/Domain/Conversation/ConversationEvents.ts                  # the domain fact carries listingId
+      - src/Contexts/Messaging/Domain/Conversation/Conversation.ts                        # start and send record it
+      - src/Contexts/Messaging/Application/Events/MessageSentHandler.ts                   # translated into the published language
+      - src/SharedKernel/Application/IntegrationEvents/MessagingIntegrationEvents.ts      # the contract gains listingId
+      - src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.ts
+      - src/Contexts/Notifications/Domain/MessageNotice/MessageNoticeOwing.ts
+      - src/Contexts/Notifications/Domain/Notice/DTOs.ts                                  # MessageNoticeBody
+      - src/Contexts/Notifications/Infrastructure/PostgresNotices.ts                      # kept in the existing listing_id column
+    tests:
+      - src/Bootstrap/Fastify/message-notices.e2e.spec.ts
+      - src/Contexts/Messaging/Presentation/API/REST/Routes/messageClock.routes.e2e.spec.ts
+      - src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.spec.ts
+      - src/Contexts/Notifications/Application/MessageNotice/MessageNoticeOwing.spec.ts
+      - src/Contexts/Notifications/Application/Preferences/NoticePreferencesOwing.spec.ts
+# A solution may differ and be right: the listing may be read by Notifications through a port it owns instead of the
+# event (that would be a new relationship, Notifications asking Messaging, which the context map would have to declare),
+# or the body may be completed elsewhere. The hidden test holds only what a client sees.
+hidden_tests:
+  - k4-3-message-notice-names-the-listing.acceptance.ts › names the listing of the conversation, for the host and for the traveller
+regression_kit_j5: [10-notify-the-host, 55-message-notices, 75-notice-preferences, 76-email-verification, 97-import-conflicts]

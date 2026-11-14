@@ -1,0 +1,33 @@
+# K4, task 1: the ground truth, written with the reference solution and before any run.
+task: 1-cancelled-stay-hides-contacts
+kind: defect                      # diagnosing a defect injected into an existing rule (RFC 0006, §8)
+start: c1ac8da7a796bfd94f7793b6d1f48cd0b665eaa8 + inject.patch
+rule:
+  says: A conversation shows every message in full, to everyone who reads it, once a booking of its traveller for its
+    listing has a payment paid or declared, whatever that booking's status is now (cancelled or refunded included).
+  born: request 53 (contact details held back), ADR 55
+  names: [IBookingQueries.hasPaidStay, IPaidBookings.hasPaid, ContactDetails]
+  lives_in:                       # where the rule is decided, across the two contexts the port joins
+    - src/Contexts/Booking/Infrastructure/PostgresBookingQueries.ts         # hasPaidStay: the defect is here
+    - src/Contexts/Booking/Domain/Booking/Ports/IBookingQueries.ts
+    - src/Contexts/Messaging/Infrastructure/PaidBookings.ts
+    - src/Contexts/Messaging/Application/Ports/IPaidBookings.ts
+    - src/Contexts/Messaging/Application/Queries/GetConversation/GetConversationQueryHandler.ts
+the_defect: |
+  `hasPaidStay` also requires the booking not to be cancelled (`AND b.status <> 'cancelled'`), so cancelling a paid
+  booking hides the contact details again.
+reference_solution:
+  changes:
+    source:
+      - src/Contexts/Booking/Infrastructure/PostgresBookingQueries.ts
+    tests:
+      - src/Contexts/Messaging/Presentation/API/REST/Routes/conversations.routes.e2e.spec.ts   # a case added: paid, cancelled, still shown
+# The tests that fail when the rule is mutated (the injected tree), measured on 13 November in the pilot's scratch copy:
+mutation_fails:
+  hidden:
+    - k4-1-cancelled-stay-hides-contacts.acceptance.ts › keeps every message of the conversation in full after the paid booking is cancelled, for both sides
+  kit_j5:
+    - 53-contact-details-held-back.acceptance.ts › shows every message in full once a booking of the traveller for the listing is paid, even cancelled afterwards
+  tree_own: []                    # 155 unit files (1049 tests) and 114 end-to-end files (607 tests) pass on the injected tree
+  tree_own_after_solution:        # the case the reference adds fails on the injected tree, passes on the solved one
+    - conversations.routes.e2e.spec.ts › Contact details held back › keeps showing everything in full once a stay was paid, even after that booking is cancelled

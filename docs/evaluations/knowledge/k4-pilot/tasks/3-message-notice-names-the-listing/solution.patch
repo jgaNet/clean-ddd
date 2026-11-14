@@ -1,0 +1,296 @@
+diff --git a/src/Bootstrap/Fastify/message-notices.e2e.spec.ts b/src/Bootstrap/Fastify/message-notices.e2e.spec.ts
+index 012cba01..a8cda697 100644
+--- a/src/Bootstrap/Fastify/message-notices.e2e.spec.ts
++++ b/src/Bootstrap/Fastify/message-notices.e2e.spec.ts
+@@ -135,6 +135,7 @@ describe('Messaging → Notifications', () => {
+       kind: 'message',
+       accountId: host.id,
+       conversationId,
++      listingId: id,
+       lang: 'en',
+     });
+     await sleep(200);
+diff --git a/src/Contexts/Messaging/Application/Events/MessageSentHandler.ts b/src/Contexts/Messaging/Application/Events/MessageSentHandler.ts
+index 1f8c0edf..7612e9d8 100644
+--- a/src/Contexts/Messaging/Application/Events/MessageSentHandler.ts
++++ b/src/Contexts/Messaging/Application/Events/MessageSentHandler.ts
+@@ -10,9 +10,9 @@ import { MessageSentEvent } from '@Contexts/Messaging/Domain/Conversation/Conver
+  */
+ export class MessageSentHandler extends EventHandler<MessageSentEvent> {
+   async execute(event: MessageSentEvent, context: ExecutionContext): Promise<IResult<unknown>> {
+-    const { messageId, conversationId, senderId, travellerId, hostId } = event.payload;
++    const { messageId, conversationId, listingId, senderId, travellerId, hostId } = event.payload;
+     publishIntegrationEvent(
+-      MessageSentIntegrationEvent.set({ messageId, conversationId, senderId, travellerId, hostId }),
++      MessageSentIntegrationEvent.set({ messageId, conversationId, listingId, senderId, travellerId, hostId }),
+       context,
+     );
+     return Result.ok();
+diff --git a/src/Contexts/Messaging/Domain/Conversation/Conversation.ts b/src/Contexts/Messaging/Domain/Conversation/Conversation.ts
+index 5aea00a2..dd8ee5d3 100644
+--- a/src/Contexts/Messaging/Domain/Conversation/Conversation.ts
++++ b/src/Contexts/Messaging/Domain/Conversation/Conversation.ts
+@@ -186,6 +186,7 @@ export class Conversation extends AggregateRoot {
+     conversation.record(
+       MessageSentEvent.set({
+         conversationId: conversation._id.value,
++        listingId: input.listingId,
+         messageId: message.id.value,
+         senderId: input.traveller.value,
+         travellerId: input.traveller.value,
+@@ -291,6 +292,7 @@ export class Conversation extends AggregateRoot {
+     this.record(
+       MessageSentEvent.set({
+         conversationId: this._id.value,
++        listingId: this.#listingId,
+         messageId: message.id.value,
+         senderId: access.by.value,
+         travellerId: this.#travellerId.value,
+diff --git a/src/Contexts/Messaging/Domain/Conversation/ConversationEvents.ts b/src/Contexts/Messaging/Domain/Conversation/ConversationEvents.ts
+index 65b136ed..dd5ba3e9 100644
+--- a/src/Contexts/Messaging/Domain/Conversation/ConversationEvents.ts
++++ b/src/Contexts/Messaging/Domain/Conversation/ConversationEvents.ts
+@@ -29,6 +29,7 @@ export class AttachmentUploadedEvent extends DomainEvent<{
+ /** Someone wrote a message in a conversation; `travellerId` and `hostId` are the two parties it is between (ADR 57). */
+ export class MessageSentEvent extends DomainEvent<{
+   conversationId: string;
++  listingId: string;
+   messageId: string;
+   senderId: string;
+   travellerId: string;
+diff --git a/src/Contexts/Messaging/Presentation/API/REST/Routes/messageClock.routes.e2e.spec.ts b/src/Contexts/Messaging/Presentation/API/REST/Routes/messageClock.routes.e2e.spec.ts
+index 9eaa5544..089d989b 100644
+--- a/src/Contexts/Messaging/Presentation/API/REST/Routes/messageClock.routes.e2e.spec.ts
++++ b/src/Contexts/Messaging/Presentation/API/REST/Routes/messageClock.routes.e2e.spec.ts
+@@ -128,7 +128,14 @@ describe('Messaging → Notifications', () => {
+     const conversationId = written.result!.id;
+ 
+     const notice = await untilOffered(conversationId);
+-    expect(notice).toEqual({ id: expect.any(String), kind: 'message', accountId: host.id, conversationId, lang: 'en' });
++    expect(notice).toEqual({
++      id: expect.any(String),
++      kind: 'message',
++      accountId: host.id,
++      conversationId,
++      listingId: id,
++      lang: 'en',
++    });
+ 
+     const replied = await command('POST', `/conversations/${conversationId}/messages`, { text: 'Yes' }, host.token);
+     expect(replied.status).toBe('SUCCESS');
+diff --git a/src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.spec.ts b/src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.spec.ts
+index 84a36e42..79193bc5 100644
+--- a/src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.spec.ts
++++ b/src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.spec.ts
+@@ -19,6 +19,7 @@ const sent = (messageId: string, senderId: string) =>
+   MessageSentIntegrationEvent.set({
+     messageId,
+     conversationId: 'conversation-1',
++    listingId: 'listing-1',
+     senderId,
+     travellerId: 'traveller-1',
+     hostId: 'host-1',
+@@ -63,7 +64,13 @@ describe('a sent message reaches Notifications as the notice of the other side',
+ 
+     expect(done.status).toBe('SENT');
+     const [owed] = await notices.findOwed();
+-    expect(owed.body).toEqual({ kind: 'message', accountId: 'host-1', conversationId: 'conversation-1', lang: 'en' });
++    expect(owed.body).toEqual({
++      kind: 'message',
++      accountId: 'host-1',
++      conversationId: 'conversation-1',
++      listingId: 'listing-1',
++      lang: 'en',
++    });
+   });
+ 
+   it('owes nothing for the same message handled again, as a restart redelivers it', async () => {
+@@ -83,6 +90,7 @@ describe('a sent message reaches Notifications as the notice of the other side',
+       kind: 'message',
+       accountId: 'traveller-1',
+       conversationId: 'conversation-1',
++      listingId: 'listing-1',
+       lang: 'en',
+     });
+   });
+diff --git a/src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.ts b/src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.ts
+index 90298bb1..f461cc3d 100644
+--- a/src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.ts
++++ b/src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.ts
+@@ -21,6 +21,7 @@ export class MessageSentIntegrationEventHandler extends EventHandler<MessageSent
+     const message = {
+       messageId: event.payload.messageId,
+       conversationId: event.payload.conversationId,
++      listingId: event.payload.listingId,
+       senderId: event.payload.senderId,
+       travellerId: event.payload.travellerId,
+       hostId: event.payload.hostId,
+diff --git a/src/Contexts/Notifications/Application/MessageNotice/MessageNoticeOwing.spec.ts b/src/Contexts/Notifications/Application/MessageNotice/MessageNoticeOwing.spec.ts
+index 4a4dd46d..29f78675 100644
+--- a/src/Contexts/Notifications/Application/MessageNotice/MessageNoticeOwing.spec.ts
++++ b/src/Contexts/Notifications/Application/MessageNotice/MessageNoticeOwing.spec.ts
+@@ -15,6 +15,7 @@ const after = (seconds: number) => new Date(start.getTime() + seconds * 1000);
+ const message = (overrides: Partial<SentMessage> = {}): SentMessage => ({
+   messageId: 'message-1',
+   conversationId: 'conversation-1',
++  listingId: 'listing-1',
+   senderId: 'traveller-1',
+   travellerId: 'traveller-1',
+   hostId: 'host-1',
+@@ -57,12 +58,14 @@ describe('a new message tells the other side of its conversation, once per windo
+       kind: 'message',
+       accountId: 'host-1',
+       conversationId: 'conversation-1',
++      listingId: 'listing-1',
+       lang: 'en',
+     });
+     expect(fromHost.data?.body).toEqual({
+       kind: 'message',
+       accountId: 'traveller-1',
+       conversationId: 'conversation-2',
++      listingId: 'listing-1',
+       lang: 'en',
+     });
+   });
+@@ -74,6 +77,7 @@ describe('a new message tells the other side of its conversation, once per windo
+       kind: 'message',
+       accountId: 'traveller-1',
+       conversationId: 'conversation-1',
++      listingId: 'listing-1',
+       lang: 'en',
+     });
+     expect(await notices.findOwed()).toHaveLength(1);
+@@ -104,6 +108,7 @@ describe('a new message tells the other side of its conversation, once per windo
+       kind: 'message',
+       accountId: 'traveller-2',
+       conversationId: 'conversation-1',
++      listingId: 'listing-1',
+       lang: 'en',
+     });
+   });
+diff --git a/src/Contexts/Notifications/Application/Preferences/NoticePreferencesOwing.spec.ts b/src/Contexts/Notifications/Application/Preferences/NoticePreferencesOwing.spec.ts
+index 3c9f2af2..05d8c0e0 100644
+--- a/src/Contexts/Notifications/Application/Preferences/NoticePreferencesOwing.spec.ts
++++ b/src/Contexts/Notifications/Application/Preferences/NoticePreferencesOwing.spec.ts
+@@ -73,6 +73,7 @@ describe('a kind an account has turned off arises as nothing (request 75)', () =
+     const message = (messageId: string): SentMessage => ({
+       messageId,
+       conversationId: 'conversation-1',
++      listingId: 'listing-1',
+       senderId: 'traveller-1',
+       travellerId: 'traveller-1',
+       hostId: 'host-1',
+@@ -88,6 +89,7 @@ describe('a kind an account has turned off arises as nothing (request 75)', () =
+       kind: 'message',
+       accountId: 'host-1',
+       conversationId: 'conversation-1',
++      listingId: 'listing-1',
+       lang: 'en',
+     });
+   });
+diff --git a/src/Contexts/Notifications/Domain/MessageNotice/MessageNoticeOwing.ts b/src/Contexts/Notifications/Domain/MessageNotice/MessageNoticeOwing.ts
+index 32b7e465..b9a1e7d3 100644
+--- a/src/Contexts/Notifications/Domain/MessageNotice/MessageNoticeOwing.ts
++++ b/src/Contexts/Notifications/Domain/MessageNotice/MessageNoticeOwing.ts
+@@ -8,10 +8,11 @@ import { NoticePreferences } from '@Contexts/Notifications/Domain/Preferences/No
+ import { INoticePreferencesRepository } from '@Contexts/Notifications/Domain/Preferences/Ports/INoticePreferencesRepository';
+ import { IRecipientLanguages } from '@Contexts/Notifications/Domain/Notice/Ports/IRecipientLanguages';
+ 
+-/** A message as Notifications reads it: its id, its conversation, who wrote it and the two parties of the conversation. */
++/** A message as Notifications reads it: its id, its conversation and the listing it is about, who wrote it and the two parties of the conversation. */
+ export interface SentMessage {
+   messageId: string;
+   conversationId: string;
++  listingId: string;
+   senderId: string;
+   travellerId: string;
+   hostId: string;
+@@ -53,7 +54,13 @@ export class MessageNoticeOwing {
+     if (!owed) return Result.ok(null);
+ 
+     const lang = await this.languages.languageOf(told);
+-    const notice = Notice.create({ kind: 'message', accountId: told, conversationId: message.conversationId, lang });
++    const notice = Notice.create({
++      kind: 'message',
++      accountId: told,
++      conversationId: message.conversationId,
++      listingId: message.listingId,
++      lang,
++    });
+     const saved = await this.notices.save(notice);
+     if (saved.isFailure()) return saved;
+     return Result.ok(notice);
+diff --git a/src/Contexts/Notifications/Domain/Notice/DTOs.ts b/src/Contexts/Notifications/Domain/Notice/DTOs.ts
+index 2857ea98..3c563b3a 100644
+--- a/src/Contexts/Notifications/Domain/Notice/DTOs.ts
++++ b/src/Contexts/Notifications/Domain/Notice/DTOs.ts
+@@ -20,11 +20,12 @@ export interface BookingCancelledNoticeBody {
+   lang: string;
+ }
+ 
+-/** A notice about a message, told to one of the two parties of a conversation (the other side of the message). */
++/** A notice about a message, told to one of the two parties of a conversation (the other side of the message), naming the listing the conversation is about. */
+ export interface MessageNoticeBody {
+   kind: 'message';
+   accountId: string;
+   conversationId: string;
++  listingId: string;
+   lang: string;
+ }
+ 
+diff --git a/src/Contexts/Notifications/Infrastructure/PostgresNotices.ts b/src/Contexts/Notifications/Infrastructure/PostgresNotices.ts
+index 42a63cfb..6d88383f 100644
+--- a/src/Contexts/Notifications/Infrastructure/PostgresNotices.ts
++++ b/src/Contexts/Notifications/Infrastructure/PostgresNotices.ts
+@@ -7,7 +7,7 @@ import { INoticeRepository } from '@Contexts/Notifications/Domain/Notice/Ports/I
+ 
+ /**
+  * One row a notice. A booking notice has `host_id` and `booking_id`; a cancellation notice has `account_id` (the traveller)
+- * and `booking_id`; a message notice has `account_id` and `conversation_id`; an email verification has `account_id`, `email`
++ * and `booking_id`; a message notice has `account_id`, `conversation_id` and `listing_id`; an email verification has `account_id`, `email`
+  * and `code`. The columns a kind does not have are null.
+  *
+  * A booking owes one notice per kind (a confirmed stay's host notice and its cancellation's traveller notice are two notices
+@@ -183,7 +183,7 @@ function columnsOf(body: NoticeBody) {
+     };
+   }
+   if (body.kind === 'message') {
+-    return { ...none, accountId: body.accountId, conversationId: body.conversationId };
++    return { ...none, accountId: body.accountId, conversationId: body.conversationId, listingId: body.listingId };
+   }
+   if (body.kind === 'booking-cancelled') {
+     return { ...none, bookingId: body.bookingId, accountId: body.accountId };
+@@ -199,7 +199,13 @@ function toSnapshot(row: NoticeRow): NoticeSnapshot {
+   const lang = row.lang;
+   const body: NoticeBody =
+     row.kind === 'message'
+-      ? { kind: 'message', accountId: row.account_id!, conversationId: row.conversation_id!, lang }
++      ? {
++          kind: 'message',
++          accountId: row.account_id!,
++          conversationId: row.conversation_id!,
++          listingId: row.listing_id!,
++          lang,
++        }
+       : row.kind === 'booking-cancelled'
+         ? { kind: 'booking-cancelled', accountId: row.account_id!, bookingId: row.booking_id!, lang }
+         : row.kind === 'email-verification'
+diff --git a/src/SharedKernel/Application/IntegrationEvents/MessagingIntegrationEvents.ts b/src/SharedKernel/Application/IntegrationEvents/MessagingIntegrationEvents.ts
+index b26813ba..b32022d2 100644
+--- a/src/SharedKernel/Application/IntegrationEvents/MessagingIntegrationEvents.ts
++++ b/src/SharedKernel/Application/IntegrationEvents/MessagingIntegrationEvents.ts
+@@ -4,11 +4,13 @@ import { IntegrationEvent } from '@Architecture/Domain/EventTypes';
+  * A message was written in a conversation, as Messaging says it to the other contexts (ADR 57). `messageId` is the id of the message
+  * sent, the thing it announces: a consumer names what it tells of by that id, never by one of its own. `senderId` is who wrote it (a
+  * traveller, the host, or a manager of the listing's organisation). `travellerId` and `hostId` are the two parties the conversation
+- * is between: the host is the listing's host, whatever organisation the listing is in.
++ * is between: the host is the listing's host, whatever organisation the listing is in. `listingId` is the listing the conversation
++ * is about.
+  */
+ export interface MessageSentPayload {
+   messageId: string;
+   conversationId: string;
++  listingId: string;
+   senderId: string;
+   travellerId: string;
+   hostId: string;

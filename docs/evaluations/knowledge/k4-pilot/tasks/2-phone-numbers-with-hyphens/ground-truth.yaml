@@ -1,0 +1,31 @@
+# K4, task 2: the ground truth, written with the reference solution and before any run.
+task: 2-phone-numbers-with-hyphens
+kind: unannounced-change           # a change of behaviour no request announced (RFC 0006, §8)
+start: c1ac8da7a796bfd94f7793b6d1f48cd0b665eaa8
+rule:
+  says: A phone number is an optional `+`, then 9 digits or more, each following the previous one directly or after a
+    single space, dot or (from now on) hyphen; a date such as 2026-12-01 is not one.
+  born: request 53 (contact details held back in messages); request 61 says the review rules recognise contact details
+    "as request 53 recognises them in messages"
+  names: [ContactDetails, CONTACT_DETAILS, BrokenReviewRule]
+  # The knowledge the task turns on: the rule is written twice, once in each context, with no link between the copies.
+  lives_in:
+    - src/Contexts/Messaging/Domain/Conversation/ContactDetails.ts         # PHONE, held back in what a reader is shown
+    - src/Contexts/Reviews/Domain/StayReview/ReviewRules.ts                # PHONE, refused as CONTACT_DETAILS
+    - src/Contexts/Messaging/Application/Queries/GetConversation/GetConversationQueryHandler.ts
+    - src/Contexts/Reviews/Domain/StayReview/StayReviews.ts                # applies the review rules to reviews, guest reviews, replies
+reference_solution:
+  changes:
+    source:
+      - src/Contexts/Messaging/Domain/Conversation/ContactDetails.ts
+      - src/Contexts/Reviews/Domain/StayReview/ReviewRules.ts
+    tests:
+      - src/Contexts/Messaging/Domain/Conversation/ContactDetails.spec.ts
+      - src/Contexts/Reviews/Domain/StayReview/ReviewRules.spec.ts
+hidden_tests:                      # each fails on the start tree, and passes on the reference solution
+  - k4-2-phone-numbers-with-hyphens.acceptance.ts › holds them back in a message, as any phone number, and leaves a date as written
+  - k4-2-phone-numbers-with-hyphens.acceptance.ts › refuses a traveller's review whose comment holds one, naming the rule, and takes one that holds a date
+  - k4-2-phone-numbers-with-hyphens.acceptance.ts › refuses a host's guest review and a host's reply that hold one
+# A solution that finds one copy only passes one side: the message case alone (Messaging), or the two review cases
+# alone (Reviews). The grading reports the cases, so a half-found rule is visible as such.
+regression_kit_j5: [53-contact-details-held-back, 58-guest-reviews, 60-host-replies, 61-review-rules]

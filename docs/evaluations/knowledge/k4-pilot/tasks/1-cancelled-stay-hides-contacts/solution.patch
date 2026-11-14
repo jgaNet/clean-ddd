@@ -1,0 +1,39 @@
+diff --git a/src/Contexts/Booking/Infrastructure/PostgresBookingQueries.ts b/src/Contexts/Booking/Infrastructure/PostgresBookingQueries.ts
+index f3a84bf4..0d159509 100644
+--- a/src/Contexts/Booking/Infrastructure/PostgresBookingQueries.ts
++++ b/src/Contexts/Booking/Infrastructure/PostgresBookingQueries.ts
+@@ -137,7 +137,7 @@ export class PostgresBookingQueries implements IBookingQueries {
+   async hasPaidStay(travellerId: string, listingId: string): Promise<boolean> {
+     const row = await this.database.get<{ found: number }>(
+       `SELECT 1 AS found FROM payments p JOIN bookings b ON b.id = p.booking_id
+-        WHERE b.traveller_id = ? AND b.listing_id = ? AND p.status IN ('paid', 'declared') AND b.status <> 'cancelled'
++        WHERE b.traveller_id = ? AND b.listing_id = ? AND p.status IN ('paid', 'declared')
+         LIMIT 1`,
+       travellerId,
+       listingId,
+diff --git a/src/Contexts/Messaging/Presentation/API/REST/Routes/conversations.routes.e2e.spec.ts b/src/Contexts/Messaging/Presentation/API/REST/Routes/conversations.routes.e2e.spec.ts
+index 5ed39de0..f3335aa5 100644
+--- a/src/Contexts/Messaging/Presentation/API/REST/Routes/conversations.routes.e2e.spec.ts
++++ b/src/Contexts/Messaging/Presentation/API/REST/Routes/conversations.routes.e2e.spec.ts
+@@ -425,4 +425,21 @@ describe('Contact details held back', () => {
+     const shown = await read(conversationId, traveller.token);
+     expect(shown.body.messages[1]).toMatchObject({ text: 'Mail me: anna.b@mail.example.com', masked: false });
+   });
++
++  it('keeps showing everything in full once a stay was paid, even after that booking is cancelled', async () => {
++    const host = await account('conv-host-53-cancelled@example.com', ['host']);
++    const traveller = await account('conv-traveller-53-cancelled@example.com', ['traveller']);
++    const listingId = await listing(host.token);
++    const conversationId = (await write(traveller.token, listingId, 'Hello')).result!.id;
++    await command('POST', `/conversations/${conversationId}/messages`, { text: 'Call me: 0612345678' }, host.token);
++
++    const bookingId = await book(traveller.token, listingId, '2027-10-02', '2027-10-04');
++    await command('POST', `/bookings/${bookingId}/accept`, undefined, host.token);
++    await command('POST', `/bookings/${bookingId}/declare-paid`, undefined, host.token);
++    expect((await read(conversationId, traveller.token)).body.messages[1].masked).toBe(false);
++
++    expect((await command('POST', `/bookings/${bookingId}/cancel`, undefined, traveller.token)).status).toBe('SUCCESS');
++    const shown = await read(conversationId, traveller.token);
++    expect(shown.body.messages[1]).toMatchObject({ text: 'Call me: 0612345678', masked: false });
++  });
+ });

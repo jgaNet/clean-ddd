@@ -1,0 +1,122 @@
+# K4 pilot (RFC 0006, §8 and the decided status): 6 tasks x 3 arms x 3 runs = 54 runs, registered before any run.
+# README.md beside this file is the protocol; this file is what the operator runs.
+pilot: k4-pilot
+codebase:
+  repository: https://github.com/jgaNet/openstay
+  branch: j5b/clean-3                      # the J5b Full tree; trees/clean-3 is the same tree at request 50 (J4's head)
+  start: c1ac8da7a796bfd94f7793b6d1f48cd0b665eaa8   # "Feature 100: pausing payouts", 13 November
+  extension_only:                          # not used by the pilot (RFC 0006 §8, question 9), if it is undecided
+    branch: j5b/simple-3
+    start: 277d781fe1398fd48a1170108d74e6965fe5808a
+model: claude-haiku-5-5                    # J5b's step 0 (its ladder: haiku, sonnet, opus): 39 of clean-3's 50 requests
+                                           # and 47 of simple-3's were delivered there, and it ran 45 of clean-3's 57
+                                           # one-agent attempts; the same model for every run, no escalation
+runner: claude-cli                         # Claude Code headless, as J5b's plans (agent.runner)
+per_run:
+  budget_usd: 4                            # --max-budget-usd; J5b's haiku attempt on clean-3 cost $0.86 on average
+  timeout_minutes: 60                      # J5b gave 90 to a feature; a K4 task is smaller than a request
+  retries: 0                               # a failed run is a failure, measured; it is never sent back
+  tools: [Bash, Read, Edit, Write, Glob, Grep]   # every arm; B and C add Skill (README.md, "The arms")
+  settings: project only                   # --setting-sources project --strict-mcp-config: no user guide, skill, plugin or MCP server
+pilot_budget_usd: 150                      # the RFC's upper estimate; the operator stops the pilot before it is passed
+parallel: 1                                # one agent at a time, on the free machine, while J6 is prepared
+database:                                  # one PostgreSQL 16 cluster for the agent and one for the grading, never shared:
+  agent: postgresql://postgres@127.0.0.1:55471   #   a tree's test teardown drops every openstay_test_ database of its server
+  grading: postgresql://postgres@127.0.0.1:55472
+prompt: |                                  # the same for every arm and task; {task} is the task's task.md, verbatim
+  You are working in a git repository of an application, on its current branch.
+
+  {task}
+
+  Do not ask questions: decide, and say in your final report what was unclear. When you are done, commit your work on
+  the current branch; do not push. If you start a server, use port {port}.
+prompt_c: |                                # appended to the prompt in arm C only, the same sentence for every task
+  This repository also answers `clean-ddd knowledge <name>`: given the name of a command, an event, a rule or an
+  exception, it prints its context, its behaviours, its files, the rules it can refuse with, the tests that assert them,
+  the decisions and storms that cite it and the contracts it crosses, each fact marked derived or declared.
+
+# How a run is launched. No existing runner fits as it is (README.md, "What the runners lack"): the claude-cli runner
+# (.claude/flow/runners.mjs) runs one agent with a model, a budget and a timeout, but run-feature.mjs, the driver that
+# makes the worktree and logs the run, has a fixed brief, a fixed tool list, no budget, no session id and the clean-ddd
+# gate. Until a driver has the options below, a run is these steps, by hand or by a script, in this order:
+launch:
+  1-prepare: prepare-arm.sh <arm> tasks/<task> <openstay> <dir>/<arm>-t<n> <node_modules> [<K3 .tgz>]   # once per task and arm
+  2-worktree: git -C <dir>/<arm>-t<n> worktree add -b run/<id> <dir>/<arm>-t<n>.flow/worktrees/<id>; copy node_modules into it
+  3-agent: >-
+    cd <worktree> && PATH=[<dir>/C-t<n>.k3/bin:]/opt/node24/bin:$PATH TEST_DATABASE_URL=<agent db>/postgres
+    OPENSTAY_POSTGRES=<agent db> claude -p "<prompt>" --output-format json --model claude-haiku-5-5
+    --session-id <uuid> --max-budget-usd 4 --setting-sources project --strict-mcp-config
+    --allowedTools "Bash Read Edit Write Glob Grep[ Skill]" [--disable-slash-commands, arm A]
+    (stopped by process group at 60 minutes, as runners.mjs does)
+  4-log: >-
+    append to k4-pilot.jsonl one `run` event: id, task, arm, run, start commit, head, the runner's JSON (cost, modelUsage,
+    num_turns, duration_ms, result), wall clock, session id; copy ~/.claude/projects/<cwd with / as ->/<uuid>.jsonl
+    beside the log as transcripts/<id>.jsonl
+  5-grade: >-
+    apply the run's diff (start..head) onto the B tree of the task, commit it, and run there: the tree's own checks
+    (format:check, lint, typecheck, test:units, test:e2e, and check:conventions, recorded apart), then
+    node .claude/flow/grade.mjs --project <B repo> --ref <that commit> --base <B start> --kit <the task's kit> --upto 101
+    --workers 2 --gate false --keep false, with the task's kit composed as README.md says (J5's 100 requests and the
+    task as request 101). Task 4: no grading of code; its answer is scored against ground-truth.yaml (`expected`).
+  6-measure: the transcript measures of README.md ("Measures"), from transcripts/<id>.jsonl and the task's ground-truth.yaml
+
+# The 54 runs, in the order they are run: three rounds, each task once per round, the arms rotated within a task.
+runs:
+  - { order: 1, id: k4-t1-B-r1, task: 1-cancelled-stay-hides-contacts, arm: B, run: 1 }
+  - { order: 2, id: k4-t1-C-r1, task: 1-cancelled-stay-hides-contacts, arm: C, run: 1 }
+  - { order: 3, id: k4-t1-A-r1, task: 1-cancelled-stay-hides-contacts, arm: A, run: 1 }
+  - { order: 4, id: k4-t2-C-r1, task: 2-phone-numbers-with-hyphens, arm: C, run: 1 }
+  - { order: 5, id: k4-t2-A-r1, task: 2-phone-numbers-with-hyphens, arm: A, run: 1 }
+  - { order: 6, id: k4-t2-B-r1, task: 2-phone-numbers-with-hyphens, arm: B, run: 1 }
+  - { order: 7, id: k4-t3-A-r1, task: 3-message-notice-names-the-listing, arm: A, run: 1 }
+  - { order: 8, id: k4-t3-B-r1, task: 3-message-notice-names-the-listing, arm: B, run: 1 }
+  - { order: 9, id: k4-t3-C-r1, task: 3-message-notice-names-the-listing, arm: C, run: 1 }
+  - { order: 10, id: k4-t4-B-r1, task: 4-review-window-impact, arm: B, run: 1 }
+  - { order: 11, id: k4-t4-C-r1, task: 4-review-window-impact, arm: C, run: 1 }
+  - { order: 12, id: k4-t4-A-r1, task: 4-review-window-impact, arm: A, run: 1 }
+  - { order: 13, id: k4-t5-C-r1, task: 5-domain-time-is-given, arm: C, run: 1 }
+  - { order: 14, id: k4-t5-A-r1, task: 5-domain-time-is-given, arm: A, run: 1 }
+  - { order: 15, id: k4-t5-B-r1, task: 5-domain-time-is-given, arm: B, run: 1 }
+  - { order: 16, id: k4-t6-A-r1, task: 6-archive-a-conversation, arm: A, run: 1 }
+  - { order: 17, id: k4-t6-B-r1, task: 6-archive-a-conversation, arm: B, run: 1 }
+  - { order: 18, id: k4-t6-C-r1, task: 6-archive-a-conversation, arm: C, run: 1 }
+  - { order: 19, id: k4-t1-C-r2, task: 1-cancelled-stay-hides-contacts, arm: C, run: 2 }
+  - { order: 20, id: k4-t1-A-r2, task: 1-cancelled-stay-hides-contacts, arm: A, run: 2 }
+  - { order: 21, id: k4-t1-B-r2, task: 1-cancelled-stay-hides-contacts, arm: B, run: 2 }
+  - { order: 22, id: k4-t2-A-r2, task: 2-phone-numbers-with-hyphens, arm: A, run: 2 }
+  - { order: 23, id: k4-t2-B-r2, task: 2-phone-numbers-with-hyphens, arm: B, run: 2 }
+  - { order: 24, id: k4-t2-C-r2, task: 2-phone-numbers-with-hyphens, arm: C, run: 2 }
+  - { order: 25, id: k4-t3-B-r2, task: 3-message-notice-names-the-listing, arm: B, run: 2 }
+  - { order: 26, id: k4-t3-C-r2, task: 3-message-notice-names-the-listing, arm: C, run: 2 }
+  - { order: 27, id: k4-t3-A-r2, task: 3-message-notice-names-the-listing, arm: A, run: 2 }
+  - { order: 28, id: k4-t4-C-r2, task: 4-review-window-impact, arm: C, run: 2 }
+  - { order: 29, id: k4-t4-A-r2, task: 4-review-window-impact, arm: A, run: 2 }
+  - { order: 30, id: k4-t4-B-r2, task: 4-review-window-impact, arm: B, run: 2 }
+  - { order: 31, id: k4-t5-A-r2, task: 5-domain-time-is-given, arm: A, run: 2 }
+  - { order: 32, id: k4-t5-B-r2, task: 5-domain-time-is-given, arm: B, run: 2 }
+  - { order: 33, id: k4-t5-C-r2, task: 5-domain-time-is-given, arm: C, run: 2 }
+  - { order: 34, id: k4-t6-B-r2, task: 6-archive-a-conversation, arm: B, run: 2 }
+  - { order: 35, id: k4-t6-C-r2, task: 6-archive-a-conversation, arm: C, run: 2 }
+  - { order: 36, id: k4-t6-A-r2, task: 6-archive-a-conversation, arm: A, run: 2 }
+  - { order: 37, id: k4-t1-A-r3, task: 1-cancelled-stay-hides-contacts, arm: A, run: 3 }
+  - { order: 38, id: k4-t1-B-r3, task: 1-cancelled-stay-hides-contacts, arm: B, run: 3 }
+  - { order: 39, id: k4-t1-C-r3, task: 1-cancelled-stay-hides-contacts, arm: C, run: 3 }
+  - { order: 40, id: k4-t2-B-r3, task: 2-phone-numbers-with-hyphens, arm: B, run: 3 }
+  - { order: 41, id: k4-t2-C-r3, task: 2-phone-numbers-with-hyphens, arm: C, run: 3 }
+  - { order: 42, id: k4-t2-A-r3, task: 2-phone-numbers-with-hyphens, arm: A, run: 3 }
+  - { order: 43, id: k4-t3-C-r3, task: 3-message-notice-names-the-listing, arm: C, run: 3 }
+  - { order: 44, id: k4-t3-A-r3, task: 3-message-notice-names-the-listing, arm: A, run: 3 }
+  - { order: 45, id: k4-t3-B-r3, task: 3-message-notice-names-the-listing, arm: B, run: 3 }
+  - { order: 46, id: k4-t4-A-r3, task: 4-review-window-impact, arm: A, run: 3 }
+  - { order: 47, id: k4-t4-B-r3, task: 4-review-window-impact, arm: B, run: 3 }
+  - { order: 48, id: k4-t4-C-r3, task: 4-review-window-impact, arm: C, run: 3 }
+  - { order: 49, id: k4-t5-B-r3, task: 5-domain-time-is-given, arm: B, run: 3 }
+  - { order: 50, id: k4-t5-C-r3, task: 5-domain-time-is-given, arm: C, run: 3 }
+  - { order: 51, id: k4-t5-A-r3, task: 5-domain-time-is-given, arm: A, run: 3 }
+  - { order: 52, id: k4-t6-C-r3, task: 6-archive-a-conversation, arm: C, run: 3 }
+  - { order: 53, id: k4-t6-A-r3, task: 6-archive-a-conversation, arm: A, run: 3 }
+  - { order: 54, id: k4-t6-B-r3, task: 6-archive-a-conversation, arm: B, run: 3 }
+
+# Cost, estimated from J5b's per-request costs (clean-3, the J5b record): about $46 (54 runs at $0.86, the mean of
+# clean-3's 45 one-agent haiku attempts, $38.49), at most about $104 (54 at $1.93, the mean one-agent request with its
+# escalations). The decided status said $80 to $150; one model and no escalation put the pilot below it.

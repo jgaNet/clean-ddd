@@ -1,0 +1,53 @@
+# K4, task 5: the ground truth, written with the reference solution and before any run.
+task: 5-domain-time-is-given
+kind: refactoring                  # changes the structure and not the behaviour (RFC 0006, §8)
+start: c1ac8da7a796bfd94f7793b6d1f48cd0b665eaa8
+rule:
+  says: OpenStay has one now, the clock the wiring passes (request 57); a domain method's time is always given, never a
+    default that reads the machine.
+  born: request 57; J5b's repair R6, the tree guide's section "OpenStay's now"; in the reference, ADR 42 and its rule
+    DOMAIN-ONE-CLOCK (which clean-3's tooling, 0.2.0, predates: nothing in the tree holds it)
+  names: [Clock, openStayClock]
+# The machine-time reads at the start, in the two contexts (the hidden test lists them as it finds them):
+start_reads:
+  - src/Contexts/Messaging/module.local.ts                                                  # clock: Clock = () => new Date()
+  - src/Contexts/Messaging/Domain/Conversation/Conversation.ts                              # start: sentAt ?? new Date(); send, report: defaults
+  - src/Contexts/Messaging/Application/Commands/StartConversation/StartConversationCommandHandler.ts
+  - src/Contexts/Messaging/Application/Commands/SendMessage/SendMessageCommandHandler.ts
+  - src/Contexts/Notifications/Domain/MessageNotice/NoticeWindow.ts                         # admit
+  - src/Contexts/Notifications/Domain/MessageNotice/MessageNoticeOwing.ts                   # owe
+  - src/Contexts/Notifications/Domain/Notice/Notice.ts                                      # accept
+# Callers that relied on a default, so that the time they decide comes from the machine today (with CLOCK_OFFSET_DAYS
+# unset the same instant; with it set, the reference solution moves them to OpenStay's time, as every other context):
+relied_on_default:
+  - ReportMessageCommandHandler (report: reportedAt)
+  - MessageSentIntegrationEventHandler (owe: the window's time)
+  - NoticeDelivery (accept: acceptedAt)
+reference_solution:
+  changes:
+    source:
+      - src/Bootstrap/Fastify/createApplication.ts                                          # passes the clock to Notifications
+      - src/Contexts/Messaging/module.local.ts
+      - src/Contexts/Messaging/Domain/Conversation/Conversation.ts
+      - src/Contexts/Messaging/Application/Commands/StartConversation/StartConversationCommandHandler.ts
+      - src/Contexts/Messaging/Application/Commands/SendMessage/SendMessageCommandHandler.ts
+      - src/Contexts/Messaging/Application/Commands/ReportMessage/ReportMessageCommandHandler.ts
+      - src/Contexts/Notifications/module.local.ts
+      - src/Contexts/Notifications/Domain/MessageNotice/NoticeWindow.ts
+      - src/Contexts/Notifications/Domain/MessageNotice/MessageNoticeOwing.ts
+      - src/Contexts/Notifications/Domain/Notice/Notice.ts
+      - src/Contexts/Notifications/Application/NoticeDelivery.ts
+      - src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.ts
+    tests:
+      - src/Contexts/Messaging/Domain/Conversation/Conversation.spec.ts
+      - src/Contexts/Messaging/Domain/Conversation/ConversationAttachments.spec.ts
+      - src/Contexts/Messaging/Domain/Conversation/ConversationHiding.spec.ts
+      - src/Contexts/Messaging/Domain/Conversation/ConversationReads.spec.ts
+      - src/Contexts/Messaging/Domain/Conversation/ConversationReports.spec.ts
+      - src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.spec.ts
+      - src/Contexts/Notifications/Application/NoticeDelivery.spec.ts
+hidden_tests:                      # structural: fails on the start tree (11 reads), passes on the reference solution
+  - k4-5-domain-time-is-given.acceptance.ts › reads the machine time nowhere in the two contexts: every time comes from the clock they are given
+# "No change of behaviour" is held by the regression grading: the tree's own tests, and the J5 kit's files below, pass
+# on the start and must pass on the result.
+regression_kit_j5: [51-conversations, 52-unread-messages, 53-contact-details-held-back, 54-attachments, 55-message-notices, 56-reporting-a-message, 75-notice-preferences]

@@ -1,0 +1,93 @@
+# K4, task 4: the ground truth, written with the reference solution and before any run. The agent predicts; it does not
+# change anything. Its answer (the YAML block of its final message) is scored against `expected` below.
+task: 4-review-window-impact
+kind: impact                       # predicting impact before changing anything (RFC 0006, §8)
+start: c1ac8da7a796bfd94f7793b6d1f48cd0b665eaa8
+change: the review window becomes 30 days after the check-out instead of 14, and everything the window decides follows it
+reference_solution:                # solution.patch, held by acceptance/k4-4-review-window-impact.acceptance.ts
+  changes:
+    source:
+      - src/Contexts/Reviews/Domain/StayReview/ReviewWindow.ts             # REVIEW_WINDOW_DAYS = 30
+      - src/Contexts/Reviews/Domain/StayReview/StayReviewExceptions.ts     # OutsideReviewWindow's message says the days
+    tests:
+      - src/Contexts/Reviews/Domain/StayReview/Rating.spec.ts
+      - src/Contexts/Reviews/Domain/StayReview/StayReviews.spec.ts
+      - src/Contexts/Reviews/Domain/StayReview/StayReviewReports.spec.ts
+      - src/Bootstrap/Fastify/reviews.e2e.spec.ts
+      - src/Bootstrap/Fastify/ratings.e2e.spec.ts
+# The rule mutated (REVIEW_WINDOW_DAYS = 30 and nothing else), measured on 13 November in the pilot's scratch copy:
+# 6 unit tests in 3 files and 3 end-to-end tests in 2 files fail; every other test of the tree passes.
+mutation_fails:
+  tree_own:
+    - Rating.spec.ts › publication › counts a lone traveller’s review only once its window has closed
+    - StayReviews.spec.ts › StayReviews: the traveller reviews the stay › is refused the day of the check-out, and once the 14 days after it are over
+    - StayReviews.spec.ts › StayReviews: the host reviews the guest › is refused for a stay that did not take place, outside the window, and for a rating or comment out of range
+    - StayReviews.spec.ts › the review window and the publication of a stay’s reviews › is the 14 days after the check-out, and the window closing publishes what is written the day after them
+    - StayReviews.spec.ts › StayReviews: the host replies to the traveller’s review › is written once the window has closed, when the guest review was never written
+    - StayReviewReports.spec.ts › StayReviews: a review that is not published › is reported by another account once the window has closed and it is published alone
+    - reviews.e2e.spec.ts › Booking → Reviews › a traveller reviews a stay that took place once, and it is published when its window closes
+    - reviews.e2e.spec.ts › Host → Reviews › a host review waits for the traveller or the window, and two sent at once give one review
+    - ratings.e2e.spec.ts › Reviews → Listings, Booking and hosts (ratings) › rates a listing and its host from the published traveller’s reviews only, as their windows close
+  # The J5 kit's hidden tests that hold the 14 days are superseded by such a change. They are not the agent's to predict
+  # (it cannot see them); for the record, on the reference solution (60, 61 and 62 pass):
+  kit_j5_superseded:
+    - 57-reviews › a review after a stay › publishes a review, to anyone, once its window has closed, without anyone acting, and refuses a review after it
+    - 57-reviews › a review after a stay › lists a listing's published reviews, the most recently written first
+    - 58-guest-reviews › the host reviews the guest › publishes a lone review when the window closes, refuses one after it, and lists a traveller's reviews the most recent first
+    - 59-ratings › ratings › rates a host over every published review of every listing they host, whatever its state, for anyone
+
+expected:
+  files:                           # scored: precision and recall, by exact path
+    required:
+      - src/Contexts/Reviews/Domain/StayReview/ReviewWindow.ts
+      - src/Contexts/Reviews/Domain/StayReview/StayReviewExceptions.ts
+    tolerated:                     # not required, and not counted against precision: they read the rule, or state it
+      - src/Contexts/Reviews/Domain/StayReview/StayReviews.ts
+      - src/Contexts/Reviews/Domain/StayReview/Rating.ts
+      - src/Contexts/Reviews/Application/ReviewViews.ts
+      - src/Contexts/Reviews/Application/Queries/GetBookingReviews/GetBookingReviewsQueryHandler.ts
+      - src/Contexts/Reviews/Application/Queries/GetGuestReviews/GetGuestReviewsQueryHandler.ts
+      - src/Contexts/Reviews/Application/Queries/GetHostRating/GetHostRatingQueryHandler.ts
+      - src/Contexts/Reviews/Application/Queries/GetListingReviews/GetListingReviewsQueryHandler.ts
+      - src/Contexts/Listings/Infrastructure/RatingsOfListings.ts
+      - src/Contexts/Booking/Infrastructure/RatingsOfListings.ts
+      - conventions/domain.yaml                    # the glossary's "review window" says 14 days
+      - conventions/storms/reviews.yaml
+      - docs/adr/0059-a-stay-is-reviewed-once-by-its-traveller-in-a-new-context-that-asks-booking-through-a-port.md
+      - docs/adr/0060-the-host-reviews-the-guest-in-reviews-and-the-two-reviews-of-a-stay-are-published-together.md
+      - docs/adr/0062-a-host-replies-once-to-a-published-traveller-review-in-the-stay-reviews-aggregate.md
+  tests:                           # scored: precision and recall, by exact path
+    required:
+      - src/Contexts/Reviews/Domain/StayReview/Rating.spec.ts
+      - src/Contexts/Reviews/Domain/StayReview/StayReviews.spec.ts
+      - src/Contexts/Reviews/Domain/StayReview/StayReviewReports.spec.ts
+      - src/Bootstrap/Fastify/reviews.e2e.spec.ts
+      - src/Bootstrap/Fastify/ratings.e2e.spec.ts
+    tolerated:                     # exercise the window or the publication, and pass unchanged
+      - src/Contexts/Reviews/Domain/StayReview/StayReviewRemoval.spec.ts
+      - src/Bootstrap/Fastify/host-replies.e2e.spec.ts
+      - src/Bootstrap/Fastify/review-rules.e2e.spec.ts
+      - src/Contexts/Reviews/Presentation/API/REST/Routes/upheld-report.e2e.spec.ts
+      - src/Contexts/Backoffice/Presentation/API/REST/Routes/upheld-review.e2e.spec.ts
+      - src/Contexts/Moderation/Presentation/API/REST/Routes/review-reports.e2e.spec.ts
+  rules:                           # scored by a judge (README.md, "Measures"): each predicted rule matched to one below or none
+    required:
+      - id: window
+        says: a traveller reviews a stay, and a host its guest, from the day after the check-out up to N days after it;
+          outside it the review is refused (OutsideReviewWindow; requests 57, 58; isInReviewWindow, REVIEW_WINDOW_DAYS)
+      - id: publication
+        says: a review is published when both reviews of the stay are written or the window has closed (request 58,
+          ADR 60; windowClosed, isPublished); this decides what listings, bookings and guest reviews show
+      - id: ratings
+        says: a listing's and a host's rating count published traveller's reviews only, so they move when windows close;
+          the search's rating order follows (requests 59, 62; publishedTravellerReviews, ratingsOfListings)
+      - id: replies
+        says: a host replies to a traveller's review once it is published (request 60, ADR 62)
+      - id: reports
+        says: a review is reported only once it is published (request 61)
+    distractors:                   # look alike and are not touched; naming one counts against precision
+      - id: claims-window
+        says: a claim on a stay is opened within 14 days after the check-out (Support; CLAIM_WINDOW_DAYS, ClaimRules.ts,
+          ADR 74) — the same number, another rule
+      - id: review-rules
+        says: a comment's length, contact details and links (request 61; ReviewRules.ts) — another rule of the same context
