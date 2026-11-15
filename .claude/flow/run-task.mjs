@@ -232,6 +232,25 @@ const sh = (command, args, { cwd, env, timeout = 3_600_000, input } = {}) => {
     stdout: result.stdout ?? '',
   };
 };
+/** `yarn -s <name>` in its own process group, its output through a file, the group killed past `limitMs`. */
+function boundedCheck(name, cwd, env, limitMs) {
+  const out = join(env.TMPDIR ?? '/tmp', `check-${process.pid}-${name.replace(/\W/g, '_')}.log`);
+  const result = spawnSync('setsid', ['bash', '-c', `exec yarn -s ${name} > ${JSON.stringify(out)} 2>&1`], {
+    cwd,
+    env,
+    stdio: 'ignore',
+    timeout: limitMs,
+    killSignal: 'SIGKILL',
+  });
+  try {
+    if (result.pid) process.kill(-result.pid, 'SIGKILL');
+  } catch {
+    // the group is gone
+  }
+  const text = existsSync(out) ? readFileSync(out, 'utf8') : '';
+  rmSync(out, { force: true });
+  return { code: result.status ?? 1, signal: result.signal ?? (result.error ? 'timeout' : undefined), out: text };
+}
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }).trim();
 const sha256 = text => createHash('sha256').update(text).digest('hex');
 const tail = (text, count = 40) =>
@@ -487,7 +506,11 @@ function ownChecks(ctx, grading, start, commit, label) {
       continue;
     }
     const started = Date.now();
-    const done = sh('yarn', ['-s', name], { cwd: dir, env, timeout: 2_700_000 });
+    // A check that runs past its limit (three times the start's own: about 5 minutes for the end-to-end tests) has
+    // hung, and a hang is its failure: kept as such, rather than run again at every restart of the machine. It runs in
+    // a process group of its own, its output in a file, and the whole group is killed at the limit: a server a test
+    // left running would otherwise hold the output open and the check with it.
+    const done = boundedCheck(name, dir, env, name === 'test:e2e' ? 900_000 : 600_000);
     checks[name] = {
       pass: done.code === 0,
       exitCode: done.code,
