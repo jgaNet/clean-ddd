@@ -5,7 +5,7 @@
  *
  *   node .claude/flow/grade.mjs --project <dir> --ref <ref> --base <created commit> --kit <dir> [--tooling <clean-ddd.tgz>] [--out <file.json>]
  *                               [--control plain|prose] [--upto <n>] [--only <id,id>] [--keep false] [--gate false]
- *                               [--workers <n>] [--previous <id>=<ref>,…]
+ *                               [--workers <n>] [--previous <id>=<ref>,…] [--cache <dir>]
  *
  * `--upto <n>` grades the features numbered up to n only: the feature an attempt wrote and the
  * ones before it, for regressions (OpenStay's ladder, run-ladder.mjs). `--only <ids>` grades
@@ -46,6 +46,7 @@
  * refusals counted: what the architecture became with nothing to hold it.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
@@ -306,12 +307,56 @@ const together = files => {
   );
 };
 
-const first = workers > 1 && backlog.length > 1 ? together(backlog.map(fileOf)) : new Map();
+/**
+ * `--cache <dir>`: each file's verdict is kept as it is reached, under a key of everything that decides it (the commit,
+ * the kit's files, --upto, the arm, the tooling, the trees before), and a grading started again reads the kept ones and
+ * runs only the rest. A machine that restarts every half hour could not finish a grading of a hundred files otherwise
+ * (K4, 14 November); the verdicts are the same, only what a restart loses changes.
+ */
+const cacheRoot = option('cache');
+const cacheDir = (() => {
+  if (!cacheRoot) return undefined;
+  const hash = createHash('sha256');
+  hash.update(
+    JSON.stringify({
+      commit,
+      upto,
+      control,
+      tooling: option('tooling'),
+      previous: [...previousTrees].map(([id, each]) => [id, each.ref]),
+    }),
+  );
+  for (const file of readdirSync(acceptanceDir).sort())
+    hash.update(`${file}\0${readFileSync(join(acceptanceDir, file))}\0`);
+  const dir = join(resolve(cacheRoot), hash.digest('hex').slice(0, 16));
+  mkdirSync(dir, { recursive: true });
+  return dir;
+})();
+const kept = file =>
+  cacheDir && existsSync(join(cacheDir, `${file}.json`))
+    ? parse(readFileSync(join(cacheDir, `${file}.json`), 'utf8'))
+    : undefined;
+const keep = (file, run) => {
+  if (cacheDir) writeFileSync(join(cacheDir, `${file}.json`), JSON.stringify(run));
+  return run;
+};
+
+// What is not kept yet runs beside the others, a few files at a time when a cache keeps what each batch reaches.
+const pending = backlog.map(fileOf).filter(file => !kept(file));
+const first = new Map();
+if (workers > 1 && pending.length > 1) {
+  const batch = cacheDir ? workers * 3 : pending.length;
+  for (let at = 0; at < pending.length; at += batch)
+    for (const [file, run] of together(pending.slice(at, at + batch))) {
+      first.set(file, run);
+      if (run.pass) keep(file, run);
+    }
+}
 const features = backlog.map(f => {
   const file = fileOf(f);
   const once = first.get(file);
   // A file that failed beside the others is run again alone: that run is its verdict, as without --workers.
-  const run = once?.pass ? once : alone(file);
+  const run = kept(file) ?? keep(file, once?.pass ? once : alone(file));
   const { pass, tests, failed, exitCode, said } = run;
   const storm =
     control || !stormed(f)

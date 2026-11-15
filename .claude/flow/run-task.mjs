@@ -476,8 +476,16 @@ function ownChecks(ctx, grading, start, commit, label) {
     const installed = sh('yarn', ['install', '--silent'], { cwd: dir, env, timeout: 900_000 });
     install = { pass: installed.code === 0, tail: tail(installed.out, 20) };
   }
+  // Each check's result is kept by commit as it is reached: a restart of the machine runs only the checks left.
+  const keptDir = join(`${grading}.flow`, 'checks-kept', commit);
+  mkdirSync(keptDir, { recursive: true });
   const checks = {};
   for (const name of [...CHECKS, ...APART]) {
+    const keptFile = join(keptDir, `${name.replace(/\W/g, '_')}.json`);
+    if (existsSync(keptFile)) {
+      checks[name] = JSON.parse(readFileSync(keptFile, 'utf8'));
+      continue;
+    }
     const started = Date.now();
     const done = sh('yarn', ['-s', name], { cwd: dir, env, timeout: 2_700_000 });
     checks[name] = {
@@ -494,6 +502,7 @@ function ownChecks(ctx, grading, start, commit, label) {
         tail: tail(done.out, 40),
       }),
     };
+    writeFileSync(keptFile, JSON.stringify(checks[name]));
   }
   git(grading, 'worktree', 'remove', '--force', dir);
   return { ...(install && { install }), checks };
@@ -521,6 +530,8 @@ function gradeKit(ctx, p, ref, start, out, logName) {
     'false',
     '--keep',
     'false',
+    '--cache',
+    join(`${p.grading}.flow`, 'verdicts'),
     '--out',
     out,
   ];
