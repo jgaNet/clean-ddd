@@ -197,8 +197,17 @@ describe('leakage voids an attempt', () => {
     const fine = kitLeakage([clean], paths);
     assert.equal(fine.void, false);
     assert.equal(fine.seen.length, 1);
-    // K4's own patterns (its kits under docs/evaluations, any *.acceptance.ts) are not this scan's.
-    const k4 = transcript('v', 'k4', [['Read', { file_path: `${cwd}/docs/evaluations/x/1-a.acceptance.ts` }]]);
-    assert.equal(kitLeakage([k4], paths).void, false);
+    // A kit's files wherever they are void it too: a hidden test by its name, the reference's evaluations, and the
+    // grader's worktrees named relatively from the attempt's worktree (J6 readiness, 16 November).
+    const named = transcript('v', 'named', [['Read', { file_path: `${cwd}/docs/evaluations/x/1-a.acceptance.ts` }]]);
+    assert.equal(kitLeakage([named], paths).void, true);
+    const relative = transcript('v', 'relative', [['Bash', { command: 'ls ../../grade' }]]);
+    assert.equal(kitLeakage([relative], paths).void, true);
+    assert.equal(kitLeakage([relative], paths).touched[0].matched, 'a grade directory');
+    const found = transcript('v', 'found', [['Bash', { command: "find / -name '*.acceptance.ts'" }]]);
+    assert.equal(kitLeakage([found], paths).void, true);
+    // A word that only contains it is not a path: `upgrade`, `graded`.
+    const words = transcript('v', 'words', [['Bash', { command: 'git log --grep upgrade; cat graded.txt' }]]);
+    assert.equal(kitLeakage([words], paths).void, false);
   });
 });
