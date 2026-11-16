@@ -1,0 +1,83 @@
+# K4 pilot, arm C+ (the maintainer's decision of 16 November, after rounds 1 and 2): arm C with a prompt that tells the agent
+# to use `clean-ddd knowledge` first, 6 runs (one a task). Everything else is plan.yaml's. Written before any run of this arm.
+# README.md beside this file is the protocol; this file is what the operator runs.
+pilot: k4-pilot-cplus                     # the C+ arm: registered C with one instruction in place of its sentence; 6 runs, one a task
+codebase:
+  repository: https://github.com/jgaNet/openstay
+  branch: j5b/clean-3                      # the J5b Full tree; trees/clean-3 is the same tree at request 50 (J4's head)
+  start: c1ac8da7a796bfd94f7793b6d1f48cd0b665eaa8   # "Feature 100: pausing payouts", 13 November
+  extension_only:                          # not used by the pilot (RFC 0006 §8, question 9), if it is undecided
+    branch: j5b/simple-3
+    start: 277d781fe1398fd48a1170108d74e6965fe5808a
+model: claude-haiku-5-5                    # J5b's step 0 (its ladder: haiku, sonnet, opus): 39 of clean-3's 50 requests
+                                           # and 47 of simple-3's were delivered there, and it ran 45 of clean-3's 57
+                                           # one-agent attempts; the same model for every run, no escalation
+runner: claude-cli                         # Claude Code headless, as J5b's plans (agent.runner)
+per_run:
+  budget_usd: 4                            # --max-budget-usd; J5b's haiku attempt on clean-3 cost $0.86 on average
+  timeout_minutes: 60                      # J5b gave 90 to a feature; a K4 task is smaller than a request
+  retries: 0                               # a failed run is a failure, measured; it is never sent back
+  tools: [Bash, Read, Edit, Write, Glob, Grep]   # every arm; B and C add Skill (README.md, "The arms")
+  settings: project only                   # --setting-sources project --strict-mcp-config: no user guide, skill, plugin or MCP server
+pilot_budget_usd: 150                      # the RFC's upper estimate; the operator stops the pilot before it is passed
+parallel: 1                                # one agent at a time, on the free machine, while J6 is prepared
+database:                                  # one PostgreSQL 16 cluster for the agent and one for the grading, never shared:
+  agent: postgresql://postgres@127.0.0.1:55471   #   a tree's test teardown drops every openstay_test_ database of its server
+  grading: postgresql://postgres@127.0.0.1:55472
+prompt: |                                  # the same for every arm and task; {task} is the task's task.md, verbatim
+  You are working in a git repository of an application, on its current branch.
+
+  {task}
+
+  Do not ask questions: decide, and say in your final report what was unclear. When you are done, commit your work on
+  the current branch; do not push. If you start a server, use port {port}.
+prompt_c: |                                # appended to the prompt in arm C+ only (the registered C's sentence replaced; nothing else changes)
+  This repository also answers `clean-ddd knowledge <name>`: given the name of an aggregate, a command, an event, a
+  rule or an exception, as the code names it (CamelCase: Conversation, ReviewStay, BookingConfirmed,
+  OutsideReviewWindow), it prints its context, its behaviours, its files, the rules it can refuse with, the tests that
+  assert them, the decisions and storms that cite it and the contracts it crosses, each fact marked derived or declared;
+  given part of a name, it lists the names it knows. Use it first: before you read or search any file, run it for every
+  such name the task names or that you meet, and read the files it names instead of searching for them.
+
+# How a run is launched: .claude/flow/run-task.mjs (the flow's README, "K4"), one run at a time, from this file; it
+# reads the prompt, the model, per_run, the databases and the runs above and below, and nothing in `launch` (which says
+# what it does, for a reader and for a run by hand):
+#   node .claude/flow/run-task.mjs --dry                                   # the 54 runs, what each would do; runs nothing
+#   node .claude/flow/run-task.mjs --all --k3 <K3 .tgz> [--work <dir>] [--out <dir>]   # resumable: a recorded run is skipped
+#   node .claude/flow/k4-report.mjs --records <out>/records                 # the table and the two criteria
+launch:
+  1-prepare: >-
+    prepare-arm.sh <arm> tasks/<task> <openstay> <work>/runs/<nn>/openstay <node_modules> [<K3 .tgz>], once per run (not
+    per task and arm: two runs of one arm would share a repository's branches, and Claude Code's project directory);
+    the path names neither the pilot nor the arm, and nothing above it holds a CLAUDE.md or a .claude/
+  2-services: the two clusters of `database`, each of its own under <work>/pg/, started if they are not
+  3-agent: >-
+    cd <work>/runs/<nn>/openstay && PATH=[<tree>.k3/bin:]/opt/node24/bin:$PATH TEST_DATABASE_URL=<agent db>/postgres
+    OPENSTAY_POSTGRES=<agent db> claude -p "<prompt>" --output-format json --model claude-haiku-5-5
+    --allowedTools "Bash Read Edit Write Glob Grep[ Skill]" --tools "Bash,Read,Edit,Write,Glob,Grep[,Skill]"
+    --max-budget-usd 4 --session-id <uuid> --setting-sources project --strict-mcp-config [--disable-slash-commands, arm A]
+    (stopped by process group at 60 minutes, as runners.mjs does; --tools makes the arm's tools the only ones the agent
+    has, where --allowedTools alone only approves them)
+  4-log: >-
+    <out>/k4-pilot.jsonl gets `started`, `agent-finished` and one `run` event: id, task, arm, run, start commit, head,
+    cost, tokens, turns, duration, wall clock, session id; ~/.claude/projects/<the tree's path>/<uuid>.jsonl is copied
+    to <out>/transcripts/<id>.jsonl; the leakage scan voids a run (README.md, "Leakage"), which is run again as <id>.2
+  5-grade: >-
+    in the task's grading repository (prepare-arm.sh B, once a task), the run's committed diff (start..head) applied with
+    --3way and committed; the tree's own checks there (format:check, lint, typecheck, test:units, test:e2e, and
+    check:conventions, recorded apart); then node .claude/flow/grade.mjs --project <B repo> --ref <that commit>
+    --base <B start> --kit <work>/kits/<task> --upto 101 --workers <grading.workers, else one per core, at most 4> --gate false --keep false, the kit composed as
+    README.md says (J5's 101 files and the task as request 101); the start graded the same way once a task, for the
+    regressions. Task 4: no grading of code; its answer is scored against ground-truth.yaml (`expected`), the rules by
+    the judge (claude-sonnet-5-5), each match read by the operator
+  6-measure: the transcript measures of README.md ("Measures"), by .claude/flow/k4-measures.mjs, into the run's record
+  7-record: <out>/records/<id>.json, one a run; the run's repository kept as <out>/bundles/<id>.bundle
+
+# The 6 runs of C+, in the order they are run, after round 2 of the registered pilot and before its round 3 of A and B.
+runs:
+  - { order: 61, id: k4plus-t1-C-r1, task: 1-cancelled-stay-hides-contacts, arm: C, run: 1 }
+  - { order: 62, id: k4plus-t2-C-r1, task: 2-phone-numbers-with-hyphens, arm: C, run: 1 }
+  - { order: 63, id: k4plus-t3-C-r1, task: 3-message-notice-names-the-listing, arm: C, run: 1 }
+  - { order: 64, id: k4plus-t4-C-r1, task: 4-review-window-impact, arm: C, run: 1 }
+  - { order: 65, id: k4plus-t5-C-r1, task: 5-domain-time-is-given, arm: C, run: 1 }
+  - { order: 66, id: k4plus-t6-C-r1, task: 6-archive-a-conversation, arm: C, run: 1 }
