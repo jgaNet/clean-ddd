@@ -1,0 +1,24 @@
+# J6's calibration, arm lite: OpenStay's requests 1 to 10 on cal-lite, not counted (three-arms/registration.md, step 6,
+# amended 16 November: the trees made again on the pilot's machine, the plans beside the registration, push to a
+# remote of the machine's own since none on GitHub was granted). The paths are this machine's.
+run: j6-cal-lite
+arm: clean
+kit: /var/lib/cdd-frozen/r16/calibration
+base: main
+of: 10
+ladder: [claude-haiku-5-5, claude-sonnet-5-5, claude-opus-5-5]
+agent: { runner: claude-cli, timeoutMinutes: 90 }
+retry: { perFeature: 1 }
+budgetUsd: 60
+agentBudgetUsd: 12
+dependencies: copy
+ports: { base: 22100 }
+machine: { ladders: 3, jestCacheGb: 2 }
+gradeTimeoutMinutes: 120
+gradeWorkers: 2
+regressionCheck: { from: 2 }
+triage: { judge: claude-sonnet-5-5 }
+envFile: /var/tmp/j6cal/env/cal-lite.env
+push: { remote: /var/tmp/j6cal/remotes/cal-lite.git, branch: trees/cal-lite, logBranch: logs/cal-lite }
+tooling: /var/tmp/j6cal/trees/cal-lite/vendor/clean-ddd-3.2.0.tgz
+features: [accounts, publish-a-listing, search, host-calendar, quote, book-instantly, request-to-book, cancel-a-booking, booking-history, notify-the-host]
