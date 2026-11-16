@@ -496,7 +496,8 @@ function ownChecks(ctx, grading, start, commit, label) {
     install = { pass: installed.code === 0, tail: tail(installed.out, 20) };
   }
   // Each check's result is kept by commit as it is reached: a restart of the machine runs only the checks left.
-  const keptDir = join(`${grading}.flow`, 'checks-kept', commit);
+  // Keyed by the tree, not the commit: the same work applied again after a restart is a new commit of the same tree.
+  const keptDir = join(`${grading}.flow`, 'checks-kept', git(grading, 'rev-parse', `${commit}^{tree}`));
   mkdirSync(keptDir, { recursive: true });
   const checks = {};
   for (const name of [...CHECKS, ...APART]) {

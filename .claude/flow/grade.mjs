@@ -308,7 +308,7 @@ const together = files => {
 };
 
 /**
- * `--cache <dir>`: each file's verdict is kept as it is reached, under a key of everything that decides it (the commit,
+ * `--cache <dir>`: each file's verdict is kept as it is reached, under a key of everything that decides it (the tree,
  * the kit's files, --upto, the arm, the tooling, the trees before), and a grading started again reads the kept ones and
  * runs only the rest. A machine that restarts every half hour could not finish a grading of a hundred files otherwise
  * (K4, 14 November); the verdicts are the same, only what a restart loses changes.
@@ -319,7 +319,7 @@ const cacheDir = (() => {
   const hash = createHash('sha256');
   hash.update(
     JSON.stringify({
-      commit,
+      tree: git(project, 'rev-parse', `${commit}^{tree}`),
       upto,
       control,
       tooling: option('tooling'),
