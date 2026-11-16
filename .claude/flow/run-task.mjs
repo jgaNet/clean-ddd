@@ -31,7 +31,7 @@
  *   5. **The grading** (tasks 1, 2, 3, 5, 6), in the task's grading repository (`prepare-arm.sh B`, once a task,
  *      `<work>/grading/<task>/openstay`): the run's diff (start..head, committed work only) applied with `--3way`
  *      and committed; the tree's own checks there (`format:check`, `lint`, `typecheck`, `test:units`, `test:e2e`;
- *      `check:conventions` recorded apart); then `grade.mjs --upto 101 --workers 2 --gate false --keep false` on the
+ *      `check:conventions` recorded apart); then `grade.mjs --upto 101 --workers <n> --gate false --keep false` on the
  *      task's kit (`<work>/kits/<task>`: J5's backlog, acceptance and storms, the task added as request 101 with its
  *      hidden test as `acceptance/101-<task id>.acceptance.ts`). The start is graded the same way once a task
  *      (`<work>/baselines/`), and a regression is a J5 file that passes there and fails on the result; a result
@@ -62,10 +62,11 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
-import { homedir } from 'node:os';
+import { availableParallelism, homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -74,6 +75,13 @@ import { judgePrompt, parseAnswer, readJudgement, scoreAnswer } from './k4-score
 import { claudeCliArguments, runners } from './runners.mjs';
 import { shortTmpDir } from './machine.mjs';
 import { freePort, provideDependencies } from './supervision.mjs';
+
+/**
+ * How many acceptance files a grading runs at once (grade.mjs --workers): the plan's `grading.workers`, else one per
+ * core, at most 4. A file that fails beside the others is run again alone and that run is its verdict, so the number
+ * changes the time a grading takes, not what it decides; the container's restarts made 2 too slow to finish one.
+ */
+export const gradeWorkers = plan => plan?.grading?.workers ?? Math.min(4, availableParallelism());
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const REPOSITORY = resolve(here, '../..');
@@ -224,6 +232,25 @@ const sh = (command, args, { cwd, env, timeout = 3_600_000, input } = {}) => {
     stdout: result.stdout ?? '',
   };
 };
+/** `yarn -s <name>` in its own process group, its output through a file, the group killed past `limitMs`. */
+function boundedCheck(name, cwd, env, limitMs) {
+  const out = join(env.TMPDIR ?? '/tmp', `check-${process.pid}-${name.replace(/\W/g, '_')}.log`);
+  const result = spawnSync('setsid', ['bash', '-c', `exec yarn -s ${name} > ${JSON.stringify(out)} 2>&1`], {
+    cwd,
+    env,
+    stdio: 'ignore',
+    timeout: limitMs,
+    killSignal: 'SIGKILL',
+  });
+  try {
+    if (result.pid) process.kill(-result.pid, 'SIGKILL');
+  } catch {
+    // the group is gone
+  }
+  const text = existsSync(out) ? readFileSync(out, 'utf8') : '';
+  rmSync(out, { force: true });
+  return { code: result.status ?? 1, signal: result.signal ?? (result.error ? 'timeout' : undefined), out: text };
+}
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }).trim();
 const sha256 = text => createHash('sha256').update(text).digest('hex');
 const tail = (text, count = 40) =>
@@ -468,10 +495,23 @@ function ownChecks(ctx, grading, start, commit, label) {
     const installed = sh('yarn', ['install', '--silent'], { cwd: dir, env, timeout: 900_000 });
     install = { pass: installed.code === 0, tail: tail(installed.out, 20) };
   }
+  // Each check's result is kept by commit as it is reached: a restart of the machine runs only the checks left.
+  // Keyed by the tree, not the commit: the same work applied again after a restart is a new commit of the same tree.
+  const keptDir = join(`${grading}.flow`, 'checks-kept', git(grading, 'rev-parse', `${commit}^{tree}`));
+  mkdirSync(keptDir, { recursive: true });
   const checks = {};
   for (const name of [...CHECKS, ...APART]) {
+    const keptFile = join(keptDir, `${name.replace(/\W/g, '_')}.json`);
+    if (existsSync(keptFile)) {
+      checks[name] = JSON.parse(readFileSync(keptFile, 'utf8'));
+      continue;
+    }
     const started = Date.now();
-    const done = sh('yarn', ['-s', name], { cwd: dir, env, timeout: 2_700_000 });
+    // A check that runs past its limit (three times the start's own: about 5 minutes for the end-to-end tests) has
+    // hung, and a hang is its failure: kept as such, rather than run again at every restart of the machine. It runs in
+    // a process group of its own, its output in a file, and the whole group is killed at the limit: a server a test
+    // left running would otherwise hold the output open and the check with it.
+    const done = boundedCheck(name, dir, env, name === 'test:e2e' ? 900_000 : 600_000);
     checks[name] = {
       pass: done.code === 0,
       exitCode: done.code,
@@ -486,6 +526,7 @@ function ownChecks(ctx, grading, start, commit, label) {
         tail: tail(done.out, 40),
       }),
     };
+    writeFileSync(keptFile, JSON.stringify(checks[name]));
   }
   git(grading, 'worktree', 'remove', '--force', dir);
   return { ...(install && { install }), checks };
@@ -508,11 +549,13 @@ function gradeKit(ctx, p, ref, start, out, logName) {
     '--upto',
     '101',
     '--workers',
-    '2',
+    String(gradeWorkers(ctx.plan)),
     '--gate',
     'false',
     '--keep',
     'false',
+    '--cache',
+    join(`${p.grading}.flow`, 'verdicts'),
     '--out',
     out,
   ];
@@ -958,7 +1001,7 @@ function dryRun(ctx, runs) {
       `           prompt: ${Buffer.byteLength(prompt)} bytes, sha256 ${sha256(prompt).slice(0, 12)}${run.arm === 'C' ? ", with C's sentence" : ''}; stopped by process group at ${plan.per_run.timeout_minutes} min`,
       run.task === IMPACT_TASK
         ? `  score    the final message's YAML block against ground-truth.yaml's expected (pooled F1 ≥ 0.6, the tree unchanged); rules by ${ctx.flag('no-judge') ? 'the operator (--no-judge)' : JUDGE_MODEL}`
-        : `  grade    the diff onto ${p.grading} (B), its own checks (${[...CHECKS, ...APART].join(', ')}), then grade.mjs --project ${p.grading} --kit ${p.kit} --upto 101 --workers 2 --gate false --keep false`,
+        : `  grade    the diff onto ${p.grading} (B), its own checks (${[...CHECKS, ...APART].join(', ')}), then grade.mjs --project ${p.grading} --kit ${p.kit} --upto 101 --workers ${gradeWorkers(ctx.plan)} --gate false --keep false`,
       `  record   ${p.record}; transcript ${p.transcript}`,
     );
     if (ctx.flag('show-prompt'))
@@ -1038,13 +1081,18 @@ async function main(argv) {
   // One driver at a time on a work directory.
   mkdirSync(ctx.work, { recursive: true });
   const lock = join(ctx.work, 'run-task.lock');
+  // A lock written before this machine booted is a restart's leftover, whatever process holds its pid now.
+  const bootedMs = Number(/^btime (\d+)$/m.exec(readFileSync('/proc/stat', 'utf8'))?.[1] ?? 0) * 1000;
+  if (existsSync(lock) && statSync(lock).mtimeMs < bootedMs) rmSync(lock, { force: true });
   if (existsSync(lock)) {
     const pid = Number(readFileSync(lock, 'utf8'));
     let alive = false;
     try {
       process.kill(pid, 0);
-      // After a restart the pid is reused by another process: only a run-task holds the lock.
-      alive = pid !== process.pid && readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes('run-task.mjs');
+      // After a restart the pid is reused by another process (even the shell that starts this one, whose command
+      // line names run-task.mjs): only a node running run-task.mjs holds the lock.
+      const argv = readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0');
+      alive = pid !== process.pid && /(^|\/)node$/.test(argv[0]) && argv.some(arg => arg.endsWith('run-task.mjs'));
     } catch {
       alive = false;
     }

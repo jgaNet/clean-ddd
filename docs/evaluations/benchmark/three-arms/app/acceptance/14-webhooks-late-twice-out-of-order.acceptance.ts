@@ -11,7 +11,7 @@ import {
   sleep,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 14: webhooks that come twice, late or out of order; a payment changes a balance once. */
 const db = database('webhooks');

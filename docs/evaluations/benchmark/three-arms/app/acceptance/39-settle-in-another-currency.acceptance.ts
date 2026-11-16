@@ -14,7 +14,7 @@ import {
   Running,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 39: a settlement paid in another currency, at the rate offered when it is decided, kept on it. */
 const db = database('settle-currency');

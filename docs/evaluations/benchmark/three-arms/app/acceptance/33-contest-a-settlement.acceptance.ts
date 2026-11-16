@@ -10,7 +10,7 @@ import {
   Running,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 33: a settlement through the provider contested by its payee, held until an administrator decides. */
 const db = database('contest');

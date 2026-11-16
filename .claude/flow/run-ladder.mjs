@@ -71,6 +71,14 @@
  * clean arm's verdict on the merged result, routes each failure to its owner, two rounds at most; the merged result is
  * graded as any attempt's head is.
  *
+ * What the agent is given, in every arm alike (J6, decided by the maintainer on 14 November): the request's text, and the
+ * request's API fragment with those of the requests before it (`api/<n>-<id>.yaml` of the kit, D3), in the brief; in
+ * the clean arm, the feature's storm, in the tree, with `answered: at-once` on each command of a context whose profile
+ * answers at once (Lite), which the verdict's `storm --expect` holds the code to as well (`storm-given` in the log).
+ * An attempt whose transcript reads or lists a path of the kit (or of the grader's worktrees, which hold its hidden
+ * tests) is void before it is judged: it is logged as `leak` and run again once; a second leak at the same step stops
+ * the tree for the operator (ladder.mjs, with K4's scan).
+ *
  * Every attempt is logged in `<project>.flow/<run>.jsonl`: its model and step, its time, cost and
  * turns (the runner's figures; a send-back continues the conversation, whose reported cost is its
  * running total, so `costUsd` is what this agent turn added and `conversationCostUsd` the total),
@@ -82,7 +90,6 @@ import { execFileSync, spawn } from 'node:child_process';
 import {
   appendFileSync,
   chmodSync,
-  copyFileSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -95,6 +102,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
 import { integrate, ownerOf, splitWaiting } from './integrator.mjs';
+import { answeredAtOnce, apiBrief, apiFragments, kitLeakage, markAnsweredAtOnce, transcriptsOf } from './ladder.mjs';
 import { boundCache, nodeMismatch, pathWithThisNode, register, shortTmpDir, takeSlot } from './machine.mjs';
 import { runners } from './runners.mjs';
 import {
@@ -187,6 +195,13 @@ const tooling = plan.tooling ? resolve(dirname(planFile), plan.tooling) : undefi
 const regressionCheck = plan.regressionCheck;
 if (regressionCheck !== undefined && !(Number.isInteger(regressionCheck?.from) && regressionCheck.from > 0))
   fail(`${planFile}: regressionCheck is { from: <how many gradings on the start, at least 1> }`);
+
+// The slots every ladder on the machine shares, in the machine's temporary directory: read before this run's TMPDIR
+// replaces it below, or each ladder would count the slots of its own directory alone.
+const slotsDir = join(tmpdir(), 'clean-ddd-ladder-slots');
+// What voids an attempt (J6, decided by the maintainer): its agent read or listed a path of the kit, or the worktrees
+// the grader puts the kit's hidden tests in. The attempt is run again once (`leak`); a second leak stops the tree.
+const leakPaths = [kit, join(`${project}.flow`, 'grade')];
 
 const flowDir = `${project}.flow`;
 const runDir = join(flowDir, 'worktrees', run);
@@ -344,6 +359,29 @@ function size(cwd) {
 }
 
 const hasStorm = feature => existsSync(join(kit, 'storms', `${feature.id}.yaml`));
+/**
+ * The storm as this tree is given it, decided at the start of each attempt: the kit's, written once for every arm, with
+ * `answered: at-once` on each command of a context whose profile answers its commands at once (Lite, ADR 40), as the
+ * tree's `architecture profiles` says. The agent reads that copy, and the verdict holds the code to it
+ * (`storm --expect`); the aggregates and the events the storm decided are held as written.
+ */
+const stormsGiven = new Map();
+const stormGiven = feature =>
+  stormsGiven.get(feature.id) ?? readFileSync(join(kit, 'storms', `${feature.id}.yaml`), 'utf8');
+async function giveStorm(feature, cwd) {
+  const text = readFileSync(join(kit, 'storms', `${feature.id}.yaml`), 'utf8');
+  const profiles = parse((await sh('yarn -s architecture profiles --json', cwd, 120_000)).out);
+  let defaultProfile;
+  try {
+    defaultProfile = yaml.load(readFileSync(join(cwd, 'conventions/typescript.yaml'), 'utf8'))?.default_profile;
+  } catch {
+    defaultProfile = undefined;
+  }
+  const atOnce = answeredAtOnce(profiles, defaultProfile);
+  const given = atOnce ? markAnsweredAtOnce(text, atOnce, yaml) : { text, marked: [] };
+  stormsGiven.set(feature.id, given.text);
+  return given;
+}
 const request = feature => readFileSync(join(kit, 'backlog', `${feature.n}-${feature.id}.md`), 'utf8').trim();
 // A plan that runs part of a backlog (a probe) may say how long the whole one is, so the prompt reads as it did.
 const last = plan.of ?? Math.max(...backlog.map(each => each.n));
@@ -380,6 +418,7 @@ const brief = (feature, from) =>
       : 'The feature, in product words, with the API it answers:',
     '',
     request(feature),
+    ...apiBrief(apiFragments(kit, feature.n), feature.n),
   ].join('\n');
 const feedback = lines =>
   `The driver checked your work and it is not done:\n\n${lines.join('\n')}\n\nFix it, then commit. The request is unchanged.`;
@@ -412,10 +451,7 @@ async function cleanSteps(feature, cwd, from, { lock, fix = true, storm = true, 
   if (storm && hasStorm(feature)) {
     const done = join(runDir, 'storms', `${feature.id}.yaml`);
     mkdirSync(dirname(done), { recursive: true });
-    writeFileSync(
-      done,
-      readFileSync(join(kit, 'storms', `${feature.id}.yaml`), 'utf8').replace(/^done: false$/m, 'done: true'),
-    );
+    writeFileSync(done, stormGiven(feature).replace(/^done: false$/m, 'done: true'));
     owed = parse((await sh(`yarn -s architecture storm --expect ${done} --json`, cwd, 300_000)).out)?.problems ?? [
       'the storm could not be read',
     ];
@@ -688,6 +724,7 @@ const ownerBrief = (feature, from, storm, team, teams) =>
       : 'The feature, in product words, with the API it answers:',
     '',
     request(feature),
+    ...apiBrief(apiFragments(kit, feature.n), feature.n),
   ].join('\n');
 
 /**
@@ -937,8 +974,11 @@ async function attempt(feature, step, from, { single = false } = {}) {
   if (clean && hasStorm(feature)) {
     const target = join(cwd, 'conventions/storms', `${feature.id}.yaml`);
     mkdirSync(dirname(target), { recursive: true });
-    copyFileSync(join(kit, 'storms', `${feature.id}.yaml`), target);
+    const given = await giveStorm(feature, cwd);
+    writeFileSync(target, given.text);
     commitAll(cwd, `storm: ${feature.id}, decided before the run`);
+    if (given.marked.length)
+      event('storm-given', { feature: feature.id, step, answered: 'at-once', commands: given.marked });
   }
   const begun = Date.now();
   // What `clean-ddd strategy` recommends for this feature (RFC 0001, phase 6). With `split: recommended` it decides
@@ -983,6 +1023,9 @@ async function attempt(feature, step, from, { single = false } = {}) {
     : await writtenAlone(feature, step, from, cwd);
   const wallClockMs = Date.now() - begun;
   if (written.reason === 'budget') return written;
+  // Void before it is judged: an attempt whose agent read or listed the kit says nothing of its model.
+  const leak = kitLeakage(transcriptsOf(cwd, begun), leakPaths);
+  if (leak.void) return { reason: 'leak', cwd, wallClockMs, leak };
   if (written.reason) return { ...written, cwd, wallClockMs };
   let tests = await hidden(feature, cwd);
   if (!tests.graded) return { reason: 'ungraded', cwd, wallClockMs, lines: tests.lines };
@@ -1028,6 +1071,37 @@ async function attempt(feature, step, from, { single = false } = {}) {
   return { reason: undefined, cwd, wallClockMs, report: tests.report, ...(unstable.length && { unstable }) };
 }
 
+/**
+ * An attempt, run again once when its agent read or listed a path of the kit (`leak`, as K4's runs are voided): the
+ * void attempt's branch keeps what it wrote, and its worktree goes. A second leak at the same step, across resumes, is
+ * answered `{ reason: 'leak' }`, and the tree stops there for the operator.
+ */
+async function attemptUnleaked(feature, step, from, options = {}) {
+  const control = Boolean(options.single);
+  const leaked = before.filter(
+    each =>
+      each.event === 'leak' && each.feature === feature.id && each.step === step && Boolean(each.control) === control,
+  ).length;
+  for (let time = leaked; ; time++) {
+    const tried = await attempt(feature, step, from, options);
+    if (tried.reason !== 'leak') return tried;
+    const head = git(tried.cwd, 'rev-parse', 'HEAD');
+    git(project, 'worktree', 'remove', '--force', tried.cwd);
+    const runAgain = time === 0;
+    event('leak', {
+      feature: feature.id,
+      step,
+      ...(control && { control: 'one agent' }),
+      head,
+      runAgain,
+      touched: tried.leak.touched.slice(0, 20),
+      ...(tried.leak.seen.length && { seen: tried.leak.seen.length }),
+    });
+    if (!runAgain)
+      return { reason: 'leak', lines: tried.leak.touched.slice(0, 20).map(each => `${each.tool}: ${each.input}`) };
+  }
+}
+
 // A resumed run keeps the commit it started from: its main has moved since, and the grader compares the dependencies,
 // and the gate the changes, with this commit.
 const baseCommit = before.find(each => each.event === 'started')?.baseCommit ?? git(project, 'rev-parse', plan.base);
@@ -1048,6 +1122,7 @@ if (existsSync(gradings))
 register({ run, project, plan: planFile, log, out: join(flowDir, `${run}.out`), at: new Date().toISOString() });
 await takeSlot({
   max: ladderSlots,
+  dir: slotsDir,
   onWait: () => event('waiting-for-slot', { ladders: ladderSlots }),
 });
 const started = Date.now();
@@ -1087,10 +1162,16 @@ for (const feature of backlog) {
   const cache = boundCache(runTmp, cacheCapBytes);
   if (cache.removed) event('cache-pruned', { feature: feature.id, bytes: cache.bytes });
   let deliveredAt;
+  let voided = false;
   for (let step = firstStep; step < plan.ladder.length && deliveredAt === undefined; step++) {
-    const tried = await attempt(feature, step, from);
+    const tried = await attemptUnleaked(feature, step, from);
     if (tried.reason === 'budget') {
       event('budget', { feature: feature.id, step, spentUsd: money.spent(), budgetUsd });
+      stopped = true;
+      break;
+    }
+    if (tried.reason === 'leak') {
+      voided = true;
       stopped = true;
       break;
     }
@@ -1135,9 +1216,12 @@ for (const feature of backlog) {
     !before.some(each => each.event === 'control' && each.feature === feature.id)
   ) {
     const step = plan.ladder.length - 1;
-    const tried = await attempt(feature, step, from, { single: true });
+    const tried = await attemptUnleaked(feature, step, from, { single: true });
     if (tried.reason === 'budget') {
       event('budget', { feature: feature.id, step, spentUsd: money.spent(), budgetUsd });
+      stopped = true;
+    } else if (tried.reason === 'leak') {
+      voided = true;
       stopped = true;
     } else {
       const head = tried.cwd ? git(tried.cwd, 'rev-parse', 'HEAD') : undefined;
@@ -1171,6 +1255,7 @@ for (const feature of backlog) {
   }
   if (deliveredAt !== undefined)
     outcomes[feature.id] = `DELIVERED at step ${deliveredAt}${byOneAgent ? ' by one agent (the control)' : ''}`;
+  else if (voided) outcomes[feature.id] = 'VOID: its agent read the kit twice at one step; the operator decides';
   else if (stopped) outcomes[feature.id] = 'NOT STARTED';
   else {
     // The last model failed too: the tree stops, and a maintainer calls it FAILED, or the kit's, by the

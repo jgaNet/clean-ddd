@@ -1,4 +1,4 @@
-import { client, Client, database, day, Json, Running, start, stop } from './openstay';
+import { client, Client, database, day, Json, Running, start, stop } from './openstay.spec-helper';
 
 /** Request 5: a quote, line by line, that does not change. Invariants 1, 8 and 10. */
 const db = database('quote');

@@ -1,4 +1,4 @@
-import { client, Client, database, day, Running, sleep, start, stop } from './openstay';
+import { client, Client, database, day, Running, sleep, start, stop } from './openstay.spec-helper';
 
 /** Request 3: search, in the order the request states. */
 const db = database('search');

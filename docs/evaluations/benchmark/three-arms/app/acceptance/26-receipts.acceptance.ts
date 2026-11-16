@@ -11,7 +11,7 @@ import {
   Running,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 26: a receipt, a JPEG or a PNG of at most 2 MB, kept in the receipts store the server is started with. */
 const db = database('receipts');

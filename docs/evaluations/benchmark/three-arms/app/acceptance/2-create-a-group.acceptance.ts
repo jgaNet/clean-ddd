@@ -1,4 +1,4 @@
-import { client, Client, database, reached, Running, sleep, start, stop } from './tally';
+import { client, Client, database, reached, Running, sleep, start, stop } from './tally.spec-helper';
 
 /** Request 2: a group, its currency, its owner, and who sees it. */
 const db = database('groups');

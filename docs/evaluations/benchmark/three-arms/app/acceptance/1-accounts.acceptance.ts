@@ -1,4 +1,4 @@
-import { client, Client, database, eventually, kill, PASSWORD, Running, sleep, start, stop } from './tally';
+import { client, Client, database, eventually, kill, PASSWORD, Running, sleep, start, stop } from './tally.spec-helper';
 
 /** Request 1: accounts, signing in, how the API works, and data that outlives the server. */
 const db = database('accounts');

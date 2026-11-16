@@ -10,7 +10,7 @@ import {
   Running,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 22: the rate a rates service offers, which an expense in another currency takes or corrects within 2 %. */
 const db = database('rates');

@@ -1,4 +1,4 @@
-import { client, Client, database, day, Running, start, stop } from './openstay';
+import { client, Client, database, day, Running, start, stop } from './openstay.spec-helper';
 
 /** Request 4: blocked nights, the length of a stay, the calendar and search. */
 const db = database('calendar');

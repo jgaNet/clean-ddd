@@ -11,7 +11,7 @@ import {
   sleep,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 19: a group's settlements, the most recent first, each with every status it has had. */
 const db = database('settlements');

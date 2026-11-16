@@ -1,4 +1,4 @@
-import { client, Client, database, Running, sleep, start, stop } from './tally';
+import { client, Client, database, Running, sleep, start, stop } from './tally.spec-helper';
 
 /** Request 3: an invitation by a link, joining, and the members in the order they joined. */
 const db = database('members');

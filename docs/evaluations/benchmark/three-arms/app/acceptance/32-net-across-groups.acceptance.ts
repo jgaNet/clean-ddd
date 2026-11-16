@@ -11,7 +11,7 @@ import {
   Running,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 32: what two people owe each other across their groups, netted at once as settlements. */
 const db = database('netting');

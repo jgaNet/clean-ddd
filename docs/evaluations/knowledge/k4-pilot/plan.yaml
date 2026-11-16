@@ -62,7 +62,7 @@ launch:
     in the task's grading repository (prepare-arm.sh B, once a task), the run's committed diff (start..head) applied with
     --3way and committed; the tree's own checks there (format:check, lint, typecheck, test:units, test:e2e, and
     check:conventions, recorded apart); then node .claude/flow/grade.mjs --project <B repo> --ref <that commit>
-    --base <B start> --kit <work>/kits/<task> --upto 101 --workers 2 --gate false --keep false, the kit composed as
+    --base <B start> --kit <work>/kits/<task> --upto 101 --workers <grading.workers, else one per core, at most 4> --gate false --keep false, the kit composed as
     README.md says (J5's 101 files and the task as request 101); the start graded the same way once a task, for the
     regressions. Task 4: no grading of code; its answer is scored against ground-truth.yaml (`expected`), the rules by
     the judge (claude-sonnet-5-5), each match read by the operator

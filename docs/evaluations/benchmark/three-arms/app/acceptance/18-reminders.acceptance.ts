@@ -14,7 +14,7 @@ import {
   sleep,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 18: a reminder, made by the background job, for a debt over 2000 that lasted a period, once a period. */
 const PERIOD = 3;

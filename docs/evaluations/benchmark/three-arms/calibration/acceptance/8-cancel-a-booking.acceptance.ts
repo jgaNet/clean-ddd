@@ -1,4 +1,4 @@
-import { client, Client, database, day, Running, start, stop } from './openstay';
+import { client, Client, database, day, Running, start, stop } from './openstay.spec-helper';
 
 /** Request 8: what a cancellation makes refundable, apart from what was refunded. Invariants 5, 7 and 8. */
 const db = database('cancel');

@@ -1,4 +1,4 @@
-import { client, Client, database, Running, start, stop } from './tally';
+import { client, Client, database, Running, start, stop } from './tally.spec-helper';
 
 /** Request 37: what a person spent across their groups, by month, currency and category. */
 const db = database('insights');

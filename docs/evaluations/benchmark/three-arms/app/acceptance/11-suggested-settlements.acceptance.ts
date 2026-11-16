@@ -1,4 +1,4 @@
-import { client, Client, database, Person, Running, start, stop } from './tally';
+import { client, Client, database, Person, Running, start, stop } from './tally.spec-helper';
 
 /** Request 11: the transfers that would bring every balance to 0, by the stated algorithm, in the order made. */
 const db = database('suggested');

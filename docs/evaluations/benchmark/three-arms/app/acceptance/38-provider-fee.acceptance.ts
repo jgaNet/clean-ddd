@@ -10,7 +10,7 @@ import {
   Running,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 38: who bears the provider's fee, as the group's owner decides; a settlement keeps the fee it was asked with. */
 const db = database('fee');

@@ -13,7 +13,7 @@ import {
   Running,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 35: a person deletes their account; their name and email are erased everywhere, their balances kept. */
 const db = database('deletion');

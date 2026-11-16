@@ -14,7 +14,7 @@ import {
   Running,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 31: a group merged into another of the same currency, by the owner of both. */
 const db = database('merge');

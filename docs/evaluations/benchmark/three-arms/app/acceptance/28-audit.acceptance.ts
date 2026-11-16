@@ -15,7 +15,7 @@ import {
   Running,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 28: a group's audit, every change of money, the oldest first. */
 const db = database('audit');

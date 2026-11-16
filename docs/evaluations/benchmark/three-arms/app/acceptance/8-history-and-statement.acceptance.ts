@@ -1,4 +1,4 @@
-import { client, Client, database, day, Json, Running, sleep, start, stop } from './tally';
+import { client, Client, database, day, Json, Running, sleep, start, stop } from './tally.spec-helper';
 
 /** Request 8: the group's expenses, the latest first, and a member's statement, the earliest first. */
 const db = database('history');

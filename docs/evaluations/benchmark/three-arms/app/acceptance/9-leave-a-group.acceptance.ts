@@ -1,4 +1,4 @@
-import { client, Client, database, day, reached, Running, sleep, start, stop } from './tally';
+import { client, Client, database, day, reached, Running, sleep, start, stop } from './tally.spec-helper';
 
 /** Request 9: leaving a group once one's balance is 0; the owner stays; what concerns a former member is kept. */
 const db = database('leave');

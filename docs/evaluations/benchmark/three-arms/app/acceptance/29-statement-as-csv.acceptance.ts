@@ -12,7 +12,7 @@ import {
   sleep,
   start,
   stop,
-} from './tally';
+} from './tally.spec-helper';
 
 /** Request 29: settlements in a member's statement, and the statement as CSV. */
 const db = database('csv');
