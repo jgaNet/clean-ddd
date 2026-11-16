@@ -124,10 +124,30 @@ describe('knowledge, on the reference', () => {
     expect(JSON.parse(written).nearest).toContain('ShareNote');
   });
 
-  it('renders Markdown with the provenance of each edge', () => {
+  it('renders Markdown compactly by default: every fact once, a declared one with its file', () => {
     const text = renderKnowledge(shareNote);
     expect(text).toContain('# ShareNote — command of Notes');
     expect(text).toContain('_declared: conventions/rules.yaml_');
     expect(text).toContain('## Contracts it crosses');
+    expect(text).toContain('(why: conventions/domain.yaml)');
+    expect(text).not.toContain('_derived:');
+    expect(text.length).toBeLessThan(renderKnowledge(shareNote, { full: true }).length * 0.7);
+  });
+
+  it('renders a name that is a domain event and an integration event once: the second says what the first showed', () => {
+    const text = renderKnowledge(noteShared);
+    expect(text).toContain("- the same as the domain-event's, above");
+    expect(text.split('## Contracts it crosses').length).toBe(3);
+    expect(text.match(/- {2}- payload:|^ {2}- payload:/gm)?.length ?? 0).toBeLessThanOrEqual(1);
+    const full = renderKnowledge(noteShared, { full: true });
+    expect(full).not.toContain('the same as');
+    expect(full).toContain('_derived:');
+  });
+
+  it('renders the full answer with --full, each edge with its provenance and where it was read', () => {
+    let written = '';
+    expect(runKnowledge(['ShareNote', '--full', '--root', root], root, text => (written += text))).toBe(0);
+    expect(written).toContain('_derived: typescript/src/Contexts/Notes/');
+    expect(written).toContain('## Contracts it crosses');
   });
 });

@@ -1,5 +1,9 @@
 # K4 pilot, arm C+ (the maintainer's decision of 16 November, after rounds 1 and 2): arm C with a prompt that tells the agent
 # to use `clean-ddd knowledge` first, 6 runs (one a task). Everything else is plan.yaml's. Written before any run of this arm.
+# Its K3 package is the reference's at the commit that made the query's Markdown compact (tools/src/knowledge.ts, `--full`
+# for the former rendering): the first run of this arm, on the 3.2.0 package of the registered pilot, read 21 KB for three
+# names, 44% of everything it read, and was voided when it read the end of a truncated answer; those records are kept
+# apart (out-cplus-3.2.0) and the arm starts over on the compact package.
 # README.md beside this file is the protocol; this file is what the operator runs.
 pilot: k4-pilot-cplus                     # the C+ arm: registered C with one instruction in place of its sentence; 6 runs, one a task
 codebase:
