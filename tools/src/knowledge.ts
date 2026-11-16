@@ -16,7 +16,8 @@ import { ArchitectureContract, ContractError, PublishedLanguage, RULE_REGISTER_F
  * `derived`, read from the code by the tooling; `declared`, written in a file under `conventions/`; a citation is a
  * document under `docs/adr`, `conventions/storms`, `conventions/plans` or `api/` that names it, found by search. It
  * writes nothing and holds nothing: what it cannot read in a tree it says (`unread`), and an unknown name answers the
- * nearest known names.
+ * nearest known names. The Markdown is compact by default (every fact once; `--full` tags each with where it was
+ * read); `--json` is the answer itself, whole.
  */
 
 export type KnowledgeProvenance = 'derived' | 'declared';
@@ -776,6 +777,17 @@ const SECTIONS: [string, (edge: KnowledgeEdge) => boolean][] = [
 ];
 const SHOWN = 12;
 
+export interface RenderOptions {
+  /**
+   * The full rendering: every edge with its provenance and the file it was read from, each citation with its lines,
+   * each contract with the reason the map declares, each entry of the answer complete. The default is compact: it
+   * says the same things once (K4 measured the query's answer at 44% of what a run read, mostly repeats: a name that
+   * is both a domain event and the integration event it publishes was answered twice, a contract's reason was copied
+   * for every consumer, a payload repeated per contract, every citation with its line numbers).
+   */
+  full?: boolean;
+}
+
 function renderEdge(edge: KnowledgeEdge, indent = ''): string[] {
   const tag = `_${edge.provenance}: ${edge.source}_`;
   const head =
@@ -785,8 +797,8 @@ function renderEdge(edge: KnowledgeEdge, indent = ''): string[] {
   return [`${indent}- ${head}`, ...(edge.edges ?? []).flatMap(each => renderEdge(each, `${indent}  `))];
 }
 
-/** The answer in Markdown: one section per entry, each edge with its provenance and where it was read. */
-export function renderKnowledge(answer: KnowledgeAnswer): string {
+/** The full answer in Markdown: one section per entry, each edge with its provenance and where it was read. */
+function renderFull(answer: KnowledgeAnswer): string {
   const out: string[] = [];
   if (!answer.entries.length) {
     out.push(`# ${answer.name}`, '', `Nothing in this tree is called ${answer.name}.`);
@@ -823,15 +835,124 @@ export function renderKnowledge(answer: KnowledgeAnswer): string {
 }
 
 /**
- * `knowledge <name> [--json] [--root <dir>]`, as the CLI's subcommand and as the bundle of its own
+ * One edge, compactly: a fact read from the code carries no tag (the answer says so once); a declared fact keeps
+ * `_declared: file_`, since that file is where to change it. A rule is one line with its statement, its origin and
+ * the tests that name it; a contract is one line with the relationship's patterns and where its reason is written,
+ * its payload under it once per event (`seen` remembers what the answer already showed).
+ */
+function renderCompactEdge(edge: KnowledgeEdge, seen: Set<string>): string[] {
+  const declared = edge.provenance === 'declared' ? ` _declared: ${edge.source}_` : '';
+  const facts = edge.edges ?? [];
+  switch (edge.relation) {
+    case 'file':
+    case 'tested-by':
+      return [`- \`${edge.target}\`${edge.detail ? ` — ${edge.detail}` : ''}`];
+    case 'cited-by':
+      return [`- \`${edge.target}\``];
+    case 'can-refuse-with': {
+      const statement = facts.find(each => each.relation === 'statement');
+      const origin = facts.find(each => each.relation === 'origin');
+      const tests = facts.filter(each => each.relation === 'tested-by').map(each => `\`${each.target}\``);
+      const said = statement
+        ? ` — ${statement.target}${origin ? ` (${origin.target})` : ''} _declared: ${statement.source}_`
+        : '';
+      return [`- **${edge.target}**${said}${tests.length ? `; tests: ${tests.join(', ')}` : ''}`];
+    }
+    case 'crosses': {
+      const relationship = facts.find(each => each.relation === 'relationship');
+      const payload = facts.find(each => each.relation === 'payload');
+      const contract = edge.detail?.split(',')[0] ?? edge.target;
+      const lines = [
+        `- **${edge.target}**${edge.detail ? ` — ${edge.detail}` : ''}${
+          relationship ? `; ${relationship.target}${relationship.detail ? ` (why: ${relationship.source})` : ''}` : ''
+        }`,
+      ];
+      if (payload && !seen.has(`payload ${contract}`)) {
+        seen.add(`payload ${contract}`);
+        lines.push(
+          `  - payload: ${payload.target}${payload.detail ? ` — ${payload.detail}` : ''}${payload.provenance === 'declared' ? ` _declared: ${payload.source}_` : ''}`,
+        );
+      }
+      return lines;
+    }
+    default:
+      return [
+        `- ${edge.relation}: **${edge.target}**${edge.detail ? ` — ${edge.detail}` : ''}${declared}`,
+        ...facts.flatMap(each => renderCompactEdge(each, seen).map(line => `  ${line}`)),
+      ];
+  }
+}
+
+/**
+ * The compact answer: what the full one says, once. Facts are read from the code unless marked declared; a section
+ * an earlier entry of the same answer already showed (the citations of a name that is both a domain event and an
+ * integration event, the contracts both cross) says so in one line; a payload is shown once per event; a citation
+ * is the document's path; what the tree does not hold is one line.
+ */
+function renderCompact(answer: KnowledgeAnswer): string {
+  const out: string[] = [];
+  if (!answer.entries.length) {
+    out.push(`# ${answer.name}`, '', `Nothing in this tree is called ${answer.name}.`);
+    if (answer.nearest.length) out.push('', `The nearest known names: ${answer.nearest.join(', ')}.`);
+    out.push('');
+  }
+  const seen = new Set<string>();
+  const shownSections = new Map<string, string>();
+  answer.entries.forEach((entry, index) => {
+    out.push(`# ${entry.name} — ${entry.kind}${entry.context ? ` of ${entry.context}` : ''}`, '', entry.summary);
+    if (index === 0)
+      out.push('', '_Read from the code unless marked declared; `--full` says where each fact was read._');
+    out.push('');
+    const rest = entry.edges.filter(edge => !SECTIONS.some(([, belongs]) => belongs(edge)));
+    out.push(
+      '## What it is',
+      '',
+      ...(rest.length ? rest.flatMap(edge => renderCompactEdge(edge, seen)) : ['- nothing more read']),
+      '',
+    );
+    for (const [title, belongs] of SECTIONS) {
+      const edges = entry.edges.filter(belongs);
+      if (!edges.length && title === 'Tests' && entry.kind !== 'context') out.push('## Tests', '', '- none found', '');
+      if (!edges.length) continue;
+      const key = `${title}: ${edges
+        .map(edge => edge.target)
+        .sort()
+        .join('|')}`;
+      const before = shownSections.get(key);
+      if (before) {
+        out.push(`## ${title}`, '', `- the same as ${before}'s, above`, '');
+        continue;
+      }
+      shownSections.set(key, `the ${entry.kind}`);
+      out.push(`## ${title}`, '', ...edges.slice(0, SHOWN).flatMap(edge => renderCompactEdge(edge, seen)));
+      if (edges.length > SHOWN) out.push(`- … and ${edges.length - SHOWN} more (\`--json\` lists them all)`);
+      out.push('');
+    }
+  });
+  if (answer.unread.length)
+    out.push(
+      `_Not read in this tree: ${answer.unread.map(line => line.split(/:| — /)[0].trim()).join(', ')} (\`--full\` says what that withholds)._`,
+      '',
+    );
+  return out.join('\n').trimEnd();
+}
+
+/** The answer in Markdown: compact by default, every fact once; `full` renders each edge with its provenance. */
+export function renderKnowledge(answer: KnowledgeAnswer, options: RenderOptions = {}): string {
+  return options.full ? renderFull(answer) : renderCompact(answer);
+}
+
+/**
+ * `knowledge <name> [--json] [--full] [--root <dir>]`, as the CLI's subcommand and as the bundle of its own
  * (`node tools/dist/knowledge.js <name> --root <tree>`). Returns the exit code: 1 when nothing is called that.
  */
 export function runKnowledge(argv: string[], cwd: string, write: (text: string) => void): number {
   const json = argv.includes('--json');
+  const full = argv.includes('--full');
   const rootFlag = argv.includes('--root') ? argv[argv.indexOf('--root') + 1] : undefined;
   const [name] = argv.filter((arg, index) => !arg.startsWith('--') && argv[index - 1] !== '--root');
   if (!name) {
-    write('usage: clean-ddd knowledge <name> [--json] [--root <dir>]\n');
+    write('usage: clean-ddd knowledge <name> [--json] [--full] [--root <dir>]\n');
     return 2;
   }
   let answer: KnowledgeAnswer;
@@ -846,6 +967,6 @@ export function runKnowledge(argv: string[], cwd: string, write: (text: string) 
     );
     return 1;
   }
-  write(json ? `${JSON.stringify(answer, null, 2)}\n` : `${renderKnowledge(answer)}\n`);
+  write(json ? `${JSON.stringify(answer, null, 2)}\n` : `${renderKnowledge(answer, { full })}\n`);
   return answer.entries.length ? 0 : 1;
 }
