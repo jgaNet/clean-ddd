@@ -79,8 +79,11 @@ $20.83 for the three trees, of the $180 the plans allowed.
 `404` alike, and the calibration kit's tests accept either (twelve assertions, in requests 2, 4, 5, 6 and 9; `401` for
 a missing token, `404` for what does not exist, and the operation's reader are unchanged): commit `d6627e9`, the kit's
 `not-found` convention and decision 4 amended, dated. The frozen copy is replaced (files sha256 `fbab40adfacbd42d…`).
-Tally's kit holds the same convention in some fifty assertions of twenty files; it is amended the same way before any
-Tally run, by a decision of its own.
+Tally's kit holds the same convention in some fifty assertions of twenty files, but its requests state the rule
+themselves (*"To anyone else the group does not exist"* in 2, 3, 5, 8, 9, 11, 19 and 28; *"to someone outside the
+group, the expense does not exist"* in 6), and request 1 says what does not exist answers `404`: that is what the
+judge found missing from the calibration's requests. **The maintainer keeps `404` in Tally** (17 November); nothing
+there changes.
 
 **The stopped trees, graded again on request 6 with the amended kit, without an agent:**
 - `cal-lite`, haiku's attempt (`6e7305f`): **8 of 8 pass** (`grade.mjs --only book-instantly`; its `M3` says the storm
