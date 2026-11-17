@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "pilot": "k4-pilot",
+  "id": "k4plus-t3-C-r1",
+  "plan": "k4plus-t3-C-r1",
+  "attempt": 1,
+  "order": 63,
+  "task": "3-message-notice-names-the-listing",
+  "arm": "C",
+  "run": 1,
+  "model": "claude-haiku-5-5",
+  "startedAt": "2026-11-16T20:42:04.062Z",
+  "tree": {
+    "start": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "head": "5af3fda812f556cc5449b017bb355d4a46eb65a5",
+    "commits": 1,
+    "changed": [
+      "src/Bootstrap/Fastify/message-notices.e2e.spec.ts",
+      "src/Contexts/Messaging/Application/Events/MessageSentHandler.ts",
+      "src/Contexts/Messaging/Domain/Conversation/Conversation.ts",
+      "src/Contexts/Messaging/Domain/Conversation/ConversationEvents.ts",
+      "src/Contexts/Messaging/Presentation/API/REST/Routes/messageClock.routes.e2e.spec.ts",
+      "src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.spec.ts",
+      "src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.ts",
+      "src/Contexts/Notifications/Application/MessageNotice/MessageNoticeOwing.spec.ts",
+      "src/Contexts/Notifications/Application/Preferences/NoticePreferencesOwing.spec.ts",
+      "src/Contexts/Notifications/Domain/MessageNotice/MessageNoticeOwing.ts",
+      "src/Contexts/Notifications/Domain/Notice/DTOs.ts",
+      "src/Contexts/Notifications/Infrastructure/HttpNoticeService.ts",
+      "src/Contexts/Notifications/Infrastructure/PostgresNotices.ts",
+      "src/SharedKernel/Application/IntegrationEvents/MessagingIntegrationEvents.ts"
+    ],
+    "uncommitted": []
+  },
+  "k3": {
+    "package": "/home/user/clean-ddd-3.2.0-compact.tgz",
+    "sha256": "640005f7c95edece73e9954eef07d3a242d61375ce6da36606ad3549c078206b"
+  },
+  "agent": {
+    "sessionId": "6d77db4e-d0c9-4220-abb5-3bea7a515fc9",
+    "transcript": "transcripts/k4plus-t3-C-r1.jsonl",
+    "exitCode": 0,
+    "isError": false,
+    "numTurns": 43,
+    "durationMs": 583101,
+    "wallClockMs": 587244,
+    "costUsd": 0.036399320000000006,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 60,
+        "outputTokens": 18407,
+        "cacheReadInputTokens": 1441442,
+        "cacheCreationInputTokens": 63877,
+        "webSearchRequests": 0,
+        "costUSD": 0.036399320000000006,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 5878,
+        "cacheCreationEphemeral5mInputTokens": 0,
+        "cacheCreationEphemeral1hInputTokens": 63877,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "tokens": 1523786,
+    "report": "The notice of a new message now carries `listingId`. The work is committed on `main` as `5af3fda`, not pushed.\n\n**Checks:** typecheck, `test:units` (155 suites, 1049 tests), `test:e2e` (114 suites, 607 tests, including the Postgres notice path), `check:conventions`, `lint` and `format:check` all pass. I did not start a server.\n\n**Path of `listingId`:**\n- **Messaging:** `MessageSentEvent` records `listingId` in both `Conversation.start` and `Conversation.send`. `MessageSentHandler` passes it on.\n- **Shared kernel:** `MessageSentPayload` gains `listingId`. This is the contract between Messaging and Notifications.\n- **Notifications:** the handler maps it into `SentMessage`, and `MessageNoticeOwing` puts it on the notice. `MessageNoticeBody` gains the field.\n- **Persistence:** `notices.listing_id` already existed, so no migration. The message kind now writes and reads it.\n- **Delivery:** `NoticeDelivery` sends the body as-is, so the HTTP payload gains `listingId` with no change there.\n\nWho is told, how often, and the delivery and retry behaviour are untouched. Other notice kinds are unchanged.\n\n**Decisions and things to know:**\n- **Existing pending notices:** a message notice owed before this deploy and not yet accepted has no stored `listing_id`. It will go out with `listingId: null`. Backfilling would need Notifications to read Messaging's data, which crosses the context boundary, so I did not do it. If that matters, it needs a decision.\n- **Spec updates:** I added `listingId` to the existing message-notice expectations in unit and e2e specs. I did not add a new test asserting the listing id is the conversation's own listing.\n- **Architecture mode:** `yarn architecture mode feature` could not run, because it compares against `origin/main` and this repo has no such ref. I did not get its verdict on the `SharedKernel` change. The change is the contract field itself, which is the intended place for it.\n- **Docs:** ADR 57 and the message-notices storm still describe the old body. I left them alone.\n- **Branch:** I committed on `main` because you asked for the current branch. The git guidance in this session says to branch first when on the default branch, so say if you wanted a feature branch.",
+    "prompt": {
+      "sha256": "2b43a9fcf79a88431cb687b303c0b4fb9538bb263e85fc4cb8031ddb025394ee",
+      "bytes": 1516
+    },
+    "tools": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Skill"
+    ],
+    "extraArgs": [
+      "--tools",
+      "Bash,Read,Edit,Write,Glob,Grep,Skill",
+      "--session-id",
+      "6d77db4e-d0c9-4220-abb5-3bea7a515fc9",
+      "--setting-sources",
+      "project",
+      "--strict-mcp-config"
+    ]
+  },
+  "void": false,
+  "leakage": {
+    "void": false,
+    "touched": [],
+    "seen": []
+  },
+  "measures": {
+    "calls": 42,
+    "classes": {
+      "explore": {
+        "calls": 16,
+        "callShare": 0.381,
+        "bytes": 66152,
+        "byteShare": 0.8236
+      },
+      "edit": {
+        "calls": 17,
+        "callShare": 0.4048,
+        "bytes": 2772,
+        "byteShare": 0.0345
+      },
+      "verify": {
+        "calls": 9,
+        "callShare": 0.2143,
+        "bytes": 11396,
+        "byteShare": 0.1419
+      },
+      "other": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      }
+    },
+    "resultBytes": 80320,
+    "firstEdit": 10,
+    "exploreCallsBeforeFirstEdit": 10,
+    "filesReadBeforeFirstEdit": 12,
+    "filesRead": 17,
+    "unnecessaryFilesRead": 3,
+    "unnecessary": [
+      "src/Contexts/Messaging/Application/Commands/SendMessage/SendMessageCommandHandler.ts",
+      "src/Contexts/Notifications/Application/NoticeDelivery.ts",
+      "src/Contexts/Notifications/Domain/Notice/Notice.ts"
+    ],
+    "knowledge": {
+      "calls": 2,
+      "bytes": 13870,
+      "beforeFirstEdit": true
+    },
+    "skill": {
+      "calls": 0,
+      "bytes": 0,
+      "names": []
+    }
+  },
+  "grading": {
+    "repository": "/var/tmp/k4-pilot/grading/3-message-notice-names-the-listing/openstay",
+    "start": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "commit": "037c1ca89c05482e344cde253048e8e81fc355ce",
+    "applied": {
+      "pass": true,
+      "files": 14
+    },
+    "command": "node .claude/flow/grade.mjs --project /var/tmp/k4-pilot/grading/3-message-notice-names-the-listing/openstay --ref 037c1ca89c05482e344cde253048e8e81fc355ce --base 38cc90c2326ef44ecc31c4e14fe1495eb454e234 --kit /var/tmp/k4-pilot/kits/3-message-notice-names-the-listing --upto 101 --workers 4 --gate false --keep false --cache /var/tmp/k4-pilot/grading/3-message-notice-names-the-listing/openstay.flow/verdicts --out /var/tmp/k4-pilot/out-cplus/grades/k4plus-t3-C-r1.json",
+    "report": "grades/k4plus-t3-C-r1.json",
+    "hidden": {
+      "pass": true,
+      "tests": "1 passed, 1 total",
+      "failed": []
+    },
+    "checks": {
+      "format:check": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 12900
+      },
+      "lint": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 8548
+      },
+      "typecheck": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 7588
+      },
+      "test:units": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 54655,
+        "tests": "1049 passed, 1049 total"
+      },
+      "test:e2e": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 192194,
+        "tests": "607 passed, 607 total"
+      }
+    },
+    "apart": {
+      "check:conventions": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 9729
+      }
+    },
+    "regressions": [],
+    "kit": {
+      "passed": 102,
+      "of": 102,
+      "failing": []
+    },
+    "ownTestsNewlyFailing": []
+  },
+  "success": true,
+  "finishedAt": "2026-11-16T21:08:06.078Z"
+}

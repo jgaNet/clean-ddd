@@ -1,0 +1,23 @@
+# J6's calibration, arm plain: OpenStay's requests 1 to 10 on cal-plain, not counted (three-arms/registration.md, step 6,
+# amended 16 November: the trees made again on the pilot's machine, the plans beside the registration, push to a
+# remote of the machine's own since none on GitHub was granted). The paths are this machine's.
+run: j6-cal-plain
+arm: simple
+kit: /var/lib/cdd-frozen/r16/calibration
+base: main
+of: 10
+ladder: [claude-haiku-5-5, claude-sonnet-5-5, claude-opus-5-5]
+agent: { runner: claude-cli, timeoutMinutes: 90 }
+retry: { perFeature: 1 }
+budgetUsd: 60
+agentBudgetUsd: 12
+dependencies: copy
+ports: { base: 22000 }
+machine: { ladders: 3, jestCacheGb: 2 }
+gradeTimeoutMinutes: 120
+gradeWorkers: 2
+regressionCheck: { from: 2 }
+triage: { judge: claude-sonnet-5-5 }
+envFile: /var/tmp/j6cal/env/cal-plain.env
+push: { remote: /var/tmp/j6cal/remotes/cal-plain.git, branch: trees/cal-plain, logBranch: logs/cal-plain }
+features: [accounts, publish-a-listing, search, host-calendar, quote, book-instantly, request-to-book, cancel-a-booking, booking-history, notify-the-host]

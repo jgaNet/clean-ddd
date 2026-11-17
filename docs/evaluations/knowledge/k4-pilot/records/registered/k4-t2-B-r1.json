@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "pilot": "k4-pilot",
+  "id": "k4-t2-B-r1",
+  "plan": "k4-t2-B-r1",
+  "attempt": 1,
+  "order": 6,
+  "task": "2-phone-numbers-with-hyphens",
+  "arm": "B",
+  "run": 1,
+  "model": "claude-haiku-5-5",
+  "startedAt": "2026-11-16T09:42:25.398Z",
+  "tree": {
+    "start": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "head": "6cb6a6252436fd8a0ddb5d45d444afcf520b9a8d",
+    "commits": 1,
+    "changed": [
+      "src/Contexts/Messaging/Domain/Conversation/ContactDetails.spec.ts",
+      "src/Contexts/Messaging/Domain/Conversation/ContactDetails.ts",
+      "src/Contexts/Reviews/Domain/StayReview/ReviewRules.spec.ts",
+      "src/Contexts/Reviews/Domain/StayReview/ReviewRules.ts"
+    ],
+    "uncommitted": []
+  },
+  "agent": {
+    "sessionId": "8a46dc2b-3562-41b6-bdfc-aca88e35611d",
+    "transcript": "transcripts/k4-t2-B-r1.jsonl",
+    "exitCode": 0,
+    "isError": false,
+    "numTurns": 16,
+    "durationMs": 134199,
+    "wallClockMs": 138364,
+    "costUsd": 0.01411547,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 20,
+        "outputTokens": 9719,
+        "cacheReadInputTokens": 268637,
+        "cacheCreationInputTokens": 32838,
+        "webSearchRequests": 0,
+        "costUSD": 0.01411547,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 4947,
+        "cacheCreationEphemeral5mInputTokens": 0,
+        "cacheCreationEphemeral1hInputTokens": 32838,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "tokens": 311214,
+    "report": "Phone numbers written with hyphens are now recognised as contact details. The change is committed on `main` as `6cb6a62`, not pushed. No server was started.\n\n**What changed**\n- The phone rule is now `\\+?\\d(?:[ .-]?\\d){8,}` in two places, matching ADR 0063's note that each context holding the rule changes it:\n  - `src/Contexts/Messaging/Domain/Conversation/ContactDetails.ts`: messages hold these numbers back as `[hidden]`.\n  - `src/Contexts/Reviews/Domain/StayReview/ReviewRules.ts`: reviews and replies refuse them as `CONTACT_DETAILS`.\n- Specs added in both contexts. They cover `06-12-34-56-78` and `+33-6-12-34-56-78`, and check that `2026-12-01` and `06-12-34-56` are not phone numbers.\n\n**Checks**\n- All 1030 unit tests pass.\n- Prettier, ESLint, typecheck and `check:conventions` all pass.\n- I did not run the e2e suite.\n\n**Decisions and open points**\n- Committed on `main` because you asked for the current branch. The git guidance I follow normally says to branch off the default branch first, so say if you'd rather have a branch.\n- Two dates separated only by a space or hyphen, such as `2026-11-20 2026-11-25`, now chain into one 14-digit run and count as a phone number. Dots and spaces already did this before my change. I kept the rule literal rather than carve out dates.\n- I left ADRs 0055 and 0063 unchanged. They describe the rule generally, and ADRs are historical records.",
+    "prompt": {
+      "sha256": "b54fac6522ed6011914e5ab8566f8f7c4c341d6ea38ff69801cfe93dabb5e56e",
+      "bytes": 1091
+    },
+    "tools": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Skill"
+    ],
+    "extraArgs": [
+      "--tools",
+      "Bash,Read,Edit,Write,Glob,Grep,Skill",
+      "--session-id",
+      "8a46dc2b-3562-41b6-bdfc-aca88e35611d",
+      "--setting-sources",
+      "project",
+      "--strict-mcp-config"
+    ]
+  },
+  "void": false,
+  "leakage": {
+    "void": false,
+    "touched": [],
+    "seen": []
+  },
+  "measures": {
+    "calls": 15,
+    "classes": {
+      "explore": {
+        "calls": 6,
+        "callShare": 0.4,
+        "bytes": 16597,
+        "byteShare": 0.7677
+      },
+      "edit": {
+        "calls": 6,
+        "callShare": 0.4,
+        "bytes": 1008,
+        "byteShare": 0.0466
+      },
+      "verify": {
+        "calls": 3,
+        "callShare": 0.2,
+        "bytes": 4014,
+        "byteShare": 0.1857
+      },
+      "other": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      }
+    },
+    "resultBytes": 21619,
+    "firstEdit": 5,
+    "exploreCallsBeforeFirstEdit": 5,
+    "filesReadBeforeFirstEdit": 4,
+    "filesRead": 4,
+    "unnecessaryFilesRead": 0,
+    "unnecessary": [],
+    "knowledge": {
+      "calls": 0,
+      "bytes": 0,
+      "beforeFirstEdit": false
+    },
+    "skill": {
+      "calls": 0,
+      "bytes": 0,
+      "names": []
+    }
+  },
+  "grading": {
+    "repository": "/var/tmp/k4-pilot/grading/2-phone-numbers-with-hyphens/openstay",
+    "start": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "commit": "fc3ab5b2d122d5a00dbf1429b109275910a468c0",
+    "applied": {
+      "pass": true,
+      "files": 4
+    },
+    "command": "node .claude/flow/grade.mjs --project /var/tmp/k4-pilot/grading/2-phone-numbers-with-hyphens/openstay --ref fc3ab5b2d122d5a00dbf1429b109275910a468c0 --base 38cc90c2326ef44ecc31c4e14fe1495eb454e234 --kit /var/tmp/k4-pilot/kits/2-phone-numbers-with-hyphens --upto 101 --workers 4 --gate false --keep false --cache /var/tmp/k4-pilot/grading/2-phone-numbers-with-hyphens/openstay.flow/verdicts --out /var/tmp/k4-pilot/out/grades/k4-t2-B-r1.json",
+    "report": "grades/k4-t2-B-r1.json",
+    "hidden": {
+      "pass": true,
+      "tests": "3 passed, 3 total",
+      "failed": []
+    },
+    "checks": {
+      "format:check": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 12448
+      },
+      "lint": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 8863
+      },
+      "typecheck": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 8183
+      },
+      "test:units": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 55751,
+        "tests": "1052 passed, 1052 total"
+      },
+      "test:e2e": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 190852,
+        "tests": "607 passed, 607 total"
+      }
+    },
+    "apart": {
+      "check:conventions": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 11230
+      }
+    },
+    "regressions": [],
+    "kit": {
+      "passed": 102,
+      "of": 102,
+      "failing": []
+    },
+    "ownTestsNewlyFailing": []
+  },
+  "success": true,
+  "finishedAt": "2026-11-16T10:00:23.933Z"
+}

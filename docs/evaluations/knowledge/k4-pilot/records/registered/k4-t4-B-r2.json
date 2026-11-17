@@ -1,0 +1,227 @@
+{
+  "schemaVersion": 1,
+  "pilot": "k4-pilot",
+  "id": "k4-t4-B-r2",
+  "plan": "k4-t4-B-r2",
+  "attempt": 1,
+  "order": 30,
+  "task": "4-review-window-impact",
+  "arm": "B",
+  "run": 2,
+  "model": "claude-haiku-5-5",
+  "startedAt": "2026-11-16T17:23:26.977Z",
+  "tree": {
+    "start": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "head": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "commits": 0,
+    "changed": [],
+    "uncommitted": []
+  },
+  "agent": {
+    "sessionId": "4bda6782-5df5-4a27-8770-08b58aa3fa09",
+    "transcript": "transcripts/k4-t4-B-r2.jsonl",
+    "exitCode": 0,
+    "isError": false,
+    "numTurns": 17,
+    "durationMs": 79474,
+    "wallClockMs": 83602,
+    "costUsd": 0.030750340000000004,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 28,
+        "outputTokens": 17253,
+        "cacheReadInputTokens": 716284,
+        "cacheCreationInputTokens": 74791,
+        "webSearchRequests": 0,
+        "costUSD": 0.030750340000000004,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 10669,
+        "cacheCreationEphemeral5mInputTokens": 0,
+        "cacheCreationEphemeral1hInputTokens": 74791,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "tokens": 808356,
+    "report": "No changes were made, and the working tree was already clean, so there was nothing to commit.\n\n```yaml\nrules:   # each rule of the application the change touches, in a few words, with the name the code gives it when it has one\n  - Review window: a traveller's or host's review is written from the day after check-out up to 14 days after it (REVIEW_WINDOW_DAYS, isInReviewWindow; refusal OutsideReviewWindow)\n  - Publication at window close: a stay's two reviews are published together, when both are written or the window has closed (isPublished, windowClosed; ADR 60)\n  - Host reply only once published (replyToTravellerReview; refusal ReviewNotPublished)\n  - Report of a published review; an unpublished review is a not-found to anyone but its author (reportReview; ADR 63)\n  - Ratings count only published traveller reviews, per listing and per host (publishedTravellerReviews, ratingsOfListings, ratingOf; ADR 61), read through Booking's and Listings' RatingsOfListings and GetHostRating\n  - Review read visibility (publishedOn; GetListingReviews, GetGuestReviews, GetBookingReviews)\nfiles:   # each source file (tests excluded) the change would modify, by its path from the repository's root\n  - src/Contexts/Reviews/Domain/StayReview/ReviewWindow.ts          # REVIEW_WINDOW_DAYS = 14; every rule above reads the window from here\n  - src/Contexts/Reviews/Domain/StayReview/StayReviewExceptions.ts  # OutsideReviewWindow message text says \"14 days\"\ntests:   # each test file that would fail if only the source were changed, or that the change would modify, by its path\n  - src/Contexts/Reviews/Domain/StayReview/StayReviews.spec.ts      # refusals at day 25 (lines ~87, ~153), window edges (~176-187), reply at day 25 (~230)\n  - src/Contexts/Reviews/Domain/StayReview/StayReviewReports.spec.ts  # report of a lone review at day 25 (~121)\n  - src/Contexts/Reviews/Domain/StayReview/Rating.spec.ts           # AFTER_WINDOW = 2026-05-16 expects publication (~90)\n  - src/Bootstrap/Fastify/reviews.e2e.spec.ts                       # publication asserted on day +20 (~139, ~303)\n  - src/Bootstrap/Fastify/ratings.e2e.spec.ts                       # ratings published on day +22 (~169)\n# Unclear, decided here: the claim window (CLAIM_WINDOW_DAYS in src/Contexts/Support/Domain/Claim/ClaimRules.ts) is a separate rule that\n# ADR 74 says shares the review window's 14 days. I left it out because it is not the review window; if the team wants claims to follow,\n# add that file and its tests (claims e2e and claim unit specs).\n# Not listed, because they are not source: the glossary in conventions/domain.yaml (lines ~294, ~302), conventions/storms/reviews.yaml, and\n# ADRs 59, 60, 62, 74 all state 14 days. conventions and docs/adr are protected in feature mode, so updating them is an architecture decision.\n# Behaviour consequence (not a file change): publication is computed on read, so nothing is stored. Lone reviews that show today on days\n# 15 to 30 after check-out would disappear from listings and ratings until the window closes at day 30.\n```",
+    "prompt": {
+      "sha256": "68ca90b4e0044e60739276b2d2db87725c60d89e071ccf0032c322fe990d2fcf",
+      "bytes": 1245
+    },
+    "tools": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Skill"
+    ],
+    "extraArgs": [
+      "--tools",
+      "Bash,Read,Edit,Write,Glob,Grep,Skill",
+      "--session-id",
+      "4bda6782-5df5-4a27-8770-08b58aa3fa09",
+      "--setting-sources",
+      "project",
+      "--strict-mcp-config"
+    ]
+  },
+  "void": false,
+  "leakage": {
+    "void": false,
+    "touched": [],
+    "seen": []
+  },
+  "measures": {
+    "calls": 16,
+    "classes": {
+      "explore": {
+        "calls": 16,
+        "callShare": 1,
+        "bytes": 109625,
+        "byteShare": 1
+      },
+      "edit": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      },
+      "verify": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      },
+      "other": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      }
+    },
+    "resultBytes": 109625,
+    "firstEdit": null,
+    "exploreCallsBeforeFirstEdit": 16,
+    "filesReadBeforeFirstEdit": 10,
+    "filesRead": 10,
+    "unnecessaryFilesRead": 3,
+    "unnecessary": [
+      "conventions/architecture.yaml",
+      "src/Contexts/Reviews/Application/Ports/IStays.ts",
+      "src/Contexts/Support/Domain/Claim/ClaimRules.ts"
+    ],
+    "knowledge": {
+      "calls": 0,
+      "bytes": 0,
+      "beforeFirstEdit": false
+    },
+    "skill": {
+      "calls": 0,
+      "bytes": 0,
+      "names": []
+    }
+  },
+  "score": {
+    "parses": true,
+    "unchanged": true,
+    "files": {
+      "predicted": 2,
+      "hits": 2,
+      "tolerated": 0,
+      "misses": [],
+      "missed": [],
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "tests": {
+      "predicted": 5,
+      "hits": 5,
+      "tolerated": 0,
+      "misses": [],
+      "missed": [],
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "pooled": {
+      "predicted": 7,
+      "hits": 7,
+      "tolerated": 0,
+      "misses": [],
+      "missed": [],
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "score": 1,
+    "success": true,
+    "answer": {
+      "rules": [
+        "{\"Review window\":\"a traveller's or host's review is written from the day after check-out up to 14 days after it (REVIEW_WINDOW_DAYS, isInReviewWindow; refusal OutsideReviewWindow)\"}",
+        "{\"Publication at window close\":\"a stay's two reviews are published together, when both are written or the window has closed (isPublished, windowClosed; ADR 60)\"}",
+        "Host reply only once published (replyToTravellerReview; refusal ReviewNotPublished)",
+        "Report of a published review; an unpublished review is a not-found to anyone but its author (reportReview; ADR 63)",
+        "Ratings count only published traveller reviews, per listing and per host (publishedTravellerReviews, ratingsOfListings, ratingOf; ADR 61), read through Booking's and Listings' RatingsOfListings and GetHostRating",
+        "Review read visibility (publishedOn; GetListingReviews, GetGuestReviews, GetBookingReviews)"
+      ],
+      "files": [
+        "src/Contexts/Reviews/Domain/StayReview/ReviewWindow.ts",
+        "src/Contexts/Reviews/Domain/StayReview/StayReviewExceptions.ts"
+      ],
+      "tests": [
+        "src/Contexts/Reviews/Domain/StayReview/StayReviews.spec.ts",
+        "src/Contexts/Reviews/Domain/StayReview/StayReviewReports.spec.ts",
+        "src/Contexts/Reviews/Domain/StayReview/Rating.spec.ts",
+        "src/Bootstrap/Fastify/reviews.e2e.spec.ts",
+        "src/Bootstrap/Fastify/ratings.e2e.spec.ts"
+      ]
+    },
+    "rules": {
+      "judge": "claude-sonnet-5-5",
+      "costUsd": 0.008005,
+      "matches": [
+        {
+          "rule": "{\"Review window\":\"a traveller's or host's review is written from the day after check-out up to 14 days after it (REVIEW_WINDOW_DAYS, isInReviewWindow; refusal OutsideReviewWindow)\"}",
+          "match": "window",
+          "kind": "required"
+        },
+        {
+          "rule": "{\"Publication at window close\":\"a stay's two reviews are published together, when both are written or the window has closed (isPublished, windowClosed; ADR 60)\"}",
+          "match": "publication",
+          "kind": "required"
+        },
+        {
+          "rule": "Host reply only once published (replyToTravellerReview; refusal ReviewNotPublished)",
+          "match": "replies",
+          "kind": "required"
+        },
+        {
+          "rule": "Report of a published review; an unpublished review is a not-found to anyone but its author (reportReview; ADR 63)",
+          "match": "reports",
+          "kind": "required"
+        },
+        {
+          "rule": "Ratings count only published traveller reviews, per listing and per host (publishedTravellerReviews, ratingsOfListings, ratingOf; ADR 61), read through Booking's and Listings' RatingsOfListings and GetHostRating",
+          "match": "ratings",
+          "kind": "required"
+        },
+        {
+          "rule": "Review read visibility (publishedOn; GetListingReviews, GetGuestReviews, GetBookingReviews)",
+          "match": "publication",
+          "kind": "required"
+        }
+      ],
+      "recall": 1,
+      "precision": 1,
+      "distractors": [],
+      "operatorRead": false
+    }
+  },
+  "success": true,
+  "finishedAt": "2026-11-16T17:24:59.712Z"
+}

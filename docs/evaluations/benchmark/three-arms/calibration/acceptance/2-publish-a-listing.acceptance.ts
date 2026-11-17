@@ -35,8 +35,8 @@ describe('publish a listing', () => {
       ...description,
       status: 'draft',
     });
-    expect(await api.hidden(`/listings/${id}`)).toBe(404);
-    expect(await api.hidden(`/listings/${id}`, ian.token)).toBe(404);
+    expect([403, 404]).toContain(await api.hidden(`/listings/${id}`));
+    expect([403, 404]).toContain(await api.hidden(`/listings/${id}`, ian.token));
     expect(await api.refused('POST', '/listings', tom.token, description)).toBe(true);
     expect(await api.refused('POST', '/listings', undefined, description)).toBe(true);
   }, 60000);
@@ -71,8 +71,8 @@ describe('publish a listing', () => {
     expect(await api.refused('POST', `/listings/${id}/suspend`, ian.token)).toBe(true);
     await api.done('POST', `/listings/${id}/suspend`, hal.token);
     expect((await api.read(`/listings/${id}`, hal.token)).status).toBe('suspended');
-    expect(await api.hidden(`/listings/${id}`)).toBe(404);
-    expect(await api.hidden(`/listings/${id}`, ian.token)).toBe(404);
+    expect([403, 404]).toContain(await api.hidden(`/listings/${id}`));
+    expect([403, 404]).toContain(await api.hidden(`/listings/${id}`, ian.token));
 
     await api.done('POST', `/listings/${id}/publish`, hal.token);
     expect((await api.read(`/listings/${id}`)).status).toBe('published');
@@ -80,7 +80,7 @@ describe('publish a listing', () => {
     expect(await api.refused('POST', `/listings/${id}/archive`, ian.token)).toBe(true);
     await api.done('POST', `/listings/${id}/archive`, hal.token);
     expect((await api.read(`/listings/${id}`, hal.token)).status).toBe('archived');
-    expect(await api.hidden(`/listings/${id}`)).toBe(404);
+    expect([403, 404]).toContain(await api.hidden(`/listings/${id}`));
     expect(await api.refused('POST', `/listings/${id}/publish`, hal.token)).toBe(true);
     expect(await api.refused('PUT', `/listings/${id}`, hal.token, { ...description, title: 'Again' })).toBe(true);
   }, 60000);

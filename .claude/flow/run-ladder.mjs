@@ -86,7 +86,7 @@
  * Before an escalation is counted, the failure is checked against the kit, by reading the log: a
  * defect of the kit is an amendment, and the attempts it touched are graded again.
  */
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
   appendFileSync,
   chmodSync,
@@ -429,7 +429,8 @@ async function verdict(feature, cwd, from, alone = false) {
   // Alone: wait for the lock every ladder's replay takes, so that no two replays run at once.
   const locked = command => (alone ? `flock ${replayLock} ${command}` : command);
   if (!clean) {
-    const checked = await sh(locked('yarn -s verify'), cwd, alone ? 3_600_000 : 900_000);
+    // The same time the clean arm's gate gets (timeoutMs): J4 saw a 22-minute simple suite cut at 15 and sent back.
+    const checked = await sh(locked('yarn -s verify'), cwd, alone ? 3_600_000 : timeoutMs);
     return checked.code === 0 ? [] : ['`yarn verify` fails:', ...tail(checked.out)];
   }
   return flatten(await cleanSteps(feature, cwd, from, { lock: alone ? replayLock : undefined }));
@@ -470,7 +471,7 @@ async function hidden(feature, cwd, only, ref) {
     [
       `node ${grader} --project ${project} --ref ${ref ?? git(cwd, 'rev-parse', 'HEAD')} --base ${baseCommit}`,
       // M1 is the gate the attempt's verdict has just run; the ladder decides on M2 alone (grade.mjs, --gate false).
-      `--kit ${kit} --upto ${feature.n} --keep false --gate false --out ${out}`,
+      `--kit ${kit} --upto ${feature.n} --keep false --gate false --out ${out} --cache ${join(flowDir, 'verdicts')}`,
       only ? `--only ${only.join(',')}` : `--workers ${gradeWorkers}`,
       previous ? `--previous ${previous}` : '',
       clean ? (tooling ? `--tooling ${tooling}` : '') : '--control plain',
@@ -1126,8 +1127,15 @@ await takeSlot({
   onWait: () => event('waiting-for-slot', { ladders: ladderSlots }),
 });
 const started = Date.now();
+// The agent's own version, so that a record says which Claude Code ran (J6 readiness).
+const cliVersion = (() => {
+  if (runner.name !== 'claude-cli') return undefined;
+  const asked = spawnSync('claude', ['--version'], { encoding: 'utf8' });
+  return asked.status === 0 ? asked.stdout.trim() : undefined;
+})();
 event(resuming ? 'resumed' : 'started', {
   node: process.versions.node,
+  ...(cliVersion && { cli: cliVersion }),
   arm: plan.arm,
   project,
   baseCommit,

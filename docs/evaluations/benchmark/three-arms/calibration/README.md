@@ -54,6 +54,12 @@ kit is the record of an earlier campaign and stays as it ran; what this kit chan
      that only its host sees, read by anyone else, signed in or not, since reading a listing needs no caller; `404` for
      another caller's quote, booking, listing's bookings or history; `401` for a quote or a history read with no
      token. It accepted `401`, `403` or `404` alike before.
+   - **Amended on 17 November, after the calibration run** ([`../calibration-run-2026-11-17.md`](../calibration-run-2026-11-17.md)):
+     a non-party — another signed-in caller, or anyone on a read that needs no caller — is answered `403` or `404`
+     alike, and the tests accept either (`[403, 404]`); the three arms had answered `403` where `404` was required,
+     and the judge found the `404` in request 1's text, not the request's own. `401` for a missing token, `404` for
+     what does not exist, and the operation's reader (`401` without a token, `404` with another's, which request 1
+     says) are unchanged.
    - Request 1 has no command a signed-in caller makes, so the operation's half is held in request 2, where creating
      a listing is the first: a new test reads the host's operation without a token (`401`) and with another host's
      (`404`), when the application answers later. Registered as `operation-reader`, born at 2.

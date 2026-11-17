@@ -58,7 +58,7 @@ describe("a booking's history", () => {
       ['requested', tom.id],
       ['declined', hal.id],
     ]);
-    expect(await api.hidden(`/bookings/${bookingId}/history`, una.token)).toBe(404);
+    expect([403, 404]).toContain(await api.hidden(`/bookings/${bookingId}/history`, una.token));
     expect(await api.hidden(`/bookings/${bookingId}/history`)).toBe(401);
     expect(contact(await api.read(`/bookings/${bookingId}`, hal.token))).toBeUndefined();
     expect(contact(await api.read(`/bookings/${bookingId}`, tom.token))).toBeUndefined();

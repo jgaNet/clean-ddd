@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 1,
+  "pilot": "k4-pilot",
+  "id": "k4-t2-A-r3",
+  "plan": "k4-t2-A-r3",
+  "attempt": 1,
+  "order": 42,
+  "task": "2-phone-numbers-with-hyphens",
+  "arm": "A",
+  "run": 3,
+  "model": "claude-haiku-5-5",
+  "startedAt": "2026-11-16T22:39:25.279Z",
+  "tree": {
+    "start": "42667b63c5218a65d0f2587c891b5bd4b59c963d",
+    "head": "2c5b51ce4dc6fc5c3d4a0aef1a3834d922ac07e4",
+    "commits": 1,
+    "changed": [
+      "src/Contexts/Messaging/Domain/Conversation/ContactDetails.spec.ts",
+      "src/Contexts/Messaging/Domain/Conversation/ContactDetails.ts",
+      "src/Contexts/Reviews/Domain/StayReview/ReviewRules.spec.ts",
+      "src/Contexts/Reviews/Domain/StayReview/ReviewRules.ts"
+    ],
+    "uncommitted": []
+  },
+  "agent": {
+    "sessionId": "530c2f0c-d070-4da5-b69d-d14e453115e5",
+    "transcript": "transcripts/k4-t2-A-r3.jsonl",
+    "exitCode": 0,
+    "isError": false,
+    "numTurns": 13,
+    "durationMs": 130454,
+    "wallClockMs": 134494,
+    "costUsd": 0.0121803,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 20,
+        "outputTokens": 8134,
+        "cacheReadInputTokens": 221650,
+        "cacheCreationInputTokens": 29474,
+        "webSearchRequests": 0,
+        "costUSD": 0.0121803,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 3262,
+        "cacheCreationEphemeral5mInputTokens": 0,
+        "cacheCreationEphemeral1hInputTokens": 29474,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "tokens": 259278,
+    "report": "Phone numbers written with hyphens are now recognised as contact details. The change is committed on `main` as `2c5b51c` and not pushed.\n\n**What changed**\n- The phone pattern is now `\\+?\\d(?:[ .-]?\\d){8,}` in both places that hold it: Messaging's `ContactDetails.ts` (holds back in messages) and Reviews' `ReviewRules.ts` (refuses in comments and replies with `CONTACT_DETAILS`). ADR 0063 says each context keeps its own copy, so I changed both and did not share one.\n- `06-12-34-56-78` and `+33-6-12-34-56-78` are now held back or refused. `2026-12-01` is still not a phone number, since it has only eight digits. Emails, IBANs, links and the rest are untouched.\n- I added hyphen cases to both specs. I also added a check that a double hyphen or an 8-digit hyphenated number is left alone.\n\n**Verification**\n- Unit tests: 155 suites, 1053 tests pass.\n- E2E tests for conversations and reviews: 6 suites, 32 tests pass.\n- Typecheck, lint and prettier are clean on the changed files.\n- I did not start a server, so port 4471 was not used.\n\n**Choices and unclear points**\n- **Committing on `main`:** you asked for the current branch, and that is `main`. The git guidance says to branch first when on the default branch, but your instruction was explicit, so I committed there. If you want a branch, the commit can be moved.\n- **Where the rule is stated:** I updated the code comment in `ReviewRules.ts`. I left the ADRs alone, since they describe the phone rule only by reference.\n- **Hyphenated digit runs:** any run of nine or more digits joined by single separators now counts, so a reference such as `1234-5678-9` is also held back or refused. The spec allows this, and I left it as written.",
+    "prompt": {
+      "sha256": "b54fac6522ed6011914e5ab8566f8f7c4c341d6ea38ff69801cfe93dabb5e56e",
+      "bytes": 1091
+    },
+    "tools": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep"
+    ],
+    "extraArgs": [
+      "--tools",
+      "Bash,Read,Edit,Write,Glob,Grep",
+      "--session-id",
+      "530c2f0c-d070-4da5-b69d-d14e453115e5",
+      "--setting-sources",
+      "project",
+      "--strict-mcp-config",
+      "--disable-slash-commands"
+    ]
+  },
+  "void": false,
+  "leakage": {
+    "void": false,
+    "touched": [],
+    "seen": []
+  },
+  "measures": {
+    "calls": 12,
+    "classes": {
+      "explore": {
+        "calls": 5,
+        "callShare": 0.4167,
+        "bytes": 40520,
+        "byteShare": 0.9319
+      },
+      "edit": {
+        "calls": 5,
+        "callShare": 0.4167,
+        "bytes": 676,
+        "byteShare": 0.0155
+      },
+      "verify": {
+        "calls": 2,
+        "callShare": 0.1667,
+        "bytes": 2287,
+        "byteShare": 0.0526
+      },
+      "other": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      }
+    },
+    "resultBytes": 43483,
+    "firstEdit": 4,
+    "exploreCallsBeforeFirstEdit": 4,
+    "filesReadBeforeFirstEdit": 10,
+    "filesRead": 10,
+    "unnecessaryFilesRead": 6,
+    "unnecessary": [
+      "conventions/domain.yaml",
+      "conventions/storms/contact-details-held-back.yaml",
+      "docs/adr/0055-contact-details-are-held-back-in-a-view-until-a-stay-is-paid-messaging-asks-booking-through-a-port.md",
+      "docs/adr/0063-review-rules-are-checked-by-the-stay-reviews-aggregate-and-a-published-review-is-reported-to-moderation.md",
+      "package.json",
+      "src/Bootstrap/Fastify/review-rules.e2e.spec.ts"
+    ],
+    "knowledge": {
+      "calls": 0,
+      "bytes": 0,
+      "beforeFirstEdit": false
+    },
+    "skill": {
+      "calls": 0,
+      "bytes": 0,
+      "names": []
+    }
+  },
+  "grading": {
+    "repository": "/var/tmp/k4-pilot/grading/2-phone-numbers-with-hyphens/openstay",
+    "start": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "commit": "764539d33baa1cd4cd935329134ea8d618585092",
+    "applied": {
+      "pass": true,
+      "files": 4
+    },
+    "command": "node .claude/flow/grade.mjs --project /var/tmp/k4-pilot/grading/2-phone-numbers-with-hyphens/openstay --ref 764539d33baa1cd4cd935329134ea8d618585092 --base 38cc90c2326ef44ecc31c4e14fe1495eb454e234 --kit /var/tmp/k4-pilot/kits/2-phone-numbers-with-hyphens --upto 101 --workers 4 --gate false --keep false --cache /var/tmp/k4-pilot/grading/2-phone-numbers-with-hyphens/openstay.flow/verdicts --out /var/tmp/k4-pilot/out/grades/k4-t2-A-r3.json",
+    "report": "grades/k4-t2-A-r3.json",
+    "hidden": {
+      "pass": true,
+      "tests": "3 passed, 3 total",
+      "failed": []
+    },
+    "checks": {
+      "format:check": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 12074
+      },
+      "lint": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 8167
+      },
+      "typecheck": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 7090
+      },
+      "test:units": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 52468,
+        "tests": "1053 passed, 1053 total"
+      },
+      "test:e2e": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 186913,
+        "tests": "607 passed, 607 total"
+      }
+    },
+    "apart": {
+      "check:conventions": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 10444
+      }
+    },
+    "regressions": [],
+    "kit": {
+      "passed": 102,
+      "of": 102,
+      "failing": []
+    },
+    "ownTestsNewlyFailing": []
+  },
+  "success": true,
+  "finishedAt": "2026-11-16T22:57:00.823Z"
+}

@@ -1,0 +1,354 @@
+{
+  "pilot": "k4-pilot-cplus",
+  "runs": {
+    "planned": 6,
+    "recorded": 6,
+    "voided": 0
+  },
+  "spentUsd": 0.24,
+  "table": [
+    {
+      "task": "1-cancelled-stay-hides-contacts",
+      "arms": {
+        "A": {
+          "planned": 0,
+          "recorded": 0,
+          "voided": 0,
+          "successes": 0,
+          "tokens": 0,
+          "costUsd": 0,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "B": {
+          "planned": 0,
+          "recorded": 0,
+          "voided": 0,
+          "successes": 0,
+          "tokens": 0,
+          "costUsd": 0,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "C": {
+          "planned": 1,
+          "recorded": 1,
+          "voided": 0,
+          "successes": 1,
+          "tokens": 568932,
+          "meanTokens": 568932,
+          "costUsd": 0.01,
+          "meanMinutes": 1.1,
+          "exploreByteShare": 0.85,
+          "filesReadBeforeFirstEdit": 8,
+          "unnecessaryFilesRead": 3,
+          "knowledgeCalls": 3,
+          "knowledgeBeforeFirstEdit": 1
+        }
+      }
+    },
+    {
+      "task": "2-phone-numbers-with-hyphens",
+      "arms": {
+        "A": {
+          "planned": 0,
+          "recorded": 0,
+          "voided": 0,
+          "successes": 0,
+          "tokens": 0,
+          "costUsd": 0,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "B": {
+          "planned": 0,
+          "recorded": 0,
+          "voided": 0,
+          "successes": 0,
+          "tokens": 0,
+          "costUsd": 0,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "C": {
+          "planned": 1,
+          "recorded": 1,
+          "voided": 0,
+          "successes": 1,
+          "tokens": 531732,
+          "meanTokens": 531732,
+          "costUsd": 0.02,
+          "meanMinutes": 4.6,
+          "exploreByteShare": 0.865,
+          "filesReadBeforeFirstEdit": 5,
+          "unnecessaryFilesRead": 1,
+          "knowledgeCalls": 1,
+          "knowledgeBeforeFirstEdit": 1
+        }
+      }
+    },
+    {
+      "task": "3-message-notice-names-the-listing",
+      "arms": {
+        "A": {
+          "planned": 0,
+          "recorded": 0,
+          "voided": 0,
+          "successes": 0,
+          "tokens": 0,
+          "costUsd": 0,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "B": {
+          "planned": 0,
+          "recorded": 0,
+          "voided": 0,
+          "successes": 0,
+          "tokens": 0,
+          "costUsd": 0,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "C": {
+          "planned": 1,
+          "recorded": 1,
+          "voided": 0,
+          "successes": 1,
+          "tokens": 1523786,
+          "meanTokens": 1523786,
+          "costUsd": 0.04,
+          "meanMinutes": 9.7,
+          "exploreByteShare": 0.824,
+          "filesReadBeforeFirstEdit": 12,
+          "unnecessaryFilesRead": 3,
+          "knowledgeCalls": 2,
+          "knowledgeBeforeFirstEdit": 1
+        }
+      }
+    },
+    {
+      "task": "4-review-window-impact",
+      "arms": {
+        "A": {
+          "planned": 0,
+          "recorded": 0,
+          "voided": 0,
+          "successes": 0,
+          "tokens": 0,
+          "costUsd": 0,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "B": {
+          "planned": 0,
+          "recorded": 0,
+          "voided": 0,
+          "successes": 0,
+          "tokens": 0,
+          "costUsd": 0,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "C": {
+          "planned": 1,
+          "recorded": 1,
+          "voided": 0,
+          "successes": 1,
+          "tokens": 520303,
+          "meanTokens": 520303,
+          "costUsd": 0.02,
+          "meanMinutes": 6.1,
+          "exploreByteShare": 0.936,
+          "filesReadBeforeFirstEdit": 5,
+          "unnecessaryFilesRead": 1,
+          "knowledgeCalls": 2,
+          "knowledgeBeforeFirstEdit": 1,
+          "recalls": [
+            1
+          ],
+          "precisions": [
+            1
+          ],
+          "f1s": [
+            1
+          ]
+        }
+      }
+    },
+    {
+      "task": "5-domain-time-is-given",
+      "arms": {
+        "A": {
+          "planned": 0,
+          "recorded": 0,
+          "voided": 0,
+          "successes": 0,
+          "tokens": 0,
+          "costUsd": 0,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "B": {
+          "planned": 0,
+          "recorded": 0,
+          "voided": 0,
+          "successes": 0,
+          "tokens": 0,
+          "costUsd": 0,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "C": {
+          "planned": 1,
+          "recorded": 1,
+          "voided": 0,
+          "successes": 1,
+          "tokens": 2330654,
+          "meanTokens": 2330654,
+          "costUsd": 0.12,
+          "meanMinutes": 7.8,
+          "exploreByteShare": 0.842,
+          "filesReadBeforeFirstEdit": 13,
+          "unnecessaryFilesRead": 1,
+          "knowledgeCalls": 2,
+          "knowledgeBeforeFirstEdit": 1
+        }
+      }
+    },
+    {
+      "task": "6-archive-a-conversation",
+      "arms": {
+        "A": {
+          "planned": 0,
+          "recorded": 0,
+          "voided": 0,
+          "successes": 0,
+          "tokens": 0,
+          "costUsd": 0,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "B": {
+          "planned": 0,
+          "recorded": 0,
+          "voided": 0,
+          "successes": 0,
+          "tokens": 0,
+          "costUsd": 0,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "C": {
+          "planned": 1,
+          "recorded": 1,
+          "voided": 0,
+          "successes": 1,
+          "tokens": 1032236,
+          "meanTokens": 1032236,
+          "costUsd": 0.03,
+          "meanMinutes": 5.2,
+          "exploreByteShare": 0.903,
+          "filesReadBeforeFirstEdit": 11,
+          "unnecessaryFilesRead": 5,
+          "knowledgeCalls": 2,
+          "knowledgeBeforeFirstEdit": 1
+        }
+      }
+    }
+  ],
+  "totals": {
+    "A": {
+      "planned": 0,
+      "recorded": 0,
+      "voided": 0,
+      "successes": 0,
+      "tokens": 0,
+      "costUsd": 0,
+      "knowledgeCalls": 0,
+      "knowledgeBeforeFirstEdit": 0
+    },
+    "B": {
+      "planned": 0,
+      "recorded": 0,
+      "voided": 0,
+      "successes": 0,
+      "tokens": 0,
+      "costUsd": 0,
+      "knowledgeCalls": 0,
+      "knowledgeBeforeFirstEdit": 0
+    },
+    "C": {
+      "planned": 6,
+      "recorded": 6,
+      "voided": 0,
+      "successes": 6,
+      "tokens": 6507643,
+      "meanTokens": 1084607,
+      "costUsd": 0.23,
+      "meanMinutes": 5.7,
+      "exploreByteShare": 0.858,
+      "filesReadBeforeFirstEdit": 9.5,
+      "unnecessaryFilesRead": 2,
+      "knowledgeCalls": 12,
+      "knowledgeBeforeFirstEdit": 6,
+      "recalls": [
+        null,
+        null,
+        null,
+        1,
+        null,
+        null
+      ],
+      "precisions": [
+        null,
+        null,
+        null,
+        1,
+        null,
+        null
+      ],
+      "f1s": [
+        null,
+        null,
+        null,
+        1,
+        null,
+        null
+      ]
+    }
+  },
+  "criterion1": {
+    "verdict": "undecided",
+    "b": {
+      "successes": 0,
+      "tokens": 0
+    },
+    "c": {
+      "successes": 6,
+      "tokens": 6507643
+    },
+    "perTask": {
+      "1-cancelled-stay-hides-contacts": null,
+      "2-phone-numbers-with-hyphens": null,
+      "3-message-notice-names-the-listing": null,
+      "4-review-window-impact": null,
+      "5-domain-time-is-given": null,
+      "6-archive-a-conversation": null
+    },
+    "tasksBelow80": 0
+  },
+  "criterion2": {
+    "verdict": "does not hold",
+    "b": {
+      "recalls": []
+    },
+    "c": {
+      "recalls": [
+        1
+      ],
+      "mean": 1
+    }
+  },
+  "verdict": "undecided (the pilot is extended)"
+}

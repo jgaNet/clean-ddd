@@ -397,3 +397,68 @@ Outside the repository, on this machine:
 | `/home/user/j6/witness/full-w`, `/home/user/j6/witness/grades` | the `202` witness, its variants and its gradings |
 | `/home/user/j6/rehearsal`, `/home/user/j6/rehearsal/registration` | the first proposal's dry runs; this registration's (plans, logs, reports, the storms marked on Lite, test 30 and the `202` witness graded again) |
 | the kit's plain witness `tally-w` (the operator's scratch space) | `6bdb13c` on branch `cp4`: `68ccae6` and its spec's database on `DATABASE_URL`'s server |
+
+## Amendment of 16 November (night): the calibration, prepared again on the pilot's machine
+
+Decided by the maintainer on 16 November, late evening, after the K4 pilot's two rounds and the review
+[`2026-11-16-next-evolution-review.md`](../../2026-11-16-next-evolution-review.md) (§D): **the calibration alone is
+run next**, on the machine the K4 pilot ran on, once the pilot's third round has finished; Tally waits for the
+maintainer's reading of the calibration. The decisions, and what they change in what is registered above:
+
+1. **The harness is fixed where the review found it unequal or unsafe**, in one commit of the flow (`d2a0441`): the
+   simple arm's verdict (`yarn verify`) gets the attempt's time, as the clean arm's gate does (it was cut at 15
+   minutes); the `started` event records `claude --version`; every grading passes `--cache` to the grader, as K4's
+   runner does, so a grading a restart cuts resumes; the leak scan voids an attempt that names a hidden test by its
+   shape (`*.acceptance.ts`, a `find`), the reference's evaluations, or the grader's worktrees named relatively from the
+   attempt's worktree, and a call counts once. The flow's 120 tests pass. **The hashes above are replaced by these:**
+   `run-ladder.mjs` `919bbaa1f9bd8e6e73d11368cdc9c51d3ef1421eced15798c246e77ebf9ab1b2`, `ladder.mjs`
+   `46f18fa144fda3efd1b9fdc70d3cbafd723f5ce5284fd0c9caa1594cf346cc51`, `grade.mjs`
+   `3d72cdd12bc081ba9e678877a135a68c2d2826aa4e0c2d5475e65dd2f7145b49` (changed by `6a1a2c6` and `d90df5f` after the
+   registration above, which still named `a86139b4…`), `machine.mjs`
+   `5affdfd78a5956e6753e942cbca3eeb7b17deba8738131fc14d5aa723b71d204`, `resume.mjs`
+   `af68a5af0ea35fb313ddf2f974d300c65575d1f09482f0332ec7473d7cf0fb5a`.
+2. **The trees, the plans and the kit's frozen copy of the registration above are not on this machine** (`/home/user/j6`,
+   `/var/lib/cdd-frozen/r14`: the J5b machine's). The calibration's three trees were **made again here**, the same
+   way, with the package packed from `main` at `d4a2651` (`clean-ddd-3.2.0.tgz`, sha256
+   `eacda6b059b9ffbfbdd789f4772344c85ca3b1a79001886dfe47d1b405abd482`; `tools/` is unchanged since `924901c`), vendored
+   in the Lite and Full trees as `vendor/clean-ddd-3.2.0.tgz`:
+   - `cal-plain`: OpenStay's `created: plain` (`08b94b0`, the pilot's `simple.bundle`) with the guide's two sections,
+     *One rule* (correction 4's text) and *The API's shapes* (R3's first sentence, J5b's `repairs.md`), appended as
+     two headings; commit `e1f0bab`; guide sha256 `ba3fe4d0e247638a…` — **it does not match the hash registered
+     above** (`77ef7945…`), whose exact wording and placement the operator could not recover from the repository; the
+     two sentences are the ones the registration names. `yarn verify` passes.
+   - `cal-lite`: `create cal-lite --name openstay --profile lite`, then the strategic session as the pilot's `ccf7f75`
+     made it (the purpose, four subdomains, four contexts with their language, four relationships `planned`, ADR 1,
+     four empty `LiteModule`s registered in the composition root, the documents rendered): commits `d79db05`,
+     `87ab5a5`. The six checks and the gate (`--base HEAD --mode architecture`) pass.
+   - `cal-full`: `create cal-full --name openstay`, then `ccf7f75`'s patch applied as it is: commits `1cd36d2`,
+     `6a8754d`. The six checks and the gate pass.
+   The plans are committed beside this file, [`plans/`](plans) (`cal-plain.plan.yaml` sha256 `c8a60b634ac88e51…`,
+   `cal-lite` `6435fa5467edf3fa…`, `cal-full` `ddc98a59531f9a76…`): the fields of step 6, with this machine's paths
+   (`/var/tmp/j6cal/trees/<tree>`), ports 22000, 22100, 22200, `$60` a tree and `$12` an attempt, `gradeWorkers 2`,
+   `regressionCheck { from: 2 }`, no `fanOut`, no `services` (SQLite), an `envFile` that puts Node 24 first, and
+   **`push:` to a bare repository of the machine's own** (`/var/tmp/j6cal/remotes/<tree>.git`): a push to GitHub needed
+   a permission this session was not granted, so the trees and logs survive a container restart, not the machine. The
+   kit is frozen at `/var/lib/cdd-frozen/r16/calibration`, byte for byte the repository's `calibration/` (files sha256
+   `60443730d29250fe…`), readable by its owner only — which is also the agent's user on this machine, so the scan, not
+   the permission, is what holds.
+3. **Scores 4, 5 and 6 are struck for the calibration and for Tally** until an instrument exists for Tally: no chaos
+   suite, no reading rubric and no measure of Lite's decisions were written for it. They may return by a registered
+   amendment before any analysis that uses them. The scores kept are 1 (cost of change), 2 (correctness) and 3 (cost).
+4. **The bands, for three trees per arm,** written before any Tally run (the calibration has one tree per arm and
+   decides nothing): H8 reads *supported* when Lite's median cost per delivered feature is at most 0.6 times Full's
+   and the two ranges do not overlap, with Lite's structural passes and no more triaged failures or regressions than
+   Full's; *not supported* when Lite's median is 0.9 times Full's or more, or Lite has more triaged failures or
+   boundary failures than Full; *undecided* otherwise, and an undecided H8 extends the campaign to five trees per arm
+   before any decision. H1 and H2 are counts of triaged failures by cause, reported as such, with no threshold
+   below six failures per arm. H3's slope is the least-squares slope of an arm's cost per request against the
+   request's index over its delivered requests, reported with its range over the arm's three trees; *flatter* means
+   Full's three slopes all below Simple's three.
+5. **One reader.** The operator wrote the requests, the hidden tests, the storms and the trees, and reads the gradings;
+   no second reader signed the acceptance files. The record says so.
+6. **The machine:** 4 CPUs, 15 GB of memory, 23 GB free, three ladders at once as the plans say (`machine.ladders`),
+   started after the K4 pilot's runner has exited, so that no agent of the pilot shares the machine with them;
+   `resume.mjs` is not wired to a boot hook on this machine: after a restart the operator runs it by hand.
+
+The status line of this file does not change: the calibration is a rehearsal of the harness and is not counted;
+Tally's registration stays proposed, with these amendments, for the maintainer's approval.

@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "pilot": "k4-pilot",
+  "id": "k4plus-t4-C-r1",
+  "plan": "k4plus-t4-C-r1",
+  "attempt": 1,
+  "order": 64,
+  "task": "4-review-window-impact",
+  "arm": "C",
+  "run": 1,
+  "model": "claude-haiku-5-5",
+  "startedAt": "2026-11-16T21:08:09.613Z",
+  "tree": {
+    "start": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "head": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "commits": 0,
+    "changed": [],
+    "uncommitted": []
+  },
+  "k3": {
+    "package": "/home/user/clean-ddd-3.2.0-compact.tgz",
+    "sha256": "640005f7c95edece73e9954eef07d3a242d61375ce6da36606ad3549c078206b"
+  },
+  "agent": {
+    "sessionId": "357cb253-af48-4e9c-9786-d7440b992f22",
+    "transcript": "transcripts/k4plus-t4-C-r1.jsonl",
+    "exitCode": 0,
+    "isError": false,
+    "numTurns": 13,
+    "durationMs": 363269,
+    "wallClockMs": 367357,
+    "costUsd": 0.017967350000000003,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 26,
+        "outputTokens": 9751,
+        "cacheReadInputTokens": 468505,
+        "cacheCreationInputTokens": 42021,
+        "webSearchRequests": 0,
+        "costUSD": 0.017967350000000003,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 5373,
+        "cacheCreationEphemeral5mInputTokens": 0,
+        "cacheCreationEphemeral1hInputTokens": 42021,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "tokens": 520303,
+    "report": "Nothing in the repository was changed, so there was nothing to commit. I checked the change in a scratch copy: `REVIEW_WINDOW_DAYS` set to 30 gave 6 failing unit tests in 3 files and 3 failing e2e tests in 2 files. With 14 the same e2e files pass 14/14.\n\nTwo readings I took:\n- **Claims are not included.** The claim window is a separate constant (`CLAIM_WINDOW_DAYS` in `ClaimRules.ts`), and the change does not touch it. ADR 74 says the claim window is \"the same window as a review's\", so the team should decide whether claims move too. If they do, `ClaimRules.ts`, `ClaimExceptions.ts` and the claims tests come into scope.\n- **ADRs are not included.** ADRs 59, 60, 62, 63 and 74 cite the 14 days. They are decision records, so the change would add a new ADR rather than edit them. The two `conventions/` files are included because they hold the 14-day wording the docs are rendered from.\n\n```yaml\nrules:\n  - OutsideReviewWindow: a stay is reviewed only from the day after check-out up to the window's last day (StayReviews.reviewByTraveller and reviewByGuest, StayReviews.ts:80 and :117)\n  - Publication on window close (isPublished / windowClosed): a stay's two reviews are published when both are written or the window has closed\n  - ReviewNotPublished: the host cannot reply to a traveller review before publication (StayReviews.replyToTravellerReview)\n  - Report visibility: an unpublished review is not-found to anyone but its author (StayReviews.reportReview)\n  - Rating averages count only published traveller reviews (Rating.publishedTravellerReviews; ReviewViews.publishedOn read the same rule)\nfiles:\n  - src/Contexts/Reviews/Domain/StayReview/ReviewWindow.ts  # REVIEW_WINDOW_DAYS = 14, and its doc comments\n  - src/Contexts/Reviews/Domain/StayReview/StayReviewExceptions.ts  # OutsideReviewWindow message text says \"14 days\"\n  - conventions/domain.yaml  # Reviews purpose and \"Review window\" term say 14 days\n  - conventions/storms/reviews.yaml  # intent says \"in the 14 days after the check-out\"\ntests:\n  - src/Contexts/Reviews/Domain/StayReview/StayReviews.spec.ts\n  - src/Contexts/Reviews/Domain/StayReview/StayReviewReports.spec.ts\n  - src/Contexts/Reviews/Domain/StayReview/Rating.spec.ts\n  - src/Bootstrap/Fastify/ratings.e2e.spec.ts\n  - src/Bootstrap/Fastify/reviews.e2e.spec.ts\n```",
+    "prompt": {
+      "sha256": "6912138f7f39ee79edb77822f5b464b801e8f0b805890d2c54dc34ec131182d7",
+      "bytes": 1915
+    },
+    "tools": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Skill"
+    ],
+    "extraArgs": [
+      "--tools",
+      "Bash,Read,Edit,Write,Glob,Grep,Skill",
+      "--session-id",
+      "357cb253-af48-4e9c-9786-d7440b992f22",
+      "--setting-sources",
+      "project",
+      "--strict-mcp-config"
+    ]
+  },
+  "void": false,
+  "leakage": {
+    "void": false,
+    "touched": [],
+    "seen": []
+  },
+  "measures": {
+    "calls": 12,
+    "classes": {
+      "explore": {
+        "calls": 8,
+        "callShare": 0.6667,
+        "bytes": 48415,
+        "byteShare": 0.9357
+      },
+      "edit": {
+        "calls": 3,
+        "callShare": 0.25,
+        "bytes": 3064,
+        "byteShare": 0.0592
+      },
+      "verify": {
+        "calls": 1,
+        "callShare": 0.0833,
+        "bytes": 261,
+        "byteShare": 0.005
+      },
+      "other": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      }
+    },
+    "resultBytes": 51740,
+    "firstEdit": 5,
+    "exploreCallsBeforeFirstEdit": 5,
+    "filesReadBeforeFirstEdit": 5,
+    "filesRead": 6,
+    "unnecessaryFilesRead": 1,
+    "unnecessary": [
+      "src/Contexts/Reviews/Infrastructure/PostgresStayReviews.ts"
+    ],
+    "knowledge": {
+      "calls": 2,
+      "bytes": 22237,
+      "beforeFirstEdit": true
+    },
+    "skill": {
+      "calls": 0,
+      "bytes": 0,
+      "names": []
+    }
+  },
+  "score": {
+    "parses": true,
+    "unchanged": true,
+    "files": {
+      "predicted": 4,
+      "hits": 2,
+      "tolerated": 2,
+      "misses": [],
+      "missed": [],
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "tests": {
+      "predicted": 5,
+      "hits": 5,
+      "tolerated": 0,
+      "misses": [],
+      "missed": [],
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "pooled": {
+      "predicted": 9,
+      "hits": 7,
+      "tolerated": 2,
+      "misses": [],
+      "missed": [],
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "score": 1,
+    "success": true,
+    "answer": {
+      "rules": [
+        "{\"OutsideReviewWindow\":\"a stay is reviewed only from the day after check-out up to the window's last day (StayReviews.reviewByTraveller and reviewByGuest, StayReviews.ts:80 and :117)\"}",
+        "{\"Publication on window close (isPublished / windowClosed)\":\"a stay's two reviews are published when both are written or the window has closed\"}",
+        "{\"ReviewNotPublished\":\"the host cannot reply to a traveller review before publication (StayReviews.replyToTravellerReview)\"}",
+        "{\"Report visibility\":\"an unpublished review is not-found to anyone but its author (StayReviews.reportReview)\"}",
+        "Rating averages count only published traveller reviews (Rating.publishedTravellerReviews; ReviewViews.publishedOn read the same rule)"
+      ],
+      "files": [
+        "src/Contexts/Reviews/Domain/StayReview/ReviewWindow.ts",
+        "src/Contexts/Reviews/Domain/StayReview/StayReviewExceptions.ts",
+        "conventions/domain.yaml",
+        "conventions/storms/reviews.yaml"
+      ],
+      "tests": [
+        "src/Contexts/Reviews/Domain/StayReview/StayReviews.spec.ts",
+        "src/Contexts/Reviews/Domain/StayReview/StayReviewReports.spec.ts",
+        "src/Contexts/Reviews/Domain/StayReview/Rating.spec.ts",
+        "src/Bootstrap/Fastify/ratings.e2e.spec.ts",
+        "src/Bootstrap/Fastify/reviews.e2e.spec.ts"
+      ]
+    },
+    "rules": {
+      "judge": "claude-sonnet-5-5",
+      "costUsd": 0.010702900000000001,
+      "matches": [
+        {
+          "rule": "{\"OutsideReviewWindow\":\"a stay is reviewed only from the day after check-out up to the window's last day (StayReviews.reviewByTraveller and reviewByGuest, StayReviews.ts:80 and :117)\"}",
+          "match": "window",
+          "kind": "required"
+        },
+        {
+          "rule": "{\"Publication on window close (isPublished / windowClosed)\":\"a stay's two reviews are published when both are written or the window has closed\"}",
+          "match": "publication",
+          "kind": "required"
+        },
+        {
+          "rule": "{\"ReviewNotPublished\":\"the host cannot reply to a traveller review before publication (StayReviews.replyToTravellerReview)\"}",
+          "match": "replies",
+          "kind": "required"
+        },
+        {
+          "rule": "{\"Report visibility\":\"an unpublished review is not-found to anyone but its author (StayReviews.reportReview)\"}",
+          "match": "reports",
+          "kind": "required"
+        },
+        {
+          "rule": "Rating averages count only published traveller reviews (Rating.publishedTravellerReviews; ReviewViews.publishedOn read the same rule)",
+          "match": "ratings",
+          "kind": "required"
+        }
+      ],
+      "recall": 1,
+      "precision": 1,
+      "distractors": [],
+      "operatorRead": false
+    }
+  },
+  "success": true,
+  "finishedAt": "2026-11-16T21:14:36.738Z"
+}

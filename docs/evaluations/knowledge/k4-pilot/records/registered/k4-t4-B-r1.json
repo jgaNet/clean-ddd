@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "pilot": "k4-pilot",
+  "id": "k4-t4-B-r1",
+  "plan": "k4-t4-B-r1",
+  "attempt": 1,
+  "order": 10,
+  "task": "4-review-window-impact",
+  "arm": "B",
+  "run": 1,
+  "model": "claude-haiku-5-5",
+  "startedAt": "2026-11-16T11:27:16.782Z",
+  "tree": {
+    "start": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "head": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "commits": 0,
+    "changed": [],
+    "uncommitted": []
+  },
+  "agent": {
+    "sessionId": "8efc9dbb-4bd4-43d3-82d7-e5af7af259a1",
+    "transcript": "transcripts/k4-t4-B-r1.jsonl",
+    "exitCode": 0,
+    "isError": false,
+    "numTurns": 16,
+    "durationMs": 134722,
+    "wallClockMs": 138662,
+    "costUsd": 0.03374607,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 30,
+        "outputTokens": 21549,
+        "cacheReadInputTokens": 786237,
+        "cacheCreationInputTokens": 75531,
+        "webSearchRequests": 0,
+        "costUSD": 0.03374607,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 13180,
+        "cacheCreationEphemeral5mInputTokens": 0,
+        "cacheCreationEphemeral1hInputTokens": 75531,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "tokens": 883347,
+    "report": "Nothing was changed: I edited only a throwaway copy in `/tmp`, which I've removed. The repo is clean, so there was nothing to commit and I did not push.\n\nThree things I could not settle from the code:\n- **Claims are excluded.** `CLAIM_WINDOW_DAYS` in `Support` is a separate constant, so the review change does not reach claims. ADR 74 says the claim window is \"the same window as a review's\", so that ADR would go stale if the team wants claims to follow.\n- **ADRs 59, 60 and 62 state 14 days.** I left them out of `files`, since changing a decision would normally be a new ADR rather than an edit.\n- **Verification was partial.** Only `Rating.spec.ts` ran and failed as predicted. `StayReviews.spec.ts`, `StayReviewReports.spec.ts` and the e2e files were judged by reading: four unit suites fail to load here on both the unchanged and changed code (`uuid` is ESM), and the e2e suites need a database I did not start.\n\n```yaml\nrules:\n  - Review window: traveller and host may write a review only from the day after check-out up to `REVIEW_WINDOW_DAYS` after it (`isInReviewWindow`; `StayReviews.reviewByTraveller` / `reviewByGuest` refuse with `OutsideReviewWindow`)\n  - Window close publishes: the two reviews of a stay are published together, or when the window closes (`windowClosed`, `isPublished`, ADR 60)\n  - Published reviews on reads: listing, booking and guest review reads show a review only once published (`publishedOn` in `ReviewViews`; `GetListingReviews`, `GetBookingReviews`, `GetGuestReviews`)\n  - Ratings from published reviews only: listing and host rating average only published traveller reviews (`publishedTravellerReviews`, `ratingOf`; ADR 61; `GetHostRating`)\n  - Host reply gated on publication: a reply is refused until the stay's reviews are published (`StayReviews.replyToTravellerReview`, `ReviewNotPublished`)\n  - Report gated on publication: an unpublished review is not found by anyone but its author (`StayReviews.reportReview`)\n  - Refusal message: `OutsideReviewWindow` text names \"14 days\" and must change with the constant\nfiles:\n  - src/Contexts/Reviews/Domain/StayReview/ReviewWindow.ts # REVIEW_WINDOW_DAYS and the doc comments that say 14\n  - src/Contexts/Reviews/Domain/StayReview/StayReviewExceptions.ts # OutsideReviewWindow message and doc\n  - conventions/domain.yaml # \"Review window\" term and the review rule text (lines 294-302)\n  - conventions/storms/reviews.yaml # intent says \"in the 14 days after the check-out\"\ntests:\n  - src/Contexts/Reviews/Domain/StayReview/Rating.spec.ts # fails: AFTER_WINDOW (05-16) no longer after the window (verified by running)\n  - src/Contexts/Reviews/Domain/StayReview/StayReviews.spec.ts # by reading: 11-25 refusals and replies (lines 78-88, 150-153, 176-182, 224-231)\n  - src/Contexts/Reviews/Domain/StayReview/StayReviewReports.spec.ts # by reading: report on 11-25 expects a closed window (line 118)\n  - src/Bootstrap/Fastify/reviews.e2e.spec.ts # by reading: start(20) expects the window closed (lines 139, 304); header comment says 14 days\n  - src/Bootstrap/Fastify/ratings.e2e.spec.ts # by reading: start(22) expects the window closed (line 169)\n```",
+    "prompt": {
+      "sha256": "68ca90b4e0044e60739276b2d2db87725c60d89e071ccf0032c322fe990d2fcf",
+      "bytes": 1245
+    },
+    "tools": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Skill"
+    ],
+    "extraArgs": [
+      "--tools",
+      "Bash,Read,Edit,Write,Glob,Grep,Skill",
+      "--session-id",
+      "8efc9dbb-4bd4-43d3-82d7-e5af7af259a1",
+      "--setting-sources",
+      "project",
+      "--strict-mcp-config"
+    ]
+  },
+  "void": false,
+  "leakage": {
+    "void": false,
+    "touched": [],
+    "seen": []
+  },
+  "measures": {
+    "calls": 15,
+    "classes": {
+      "explore": {
+        "calls": 13,
+        "callShare": 0.8667,
+        "bytes": 98505,
+        "byteShare": 0.9767
+      },
+      "edit": {
+        "calls": 1,
+        "callShare": 0.0667,
+        "bytes": 554,
+        "byteShare": 0.0055
+      },
+      "verify": {
+        "calls": 1,
+        "callShare": 0.0667,
+        "bytes": 1794,
+        "byteShare": 0.0178
+      },
+      "other": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      }
+    },
+    "resultBytes": 100853,
+    "firstEdit": 12,
+    "exploreCallsBeforeFirstEdit": 12,
+    "filesReadBeforeFirstEdit": 18,
+    "filesRead": 18,
+    "unnecessaryFilesRead": 8,
+    "unnecessary": [
+      "src/Contexts/Booking/Domain/Booking/Ports/IStayFacts.ts",
+      "src/Contexts/Booking/Infrastructure/BookingStayFacts.ts",
+      "src/Contexts/Reviews/Application/Commands/ReviewGuest/ReviewGuestCommandHandler.ts",
+      "src/Contexts/Reviews/Application/Commands/ReviewStay/ReviewStayCommandHandler.ts",
+      "src/Contexts/Reviews/Application/Ports/IStays.ts",
+      "src/Contexts/Reviews/Infrastructure/PostgresStayReviews.ts",
+      "src/Contexts/Reviews/module.local.ts",
+      "src/Contexts/Support/Domain/Claim/ClaimRules.ts"
+    ],
+    "knowledge": {
+      "calls": 0,
+      "bytes": 0,
+      "beforeFirstEdit": false
+    },
+    "skill": {
+      "calls": 0,
+      "bytes": 0,
+      "names": []
+    }
+  },
+  "score": {
+    "parses": false,
+    "problem": "the YAML block does not parse: bad indentation of a mapping entry (8:22)",
+    "unchanged": true,
+    "files": {
+      "predicted": 0,
+      "hits": 0,
+      "tolerated": 0,
+      "misses": [],
+      "missed": [
+        "src/Contexts/Reviews/Domain/StayReview/ReviewWindow.ts",
+        "src/Contexts/Reviews/Domain/StayReview/StayReviewExceptions.ts"
+      ],
+      "precision": 0,
+      "recall": 0,
+      "f1": 0
+    },
+    "tests": {
+      "predicted": 0,
+      "hits": 0,
+      "tolerated": 0,
+      "misses": [],
+      "missed": [
+        "src/Contexts/Reviews/Domain/StayReview/Rating.spec.ts",
+        "src/Contexts/Reviews/Domain/StayReview/StayReviews.spec.ts",
+        "src/Contexts/Reviews/Domain/StayReview/StayReviewReports.spec.ts",
+        "src/Bootstrap/Fastify/reviews.e2e.spec.ts",
+        "src/Bootstrap/Fastify/ratings.e2e.spec.ts"
+      ],
+      "precision": 0,
+      "recall": 0,
+      "f1": 0
+    },
+    "pooled": {
+      "predicted": 0,
+      "hits": 0,
+      "tolerated": 0,
+      "misses": [],
+      "missed": [
+        "src/Contexts/Reviews/Domain/StayReview/ReviewWindow.ts",
+        "src/Contexts/Reviews/Domain/StayReview/StayReviewExceptions.ts",
+        "src/Contexts/Reviews/Domain/StayReview/Rating.spec.ts",
+        "src/Contexts/Reviews/Domain/StayReview/StayReviews.spec.ts",
+        "src/Contexts/Reviews/Domain/StayReview/StayReviewReports.spec.ts",
+        "src/Bootstrap/Fastify/reviews.e2e.spec.ts",
+        "src/Bootstrap/Fastify/ratings.e2e.spec.ts"
+      ],
+      "precision": 0,
+      "recall": 0,
+      "f1": 0
+    },
+    "score": 0,
+    "success": false,
+    "answer": {
+      "rules": [],
+      "files": [],
+      "tests": []
+    },
+    "rules": {
+      "judge": "nothing to judge",
+      "operatorRead": false
+    }
+  },
+  "success": false,
+  "finishedAt": "2026-11-16T11:29:37.614Z"
+}

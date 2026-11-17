@@ -162,19 +162,47 @@ export function transcriptsOf(cwd, since, projects = claudeProjects()) {
     .sort();
 }
 
+/** The shapes a kit's files take wherever a kit is, beyond the plan's own paths: each voids an attempt that names it. */
+export const RELATIVE_LEAKS = [
+  { name: '*.acceptance.ts', pattern: /\.acceptance\.ts\b/ },
+  { name: 'docs/evaluations', pattern: /docs\/evaluations\// },
+  { name: 'a grade directory', pattern: /(?:\.flow\/|(?:\.\.\/)+)grade(?![\w.-])/ },
+];
+
 /**
- * Whether the transcripts read or list a path of `paths` (the kit, the grader's worktrees): a tool call whose input
- * names one, as K4's scan finds it. A result that only mentions one voids nothing (`seen`). K4's other patterns (its
- * own kits' and packages') are not this scan's.
+ * Whether the transcripts read or list a path of `paths` (the kit, the grader's worktrees), or any file shaped like a
+ * kit's (RELATIVE_LEAKS): a tool call whose input names one, as K4's scan finds it. A result that only mentions one
+ * voids nothing (`seen`). K4's package patterns (`.k3/package`, Claude Code's own transcripts) are not this scan's.
  */
 export function kitLeakage(files, paths) {
-  // Each path is its own pattern, named by the path (leakPatterns): only those void the attempt.
-  const names = new Set(paths.filter(Boolean));
+  // Each path is its own pattern, named by the path (leakPatterns), and so are the shapes a kit's files take wherever
+  // they are (RELATIVE_LEAKS): a hidden test's name, the reference's evaluations, the grader's worktrees named
+  // relatively from an attempt's worktree, which a literal path would miss (J6 readiness, 16 November). A call counts
+  // once: by the plan's path when it names one, else by the first shape it matches.
+  const planNames = new Set(paths.filter(Boolean));
+  const names = new Set([...planNames, ...RELATIVE_LEAKS.map(each => each.name)]);
   const found = files.map(file => {
-    const scanned = scanLeakage(toolCalls(readTranscript(readFileSync(file, 'utf8'))).calls, [...names]);
+    const calls = toolCalls(readTranscript(readFileSync(file, 'utf8'))).calls;
+    const scanned = scanLeakage(calls, [...planNames]);
+    const byCall = new Map();
+    const hits = [
+      ...scanned.touched.filter(each => names.has(each.matched)),
+      ...calls.flatMap((call, index) =>
+        RELATIVE_LEAKS.filter(each => each.pattern.test(JSON.stringify(call.input ?? {}))).map(each => ({
+          call: index,
+          tool: call.name,
+          matched: each.name,
+          input: JSON.stringify(call.input ?? {}).slice(0, 300),
+        })),
+      ),
+    ];
+    for (const hit of hits) {
+      const kept = byCall.get(hit.call);
+      if (!kept || (planNames.has(hit.matched) && !planNames.has(kept.matched))) byCall.set(hit.call, hit);
+    }
     return {
       file,
-      touched: scanned.touched.filter(each => names.has(each.matched)),
+      touched: [...byCall.values()].sort((a, b) => a.call - b.call),
       seen: scanned.seen.filter(each => names.has(each.matched)),
     };
   });

@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "pilot": "k4-pilot",
+  "id": "k4-t6-B-r1",
+  "plan": "k4-t6-B-r1",
+  "attempt": 1,
+  "order": 17,
+  "task": "6-archive-a-conversation",
+  "arm": "B",
+  "run": 1,
+  "model": "claude-haiku-5-5",
+  "startedAt": "2026-11-16T13:35:18.107Z",
+  "tree": {
+    "start": "1e0c21331d02e9d081c23fbef892238df7d008f8",
+    "head": "e37505a506d44709f202b21ef9d3dd0a4aba5bf3",
+    "commits": 1,
+    "changed": [
+      "src/Contexts/Messaging/Application/Queries/GetMyConversations/GetMyConversationsQueryHandler.ts",
+      "src/Contexts/Messaging/Domain/Conversation/ConversationReadModels.ts",
+      "src/Contexts/Messaging/Domain/Conversation/Ports/IConversationQueries.ts",
+      "src/Contexts/Messaging/Infrastructure/PostgresConversationQueries.ts",
+      "src/Contexts/Messaging/Presentation/API/REST/Controllers/FastifyConversationController.ts",
+      "src/Contexts/Messaging/Presentation/API/REST/Routes/conversation.routes.ts",
+      "src/Contexts/Messaging/Presentation/API/REST/Routes/conversations.routes.e2e.spec.ts",
+      "src/Contexts/Messaging/module.local.ts"
+    ],
+    "uncommitted": []
+  },
+  "agent": {
+    "sessionId": "7607dd6e-8fb3-43d2-990f-404e68914690",
+    "transcript": "transcripts/k4-t6-B-r1.jsonl",
+    "exitCode": 0,
+    "isError": false,
+    "numTurns": 39,
+    "durationMs": 408205,
+    "wallClockMs": 412316,
+    "costUsd": 0.04403807000000001,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 62,
+        "outputTokens": 22868,
+        "cacheReadInputTokens": 1754467,
+        "cacheCreationInputTokens": 75266,
+        "webSearchRequests": 0,
+        "costUSD": 0.04403807000000001,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 9791,
+        "cacheCreationEphemeral5mInputTokens": 0,
+        "cacheCreationEphemeral1hInputTokens": 75266,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "tokens": 1852663,
+    "report": "The archive feature is finished and committed as `e37505a` on `main`, the branch you asked for. Nothing is pushed. Typecheck, lint, prettier, conventions, all 1052 unit tests, and all 611 e2e tests pass.\n\n**What was already there:** the previous developer's commit had the command, the domain rule and its event, the storage table, and domain specs. It had no route, no wiring, and the list still showed archived conversations.\n\n**What I added:**\n- **Route:** `POST /conversations/:id/archive`, answered `202` through `acceptCommand` like `/read`. An unsigned caller gets `401` at the transport, as for any command.\n- **Wiring:** the archive command is registered once in `module.local.ts`.\n- **List:** each summary now carries an `archived` flag, computed in SQL as \"this reader archived it and the last message is the one they archived through\". `GET /conversations/mine` filters on it. `GET /conversations/unread` does not, so archived conversations still count their unread messages.\n- **Tests:** an e2e block in `conversations.routes.e2e.spec.ts` covers leaving the archiver's list only, return on a new message from either side, idempotent re-archive, the organisation viewer case, a stranger getting `ERROR`, and no sign-in getting `401`.\n\n**Decisions and things to check:**\n- The \"last message\" check counts hidden messages too, matching the domain. I kept it that way on purpose.\n- The `archived` field is on the summary view but is not in the list's response schema, so it does not appear in the response.\n- The commit is on `main`, the default branch. If you'd rather have it on a feature branch, say so and I'll move it.\n- I did not add a storm YAML for archiving. The other features have one, but this one didn't, and the conventions check passes without it.",
+    "prompt": {
+      "sha256": "aed4ef8a0b1fa94fc78e88f3b714b9ea3a65907c990345c06f01170a7975f3b2",
+      "bytes": 1419
+    },
+    "tools": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Skill"
+    ],
+    "extraArgs": [
+      "--tools",
+      "Bash,Read,Edit,Write,Glob,Grep,Skill",
+      "--session-id",
+      "7607dd6e-8fb3-43d2-990f-404e68914690",
+      "--setting-sources",
+      "project",
+      "--strict-mcp-config"
+    ]
+  },
+  "void": false,
+  "leakage": {
+    "void": false,
+    "touched": [],
+    "seen": []
+  },
+  "measures": {
+    "calls": 38,
+    "classes": {
+      "explore": {
+        "calls": 21,
+        "callShare": 0.5526,
+        "bytes": 87203,
+        "byteShare": 0.9031
+      },
+      "edit": {
+        "calls": 11,
+        "callShare": 0.2895,
+        "bytes": 1669,
+        "byteShare": 0.0173
+      },
+      "verify": {
+        "calls": 6,
+        "callShare": 0.1579,
+        "bytes": 7687,
+        "byteShare": 0.0796
+      },
+      "other": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      }
+    },
+    "resultBytes": 96559,
+    "firstEdit": 13,
+    "exploreCallsBeforeFirstEdit": 12,
+    "filesReadBeforeFirstEdit": 8,
+    "filesRead": 9,
+    "unnecessaryFilesRead": 4,
+    "unnecessary": [
+      "conventions/storms/unread-messages.yaml",
+      "package.json",
+      "src/Contexts/Messaging/Application/Commands/MarkConversationRead/MarkConversationReadCommandEvent.ts",
+      "src/Contexts/Messaging/Application/Commands/MarkConversationRead/MarkConversationReadCommandHandler.ts"
+    ],
+    "knowledge": {
+      "calls": 0,
+      "bytes": 0,
+      "beforeFirstEdit": false
+    },
+    "skill": {
+      "calls": 0,
+      "bytes": 0,
+      "names": []
+    }
+  },
+  "grading": {
+    "repository": "/var/tmp/k4-pilot/grading/6-archive-a-conversation/openstay",
+    "start": "1e0c21331d02e9d081c23fbef892238df7d008f8",
+    "commit": "bc5b442f51fdc67eeb57808c73095b5dd13e7d2e",
+    "applied": {
+      "pass": true,
+      "files": 8
+    },
+    "command": "node .claude/flow/grade.mjs --project /var/tmp/k4-pilot/grading/6-archive-a-conversation/openstay --ref bc5b442f51fdc67eeb57808c73095b5dd13e7d2e --base 1e0c21331d02e9d081c23fbef892238df7d008f8 --kit /var/tmp/k4-pilot/kits/6-archive-a-conversation --upto 101 --workers 4 --gate false --keep false --cache /var/tmp/k4-pilot/grading/6-archive-a-conversation/openstay.flow/verdicts --out /var/tmp/k4-pilot/out/grades/k4-t6-B-r1.json",
+    "report": "grades/k4-t6-B-r1.json",
+    "hidden": {
+      "pass": true,
+      "tests": "3 passed, 3 total",
+      "failed": []
+    },
+    "checks": {
+      "format:check": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 15178
+      },
+      "lint": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 10028
+      },
+      "typecheck": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 8267
+      },
+      "test:units": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 57278,
+        "tests": "1052 passed, 1052 total"
+      },
+      "test:e2e": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 197714,
+        "tests": "611 passed, 611 total"
+      }
+    },
+    "apart": {
+      "check:conventions": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 10432
+      }
+    },
+    "regressions": [],
+    "kit": {
+      "passed": 102,
+      "of": 102,
+      "failing": []
+    },
+    "ownTestsNewlyFailing": []
+  },
+  "success": true,
+  "finishedAt": "2026-11-16T13:58:20.778Z"
+}
