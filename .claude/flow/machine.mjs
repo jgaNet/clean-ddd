@@ -87,7 +87,13 @@ export async function takeSlot({
         rmSync(slot, { recursive: true, force: true });
         continue;
       }
-      writeFileSync(join(slot, 'pid'), String(process.pid));
+      try {
+        writeFileSync(join(slot, 'pid'), String(process.pid));
+      } catch {
+        // Removed under this process by another ladder that had just read the slot's previous, dead owner (three
+        // ladders resumed at once after a restart, 17 November): the slot is not this process's; try the next.
+        continue;
+      }
       held.add(slot);
       const free = () => {
         held.delete(slot);
