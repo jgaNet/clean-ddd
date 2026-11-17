@@ -46,9 +46,11 @@ conventions:
     test: refuses a wrong password and an unknown email alike, and a request without a valid token
   - id: not-found
     says: >-
-      A read answers 200 with what it reads, or 404 for something that does not exist or that the caller may not
-      see, signed in or not: what the caller may not see is answered as if it did not exist (the later tests'
-      `hidden` requires 404 there, never 401 or 403; the maintainer, 13 November).
+      A read answers 200 with what it reads, or 404 for something that does not exist, signed in or not. What a
+      signed-in caller, or anyone on a read that needs no caller, may not see is refused with 403 or 404 alike: the
+      later tests' `hidden` accepts either for a non-party (the maintainer, 17 November, after the calibration run,
+      where the three arms answered 403 and the 404 the tests required was request 1's, not the request's own text);
+      an operation's reader keeps request 1's 404 (`operation-reader`).
     born: 1
     test: answers 404 for something that does not exist
   # Request 1 says it; creating a listing (request 2) is the first request a signed-in caller makes, so the
