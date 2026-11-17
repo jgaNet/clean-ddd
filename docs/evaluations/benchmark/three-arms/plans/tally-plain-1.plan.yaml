@@ -1,0 +1,24 @@
+# J6, Tally, tree plain-1 (three-arms/registration.md, step 6, and its amendment of 17 November: the trees made again on the
+# pilot's machine, the plans beside the registration, the trees and logs pushed to jgaNet/tally). Checkpoint 1's ten requests;
+# at each checkpoint the next ten are appended to `features` and the run resumed. The paths are this machine's.
+run: j6-plain-1
+arm: simple
+kit: /var/lib/cdd-frozen/r16/app
+base: main
+of: 40
+ladder: [claude-haiku-5-5, claude-sonnet-5-5, claude-opus-5-5]
+agent: { runner: claude-cli, timeoutMinutes: 90 }
+retry: { perFeature: 1 }
+budgetUsd: 200
+agentBudgetUsd: 12
+dependencies: copy
+ports: { base: 21100 }
+machine: { ladders: 3, jestCacheGb: 2 }
+gradeTimeoutMinutes: 120
+gradeWorkers: 2
+regressionCheck: { from: 2 }
+triage: { judge: claude-sonnet-5-5 }
+services: { start: /var/tmp/j6/bin/pg.sh start plain-1 }
+envFile: /var/tmp/j6/env/plain-1.env
+push: { remote: https://github.com/jgaNet/tally, branch: trees/plain-1, logBranch: logs/plain-1 }
+features: [accounts, create-a-group, invite-and-join, record-an-expense, balances, edit-and-delete-an-expense, unequal-splits, history-and-statement, leave-a-group, remainder-to-the-first]
