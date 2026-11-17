@@ -179,6 +179,12 @@ the kit is registered.
 17. **Request 1 says the sweep** (`JOBS_INTERVAL_SECONDS`, never at a read), as the maintainer's decisions of 13
     November fix it for J6, although nothing in checkpoint 1 changes with time. Registered as `sweep`, born at 1, its
     test holding the half that exists (a read changes nothing while the job runs).
+    **Amended by the maintainer on 17 November, during the run:** request 18's text names the interval too (*"at each
+    run of the background job (request 1: every `JOBS_INTERVAL_SECONDS` seconds, 60 when that is not set)"*). The name
+    was said once, in request 1's prose, which no agent sees again, and request 18's storm repeats it to the Lite and
+    Full arms in the tree while the plain arm has only the request: the three plain trees' attempts at 18 swept every
+    60 seconds and no step delivered it. Said in the request, the name reaches every arm alike; what the tree must
+    carry from request 1 is the job itself. Request 18 is tried again on the plain trees from their `main` at 17.
 
 **The model (the storms):** T1 to T5 and each feature's hot spots, in [`storms/README.md`](storms/README.md). The
 ones to read first:

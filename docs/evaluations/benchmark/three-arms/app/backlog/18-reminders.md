@@ -3,7 +3,7 @@
 Some debts linger. Tally reminds whoever has owed too much for too long.
 
 - **Who is reminded.** A member of a group who still owes (request 13) more than 2000 in it (20.00 in its currency) is reminded once that has lasted a week, and again each week while it lasts. Only the group's current members are reminded.
-- **Kept by the background job.** At each run of the background job (request 1), Tally looks at what every member of every group still owes:
+- **Kept by the background job.** At each run of the background job (request 1: every `JOBS_INTERVAL_SECONDS` seconds, 60 when that is not set), Tally looks at what every member of every group still owes:
   - a member it sees owing more than 2000, and had not seen so, is noted from that run;
   - a member it sees owing 2000 or less is no longer noted: a debt that comes back is noted again, from the run that sees it;
   - a member noted for a week or more, and not reminded during the last week, is reminded at that run.
