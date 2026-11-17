@@ -493,3 +493,5 @@ took a `CREATE DATABASE`, stopped, status 3), an `envFile` per tree with `TALLY_
 
 **The machine:** the K4 pilot's, 4 CPUs, 15 GB, 20 GB free; the harness at the branch's head (the ladder's four
 fixes, the slot race and the register's lock); `resume.mjs` run by the operator after a restart.
+
+**The commit that carries the approval:** `069c527`.
