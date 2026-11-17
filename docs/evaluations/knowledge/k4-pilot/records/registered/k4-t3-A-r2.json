@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 1,
+  "pilot": "k4-pilot",
+  "id": "k4-t3-A-r2",
+  "plan": "k4-t3-A-r2",
+  "attempt": 1,
+  "order": 27,
+  "task": "3-message-notice-names-the-listing",
+  "arm": "A",
+  "run": 2,
+  "model": "claude-haiku-5-5",
+  "startedAt": "2026-11-16T16:52:45.590Z",
+  "tree": {
+    "start": "42667b63c5218a65d0f2587c891b5bd4b59c963d",
+    "head": "dafe44d4b63e1166a43770c2c1bd158bc9ab4b06",
+    "commits": 1,
+    "changed": [
+      "src/Bootstrap/Fastify/message-notices.e2e.spec.ts",
+      "src/Contexts/Messaging/Application/Events/MessageSentHandler.ts",
+      "src/Contexts/Messaging/Domain/Conversation/Conversation.ts",
+      "src/Contexts/Messaging/Domain/Conversation/ConversationEvents.ts",
+      "src/Contexts/Messaging/Presentation/API/REST/Routes/messageClock.routes.e2e.spec.ts",
+      "src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.spec.ts",
+      "src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.ts",
+      "src/Contexts/Notifications/Application/MessageNotice/MessageNoticeOwing.spec.ts",
+      "src/Contexts/Notifications/Application/Preferences/NoticePreferencesOwing.spec.ts",
+      "src/Contexts/Notifications/Domain/MessageNotice/MessageNoticeOwing.ts",
+      "src/Contexts/Notifications/Domain/Notice/DTOs.ts",
+      "src/Contexts/Notifications/Infrastructure/HttpNoticeService.ts",
+      "src/Contexts/Notifications/Infrastructure/PostgresNotices.ts",
+      "src/SharedKernel/Application/IntegrationEvents/MessagingIntegrationEvents.ts"
+    ],
+    "uncommitted": []
+  },
+  "agent": {
+    "sessionId": "f5a3de74-0ef7-4d0b-b2ed-10ade893795f",
+    "transcript": "transcripts/k4-t3-A-r2.jsonl",
+    "exitCode": 0,
+    "isError": false,
+    "numTurns": 19,
+    "durationMs": 271167,
+    "wallClockMs": 275274,
+    "costUsd": 0.023695459999999998,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 38,
+        "outputTokens": 13055,
+        "cacheReadInputTokens": 672656,
+        "cacheCreationInputTokens": 52188,
+        "webSearchRequests": 0,
+        "costUSD": 0.023695459999999998,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 3710,
+        "cacheCreationEphemeral5mInputTokens": 0,
+        "cacheCreationEphemeral1hInputTokens": 52188,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "tokens": 737937,
+    "report": "The notice of a new message now carries `listingId`, and the work is committed as `dafe44d` on `main`. I did not push, and I did not start a server.\n\n**What changed**\n- **Messaging:** `MessageSentEvent` and the shared `MessageSentPayload` now include the conversation's `listingId`. The event is built from the conversation's existing listing id, and `MessageSentHandler` passes it on.\n- **Notifications:** `listingId` flows from the integration event into the owing rule and onto the message notice body. Delivery sends the body unchanged, so the service receives `listingId` with `id`, `kind`, `accountId`, `conversationId` and `lang`.\n- **Storage:** the `notices` table already had a `listing_id` column from calendar-conflict notices, so no migration was needed. Message notices now write to it and read it back.\n- **Specs:** I updated the existing expectations for the new field.\n\n**Verification**\n- Typecheck passes, and eslint passes on the changed files.\n- Unit tests for Notifications and Messaging: 15 suites, 72 tests, all passing.\n- Full e2e suite: 114 suites, 607 tests, all passing. My filter also matched the whole e2e set, so this is more than the two specs I was aiming at.\n\n**Decisions and things to check**\n- **Branch:** you asked for the current branch, which is `main`. The repo guidance says to branch first when on the default branch. I followed your instruction. If you want a branch, it is one command away.\n- **Notices owed before this deploy:** message notices that exist but are not yet accepted have no `listing_id`. They will be sent with `listingId: null` at runtime, even though the type says `string`. I did not recover the listing from Messaging's data, because that would cross a context boundary. If you want these to carry a real id, that needs a backfill or a rule you choose.\n- **ADR and docs:** I did not update ADR 0057 or the other docs. The code comments were updated.\n- **Scope:** only the notice of a new message changed. Other notice kinds and the notice schema are untouched.",
+    "prompt": {
+      "sha256": "08e3eb966e15c57ae463bf6b6f8e50a5921baa0f78a5e56a1074e9eb68112171",
+      "bytes": 846
+    },
+    "tools": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep"
+    ],
+    "extraArgs": [
+      "--tools",
+      "Bash,Read,Edit,Write,Glob,Grep",
+      "--session-id",
+      "f5a3de74-0ef7-4d0b-b2ed-10ade893795f",
+      "--setting-sources",
+      "project",
+      "--strict-mcp-config",
+      "--disable-slash-commands"
+    ]
+  },
+  "void": false,
+  "leakage": {
+    "void": false,
+    "touched": [],
+    "seen": []
+  },
+  "measures": {
+    "calls": 18,
+    "classes": {
+      "explore": {
+        "calls": 12,
+        "callShare": 0.6667,
+        "bytes": 75627,
+        "byteShare": 0.895
+      },
+      "edit": {
+        "calls": 2,
+        "callShare": 0.1111,
+        "bytes": 1565,
+        "byteShare": 0.0185
+      },
+      "verify": {
+        "calls": 3,
+        "callShare": 0.1667,
+        "bytes": 7308,
+        "byteShare": 0.0865
+      },
+      "other": {
+        "calls": 1,
+        "callShare": 0.0556,
+        "bytes": 2,
+        "byteShare": 0
+      }
+    },
+    "resultBytes": 84502,
+    "firstEdit": 12,
+    "exploreCallsBeforeFirstEdit": 11,
+    "filesReadBeforeFirstEdit": 15,
+    "filesRead": 16,
+    "unnecessaryFilesRead": 2,
+    "unnecessary": [
+      "src/Contexts/Notifications/Application/Ports/INoticeService.ts",
+      "src/Contexts/Notifications/Domain/Notice/Notice.ts"
+    ],
+    "knowledge": {
+      "calls": 0,
+      "bytes": 0,
+      "beforeFirstEdit": false
+    },
+    "skill": {
+      "calls": 0,
+      "bytes": 0,
+      "names": []
+    }
+  },
+  "grading": {
+    "repository": "/var/tmp/k4-pilot/grading/3-message-notice-names-the-listing/openstay",
+    "start": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "commit": "ad5693e3f241e5c5dbb9e9d77de5f348424dd935",
+    "applied": {
+      "pass": true,
+      "files": 14
+    },
+    "command": "node .claude/flow/grade.mjs --project /var/tmp/k4-pilot/grading/3-message-notice-names-the-listing/openstay --ref ad5693e3f241e5c5dbb9e9d77de5f348424dd935 --base 38cc90c2326ef44ecc31c4e14fe1495eb454e234 --kit /var/tmp/k4-pilot/kits/3-message-notice-names-the-listing --upto 101 --workers 4 --gate false --keep false --cache /var/tmp/k4-pilot/grading/3-message-notice-names-the-listing/openstay.flow/verdicts --out /var/tmp/k4-pilot/out/grades/k4-t3-A-r2.json",
+    "report": "grades/k4-t3-A-r2.json",
+    "hidden": {
+      "pass": true,
+      "tests": "1 passed, 1 total",
+      "failed": []
+    },
+    "checks": {
+      "format:check": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 12665
+      },
+      "lint": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 8407
+      },
+      "typecheck": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 8083
+      },
+      "test:units": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 53909,
+        "tests": "1049 passed, 1049 total"
+      },
+      "test:e2e": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 193493,
+        "tests": "607 passed, 607 total"
+      }
+    },
+    "apart": {
+      "check:conventions": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 10699
+      }
+    },
+    "regressions": [],
+    "kit": {
+      "passed": 102,
+      "of": 102,
+      "failing": []
+    },
+    "ownTestsNewlyFailing": []
+  },
+  "success": true,
+  "finishedAt": "2026-11-16T17:13:05.555Z"
+}

@@ -1,0 +1,602 @@
+{
+  "pilot": "k4-pilot",
+  "runs": {
+    "planned": 54,
+    "recorded": 48,
+    "voided": 0
+  },
+  "spentUsd": 1.78,
+  "table": [
+    {
+      "task": "1-cancelled-stay-hides-contacts",
+      "arms": {
+        "A": {
+          "planned": 3,
+          "recorded": 3,
+          "voided": 0,
+          "successes": 3,
+          "tokens": 1105259,
+          "meanTokens": 368420,
+          "costUsd": 0.04,
+          "meanMinutes": 2.5,
+          "exploreByteShare": 0.907,
+          "filesReadBeforeFirstEdit": 9,
+          "unnecessaryFilesRead": 3,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "B": {
+          "planned": 3,
+          "recorded": 3,
+          "voided": 0,
+          "successes": 3,
+          "tokens": 1569534,
+          "meanTokens": 523178,
+          "costUsd": 0.04,
+          "meanMinutes": 3.6,
+          "exploreByteShare": 0.871,
+          "filesReadBeforeFirstEdit": 7,
+          "unnecessaryFilesRead": 3,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "C": {
+          "planned": 3,
+          "recorded": 2,
+          "voided": 0,
+          "successes": 2,
+          "tokens": 1144709,
+          "meanTokens": 572355,
+          "costUsd": 0.03,
+          "meanMinutes": 4.3,
+          "exploreByteShare": 0.871,
+          "filesReadBeforeFirstEdit": 7.5,
+          "unnecessaryFilesRead": 3,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        }
+      }
+    },
+    {
+      "task": "2-phone-numbers-with-hyphens",
+      "arms": {
+        "A": {
+          "planned": 3,
+          "recorded": 3,
+          "voided": 0,
+          "successes": 3,
+          "tokens": 892208,
+          "meanTokens": 297403,
+          "costUsd": 0.04,
+          "meanMinutes": 7.1,
+          "exploreByteShare": 0.93,
+          "filesReadBeforeFirstEdit": 10,
+          "unnecessaryFilesRead": 6,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "B": {
+          "planned": 3,
+          "recorded": 3,
+          "voided": 0,
+          "successes": 3,
+          "tokens": 1099097,
+          "meanTokens": 366366,
+          "costUsd": 0.04,
+          "meanMinutes": 3.6,
+          "exploreByteShare": 0.782,
+          "filesReadBeforeFirstEdit": 4,
+          "unnecessaryFilesRead": 0,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "C": {
+          "planned": 3,
+          "recorded": 2,
+          "voided": 0,
+          "successes": 2,
+          "tokens": 631764,
+          "meanTokens": 315882,
+          "costUsd": 0.03,
+          "meanMinutes": 3.7,
+          "exploreByteShare": 0.785,
+          "filesReadBeforeFirstEdit": 5.5,
+          "unnecessaryFilesRead": 1.5,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        }
+      }
+    },
+    {
+      "task": "3-message-notice-names-the-listing",
+      "arms": {
+        "A": {
+          "planned": 3,
+          "recorded": 3,
+          "voided": 0,
+          "successes": 3,
+          "tokens": 2731293,
+          "meanTokens": 910431,
+          "costUsd": 0.08,
+          "meanMinutes": 5.5,
+          "exploreByteShare": 0.895,
+          "filesReadBeforeFirstEdit": 19,
+          "unnecessaryFilesRead": 6,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "B": {
+          "planned": 3,
+          "recorded": 3,
+          "voided": 0,
+          "successes": 3,
+          "tokens": 3217359,
+          "meanTokens": 1072453,
+          "costUsd": 0.09,
+          "meanMinutes": 9.2,
+          "exploreByteShare": 0.868,
+          "filesReadBeforeFirstEdit": 16,
+          "unnecessaryFilesRead": 3,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "C": {
+          "planned": 3,
+          "recorded": 2,
+          "voided": 0,
+          "successes": 2,
+          "tokens": 2313949,
+          "meanTokens": 1156975,
+          "costUsd": 0.06,
+          "meanMinutes": 7.2,
+          "exploreByteShare": 0.858,
+          "filesReadBeforeFirstEdit": 13.5,
+          "unnecessaryFilesRead": 3.5,
+          "knowledgeCalls": 2,
+          "knowledgeBeforeFirstEdit": 1
+        }
+      }
+    },
+    {
+      "task": "4-review-window-impact",
+      "arms": {
+        "A": {
+          "planned": 3,
+          "recorded": 3,
+          "voided": 0,
+          "successes": 3,
+          "tokens": 1832772,
+          "meanTokens": 610924,
+          "costUsd": 0.07,
+          "meanMinutes": 1.4,
+          "exploreByteShare": 1,
+          "filesReadBeforeFirstEdit": 15,
+          "unnecessaryFilesRead": 3,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0,
+          "recalls": [
+            0.8571,
+            1,
+            1
+          ],
+          "precisions": [
+            1,
+            1,
+            1
+          ],
+          "f1s": [
+            0.9231,
+            1,
+            1
+          ]
+        },
+        "B": {
+          "planned": 3,
+          "recorded": 3,
+          "voided": 0,
+          "successes": 2,
+          "tokens": 2466097,
+          "meanTokens": 822032,
+          "costUsd": 0.09,
+          "meanMinutes": 2.9,
+          "exploreByteShare": 0.985,
+          "filesReadBeforeFirstEdit": 15,
+          "unnecessaryFilesRead": 5,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0,
+          "recalls": [
+            0,
+            1,
+            1
+          ],
+          "precisions": [
+            0,
+            1,
+            1
+          ],
+          "f1s": [
+            0,
+            1,
+            1
+          ]
+        },
+        "C": {
+          "planned": 3,
+          "recorded": 2,
+          "voided": 0,
+          "successes": 2,
+          "tokens": 1491139,
+          "meanTokens": 745570,
+          "costUsd": 0.05,
+          "meanMinutes": 3.6,
+          "exploreByteShare": 0.847,
+          "filesReadBeforeFirstEdit": 13.5,
+          "unnecessaryFilesRead": 3.5,
+          "knowledgeCalls": 3,
+          "knowledgeBeforeFirstEdit": 2,
+          "recalls": [
+            1,
+            1
+          ],
+          "precisions": [
+            1,
+            1
+          ],
+          "f1s": [
+            1,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "task": "5-domain-time-is-given",
+      "arms": {
+        "A": {
+          "planned": 3,
+          "recorded": 3,
+          "voided": 0,
+          "successes": 3,
+          "tokens": 7367671,
+          "meanTokens": 2455890,
+          "costUsd": 0.33,
+          "meanMinutes": 14.2,
+          "exploreByteShare": 0.899,
+          "filesReadBeforeFirstEdit": 13,
+          "unnecessaryFilesRead": 3,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "B": {
+          "planned": 3,
+          "recorded": 3,
+          "voided": 0,
+          "successes": 3,
+          "tokens": 5877589,
+          "meanTokens": 1959196,
+          "costUsd": 0.23,
+          "meanMinutes": 5,
+          "exploreByteShare": 0.828,
+          "filesReadBeforeFirstEdit": 17,
+          "unnecessaryFilesRead": 4,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "C": {
+          "planned": 3,
+          "recorded": 2,
+          "voided": 0,
+          "successes": 2,
+          "tokens": 3670886,
+          "meanTokens": 1835443,
+          "costUsd": 0.17,
+          "meanMinutes": 6.9,
+          "exploreByteShare": 0.913,
+          "filesReadBeforeFirstEdit": 16,
+          "unnecessaryFilesRead": 3,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        }
+      }
+    },
+    {
+      "task": "6-archive-a-conversation",
+      "arms": {
+        "A": {
+          "planned": 3,
+          "recorded": 3,
+          "voided": 0,
+          "successes": 3,
+          "tokens": 5341647,
+          "meanTokens": 1780549,
+          "costUsd": 0.13,
+          "meanMinutes": 7.1,
+          "exploreByteShare": 0.902,
+          "filesReadBeforeFirstEdit": 15,
+          "unnecessaryFilesRead": 11,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "B": {
+          "planned": 3,
+          "recorded": 3,
+          "voided": 0,
+          "successes": 3,
+          "tokens": 5090991,
+          "meanTokens": 1696997,
+          "costUsd": 0.13,
+          "meanMinutes": 7.6,
+          "exploreByteShare": 0.903,
+          "filesReadBeforeFirstEdit": 8,
+          "unnecessaryFilesRead": 4,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        },
+        "C": {
+          "planned": 3,
+          "recorded": 2,
+          "voided": 0,
+          "successes": 2,
+          "tokens": 2274828,
+          "meanTokens": 1137414,
+          "costUsd": 0.06,
+          "meanMinutes": 6.9,
+          "exploreByteShare": 0.859,
+          "filesReadBeforeFirstEdit": 5,
+          "unnecessaryFilesRead": 3,
+          "knowledgeCalls": 0,
+          "knowledgeBeforeFirstEdit": 0
+        }
+      }
+    }
+  ],
+  "totals": {
+    "A": {
+      "planned": 18,
+      "recorded": 18,
+      "voided": 0,
+      "successes": 18,
+      "tokens": 19270850,
+      "meanTokens": 1070603,
+      "costUsd": 0.69,
+      "meanMinutes": 6.3,
+      "exploreByteShare": 0.911,
+      "filesReadBeforeFirstEdit": 14,
+      "unnecessaryFilesRead": 5,
+      "knowledgeCalls": 0,
+      "knowledgeBeforeFirstEdit": 0,
+      "recalls": [
+        null,
+        null,
+        null,
+        0.8571,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        null,
+        null
+      ],
+      "precisions": [
+        null,
+        null,
+        null,
+        1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        null,
+        null
+      ],
+      "f1s": [
+        null,
+        null,
+        null,
+        0.9231,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        null,
+        null
+      ]
+    },
+    "B": {
+      "planned": 18,
+      "recorded": 18,
+      "voided": 0,
+      "successes": 17,
+      "tokens": 19320667,
+      "meanTokens": 1073370,
+      "costUsd": 0.62,
+      "meanMinutes": 5.3,
+      "exploreByteShare": 0.87,
+      "filesReadBeforeFirstEdit": 12,
+      "unnecessaryFilesRead": 3.5,
+      "knowledgeCalls": 0,
+      "knowledgeBeforeFirstEdit": 0,
+      "recalls": [
+        null,
+        null,
+        null,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        null,
+        null
+      ],
+      "precisions": [
+        null,
+        null,
+        null,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        null,
+        null
+      ],
+      "f1s": [
+        null,
+        null,
+        null,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        null,
+        null
+      ]
+    },
+    "C": {
+      "planned": 18,
+      "recorded": 12,
+      "voided": 0,
+      "successes": 12,
+      "tokens": 11527275,
+      "meanTokens": 960606,
+      "costUsd": 0.41,
+      "meanMinutes": 5.4,
+      "exploreByteShare": 0.858,
+      "filesReadBeforeFirstEdit": 10.5,
+      "unnecessaryFilesRead": 3,
+      "knowledgeCalls": 5,
+      "knowledgeBeforeFirstEdit": 3,
+      "recalls": [
+        null,
+        null,
+        null,
+        1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        null,
+        null
+      ],
+      "precisions": [
+        null,
+        null,
+        null,
+        1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        null,
+        null
+      ],
+      "f1s": [
+        null,
+        null,
+        null,
+        1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        null,
+        null
+      ]
+    }
+  },
+  "criterion1": {
+    "verdict": "incomplete",
+    "b": {
+      "successes": 17,
+      "tokens": 19320667
+    },
+    "c": {
+      "successes": 12,
+      "tokens": 11527275
+    },
+    "tokenRatio": 0.5966,
+    "perTask": {
+      "1-cancelled-stay-hides-contacts": 0.7293,
+      "2-phone-numbers-with-hyphens": 0.5748,
+      "3-message-notice-names-the-listing": 0.7192,
+      "4-review-window-impact": 0.6047,
+      "5-domain-time-is-given": 0.6246,
+      "6-archive-a-conversation": 0.4468
+    },
+    "tasksBelow80": 6
+  },
+  "criterion2": {
+    "verdict": "incomplete",
+    "b": {
+      "recalls": [
+        0,
+        1,
+        1
+      ],
+      "mean": 0.6667
+    },
+    "c": {
+      "recalls": [
+        1,
+        1
+      ],
+      "mean": 1
+    }
+  },
+  "verdict": "incomplete"
+}

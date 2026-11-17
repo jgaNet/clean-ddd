@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 1,
+  "pilot": "k4-pilot",
+  "id": "k4-t1-A-r1",
+  "plan": "k4-t1-A-r1",
+  "attempt": 1,
+  "order": 3,
+  "task": "1-cancelled-stay-hides-contacts",
+  "arm": "A",
+  "run": 1,
+  "model": "claude-haiku-5-5",
+  "startedAt": "2026-11-16T08:31:48.177Z",
+  "tree": {
+    "start": "c09ffd5eb061f9605a93c576936f3309ee96db0e",
+    "head": "4a45fad8be635cb608f0d7f763ae56dbe302cc76",
+    "commits": 1,
+    "changed": [
+      "src/Contexts/Booking/Infrastructure/PostgresBookingQueries.ts",
+      "src/Contexts/Messaging/Presentation/API/REST/Routes/conversations.routes.e2e.spec.ts"
+    ],
+    "uncommitted": []
+  },
+  "agent": {
+    "sessionId": "3f98ae71-342a-4e83-b599-4189ed0382dc",
+    "transcript": "transcripts/k4-t1-A-r1.jsonl",
+    "exitCode": 0,
+    "isError": false,
+    "numTurns": 13,
+    "durationMs": 62621,
+    "wallClockMs": 66379,
+    "costUsd": 0.01255772,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 20,
+        "outputTokens": 5112,
+        "cacheReadInputTokens": 280772,
+        "cacheCreationInputTokens": 35960,
+        "webSearchRequests": 0,
+        "costUSD": 0.01255772,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 835,
+        "cacheCreationEphemeral5mInputTokens": 0,
+        "cacheCreationEphemeral1hInputTokens": 35960,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "tokens": 321864,
+    "report": "The contact details come back as `[hidden]` after a cancellation because Booking's paid-stay check ignored cancelled bookings. I fixed that and committed it on `main` as `4a45fad`. I did not push.\n\n**Cause:** `hasPaidStay` in `src/Contexts/Booking/Infrastructure/PostgresBookingQueries.ts` had `AND b.status <> 'cancelled'`. Once the paid booking was cancelled, the query found no paid stay, so Messaging masked the conversation again. ADR 55 says a cancelled or refunded paid stay keeps the hold lifted, and the port's doc comment says the same.\n\n**Fix:** I removed that status condition. The query still requires a payment with status `paid` or `declared`, so nothing else changes.\n\n**Test:** I added an assertion to the \"Contact details held back\" case in `conversations.routes.e2e.spec.ts`. After the traveller cancels the paid booking, the host's email must still show in full. The new assertion fails without the fix and passes with it. The full conversation e2e suite passes (15/15), typecheck is clean, and ESLint and Prettier pass on the changed files.\n\n**Choices I made:**\n- I committed on `main` because you asked for the current branch. The general guidance is to branch off a default branch first, so say if you'd rather have a branch.\n- I did not change the Messaging side. `GetConversationQueryHandler` already asks Booking at read time, so the fix belongs in Booking's query.\n- I did not run the wider Booking or Payments suites, only the conversation e2e suite.",
+    "prompt": {
+      "sha256": "eb64a952842bce5acc3175422f393fe1621bd9b61761f7be0f042485ad6235ca",
+      "bytes": 1240
+    },
+    "tools": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep"
+    ],
+    "extraArgs": [
+      "--tools",
+      "Bash,Read,Edit,Write,Glob,Grep",
+      "--session-id",
+      "3f98ae71-342a-4e83-b599-4189ed0382dc",
+      "--setting-sources",
+      "project",
+      "--strict-mcp-config",
+      "--disable-slash-commands"
+    ]
+  },
+  "void": false,
+  "leakage": {
+    "void": false,
+    "touched": [],
+    "seen": []
+  },
+  "measures": {
+    "calls": 12,
+    "classes": {
+      "explore": {
+        "calls": 8,
+        "callShare": 0.6667,
+        "bytes": 61087,
+        "byteShare": 0.9489
+      },
+      "edit": {
+        "calls": 2,
+        "callShare": 0.1667,
+        "bytes": 295,
+        "byteShare": 0.0046
+      },
+      "verify": {
+        "calls": 2,
+        "callShare": 0.1667,
+        "bytes": 2994,
+        "byteShare": 0.0465
+      },
+      "other": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      }
+    },
+    "resultBytes": 64376,
+    "firstEdit": 7,
+    "exploreCallsBeforeFirstEdit": 7,
+    "filesReadBeforeFirstEdit": 12,
+    "filesRead": 12,
+    "unnecessaryFilesRead": 7,
+    "unnecessary": [
+      "conventions/storms/contact-details-held-back.yaml",
+      "conventions/storms/pay-a-booking.yaml",
+      "docs/adr/0055-contact-details-are-held-back-in-a-view-until-a-stay-is-paid-messaging-asks-booking-through-a-port.md",
+      "package.json",
+      "src/Contexts/Messaging/Domain/Conversation/ContactDetails.ts",
+      "src/Contexts/Messaging/Domain/Conversation/Conversation.ts",
+      "src/Contexts/Messaging/Infrastructure/PostgresConversationQueries.ts"
+    ],
+    "knowledge": {
+      "calls": 0,
+      "bytes": 0,
+      "beforeFirstEdit": false
+    },
+    "skill": {
+      "calls": 0,
+      "bytes": 0,
+      "names": []
+    }
+  },
+  "grading": {
+    "repository": "/var/tmp/k4-pilot/grading/1-cancelled-stay-hides-contacts/openstay",
+    "start": "f3695c47a2c1e2d7955aa43a94de61115139ee3e",
+    "commit": "7157d0bb12eb876594ddfba4b618e64c61c177e0",
+    "applied": {
+      "pass": true,
+      "files": 2
+    },
+    "command": "node .claude/flow/grade.mjs --project /var/tmp/k4-pilot/grading/1-cancelled-stay-hides-contacts/openstay --ref 7157d0bb12eb876594ddfba4b618e64c61c177e0 --base f3695c47a2c1e2d7955aa43a94de61115139ee3e --kit /var/tmp/k4-pilot/kits/1-cancelled-stay-hides-contacts --upto 101 --workers 4 --gate false --keep false --cache /var/tmp/k4-pilot/grading/1-cancelled-stay-hides-contacts/openstay.flow/verdicts --out /var/tmp/k4-pilot/out/grades/k4-t1-A-r1.json",
+    "report": "grades/k4-t1-A-r1.json",
+    "hidden": {
+      "pass": true,
+      "tests": "2 passed, 2 total",
+      "failed": []
+    },
+    "checks": {
+      "format:check": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 14365
+      },
+      "lint": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 9054
+      },
+      "typecheck": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 9413
+      },
+      "test:units": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 61854,
+        "tests": "1049 passed, 1049 total"
+      },
+      "test:e2e": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 208272,
+        "tests": "607 passed, 607 total"
+      }
+    },
+    "apart": {
+      "check:conventions": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 11076
+      }
+    },
+    "regressions": [],
+    "kit": {
+      "passed": 102,
+      "of": 102,
+      "failing": []
+    },
+    "ownTestsNewlyFailing": []
+  },
+  "success": true,
+  "finishedAt": "2026-11-16T08:34:18.270Z"
+}

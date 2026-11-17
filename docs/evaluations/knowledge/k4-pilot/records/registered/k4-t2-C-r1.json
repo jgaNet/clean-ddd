@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "pilot": "k4-pilot",
+  "id": "k4-t2-C-r1",
+  "plan": "k4-t2-C-r1",
+  "attempt": 1,
+  "order": 4,
+  "task": "2-phone-numbers-with-hyphens",
+  "arm": "C",
+  "run": 1,
+  "model": "claude-haiku-5-5",
+  "startedAt": "2026-11-16T08:34:20.728Z",
+  "tree": {
+    "start": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "head": "af1162dfa02e015378bd7b696ceb09a35550da48",
+    "commits": 1,
+    "changed": [
+      "src/Contexts/Messaging/Domain/Conversation/ContactDetails.spec.ts",
+      "src/Contexts/Messaging/Domain/Conversation/ContactDetails.ts",
+      "src/Contexts/Reviews/Domain/StayReview/ReviewRules.spec.ts",
+      "src/Contexts/Reviews/Domain/StayReview/ReviewRules.ts"
+    ],
+    "uncommitted": []
+  },
+  "k3": {
+    "package": "/home/user/clean-ddd-3.2.0.tgz",
+    "sha256": "eacda6b059b9ffbfbdd789f4772344c85ca3b1a79001886dfe47d1b405abd482"
+  },
+  "agent": {
+    "sessionId": "cacaa4d6-ced4-49da-b02f-cd593126ba87",
+    "transcript": "transcripts/k4-t2-C-r1.jsonl",
+    "exitCode": 0,
+    "isError": false,
+    "numTurns": 16,
+    "durationMs": 344971,
+    "wallClockMs": 349034,
+    "costUsd": 0.014791080000000002,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 20,
+        "outputTokens": 8384,
+        "cacheReadInputTokens": 316908,
+        "cacheCreationInputTokens": 37140,
+        "webSearchRequests": 0,
+        "costUSD": 0.014791080000000002,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 2942,
+        "cacheCreationEphemeral5mInputTokens": 0,
+        "cacheCreationEphemeral1hInputTokens": 37140,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "tokens": 362452,
+    "report": "Hyphenated phone numbers are now recognised as contact details. The change is committed on `main` as `af1162d`, and nothing is pushed.\n\n**What changed**\n- The phone pattern is now `\\+?\\d(?:[ .-]?\\d){8,}` in both places that hold it:\n  - `src/Contexts/Reviews/Domain/StayReview/ReviewRules.ts`, which refuses `CONTACT_DETAILS`.\n  - `src/Contexts/Messaging/Domain/Conversation/ContactDetails.ts`, which holds numbers back as `[hidden]`.\n- ADR 0063 says the phone rule is kept per context, so I changed both rather than sharing a helper.\n- I added tests in both `.spec.ts` files. They cover `06-12-34-56-78`, `+33-6-12-34-56-78`, a mixed separator case, and `2026-12-01` staying allowed. They also check that a double hyphen (`06--12-…`) is not accepted.\n\n**Verification**\n- Unit tests: 155 suites, 1054 tests pass.\n- E2E: 114 suites, 607 tests pass. This ran the whole e2e set, not only the two I named, because the path filter was not applied.\n- `yarn lint`, `yarn typecheck`, `yarn format:check` and `yarn check:conventions` all pass.\n- My first attempt to run a single spec failed because I skipped the project's `--experimental-vm-modules` flag. I then used `yarn test`, which sets it, and confirmed the same spec passes on the untouched tree.\n\n**Decisions and unclear points**\n- **Adjacent dates can now match.** With hyphens allowed, two dates separated by one space, such as `2026-12-01 2026-12-04`, make 16 digits in a chain and are refused or held back. A single date is not affected. The request's rule as written allows this, so I did not add an exception. If that is not wanted, it needs a date-aware rule and a decision from you.\n- **A date followed by a number with a space can match too.** For example, `2026-12-01 2026` gives 9 digits. Same cause, same reasoning.\n- I did not touch ADR 0055 or 0063 or the storm file. They describe phone numbers in general terms and stay accurate.",
+    "prompt": {
+      "sha256": "8cc8c9f7e4b1190206a360650ec8e15eca32b151565f62b9be0cb0621b77c043",
+      "bytes": 1428
+    },
+    "tools": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Skill"
+    ],
+    "extraArgs": [
+      "--tools",
+      "Bash,Read,Edit,Write,Glob,Grep,Skill",
+      "--session-id",
+      "cacaa4d6-ced4-49da-b02f-cd593126ba87",
+      "--setting-sources",
+      "project",
+      "--strict-mcp-config"
+    ]
+  },
+  "void": false,
+  "leakage": {
+    "void": false,
+    "touched": [],
+    "seen": []
+  },
+  "measures": {
+    "calls": 15,
+    "classes": {
+      "explore": {
+        "calls": 6,
+        "callShare": 0.4,
+        "bytes": 33223,
+        "byteShare": 0.8109
+      },
+      "edit": {
+        "calls": 4,
+        "callShare": 0.2667,
+        "bytes": 536,
+        "byteShare": 0.0131
+      },
+      "verify": {
+        "calls": 5,
+        "callShare": 0.3333,
+        "bytes": 7212,
+        "byteShare": 0.176
+      },
+      "other": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      }
+    },
+    "resultBytes": 40971,
+    "firstEdit": 5,
+    "exploreCallsBeforeFirstEdit": 5,
+    "filesReadBeforeFirstEdit": 7,
+    "filesRead": 7,
+    "unnecessaryFilesRead": 3,
+    "unnecessary": [
+      "conventions/storms/contact-details-held-back.yaml",
+      "docs/adr/0063-review-rules-are-checked-by-the-stay-reviews-aggregate-and-a-published-review-is-reported-to-moderation.md",
+      "src/Bootstrap/Fastify/review-rules.e2e.spec.ts"
+    ],
+    "knowledge": {
+      "calls": 0,
+      "bytes": 0,
+      "beforeFirstEdit": false
+    },
+    "skill": {
+      "calls": 0,
+      "bytes": 0,
+      "names": []
+    }
+  },
+  "grading": {
+    "repository": "/var/tmp/k4-pilot/grading/2-phone-numbers-with-hyphens/openstay",
+    "start": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "commit": "03b24994318f624c31fd8b62b669f34b461a0f58",
+    "applied": {
+      "pass": true,
+      "files": 4
+    },
+    "command": "node .claude/flow/grade.mjs --project /var/tmp/k4-pilot/grading/2-phone-numbers-with-hyphens/openstay --ref 03b24994318f624c31fd8b62b669f34b461a0f58 --base 38cc90c2326ef44ecc31c4e14fe1495eb454e234 --kit /var/tmp/k4-pilot/kits/2-phone-numbers-with-hyphens --upto 101 --workers 4 --gate false --keep false --cache /var/tmp/k4-pilot/grading/2-phone-numbers-with-hyphens/openstay.flow/verdicts --out /var/tmp/k4-pilot/out/grades/k4-t2-C-r1.json",
+    "report": "grades/k4-t2-C-r1.json",
+    "hidden": {
+      "pass": true,
+      "tests": "3 passed, 3 total",
+      "failed": []
+    },
+    "checks": {
+      "format:check": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 13412
+      },
+      "lint": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 9496
+      },
+      "typecheck": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 8712
+      },
+      "test:units": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 60762,
+        "tests": "1054 passed, 1054 total"
+      },
+      "test:e2e": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 203120,
+        "tests": "607 passed, 607 total"
+      }
+    },
+    "apart": {
+      "check:conventions": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 10867
+      }
+    },
+    "regressions": [],
+    "kit": {
+      "passed": 102,
+      "of": 102,
+      "failing": []
+    },
+    "ownTestsNewlyFailing": []
+  },
+  "success": true,
+  "finishedAt": "2026-11-16T09:12:47.135Z"
+}

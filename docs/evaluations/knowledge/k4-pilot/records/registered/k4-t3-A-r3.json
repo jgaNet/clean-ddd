@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 1,
+  "pilot": "k4-pilot",
+  "id": "k4-t3-A-r3",
+  "plan": "k4-t3-A-r3",
+  "attempt": 1,
+  "order": 44,
+  "task": "3-message-notice-names-the-listing",
+  "arm": "A",
+  "run": 3,
+  "model": "claude-haiku-5-5",
+  "startedAt": "2026-11-16T23:01:43.906Z",
+  "tree": {
+    "start": "42667b63c5218a65d0f2587c891b5bd4b59c963d",
+    "head": "25634029430f82f9ffc24d08ca50fc89f4d3c202",
+    "commits": 1,
+    "changed": [
+      "src/Bootstrap/Fastify/message-notices.e2e.spec.ts",
+      "src/Contexts/Messaging/Application/Events/MessageSentHandler.ts",
+      "src/Contexts/Messaging/Domain/Conversation/Conversation.ts",
+      "src/Contexts/Messaging/Domain/Conversation/ConversationEvents.ts",
+      "src/Contexts/Messaging/Presentation/API/REST/Routes/messageClock.routes.e2e.spec.ts",
+      "src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.spec.ts",
+      "src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.ts",
+      "src/Contexts/Notifications/Application/MessageNotice/MessageNoticeOwing.spec.ts",
+      "src/Contexts/Notifications/Application/Preferences/NoticePreferencesOwing.spec.ts",
+      "src/Contexts/Notifications/Domain/MessageNotice/MessageNoticeOwing.ts",
+      "src/Contexts/Notifications/Domain/Notice/DTOs.ts",
+      "src/Contexts/Notifications/Infrastructure/HttpNoticeService.ts",
+      "src/Contexts/Notifications/Infrastructure/PostgresNotices.ts",
+      "src/SharedKernel/Application/IntegrationEvents/MessagingIntegrationEvents.ts"
+    ],
+    "uncommitted": []
+  },
+  "agent": {
+    "sessionId": "66f9fc26-31a7-41e5-88c3-ea67f2633529",
+    "transcript": "transcripts/k4-t3-A-r3.jsonl",
+    "exitCode": 0,
+    "isError": false,
+    "numTurns": 27,
+    "durationMs": 364824,
+    "wallClockMs": 368811,
+    "costUsd": 0.029146790000000002,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 54,
+        "outputTokens": 15644,
+        "cacheReadInputTokens": 1063419,
+        "cacheCreationInputTokens": 53426,
+        "webSearchRequests": 0,
+        "costUSD": 0.029146790000000002,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 3849,
+        "cacheCreationEphemeral5mInputTokens": 0,
+        "cacheCreationEphemeral1hInputTokens": 53426,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "tokens": 1132543,
+    "report": "The message notice now carries `listingId`, and the work is committed on `main` as `2563402`. Nothing is pushed. Typecheck, lint, and Prettier are clean, and the full Jest suite passes (269 suites, 1656 tests). The message-notice e2e specs passed on their own; the full-suite run had one failing spec, which I fixed (below).\n\n**What changed**\n- **Messaging:** `MessageSentEvent` and the `MessageSentPayload` integration payload now carry `listingId`. The conversation already knew its listing, so it is passed through from there.\n- **Notifications:** `MessageNoticeBody` gains `listingId`. `MessageNoticeOwing` and the sent-message handler pass it through. It is stored in the existing `listing_id` column, which calendar conflicts already use, so there is no migration.\n- **Unchanged:** who is told, the window, delivery, retries, and the other notice kinds.\n- **Tests:** I updated the fixtures and the exact-body assertions in the notification specs, the message-notice e2e spec, and `messageClock.routes.e2e.spec.ts`. That last one was the failure in the full run: it pins the whole notice body, and the new field is the intended change.\n\n**Things you should know**\n- **Notices already owed before deploy have no listing id.** Their rows have `listing_id` NULL, and they will be sent with `listingId: null` even though the type says `string`. Fixing this needs a backfill from the conversations table, which means a cross-context read. I did not write one. Say if you want it.\n- **Docs not updated.** ADR 57 describes the sent-message event's fields, and it now omits the listing. I left the ADR alone because it is a decision record. `conventions/storms/message-notices.yaml` lists event names only, so it needed no change.\n- **Port 4471 not used.** The e2e specs bind their own ephemeral ports, so I did not start a server.",
+    "prompt": {
+      "sha256": "08e3eb966e15c57ae463bf6b6f8e50a5921baa0f78a5e56a1074e9eb68112171",
+      "bytes": 846
+    },
+    "tools": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep"
+    ],
+    "extraArgs": [
+      "--tools",
+      "Bash,Read,Edit,Write,Glob,Grep",
+      "--session-id",
+      "66f9fc26-31a7-41e5-88c3-ea67f2633529",
+      "--setting-sources",
+      "project",
+      "--strict-mcp-config",
+      "--disable-slash-commands"
+    ]
+  },
+  "void": false,
+  "leakage": {
+    "void": false,
+    "touched": [],
+    "seen": []
+  },
+  "measures": {
+    "calls": 26,
+    "classes": {
+      "explore": {
+        "calls": 18,
+        "callShare": 0.6923,
+        "bytes": 73737,
+        "byteShare": 0.8861
+      },
+      "edit": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      },
+      "verify": {
+        "calls": 8,
+        "callShare": 0.3077,
+        "bytes": 9481,
+        "byteShare": 0.1139
+      },
+      "other": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      }
+    },
+    "resultBytes": 83218,
+    "firstEdit": null,
+    "exploreCallsBeforeFirstEdit": 18,
+    "filesReadBeforeFirstEdit": 19,
+    "filesRead": 19,
+    "unnecessaryFilesRead": 6,
+    "unnecessary": [
+      "package.json",
+      "src/Contexts/Messaging/Domain/Conversation/Conversation.spec.ts",
+      "src/Contexts/Notifications/Application/NoticeDelivery.ts",
+      "src/Contexts/Notifications/Application/Ports/INoticeService.ts",
+      "src/Contexts/Notifications/Domain/Notice/Notice.ts",
+      "src/Contexts/Notifications/Domain/Notice/NoticeOwing.ts"
+    ],
+    "knowledge": {
+      "calls": 0,
+      "bytes": 0,
+      "beforeFirstEdit": false
+    },
+    "skill": {
+      "calls": 0,
+      "bytes": 0,
+      "names": []
+    }
+  },
+  "grading": {
+    "repository": "/var/tmp/k4-pilot/grading/3-message-notice-names-the-listing/openstay",
+    "start": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "commit": "ca484262b2dfaf16bca68a64d46608b3153f69a2",
+    "applied": {
+      "pass": true,
+      "files": 14
+    },
+    "command": "node .claude/flow/grade.mjs --project /var/tmp/k4-pilot/grading/3-message-notice-names-the-listing/openstay --ref ca484262b2dfaf16bca68a64d46608b3153f69a2 --base 38cc90c2326ef44ecc31c4e14fe1495eb454e234 --kit /var/tmp/k4-pilot/kits/3-message-notice-names-the-listing --upto 101 --workers 4 --gate false --keep false --cache /var/tmp/k4-pilot/grading/3-message-notice-names-the-listing/openstay.flow/verdicts --out /var/tmp/k4-pilot/out/grades/k4-t3-A-r3.json",
+    "report": "grades/k4-t3-A-r3.json",
+    "hidden": {
+      "pass": true,
+      "tests": "1 passed, 1 total",
+      "failed": []
+    },
+    "checks": {
+      "format:check": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 17130
+      },
+      "lint": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 13090
+      },
+      "typecheck": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 9632
+      },
+      "test:units": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 58549,
+        "tests": "1049 passed, 1049 total"
+      },
+      "test:e2e": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 194566,
+        "tests": "607 passed, 607 total"
+      }
+    },
+    "apart": {
+      "check:conventions": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 10518
+      }
+    },
+    "regressions": [],
+    "kit": {
+      "passed": 102,
+      "of": 102,
+      "failing": []
+    },
+    "ownTestsNewlyFailing": []
+  },
+  "success": true,
+  "finishedAt": "2026-11-16T23:24:05.544Z"
+}

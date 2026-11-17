@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 1,
+  "pilot": "k4-pilot",
+  "id": "k4-t4-A-r3",
+  "plan": "k4-t4-A-r3",
+  "attempt": 1,
+  "order": 46,
+  "task": "4-review-window-impact",
+  "arm": "A",
+  "run": 3,
+  "model": "claude-haiku-5-5",
+  "startedAt": "2026-11-17T00:02:10.555Z",
+  "tree": {
+    "start": "42667b63c5218a65d0f2587c891b5bd4b59c963d",
+    "head": "42667b63c5218a65d0f2587c891b5bd4b59c963d",
+    "commits": 0,
+    "changed": [],
+    "uncommitted": []
+  },
+  "agent": {
+    "sessionId": "7e0769d2-8993-4890-bd4a-1832406022ab",
+    "transcript": "transcripts/k4-t4-A-r3.jsonl",
+    "exitCode": 0,
+    "isError": false,
+    "numTurns": 15,
+    "durationMs": 62050,
+    "wallClockMs": 66178,
+    "costUsd": 0.02368867,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 20,
+        "outputTokens": 12475,
+        "cacheReadInputTokens": 411437,
+        "cacheCreationInputTokens": 66674,
+        "webSearchRequests": 0,
+        "costUSD": 0.02368867,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 7559,
+        "cacheCreationEphemeral5mInputTokens": 0,
+        "cacheCreationEphemeral1hInputTokens": 66674,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "tokens": 490606,
+    "report": "I made no changes, so there was nothing to commit and I did not create an empty commit. No server was started.\n\nPoints I could not settle from the code:\n- **Claim window:** `CLAIM_WINDOW_DAYS` is a separate constant in `Support`, so I left claims out. ADR 74 says the claim window is \"the same window as a review's\", so the team should decide whether claims move too.\n- **Docs:** `conventions/domain.yaml`, `conventions/storms/reviews.yaml`, and ADRs 59 and 62 also state \"14 days\". They would need rewording but are not source files, so I left them out.\n\n```yaml\nrules:   # each rule of the application the change touches, in a few words, with the name the code gives it when it has one\n  - Review window: a stay is reviewed from the day after check-out up to 14 days after it (REVIEW_WINDOW_DAYS, isInReviewWindow, OutsideReviewWindow)\n  - Publication on window close: the two reviews of a stay publish together, once both are written or the window has closed (windowClosed, isPublished)\n  - Host reply only once published (StayReviews.replyToTravellerReview, ReviewNotPublished)\n  - Report of a published review only (StayReviews.reportReview, NotFound for unpublished reviews)\n  - Ratings count only published traveller reviews (publishedTravellerReviews, ratingsOfListings, GetHostRating)\n  - Read visibility of reviews follows publication (publishedOn in ReviewViews; GetBookingReviews, GetGuestReviews, GetListingReviews)\nfiles:   # each source file (tests excluded) the change would modify, by its path from the repository's root\n  - src/Contexts/Reviews/Domain/StayReview/ReviewWindow.ts\n  - src/Contexts/Reviews/Domain/StayReview/StayReviewExceptions.ts\ntests:   # each test file that would fail if only the source were changed, or that the change would modify, by its path\n  - src/Contexts/Reviews/Domain/StayReview/StayReviews.spec.ts\n  - src/Contexts/Reviews/Domain/StayReview/Rating.spec.ts\n  - src/Contexts/Reviews/Domain/StayReview/StayReviewReports.spec.ts\n  - src/Bootstrap/Fastify/reviews.e2e.spec.ts\n  - src/Bootstrap/Fastify/ratings.e2e.spec.ts\n```",
+    "prompt": {
+      "sha256": "68ca90b4e0044e60739276b2d2db87725c60d89e071ccf0032c322fe990d2fcf",
+      "bytes": 1245
+    },
+    "tools": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep"
+    ],
+    "extraArgs": [
+      "--tools",
+      "Bash,Read,Edit,Write,Glob,Grep",
+      "--session-id",
+      "7e0769d2-8993-4890-bd4a-1832406022ab",
+      "--setting-sources",
+      "project",
+      "--strict-mcp-config",
+      "--disable-slash-commands"
+    ]
+  },
+  "void": false,
+  "leakage": {
+    "void": false,
+    "touched": [],
+    "seen": [
+      {
+        "call": 1,
+        "tool": "Grep",
+        "matched": "transcripts"
+      }
+    ]
+  },
+  "measures": {
+    "calls": 14,
+    "classes": {
+      "explore": {
+        "calls": 14,
+        "callShare": 1,
+        "bytes": 125723,
+        "byteShare": 1
+      },
+      "edit": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      },
+      "verify": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      },
+      "other": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      }
+    },
+    "resultBytes": 125723,
+    "firstEdit": null,
+    "exploreCallsBeforeFirstEdit": 14,
+    "filesReadBeforeFirstEdit": 15,
+    "filesRead": 15,
+    "unnecessaryFilesRead": 3,
+    "unnecessary": [
+      "conventions/storms/guest-reviews.yaml",
+      "conventions/storms/review-rules.yaml",
+      "src/Bootstrap/Fastify/admin-decisions.e2e.spec.ts"
+    ],
+    "knowledge": {
+      "calls": 0,
+      "bytes": 0,
+      "beforeFirstEdit": false
+    },
+    "skill": {
+      "calls": 0,
+      "bytes": 0,
+      "names": []
+    }
+  },
+  "score": {
+    "parses": true,
+    "unchanged": true,
+    "files": {
+      "predicted": 2,
+      "hits": 2,
+      "tolerated": 0,
+      "misses": [],
+      "missed": [],
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "tests": {
+      "predicted": 5,
+      "hits": 5,
+      "tolerated": 0,
+      "misses": [],
+      "missed": [],
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "pooled": {
+      "predicted": 7,
+      "hits": 7,
+      "tolerated": 0,
+      "misses": [],
+      "missed": [],
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "score": 1,
+    "success": true,
+    "answer": {
+      "rules": [
+        "{\"Review window\":\"a stay is reviewed from the day after check-out up to 14 days after it (REVIEW_WINDOW_DAYS, isInReviewWindow, OutsideReviewWindow)\"}",
+        "{\"Publication on window close\":\"the two reviews of a stay publish together, once both are written or the window has closed (windowClosed, isPublished)\"}",
+        "Host reply only once published (StayReviews.replyToTravellerReview, ReviewNotPublished)",
+        "Report of a published review only (StayReviews.reportReview, NotFound for unpublished reviews)",
+        "Ratings count only published traveller reviews (publishedTravellerReviews, ratingsOfListings, GetHostRating)",
+        "Read visibility of reviews follows publication (publishedOn in ReviewViews; GetBookingReviews, GetGuestReviews, GetListingReviews)"
+      ],
+      "files": [
+        "src/Contexts/Reviews/Domain/StayReview/ReviewWindow.ts",
+        "src/Contexts/Reviews/Domain/StayReview/StayReviewExceptions.ts"
+      ],
+      "tests": [
+        "src/Contexts/Reviews/Domain/StayReview/StayReviews.spec.ts",
+        "src/Contexts/Reviews/Domain/StayReview/Rating.spec.ts",
+        "src/Contexts/Reviews/Domain/StayReview/StayReviewReports.spec.ts",
+        "src/Bootstrap/Fastify/reviews.e2e.spec.ts",
+        "src/Bootstrap/Fastify/ratings.e2e.spec.ts"
+      ]
+    },
+    "rules": {
+      "judge": "claude-sonnet-5-5",
+      "costUsd": 0.0109809,
+      "matches": [
+        {
+          "rule": "{\"Review window\":\"a stay is reviewed from the day after check-out up to 14 days after it (REVIEW_WINDOW_DAYS, isInReviewWindow, OutsideReviewWindow)\"}",
+          "match": "window",
+          "kind": "required"
+        },
+        {
+          "rule": "{\"Publication on window close\":\"the two reviews of a stay publish together, once both are written or the window has closed (windowClosed, isPublished)\"}",
+          "match": "publication",
+          "kind": "required"
+        },
+        {
+          "rule": "Host reply only once published (StayReviews.replyToTravellerReview, ReviewNotPublished)",
+          "match": "replies",
+          "kind": "required"
+        },
+        {
+          "rule": "Report of a published review only (StayReviews.reportReview, NotFound for unpublished reviews)",
+          "match": "reports",
+          "kind": "required"
+        },
+        {
+          "rule": "Ratings count only published traveller reviews (publishedTravellerReviews, ratingsOfListings, GetHostRating)",
+          "match": "ratings",
+          "kind": "required"
+        },
+        {
+          "rule": "Read visibility of reviews follows publication (publishedOn in ReviewViews; GetBookingReviews, GetGuestReviews, GetListingReviews)",
+          "match": "publication",
+          "kind": "required"
+        }
+      ],
+      "recall": 1,
+      "precision": 1,
+      "distractors": [],
+      "operatorRead": false
+    }
+  },
+  "success": true,
+  "finishedAt": "2026-11-17T00:03:25.373Z"
+}

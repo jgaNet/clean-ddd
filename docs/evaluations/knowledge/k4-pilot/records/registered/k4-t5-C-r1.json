@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 1,
+  "pilot": "k4-pilot",
+  "id": "k4-t5-C-r1",
+  "plan": "k4-t5-C-r1",
+  "attempt": 1,
+  "order": 13,
+  "task": "5-domain-time-is-given",
+  "arm": "C",
+  "run": 1,
+  "model": "claude-haiku-5-5",
+  "startedAt": "2026-11-16T11:36:47.876Z",
+  "tree": {
+    "start": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "head": "a4b65abe88888d18209f501cdf887cee22381a24",
+    "commits": 1,
+    "changed": [
+      "src/Bootstrap/Fastify/createApplication.ts",
+      "src/Contexts/Messaging/Application/Commands/ReportMessage/ReportMessageCommandHandler.ts",
+      "src/Contexts/Messaging/Application/Commands/SendMessage/SendMessageCommandHandler.ts",
+      "src/Contexts/Messaging/Application/Commands/StartConversation/StartConversationCommandHandler.ts",
+      "src/Contexts/Messaging/Domain/Conversation/Conversation.spec.ts",
+      "src/Contexts/Messaging/Domain/Conversation/Conversation.ts",
+      "src/Contexts/Messaging/Domain/Conversation/ConversationAttachments.spec.ts",
+      "src/Contexts/Messaging/Domain/Conversation/ConversationHiding.spec.ts",
+      "src/Contexts/Messaging/Domain/Conversation/ConversationReads.spec.ts",
+      "src/Contexts/Messaging/Domain/Conversation/ConversationReports.spec.ts",
+      "src/Contexts/Messaging/module.local.ts",
+      "src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.spec.ts",
+      "src/Contexts/Notifications/Application/Events/MessageSentIntegrationEventHandler.ts",
+      "src/Contexts/Notifications/Application/NoticeDelivery.spec.ts",
+      "src/Contexts/Notifications/Application/NoticeDelivery.ts",
+      "src/Contexts/Notifications/Domain/MessageNotice/MessageNoticeOwing.ts",
+      "src/Contexts/Notifications/Domain/MessageNotice/NoticeWindow.ts",
+      "src/Contexts/Notifications/Domain/Notice/Notice.ts",
+      "src/Contexts/Notifications/module.local.ts"
+    ],
+    "uncommitted": []
+  },
+  "k3": {
+    "package": "/home/user/clean-ddd-3.2.0.tgz",
+    "sha256": "eacda6b059b9ffbfbdd789f4772344c85ca3b1a79001886dfe47d1b405abd482"
+  },
+  "agent": {
+    "sessionId": "0b4f9ed2-592f-4be8-ac65-2d70e6552df8",
+    "transcript": "transcripts/k4-t5-C-r1.jsonl",
+    "exitCode": 0,
+    "isError": false,
+    "numTurns": 26,
+    "durationMs": 364721,
+    "wallClockMs": 368632,
+    "costUsd": 0.04167866,
+    "modelUsage": {
+      "claude-haiku-5-5": {
+        "inputTokens": 52,
+        "outputTokens": 20071,
+        "cacheReadInputTokens": 1506216,
+        "cacheCreationInputTokens": 82879,
+        "webSearchRequests": 0,
+        "costUSD": 0.04167866,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 7740,
+        "cacheCreationEphemeral5mInputTokens": 0,
+        "cacheCreationEphemeral1hInputTokens": 82879,
+        "canonicalModel": "claude-haiku-5-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "tokens": 1609218,
+    "report": "Messaging and Notifications no longer read the machine's time anywhere. Every time they decide or record now comes from the application's clock, passed in from the composition root. The work is committed on `main` as `9622d56`, not pushed.\n\n**What changed**\n- **Messaging domain:** `Conversation.start`, `send` and `report` take `sentAt`/`reportedAt` as required parameters. The old `?? new Date()` and `= new Date()` defaults are gone.\n- **Messaging handlers:** `StartConversation` and `SendMessage` require their clock. `ReportMessage` now takes one through its constructor, which was the only handler that needed a new dependency. `messagingWiring` requires the clock.\n- **Notifications domain:** `NoticeWindow.admit`, `MessageNoticeOwing.owe` and `Notice.accept` take a required time.\n- **Notifications application:** `MessageSentIntegrationEventHandler` and `NoticeDelivery` take the clock. `notificationsWiring` takes it too, and `createApplication` passes it.\n- **Specs:** call sites that relied on the defaults now pass a fixed instant (`2026-03-01T10:00:00Z`) or a fixed clock.\n\n**Verification**\n- `yarn typecheck`, `yarn lint`, and `yarn check:conventions` all pass.\n- Prettier passes on the changed files.\n- Messaging and Notifications unit tests pass: 15 suites, 72 tests.\n- The Messaging and Notifications e2e suites pass: 129 suites, 679 tests. I also ran the shared-kernel relationships e2e spec.\n- A final grep finds no `new Date()` or `Date.now` left in non-spec Messaging or Notifications source.\n\n**Choices and things to know**\n- **Behaviour with an offset:** with `CLOCK_OFFSET_DAYS=0` nothing changes. With an offset, a report's `reportedAt` and the message-notice window now follow OpenStay's time. That is what the one-clock rule asks for, but it is a visible shift for anyone running with an offset.\n- **Positional argument:** `notificationsWiring` now takes `clock` before `notifyUrl`. I did this because the optional `messageNoticeWindowSeconds` has to stay last. The one caller is updated.\n- **Branch:** the branch is `main`, and you asked for the commit on the current branch, so I committed there. The tooling guidance normally says to branch off a default branch first. Tell me if you would rather have a branch.\n- **Not touched:** e2e specs that compute dates from `Date.now()` for their own test data, and the Bootstrap calendar/messageClock e2e specs. They are tests of the API, not decisions in the contexts.",
+    "prompt": {
+      "sha256": "3b9a7c224787c6daa5a7d0bec746652f0cc5e86eefe4a4b33638af5cf479821a",
+      "bytes": 1360
+    },
+    "tools": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Skill"
+    ],
+    "extraArgs": [
+      "--tools",
+      "Bash,Read,Edit,Write,Glob,Grep,Skill",
+      "--session-id",
+      "0b4f9ed2-592f-4be8-ac65-2d70e6552df8",
+      "--setting-sources",
+      "project",
+      "--strict-mcp-config"
+    ]
+  },
+  "void": false,
+  "leakage": {
+    "void": false,
+    "touched": [],
+    "seen": [
+      {
+        "call": 3,
+        "tool": "Bash",
+        "matched": "transcripts"
+      },
+      {
+        "call": 4,
+        "tool": "Bash",
+        "matched": "transcripts"
+      }
+    ]
+  },
+  "measures": {
+    "calls": 25,
+    "classes": {
+      "explore": {
+        "calls": 17,
+        "callShare": 0.68,
+        "bytes": 100940,
+        "byteShare": 0.8987
+      },
+      "edit": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      },
+      "verify": {
+        "calls": 8,
+        "callShare": 0.32,
+        "bytes": 11376,
+        "byteShare": 0.1013
+      },
+      "other": {
+        "calls": 0,
+        "callShare": 0,
+        "bytes": 0,
+        "byteShare": 0
+      }
+    },
+    "resultBytes": 112316,
+    "firstEdit": null,
+    "exploreCallsBeforeFirstEdit": 17,
+    "filesReadBeforeFirstEdit": 17,
+    "filesRead": 17,
+    "unnecessaryFilesRead": 3,
+    "unnecessary": [
+      "package.json",
+      "src/Contexts/Notifications/Application/Events/BookingConfirmedIntegrationEventHandler.ts",
+      "src/SharedKernel/Application/Clock.ts"
+    ],
+    "knowledge": {
+      "calls": 0,
+      "bytes": 0,
+      "beforeFirstEdit": false
+    },
+    "skill": {
+      "calls": 0,
+      "bytes": 0,
+      "names": []
+    }
+  },
+  "grading": {
+    "repository": "/var/tmp/k4-pilot/grading/5-domain-time-is-given/openstay",
+    "start": "38cc90c2326ef44ecc31c4e14fe1495eb454e234",
+    "commit": "3515637f1d82a3997f4eefdfcc3950c9465ac51d",
+    "applied": {
+      "pass": true,
+      "files": 19
+    },
+    "command": "node .claude/flow/grade.mjs --project /var/tmp/k4-pilot/grading/5-domain-time-is-given/openstay --ref 3515637f1d82a3997f4eefdfcc3950c9465ac51d --base 38cc90c2326ef44ecc31c4e14fe1495eb454e234 --kit /var/tmp/k4-pilot/kits/5-domain-time-is-given --upto 101 --workers 4 --gate false --keep false --cache /var/tmp/k4-pilot/grading/5-domain-time-is-given/openstay.flow/verdicts --out /var/tmp/k4-pilot/out/grades/k4-t5-C-r1.json",
+    "report": "grades/k4-t5-C-r1.json",
+    "hidden": {
+      "pass": true,
+      "tests": "1 passed, 1 total",
+      "failed": []
+    },
+    "checks": {
+      "format:check": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 13656
+      },
+      "lint": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 9291
+      },
+      "typecheck": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 8689
+      },
+      "test:units": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 61347,
+        "tests": "1049 passed, 1049 total"
+      },
+      "test:e2e": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 189057,
+        "tests": "607 passed, 607 total"
+      }
+    },
+    "apart": {
+      "check:conventions": {
+        "pass": true,
+        "exitCode": 0,
+        "ms": 10292
+      }
+    },
+    "regressions": [],
+    "kit": {
+      "passed": 102,
+      "of": 102,
+      "failing": []
+    },
+    "ownTestsNewlyFailing": []
+  },
+  "success": true,
+  "finishedAt": "2026-11-16T12:15:41.452Z"
+}
