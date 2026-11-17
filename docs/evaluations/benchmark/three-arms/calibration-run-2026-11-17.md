@@ -72,3 +72,28 @@ here applies to it before any Tally run.
 ## Cost
 
 $20.83 for the three trees, of the $180 the plans allowed.
+
+## The maintainer's decision (17 November, morning), and what the amended kit says of the stopped trees
+
+**Option 3:** a non-party — another signed-in caller, or anyone on a read that needs no caller — is answered `403` or
+`404` alike, and the calibration kit's tests accept either (twelve assertions, in requests 2, 4, 5, 6 and 9; `401` for
+a missing token, `404` for what does not exist, and the operation's reader are unchanged): commit `d6627e9`, the kit's
+`not-found` convention and decision 4 amended, dated. The frozen copy is replaced (files sha256 `fbab40adfacbd42d…`).
+Tally's kit holds the same convention in some fifty assertions of twenty files; it is amended the same way before any
+Tally run, by a decision of its own.
+
+**The stopped trees, graded again on request 6 with the amended kit, without an agent:**
+- `cal-lite`, haiku's attempt (`6e7305f`): **8 of 8 pass** (`grade.mjs --only book-instantly`; its `M3` says the storm
+  is owed, the known Lite column the registration leaves to the maintainer). With the amended kit Lite would have
+  delivered 6 at step 0.
+- `cal-plain`, opus's attempt (`95acb7f`): **8 of 8 pass**, run as jest in the grader's kept worktree. Through
+  `grade.mjs` in the operator's shell the same tree failed all 8 with no message, as did haiku's (`848fb2a`): a
+  difference of the operator's environment from the ladder's that was not found (the ladder's own gradings of this
+  tree passed 7 of 8 on every attempt); the direct run is the evidence kept.
+- `cal-full`, haiku's attempt (`6d2e4ab`): **3 of 8 fail**, two of them real and masked until now by the first
+  assertion: another host listing a listing's bookings is answered `200` (the test's next assertion, `[403, 404]`), the
+  booked nights are not kept off the calendar, and the twenty-bookings race on two servers; sonnet's and opus's
+  attempts were not graded again.
+
+So the amendment lifts what stopped Lite and, at the third step, the plain tree; Full's first attempt had failures of
+its own behind the one the judge read.
