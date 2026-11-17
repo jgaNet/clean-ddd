@@ -8,7 +8,7 @@
  * - A slot: at most `ladders` ladders run at once on the machine; another waits for a slot to free.
  */
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -154,11 +154,51 @@ export function readRegistry(file = registryFile()) {
   }
 }
 
-/** Adds or replaces a run's entry (a run is one project and one plan's `run`). */
-export function register(entry, file = registryFile()) {
-  const entries = readRegistry(file).filter(each => !(each.project === entry.project && each.run === entry.run));
+/**
+ * Runs `work` while holding the register's lock (a directory beside the file, made atomically), so that two ladders
+ * registering at once do not each write back a list the other's entry is missing from (17 November: three ladders
+ * resumed together after a restart left one of three in the register, and resume.mjs missed it). A lock older than
+ * thirty seconds was left by a crash and is taken over; one held longer than ten seconds is given up on.
+ */
+function withRegisterLock(file, work) {
+  const lock = `${file}.lock`;
   mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, `${JSON.stringify([...entries, entry], null, 2)}\n`);
+  const begun = Date.now();
+  for (;;) {
+    try {
+      mkdirSync(lock);
+      break;
+    } catch {
+      let age = Infinity;
+      try {
+        age = Date.now() - statSync(lock).mtimeMs;
+      } catch {
+        continue; // released between the two calls
+      }
+      if (age > 30_000) {
+        rmSync(lock, { recursive: true, force: true });
+        continue;
+      }
+      if (Date.now() - begun > 10_000) throw new Error(`${lock}: held for ten seconds`);
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25);
+    }
+  }
+  try {
+    return work();
+  } finally {
+    rmSync(lock, { recursive: true, force: true });
+  }
+}
+
+/** Adds or replaces a run's entry (a run is one project and one plan's `run`), under the register's lock. */
+export function register(entry, file = registryFile()) {
+  withRegisterLock(file, () => {
+    const entries = readRegistry(file).filter(each => !(each.project === entry.project && each.run === entry.run));
+    // Written whole beside the file and renamed: a reader never sees a half-written register.
+    const staging = `${file}.${process.pid}.tmp`;
+    writeFileSync(staging, `${JSON.stringify([...entries, entry], null, 2)}\n`);
+    renameSync(staging, file);
+  });
 }
 
 /**

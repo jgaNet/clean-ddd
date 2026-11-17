@@ -126,6 +126,29 @@ describe('the register resume.mjs reads', () => {
     assert.deepEqual(readRegistry(join(scratch, 'registry', 'missing.json')), []);
   });
 
+  it('keeps every entry when several ladders register at once (17 November: three resumed together, one kept)', async () => {
+    const file = join(scratch, 'registry', 'at-once.json');
+    const machine = new URL('./machine.mjs', import.meta.url).href;
+    const one = run =>
+      new Promise(resolve => {
+        const child = spawn(process.execPath, [
+          '--input-type=module',
+          '-e',
+          `import { register } from ${JSON.stringify(machine)}; for (let i = 0; i < 20; i++) register({ run: ${JSON.stringify(run)}, project: '/p', plan: '/' + ${JSON.stringify(run)} + '.yaml', log: '/p.flow/x.jsonl', i }, ${JSON.stringify(file)});`,
+        ]);
+        child.on('close', code => resolve(code));
+      });
+    const codes = await Promise.all(['r1', 'r2', 'r3', 'r4'].map(one));
+    assert.deepEqual(codes, [0, 0, 0, 0]);
+    assert.deepEqual(
+      readRegistry(file)
+        .map(each => each.run)
+        .sort(),
+      ['r1', 'r2', 'r3', 'r4'],
+    );
+    assert.equal(existsSync(`${file}.lock`), false);
+  });
+
   it('resumes a run stopped mid-way or cancelled, and not one running, held, finished or never started', () => {
     const entries = ['mid', 'cancelled', 'running', 'held', 'done', 'stopped', 'never'].map(run => ({ run }));
     const facts = {
