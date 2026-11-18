@@ -173,8 +173,20 @@ export const RELATIVE_LEAKS = [
  * Whether the transcripts read or list a path of `paths` (the kit, the grader's worktrees), or any file shaped like a
  * kit's (RELATIVE_LEAKS): a tool call whose input names one, as K4's scan finds it. A result that only mentions one
  * voids nothing (`seen`). K4's package patterns (`.k3/package`, Claude Code's own transcripts) are not this scan's.
+ * `allowed`: paths of the kit the agent was given as they are (the current request's own file), which a call may name
+ * without leaking anything — an agent that lost its request to a compaction and searched the disk for it read what it
+ * had been given (lite-3, 18 November, twice at request 30); a call that names anything else of the kit beside it still
+ * voids (the maintainer, 18 November).
  */
-export function kitLeakage(files, paths) {
+export function kitLeakage(files, paths, { allowed = [] } = {}) {
+  const given = allowed.filter(Boolean);
+  // The call's input with the given paths taken out, so that only what else it names is scanned.
+  const scrubbed = input => {
+    if (!given.length || input === undefined) return input;
+    let text = JSON.stringify(input);
+    for (const path of given) text = text.split(path).join('<the request>');
+    return JSON.parse(text);
+  };
   // Each path is its own pattern, named by the path (leakPatterns), and so are the shapes a kit's files take wherever
   // they are (RELATIVE_LEAKS): a hidden test's name, the reference's evaluations, the grader's worktrees named
   // relatively from an attempt's worktree, which a literal path would miss (J6 readiness, 16 November). A call counts
@@ -182,7 +194,10 @@ export function kitLeakage(files, paths) {
   const planNames = new Set(paths.filter(Boolean));
   const names = new Set([...planNames, ...RELATIVE_LEAKS.map(each => each.name)]);
   const found = files.map(file => {
-    const calls = toolCalls(readTranscript(readFileSync(file, 'utf8'))).calls;
+    const calls = toolCalls(readTranscript(readFileSync(file, 'utf8'))).calls.map(call => ({
+      ...call,
+      input: scrubbed(call.input),
+    }));
     const scanned = scanLeakage(calls, [...planNames]);
     const byCall = new Map();
     const hits = [
