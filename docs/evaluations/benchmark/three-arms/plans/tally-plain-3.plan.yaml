@@ -21,4 +21,4 @@ triage: { judge: claude-sonnet-5-5 }
 services: { start: /var/tmp/j6/bin/pg.sh start plain-3 }
 envFile: /var/tmp/j6/env/plain-3.env
 push: { remote: https://github.com/jgaNet/tally, branch: trees/plain-3, logBranch: logs/plain-3 }
-features: [accounts, create-a-group, invite-and-join, record-an-expense, balances, edit-and-delete-an-expense, unequal-splits, history-and-statement, leave-a-group, remainder-to-the-first, suggested-settlements, settle-in-cash, pay-through-the-provider, webhooks-late-twice-out-of-order, refund-through-the-provider, payout-accounts, notices, reminders, settlement-history, leave-with-a-balance]
+features: [accounts, create-a-group, invite-and-join, record-an-expense, balances, edit-and-delete-an-expense, unequal-splits, history-and-statement, leave-a-group, remainder-to-the-first, suggested-settlements, settle-in-cash, pay-through-the-provider, webhooks-late-twice-out-of-order, refund-through-the-provider, payout-accounts, notices, reminders, settlement-history, leave-with-a-balance, another-currency, offered-rates, recurring-expenses, budgets, split-templates, receipts, archive-a-group, audit, statement-as-csv, postgresql]
