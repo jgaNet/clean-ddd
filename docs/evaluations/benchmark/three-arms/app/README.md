@@ -528,6 +528,15 @@ accept or change.
   and a CSV statement through the tree graded on the same database, lands the waiting payment, then records in yen:
   an earlier amount read unchanged, a new one in its currency's minor unit.
 
+## Decided by the maintainer during the run (18 November)
+
+- **Request 35's test called a route of request 36** (`PUT /accounts/me/notice-preferences/budget`, set before the
+  deletion so that the preference is seen erased too): at 35 no tree has it, the helper refused the 404 and the test
+  failed before the deletion, for every arm at every step; the judge, given the request's text and the case's name, said
+  determined three times. Found by the operator replaying the test on a stopped tree; the only such call in the forty
+  tests. The line is guarded by `reached(36)`, the kit's idiom for a later request's route; nothing else changes. The
+  stopped trees (plain-1, lite-1, full-1) try 35 again from their `main` at 34.
+
 ## Decided by the maintainer before registration (14 November)
 
 The maintainer accepted checkpoint 4 as written, the edits to tests 2, 21 and 22 with it, and the operator's
