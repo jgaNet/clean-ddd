@@ -11,7 +11,7 @@ import Fastify, {
 import fastifyCors from '@fastify/cors';
 
 import { Role } from '@SharedKernel/Domain';
-import { Application, ExecutionContext, Logger } from '@Architecture/Application';
+import { Application, ExecutionContext, Logger, UnitOfWork } from '@Architecture/Application';
 import { formatOf } from '@Architecture/Presentation/Format';
 import { InMemoryUnitOfWork } from '@Architecture/Infrastructure/UnitOfWork/InMemoryUnitOfWork';
 
@@ -30,6 +30,11 @@ export interface FastifyApplicationOptions {
    * Without one, every caller is anonymous.
    */
   authenticate?(request: FastifyRequest): Promise<void>;
+  /**
+   * Builds the unit of work each context that runs work gets, a request's and the relay's at start
+   * alike: one transaction over the application's store (ADR 47). In-memory when none is given.
+   */
+  unitOfWork?(): UnitOfWork;
 }
 
 /**
@@ -43,12 +48,22 @@ export class FastifyApplication extends Application {
   readonly logger: Logger;
   readonly apiPrefix: string;
   readonly port: number;
+  readonly #unitOfWork: () => UnitOfWork;
+  readonly #onStop: (() => Promise<void> | void)[] = [];
 
-  constructor({ logger, apiPrefix, port = 0, webOrigins = [], authenticate }: FastifyApplicationOptions) {
+  constructor({
+    logger,
+    apiPrefix,
+    port = 0,
+    webOrigins = [],
+    authenticate,
+    unitOfWork = () => new InMemoryUnitOfWork(),
+  }: FastifyApplicationOptions) {
     super();
     this.logger = logger;
     this.apiPrefix = apiPrefix;
     this.port = port;
+    this.#unitOfWork = unitOfWork;
     this.fastify = Fastify({ logger: false });
 
     // Anonymous until the authentication says otherwise; without one, anonymous throughout.
@@ -137,9 +152,15 @@ export class FastifyApplication extends Application {
       traceId,
       auth,
       eventBus: this.getEventBus(),
-      unitOfWork: new InMemoryUnitOfWork(),
+      unitOfWork: this.#unitOfWork(),
       logger: this.logger,
     });
+  }
+
+  /** What `stop()` closes after the server: the composition root's database, a pool, a client of an outside system. */
+  onStop(hook: () => Promise<void> | void): this {
+    this.#onStop.push(hook);
+    return this;
   }
   async start(port: number = this.port): Promise<void> {
     await this.fastify.listen({ port, host: '127.0.0.1' });
@@ -149,6 +170,7 @@ export class FastifyApplication extends Application {
 
   async stop(): Promise<void> {
     await this.fastify.close();
+    for (const hook of this.#onStop) await hook();
   }
 
   get address(): string {

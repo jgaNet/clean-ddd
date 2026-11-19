@@ -96,7 +96,7 @@ describe('yarn architecture create', () => {
     });
     expect(pkg.devDependencies['clean-ddd']).toMatch(/^\^\d+\.\d+\.\d+/);
     // jest.config.js, copied verbatim, loads dotenv; the helpers tsconfig asks for come from tslib.
-    expect(Object.keys(pkg.dependencies)).toEqual(['uuid', 'dotenv', 'tslib', 'fastify', '@fastify/cors']);
+    expect(Object.keys(pkg.dependencies)).toEqual(['uuid', 'dotenv', 'tslib', 'fastify', '@fastify/cors', 'pg']);
     expect(pkg.scripts['start:dev']).toContain('src/Bootstrap/Fastify/application.ts');
     expect(pkg.devDependencies.tsx).toBeDefined();
   });

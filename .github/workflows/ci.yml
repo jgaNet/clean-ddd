@@ -131,6 +131,19 @@ jobs:
     defaults:
       run:
         working-directory: typescript
+    # The suites that need PostgreSQL (the unit of work and the outbox over it, the application
+    # restarted on its database; ADR 47) run against this server, each on a database of its own
+    # that it drops; without TEST_POSTGRES they are skipped, and say so.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_POSTGRES: postgresql://postgres@127.0.0.1:5432
     steps:
       - name: Checkout
         uses: actions/checkout@v4
