@@ -363,9 +363,23 @@ footer { position: relative; padding: 1.5rem; overflow: hidden; background: radi
 <p>Les demandes 51 à 100 rejouées, sur un arbre nu et un arbre Clean DDD, avec chaque règle trouvée par J5 écrite dès la première demande et l’arbre Clean DDD réparti entre un agent par contexte : les deux arbres ont atteint cent ; ce que ça a coûté, où ils ont échoué, et ce que la répartition a apporté.</p>
 <dl class="findings">
 <dt>Ce qu’elle a trouvé</dt><dd>Les deux l’ont fait. L’arbre nu a été 3,7 fois moins cher et a livré plus au premier échelon. Les trois échecs restants étaient dans la spécification (une forme, un null, l’heure), aucun sur une frontière ; un agent par contexte a été sûr et n’a rien apporté de mesurable.</dd>
-<dt>Ce qui reste à faire</dt><dd>La même question hors échantillon, avec un profil Clean DDD allégé, et le coût d’un changement qu’aucune demande n’annonce.</dd>
+<dt>Ce qu’elle a laissé ouvert</dt><dd>La même question hors échantillon, avec un profil Clean DDD allégé, et le coût d’un changement qu’aucune demande n’annonce.</dd>
 </dl>
 <p class="meta">par <a href="https://exostic.com/" target="_blank" rel="noopener">Jérémy Gay</a> · <a href="openstay-to-a-hundred.fr.html">Lire l’article</a></p>
+</article>
+</li>
+<li class="step">
+<div class="marker" aria-hidden="true"><span>5</span></div>
+<article class="post">
+<p class="dates"><span class="stage">Étape 5 · Hors échantillon</span> · <time datetime="2026-11-19">publié le 19 novembre 2026</time></p>
+<p class="question">Sur une application sur laquelle aucun bras n’a été réglé, avec des changements que personne n’annonce, l’architecture achète-t-elle la correction, et se rembourse-t-elle au changement ?</p>
+<h3><a href="tally.fr.html">Trois bras sur Tally : ce que l’architecture achète, et ce qu’elle coûte</a></h3>
+<p>Neuf applications écrites par des agents, trois architectures (nu, Lite, Full), quarante demandes sur lesquelles aucune n’avait été réglée, quatre changements annoncés à personne, des tests cachés qui exigent concurrence et durabilité : chaque arbre a tout livré ; ce que l’architecture a acheté, ce qu’elle a coûté, et ce qu’elle a appris à la référence.</p>
+<dl class="findings">
+<dt>Ce qu’elle a trouvé</dt><dd>Ni l’un ni l’autre, à quarante demandes. Les 360 demandes ont été livrées, dans chaque bras, surtout par le plus petit modèle. Ce que l’architecture a changé, c’est la nature des erreurs : les arbres nus ont oublié des règles portées d’une demande à l’autre, les arbres structurés ont échoué sur la mécanique. Full a coûté 2,4 fois le bras nu par arbre et ses changements ont coûté plus ; Lite a convergé vers Full à 95 % de son prix.</dd>
+<dt>Ce qui reste à faire</dt><dd>Si la structure paie sur une application plus grande ou des changements plus transversaux ; que faire de Lite ; une lecture par quelqu’un d’autre que l’opérateur.</dd>
+</dl>
+<p class="meta">par <a href="https://exostic.com/" target="_blank" rel="noopener">Jérémy Gay</a> · <a href="tally.fr.html">Lire l’article</a></p>
 </article>
 </li>
 </ol>

@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trois bras sur Tally : ce que l’architecture achète, et ce qu’elle coûte</title>
+<meta name="description" content="Neuf applications écrites par des agents, trois architectures (nu, Lite, Full), quarante demandes sur lesquelles aucune n’avait été réglée, quatre changements annoncés à personne, des tests cachés qui exigent concurrence et durabilité : chaque arbre a tout livré ; ce que l’architecture a acheté, ce qu’elle a coûté, et ce qu’elle a appris à la référence.">
+<meta property="og:title" content="Trois bras sur Tally : ce que l’architecture achète, et ce qu’elle coûte">
+<meta property="og:description" content="Neuf applications écrites par des agents, trois architectures (nu, Lite, Full), quarante demandes sur lesquelles aucune n’avait été réglée, quatre changements annoncés à personne, des tests cachés qui exigent concurrence et durabilité : chaque arbre a tout livré ; ce que l’architecture a acheté, ce qu’elle a coûté, et ce qu’elle a appris à la référence.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://jganet.github.io/clean-ddd/tally.fr.html">
+<link rel="alternate" hreflang="en" href="https://jganet.github.io/clean-ddd/tally.html">
+<link rel="alternate" hreflang="fr" href="https://jganet.github.io/clean-ddd/tally.fr.html">
+<meta property="og:image" content="https://jganet.github.io/clean-ddd/assets/img/open-graph.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('assets/fonts/inter-latin-wght-normal.woff2') format('woff2-variations');
+}
+:root {
+  color-scheme: dark;
+  --page: #0b012e;
+  --surface-1: rgba(51, 51, 51, 0.2);
+  --text-primary: rgb(229 236 246);
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --grid: rgba(255, 255, 255, 0.08);
+  --axis: #475569;
+  --border: rgba(255, 255, 255, 0.1);
+  --link: #f472b6;
+  --series-1: #3987e5;
+  --series-2: #ff5211;
+  --series-3: #199e70;
+  --series-4: #eda100;
+  --good: #34d399;
+  --critical: #fb7185;
+  --gradient-text: linear-gradient(to right, #ff5211, #e43b7d, #b08ae6);
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font: 17px/1.6 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+main { max-width: 760px; margin: 0 auto; padding: 48px 16px 96px; }
+header.title { margin-bottom: 40px; }
+.home { margin: 0 0 24px; font-size: 1rem; display: flex; justify-content: space-between; align-items: center; }
+.lang-switch { display: inline-flex; align-items: center; padding: 0.375rem 0.5rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; line-height: 1; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 0.25rem; color: #fff; text-decoration: none; }
+.lang-switch:hover { border-color: #fff; }
+.home a { font-weight: 800; letter-spacing: -0.04em; text-decoration: none; background: var(--gradient-text); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.home a:hover { opacity: 0.85; }
+.crumbs { display: inline-flex; align-items: center; gap: 0.5rem; }
+.crumbs span { color: var(--text-muted); }
+.crumbs a + span + a { font-weight: 500; letter-spacing: -0.01em; background: none; color: var(--text-secondary); }
+.crumbs a + span + a:hover { color: var(--text-primary); opacity: 1; }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.05em; }
+.dek { color: var(--text-secondary); font-size: 1.15rem; margin: 0 0 16px; }
+.byline { color: var(--text-muted); font-size: 0.9rem; }
+h2 { font-size: 1.4rem; margin: 56px 0 12px; line-height: 1.3; }
+h3 { font-size: 1.1rem; margin: 32px 0 8px; }
+p, li { color: var(--text-primary); }
+a { color: var(--link); }
+code { font: 0.88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--surface-1); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+blockquote { margin: 24px 0; padding: 4px 0 4px 16px; border-left: 3px solid var(--axis); color: var(--text-secondary); }
+.answer { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; margin: 24px 0; }
+.answer p { margin: 8px 0; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 24px 0; }
+.stat { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.stat .figure { font-size: 1.7rem; font-weight: 600; line-height: 1.2; }
+.stat .what { color: var(--text-secondary); font-size: 0.85rem; }
+figure.chart { margin: 28px 0 8px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 16px 8px; }
+figure.chart figcaption { font-weight: 600; margin-bottom: 8px; }
+figure.chart .plot { overflow-x: auto; }
+figure.chart .swipe { display: none; color: var(--text-muted); font-size: 0.8rem; margin: 0 0 6px; }
+@media (max-width: 640px) { figure.chart .swipe { display: block; } }
+figure.chart .plot svg { width: 100%; min-width: 600px; height: auto; display: block; overflow: visible; }
+.legend svg { flex: none; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 4px; }
+.legend .key { display: inline-flex; align-items: center; gap: 6px; }
+svg .grid { stroke: var(--grid); stroke-width: 1; }
+svg .axis { stroke: var(--axis); stroke-width: 1; }
+svg .tick { fill: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+svg .label { fill: var(--text-secondary); font-size: 13px; }
+svg .value { fill: var(--text-primary); font-size: 13px; font-variant-numeric: tabular-nums; }
+svg .dot { stroke: var(--page); stroke-width: 2; cursor: default; }
+svg .bar { cursor: default; }
+svg .dot:hover, svg .dot:focus, svg .bar:hover, svg .bar:focus { opacity: 0.8; outline: none; }
+.note { color: var(--text-muted); font-size: 0.85rem; margin: 4px 0 24px; }
+details.table-view { margin: 4px 0 24px; font-size: 0.9rem; }
+details.table-view summary { color: var(--text-muted); cursor: pointer; }
+table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 0.9rem; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+th { color: var(--text-secondary); font-weight: 600; }
+.scroll { overflow-x: auto; }
+.pass { color: var(--good); }
+.fail { color: var(--critical); }
+#tip { position: fixed; pointer-events: none; background: #1a1040; color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 0.85rem; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12); display: none; max-width: 320px; z-index: 10; }
+footer { margin-top: 64px; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--grid); padding-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+
+<header class="title">
+<p class="home"><span class="crumbs"><a href="./">← CLEAN-DDD</a><span aria-hidden="true">·</span><a href="articles.html">Les articles</a></span><a class="lang-switch" href="tally.html" hreflang="en" lang="en" aria-label="English version">EN</a></p>
+<h1>Trois bras sur Tally : ce que l’architecture achète, et ce qu’elle coûte</h1>
+<p class="dek">On répète depuis trente ans qu’une bonne architecture coûte au début et rapporte ensuite. On le répète, on le mesure rarement, parce que l’expérience est hors de prix : la même application écrite plusieurs fois, dans plusieurs formes, par des équipes comparables, puis changée sous les mêmes demandes. Les agents de code la rendent abordable. J6 l’a menée : neuf applications écrites par des agents, trois architectures, quarante demandes sur lesquelles aucune n’avait été réglée, 360 livraisons, 301,44 $.</p>
+<p class="byline">19 novembre 2026 · Les expériences <a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> · Chaque chiffre ci-dessous est copié du <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/tally-run-2026-11-17.md">compte rendu du run</a>, lu contre <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/registration.md">les bandes enregistrées avant lui</a>.</p>
+</header>
+
+<div class="answer">
+<p><strong>La réponse courte.</strong> Chaque arbre a livré les quarante demandes : 360 sur 360, dans chaque bras.</p>
+<ul>
+<li><strong>L’architecture n’a pas acheté la correction.</strong> Le plus petit modèle a livré du premier coup 96 % des demandes du bras nu, 96 % de celles de Lite et 91 % de celles de Full. Un arbre plat de 7 000 lignes et un arbre Full de 20 000 ont fini au même endroit.</li>
+<li><strong>Elle a changé la nature des erreurs.</strong> Les arbres nus ont échoué, systématiquement, sur une règle portée depuis une demande antérieure ; les arbres structurés jamais. Ils ont échoué sur la mécanique : un redémarrage, un déplacement du stockage, un audit déplacé avec une fusion.</li>
+<li><strong>Elle s’est payée, et ne s’était pas remboursée à la demande 40.</strong> Full a coûté 2,4 fois le bras nu par arbre (45,51 $ contre 19,05 $, médianes), et les quatre changements que personne n’annonçait lui ont coûté plus, pas moins.</li>
+<li><strong>Lite n’a pas trouvé sa place.</strong> Il a convergé vers la forme de Full en quelques demandes et coûté 95 % de Full par demande livrée, avec les mêmes erreurs et plus de régressions.</li>
+</ul>
+<p>D’où venait la question : <a href="openstay-to-a-hundred.fr.html">OpenStay jusqu’à cent</a> ; avant lui, <a href="openstay.fr.html">OpenStay</a>, <a href="four-more-experiments.fr.html">quatre expériences de plus</a> et <a href="article.fr.html">le contrôle</a>.</p>
+</div>
+
+<h2>Le protocole</h2>
+<p><a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/README.md">Le protocole</a> et <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/registration.md">son enregistrement</a> ont été écrits, et les hypothèses avec leurs bandes de lecture commitées, avant tout run. Personne ne pouvait déplacer la ligne d’arrivée après la course.</p>
+<ul>
+<li><strong>Une application, Tally :</strong> un groupe de personnes qui partagent des dépenses. Des groupes, un grand livre, des soldes, des règlements en espèces ou par un prestataire de paiement, des devises, des dépenses récurrentes, des reçus, un audit, la fusion de groupes, la suppression d’un compte. Son domaine n’apparaît dans aucun guide des bras, et ses demandes ont été écrites après leurs règles : aucun bras n’a été réglé sur l’examen qu’il passait (<a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/app/README.md">le kit</a>).</li>
+<li><strong>Quarante demandes,</strong> livrées une à une dans l’ordre, chacune avec son fragment d’API et, pour les bras structurés, un <em>event storm</em> du modèle attendu. Chacune a ses tests cachés, écrits et relus avant le run, que l’agent ne voit jamais ; ils exigent dès le premier carnet de la concurrence (vingt dépenses envoyées à deux serveurs en même temps) et de la durabilité (un serveur tué entre un commit et une publication). Quatre demandes, 10, 20, 30 et 40, sont des changements annoncés à personne : un reste de division attribué autrement, un départ avec un solde, SQLite vers PostgreSQL, une précision monétaire qui change.</li>
+<li><strong>Trois bras,</strong> au sens des essais cliniques (<em>arm</em> en anglais) : trois groupes, chacun recevant un traitement et un seul, comparés entre eux ; le traitement est l’architecture donnée à l’agent, et tout le reste est identique. <strong>Nu</strong> : un projet TypeScript ordinaire et un guide, tenu par ses propres vérifications. <strong>Full</strong> : une application créée par <code>clean-ddd create</code>, avec ses contextes bornés, ses agrégats, son outbox transactionnelle, ses événements d’intégration, ses ports possédés et son câblage en données, tenue par un gate qui refuse une livraison hors du contrat. <strong>Lite</strong> : les frontières de Full sans la cérémonie à l’intérieur d’un contexte ; des cas d’usage comme fonctions pures, et l’agrégat, l’outbox ou la réaction amenés seulement quand un déclencheur l’exige.</li>
+<li><strong>Trois arbres par bras,</strong> neuf en tout, trois à la fois sur une machine. Chaque demande est tentée d’abord par le plus petit modèle, puis par le suivant quand les tests cachés échouent, puis par le plus fort. Même échelle, même juge, mêmes budgets, mêmes amendements du kit pour chaque bras.</li>
+</ul>
+
+<h2 id="correctness">L’architecture n’a pas acheté la correction</h2>
+<p>Les neuf arbres ont livré les quarante demandes. Aucun arbre ne s’est arrêté : les deux arrêts que le juge avait prononcés étaient des défauts du kit, trouvés en rejouant le test fautif sur la branche de l’arbre, et révoqués pour chaque bras.</p>
+<p>Plus frappant : le plus petit modèle, avec un bon kit, a livré presque tout dans chaque arbre. Un arbre nu d’environ 7 000 lignes de source et un arbre Full d’environ 20 000 ont fini au même endroit. À cette taille, la structure n’est pas ce qui fait réussir un agent, et c’est la première chose que la référence doit cesser de laisser entendre.</p>
+
+<h2 id="errors">Elle a changé la nature des erreurs</h2>
+<p>Les échecs ne se ressemblent pas.</p>
+<ul>
+<li><strong>Les arbres nus ont échoué sur les mêmes demandes, pour la même raison :</strong> une règle posée par une demande antérieure et oubliée par une demande postérieure. La demande 18 (un paiement en attente compte comme payé) a mené deux arbres sur trois jusqu’au plus fort modèle ; la demande 23 (un membre parti met fin à la dépense récurrente) a fait monter les trois d’un échelon. Ce sont des erreurs de logique métier, celles qu’un client trouve en production.</li>
+<li><strong>Les six arbres Lite et Full ont passé 18 et 23 au premier échelon.</strong> Leurs échecs sont ailleurs, dispersés, et portent sur la mécanique : la durabilité à travers un redémarrage (17, 24), le passage à PostgreSQL (30), un audit déplacé avec une fusion (31). Ce sont des erreurs qu’un test attrape.</li>
+</ul>
+<p>C’est la promesse mesurable que J6 met au jour, et elle pourrait devenir l’argument central de la référence : <strong>la structure déplace les erreurs de la logique, où un client les trouve, vers la mécanique, où un test les trouve.</strong> Avec la réserve que les comptes sont petits et qu’un seul lecteur, l’opérateur, les a classés.</p>
+
+<h2 id="cost">Elle s’est payée, et ne s’était pas remboursée à la demande 40</h2>
+<figure class="chart" id="chart-tally-cost"><figcaption>Tally : coût compté par arbre sur les quarante demandes, trois arbres par bras</figcaption><p class="swipe">Faites glisser latéralement pour voir tout le graphique ; le tableau dessous donne chaque valeur.</p><div class="plot"><svg viewBox="0 0 720 174" role="img" aria-label="Tally : coût compté par arbre sur les quarante demandes, trois arbres par bras"><line x1="190" x2="190" y1="8" y2="148" class="grid"/><text x="190" y="166" class="tick" text-anchor="middle">0 $</text><line x1="295" x2="295" y1="8" y2="148" class="grid"/><text x="295" y="166" class="tick" text-anchor="middle">15 $</text><line x1="400" x2="400" y1="8" y2="148" class="grid"/><text x="400" y="166" class="tick" text-anchor="middle">30 $</text><line x1="505" x2="505" y1="8" y2="148" class="grid"/><text x="505" y="166" class="tick" text-anchor="middle">45 $</text><line x1="610" x2="610" y1="8" y2="148" class="grid"/><text x="610" y="166" class="tick" text-anchor="middle">60 $</text><g><text x="176" y="38" class="label" text-anchor="end">Nu</text>
+<line x1="303.33000000000004" x2="338.67999999999995" y1="34" y2="34" stroke="var(--series-2)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="303.33000000000004" cy="34" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="plain-1: 16,19 $"/><circle cx="323.35" cy="34" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="plain-2: 19,05 $"/><circle cx="338.67999999999995" cy="34" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="plain-3: 21,24 $"/>
+<text x="620" y="38" class="value">16,19 $–21,24</text></g><g><text x="176" y="82" class="label" text-anchor="end">Lite</text>
+<line x1="396.15" x2="442.35" y1="78" y2="78" stroke="var(--series-4)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="401.12" cy="78" r="5.5" fill="var(--series-4)" class="dot" tabindex="0" data-tip="lite-1: 30,16 $"/><circle cx="396.15" cy="78" r="5.5" fill="var(--series-4)" class="dot" tabindex="0" data-tip="lite-2: 29,45 $"/><circle cx="442.35" cy="78" r="5.5" fill="var(--series-4)" class="dot" tabindex="0" data-tip="lite-3: 36,05 $"/>
+<text x="620" y="82" class="value">29,45 $–36,05</text></g><g><text x="176" y="126" class="label" text-anchor="end">Full</text>
+<line x1="412.18" x2="547.0699999999999" y1="122" y2="122" stroke="var(--series-1)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="508.57" cy="122" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="full-1: 45,51 $"/><circle cx="412.18" cy="122" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="full-2: 31,74 $"/><circle cx="547.0699999999999" cy="122" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="full-3: 51,01 $"/>
+<text x="620" y="126" class="value">31,74 $–51,01</text></g></svg></div></figure>
+<details class="table-view"><summary>Tally : chaque arbre sur les quarante demandes — tableau</summary><table><thead><tr><th>Arbre</th><th>Livrées</th><th>Escalades (demande : modèle)</th><th>Régressions réelles</th><th>Coût compté</th><th>Coût total</th></tr></thead><tbody><tr><td>plain-1</td><td>40</td><td>18 opus, 23 sonnet</td><td>–</td><td>16,19 $</td><td>22,32 $</td></tr><tr><td>plain-2</td><td>40</td><td>18, 23 sonnet</td><td>–</td><td>19,05 $</td><td>20,83 $</td></tr><tr><td>plain-3</td><td>40</td><td>23 sonnet</td><td>–</td><td>21,24 $</td><td>21,24 $</td></tr><tr><td>lite-1</td><td>40</td><td>17 sonnet</td><td>–</td><td>30,16 $</td><td>38,20 $</td></tr><tr><td>lite-2</td><td>40</td><td>30 sonnet</td><td>30</td><td>29,45 $</td><td>29,45 $</td></tr><tr><td>lite-3</td><td>40</td><td>18, 24, 33 sonnet</td><td>18, 33</td><td>36,05 $</td><td>38,80 $</td></tr><tr><td>full-1</td><td>40</td><td>1, 24, 30, 35, 40 sonnet</td><td>30</td><td>45,51 $</td><td>47,30 $</td></tr><tr><td>full-2</td><td>40</td><td>17 opus, 33 sonnet</td><td>–</td><td>31,74 $</td><td>31,74 $</td></tr><tr><td>full-3</td><td>40</td><td>1, 35 sonnet; 30, 31 opus</td><td>–</td><td>51,01 $</td><td>51,55 $</td></tr></tbody></table></details>
+<p class="note">Le coût compté par arbre met de côté les tentatives qu’un défaut du kit a annulées ; le compte rendu donne les deux. Une escalade est une demande que le plus petit modèle n’a pas livrée, avec le modèle qui l’a fait.</p>
+<ul>
+<li><strong>Par arbre,</strong> la médiane du bras nu est de 19,05 $ (16,19 $ à 21,24 $), celle de Lite de 30,16 $ (29,45 $ à 36,05 $), celle de Full de 45,51 $ (31,74 $ à 51,01 $).</li>
+<li><strong>L’écart se resserre à mesure que l’application grandit, et ne s’inverse jamais.</strong> Le rapport nu/Full passe de 1 pour 7 au premier carnet à 1 pour 2,1 au quatrième. Les pentes du coût par demande ne sont pas plus plates côté Full : deux de ses trois arbres montent plus vite que le plus raide des arbres nus.</li>
+</ul>
+<figure class="chart" id="chart-tally-checkpoints"><figcaption>Tally : coût moyen par demande à chaque carnet, chaque tentative comptée, par bras</figcaption><div class="legend"><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-2)"/></svg>Nu</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-4)"/></svg>Lite</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-1)"/></svg>Full</span></div><p class="swipe">Faites glisser latéralement pour voir tout le graphique ; le tableau dessous donne chaque valeur.</p><div class="plot"><svg viewBox="0 0 720 258" role="img" aria-label="Tally : coût moyen par demande à chaque carnet, chaque tentative comptée, par bras"><line x1="48" x2="708" y1="216" y2="216" class="axis"/><text x="40" y="220" class="tick" text-anchor="end">0 $</text><line x1="48" x2="708" y1="166" y2="166" class="grid"/><text x="40" y="170" class="tick" text-anchor="end">0,5 $</text><line x1="48" x2="708" y1="116" y2="116" class="grid"/><text x="40" y="120" class="tick" text-anchor="end">1 $</text><line x1="48" x2="708" y1="66" y2="66" class="grid"/><text x="40" y="70" class="tick" text-anchor="end">1,5 $</text><line x1="48" x2="708" y1="16" y2="16" class="grid"/><text x="40" y="20" class="tick" text-anchor="end">2 $</text><path d="M95.5,216 V211 Q95.5,207 99.5,207 H113.5 Q117.5,207 117.5,211 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="Nu · Demandes 1–10: 0,09 $"/><path d="M119.5,216 V180 Q119.5,176 123.5,176 H137.5 Q141.5,176 141.5,180 V216 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="Lite · Demandes 1–10: 0,40 $"/><path d="M143.5,216 V160 Q143.5,156 147.5,156 H161.5 Q165.5,156 165.5,160 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="Full · Demandes 1–10: 0,60 $"/><text x="130.5" y="234" class="tick" text-anchor="middle">Demandes 1–10</text><path d="M260.5,216 V193 Q260.5,189 264.5,189 H278.5 Q282.5,189 282.5,193 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="Nu · Demandes 11–20: 0,27 $"/><path d="M284.5,216 V161 Q284.5,157 288.5,157 H302.5 Q306.5,157 306.5,161 V216 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="Lite · Demandes 11–20: 0,59 $"/><path d="M308.5,216 V156 Q308.5,152 312.5,152 H326.5 Q330.5,152 330.5,156 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="Full · Demandes 11–20: 0,64 $"/><text x="295.5" y="234" class="tick" text-anchor="middle">Demandes 11–20</text><path d="M425.5,216 V143 Q425.5,139 429.5,139 H443.5 Q447.5,139 447.5,143 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="Nu · Demandes 21–30: 0,77 $"/><path d="M449.5,216 V105.00000000000001 Q449.5,101.00000000000001 453.5,101.00000000000001 H467.5 Q471.5,101.00000000000001 471.5,105.00000000000001 V216 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="Lite · Demandes 21–30: 1,15 $"/><path d="M473.5,216 V80 Q473.5,76 477.5,76 H491.5 Q495.5,76 495.5,80 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="Full · Demandes 21–30: 1,40 $"/><text x="460.5" y="234" class="tick" text-anchor="middle">Demandes 21–30</text><path d="M590.5,216 V144 Q590.5,140 594.5,140 H608.5 Q612.5,140 612.5,144 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="Nu · Demandes 31–40: 0,76 $"/><path d="M614.5,216 V114 Q614.5,110 618.5,110 H632.5 Q636.5,110 636.5,114 V216 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="Lite · Demandes 31–40: 1,06 $"/><path d="M638.5,216 V57 Q638.5,53 642.5,53 H656.5 Q660.5,53 660.5,57 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="Full · Demandes 31–40: 1,63 $"/><text x="625.5" y="234" class="tick" text-anchor="middle">Demandes 31–40</text></svg></div></figure>
+<p>Les changements que personne n’annonçait tranchent plus net. L’hypothèse enregistrée disait que la structure paie au moment du changement. Elle a coûté plus cher :</p>
+<figure class="chart" id="chart-tally-change"><figcaption>Tally : les quatre changements annoncés à personne, coût moyen par arbre, par bras</figcaption><div class="legend"><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-2)"/></svg>Nu</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-4)"/></svg>Lite</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-1)"/></svg>Full</span></div><p class="swipe">Faites glisser latéralement pour voir tout le graphique ; le tableau dessous donne chaque valeur.</p><div class="plot"><svg viewBox="0 0 720 258" role="img" aria-label="Tally : les quatre changements annoncés à personne, coût moyen par arbre, par bras"><line x1="48" x2="708" y1="216" y2="216" class="axis"/><text x="40" y="220" class="tick" text-anchor="end">0 $</text><line x1="48" x2="708" y1="166" y2="166" class="grid"/><text x="40" y="170" class="tick" text-anchor="end">2 $</text><line x1="48" x2="708" y1="116" y2="116" class="grid"/><text x="40" y="120" class="tick" text-anchor="end">4 $</text><line x1="48" x2="708" y1="66" y2="66" class="grid"/><text x="40" y="70" class="tick" text-anchor="end">6 $</text><line x1="48" x2="708" y1="16" y2="16" class="grid"/><text x="40" y="20" class="tick" text-anchor="end">8 $</text><path d="M95.5,216 V216 Q95.5,213.25 98.25,213.25 H114.75 Q117.5,213.25 117.5,216 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="Nu · 10, le reste: 0,11 $"/><path d="M119.5,216 V216 Q119.5,214 121.5,214 H139.5 Q141.5,214 141.5,216 V216 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="Lite · 10, le reste: 0,08 $"/><path d="M143.5,216 V216 Q143.5,215.25 144.25,215.25 H164.75 Q165.5,215.25 165.5,216 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="Full · 10, le reste: 0,03 $"/><text x="130.5" y="234" class="tick" text-anchor="middle">10, le reste</text><path d="M260.5,216 V210.75 Q260.5,206.75 264.5,206.75 H278.5 Q282.5,206.75 282.5,210.75 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="Nu · 20, partir avec un solde: 0,37 $"/><path d="M284.5,216 V200 Q284.5,196 288.5,196 H302.5 Q306.5,196 306.5,200 V216 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="Lite · 20, partir avec un solde: 0,80 $"/><path d="M308.5,216 V200.75 Q308.5,196.75 312.5,196.75 H326.5 Q330.5,196.75 330.5,200.75 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="Full · 20, partir avec un solde: 0,77 $"/><text x="295.5" y="234" class="tick" text-anchor="middle">20, partir avec un solde</text><path d="M425.5,216 V154 Q425.5,150 429.5,150 H443.5 Q447.5,150 447.5,154 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="Nu · 30, PostgreSQL: 2,64 $"/><path d="M449.5,216 V142 Q449.5,138 453.5,138 H467.5 Q471.5,138 471.5,142 V216 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="Lite · 30, PostgreSQL: 3,12 $"/><path d="M473.5,216 V67.75 Q473.5,63.75 477.5,63.75 H491.5 Q495.5,63.75 495.5,67.75 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="Full · 30, PostgreSQL: 6,09 $"/><text x="460.5" y="234" class="tick" text-anchor="middle">30, PostgreSQL</text><path d="M590.5,216 V206 Q590.5,202 594.5,202 H608.5 Q612.5,202 612.5,206 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="Nu · 40, la précision monétaire: 0,56 $"/><path d="M614.5,216 V200 Q614.5,196 618.5,196 H632.5 Q636.5,196 636.5,200 V216 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="Lite · 40, la précision monétaire: 0,80 $"/><path d="M638.5,216 V189.25 Q638.5,185.25 642.5,185.25 H656.5 Q660.5,185.25 660.5,189.25 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="Full · 40, la précision monétaire: 1,23 $"/><text x="625.5" y="234" class="tick" text-anchor="middle">40, la précision monétaire</text></svg></div></figure>
+<details class="table-view"><summary>Tally : les changements annoncés à personne, coût moyen par arbre et l’échelon auquel chaque bras a livré — tableau</summary><table><thead><tr><th>Changement</th><th>Nu</th><th>Lite</th><th>Full</th></tr></thead><tbody><tr><td>10, le reste</td><td>0,11 $</td><td>0,08 $</td><td>0,03 $</td></tr><tr><td>20, partir avec un solde</td><td>0,37 $</td><td>0,80 $</td><td>0,77 $</td></tr><tr><td>30, PostgreSQL</td><td>2,64 $</td><td>3,12 $ (un arbre à l’échelon 1)</td><td>6,09 $ (un arbre à l’échelon 2)</td></tr><tr><td>40, la précision monétaire</td><td>0,56 $</td><td>0,80 $</td><td>1,23 $ (un arbre à l’échelon 1)</td></tr></tbody></table></details>
+<ul>
+<li><strong>La demande 30, le passage à PostgreSQL,</strong> a coûté à Full 6,09 $ par arbre en moyenne contre 2,64 $ au bras nu ; les trois arbres nus l’ont passée au premier échelon, Full une fois au premier, une fois au deuxième et une fois au troisième.</li>
+<li><strong>La demande 40, la précision monétaire,</strong> 1,23 $ contre 0,56 $ ; la demande 20, 0,77 $ contre 0,37 $.</li>
+</ul>
+<p>Sur ce kit et à cette taille, l’hypothèse n’est pas confirmée. Soit elle est fausse, soit elle demande une application plus grande ou des changements plus transversaux que ceux-ci. Dans les deux cas, la référence devrait cesser de l’affirmer sans cette réserve. Une prudence de plus : l’écart entre deux arbres d’un même bras (Full va de 31,74 $ à 51,01 $) est aussi large que l’écart entre bras. Trois arbres par bras donnent une direction, pas un verdict.</p>
+
+<h2 id="lite">Lite n’a pas trouvé sa place</h2>
+<p>Lite devait être un Full allégé, qui n’amène l’agrégat et l’outbox que lorsque la pression l’exige. Sur Tally, la pression arrive à la demande 5. Les déclencheurs ont tiré presque aussitôt, et les trois arbres Lite ont convergé vers la forme de Full en quelques demandes : 12 ou 13 agrégats, comme Full, et 14 000 à 16 000 lignes de source contre 20 000 pour Full.</p>
+<ul>
+<li><strong>Il a coûté 95 % de Full par demande livrée</strong> (0,60 $ contre 0,63 $, médianes des arbres), avec des étendues qui se chevauchent, la même signature d’erreurs et plus de régressions réelles (3 contre 1). La bande enregistrée disait Lite « supporté » à 0,6 fois Full sans chevauchement ; elle se lit <em>non supporté</em>, et la tendance ne va pas vers elle.</li>
+<li><strong>Il a une qualité propre :</strong> c’est le bras le plus stable, sans un seul recours au plus fort modèle en 120 demandes livrées.</li>
+</ul>
+<p>Deux voies restent : abandonner Lite comme profil et le garder comme porte d’entrée (commencer par des cas d’usage ; le gate dit quand l’agrégat est dû), ou le redéfinir avec un déclencheur qui tire bien plus tard. Tel qu’il est, ce sont deux profils qui mesurent une seule chose. La décision appartient au mainteneur, avec le compte rendu pour preuve.</p>
+
+<h2 id="bench">Ce que le run a coûté à l’examen lui-même</h2>
+<p>Un protocole honnête rend compte de ses propres défauts. Les arbres en ont trouvé 2 dans le kit : la demande 18 nommait un intervalle seulement dans la prose de la demande 1, et le test caché de la demande 35 appelait une route que la demande 36 introduit. Les deux ont été diagnostiqués par rejeu, amendés pour chaque bras, et les tentatives mises de côté portent une mention <code>revoked</code> dans les journaux. Une règle du harnais a été amendée : un agent qui lit le texte de sa propre demande ne triche pas. 4 redémarrages de conteneur ont été absorbés, une course sur les créneaux corrigée, et le disque s’est rempli deux fois de bases de test que les arbres avaient laissées derrière eux, 1 600 en une heure.</p>
+<p>Le tout pour 301,44 $ dépensés, 280,41 $ comptés, sur les 1 800 $ que les plans autorisaient.</p>
+
+<h2 id="reference">Ce qui en est sorti pour clean-ddd</h2>
+<p>Les échecs communs à Lite et Full pointaient trois absences du squelette, pas trois décisions d’architecture :</p>
+<ul>
+<li><strong>Aucun test ne tuait et ne redémarrait le serveur :</strong> rien ne tenait la promesse de l’outbox à travers un crash avant la demande 17.</li>
+<li><strong>Aucun adaptateur PostgreSQL,</strong> ni unité de travail qui donne aux adaptateurs la connexion de la transaction et un verrou par clé pour une règle qui traverse plusieurs agrégats. La demande 30 a coûté à Full 6,09 $ contre 2,64 $ au bras nu.</li>
+<li><strong>Aucun helper de test</strong> qui crée et supprime sa propre base.</li>
+</ul>
+<p>Les trois ont été ajoutés dans les deux jours, dans les building blocks, avec <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/adr/0047-the-building-blocks-carry-a-database-and-a-restart-is-tested.md">une décision</a> qui dit d’où ils viennent.</p>
+<p><strong>En une phrase :</strong> clean-ddd tient sa promesse de modèle, les règles sont portées d’une demande à l’autre et les erreurs deviennent mécaniques et testables ; il ne tient pas encore sa promesse économique, à quarante demandes la structure coûte plus du double et les changements n’ont pas été moins chers. La version suivante devrait affirmer la première, borner la seconde, décider du sort de Lite, et a déjà comblé les trois trous.</p>
+
+<h2>Ce que ceci ne montre toujours pas</h2>
+<ul>
+<li><strong>Un seul kit, trois arbres par bras, un seul modèle au premier échelon.</strong> L’opérateur était l’unique lecteur des notations et l’auteur du kit.</li>
+<li><strong>Pas de suite de chaos, pas de lecture indépendante de la maintenabilité, pas de mesure des décisions de Lite :</strong> ces scores ont été rayés pour Tally.</li>
+<li><strong>Une cellule du tableau.</strong> Ce que J6 établit vaut pour une application de dépenses partagées de quarante demandes, écrite par des agents sur une échelle à trois échelons. Il dit laquelle. Le reste du tableau attend d’autres runs.</li>
+</ul>
+
+<h2>Le reproduire</h2>
+<ul>
+<li><a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/README.md">Le protocole</a>, <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/registration.md">l’enregistrement</a> et <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/app/README.md">le kit</a> : les quarante demandes, leurs fragments d’API, leurs storms et leurs tests cachés ;</li>
+<li><a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/tally-run-2026-11-17.md">le compte rendu</a>, carnet par carnet, chaque amendement daté ;</li>
+<li>les neuf arbres et leurs journaux, dans <a href="https://github.com/jgaNet/tally">le dépôt de Tally</a> (<code>trees/&lt;arbre&gt;</code>, <code>logs/&lt;arbre&gt;</code>).</li>
+</ul>
+<p>Les chiffres de cette page sont copiés du compte rendu dans <a href="https://github.com/jgaNet/clean-ddd/blob/main/site/tally.mjs">site/tally.mjs</a>.</p>
+
+<footer>clean-ddd · expériences menées et rédigées avec un assistant IA. Les corrections sont bienvenues, en issue sur le dépôt.</footer>
+
+</main>
+<div id="tip" role="tooltip"></div>
+<script>
+// One tooltip for every mark: the value first, from the mark's data-tip, set as text (never as HTML).
+const tip = document.getElementById('tip');
+const show = (mark, x, y) => {
+  tip.textContent = mark.getAttribute('data-tip');
+  tip.style.display = 'block';
+  const width = tip.offsetWidth;
+  tip.style.left = Math.min(x + 12, window.innerWidth - width - 8) + 'px';
+  tip.style.top = (y + 14) + 'px';
+};
+const hide = () => { tip.style.display = 'none'; };
+document.querySelectorAll('[data-tip]').forEach(mark => {
+  mark.addEventListener('pointermove', event => show(mark, event.clientX, event.clientY));
+  mark.addEventListener('pointerleave', hide);
+  mark.addEventListener('focus', () => { const box = mark.getBoundingClientRect(); show(mark, box.right, box.top); });
+  mark.addEventListener('blur', hide);
+});
+</script>
+</body>
+</html>

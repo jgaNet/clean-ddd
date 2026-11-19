@@ -17,9 +17,11 @@ import * as control from './article/control/index.mjs';
 import * as extensions from './article/extensions/index.mjs';
 import * as openstay from './article/openstay/index.mjs';
 import * as j5b from './article/j5b/index.mjs';
+import * as tallyArticle from './article/tally/index.mjs';
 import { ARMS, bars, dotRange, groupedColumns, legend, setLanguage, table } from './charts.mjs';
 import { figures, mean, quotes, span as spanIn, verifyQuotes } from './figures.mjs';
 import { openstay as O } from './openstay.mjs';
+import { median, tally as T } from './tally.mjs';
 import { page } from './page.mjs';
 
 const here = new URL('.', import.meta.url).pathname;
@@ -354,6 +356,47 @@ function render(language) {
         note: `${tree.atStep[0]} ${t('of 50 at the first step', 'sur 50 au premier échelon')}`,
       })),
     }),
+    tallyCost: dotRange({
+      id: 'chart-tally-cost',
+      title: t(
+        'Tally: cost counted per tree over the forty requests, three trees an arm',
+        'Tally : coût compté par arbre sur les quarante demandes, trois arbres par bras',
+      ),
+      unit: '',
+      prefix: '$',
+      digits: 2,
+      rows: ['S', 'L', 'F'].map(arm => ({
+        arm,
+        values: T.trees.filter(tree => tree.arm === arm).map(tree => ({ label: tree.tree, value: tree.counted })),
+      })),
+    }),
+    tallyCheckpoints: groupedColumns({
+      id: 'chart-tally-checkpoints',
+      title: t(
+        'Tally: mean cost per request at each checkpoint, every attempt counted, per arm',
+        'Tally : coût moyen par demande à chaque carnet, chaque tentative comptée, par bras',
+      ),
+      unit: '',
+      prefix: '$',
+      digits: 2,
+      categories: t(
+        ['Requests 1–10', 'Requests 11–20', 'Requests 21–30', 'Requests 31–40'],
+        ['Demandes 1–10', 'Demandes 11–20', 'Demandes 21–30', 'Demandes 31–40'],
+      ),
+      series: ['S', 'L', 'F'].map(arm => ({ arm, values: T.arms[arm].checkpoints })),
+    }),
+    tallyChange: groupedColumns({
+      id: 'chart-tally-change',
+      title: t(
+        'Tally: the four changes announced to nobody, mean cost per tree, per arm',
+        'Tally : les quatre changements annoncés à personne, coût moyen par arbre, par bras',
+      ),
+      unit: '',
+      prefix: '$',
+      digits: 2,
+      categories: T.changes.map(c => `${c.n}, ${t(c.en, c.fr)}`),
+      series: ['S', 'L', 'F'].map(arm => ({ arm, values: T.changes.map(c => c[arm]) })),
+    }),
     openstayCost: dotRange({
       id: 'chart-openstay-cost',
       title: t(
@@ -687,6 +730,29 @@ function render(language) {
     ]),
   );
 
+  tables.tallyTrees = table(
+    t('Tally: each tree over the forty requests', 'Tally : chaque arbre sur les quarante demandes'),
+    t(
+      ['Tree', 'Delivered', 'Escalations (request: model)', 'Real regressions', 'Cost, counted', 'Cost, in all'],
+      ['Arbre', 'Livrées', 'Escalades (demande : modèle)', 'Régressions réelles', 'Coût compté', 'Coût total'],
+    ),
+    T.trees.map(tree => [tree.tree, 40, tree.escalations, tree.regressions, usd(tree.counted), usd(tree.inAll)]),
+  );
+  tables.tallyChange = table(
+    t(
+      'Tally: the changes announced to nobody, mean cost per tree and the step each arm delivered at',
+      'Tally : les changements annoncés à personne, coût moyen par arbre et l’échelon auquel chaque bras a livré',
+    ),
+    t(['Change', 'Plain', 'Lite', 'Full'], ['Changement', 'Nu', 'Lite', 'Full']),
+    T.changes.map(c => [
+      `${c.n}, ${t(c.en, c.fr)}`,
+      ...['S', 'L', 'F'].map(
+        arm =>
+          `${usd(c[arm])}${c.steps[arm] ? ` (${t('a tree at step', 'un arbre à l’échelon')} ${c.steps[arm]})` : ''}`,
+      ),
+    ]),
+  );
+
   const readingRows = reading.rows
     .map(
       ([arm, run, lenient, strict]) =>
@@ -701,6 +767,7 @@ function render(language) {
     'where-the-architecture-should-pay': extensions,
     openstay,
     'openstay-to-a-hundred': j5b,
+    'three-arms-on-tally': tallyArticle,
   };
   const other =
     language === 'en'
@@ -717,6 +784,7 @@ function render(language) {
       ['extensions', 'where-the-architecture-should-pay'],
       ['openstay', 'openstay'],
       ['j5b', 'openstay-to-a-hundred'],
+      ['tally', 'three-arms-on-tally'],
     ].map(([name, slug]) => [name, articles.find(article => article.slug === slug)[language].file]),
   );
   const shared = {
@@ -727,6 +795,8 @@ function render(language) {
     f8,
     X,
     O,
+    T,
+    median,
     charts,
     tables,
     legend,

@@ -135,7 +135,7 @@ ${tables.j5bGrading}
 
 <h2>What this still does not show</h2>
 <ul>
-<li><strong>Out of sample.</strong> Every rule was written after seeing these requests fail. The next campaign runs three arms (plain, a lighter Clean DDD profile, and the full one) on an application written before any run, which no rule was tuned on (${link('docs/evaluations/benchmark/three-arms/README.md', 'its protocol')}).</li>
+<li><strong>Out of sample.</strong> Every rule was written after seeing these requests fail. The next campaign runs three arms (plain, a lighter Clean DDD profile, and the full one) on an application written before any run, which no rule was tuned on (${link('docs/evaluations/benchmark/three-arms/README.md', 'its protocol')}); it has run since: <a href="${hrefs.tally}">three arms on Tally</a>.</li>
 <li><strong>Variance.</strong> One tree per arm; in J5, trees of one arm stopped 13 requests apart.</li>
 <li><strong>Whether the structure pays on change.</strong> No change was unannounced in requests 51 to 100.</li>
 <li><strong>Independence.</strong> One person designed the architecture, the benchmark and the repairs, with an AI assistant that also ran the bench and, for one night, judged clean-3's second failure as the maintainer had delegated it.</li>

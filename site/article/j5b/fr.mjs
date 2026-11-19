@@ -137,7 +137,7 @@ ${tables.j5bGrading}
 
 <h2>Ce que cela ne montre toujours pas</h2>
 <ul>
-<li><strong>Hors échantillon.</strong> Chaque règle a été écrite après avoir vu ces demandes échouer. La prochaine campagne fait tourner trois bras (nu, un profil Clean DDD allégé, et le complet) sur une application écrite avant tout essai, sur laquelle aucune règle n’a été réglée (${link('docs/evaluations/benchmark/three-arms/README.md', 'son protocole')}).</li>
+<li><strong>Hors échantillon.</strong> Chaque règle a été écrite après avoir vu ces demandes échouer. La prochaine campagne fait tourner trois bras (nu, un profil Clean DDD allégé, et le complet) sur une application écrite avant tout essai, sur laquelle aucune règle n’a été réglée (${link('docs/evaluations/benchmark/three-arms/README.md', 'son protocole')}) ; elle a eu lieu depuis : <a href="${hrefs.tally}">trois bras sur Tally</a>.</li>
 <li><strong>La variance.</strong> Un arbre par bras ; dans J5, des arbres d’un même bras se sont arrêtés à 13 demandes d’écart.</li>
 <li><strong>Si la structure paie au changement.</strong> Aucun changement n’est arrivé sans annonce dans les demandes 51 à 100.</li>
 <li><strong>L’indépendance.</strong> Une seule personne a conçu l’architecture, le benchmark et les réparations, avec un assistant IA qui a aussi fait tourner le banc et, une nuit, jugé le second échec de clean-3, comme le mainteneur le lui avait délégué.</li>

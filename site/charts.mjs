@@ -11,6 +11,10 @@ export const ARMS = {
   P: { name: 'P — plain project', slot: 2 },
   D: { name: 'D — architecture, no tool', slot: 3 },
   Cp: { name: 'C′ — fan-out by context', slot: 4 },
+  // J6's three arms on Tally: the plain project keeps P's colour, Full keeps A's (the architecture with its tool).
+  S: { name: 'Plain', slot: 2 },
+  L: { name: 'Lite', slot: 4 },
+  F: { name: 'Full', slot: 1 },
 };
 
 /** The words a chart carries itself, in each language the article is written in. */
@@ -21,6 +25,9 @@ const TEXT = {
       P: 'P — plain project',
       D: 'D — architecture, no tool',
       Cp: 'C′ — fan-out by context',
+      S: 'Plain',
+      L: 'Lite',
+      F: 'Full',
     },
     swipe: 'Swipe sideways to see the whole chart; the table below holds every value.',
     table: 'table',
@@ -32,6 +39,9 @@ const TEXT = {
       P: 'P — projet nu',
       D: 'D — architecture, sans outil',
       Cp: 'C′ — répartition par contexte',
+      S: 'Nu',
+      L: 'Lite',
+      F: 'Full',
     },
     swipe: 'Faites glisser latéralement pour voir tout le graphique ; le tableau dessous donne chaque valeur.',
     table: 'tableau',
