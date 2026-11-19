@@ -118,6 +118,35 @@ export const articles = [
       left: 'La même question hors échantillon, avec un profil Clean DDD allégé, et le coût d’un changement qu’aucune demande n’annonce.',
     },
   },
+  {
+    slug: 'three-arms-on-tally',
+    author: { name: 'Jérémy Gay', url: 'https://exostic.com/' },
+    published: '2026-11-19',
+    en: {
+      file: 'tally.html',
+      title: 'Three arms on Tally: what the architecture buys, and what it costs',
+      description:
+        'Nine agent-built applications, three architectures (plain, Lite, Full), forty requests none was tuned on, four changes announced to nobody, hidden tests that demand concurrency and durability: every tree delivered everything; what the architecture bought, what it cost, and what it taught the reference.',
+      step: 'Out of sample',
+      question:
+        'On an application no arm was tuned on, with changes nobody announced, does the architecture buy correctness, and does it pay back on change?',
+      found:
+        'Neither, at forty requests. All 360 requests were delivered, in every arm, mostly by the smallest model. What the architecture changed is the kind of error: the plain trees forgot rules carried across requests, the structured trees failed on mechanics instead. Full cost 2.4 times the plain arm per tree and its changes cost more; Lite converged on Full at 95% of its price.',
+      left: 'Whether structure pays on a larger application or on more transversal changes; what to do with Lite; a reading by someone other than the operator.',
+    },
+    fr: {
+      file: 'tally.fr.html',
+      title: 'Trois bras sur Tally : ce que l’architecture achète, et ce qu’elle coûte',
+      description:
+        'Neuf applications écrites par des agents, trois architectures (nu, Lite, Full), quarante demandes sur lesquelles aucune n’avait été réglée, quatre changements annoncés à personne, des tests cachés qui exigent concurrence et durabilité : chaque arbre a tout livré ; ce que l’architecture a acheté, ce qu’elle a coûté, et ce qu’elle a appris à la référence.',
+      step: 'Hors échantillon',
+      question:
+        'Sur une application sur laquelle aucun bras n’a été réglé, avec des changements que personne n’annonce, l’architecture achète-t-elle la correction, et se rembourse-t-elle au changement ?',
+      found:
+        'Ni l’un ni l’autre, à quarante demandes. Les 360 demandes ont été livrées, dans chaque bras, surtout par le plus petit modèle. Ce que l’architecture a changé, c’est la nature des erreurs : les arbres nus ont oublié des règles portées d’une demande à l’autre, les arbres structurés ont échoué sur la mécanique. Full a coûté 2,4 fois le bras nu par arbre et ses changements ont coûté plus ; Lite a convergé vers Full à 95 % de son prix.',
+      left: 'Si la structure paie sur une application plus grande ou des changements plus transversaux ; que faire de Lite ; une lecture par quelqu’un d’autre que l’opérateur.',
+    },
+  },
 ];
 
 /** A day, written for a language: `30 October 2026`, `30 octobre 2026`. */

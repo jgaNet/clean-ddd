@@ -50,5 +50,6 @@ Short notes on the choices a newcomer is most likely to question. Each one says 
 | [0044](0044-integration-events-are-a-published-language-declared-once.md) | Integration events are a published language, declared once, versioned, and held in every language |
 | [0045](0045-a-created-application-holds-its-api-as-data.md) | A created application holds its API as data, and its end-to-end tests hold every answer to it |
 | [0046](0046-a-rule-is-a-named-unit-with-its-origin-and-its-evidence.md) | A rule is a named unit: declared once by the name of its refusal, with its origin, and held to the exception and the test that are its evidence |
+| [0047](0047-the-building-blocks-carry-a-database-and-a-restart-is-tested.md) | The building blocks carry a PostgreSQL unit of work and outbox, the application started from them restarts on its database, and a test holds the outbox's promise across that restart |
 
 To add one: copy the shape of an existing record (Context, Decision, Consequences, When to revisit), number it, and link it from this table and from the README where the rule is stated.

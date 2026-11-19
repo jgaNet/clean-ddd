@@ -363,9 +363,23 @@ footer { position: relative; padding: 1.5rem; overflow: hidden; background: radi
 <p>Requests 51 to 100 again, on one plain tree and one Clean DDD tree, with every rule J5 had found written down from the first request and the Clean DDD tree split between one agent per context: both trees reached a hundred; what it cost, where they failed, and what the split bought.</p>
 <dl class="findings">
 <dt>What it found</dt><dd>Both did. The plain tree was 3.7 times cheaper and delivered more at the first step. The three failures left were at the specification (a shape, a null, the time), none at a boundary; one agent per context was safe and bought nothing measurable.</dd>
-<dt>What is still to do</dt><dd>The same question out of sample, with a lighter Clean DDD profile, and the cost of a change no request announced.</dd>
+<dt>What it left open</dt><dd>The same question out of sample, with a lighter Clean DDD profile, and the cost of a change no request announced.</dd>
 </dl>
 <p class="meta">by <a href="https://exostic.com/" target="_blank" rel="noopener">Jérémy Gay</a> · <a href="../openstay-to-a-hundred.html">Read the article</a></p>
+</article>
+</li>
+<li class="step">
+<div class="marker" aria-hidden="true"><span>5</span></div>
+<article class="post">
+<p class="dates"><span class="stage">Step 5 · Out of sample</span> · <time datetime="2026-11-19">published 19 November 2026</time></p>
+<p class="question">On an application no arm was tuned on, with changes nobody announced, does the architecture buy correctness, and does it pay back on change?</p>
+<h3><a href="../tally.html">Three arms on Tally: what the architecture buys, and what it costs</a></h3>
+<p>Nine agent-built applications, three architectures (plain, Lite, Full), forty requests none was tuned on, four changes announced to nobody, hidden tests that demand concurrency and durability: every tree delivered everything; what the architecture bought, what it cost, and what it taught the reference.</p>
+<dl class="findings">
+<dt>What it found</dt><dd>Neither, at forty requests. All 360 requests were delivered, in every arm, mostly by the smallest model. What the architecture changed is the kind of error: the plain trees forgot rules carried across requests, the structured trees failed on mechanics instead. Full cost 2.4 times the plain arm per tree and its changes cost more; Lite converged on Full at 95% of its price.</dd>
+<dt>What is still to do</dt><dd>Whether structure pays on a larger application or on more transversal changes; what to do with Lite; a reading by someone other than the operator.</dd>
+</dl>
+<p class="meta">by <a href="https://exostic.com/" target="_blank" rel="noopener">Jérémy Gay</a> · <a href="../tally.html">Read the article</a></p>
 </article>
 </li>
 </ol>

@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Three arms on Tally: what the architecture buys, and what it costs</title>
+<meta name="description" content="Nine agent-built applications, three architectures (plain, Lite, Full), forty requests none was tuned on, four changes announced to nobody, hidden tests that demand concurrency and durability: every tree delivered everything; what the architecture bought, what it cost, and what it taught the reference.">
+<meta property="og:title" content="Three arms on Tally: what the architecture buys, and what it costs">
+<meta property="og:description" content="Nine agent-built applications, three architectures (plain, Lite, Full), forty requests none was tuned on, four changes announced to nobody, hidden tests that demand concurrency and durability: every tree delivered everything; what the architecture bought, what it cost, and what it taught the reference.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://jganet.github.io/clean-ddd/tally.html">
+<link rel="alternate" hreflang="en" href="https://jganet.github.io/clean-ddd/tally.html">
+<link rel="alternate" hreflang="fr" href="https://jganet.github.io/clean-ddd/tally.fr.html">
+<meta property="og:image" content="https://jganet.github.io/clean-ddd/assets/img/open-graph.en.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('assets/fonts/inter-latin-wght-normal.woff2') format('woff2-variations');
+}
+:root {
+  color-scheme: dark;
+  --page: #0b012e;
+  --surface-1: rgba(51, 51, 51, 0.2);
+  --text-primary: rgb(229 236 246);
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --grid: rgba(255, 255, 255, 0.08);
+  --axis: #475569;
+  --border: rgba(255, 255, 255, 0.1);
+  --link: #f472b6;
+  --series-1: #3987e5;
+  --series-2: #ff5211;
+  --series-3: #199e70;
+  --series-4: #eda100;
+  --good: #34d399;
+  --critical: #fb7185;
+  --gradient-text: linear-gradient(to right, #ff5211, #e43b7d, #b08ae6);
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font: 17px/1.6 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+main { max-width: 760px; margin: 0 auto; padding: 48px 16px 96px; }
+header.title { margin-bottom: 40px; }
+.home { margin: 0 0 24px; font-size: 1rem; display: flex; justify-content: space-between; align-items: center; }
+.lang-switch { display: inline-flex; align-items: center; padding: 0.375rem 0.5rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; line-height: 1; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 0.25rem; color: #fff; text-decoration: none; }
+.lang-switch:hover { border-color: #fff; }
+.home a { font-weight: 800; letter-spacing: -0.04em; text-decoration: none; background: var(--gradient-text); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.home a:hover { opacity: 0.85; }
+.crumbs { display: inline-flex; align-items: center; gap: 0.5rem; }
+.crumbs span { color: var(--text-muted); }
+.crumbs a + span + a { font-weight: 500; letter-spacing: -0.01em; background: none; color: var(--text-secondary); }
+.crumbs a + span + a:hover { color: var(--text-primary); opacity: 1; }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.05em; }
+.dek { color: var(--text-secondary); font-size: 1.15rem; margin: 0 0 16px; }
+.byline { color: var(--text-muted); font-size: 0.9rem; }
+h2 { font-size: 1.4rem; margin: 56px 0 12px; line-height: 1.3; }
+h3 { font-size: 1.1rem; margin: 32px 0 8px; }
+p, li { color: var(--text-primary); }
+a { color: var(--link); }
+code { font: 0.88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--surface-1); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+blockquote { margin: 24px 0; padding: 4px 0 4px 16px; border-left: 3px solid var(--axis); color: var(--text-secondary); }
+.answer { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; margin: 24px 0; }
+.answer p { margin: 8px 0; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 24px 0; }
+.stat { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.stat .figure { font-size: 1.7rem; font-weight: 600; line-height: 1.2; }
+.stat .what { color: var(--text-secondary); font-size: 0.85rem; }
+figure.chart { margin: 28px 0 8px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 16px 8px; }
+figure.chart figcaption { font-weight: 600; margin-bottom: 8px; }
+figure.chart .plot { overflow-x: auto; }
+figure.chart .swipe { display: none; color: var(--text-muted); font-size: 0.8rem; margin: 0 0 6px; }
+@media (max-width: 640px) { figure.chart .swipe { display: block; } }
+figure.chart .plot svg { width: 100%; min-width: 600px; height: auto; display: block; overflow: visible; }
+.legend svg { flex: none; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 4px; }
+.legend .key { display: inline-flex; align-items: center; gap: 6px; }
+svg .grid { stroke: var(--grid); stroke-width: 1; }
+svg .axis { stroke: var(--axis); stroke-width: 1; }
+svg .tick { fill: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+svg .label { fill: var(--text-secondary); font-size: 13px; }
+svg .value { fill: var(--text-primary); font-size: 13px; font-variant-numeric: tabular-nums; }
+svg .dot { stroke: var(--page); stroke-width: 2; cursor: default; }
+svg .bar { cursor: default; }
+svg .dot:hover, svg .dot:focus, svg .bar:hover, svg .bar:focus { opacity: 0.8; outline: none; }
+.note { color: var(--text-muted); font-size: 0.85rem; margin: 4px 0 24px; }
+details.table-view { margin: 4px 0 24px; font-size: 0.9rem; }
+details.table-view summary { color: var(--text-muted); cursor: pointer; }
+table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 0.9rem; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+th { color: var(--text-secondary); font-weight: 600; }
+.scroll { overflow-x: auto; }
+.pass { color: var(--good); }
+.fail { color: var(--critical); }
+#tip { position: fixed; pointer-events: none; background: #1a1040; color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 0.85rem; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12); display: none; max-width: 320px; z-index: 10; }
+footer { margin-top: 64px; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--grid); padding-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+
+<header class="title">
+<p class="home"><span class="crumbs"><a href="en/">← CLEAN-DDD</a><span aria-hidden="true">·</span><a href="en/articles.html">The articles</a></span><a class="lang-switch" href="tally.fr.html" hreflang="fr" lang="fr" aria-label="Version française">FR</a></p>
+<h1>Three arms on Tally: what the architecture buys, and what it costs</h1>
+<p class="dek">For thirty years we have said that a good architecture costs at first and pays later. We say it; we rarely measure it, because the experiment is out of reach: the same application written several times, in several shapes, by comparable teams, then changed under the same requests. Coding agents make it affordable. J6 ran it: nine agent-built applications, three architectures, forty requests none of them was tuned on, 360 deliveries, $301.44.</p>
+<p class="byline">19 November 2026 · The <a href="https://github.com/jgaNet/clean-ddd">clean-ddd</a> experiments · Every number below is copied from <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/tally-run-2026-11-17.md">the run's record</a>, read against <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/registration.md">the bands registered before it</a>.</p>
+</header>
+
+<div class="answer">
+<p><strong>The short answer.</strong> Every tree delivered the forty requests: 360 of 360, in every arm.</p>
+<ul>
+<li><strong>The architecture did not buy correctness.</strong> The smallest model delivered 96% of the plain arm's requests at the first step, 96% of Lite's and 91% of Full's. A flat tree of 7,000 lines and a Full tree of 20,000 ended in the same place.</li>
+<li><strong>It changed the kind of error.</strong> The plain trees failed, systematically, on a rule carried from an earlier request; the structured trees never did. They failed on mechanics instead: a restart, a move of the storage, an audit moved with a merge.</li>
+<li><strong>It was paid for, and had not paid back by request 40.</strong> Full cost 2.4 times the plain arm per tree ($45.51 against $19.05, medians), and the four changes nobody announced cost it more, not less.</li>
+<li><strong>Lite did not find its place.</strong> It converged on Full's shape within a few requests and cost 95% of Full per delivered request, with the same errors and more regressions.</li>
+</ul>
+<p>Where the question came from is <a href="openstay-to-a-hundred.html">OpenStay to a hundred</a>; before it, <a href="openstay.html">OpenStay</a>, <a href="four-more-experiments.html">four more experiments</a> and <a href="article.html">the control</a>.</p>
+</div>
+
+<h2>The protocol</h2>
+<p><a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/README.md">The protocol</a> and <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/registration.md">its registration</a> were written, and the hypotheses with their bands of reading committed, before any run. Nobody could move the finish line after the race.</p>
+<ul>
+<li><strong>One application, Tally:</strong> a group of people sharing expenses. Groups, a ledger, balances, settlements in cash or through a payment provider, currencies, recurring expenses, receipts, an audit, merging groups, deleting an account. Its domain is in none of the arms' guides, and its requests were written after their rules: no arm was tuned on the exam it sat (<a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/app/README.md">the kit</a>).</li>
+<li><strong>Forty requests,</strong> delivered one at a time in order, each with its API fragment and, for the structured arms, an event storm of the expected model. Each has its hidden tests, written and reviewed before the run, which the agent never sees; they demand concurrency (twenty expenses sent to two servers at once) and durability (a server killed between a commit and a publication) from the first checkpoint. Four requests, 10, 20, 30 and 40, are changes announced to nobody: a remainder split otherwise, leaving with a balance, SQLite to PostgreSQL, a currency precision that changes.</li>
+<li><strong>Three arms,</strong> in the clinical sense: three groups, each given one treatment and compared to the others; the treatment is the architecture the agent is handed, and everything else is the same. <strong>Plain</strong>: an ordinary TypeScript project and a guide, held by its own checks. <strong>Full</strong>: an application <code>clean-ddd create</code> made, with its bounded contexts, aggregates, transactional outbox, integration events, owned ports and wiring as data, held by a gate that refuses a delivery outside the contract. <strong>Lite</strong>: Full's boundaries without the ceremony inside a context; use cases as pure functions, and the aggregate, the outbox or the reaction brought in only when a trigger calls for it.</li>
+<li><strong>Three trees an arm,</strong> nine in all, three at a time on one machine. Each request is tried first by the smallest model, then the next one up when the hidden tests fail, then the strongest. The same ladder, the same judge, the same budgets, the same kit amendments for every arm.</li>
+</ul>
+
+<h2 id="correctness">The architecture did not buy correctness</h2>
+<p>The nine trees delivered the forty requests. No tree stopped: the two stops the judge called were defects of the kit, found by replaying the failing test on the tree's own branch, and revoked for every arm.</p>
+<p>More striking: the smallest model, with a good kit, delivered almost everything in every tree. A plain tree of about 7,000 source lines and a Full tree of about 20,000 finished at the same place. At this size, structure is not what makes an agent succeed, and that is the first thing the reference must stop implying.</p>
+
+<h2 id="errors">It changed the kind of error</h2>
+<p>The failures do not look alike.</p>
+<ul>
+<li><strong>The plain trees failed on the same requests, for the same reason:</strong> a rule set by an earlier request and forgotten by a later one. Request 18 (a payment that is waiting counts as paid) took two trees of three up to the strongest model; request 23 (a member who left ends the recurring expense) took all three up a step. These are errors of business logic, the kind a client finds in production.</li>
+<li><strong>The six Lite and Full trees passed 18 and 23 at the first step.</strong> Their failures are elsewhere, scattered, and about mechanics: durability across a restart (17, 24), the move to PostgreSQL (30), an audit moved with a merge (31). These are errors a test catches.</li>
+</ul>
+<p>That is the measurable promise J6 brings out, and it could become the reference's central argument: <strong>structure moves the errors from the logic, where a client finds them, to the mechanics, where a test does.</strong> With the reservation that the counts are small and that one reader, the operator, classified them.</p>
+
+<h2 id="cost">It was paid for, and had not paid back by request 40</h2>
+<figure class="chart" id="chart-tally-cost"><figcaption>Tally: cost counted per tree over the forty requests, three trees an arm</figcaption><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 174" role="img" aria-label="Tally: cost counted per tree over the forty requests, three trees an arm"><line x1="190" x2="190" y1="8" y2="148" class="grid"/><text x="190" y="166" class="tick" text-anchor="middle">$0</text><line x1="295" x2="295" y1="8" y2="148" class="grid"/><text x="295" y="166" class="tick" text-anchor="middle">$15</text><line x1="400" x2="400" y1="8" y2="148" class="grid"/><text x="400" y="166" class="tick" text-anchor="middle">$30</text><line x1="505" x2="505" y1="8" y2="148" class="grid"/><text x="505" y="166" class="tick" text-anchor="middle">$45</text><line x1="610" x2="610" y1="8" y2="148" class="grid"/><text x="610" y="166" class="tick" text-anchor="middle">$60</text><g><text x="176" y="38" class="label" text-anchor="end">Plain</text>
+<line x1="303.33000000000004" x2="338.67999999999995" y1="34" y2="34" stroke="var(--series-2)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="303.33000000000004" cy="34" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="plain-1: $16.19"/><circle cx="323.35" cy="34" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="plain-2: $19.05"/><circle cx="338.67999999999995" cy="34" r="5.5" fill="var(--series-2)" class="dot" tabindex="0" data-tip="plain-3: $21.24"/>
+<text x="620" y="38" class="value">$16.19–21.24</text></g><g><text x="176" y="82" class="label" text-anchor="end">Lite</text>
+<line x1="396.15" x2="442.35" y1="78" y2="78" stroke="var(--series-4)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="401.12" cy="78" r="5.5" fill="var(--series-4)" class="dot" tabindex="0" data-tip="lite-1: $30.16"/><circle cx="396.15" cy="78" r="5.5" fill="var(--series-4)" class="dot" tabindex="0" data-tip="lite-2: $29.45"/><circle cx="442.35" cy="78" r="5.5" fill="var(--series-4)" class="dot" tabindex="0" data-tip="lite-3: $36.05"/>
+<text x="620" y="82" class="value">$29.45–36.05</text></g><g><text x="176" y="126" class="label" text-anchor="end">Full</text>
+<line x1="412.18" x2="547.0699999999999" y1="122" y2="122" stroke="var(--series-1)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+<circle cx="508.57" cy="122" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="full-1: $45.51"/><circle cx="412.18" cy="122" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="full-2: $31.74"/><circle cx="547.0699999999999" cy="122" r="5.5" fill="var(--series-1)" class="dot" tabindex="0" data-tip="full-3: $51.01"/>
+<text x="620" y="126" class="value">$31.74–51.01</text></g></svg></div></figure>
+<details class="table-view"><summary>Tally: each tree over the forty requests — table</summary><table><thead><tr><th>Tree</th><th>Delivered</th><th>Escalations (request: model)</th><th>Real regressions</th><th>Cost, counted</th><th>Cost, in all</th></tr></thead><tbody><tr><td>plain-1</td><td>40</td><td>18 opus, 23 sonnet</td><td>–</td><td>$16.19</td><td>$22.32</td></tr><tr><td>plain-2</td><td>40</td><td>18, 23 sonnet</td><td>–</td><td>$19.05</td><td>$20.83</td></tr><tr><td>plain-3</td><td>40</td><td>23 sonnet</td><td>–</td><td>$21.24</td><td>$21.24</td></tr><tr><td>lite-1</td><td>40</td><td>17 sonnet</td><td>–</td><td>$30.16</td><td>$38.20</td></tr><tr><td>lite-2</td><td>40</td><td>30 sonnet</td><td>30</td><td>$29.45</td><td>$29.45</td></tr><tr><td>lite-3</td><td>40</td><td>18, 24, 33 sonnet</td><td>18, 33</td><td>$36.05</td><td>$38.80</td></tr><tr><td>full-1</td><td>40</td><td>1, 24, 30, 35, 40 sonnet</td><td>30</td><td>$45.51</td><td>$47.30</td></tr><tr><td>full-2</td><td>40</td><td>17 opus, 33 sonnet</td><td>–</td><td>$31.74</td><td>$31.74</td></tr><tr><td>full-3</td><td>40</td><td>1, 35 sonnet; 30, 31 opus</td><td>–</td><td>$51.01</td><td>$51.55</td></tr></tbody></table></details>
+<p class="note">The cost counted per tree sets aside the attempts a kit defect cancelled; the record gives both. An escalation is a request the smallest model did not deliver, with the model that did.</p>
+<ul>
+<li><strong>Per tree,</strong> the plain arm's median is $19.05 ($16.19 to $21.24), Lite's $30.16 ($29.45 to $36.05), Full's $45.51 ($31.74 to $51.01).</li>
+<li><strong>The gap closes as the application grows, and never inverts.</strong> The plain-to-Full ratio goes from 1 to 7 at the first checkpoint to 1 to 2.1 at the fourth. Full's slopes of cost per request are not flatter: two of its three trees climb faster than the steepest plain tree.</li>
+</ul>
+<figure class="chart" id="chart-tally-checkpoints"><figcaption>Tally: mean cost per request at each checkpoint, every attempt counted, per arm</figcaption><div class="legend"><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-2)"/></svg>Plain</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-4)"/></svg>Lite</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-1)"/></svg>Full</span></div><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 258" role="img" aria-label="Tally: mean cost per request at each checkpoint, every attempt counted, per arm"><line x1="48" x2="708" y1="216" y2="216" class="axis"/><text x="40" y="220" class="tick" text-anchor="end">$0</text><line x1="48" x2="708" y1="166" y2="166" class="grid"/><text x="40" y="170" class="tick" text-anchor="end">$0.5</text><line x1="48" x2="708" y1="116" y2="116" class="grid"/><text x="40" y="120" class="tick" text-anchor="end">$1</text><line x1="48" x2="708" y1="66" y2="66" class="grid"/><text x="40" y="70" class="tick" text-anchor="end">$1.5</text><line x1="48" x2="708" y1="16" y2="16" class="grid"/><text x="40" y="20" class="tick" text-anchor="end">$2</text><path d="M95.5,216 V211 Q95.5,207 99.5,207 H113.5 Q117.5,207 117.5,211 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="Plain · Requests 1–10: $0.09"/><path d="M119.5,216 V180 Q119.5,176 123.5,176 H137.5 Q141.5,176 141.5,180 V216 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="Lite · Requests 1–10: $0.40"/><path d="M143.5,216 V160 Q143.5,156 147.5,156 H161.5 Q165.5,156 165.5,160 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="Full · Requests 1–10: $0.60"/><text x="130.5" y="234" class="tick" text-anchor="middle">Requests 1–10</text><path d="M260.5,216 V193 Q260.5,189 264.5,189 H278.5 Q282.5,189 282.5,193 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="Plain · Requests 11–20: $0.27"/><path d="M284.5,216 V161 Q284.5,157 288.5,157 H302.5 Q306.5,157 306.5,161 V216 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="Lite · Requests 11–20: $0.59"/><path d="M308.5,216 V156 Q308.5,152 312.5,152 H326.5 Q330.5,152 330.5,156 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="Full · Requests 11–20: $0.64"/><text x="295.5" y="234" class="tick" text-anchor="middle">Requests 11–20</text><path d="M425.5,216 V143 Q425.5,139 429.5,139 H443.5 Q447.5,139 447.5,143 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="Plain · Requests 21–30: $0.77"/><path d="M449.5,216 V105.00000000000001 Q449.5,101.00000000000001 453.5,101.00000000000001 H467.5 Q471.5,101.00000000000001 471.5,105.00000000000001 V216 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="Lite · Requests 21–30: $1.15"/><path d="M473.5,216 V80 Q473.5,76 477.5,76 H491.5 Q495.5,76 495.5,80 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="Full · Requests 21–30: $1.40"/><text x="460.5" y="234" class="tick" text-anchor="middle">Requests 21–30</text><path d="M590.5,216 V144 Q590.5,140 594.5,140 H608.5 Q612.5,140 612.5,144 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="Plain · Requests 31–40: $0.76"/><path d="M614.5,216 V114 Q614.5,110 618.5,110 H632.5 Q636.5,110 636.5,114 V216 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="Lite · Requests 31–40: $1.06"/><path d="M638.5,216 V57 Q638.5,53 642.5,53 H656.5 Q660.5,53 660.5,57 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="Full · Requests 31–40: $1.63"/><text x="625.5" y="234" class="tick" text-anchor="middle">Requests 31–40</text></svg></div></figure>
+<p>The changes nobody announced cut sharper. The registered hypothesis said structure pays at the moment of change. It cost more:</p>
+<figure class="chart" id="chart-tally-change"><figcaption>Tally: the four changes announced to nobody, mean cost per tree, per arm</figcaption><div class="legend"><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-2)"/></svg>Plain</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-4)"/></svg>Lite</span><span class="key"><svg width="14" height="14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--series-1)"/></svg>Full</span></div><p class="swipe">Swipe sideways to see the whole chart; the table below holds every value.</p><div class="plot"><svg viewBox="0 0 720 258" role="img" aria-label="Tally: the four changes announced to nobody, mean cost per tree, per arm"><line x1="48" x2="708" y1="216" y2="216" class="axis"/><text x="40" y="220" class="tick" text-anchor="end">$0</text><line x1="48" x2="708" y1="166" y2="166" class="grid"/><text x="40" y="170" class="tick" text-anchor="end">$2</text><line x1="48" x2="708" y1="116" y2="116" class="grid"/><text x="40" y="120" class="tick" text-anchor="end">$4</text><line x1="48" x2="708" y1="66" y2="66" class="grid"/><text x="40" y="70" class="tick" text-anchor="end">$6</text><line x1="48" x2="708" y1="16" y2="16" class="grid"/><text x="40" y="20" class="tick" text-anchor="end">$8</text><path d="M95.5,216 V216 Q95.5,213.25 98.25,213.25 H114.75 Q117.5,213.25 117.5,216 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="Plain · 10, the remainder: $0.11"/><path d="M119.5,216 V216 Q119.5,214 121.5,214 H139.5 Q141.5,214 141.5,216 V216 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="Lite · 10, the remainder: $0.08"/><path d="M143.5,216 V216 Q143.5,215.25 144.25,215.25 H164.75 Q165.5,215.25 165.5,216 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="Full · 10, the remainder: $0.03"/><text x="130.5" y="234" class="tick" text-anchor="middle">10, the remainder</text><path d="M260.5,216 V210.75 Q260.5,206.75 264.5,206.75 H278.5 Q282.5,206.75 282.5,210.75 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="Plain · 20, leave with a balance: $0.37"/><path d="M284.5,216 V200 Q284.5,196 288.5,196 H302.5 Q306.5,196 306.5,200 V216 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="Lite · 20, leave with a balance: $0.80"/><path d="M308.5,216 V200.75 Q308.5,196.75 312.5,196.75 H326.5 Q330.5,196.75 330.5,200.75 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="Full · 20, leave with a balance: $0.77"/><text x="295.5" y="234" class="tick" text-anchor="middle">20, leave with a balance</text><path d="M425.5,216 V154 Q425.5,150 429.5,150 H443.5 Q447.5,150 447.5,154 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="Plain · 30, PostgreSQL: $2.64"/><path d="M449.5,216 V142 Q449.5,138 453.5,138 H467.5 Q471.5,138 471.5,142 V216 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="Lite · 30, PostgreSQL: $3.12"/><path d="M473.5,216 V67.75 Q473.5,63.75 477.5,63.75 H491.5 Q495.5,63.75 495.5,67.75 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="Full · 30, PostgreSQL: $6.09"/><text x="460.5" y="234" class="tick" text-anchor="middle">30, PostgreSQL</text><path d="M590.5,216 V206 Q590.5,202 594.5,202 H608.5 Q612.5,202 612.5,206 V216 Z" fill="var(--series-2)" class="bar" tabindex="0" data-tip="Plain · 40, currency precision: $0.56"/><path d="M614.5,216 V200 Q614.5,196 618.5,196 H632.5 Q636.5,196 636.5,200 V216 Z" fill="var(--series-4)" class="bar" tabindex="0" data-tip="Lite · 40, currency precision: $0.80"/><path d="M638.5,216 V189.25 Q638.5,185.25 642.5,185.25 H656.5 Q660.5,185.25 660.5,189.25 V216 Z" fill="var(--series-1)" class="bar" tabindex="0" data-tip="Full · 40, currency precision: $1.23"/><text x="625.5" y="234" class="tick" text-anchor="middle">40, currency precision</text></svg></div></figure>
+<details class="table-view"><summary>Tally: the changes announced to nobody, mean cost per tree and the step each arm delivered at — table</summary><table><thead><tr><th>Change</th><th>Plain</th><th>Lite</th><th>Full</th></tr></thead><tbody><tr><td>10, the remainder</td><td>$0.11</td><td>$0.08</td><td>$0.03</td></tr><tr><td>20, leave with a balance</td><td>$0.37</td><td>$0.80</td><td>$0.77</td></tr><tr><td>30, PostgreSQL</td><td>$2.64</td><td>$3.12 (a tree at step 1)</td><td>$6.09 (a tree at step 2)</td></tr><tr><td>40, currency precision</td><td>$0.56</td><td>$0.80</td><td>$1.23 (a tree at step 1)</td></tr></tbody></table></details>
+<ul>
+<li><strong>Request 30, the move to PostgreSQL,</strong> cost Full $6.09 a tree on average against the plain arm's $2.64; the three plain trees passed it at the first step, Full once at the first step, once at the second and once at the third.</li>
+<li><strong>Request 40, the currency precision,</strong> $1.23 against $0.56; request 20, $0.77 against $0.37.</li>
+</ul>
+<p>On this kit and at this size, the hypothesis is not confirmed. Either it is wrong, or it needs a larger application or changes more transversal than these. Either way the reference should stop asserting it without that reservation. One more caution: the spread between two trees of one arm (Full from $31.74 to $51.01) is as wide as the spread between arms. Three trees an arm give a direction, not a verdict.</p>
+
+<h2 id="lite">Lite did not find its place</h2>
+<p>Lite was to be a lighter Full, bringing the aggregate and the outbox in only when the pressure calls for them. On Tally the pressure comes at request 5. The triggers fired almost at once, and the three Lite trees converged on Full's shape within a few requests: 12 or 13 aggregates, as Full, and 14,000 to 16,000 source lines against Full's 20,000.</p>
+<ul>
+<li><strong>It cost 95% of Full per delivered request</strong> ($0.60 against $0.63, medians of the trees), with the ranges overlapping, the same signature of errors, and more real regressions (3 against 1). The registered band called Lite supported at 0.6 times Full with no overlap; it reads <em>not supported</em>, and the trend does not run toward it.</li>
+<li><strong>It has one quality of its own:</strong> it was the steadiest arm, with no recourse to the strongest model in 120 delivered requests.</li>
+</ul>
+<p>Two ways remain: drop Lite as a profile and keep it as the way in (start with use cases; the gate says when the aggregate is due), or redefine it with a trigger that fires far later. As it stands, it is two profiles measuring one thing. The decision is the maintainer's, with the record as its evidence.</p>
+
+<h2 id="bench">What the run cost the exam itself</h2>
+<p>An honest protocol reports its own defects. The trees found 2 in the kit: request 18 named an interval only in request 1's prose, and request 35's hidden test called a route that request 36 introduces. Both were diagnosed by replay, amended for every arm, and the attempts set aside carry a <code>revoked</code> mark in the logs. One rule of the harness was amended: an agent reading the text of its own request is not leaking. 4 container restarts were absorbed, a slot race fixed, and the disk filled twice with test databases the trees had left behind, 1,600 of them in an hour.</p>
+<p>All of it for $301.44 spent, $280.41 counted, of the $1,800 the plans allowed.</p>
+
+<h2 id="reference">What came out of it for clean-ddd</h2>
+<p>The failures Lite and Full shared pointed at three absences of the skeleton, not three architectural decisions:</p>
+<ul>
+<li><strong>No test killed and restarted the server:</strong> nothing held the outbox's promise across a crash before request 17.</li>
+<li><strong>No PostgreSQL adapter,</strong> nor a unit of work that gives the adapters the transaction's connection and a lock per key for a rule that spans several aggregates. Request 30 cost Full $6.09 against the plain arm's $2.64.</li>
+<li><strong>No test helper</strong> that creates and drops its own database.</li>
+</ul>
+<p>The three were added within two days, in the building blocks, with <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/adr/0047-the-building-blocks-carry-a-database-and-a-restart-is-tested.md">a decision record</a> that says where they came from.</p>
+<p><strong>In one sentence:</strong> clean-ddd keeps its promise as a model, the rules are carried from one request to the next and the errors become mechanical and testable; it does not yet keep its economic one, at forty requests the structure costs more than twice as much and the changes were not cheaper. The next version should assert the first, bound the second, decide Lite, and has already filled the three gaps.</p>
+
+<h2>What this still does not show</h2>
+<ul>
+<li><strong>One kit, three trees an arm, one model at the first step.</strong> The operator was the only reader of the gradings and the author of the kit.</li>
+<li><strong>No chaos suite, no independent reading of maintainability, no measure of Lite's decisions:</strong> those scores were struck for Tally.</li>
+<li><strong>One cell of the table.</strong> What J6 establishes holds for a shared-expenses application of forty requests, written by agents on a three-step ladder. It says which cell. The rest of the table waits for other runs.</li>
+</ul>
+
+<h2>Reproduce it</h2>
+<ul>
+<li><a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/README.md">The protocol</a>, <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/registration.md">the registration</a> and <a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/app/README.md">the kit</a>: the forty requests, their API fragments, their storms and their hidden tests;</li>
+<li><a href="https://github.com/jgaNet/clean-ddd/blob/main/docs/evaluations/benchmark/three-arms/tally-run-2026-11-17.md">the record</a>, checkpoint by checkpoint, with every amendment dated;</li>
+<li>the nine trees and their logs, in <a href="https://github.com/jgaNet/tally">Tally's own repository</a> (<code>trees/&lt;tree&gt;</code>, <code>logs/&lt;tree&gt;</code>).</li>
+</ul>
+<p>The figures on this page are copied from the record into <a href="https://github.com/jgaNet/clean-ddd/blob/main/site/tally.mjs">site/tally.mjs</a>.</p>
+
+<footer>clean-ddd · experiments run and written up with an AI assistant. Corrections welcome as issues on the repository.</footer>
+
+</main>
+<div id="tip" role="tooltip"></div>
+<script>
+// One tooltip for every mark: the value first, from the mark's data-tip, set as text (never as HTML).
+const tip = document.getElementById('tip');
+const show = (mark, x, y) => {
+  tip.textContent = mark.getAttribute('data-tip');
+  tip.style.display = 'block';
+  const width = tip.offsetWidth;
+  tip.style.left = Math.min(x + 12, window.innerWidth - width - 8) + 'px';
+  tip.style.top = (y + 14) + 'px';
+};
+const hide = () => { tip.style.display = 'none'; };
+document.querySelectorAll('[data-tip]').forEach(mark => {
+  mark.addEventListener('pointermove', event => show(mark, event.clientX, event.clientY));
+  mark.addEventListener('pointerleave', hide);
+  mark.addEventListener('focus', () => { const box = mark.getBoundingClientRect(); show(mark, box.right, box.top); });
+  mark.addEventListener('blur', hide);
+});
+</script>
+</body>
+</html>

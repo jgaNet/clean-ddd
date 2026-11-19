@@ -23,7 +23,7 @@ bootstrap: { alias: '@Bootstrap', path: src/Bootstrap }
 wiring: module.local.ts
 
 # Libraries only an adapter may see: the domain and the use cases never import them.
-libraries: [fastify, '@fastify/**', jose, bcryptjs, ws]
+libraries: [fastify, '@fastify/**', jose, bcryptjs, ws, pg]
 
 # What stands behind each enforcement word of architecture.yaml, in this language.
 enforcers:
@@ -112,8 +112,8 @@ create:
   contracts: src/SharedKernel/Application/IntegrationEvents
   manifest: package.json
   # jest.config.js, copied verbatim, loads dotenv; tsconfig asks for tslib's helpers; the transport is Fastify.
-  dependencies: [uuid, dotenv, tslib, fastify, "@fastify/cors"]
-  devDependencies: ["@jest/globals", "@types/jest", "@types/node", cross-env, eslint, jest, js-yaml, nodemon, prettier, ts-jest, tsx, typescript, typescript-eslint]
+  dependencies: [uuid, dotenv, tslib, fastify, "@fastify/cors", pg]
+  devDependencies: ["@jest/globals", "@types/jest", "@types/node", "@types/pg", cross-env, eslint, jest, js-yaml, nodemon, prettier, ts-jest, tsx, typescript, typescript-eslint]
   scripts: [start:dev, typecheck, test, test:units, test:e2e, lint, format, format:check]
   install: yarn install
   test: yarn test:units
@@ -571,8 +571,10 @@ concepts:
       - src/Architecture/Application/Outbox.ts
     examples:
       - src/Architecture/Infrastructure/Outbox/InMemoryOutbox.ts
+      - src/Architecture/Infrastructure/Postgres/PostgresOutbox.ts
       - src/Architecture/Application/DomainEvents.ts
-    example: '[`Outbox.ts`](src/Architecture/Application/Outbox.ts) (the port and `relayOutbox()`), [`InMemoryOutbox.ts`](src/Architecture/Infrastructure/Outbox/InMemoryOutbox.ts), [`DomainEvents.ts`](src/Architecture/Application/DomainEvents.ts) (appends at commit)'
+      - src/Bootstrap/Starter/createApplication.e2e.spec.ts
+    example: '[`Outbox.ts`](src/Architecture/Application/Outbox.ts) (the port and `relayOutbox()`), [`InMemoryOutbox.ts`](src/Architecture/Infrastructure/Outbox/InMemoryOutbox.ts), [`PostgresOutbox.ts`](src/Architecture/Infrastructure/Postgres/PostgresOutbox.ts) (the `outbox` table, written in the transaction), [`DomainEvents.ts`](src/Architecture/Application/DomainEvents.ts) (appends at commit); the restart suite in [`createApplication.e2e.spec.ts`](src/Bootstrap/Starter/createApplication.e2e.spec.ts) holds the promise across a restart (ADR 47)'
   awaited-operation:
     canonical:
       - src/Architecture/Application/AwaitOperation.ts
@@ -662,11 +664,16 @@ concepts:
   unit-of-work:
     canonical:
       - src/Architecture/Infrastructure/UnitOfWork/InMemoryUnitOfWork.ts
-    example: '[`InMemoryUnitOfWork.ts`](src/Architecture/Infrastructure/UnitOfWork/InMemoryUnitOfWork.ts)'
+    examples:
+      - src/Architecture/Infrastructure/Postgres/PostgresUnitOfWork.ts
+    example: '[`InMemoryUnitOfWork.ts`](src/Architecture/Infrastructure/UnitOfWork/InMemoryUnitOfWork.ts); over a database, [`PostgresUnitOfWork.ts`](src/Architecture/Infrastructure/Postgres/PostgresUnitOfWork.ts): one connection per transaction, which the adapters write through (`client`), and `lock(key)` for a rule that spans aggregates (ADR 47)'
   the-database:
     canonical:
       - src/Architecture/Infrastructure/DataSources/InMemoryDataSource.ts
-    example: '[`InMemoryDataSource.ts`](src/Architecture/Infrastructure/DataSources/InMemoryDataSource.ts)'
+    examples:
+      - src/Architecture/Infrastructure/Postgres/PostgresDatabase.ts
+      - src/Architecture/Infrastructure/Postgres/FreshDatabase.spec-helper.ts
+    example: '[`InMemoryDataSource.ts`](src/Architecture/Infrastructure/DataSources/InMemoryDataSource.ts); [`PostgresDatabase.ts`](src/Architecture/Infrastructure/Postgres/PostgresDatabase.ts) (the pool and the outbox table) with [`FreshDatabase.spec-helper.ts`](src/Architecture/Infrastructure/Postgres/FreshDatabase.spec-helper.ts), a database of a suite''s own, dropped after it (ADR 47)'
   controller:
     canonical:
       - src/Contexts/Notes/Presentation/API/REST/Controllers/FastifyNoteController.ts
