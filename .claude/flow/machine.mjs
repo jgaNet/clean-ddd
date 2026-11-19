@@ -84,7 +84,12 @@ export async function takeSlot({
         // Just made by another ladder, which writes its pid next; left empty for a minute, it was a crash.
         if (!Number.isFinite(owner) && readdirSync(slot).length === 0 && Date.now() - statSync(slot).mtimeMs < 60_000)
           continue;
-        rmSync(slot, { recursive: true, force: true });
+        try {
+          rmSync(slot, { recursive: true, force: true });
+        } catch {
+          // Filled by another ladder while it was being removed (ENOTEMPTY: three ladders resumed at once after a
+          // restart, 18 November): the slot is that ladder's now; try the next.
+        }
         continue;
       }
       try {

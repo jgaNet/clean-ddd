@@ -1025,7 +1025,10 @@ async function attempt(feature, step, from, { single = false } = {}) {
   const wallClockMs = Date.now() - begun;
   if (written.reason === 'budget') return written;
   // Void before it is judged: an attempt whose agent read or listed the kit says nothing of its model.
-  const leak = kitLeakage(transcriptsOf(cwd, begun), leakPaths);
+  // The request's own file in the kit is what the agent was given: naming it leaks nothing (the maintainer, 18 November).
+  const leak = kitLeakage(transcriptsOf(cwd, begun), leakPaths, {
+    allowed: [join(kit, 'backlog', `${feature.n}-${feature.id}.md`)],
+  });
   if (leak.void) return { reason: 'leak', cwd, wallClockMs, leak };
   if (written.reason) return { ...written, cwd, wallClockMs };
   let tests = await hidden(feature, cwd);

@@ -1,0 +1,25 @@
+# J6, Tally, tree full-1 (three-arms/registration.md, step 6, and its amendment of 17 November: the trees made again on the
+# pilot's machine, the plans beside the registration, the trees and logs pushed to jgaNet/tally). Checkpoint 1's ten requests;
+# at each checkpoint the next ten are appended to `features` and the run resumed. The paths are this machine's.
+run: j6-full-1
+arm: clean
+kit: /var/lib/cdd-frozen/r16/app
+base: main
+of: 40
+ladder: [claude-haiku-5-5, claude-sonnet-5-5, claude-opus-5-5]
+agent: { runner: claude-cli, timeoutMinutes: 90 }
+retry: { perFeature: 1 }
+budgetUsd: 200
+agentBudgetUsd: 12
+dependencies: copy
+ports: { base: 21700 }
+machine: { ladders: 3, jestCacheGb: 2 }
+gradeTimeoutMinutes: 120
+gradeWorkers: 2
+regressionCheck: { from: 2 }
+triage: { judge: claude-sonnet-5-5 }
+services: { start: /var/tmp/j6/bin/pg.sh start full-1 }
+envFile: /var/tmp/j6/env/full-1.env
+push: { remote: https://github.com/jgaNet/tally, branch: trees/full-1, logBranch: logs/full-1 }
+tooling: /var/tmp/j6/trees/full-1/vendor/clean-ddd-3.2.0.tgz
+features: [accounts, create-a-group, invite-and-join, record-an-expense, balances, edit-and-delete-an-expense, unequal-splits, history-and-statement, leave-a-group, remainder-to-the-first, suggested-settlements, settle-in-cash, pay-through-the-provider, webhooks-late-twice-out-of-order, refund-through-the-provider, payout-accounts, notices, reminders, settlement-history, leave-with-a-balance, another-currency, offered-rates, recurring-expenses, budgets, split-templates, receipts, archive-a-group, audit, statement-as-csv, postgresql, merge-groups, net-across-groups, contest-a-settlement, suspend-a-member, delete-an-account, notice-preferences, spending-insights, provider-fee, settle-in-another-currency, currency-precision]

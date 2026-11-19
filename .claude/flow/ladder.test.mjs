@@ -209,5 +209,15 @@ describe('leakage voids an attempt', () => {
     // A word that only contains it is not a path: `upgrade`, `graded`.
     const words = transcript('v', 'words', [['Bash', { command: 'git log --grep upgrade; cat graded.txt' }]]);
     assert.equal(kitLeakage([words], paths).void, false);
+    // The request's own file, given to the agent as it is, may be named (the maintainer, 18 November): an agent that
+    // lost it to a compaction and found it on the disk read nothing it had not been given. Anything else beside it voids.
+    const own = `${kit}/backlog/30-postgresql.md`;
+    const self = transcript('v', 'self', [['Bash', { command: `find / -name 30-postgresql.md; cat ${own}` }]]);
+    assert.equal(kitLeakage([self], paths, { allowed: [own] }).void, false);
+    assert.equal(kitLeakage([self], paths).void, true);
+    const beside = transcript('v', 'beside', [['Bash', { command: `cat ${own}; ls ${kit}/` }]]);
+    assert.equal(kitLeakage([beside], paths, { allowed: [own] }).void, true);
+    const other = transcript('v', 'other', [['Bash', { command: `cat ${kit}/backlog/31-merge-groups.md` }]]);
+    assert.equal(kitLeakage([other], paths, { allowed: [own] }).void, true);
   });
 });

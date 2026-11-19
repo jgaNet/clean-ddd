@@ -100,3 +100,39 @@ there changes.
 
 So the amendment lifts what stopped Lite and, at the third step, the plain tree; Full's first attempt had failures of
 its own behind the one the judge read.
+
+## The calibration resumed on the amended kit (17 November, 06:54 to 08:23): the three arms reach ten
+
+Each tree's log got a `revoked` event for `book-instantly` (the ladder's own way to set aside what the harness judged
+wrongly) and each ladder was resumed; the request was tried again from the tree's `main` at 5, and the arms went on
+to 10. **All three delivered the ten requests.**
+
+| | cal-plain | cal-lite | cal-full |
+| --- | --- | --- | --- |
+| Delivered | 10 of 10, all at step 0 | 10 of 10, all at step 0 | 10 of 10; 1, 5 and 6 at step 1 (sonnet) |
+| Escalations after the amendment | none | none | `book-instantly` (haiku: *confirms exactly one of twenty bookings … sent at once to two servers on one database*, the race the first attempt's 403 had masked) |
+| Attempts, before / after the amendment | 9 / 5 | 8 / 5 | 10 / 6 |
+| Cost, before / after / total | $2.65 / $1.27 / **$3.92** | $7.55 / $4.35 / **$11.89** | $10.63 / $4.84 / **$15.47** |
+| Of which lost on request 6 before the amendment | $2.30 | $4.73 | $4.50 |
+| Agent minutes, total | 81 | 135 | 165 |
+| Turns, median per attempt | 22 | 50 | 45 |
+| Cost per request delivered at step 0 (1 to 10) | 0.05, 0.04, 0.03, 0.11, 0.11, 0.14, 0.41, 0.24, 0.33, 0.15 | 0.69, 0.53, 0.44, 0.44, 0.71, 0.84, 1.03, 0.21, 0.88, 1.38 | –, 0.44, 0.37, 0.37, –, –, 0.92, 0.47, 0.58, 0.82 |
+
+**What the calibration shows, for what it is for.** The machine, the harness and the budgets treated the three arms
+alike: the same ladder, the same kit, the same leak scan (no attempt voided), the same timeouts (none reached), the
+same resume after a restart. Left with the kit as registered, every arm would have stopped at 6 on the test's
+wording, not on the trees; amended, every arm finished. Full's three escalations, none of which Lite or the plain tree
+needed, are real failures of haiku's first attempts in the Full tree (the body's shape refused with 400, a quote read
+by its traveller only, the two-servers race), each delivered by sonnet. On these ten requests, which are OpenStay's
+pilot kit, a plain tree costs $0.16 a request at step 0, Lite $0.72, Full $0.57 where haiku delivered — Lite is not
+cheaper than Full here, and both are three to five times the plain tree, the pilot's and J3's ratio; one tree each,
+uncounted, with the first six requests on a kit whose amendment came mid-run: the numbers say nothing of H8, which
+Tally's nine trees will.
+
+**The harness, after the run.** The ladder register's race is fixed (`c3474e6`: `register()` under a lock, written
+whole and renamed; a test registers four runs from four processes at once). Nothing is left open from this run
+before Tally but the maintainer's approval of the registration as amended, and the two operator-side points the
+amendment states: `resume.mjs` wired to a boot hook, and a push of the trees to a remote off the machine.
+
+**Cost of the calibration:** $31.28 for the three trees, of the $180 the plans allowed, $11.53 of it on request 6
+before the kit's amendment.

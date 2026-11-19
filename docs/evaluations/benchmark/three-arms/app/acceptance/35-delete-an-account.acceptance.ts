@@ -10,6 +10,7 @@ import {
   PaymentProvider,
   paymentProvider,
   Person,
+  reached,
   Running,
   start,
   stop,
@@ -115,7 +116,8 @@ describe('delete an account', () => {
   it('erases the name and the email of a deleted account from everything Tally keeps', async () => {
     const { ann, cy, flat } = await two('erased');
     await payable(api, cy, provider);
-    await api.done('PUT', '/accounts/me/notice-preferences/budget', cy.token, { enabled: false });
+    // The preference is request 36's: set, and so erased, only once 36 is reached (the maintainer, 18 November).
+    if (reached(36)) await api.done('PUT', '/accounts/me/notice-preferences/budget', cy.token, { enabled: false });
     await api.expense(ann, flat, { amount: 300, splitBetween: [ann.id, cy.id] });
     await api.cash(cy, flat, ann, 100);
     const email = cy.email;

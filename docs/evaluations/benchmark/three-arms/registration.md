@@ -1,6 +1,6 @@
 # J6's registration: Simple, Lite and Full on Tally, after the calibration
 
-**Status: proposed, for the maintainer's approval.** Nothing of J6 has run: no agent, no ladder. On 14 November the
+**Status: approved by the maintainer on 17 November, as amended below (the amendments of 16 and 17 November); the commit that carries the approval is named at the end of this file.** Nothing of J6 has run: no agent, no ladder. On 14 November the
 maintainer decided the five findings of the first proposal; this registration applies
 [those decisions](#the-maintainers-decisions-14-november) and is not approved yet. Until it is, the trees, the plans
 and the servers below are prepared and idle.
@@ -462,3 +462,36 @@ maintainer's reading of the calibration. The decisions, and what they change in 
 
 The status line of this file does not change: the calibration is a rehearsal of the harness and is not counted;
 Tally's registration stays proposed, with these amendments, for the maintainer's approval.
+
+## Amendment of 17 November: Tally's trees made again here, the registration approved
+
+After the calibration ([`calibration-run-2026-11-17.md`](calibration-run-2026-11-17.md)), the maintainer approved this
+registration as amended and decided: the budgets as registered ($200 a tree, $12 an attempt); the checkpoints'
+sessions written by the operator from [`app/storms/README.md`](app/storms/README.md) as checkpoint 1's was, each shown
+to the maintainer before it is committed, the ladders resumed within the hour; three ladders at once in the registered
+order; Tally's kit unchanged (its requests state what a non-party gets).
+
+**The nine trees, made again on this machine** (the J5b machine's are not reachable), each made, not copied, with
+fixed authors and dates, so that the three trees of an arm are the same commit:
+- `plain-1..3`: OpenStay's `created: plain` (`08b94b0`, the pilot's `simple.bundle`) named `tally` (`package.json`, the
+  guide's title) with the guide's two sections (*One rule*, *The API's shapes*): commit `83a0dec`; guide sha256
+  `6da99132f54c…`; `yarn verify` passes.
+- `lite-1..3`: `create <tree> --name tally --profile lite` (3.2.0, vendored), commit `e78bcda`; then checkpoint 1's
+  session, T1 to T5 (Groups and Ledger declared and described, the two relationships `planned`, two empty
+  `LiteModule`s registered, ADR 1), commit `4d3a85c`; the six checks and the gate pass.
+- `full-1..3`: `create <tree> --name tally` (3.2.0, vendored), commit `472f78d`; the same session as Full modules,
+  commit `96973b9`; the six checks and the gate pass; the ten storms of checkpoint 1 are legal (`storm validate`).
+- Pushed to `https://github.com/jgaNet/tally` as `trees/<tree>` before any run; each plan pushes there after every
+  delivery (`trees/<tree>`, `logs/<tree>`).
+
+**The plans**, beside this file ([`plans/tally-*.plan.yaml`](plans)): the fields of step 6 with this machine's paths
+(`/var/tmp/j6/trees/<tree>`), ports 21100 to 21900, `services: pg.sh start <tree>` (`/var/tmp/j6/bin/pg.sh`, written
+again: one PostgreSQL 16 server per tree under `/var/lib/postgresql/j6/<tree>`, ports 55481 to 55489; `full-1` started,
+took a `CREATE DATABASE`, stopped, status 3), an `envFile` per tree with `TALLY_POSTGRES` and `DATABASE_URL`, no
+`fanOut`, checkpoint 1's ten requests. sha256: tally-full-1.plan.yaml 1fd66a902c8c2a06…;tally-full-2.plan.yaml b0d9b7f04f4ba4c0…;tally-full-3.plan.yaml 05350ab2845e5c5b…;tally-lite-1.plan.yaml 45b447f4227091de…;tally-lite-2.plan.yaml da7223bbada6393e…;tally-lite-3.plan.yaml b6d217ec9c08c096…;tally-plain-1.plan.yaml 61b46241578f4f88…;tally-plain-2.plan.yaml 0119604ec55858e5…;tally-plain-3.plan.yaml 07b11fef33fb0ef4…; **The kit** is frozen at
+`/var/lib/cdd-frozen/r16/app`, byte for byte the repository's `app/` (files sha256 `09b63f4f5bd8040a…`).
+
+**The machine:** the K4 pilot's, 4 CPUs, 15 GB, 20 GB free; the harness at the branch's head (the ladder's four
+fixes, the slot race and the register's lock); `resume.mjs` run by the operator after a restart.
+
+**The commit that carries the approval:** `069c527`.
